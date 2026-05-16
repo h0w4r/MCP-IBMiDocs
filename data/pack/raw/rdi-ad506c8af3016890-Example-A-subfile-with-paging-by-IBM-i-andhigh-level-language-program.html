@@ -1,0 +1,158 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8">
+
+<meta name="dcterms.rights" content="© Copyright IBM Corporation 1999, 2008">
+
+<meta name="description" content="This example describes a combined method of paging a subfile that uses system resources efficiently.">
+<meta name="keywords" content="examples of DDS, subfile">
+<meta name="geo.country" content="ZZ">
+<script>
+    digitalData = {
+      page: {
+        pageInfo: {
+  language: "en-us",
+
+  version: "v18",
+  ibm: {
+  country: "ZZ",
+  type: "CT701"
+  
+         }
+       }
+     }
+   };
+  </script><!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="ibmdita.css">
+<link rel="stylesheet" type="text/css" href="ic.css">
+<link rel="Start" href="rbafpmstexamp.htm">
+<title>Example: A subfile with paging by IBM i and high-level language program</title>
+<!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+<script type="text/javascript" src="../../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.langref2.doc%2Fdds%2Fhllpagexamp.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="hllpagexamp">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../../nav/2_2">DDS</a> > <a href="../../../nav/2_2_0">DDS Concepts</a> > <a href="../../../topic/com.ibm.etools.iseries.langref2.doc/dds/examples.htm">Examples&#58; DDS coding</a> > <a href="../../../topic/com.ibm.etools.iseries.langref2.doc/dds/rbafpmstexamp.htm">Examples&#58; DDS for each file type</a></div>
+<main role="main"><article role="article" aria-labelledby="d8131e10">
+<h1 class="topictitle1" id="d8131e10">Example: A subfile with paging by <span class="keyword">IBM i</span> and
+high-level language program</h1>
+
+
+
+<div class="body conbody"><p class="shortdesc">This example describes a combined method of paging a subfile that
+uses system resources efficiently.</p>
+
+<p>In some applications, the number of records in the subfile
+might be quite large. However, the application user might want to view only
+the first page or two of these records. In this case, it might be faster and
+more efficient for the application program to build the subfile a page at
+a time as requested by the user. The <span class="keyword">IBM® i</span> operating
+system handles the paging of records in the subfile. It also returns a Page
+Up key indicator to the high-level language program when another page should
+be added to the end of the subfile. The application user can detect no difference
+between a page-up request handled by the <span class="keyword">IBM i</span> operating
+system and one handled by the high-level language program.</p>
+
+<pre class="pre screen"><code> 
+NAME                               DEPARTMENT     PHONE
+
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX     XXXXXXXXXX     NNNN
+
+</code></pre>
+
+<p>The following keywords are important in the example:  <div class="lines">SFLPAG<br>
+SFLSIZ</div>
+</p>
+
+<p>The SFLSIZ value is larger than the SFLPAG value. The subfile is paged
+by the SFLPAG value.</p>
+
+<figure class="fignone" id="hllpagexamp__o16"><figcaption>Figure 1. Subfile with paging by <span class="keyword">IBM i</span> operating
+system and high-level language program in DDS</figcaption>
+<pre class="codeblock"><code>|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A          R SETSFL                    SFL
+00020A  50                                  SFLNXTCHG
+00030A            NAME          30   0  5  2
+00040A            DEPT          10      5 40
+00050A            PHONE          4   0  5 58
+00060A          R SETCTL                    SFLCTL(SETSFL)
+00070A                                      SFLSIZ(0034)     <strong>(1)</strong>
+00080A                                      SFLPAG(0017)
+00090A  40                                  SFLDSP
+00100A  41                                  SFLDSPCTL
+00110A  42                                  SFLDLT
+00120A  43                                  SFLCLR
+00130A  49                                  SFLEND           <strong>(2)</strong>
+00140A N49                                  ROLLUP(26)
+00150A                                      LOCK
+00160A                                      OVERLAY
+00170A            SETRRN         4S 0H      SFLRCDNBR(CURSOR)<strong>(3)</strong>
+00180A                                  3  2'NAME'
+00190A                                  3 40'DEPARTMENT'
+00200A                                  3 58'PHONE'
+     A</code></pre>
+</figure>
+
+<p><strong>Legend:</strong></p>
+
+<dl>
+<dt class="dlterm">(1)</dt>
+
+<dd class="dlentry">The SFLSIZ value must be greater than the SFLPAG value
+so that the <span class="keyword">IBM i</span> operating
+system will handle paging within the subfile. A maximum of 9999 records can
+be stored in the subfile.</dd>
+
+
+<dt class="dlterm">(2)</dt>
+
+<dd class="dlentry">The SFLEND keyword can be specified with the ROLLUP keyword.  One indicator
+can be used to option both keywords. The application program turns on the
+indicator to disable the Page Up key and omit the plus sign (+) on the last
+subfile page when the last page of the subfile is displayed.</dd>
+
+
+<dt class="dlterm">(3)</dt>
+
+<dd class="dlentry">The SFLRCDNBR keyword should be specified so the last subfile page can
+be displayed after it is built by the high-level language program.  <p>Records
+in the subfile with changed input fields (modified data tags) will be changed
+after a new page is added to the subfile by the high-level language program.</p>
+</dd>
+
+</dl>
+
+</div>
+
+<aside role="complementary" aria-labelledby="d8131e10"><nav role="navigation">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" href="rbafpmstexamp.htm" title="You can use these examples with appropriate high-level language programs.">Examples: DDS for each file type</a></div>
+</div>
+</nav></aside></article></main></body></html>

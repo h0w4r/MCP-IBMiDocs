@@ -1,0 +1,188 @@
+References to host variables
+
+IBM i programming resources > SQL > SQL reference > Language elements > Variables > Variables
+
+IBM i programming resources > SQL > SQL reference > Language elements > Variables
+
+References to host variables
+A host variable is a COBOL data item, an RPG field,
+or a PLI, REXX,
+C++, C, or Java™ variable that
+is referenced in an SQL statement. Host variables are defined by statements
+of the host language.
+Host variables cannot be referenced in dynamic SQL statements;
+instead, parameter markers must be used. For more information on parameter
+markers, see Variables in dynamic SQL.
+A host variable in an SQL statement
+must identify a host variable described in the program according to
+the rules for declaring host variables.
+All host variables used in an SQL statement should be
+declared in an SQL declare section in all host languages other than Java, REXX, and RPG. Variables do not have to be declared
+in REXX. In Java and RPG, there is no declare
+section, and host variables may be declared throughout the program.
+No variables may be declared outside an SQL declare section with names
+identical to variables declared inside an SQL declare section. An
+SQL declare section begins with BEGIN DECLARE SECTION and ends with
+END DECLARE SECTION.
+For further information about using host variables, see
+the Embedded
+SQL programming topic.
+A variable in the INTO clause of a FETCH, a SELECT INTO,
+a SET variable, a GET DESCRIPTOR, or a VALUES INTO statement identifies
+a host variable to which a value from a result column is assigned.
+A variable in the GET DIAGNOSTICS statement identifies a host variable
+to which a diagnostic value is assigned. A host variable in a CALL
+or in an EXECUTE statement can be an output argument that is assigned
+a value after execution of the procedure, an input argument that provides
+an input value for the procedure, or both an input and output argument.
+In all other contexts a variable specifies a value to be passed to
+the database manager from the application program.
+Non-Java variable references:The general
+form of a variable reference in all languages
+other than Java is:
+:host-identifierINDICATOR:host-identifier
+Each host-identifier must
+be declared in the source program. The variable designated by the
+second host-identifier is called an indicator
+variable and must have a data type of small integer. Indicator
+variables appear in two forms: normal indicator variables and extended
+indicator variables.
+The purposes of a normal indicator variable are to:
+Specify a non-null value. A 0 (zero), or positive value of the
+indicator variable specifies that the associated, first, host-identifier provides
+the value of this host variable reference.
+Specify the null value. A negative value of the indicator variable
+specifies the null value.
+On output, indicate that one of the following numeric conversion
+errors: Numeric conversion error (underflow or overflow)
+Arithmetic expression error (division by 0)
+A numeric value that is not valid
+
+A -2 value of the indicator variable indicates a null result
+because of one of these warnings.
+On output, indicate one of the following string errors: Characters could not be converted
+Mixed data not properly formed
+
+A -2 value of the indicator variable indicates a null result
+because of one of these warnings.
+On output, indicate one of the following datetime errors: Date or timestamp conversion error (a date or timestamp that is
+not within the valid range of the dates for the specified format)
+String representation of the datetime value is not valid
+
+A -2 value of the indicator variable indicates a null result
+because of one of these warnings.
+On output, indicate one of the following miscellaneous errors:
+Argument of SUBSTR scalar function is out of range
+Argument of a decryption function contains a data type that is
+not valid.
+
+A -2 value of the indicator variable indicates a null result
+because of one of these warnings.
+On output, record the original length of a string if the string
+is truncated on assignment to a host variable. If the string is truncated
+and there is no indicator variable, no error condition results.
+On output, record the seconds portion of a time if the time is
+truncated on assignment to a host variable. If the time is truncated
+and there is no indicator variable, no error condition results.
+
+For
+example, if :V1:V2 is used to specify an insert or update value, and
+if V2 is negative, the value specified is the null value. If V2 is
+not negative the value specified is the value of V1.
+Similarly, if :V1:V2 is specified in a CALL, FETCH, SELECT
+INTO, or VALUES INTO statement and the value returned is null, V1
+is undefined, and V2 is set to a negative value. The negative value
+is:
+-1 if the value selected was the null value, or
+-2 if the null value was returned due to data mapping errors in
+the select list of an outer subselect. 1
+
+If the value returned is not null, that value is assigned
+to V1 and V2 is set to zero (unless the assignment to V1 requires
+string truncation, in which case, V2 is set to the original length
+of the string). If an assignment requires truncation of the seconds
+part of time, V2 is set to the number of seconds.
+If the second host-identifier is omitted, the host
+variable does not have an indicator variable. The value
+specified by the host variable :V1 is always
+the value of V1, and null values cannot be assigned to the variable.
+Thus, this form should not be used unless the corresponding result
+column cannot contain null values. If this form is used and the column
+contains nulls, the database manager will return an error at run-time
+(SQLSTATE 23502).
+Extended indicator variables are limited to
+input host variables. Their purposes are:
+Specify a non-null value. A 0 (zero) or positive value
+specifies that the associated host identifier provides the
+value of this host variable reference.
+Specify the null value. A -1, -2, -3, -4, and -6 value specifies
+the null value.
+Specify the DEFAULT value. A -5 value specifies that the target
+column for this host variable is to be set to its default value.
+Specify an UNASSIGNED value. A -7 value specifies that the target
+column for this host variable is to be treated as if it hadn't been
+specified in the statement.
+
+Extended indicator variables are only enabled if requested.
+Otherwise all indicator variables are normal indicator variables.
+In comparison to normal indicator variables, extended indicator variables
+have no additional restrictions for where null and non-null values
+can be used. Extended indicators can be used in indicator structures
+with host structures. Restrictions on where the extended indicator
+variable values of DEFAULT and UNASSIGNED are allowed apply uniformly,
+no matter how they are represented in the host application. The DEFAULT
+and UNASSIGNED extended indicator variables can only be used as an
+expression containing a single host parameter or a
+CAST of a single host parameter that is being assigned to a column.
+Output indicator variable values are never extended indicator variables.
+When extended indicator variables are enabled, indicator
+variable values other than positive values, zero, and the six negative
+values listed previously must not be used. The DEFAULT and UNASSIGNED
+values must only appear in contexts where they are supported (INSERT,
+MERGE, and UPDATE statements); they are not supported
+in the CALL statement.
+An SQL statement that references host variables in C,
+C++, ILE RPG, and PL/I, must be within the scope of the declaration
+of those host variables. For host variables referenced in the SELECT
+statement of a cursor, that rule applies to the OPEN statement rather
+than to the DECLARE CURSOR statement.
+The CCSID of a string host variable is either:
+The CCSID specified in the DECLARE VARIABLE statement, or
+If a DECLARE VARIABLE with a CCSID clause is not specified for
+the host variable, the default CCSID of the application requester
+at the time the SQL statement that contains the host variable is executed
+unless the CCSID is for a foreign encoding scheme other than Unicode (such
+as ASCII). In this case, the host variable is converted to the default
+CCSID of the current server.
+
+Java variable
+references:The general form of a host variable reference
+in Java is:
+:INOUTINOUTJava-identifier(Java-expression)
+In Java,
+indicator variables are not used. Instead, instances of a Java class can be set to a null value. Variables
+defined as Java primitive types
+cannot be set to a null value.
+If IN, OUT, or INOUT is not specified, the default depends
+on the context in which the variable is used. If the Java variable is used in an INTO clause, OUT
+is the default. Otherwise, IN is the default. For more information
+about Java variables, see IBM® Developer Kit for Java.
+ExampleUsing the PROJECT table, set the
+host variable PNAME (VARCHAR(26)) to the project name (PROJNAME),
+the host variable STAFF (DECIMAL(5,2)) to the mean staffing level
+(PRSTAFF), and the host variable MAJPROJ (CHAR(6)) to the major project
+(MAJPROJ) for project (PROJNO) ‘IF1000'. Columns PRSTAFF and
+MAJPROJ may contain null values, so provide indicator variables STAFF_IND
+(SMALLINT) and MAJPROJ_IND (SMALLINT).
+SELECT PROJNAME, PRSTAFF, MAJPROJ
+  INTO :PNAME, :STAFF :STAFF_IND, :MAJPROJ :MAJPROJ_IND
+  FROM PROJECT
+  WHERE PROJNO = 'IF1000'
+
+Parent topic: Variables
+
+1 It should be noted that
+although the null value returned for data mapping errors can be returned
+on certain scalar functions and for arithmetic expressions, the result
+column is not considered null capable unless an argument of the arithmetic
+expression or scalar function is null capable.

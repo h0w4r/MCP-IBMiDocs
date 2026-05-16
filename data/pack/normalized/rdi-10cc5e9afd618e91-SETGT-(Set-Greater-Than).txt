@@ -1,0 +1,181 @@
+SETGT (Set Greater Than)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+SETGT (Set Greater Than)
+
+Free-Form Syntax
+
+SETGT{(EHMR)} search-arg name
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+SETGT (E)
+
+search-arg
+
+name
+(file or record format)
+
+ 
+
+NR
+
+ER
+
+_
+
+The SETGT operation positions a file at the next record with a
+key or relative record number that is greater than the key or relative
+record number specified in factor 1. The file must be a full procedural file.
+
+The search argument, search-arg, must be the
+key or relative record number used to retrieve the record. If access
+is by key, search-arg can be a a single key in the form of
+a field name, a named constant, a figurative constant, or a literal.
+See Figure 2 for an example of searching key fields.
+
+If the file is an externally-described file, search-arg can
+also be a composite key in the form of a KLIST name, a list of values,
+or %KDS. For keys specified using a KLIST, key fields must have the same CCSID as
+the key in the file. See the example at the end of %KDS (Search Arguments in Data Structure) for
+an illustration of search arguments in a data structure. If access
+is by relative record number, search-arg must be an integer
+literal or a numeric field with zero decimal positions.
+
+See *STRICTKEYS
+for information about the effect Control keyword EXPROPTS(*STRICTKEYS)
+has on the rules for specifying keys with a list of values or %KDS.
+
+The name operand is required and must be either
+a file name or a record format name. A record format name is allowed
+only with an externally described file.
+
+You can specify an indicator in positions 71-72 that is set on
+if no record is found with a key or relative record number that is
+greater than the search argument specified (search-arg).
+This information can also be obtained from the %FOUND built-in function,
+which returns '0' if no record is found, and '1' if a record is found..
+
+To handle SETGT exceptions (file status codes greater
+than 1000), either the operation code extender 'E' or an error indicator
+ER can be specified, but not both. For more information on error handling,
+see File Exception/Errors.
+
+If the SETGT operation is not successful (no-record-found condition),
+the file is positioned to the end of the file.
+
+Use *END with the SETLL operation to position to the last record in the file.
+
+Figurative constants can also be used to position the file.
+Note: The discussion and examples of using figurative constants
+which follow, assume that *LOVAL and *HIVAL are not used as actual
+keys in the file.
+
+When used with a file with a composite key, figurative constants
+are treated as though each field of the key contained the figurative
+constant value. In most cases, *LOVAL positions the file so that the
+first read retrieves the record with the lowest key. In most cases,
+*HIVAL positions the file so that a READ receives an end-of-file indication;
+a subsequent READP retrieves the last record in the file. However,
+note the following cases for using *LOVAL and *HIVAL:
+
+With an externally described file that has a key in descending
+order, *HIVAL positions the file so that the first read operation
+retrieves the first record in the file (the record with the highest
+key), and *LOVAL positions the file so that a READP operation retrieves
+the last record in the file (the record with the lowest key).
+
+If a record is added or a key field is altered after a SETGT operation
+with either *LOVAL or *HIVAL, the file may no longer be positioned
+to the record with the lowest or highest key. key value X‘99...9D’
+and *HIVAL for numeric keys represents a key value X‘99...9F’.
+If the keys are float numeric, *LOVAL and *HIVAL are defined differently.
+See Figurative Constants. When a program described file has a packed
+decimal key specified in the file specifications but the actual file
+key field contains character data, records may have keys that are
+less than *LOVAL or greater than *HIVAL. When a key field contains
+unsigned binary data, *LOVAL may not be the lowest key.
+
+When *LOVAL or *HIVAL are used with key fields with a Date or Time
+data type, the values are dependent of the Date-Time format used.
+For details on these values please see Data Types and Data Formats.
+
+Following the SETGT operation, a file is positioned so that it
+is immediately before the first record whose key or relative record
+number is greater than the search argument specified (search-arg).
+You retrieve this record by reading the file. Before you read the
+file, however, records may be deleted from the file by another job
+or through another file in your job. Thus, you may not get the record
+you expected. For information on preventing unexpected modification
+of your files, see the discussion of allocating objects in the IBM® i
+Information Center Programming
+topic.
+
+See Database Null Value Support for information on handling records with
+null-capable fields and keys.
+
+For more information, see File Operations.
+
+Note: Operation code extenders H, M, and R are allowed
+only when the search argument is a list or is %KDS().
+See Keys for File Operations
+and Ensuring Accuracy.
+
+Figure 1. SETGT Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+* This example shows how to position the file so READ will read
+* the next record. The search argument, KEY, specified for the
+* SETGT operation has a value of 98; therefore, SETGT positions
+* the file before the first record of file format FILEA that
+* has a key field value greater than 98. The file is positioned
+* before the first record with a key value of 100. The READ
+* operation reads the record that has a value of 100 in its key
+* field.
+C
+C KEY SETGT FILEA
+C READ FILEA 64
+*
+* This example shows how to read the last record of a group of
+* records with the same key value and format from a program
+* described file. The search argument, KEY, specified for the
+* SETGT operation positions the file before the first record of
+* file FILEB that has a key field value greater than 70.
+* The file is positioned before the first record with a key
+* value of 80. The READP operation reads the last record that
+* has a value of 70 in its key field.
+C
+C KEY SETGT FILEB
+C READP FILEB 64
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* This example shows the use of *LOVAL. The SETLL operation
+* positions the file before the first record of a file in
+* ascending order. The READ operation reads the first record
+* (key value 97).
+C
+C *LOVAL SETLL RECDA
+C READ RECDA 64
+C
+* This example shows the use of *HIVAL. The SETGT operation
+* positions the file after the last record of a file in ascending
+* order. The READP operation reads the last record (key value 91).
+C
+C *HIVAL SETGT RECDB
+C READP RECDB 64
+
+Parent topic: Operation Codes

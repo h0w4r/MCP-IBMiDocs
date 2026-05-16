@@ -1,0 +1,145 @@
+Break-handling programs
+
+IBM i programming resources > Control language > Control language > Messages > Messages
+
+IBM i programming resources > Control language > Control language > Messages
+
+Break-handling programs
+A break-handling program is one that is automatically
+called when a message arrives at a message queue that is in *BREAK mode.
+Note: By using the code examples, you agree to the terms of the Code license and disclaimer information.
+You must specify the name of
+both the program and the break delivery name on the same Change Message
+Queue (CHGMSGQ) command. Although you specify the program on the CHGMSGQ command,
+it is one or more procedures within the program that processes the message.
+A procedure within this program must run a Receive Message (RCVMSG) command
+to receive the message. To receive and handle the message, the user-defined
+program called to handle messages for break delivery receives parameters.
+Specifically, the first procedure to run within the program receives these
+parameters. The parameters identify the message queue and the message reference
+key (MRK) of the message that is causing the break. If the system calls a
+break-handling program, it interrupts the job that has the message queue in
+break mode. Refer to the Break Handling Exit Program API information for details
+of parameters passed to a break handling program. When the break-handling
+program ends, the interrupted program resumes processing.
+The following
+program (PGMA), which consists of only this one procedure, is an example of
+a break-handling program.
+PGM PARM(&MSGQ &MSGLIB &MRK)
+DCL VAR(&MSGQ) TYPE(*CHAR) LEN(10)
+DCL VAR(&MSGLIB) TYPE(*CHAR) LEN(10)
+DCL VAR(&MRK) TYPE(*CHAR) LEN(4)
+DCL VAR(&MSG) TYPE(*CHAR) LEN(75)
+RCVMSG MSGQ(&MSGLIB/&MSGQ) MSGKEY(&MRK) +
+MSG(&MSG)
+.
+.
+.
+ENDPGM
+After the break-handling program is created, running the following
+command connects it to the QSYSMSG message queue.
+CHGMSGQ MSGQ(QSYS/QSYSMSG) DLVRY(*BREAK) PGM(PGMA)
+Notes: When messages are handled, they should be removed from the message queue.
+When a message queue is put in break mode, any message on the queue will
+cause the break-handling program to get called. During CHGMSGQ, the break
+program is called only once when a message is found that meets the criteria
+of the message severity for the queue, regardless of how many messages meeting
+the message severity criteria are found so the break-handling program should
+handle all of the messages on the queue. After CHGMSGQ, the break program
+is called for each message that meets the message severity criteria.
+The procedure or program receiving the message should not be coded with
+a wait-time other than zero to receive a message. You can specify a value
+other than zero for the wait parameter with the RCVMSG command.
+The message arrival event cannot be handled by the system while the job is
+running a break-handling event.
+The message queue severity can be set to indicate that the break-handling
+program should only be called if the severity of the message sent is equal
+to or greater than the severity of the message queue.
+
+An example of a break-handling program is to have the program
+send a message, which is normally sent to the QSYSOPR queue, to another queue
+in place of or in addition to QSYSOPR.
+The following is an example of
+a user-defined program (again with only one procedure) to handle break messages.
+The display station user does not need to respond to the messages CPA5243
+(Press Ready, Start, or Start-Stop on device &1) and CPA5316 (Verify alignment
+on device &3) when this program is used.
+BRKPGM: PGM (&MSGQ &MSGQLIB &MSGMRK)
+DCL &MSGQ TYPE(*CHAR) LEN(10)
+DCL &MSGQLIB TYPE(*CHAR) LEN(10)
+DCL &MSGMRK TYPE(*CHAR) LEN(4)
+DCL &MSGID TYPE(*CHAR) LEN(7)
+RCVMSG MSGQ(&MSGQLIB/&MSGQ) MSGKEY(&MSGMRK) +
+MSGID(&MSGID) RMV(*NO)
+/* Ignore message CPA5243 */
+IF (&MSGID *EQ 'CPA5243') GOTO ENDBRKPGM
+/* Reply to forms alignment message */
+IF (&MSGID *EQ 'CPA5316') +
+DO
+SNDRPY MSGKEY(&MSGMRK) MSGQ(&MSGQLIB/&MSGQ) RPY(I)
+ENDDO
+/* Other messages require user intervention */
+ELSE CMD(DSPMSG MSGQ(&MSGQLIB/&MSGQ))
+ENDBRKPGM: ENDPGM
+Attention:
+
+In the previous example of a break-handling
+program, if a CPA5316 message should arrive at the queue while the Display
+Message (DSPMSG) command is running, the DSPMSG display shows the
+original message that caused the break and the CPA5316 message. The DSPMSG
+display waits for the operator to reply to the CPA5316 message before proceeding.
+
+Note: This
+program cannot open a display file if the interrupted program is waiting for
+input data from the display.
+You can use the system reply list to
+indicate the system will issue a reply to predefined inquiry messages. The
+display station user, therefore, does not need to reply.
+A procedure
+within a user break-handling program may need a Suspend and Restore procedure
+to ensure the display is suspended and restored while the message handling
+function is being performed. The Suspend and Restore procedure is necessary
+only if the following conditions exist:
+A procedure in the break program displays other menus or screens
+The break program calls other programs which may display other menus or
+screens.
+
+The following example clarifies the user procedure and display file
+needed to suspend and restore the display:
+Note: RSTDSP(*YES) must be specified
+to create the display file.
+A R SAVFMT OVERLAY KEEP
+A*
+A R DUMMY OVERLAY
+A KEEP
+A ASSUME
+A DUMMYR 1A 1 2DSPATR(ND)
+
+PGM PARM(&MSGQ &MSGLIB &MRK)
+DCL VAR(&MSGQ) TYPE(*CHAR) LEN(10)
+DCL VAR(&MSGLIB) TYPE(*CHAR) LEN(10)
+DCL VAR(&MRK) TYPE(*DEC) LEN(4)
+DCLF FILE(UDDS/BRKPGMFM)
+SNDF RCDFMT(SAVFMT)
+CALL PGM(User's Break Program)
+SNDF RCDFMT(SAVFMT)
+ENDPGM
+If you do not want the user specified break-handling program
+to interrupt the interactive job, the program may be submitted to run in batch.
+You may do this by specifying a break-handling program that receives the
+message and then performs a Submit Job (SBMJOB). The SBMJOB
+performs a call to the current break-handling program with any parameters
+that you want to use. (An example is information from the receive message.)
+Control will then be returned to the interactive job and it will continue
+normally.
+
+Parent topic: Messages
+
+Related concepts
+Message queues in break mode
+
+Related tasks
+Using the system reply list
+
+Related information
+Break Handling Exit Program API

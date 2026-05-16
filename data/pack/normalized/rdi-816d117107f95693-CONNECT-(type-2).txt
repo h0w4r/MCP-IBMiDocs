@@ -1,0 +1,231 @@
+CONNECT (type 2)
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+CONNECT (type 2)
+The CONNECT (type 2) statement connects an activation group
+within an application process to the identified application server
+using the rules for application directed distributed unit of work.
+This server is then the current server for the activation group. This
+type of CONNECT statement is used if RDBCNNMTH(*DUW) was specified
+on the CRTSQLxxx command.
+Differences between the two types of statements
+are described in CONNECT (type 1) and CONNECT (type 2) differences. Refer to Application-directed distributed unit of work for more information about connection
+states.
+InvocationThis statement can only be embedded
+in an application program or issued interactively. It is an executable
+statement that cannot be dynamically prepared. It must not be specified
+in Java™ or REXX.
+CONNECT is not allowed in a trigger or function.
+AuthorizationThe privileges held by the
+authorization ID of the statement must include communications-level
+security. (See the section about security in the Distributed Database Programming topic
+collection.)
+If the application server is DB2® for
+i, the profile ID of
+the person issuing the statement must also be a valid user profile
+on the application server system, UNLESS:
+USER is specified. If USER is specified, the USER clause must
+specify a valid user profile on the application server system.
+TCP/IP is used with a server authorization entry for the application
+server. If this is the case, the server authorization entry must specify
+a valid user profile on the application server system.
+
+If a global variable is referenced in a statement,
+the privileges held by the authorization ID of the statement must
+include at least one of the following:
+For the global variable identified in the statement, The READ privilege on the global variable, and
+The system authority *EXECUTE on the library containing the global
+variable
+
+Database administrator authority
+
+SyntaxCONNECTTOserver-namevariableauthorizationRESETauthorizationUSERauthorization-namevariableUSINGpasswordvariable
+Description TO server-name or variable
+Identifies the application
+server by the specified server name or the server name contained in
+the variable. It can be a global variable if it is
+qualified with schema name. If a variable is specified: It must be a CHAR or VARCHAR host variable.
+It must not be followed by an indicator variable.
+The server name must be left-justified within the variable and
+must conform to the rules for forming an ordinary identifier.
+If the length of the server name is less than the length of the
+variable, it must be padded on the right with blanks.
+The value of the server name must not contain lowercase characters.
+
+When the CONNECT statement is executed, the specified server
+name or the server name contained in the variable must identify an
+application server described in the local directory.
+Let S denote
+the specified server name or the server name contained in the variable.
+S must not identify an existing connection of the application process.
+
+USER authorization-name or variable
+Identifies the authorization
+name that will be used to connect to the application server. It can be a global variable if it is qualified with schema
+name.If a variable is specified:
+It must be a CHAR or VARCHAR host variable.
+It must not be followed by an indicator variable. The authorization
+name must be left-justified within the variable and must conform to
+the rules of forming an authorization name.
+If the length of the authorization name is less than the length
+of the variable, it must be padded on the right with blanks.
+
+USING password or variable
+Identifies the password
+that will be used to connect to the application server. If password
+is specified as a literal, it must be a character string. The maximum
+length is 128 characters. It must be left justified. The literal form
+of the password is not allowed in static SQL or REXX.
+If a variable is
+specified:
+It cannot be a global variable.
+It must be a CHAR or VARCHAR host variable.
+It must not be followed by an indicator variable.
+The password must be left-justified within the variable.
+If the length of the password is less than that of the variable,
+it must be padded on the right with blanks.
+
+RESET
+CONNECT
+RESET is equivalent to CONNECT TO x where x is the local
+server name.
+CONNECT with no operand
+This form of the CONNECT statement returns information about the
+current server and has no effect on connection states, open cursors,
+prepared statements, or locks. The connection information is returned
+in the connection information items in the SQL Diagnostics Area (or
+the SQLCA). In addition, the DB2_CONNECTION_STATUS connection information
+item in the SQL Diagnostics Area (or the SQLERRD(3) field of the SQLCA)
+will indicate the status of connection for this unit of work. It will
+have one of the following values:
+1 - Committable updates can be performed on the connection for
+this unit of work.
+2 - No committable updates can be performed on the connection
+for this unit of work.
+
+NotesSuccessful
+connection: If the CONNECT statement is successful:
+A connection to application server S is created and placed in
+the current and held states. The previous connection, if any, is placed
+in the dormant state.
+S is placed in the CURRENT SERVER special register.
+Information about the application server is placed in the connection-information-items in
+the SQL Diagnostics Area.
+Information about application server S is also placed in the SQLERRP
+and SQLERRD(4) fields of the SQLCA. If the application server is an IBM® relational database product,
+the information in the SQLERRP field has the form pppvvrrm,
+where: ppp identifies the product as follows:
+ARI for DB2 for VM and VSE
+DSN for DB2 for z/OS®
+QSQ for DB2 for
+i
+SQL for all other DB2 products
+
+vv is a two-digit version identifier
+such as '09'
+rr is a two-digit release identifier
+such as '01'
+m is a one-character modification level
+such as '0'
+
+For example, if the application server is Version 9 of DB2 for z/OS, the value of SQLERRP is 'DSN09010'.
+The
+SQLERRD(4) field of the SQLCA contains values indicating whether application
+server S allows committable updates to be performed. Following is
+a list of values and their meanings for the SQLERRD(4) field of the
+SQLCA on the CONNECT: 1 - committable updates can be performed. Conversation is unprotected. 1
+2 - No committable updates can be performed. Conversation is
+unprotected.
+3 - It is unknown if committable updates can be performed. Conversation
+is protected.
+4 - It is unknown if committable updates can be performed. Conversation
+is unprotected.
+5 - It is unknown if committable updates can be performed. The
+connection is either a local connection or a connection to an application
+requester driver program.
+
+Additional information about the connection is placed in the SQLERRMC
+field of the SQLCA. Refer to SQLCA (SQL communication area).
+
+Unsuccessful connection: If the CONNECT statement
+is unsuccessful, the connection state of the activation group and
+the states of its connections are unchanged.
+Implicit connect: Implicit connect will always
+send the authorization-name of the application
+requester job and will not send passwords. If the authorization-name of
+the application server job is different or if a password must be sent,
+an explicit connect statement must be used.
+When TCP/IP is used for connecting to an RDB, an implicit
+connect is not bound by the above restrictions. Use of the ADDSVRAUTE
+and other -SVRAUTE commands allows one to specify, for a given user
+under which the implicit (or explicit) CONNECT is done, the remote
+authorization-name and password to be used in connecting to a given
+RDB.
+In order for the password to be stored with the ADDSVRAUTE
+or CHGSVRAUTE command, the QRETSVRSEC system value must be set to
+'1' rather than the default of '0'. When using these commands for DRDA® connection, it is very important
+to realize that the value of the RDB name entered into the SERVER
+parameter must be in UPPER CASE. For more information, see Example
+2 under Type 2 CONNECT.
+For more information about implicit connect, refer to SQL Programming.
+Once a connection to a relational database for a user profile is established,
+the password, if specified, may not be validated again on subsequent
+connections to the same relational database with the same user profile.
+Revalidation of the password depends on if the conversation is still
+active. See Distributed Database Programming for more details.
+SET SESSION AUTHORIZATION: If a SET SESSION AUTHORIZATION
+statement has been executed in the thread, a CONNECT to the local
+server will fail unless prior to the connect statement, the SYSTEM_USER
+value is the same as SESSION_USER.
+This includes an implicit connect due to invoking a program
+that specifies ACTGRP(*NEW).
+Examples Example 1: Execute SQL
+statements at TOROLAB and SVLLAB. The first CONNECT statement creates
+the TOROLAB connection and the second CONNECT statement places it
+in the dormant state.
+EXEC SQL CONNECT TO TOROLAB;
+
+(execute statements referencing objects at TOROLAB)
+
+EXEC SQL CONNECT TO SVLLAB;
+
+(execute statements referencing objects at SVLLAB)
+Example
+2: Connect to a remote server specifying a userid and password,
+perform work for the user and then connect as another user to perform
+further work.
+EXEC SQL CONNECT TO SVLLAB USER :AUTHID USING :PASSWORD;
+
+(execute SQL statements accessing data on the server)
+
+EXEC SQL COMMIT;
+
+(set AUTHID and PASSWORD to new values)
+
+EXEC SQL CONNECT TO SVLLAB USER :AUTHID USING :PASSWORD;
+
+(execute SQL statements accessing data on the server)
+Example
+3: User JOE wants to connect to TOROLAB3 and execute SQL statements
+under the user ID ANONYMOUS which has a password of SHIBBOLETH. The
+RDB directory entry for TOROLAB3 specifies *IP for the connection
+type.
+Before running the application, some setup must be done.
+This
+command will be required to allow server security information to be
+retained in the IBM i operating
+system, if it has not been previously run:
+CHGSYSVAL SYSVAL(QRETSVRSEC) VALUE('1')
+This
+command adds the required server authorization entry:
+ADDSVRAUTE USRPRF(JOE) SERVER(TOROLAB3) USRID(ANONYMOUS) +
+PASSWORD(SHIBBOLETH)
+This statement, run
+under JOE's user profile, will now make the wanted connection:
+EXEC SQL CONNECT TO TOROLAB3;
+(execute statements referencing objects at TOROLAB3)
+
+Parent topic: Statements

@@ -1,0 +1,232 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Recursion example: bill of materials">
+<meta name="abstract" content="Bill of materials (BOM) applications are a common requirement in many business environments. To illustrate the capability of a recursive common table expression for BOM applications, consider a table of parts with associated subparts and the quantity of subparts required by the part.">
+<meta name="Description" content="Bill of materials (BOM) applications are a common requirement in many business environments. To illustrate the capability of a recursive common table expression for BOM applications, consider a table of parts with associated subparts and the quantity of subparts required by the part.">
+<meta name="DC.Relation" scheme="URI" content="rbafzcomtexp.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzcomtexp.htm">
+<title>Recursion example: bill of materials</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzrecurse.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzrecurse">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsubsel.htm">Queries</a> > <a href="../../topic/db2/rbafzintsel.htm">select&#45;statement</a> > <a href="../../topic/db2/rbafzcomtexp.htm">common&#45;table&#45;expression</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d548722e7"><h1 class="topictitle1" id="d548722e7">Recursion example: bill of materials</h1>
+<div class="body refbody"><p class="shortdesc">Bill of materials (BOM) applications are a common requirement
+in many business environments. To illustrate the capability of a recursive
+common table expression for BOM applications, consider a table of
+parts with associated subparts and the quantity of subparts required
+by the part.</p>
+<section><p>For this example, create the table as follows:</p>
+</section><div class="example"> <pre class="codeblock"><code>   <span class="ph uicontrol">CREATE TABLE</span>  PARTLIST 
+     <span class="ph uicontrol">(</span> PART     <span class="ph uicontrol">VARCHAR(</span>8<span class="ph uicontrol">),</span>
+       SUBPART  <span class="ph uicontrol">VARCHAR(</span>8<span class="ph uicontrol">),</span>
+       QUANTITY <span class="ph uicontrol">INTEGER )</span> </code></pre>
+</div>
+<section><p>To give query results for this example, assume that the
+PARTLIST table is populated with the following values:</p>
+</section><div class="example"> <pre class="codeblock"><code>PART     SUBPART  QUANTITY
+-------- -------- -----------
+   00       01        5
+   00       05        3
+   01       02        2
+   01       03        3
+   01       04        4
+   01       06        3
+   02       05        7
+   02       06        6
+   03       07        6
+   04       08       10
+   04       09       11
+   05       10       10
+   05       11       10
+   06       12       10
+   06       13       10
+   07       14        8
+   07       12        8</code></pre>
+</div>
+<section id="rbafzrecurse__rbafzsinglelvlexp"><h2 class="sectiontitle">Example 1: Single level explosion</h2><p>The
+first example is called single level explosion. It answers the question,
+"What parts are needed to build the part identified by '01'?". The
+list will include the direct subparts, subparts of the subparts and
+so on. However, if a part is used multiple times, its subparts are
+only listed once.</p>
+</section><div class="example"> <pre class="codeblock"><code>   <span class="ph uicontrol">WITH RPL (</span>PART, SUBPART, QUANTITY<span class="ph uicontrol">) AS
+        (  SELECT</span> ROOT.PART, ROOT.SUBPART, ROOT.QUANTITY
+              <span class="ph uicontrol">FROM</span> PARTLIST ROOT
+              <span class="ph uicontrol">WHERE</span> ROOT.PART = '01'
+          <span class="ph uicontrol">UNION ALL
+           SELECT</span> CHILD.PART, CHILD.SUBPART, CHILD.QUANTITY
+              <span class="ph uicontrol">FROM</span> RPL PARENT, PARTLIST CHILD
+              <span class="ph uicontrol">WHERE</span> PARENT.SUBPART = CHILD.PART
+         <span class="ph uicontrol">)
+   SELECT DISTINCT</span> PART, SUBPART, QUANTITY
+     <span class="ph uicontrol">FROM</span> RPL
+     <span class="ph uicontrol">ORDER BY</span> PART, SUBPART, QUANTITY</code></pre>
+</div>
+<section><p>The above query includes a common table expression, identified
+by the name RPL, that expresses the recursive part of this query.
+It illustrates the basic elements of a recursive common table expression.</p>
+</section><section><p>The first operand (fullselect) of the UNION, referred
+to as the initialization fullselect, gets the direct children of part
+'01'. The FROM clause of this fullselect refers to the source table
+and will never refer to itself (RPL in this case). The result of this
+first fullselect goes into the common table expression RPL (Recursive
+PARTLIST). As in this example, the UNION must always be a UNION ALL.</p>
+</section><section><p>The second operand (fullselect) of the UNION uses RPL
+to compute subparts of subparts by having the FROM clause refer to
+the common table expression RPL and the source table with a join of
+a part from the source table (child) to a subpart of the current result
+contained in RPL (parent). The result goes back to RPL again. The
+second operand of UNION is then used repeatedly until no more children
+exist.</p>
+</section><section><p>The SELECT DISTINCT in the main fullselect of this query
+ensures the same part/subpart is not listed more than once.</p>
+</section><section><p>The result of the query is as follows:</p>
+</section><div class="example"> <pre class="codeblock"><code>PART     SUBPART  QUANTITY
+-------- -------- -----------
+   01       02         2
+   01       03         3
+   01       04         4
+   01       06         3
+   02       05         7
+   02       06         6
+   03       07         6
+   04       08        10
+   04       09        11
+   05       10        10
+   05       11        10
+   06       12        10
+   06       13        10
+   07       12         8
+   07       14         8</code></pre>
+</div>
+<section><p>Observe in the result that part '01' goes to '02' which
+goes to '06' and so on. Further, notice that part '06' is reached
+twice, once through '01' directly and another time through '02'. In
+the output, however, its subcomponents are listed only once (this
+is the result of using a SELECT DISTINCT) as required.</p>
+</section><section><h2 class="sectiontitle">Example 2: Summarized explosion</h2><p>The second
+example is a summarized explosion. The question posed here is, what
+is the total quantity of each part required to build part '01'. The
+main difference from the single level explosion is the need to aggregate
+the quantities. The first example indicates the quantity of subparts
+required for the part whenever it is required. It does not indicate
+how many of the subparts are needed to build part '01'.</p>
+</section><div class="example"> <pre class="codeblock"><code>   <span class="ph uicontrol">WITH RPL (</span>PART, SUBPART, QUANTITY<span class="ph uicontrol">) AS
+        (  SELECT</span> ROOT.PART, ROOT.SUBPART, ROOT.QUANTITY
+              <span class="ph uicontrol">FROM</span> PARTLIST ROOT
+              <span class="ph uicontrol">WHERE</span> ROOT.PART = '01'
+          <span class="ph uicontrol">UNION ALL
+           SELECT</span> PARENT.PART, CHILD.SUBPART, PARENT.QUANTITY<span class="ph uicontrol">*</span>CHILD.QUANTITY
+              <span class="ph uicontrol">FROM</span> RPL PARENT, PARTLIST CHILD
+              <span class="ph uicontrol">WHERE</span> PARENT.SUBPART = CHILD.PART
+         <span class="ph uicontrol">)
+   SELECT</span> PART, SUBPART, <span class="ph uicontrol">SUM(</span>QUANTITY<span class="ph uicontrol">) AS</span> "Total QTY Used"
+     <span class="ph uicontrol">FROM</span> RPL
+     <span class="ph uicontrol">GROUP BY</span> PART, SUBPART
+     <span class="ph uicontrol">ORDER BY</span> PART, SUBPART</code></pre>
+</div>
+<section><p>In the above query, the select list of the second operand
+of the UNION in the recursive common table expression, identified
+by the name RPL, shows the aggregation of the quantity. To find out
+how much of a subpart is used, the quantity of the parent is multiplied
+by the quantity per parent of a child. If a part is used multiple
+times in different places, it requires another final aggregation.
+This is done by the grouping over the common table expression RPL
+and using the SUM aggregate function in the select list of the main
+fullselect.</p>
+</section><section><p>The result of the query is as follows:</p>
+</section><div class="example"> <pre class="codeblock"><code>PART     SUBPART  Total Qty Used 
+-------- -------- --------------
+   01       02          2
+   01       03          3
+   01       04          4
+   01       05         14
+   01       06         15
+   01       07         18
+   01       08         40
+   01       09         44
+   01       10        140
+   01       11        140
+   01       12        294
+   01       13        150
+   01       14        144</code></pre>
+</div>
+<section><p>Looking at the output, consider the line for subpart '06'.
+The total quantity used value of 15 is derived from a quantity of
+3 directly for part '01' and a quantity of 6 for part '02' which is
+needed 2 times by part '01'.</p>
+</section><section><h2 class="sectiontitle">Example 3: Controlling depth</h2><p>The question
+may come to mind, what happens when there are more levels of parts
+in the table than you are interested in for your query? That is, how
+is a query written to answer the question, "What are the first two
+levels of parts needed to build the part identified by '01'?" For
+the sake of clarity in the example, the level is included in the result.</p>
+</section><div class="example"> <pre class="codeblock"><code>   <span class="ph uicontrol">WITH RPL (</span> LEVEL, PART, SUBPART, QUANTITY<span class="ph uicontrol">)
+     AS ( SELECT</span> 1, ROOT.PART, ROOT.SUBPART, ROOT.QUANTITY
+             <span class="ph uicontrol">FROM</span> PARTLIST ROOT
+             <span class="ph uicontrol">WHERE</span> ROOT.PART = '01'
+           <span class="ph uicontrol">UNION ALL
+          SELECT</span> PARENT.LEVEL<span class="ph uicontrol">+</span>1, CHILD.PART, CHILD.SUBPART, CHILD.QUANTITY
+             <span class="ph uicontrol">FROM</span> RPL PARENT, PARTLIST CHILD
+             <span class="ph uicontrol">WHERE</span> PARENT.SUBPART = CHILD.PART
+             <span class="ph uicontrol">AND</span> PARENT.LEVEL &lt; 2
+         <span class="ph uicontrol">)
+   SELECT</span> PART, LEVEL, SUBPART, QUANTITY
+     <span class="ph uicontrol">FROM</span> RPL</code></pre>
+</div>
+<section><p>This query is similar to example 1. The column LEVEL was
+introduced to count the levels from the original part. In the initialization
+fullselect, the value for the LEVEL column is initialized to 1. In
+the subsequent fullselect, the level from the parent is incremented
+by 1. Then to control the number of levels in the result, the second
+fullselect includes the condition that the parent level must be less
+than 2. This ensures that the second fullselect only processes children
+to the second level.</p>
+</section><section><p>The result of the query is:</p>
+</section><div class="example"> <pre class="codeblock"><code>PART     LEVEL       SUBPART  QUANTITY
+-------- ----------- -------- -----------
+   01         1         02         2
+   01         1         03         3
+   01         1         04         4
+   01         1         06         3
+   02         2         05         7
+   02         2         06         6
+   03         2         07         6
+   04         2         08        10
+   04         2         09        11
+   06         2         12        10
+   06         2         13        10</code></pre>
+</div>
+</div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzcomtexp.htm" title="A common-table-expression permits defining a result table with a table-identifier that can be specified as a table name in any FROM clause of the fullselect that follows. Multiple common table expressions can be specified following the single WITH keyword. Each common table expression specified can also be referenced by name in the FROM clause of subsequent common table expressions.">common-table-expression</a></li>
+</ul>
+</aside></article></main></body></html>

@@ -1,0 +1,201 @@
+DESCRIBE TABLE
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+DESCRIBE TABLE
+The DESCRIBE TABLE statement obtains information about
+a table or view.
+InvocationThis statement can only be embedded
+in an application program, SQL function, SQL procedure, or trigger.
+It is an executable statement that cannot be dynamically prepared.
+It must not be specified in Java™.
+AuthorizationThe privileges held by the
+authorization ID of the statement must include at least one of the
+following:
+For the table or view identified in the statement: The system authority of *OBJOPR on the table or view
+The system authority *EXECUTE on the library containing the table
+or view
+
+Database administrator authority
+
+SyntaxDESCRIBE TABLEvariableINCLUDING IMPLICITLY HIDDEN COLUMNSEXCLUDING IMPLICITLY HIDDEN COLUMNSUSINGSQLDESCRIPTORLOCALGLOBALSQL-descriptor-nameINTOdescriptor-nameUSINGNAMESSYSTEM NAMESLABELSANYBOTHALL
+Descriptionvariable
+Identifies
+the table or view to describe. When the DESCRIBE TABLE statement is
+executed: The name must identify a table or view that exists at the application
+server.
+The variable must be a character-string
+or Unicode graphic-string variable and must not include an indicator
+variable. It cannot be a global variable.
+The table name that is contained within the variable must
+be left-justified and must be padded on the right with blanks if its
+length is less than that of the variable.
+The name of the table must be in uppercase unless it is a delimited
+name.
+
+INCLUDING IMPLICITLY HIDDEN COLUMNS or EXCLUDING IMPLICITLY HIDDEN
+COLUMNS
+Specifies whether information should be returned for implicitly
+hidden column in a table.INCLUDING IMPLICITLY HIDDEN COLUMNS
+Specifies that information is returned for columns defined as
+implicitly hidden. This is the default.
+EXCLUDING IMPLICITLY HIDDEN COLUMNS
+Specifies that information is not returned for columns defined
+as implicitly hidden.
+
+When the DESCRIBE TABLE statement is executed,
+the database manager assigns values to the variables of the SQL descriptor
+or SQLDA as follows:
+USING
+Identifies
+an SQL descriptor. LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope. See GET DESCRIPTOR for an explanation of the information
+that is placed in the SQL descriptor.
+
+INTO descriptor-name
+Identifies
+an SQL descriptor area (SQLDA), which is described in SQLDA (SQL descriptor area). Before the DESCRIBE TABLE statement
+is executed, the following variable in the SQLDA must be set. SQLN
+Specifies the number of SQLVAR occurrences
+provided in the SQLDA. SQLN must be set to a value greater than or
+equal to zero before the DESCRIBE TABLE statement is executed. For
+information about techniques to determine the number of occurrences
+requires, see Determining how many SQLVAR occurrences are needed.
+
+The rules for REXX are different. For more information, see
+the Embedded
+SQL Programming topic collection. When the DESCRIBE statement
+is executed, the database manager assigns values to the variables
+of the SQLDA as follows:
+SQLDAID
+The first 6 bytes are set to 'SQLDA ' (that
+is, 5 letters followed by the space character). The seventh byte
+is set based on the column described:
+If the SQLDA contains two, three, or four SQLVAR entries for every
+column of the table, the seventh byte is set to '2', '3', or '4'.
+This technique is used in order to accommodate LOB or distinct type
+result columns, labels, and system names.
+Otherwise, the seventh byte is set to the space character.
+
+The seventh byte is set to the space character if there is
+not enough room in the SQLDA to contain the description of all columns.
+The
+eighth byte is set to the space character.
+
+SQLDABC
+Length of the SQLDA in bytes.
+SQLD
+The number of columns in the table plus
+the number of extended SQLVAR entries. For information about extended
+SQLVAR entries see, Field descriptions in an occurrence of SQLVAR.
+SQLVAR
+If the value of SQLD is 0, or greater than
+the value of SQLN, no values are assigned to occurrences of SQLVAR.
+If the value of SQLD is n, where n is greater than
+0 but less than or equal to the value of SQLN, values are assigned
+to the first n occurrences of SQLVAR so that the first occurrence
+of SQLVAR contains a description of the first column of the table,
+the second occurrence of SQLVAR contains a description of the second
+column of the table, and so on. For information about the values assigned
+to SQLVAR occurrences, see Field descriptions in an occurrence of SQLVAR.
+
+USING
+Specifies
+what value to assign to each SQLNAME variable in the SQLDA. If the
+requested value does not exist or if the length of a name is greater
+than 30, SQLNAME is set to a length of 0. NAMES
+Assigns the name
+of the column. The column name returned is case sensitive and without
+delimiters. This is the default.
+SYSTEM NAMES
+Assigns the system column name of the column.
+LABELS
+Assigns the label
+of the column. (Column labels are defined by the LABEL statement.)
+Only the first 20 bytes of the label are returned.
+ANY
+Assigns the column
+label. If the column has no label, the column name is used instead.
+BOTH
+Assigns both the
+label and name of the column. In this case, two or three occurrences
+of SQLVAR per column, depending on whether the table contains distinct
+types, are needed to accommodate the additional information. To specify
+this expansion of the SQLVAR array, set SQLN to 2*n or 3*n(where n is
+the number of columns in the table or view). The first n occurrences
+of SQLVAR contain the column names if they are different from the
+system column name. Either the second or third n occurrences
+contain the column labels. If there are no distinct types, the labels
+are returned in the second set of SQLVAR entries. Otherwise, the labels
+are returned in the third set of SQLVAR entries.
+ALL
+Assigns the label, column name, and system
+column name. In this case three or four occurrences of SQLVAR per
+column, depending on whether the table contains distinct types, are
+needed to accommodate the additional information. To specify this
+expansion of the SQLVAR array, set SQLN to 3*n or 4*n (where n is
+the number of columns in the table). The first n occurrences
+of SQLVAR contain the system column names. The second or third n occurrences
+contain the column labels. The third or fourth n occurrences
+contain the column names. If there are no distinct types, the labels
+are returned in the second set of SQLVAR entries and the column names
+are returned in the third set of SQLVAR entries. Otherwise, the labels
+are returned in the third set of SQLVAR entries and the column names
+are returned in the fourth set of SQLVAR entries.
+
+NotesAllocating
+the SQL descriptor: Before the DESCRIBE TABLE statement is executed,
+the SQL descriptor must be allocated using the ALLOCATE DESCRIPTOR
+statement. If the number of descriptor items allocated is less than
+the number of columns in the table or view, a warning (SQLSTATE 01005)
+is returned.
+Allocating the SQLDA: Before the DESCRIBE TABLE
+statement is executed, the value of SQLN must be set to a value greater
+than or equal to zero to indicate how many occurrences of SQLVAR are
+provided in the SQLDA and enough storage must be allocated to contain
+SQLN occurrences. To obtain the description of the columns of the
+table or view, the number of occurrences of SQLVAR must not be less
+than the number of columns. Furthermore, if USING BOTH or USING ALL
+is specified, or if the columns include LOBs or distinct types, the
+number of occurrences of SQLVAR should be two, three, or four times
+the number of columns. See Determining how many SQLVAR occurrences are needed for
+more information.
+If not enough occurrences are provided to return all sets
+of occurrences, SQLN is set to the total number of occurrences necessary
+to return all information. Otherwise, SQLN is set to the number of
+columns.
+For a description of techniques that can be used to allocate
+the SQLDA, see SQLDA (SQL descriptor area).
+ExampleIn a C program, execute a DESCRIBE
+statement with an SQLDA that has no occurrences of SQLVAR. If SQLD
+is greater than zero, use the value to allocate an SQLDA with the
+necessary number of occurrences of SQLVAR and then execute a DESCRIBE
+statement using that SQLDA.
+EXEC SQL BEGIN DECLARE SECTION;
+char table_name[201];
+EXEC SQL END DECLARE SECTION;
+EXEC SQL INCLUDE SQLDA;
+EXEC SQL DECLARE DYN_CURSOR CURSOR FOR STMT1_NAME;
+
+.../*code to prompt user for a table or view */
+.../*code to set SQLN to zero and to allocate the SQLDA */
+EXEC SQL DESCRIBE TABLE :table_name INTO :sqlda;
+
+… /* code to check that SQLD is greater than zero, to set */
+/* SQLN to SQLD, then to re-allocate the SQLDA */
+EXEC SQL DESCRIBE TABLE :table_name INTO :sqlda;
+
+.
+.
+.
+
+Parent topic: Statements

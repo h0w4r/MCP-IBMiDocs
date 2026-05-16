@@ -1,0 +1,146 @@
+WHENxx (When True Then Select)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+WHENxx (When True Then Select)
+
+Free-Form Syntax
+
+(not allowed - use the WHEN,
+WHEN-IN or WHEN-IS operation code)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+WHENxx
+
+Comparand
+
+Comparand
+
+ 
+
+ 
+
+ 
+
+ 
+
+The WHENxx operations of a select group determine where control
+passes after the SELECT (Begin a Select Group) operation is processed.
+
+The WHENxx conditional operation is true if factor 1 and factor
+2 have the relationship specified by xx If
+the condition is true, the operations following the WHENxx are processed
+until the next WHENxx, OTHER, ENDSL, or END operation.
+
+When performing the WHENxx operation remember:
+
+After the operation group is processed, control passes to the
+statement following the ENDSL operation.
+
+You can code complex WHENxx conditions using ANDxx and ORxx. Calculations are processed when the condition
+specified by the combined WHENxx, ANDxx, and ORxx operations is true.
+
+The WHENxx group can be empty.
+
+Within total calculations, the control level entry (positions
+7 and 8) can be blank or can contain an L1 through L9 indicator,
+an LR indicator, or an L0 entry to group the statement within the
+appropriate section of the program. The control level entry is for
+documentation purposes only. Conditioning indicator entries (positions
+9 through 11) are not allowed.
+
+Refer to Compare Operations for valid values for xx.
+
+For more information, see Structured Programming Operations.
+
+Figure 1. WHENxx Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* The following example shows nested SELECT groups. The employee
+* type can be one of 'C' for casual, 'T' for retired, 'R' for
+* regular, and 'S' for student. Depending on the employee type
+* (EmpTyp), the number of days off per year (Days) will vary.
+*
+C SELECT
+C EmpTyp WHENEQ 'C'
+C EmpTyp OREQ 'T'
+C Z-ADD 0 Days
+C EmpTyp WHENEQ 'R'
+*
+* When the employee type is 'R', the days off depend also on the
+* number of years of employment. The base number of days is 14.
+* For less than 2 years, no extra days are added. Between 2 and
+* 5 years, 5 extra days are added. Between 6 and 10 years, 10
+* extra days are added, and over 10 years, 20 extra days are added.
+*
+C Z-ADD 14 Days
+* Nested select group.
+C SELECT
+C Years WHENLT 2
+C Years WHENLE 5
+C ADD 5 Days
+C Years WHENLE 10
+C ADD 10 Days
+C OTHER
+C ADD 20 Days
+C ENDSL
+* End of nested select group.
+C EmpTyp WHENEQ 'S'
+C Z-ADD 5 Days
+C ENDSL
+
+*--------------------------------------------------------------------
+* Example of a SELECT group with complex WHENxx expressions. Assume
+* that a record and an action code have been entered by a user.
+* Select one of the following:
+* - When F3 has been pressed, do subroutine QUIT.
+* - When action code(Acode) A (add) was entered and the record
+* does not exist (*IN50=1), write the record.
+* - When action code A is entered, the record exists, and the
+* active record code for the record is D (deleted); update
+* the record with active rec code=A. When action code D is
+* entered, the record exists, and the action code in the
+* record (AcRec) code is A; mark the record as deleted.
+* - When action code is C (change), the record exists, and the
+* action code in the record (AcRec) code is A; update the record.
+* - Otherwise, do error processing.
+*--------------------------------------------------------------------
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+C RSCDE CHAIN FILE 50
+C SELECT
+C *INKC WHENEQ *ON
+C EXSR QUIT
+C Acode WHENEQ 'A'
+C *IN50 ANDEQ *ON
+C WRITE REC
+C Acode WHENEQ 'A'
+C *IN50 ANDEQ *OFF
+C AcRec ANDEQ 'D'
+C Acode OREQ 'D'
+C *IN50 ANDEQ *OFF
+C AcRec ANDEQ 'A'
+C MOVE Acode AcRec
+C UPDATE REC
+C Acode WHENEQ 'C'
+C *IN50 ANDEQ *OFF
+C AcRec ANDEQ 'A'
+C UPDATE REC
+C OTHER
+C EXSR ERROR
+C ENDSL
+
+Parent topic: Operation Codes

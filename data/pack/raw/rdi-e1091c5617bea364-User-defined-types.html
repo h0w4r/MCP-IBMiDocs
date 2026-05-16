@@ -1,0 +1,159 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="User-defined types">
+<meta name="abstract" content="A user-defined type is a data type that is defined to the database using a CREATE TYPE statement. There are two types of user-defined type: distinct types and array types.">
+<meta name="Description" content="A user-defined type is a data type that is defined to the database using a CREATE TYPE statement. There are two types of user-defined type: distinct types and array types.">
+<meta name="DC.subject" content="data type, user-defined types (UDTs), data types, description, distinct types, array types">
+<meta name="keywords" content="data type, user-defined types (UDTs), data types, description, distinct types, array types">
+<meta name="DC.Relation" scheme="URI" content="rbafzch2data.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzch2data.htm">
+<title>User-defined types</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzch2udf.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzch2udf">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsqlelem.htm">Language elements</a> > <a href="../../topic/db2/rbafzch2data.htm">Data types</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d318855e7"><h1 class="topictitle1" id="d318855e7">User-defined types</h1>
+<div class="body refbody"><p class="shortdesc">A user-defined type is a data type that is defined to the
+database using a CREATE <span class="ph">TYPE</span> statement. There
+are two types of user-defined type: distinct types and array types.</p>
+<section><h2 class="sectiontitle">Distinct types</h2><p>A <em>distinct type</em> is
+a user-defined data type that shares its internal representation with
+a built-in data type (its "source type"), but is considered to be
+a separate and incompatible type for most operations. For example,
+the semantics for a picture type, a text type, and an audio type that
+all use the built-in data type BLOB for their internal representation
+are quite different. A distinct type is created using <a href="rbafzcrtudt.htm" title="The CREATE TYPE (distinct) statement defines a distinct type at the current server. A distinct type is always sourced on one of the built-in data types.">CREATE TYPE (distinct)</a>.</p>
+</section><section><p>For example, the following statement creates a distinct
+type named AUDIO: </p>
+</section><div class="example"> <pre class="codeblock"><code>  <span class="ph uicontrol">CREATE TYPE</span> AUDIO <span class="ph uicontrol">AS BLOB</span> (1M)</code></pre>
+</div>
+<section><p>Although AUDIO has the same representation as the built-in
+data type BLOB, it is considered to be a separate type that is not
+comparable to a BLOB or to any other type. This inability to compare
+AUDIO to other data types allows functions to be created specifically
+for AUDIO and assures that these functions cannot be applied to other
+data types (such as pictures or text).</p>
+</section><section><p>The name of a distinct type is qualified with a schema
+name. The implicit schema name for an unqualified name depends upon
+the context in which the distinct type appears. If an unqualified
+distinct type name is used:  </p>
+</section><section> <ul><li>In a CREATE TYPE statement or the object of the DROP, COMMENT,
+LABEL, GRANT, or REVOKE statement, the database manager uses the normal
+process of qualification by authorization ID to determine the schema
+name. For more information about qualification rules, see <a href="rbafzqualun2.htm" title="The qualification of function, procedure, specific name, type (built-in types, distinct types, and array types), and variables, depends on the SQL statement in which the unqualified name appears.">Unqualified function, procedure, specific name, type, and variables</a>.</li>
+<li>In any other context, the database manager uses the SQL path to
+determine the schema name. The database manager searches the schemas
+in the path, in sequence, and selects the first schema that has a
+distinct type that matches. For a description of the SQL path, see <a href="rbafzpath.htm" title="The SQL path is an ordered list of schema names. The database manager uses the path to resolve the schema name for unqualified type names (built-in types, distinct types, and array types), function names, variable names, and procedure names that appear in any context other than as the main object of an ALTER, CREATE, DROP, COMMENT, LABEL, GRANT, or REVOKE statement.">SQL path</a>.</li>
+</ul>
+</section><section><p>A distinct type does not automatically acquire the functions
+and operators of its source type, since these may not be meaningful.
+(For example, the LENGTH function <span class="ph">for an</span> AUDIO type might
+return the length of its object in seconds rather than in bytes.)
+Instead, distinct types support <em>strong typing</em>. Strong typing
+ensures that only the functions and operators that are explicitly
+defined for a distinct type can be applied to that distinct type.
+However, a function or operator of the source type can be applied
+to the distinct type by creating an appropriate user-defined function.
+The user-defined function must be sourced on the existing function
+that has the source type as a parameter. For example, the following
+series of SQL statements shows how to create a distinct type named
+MONEY based on data type DECIMAL(9,2), how to define the + operator
+for the distinct type, and how the operator might be applied to the
+distinct type:  </p>
+</section><div class="example"> <pre class="codeblock"><code><span class="ph uicontrol">CREATE TYPE</span> MONEY <span class="ph uicontrol">AS DECIMAL(9,2) WITH COMPARISONS</span>
+<span class="ph uicontrol">CREATE FUNCTION</span> "+"(MONEY,MONEY)
+   <span class="ph uicontrol">RETURNS</span> MONEY
+   <span class="ph uicontrol">SOURCE</span> "+"(DECIMAL(9,2),DECIMAL(9,2))
+<span class="ph uicontrol">CREATE TABLE</span> SALARY_TABLE
+   (SALARY MONEY,
+    COMMISSION MONEY)
+<span class="ph uicontrol">SELECT</span> "+"(SALARY, COMMISSION) <span class="ph uicontrol">FROM</span> SALARY_TABLE</code></pre>
+</div>
+<section><p>A distinct type is subject to the same restrictions as
+its source type. For example, a table can only have one ROWID column.
+Therefore, a table with a ROWID column cannot also have a column with
+distinct type that is sourced on a row ID.</p>
+</section><section><p>The comparison operators are automatically generated for
+distinct types, except for distinct types that are sourced on a DataLink.
+In addition, the database manager automatically generates functions
+for a distinct type that support casting from the source type to the
+distinct type and from the distinct type to the source type. For example,
+for the AUDIO type created above, these are the generated cast functions:
+ </p>
+</section><div class="tablenoborder"><table><thead><tr><th style="width: 33.33333333333333%" id="d318855e200" class="nrule thleft">Name of generated cast function</th>
+<th style="width: 33.33333333333333%" id="d318855e202" class="nrule thleft">Parameter list</th>
+<th style="width: 33.33333333333333%" id="d318855e204" class="nrule thleft">Returns data type</th>
+</tr>
+</thead>
+<tbody><tr><td style="width: 33.33333333333333%" headers="d318855e200 " class="nrule">schema-name.BLOB</td>
+<td style="width: 33.33333333333333%" headers="d318855e202 " class="nrule">schema-name.AUDIO</td>
+<td style="width: 33.33333333333333%" headers="d318855e204 " class="nrule">BLOB</td>
+</tr>
+<tr><td style="width: 33.33333333333333%" headers="d318855e200 " class="nrule">schema-name.AUDIO</td>
+<td style="width: 33.33333333333333%" headers="d318855e202 " class="nrule">BLOB</td>
+<td style="width: 33.33333333333333%" headers="d318855e204 " class="nrule">schema-name.AUDIO</td>
+</tr>
+</tbody>
+</table>
+</div>
+<section><h2 class="sectiontitle">Array types</h2><p>An <em>array</em> is
+a structure that contains an ordered collection of data elements.
+All elements in an array have the same data type. The cardinality
+of the array is equal to the number of elements in the array.</p>
+<p>The entire array can be referenced or an individual
+element of the array can be referenced by its ordinal position in
+the collection. If <em>N</em> is the cardinality of an array, the ordinal
+position associated with each element is an integer value greater
+than or equal to 1 and less than or equal to <em>N</em>.</p>
+<p>An <em>array type</em> is a user-defined data type that
+is defined as an array. An SQL variable or SQL parameter can be defined
+as a user-defined array data type. Additionally, the result of an
+invocation of the TRIM_ARRAY function, or the result of a CAST specification,
+can be a user-defined array data type. An element of a user-defined
+array type can be referenced anywhere an expression returning the
+same data type as an element of that array can be used.</p>
+<p>An unnamed array type is an array without an associated
+user-defined data type. The result of an invocation of the ARRAY_AGG
+aggregate function or an ARRAY constructor is an array without an
+associated user-defined data type. An element of an array without
+an associated user-defined array type cannot be directly referenced.</p>
+<p>An array value can be empty (cardinality zero), null,
+or the individual elements in the array can be null or not null. An
+empty array is different than an array value of null, or an array
+for which all elements are the null value.</p>
+<p>An
+array value cannot be stored in the database or be returned to an
+external application other than Java™.</p>
+</section></div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzch2data.htm" title="The smallest unit of data that can be manipulated in SQL is called a value.">Data types</a></li>
+</ul>
+</aside></article></main></body></html>

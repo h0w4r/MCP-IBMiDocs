@@ -1,0 +1,144 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Date arithmetic">
+<meta name="abstract" content="Dates can be subtracted, incremented, or decremented.">
+<meta name="Description" content="Dates can be subtracted, incremented, or decremented.">
+<meta name="DC.subject" content="DATE, arithmetic operations">
+<meta name="keywords" content="DATE, arithmetic operations">
+<meta name="DC.Relation" scheme="URI" content="rbafzdatetimearith.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzdatetimearith.htm">
+<title>Date arithmetic</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzdatearith.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzdatearith">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsqlelem.htm">Language elements</a> > <a href="../../topic/db2/rbafzch2expr.htm">Expressions</a> > <a href="../../topic/db2/rbafzdatetimearith.htm">Datetime arithmetic in SQL</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d370305e7"><h1 class="topictitle1" id="d370305e7">Date arithmetic</h1>
+<div class="body refbody"><p class="shortdesc">Dates can be subtracted, incremented, or decremented.</p>
+<section><h2 class="sectiontitle">Subtracting dates</h2><p>The result of subtracting
+one date (DATE2) from another (DATE1) is a date duration that specifies
+the number of years, months, and days between the two dates. The data
+type of the result is DECIMAL(8,0). If DATE1 is greater than or equal
+to DATE2, DATE2 is subtracted from DATE1. If DATE1 is less than DATE2,
+however, DATE1 is subtracted from DATE2, and the sign of the result
+is made negative. The following procedural description clarifies the
+steps involved in the operation RESULT = DATE1 - DATE2. </p>
+</section><section><div class="lines"><div>If DAY(DATE2) &lt;= DAY(DATE1)</div>
+<div>&nbsp;&nbsp; then DAY(RESULT) = DAY(DATE1) - DAY(DATE2).</div>
+
+<div>If DAY(DATE2) &gt; DAY(DATE1)</div>
+<div>&nbsp;&nbsp; then DAY(RESULT) = N + DAY(DATE1) - DAY(DATE2)</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp; where N = the last day of MONTH(DATE2).</div>
+<div>&nbsp;&nbsp; MONTH(DATE2) is then incremented by 1.</div>
+
+<div>If MONTH(DATE2) &lt;= MONTH(DATE1) </div>
+<div>&nbsp;&nbsp; then MONTH(RESULT) = MONTH(DATE1) - MONTH(DATE2).</div>
+
+<div>If MONTH(DATE2) &gt; MONTH(DATE1)</div>
+<div>&nbsp;&nbsp; then MONTH(RESULT) = 12 + MONTH(DATE1) - MONTH(DATE2).</div>
+<div>&nbsp;&nbsp; YEAR(DATE2) is then incremented by 1.</div>
+
+<div>YEAR(RESULT) = YEAR(DATE1) - YEAR(DATE2).</div>
+</div>
+</section><section><p>For example, the result of DATE('3/15/2000') - '12/31/1999'
+is 215 (or, a duration of 0 years, 2 months, and 15 days).</p>
+</section><section><h2 class="sectiontitle">Incrementing and decrementing dates</h2><p>The
+result of adding a duration to a date, or of subtracting a duration
+from a date, is itself a date. (For the purposes of this operation,
+a month denotes the equivalent of a calendar page. Adding months to
+a date, then, is like turning the pages of a calendar, starting with
+the page on which the date appears.) The result must fall between
+the dates January&nbsp;1, 0001 and December&nbsp;31, 9999 inclusive.</p>
+<p>If
+a duration of years is added or subtracted, only the year portion
+of the date is affected. The month is unchanged, as is the day unless
+the result would be February&nbsp;29 of a non-leap-year. In this case,
+the day is changed to 28, an SQLSTATE of '01506' is assigned to the
+RETURNED_SQLSTATE condition area item in the SQL Diagnostics Area
+(or SQLWARN6 in the SQLCA is set to 'W') to indicate the end-of-month
+adjustment.</p>
+</section><section><p>Similarly, if a duration of months is added or subtracted,
+only months and, if necessary, years are affected. The day portion
+of the date is unchanged unless the result would be invalid (September
+31, for example). In this case, the day is set to the last day of
+the month, and SQLWARN6 in the SQLCA is set to 'W' to indicate the
+end-of-month adjustment.</p>
+</section><section><p>Adding or subtracting a duration of days will, of course,
+affect the day portion of the date, and potentially the month and
+year. Adding a labeled duration of DAYS will not cause an end-of-month
+adjustment.</p>
+</section><section><p>Date durations, whether positive or negative, may also
+be added to and subtracted from dates. As with labeled durations,
+the result is a valid date, and a warning indicator is set in the
+SQLCA whenever an end-of-month adjustment is necessary.</p>
+</section><section><p>When a positive date duration is added to a date, or a
+negative date duration is subtracted from a date, the date is incremented
+by the specified number of years, months, and days, in that order.
+Thus DATE1 + X, where X is a positive DECIMAL(8,0) number, is equivalent
+to the expression: </p>
+</section><section> <ul><li>DATE1 + YEAR(X) YEARS + MONTH(X) MONTHS + DAY(X) DAYS</li>
+</ul>
+</section><section><p>When a positive date duration is subtracted from a date,
+or a negative date duration is added to a date, the date is decremented
+by the specified number of days, months, and years, in that order.
+Thus, DATE1 - X, where X is a positive DECIMAL(8,0) number, is equivalent
+to the expression: </p>
+</section><section> <ul><li>DATE1 - DAY(X) DAYS - MONTH(X) MONTHS - YEAR(X) YEARS</li>
+</ul>
+</section><section> <div class="steps note"><span class="notetitle">Note:</span> If one or more months is added to a given date and
+then the same number of months is subtracted from the result, the
+final date is not necessarily the same as the original date. <p>Also
+note that logically equivalent expressions may not produce the same
+result. For example:</p>
+<ul><li>(DATE('2002–01–31') + 1 MONTH) + 1 MONTH will result in a date
+of 2002–03–28.</li>
+</ul>
+<p>does not produce the same result as</p>
+<ul><li>DATE('2002–01–31') + 2 MONTHS will result in a date of 2002–03–31.</li>
+</ul>
+</div>
+</section><section><p>The order in which labeled date durations are added to
+and subtracted from dates can affect the results. For compatibility
+with the results of adding or subtracting date durations, a specific
+order must be used. When labeled date durations are added to a date,
+specify them in the order of YEARS + MONTHS + DAYS. When labeled date
+durations are subtracted from a date, specify them in the order of
+DAYS - MONTHS - YEARS. For example, to add one year and one day to
+a date, specify:</p>
+</section><section> <ul><li>DATE1 + 1 YEAR + 1 DAY</li>
+</ul>
+</section><section><p>To subtract one year, one month, and one day from a date,
+specify:</p>
+</section><section> <ul><li>DATE1 - 1 DAY - 1 MONTH - 1 YEAR</li>
+</ul>
+</section></div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzdatetimearith.htm" title="The only arithmetic operations that can be performed on datetime values are addition and subtraction. If a datetime value is the operand of addition, the other operand must be a duration.">Datetime arithmetic in SQL</a></li>
+</ul>
+</aside></article></main></body></html>

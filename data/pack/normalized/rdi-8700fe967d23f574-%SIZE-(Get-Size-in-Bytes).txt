@@ -1,0 +1,166 @@
+%SIZE (Get Size in Bytes)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%SIZE (Get Size in Bytes)
+
+%SIZE(variable)
+%SIZE(literal)
+%SIZE(array{:*ALL})
+%SIZE(table{:*ALL})
+%SIZE(multiple-occurrence data structure{:*ALL})
+%SIZE returns the number of bytes occupied by the constant or field.
+The argument may be a literal, a named constant, a data structure,
+a data structure subfield, a field, an array or a table name. It
+cannot contain an expression, but some constant-valued built-in functions
+and constant expressions may be accepted. The value returned
+is in unsigned integer format (type U).
+
+For a graphic literal, the size is the number of bytes occupied
+by the graphic characters, not including leading and trailing shift
+characters. For a hexadecimal or UCS-2 literal, the size returned
+is half the number of hexadecimal digits in the literal.
+
+For variable-length fields, %SIZE returns the total number of bytes
+occupied by the field (two or four bytes longer than the declared maximum
+length).
+
+The length returned for a null-capable field (%SIZE) is always
+its full length, regardless of the setting of its null indicator.
+
+Note the following considerations
+for %SIZE when the argument is an array name, table name,
+or multiple-occurrence data structure name.
+
+The value returned is the size of
+one element or occurrence.
+
+If *ALL is specified as the second parameter
+for %SIZE, the value returned is the storage taken up by all elements
+or occurrences.
+
+The alignment of a data structure is the largest alignment
+that is required by the subfields of the data structure.
+If ALIGN(*FULL) is specified, then the size of each element of the
+data structure is a multiple of its alignment.
+If ALIGN is specified without a parameter, or if the ALIGN keyword
+is not specified, and the data structure contains at least one pointer,
+then the size that is occupied by the data structure might be less than a
+multiple of its alignment.
+See ALIGN{(*FULL)} for more information.
+
+For a multiple-occurrence data structure or
+data structure array that contains pointer subfields,
+the size that is occupied by the entire data structure
+might be greater than the size of one occurrence
+times the number of occurrences. The system requires that pointers
+be 16-byte aligned; that is, they must be placed in storage at addresses
+evenly divisible by 16. As a result,
+the length of each occurrence might have to be increased enough to make
+the length an exact multiple of 16 so that the pointer subfields will
+be positioned correctly in storage for every occurrence.
+Similarly, if the ALIGN keyword is specified, float, integer and unsigned
+integer subfields are positioned within the data structure at
+addresses evenly divisible by the size of the subfield.
+To ensure that the size of the entire data structure is
+the same as the size of is the same as the size of one occurrence
+times the number of occurrences, specify ALIGN(*FULL) if the
+data structure contains pointers, or if you require float, unsigned
+integer and integer subfields to be aligned.
+
+If the array
+is non-contiguous due to being overlaid on a larger array, the value
+returned is the same as it would be if the array were contiguous;
+it does not include the storage between the non-contiguous array elements.
+To obtain the distance between non-contiguous array elements,
+you can subtract the address of the first element from the address of the second element:
+
+distance_between = %ADDR(elem(2)) - %ADDR(elem(1));
+
+If the argument is a complex-qualified name and the data structures
+containing the required subfield are arrays, then the parameter may be specified in
+one of two ways:
+
+With indexes specified for all of the data structure arrays in the complex qualified name.
+
+With indexes specified for none of the data structure arrays in the complex qualified name.
+
+See %SIZE Example with a Complex Data Structure.
+
+%SIZE may be specified anywhere that a numeric constant is allowed
+on the definition specification and in an expression in the extended
+factor 2 field of the calculation specification.
+
+For more information, see Size Operations or Built-in Functions.
+
+Figure 1. %SIZE Example
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+D*Name++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D arr1 S 10 DIM(4)
+D table1 S 5 DIM(20)
+D field1 S 10
+D field2 S 9B 0
+D field3 S 5P 2
+D num S 5P 0
+D mds DS 20 occurs(10)
+D mds_size C const (%size (mds: *all))
+D mds_ptr DS 20 OCCURS(10)
+D pointer *
+D vCity S 40A VARYING INZ('North York')
+D fCity S 40A INZ('North York')
+
+/FREE
+num = %SIZE(field1); // 10
+num = %SIZE('HH'); // 2
+num = %SIZE(123.4); // 4
+num = %SIZE(-03.00); // 4
+num = %SIZE(arr1); // 10
+num = %SIZE(arr1:*ALL); // 40
+num = %SIZE(table1); // 5
+num = %SIZE(table1:*ALL); // 100
+num = %SIZE(mds); // 20
+num = %SIZE(mds:*ALL); // 200
+num = %SIZE(mds_ptr); // 20
+num = %SIZE(mds_ptr:*ALL); // 320
+num = %SIZE(field2); // 4
+num = %SIZE(field3); // 3
+n1 = %SIZE(vCity); // 42
+n2 = %SIZE(fCity); // 40
+/END-FREE
+
+See Examples showing the effect of the ALIGN keyword for an example of
+%SIZE for data structures with and without ALIGN(*FULL).
+
+%SIZE Example with a Complex Data Structure
+
+In the following example, the standard way to reference
+the complex qualified subfield PET is
+is
+
+family(x).child(y).pet
+
+When specified as the parameter for %SIZE, it can be specified
+either with no indexes specified for the data structure arrays,
+as in statement 1
+or with all indexes specified for the data structure arrays,
+as in statement 2.
+
+DCL-DS family QUALIFIED DIM(3);
+name VARCHAR(25);
+numChildren INT(10);
+DCL-DS child DIM(10);
+name VARCHAR(25);
+numPets INT(10);
+pet VARCHAR(100) DIM(3);
+END-DS;
+END-DS;
+DCL-S x INT(10);
+
+x = %SIZE(family.child.pet); // 1
+
+x = %SIZE(family(1).child(1).pet); // 2
+
+Parent topic: Built-in Functions

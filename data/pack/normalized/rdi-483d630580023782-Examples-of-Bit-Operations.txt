@@ -1,0 +1,136 @@
+Examples of Bit Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > %BITXOR (Bitwise Exclusive-OR Operation) > %BITXOR (Bitwise Exclusive-OR Operation)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > %BITXOR (Bitwise Exclusive-OR Operation)
+
+Examples of Bit Operations
+
+Figure 1. Using Bit Operations
+
+D const c x'0007'
+
+D ch1 s 4a inz(%BITNOT(const))
+* ch1 is initialized to x'FFF84040'
+D num1 s 5i 0 inz(%BITXOR(const:x'000F'))
+* num is initialized to x'0008', or 8
+
+D char2a s 2a
+D char2b s 2a
+D uA s 5u 0
+D uB s 3u 0
+D uC s 5u 0
+D uD s 5u 0
+
+C eval char2a = x'FE51'
+C eval char2b = %BITAND(char10a : x'0F0F')
+* operand1 = b'1111 1110 0101 0001'
+* operand2 = b'0000 1111 0000 1111'
+* bitwise AND: 0000 1110 0000 0001
+* char2b = x'0E01'
+C eval uA = x'0123'
+C eval uB = x'AB'
+C eval uc = x'8816'
+C eval uD = %BITOR(uA : uB : uC)
+* operand1 = b'0000 0001 0010 0011'
+* operand2 = b'0000 0000 1010 1011' (fill with x'00')
+* operand3 = b'1000 1000 0001 0110'
+* bitwise OR: 1000 1001 1011 1111
+* uD = x'89BF'
+
+Figure 2. Deriving TESTB Functionality
+from %BITAND
+
+* This example shows how to duplicate the function of TESTB using %BITAND
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D fld1 s 1a
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq
+C testb x'F1' fld1 010203
+* Testing bits 1111 0001
+* If FLD1 = x'00' (0000 0000), the indicators have the values '1' '0' '0'
+* (all tested bits are off)
+* If FLD1 = x'15' (0001 0101), the indicators have the values '0' '1' '0'
+* (some tested bits are off and some are on)
+* If FLD1 = x'F1' (1111 0001), the indicators have the values '0' '0' '1'
+* (all tested bits are on)
+/free
+// this code performs the equivalent of the TESTB operation above
+
+// test if all the "1" bits in x'F1' are off in FLD1
+*in01 = %bitand(fld1 : x'F1') = x'00';
+
+// test if some of the "1" bits in x'F1' are on
+// and some are off in FLD1
+*in02 = %bitand(fld1 : x'F1') <> x'00'
+and %bitand(fld1 : x'F1') <> x'F1';
+
+// test if all the "1" bits in x'F1' are on in FLD1
+*in03 = %bitand(fld1 : x'F1') = x'F1';
+/end-free
+
+Figure 3. BITON/BITOFF Functionality
+Using Built In Functions
+
+* This example shows how to duplicate the function of
+* BITON and BITOFF using %BITAND, %BITNOT, and %BITOR
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D fld1 s 1a inz(x'01')
+D fld2 s 1a inz(x'FF')
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq
+C biton x'F4' fld1
+* fld1 has an initial value of x'01' (0000 0001)
+* The 1 bits in x'F4' (1111 0100) are set on
+* fld1 has a final value of x'F5' (1111 0101)
+C bitoff x'F1' fld2
+* fld2 has an initial value of x'FF' (1111 1111)
+* The 1 bits in x'F1' (1111 0001) are set off
+* fld2 has a final value of x'0E' (0000 1110)
+/free
+// this code performs the equivalent of the
+// BITON and BITOFF operations above
+// Set on the "1" bits of x'F4' in FLD1
+fld1 = %bitor(fld1 : x'F4');
+// Set off the "1" bits of x'F1' in FLD2
+fld2 = %bitand(fld2 : %bitnot(x'F1'));
+
+/end-free
+
+Figure 4. Deriving MxxZO functionality
+from %BITOR and %BITAND
+
+D c1 s 2a inz(x'ABCD')
+D c2hh s 2a inz(x'EF12')
+D c2hl s 2a inz(x'EF12')
+D c2lh s 2a inz(x'EF12')
+D c2ll s 2a inz(x'EF12')
+/free
+// mhhzo c1 c2hh
+// c2hh becomes x'AF12'
+%subst(c2hh:1:1)
+= %bitor(%bitand(x'0F'
+: %subst(c2hh:1:1))
+: %bitand(x'F0'
+: %subst(c1:1:1)));
+// c2hl becomes x'EFA2'
+// mhlzo c1 c2hl
+%subst(c2hl:%len(c2hl):1)
+= %bitor(%bitand(x'0F'
+: %subst(c2hl:%len(c2hl):1))
+: %bitand(x'F0'
+: %subst(c1:1:1)));
+// mlhzo c1 c2lh
+// c2lh becomes x'CF12'
+%subst(c2lh:1:1)
+= %bitor(%bitand(x'0F'
+: %subst(c2lh:1:1))
+: %bitand(x'F0'
+: %subst(c1:%len(c1):1)));
+// mhllo c1 c2ll
+// c2ll becomes x'EFC2'
+%subst(c2ll:%len(c2hl):1)
+= %bitor(%bitand(x'0F'
+: %subst(c2ll:%len(c2ll):1))
+: %bitand(x'F0'
+: %subst(c1:%len(c1):1)));
+
+Parent topic: %BITXOR (Bitwise Exclusive-OR Operation)

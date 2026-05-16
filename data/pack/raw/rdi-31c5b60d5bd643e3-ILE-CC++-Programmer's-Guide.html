@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Source Code to Calculate Tax and Format Cost for Output</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog168.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog24.htm">Part 2&#46; Creating and Compiling Programs</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog157.htm">Chapter 7&#46; Example&#58; Creating an ILE C Application</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog163.htm">Source Code Samples</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="Header_190" HREF="cpprog02.htm#ToC_190">Source Code to Calculate Tax and Format Cost for Output</A></H3>
+<P>Module <TT>T1520IC2</TT> is shown in <A HREF="cpprog159.htm#FIGILESTR">Figure 52</A>. It provides the <TT>calc_and_format()</TT>
+function.
+<P><B><A NAME="FIGFIGT1520IC2" HREF="cpprog09.htm#FT_FIGFIGT1520IC2">Figure 57. Sample ILE C Source to Calculate Tax and Format Cost for Output</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">          /* This function calculates the tax and formats the total cost. The      */
+          /* function calc_and_format() returns 1 if successful and 0 if it fails. */
+          #include &lt;stdio.h>
+          #include &lt;string.h>
+          #include &lt;decimal.h>
+          /* Tax rate is imported from the service program T1520SP2.        */<B>(1)</B>
+          const extern  decimal (2,2)   taxrate;
+          int calc_and_format (decimal (10,2)  price,
+                               short int       quantity,
+                               char            formatted_cost[22])
+          {
+            decimal (17,4) hold_result;
+            char           hold_formatted_cost[22];
+            int            i,j;
+            memset(formatted_cost, ' ', 21);
+            hold_result = (decimal(4,0))quantity *
+            price * (1.00D+taxrate);         /* Calculate the total cost. */
+            if (hold_result &lt; 0.01D || hold_result > 1989800999801.02D)
+            {
+              printf("calc out of range:%17.4D(17,4)\n", hold_result);
+              return(0);
+            }
+           /* Format the total cost.    */
+              sprintf(hold_formatted_cost, "%21.2D(17,4)", hold_result);
+              j = 0;
+              for (i=0; i&lt;22; ++i)
+                {
+                  if (hold_formatted_cost[i] != ' '&nbsp;&amp;
+                      hold_formatted_cost[i] != '0')
+                {
+                      hold_formatted_cost[j] = '$';
+                      break;
+                }
+                j = i;
+              }
+              for (i=j=21; i>=0; --i)
+              {
+                if (j &lt; 0) return(0);
+                if (hold_formatted_cost[i] == '$')
+                {
+                  formatted_cost[j] = hold_formatted_cost[i];
+                  break;
+                }
+                  if (i&lt;16 &amp; !((i-2)%3))
+                {
+                  formatted_cost[j] = ',';
+                  --j;
+                }
+                formatted_cost[j] = hold_formatted_cost[i];
+                --j;
+              }
+           /* End of for loop, 21->0. */
+                return(1);
+           }
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><B>Notes: </B><OL TYPE=1>
+<P><LI>The function <TT>calc_and_format</TT> in this module calculates and
+formats the total cost. To do the calculation, the data item
+<TT>taxrate</TT> is imported from service program
+<TT>T1520SP2</TT>. This data item must be imported because it is not
+defined in this module (<TT>T1520IC2</TT>).
+</OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog167.htm">Previous Page</A> | <A HREF="cpprog169.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

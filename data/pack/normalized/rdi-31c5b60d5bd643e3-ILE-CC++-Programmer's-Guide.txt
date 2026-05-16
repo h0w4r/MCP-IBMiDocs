@@ -1,0 +1,77 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 7. Example: Creating an ILE C Application > Source Code Samples
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 7. Example: Creating an ILE C Application > Source Code Samples
+
+ILE C/C++ Programmer's Guide
+Source Code to Calculate Tax and Format Cost for Output
+Module T1520IC2 is shown in Figure 52. It provides the calc_and_format()
+function.
+Figure 57. Sample ILE C Source to Calculate Tax and Format Cost for Output
+
+/* This function calculates the tax and formats the total cost. The */
+/* function calc_and_format() returns 1 if successful and 0 if it fails. */
+#include <stdio.h>
+#include <string.h>
+#include <decimal.h>
+/* Tax rate is imported from the service program T1520SP2. */(1)
+const extern decimal (2,2) taxrate;
+int calc_and_format (decimal (10,2) price,
+short int quantity,
+char formatted_cost[22])
+{
+decimal (17,4) hold_result;
+char hold_formatted_cost[22];
+int i,j;
+memset(formatted_cost, ' ', 21);
+hold_result = (decimal(4,0))quantity *
+price * (1.00D+taxrate); /* Calculate the total cost. */
+if (hold_result < 0.01D || hold_result > 1989800999801.02D)
+{
+printf("calc out of range:%17.4D(17,4)\n", hold_result);
+return(0);
+}
+/* Format the total cost. */
+sprintf(hold_formatted_cost, "%21.2D(17,4)", hold_result);
+j = 0;
+for (i=0; i<22; ++i)
+{
+if (hold_formatted_cost[i] != ' ' &
+hold_formatted_cost[i] != '0')
+{
+hold_formatted_cost[j] = '$';
+break;
+}
+j = i;
+}
+for (i=j=21; i>=0; --i)
+{
+if (j < 0) return(0);
+if (hold_formatted_cost[i] == '$')
+{
+formatted_cost[j] = hold_formatted_cost[i];
+break;
+}
+if (i<16 & !((i-2)%3))
+{
+formatted_cost[j] = ',';
+--j;
+}
+formatted_cost[j] = hold_formatted_cost[i];
+--j;
+}
+/* End of for loop, 21->0. */
+return(1);
+}
+
+Notes:
+The function calc_and_format in this module calculates and
+formats the total cost. To do the calculation, the data item
+taxrate is imported from service program
+T1520SP2. This data item must be imported because it is not
+defined in this module (T1520IC2).
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

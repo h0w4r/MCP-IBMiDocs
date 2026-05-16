@@ -1,0 +1,218 @@
+MOUBTN (Mouse Buttons) keyword for display files
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+MOUBTN (Mouse Buttons) keyword for display files
+
+You use this file-level or record-level keyword to
+associate a Command key or EVENT-ID parameter with one or two pointer-device
+events.
+
+When a specified pointer device single event is performed and
+no other function has a higher priority, the keyboard is locked, the cursor
+is moved to the pointer device cursor location, and the specified Command
+key or EVENT-ID is returned to the application. If the Command key or EVENT-ID
+normally results in entry field data validation, the data validation is performed
+first. If the specified Command key or EVENT-ID normally returns entry field
+data, inbound entry field data is included.
+For pointer device double
+events, inbound data is not returned until the trailing edge event also occurs.
+When the leading edge event is detected, a programmable-two-event state is
+entered, a marker box is drawn around the location of the pointer device cursor
+(4 blue lines around the character), the pointer device cursor color is changed
+to white on a color nonprogrammable workstations (NWS) and the trailing edge
+event is looked for. Keystrokes and host data streams will cancel the programmable-two-event
+state. Some pointer device events are ignored while waiting for the trailing
+edge event. When the trailing edge event is received, the marker box is erased,
+the pointer device cursor color is changed to input inhibited, then keyboard
+is locked, the text cursor is moved to the location of the pointer device
+cursor, and the inbound data is returned to the host.
+Note: Although it
+is permitted, it is not be advisable to program some combinations of pointer
+device events on the same mouse button and shift state. For example, if the
+right button is programmed, right button double click should not be programmed
+because it cannot be detected due to the keyboard being locked from the right
+button pressed event. Using the *QUEUE parameter will allow the application
+to handle this situation.
+The format of this keyword is: MOUBTN(EVENT [TRAILING-EVENT] {Command key | EVENT-ID}
+[*QUEUE | *NOQUEUE])
+The EVENT parameter is required and
+indicates the pointer device event that will be associated with the Command
+key or EVENT-ID parameter. Valid values for the EVENT parameter are:
+
+Value
+Meaning
+
+*ULP
+
+Unshifted Left button Pressed
+
+*ULR
+
+Unshifted Left button Released
+
+*ULD
+
+Unshifted Left button Double click
+
+*UMP
+
+Unshifted Middle button Pressed
+
+*UMR
+
+Unshifted Middle button Released
+
+*UMD
+
+Unshifted Middle button Double click
+
+*URP
+
+Unshifted Right button Pressed
+
+*URR
+
+Unshifted Right button Released
+
+*URD
+
+Unshifted Right button Double click
+
+*SLP
+
+Shifted Left button Pressed
+
+*SLR
+
+Shifted Left button Released
+
+*SLD
+
+Shifted Left button Double click
+
+*SMP
+
+Shifted Middle button Pressed
+
+*SMR
+
+Shifted Middle button Released
+
+*SMD
+
+Shifted Middle button Double click
+
+*SRP
+
+Shifted Right button Pressed
+
+*SRR
+
+Shifted Right button Released
+
+*SRD
+
+Shifted Right button Double click
+
+The TRAILING-EVENT parameter is optional. If specified,
+this parameter defines the trailing event of a two event pointer device definition.
+This parameter has the same valid values as the EVENT parameter. A TRAILING-EVENT
+is be the trailing edge event for multiple leading edge events and have different
+Command key or EVENT-ID associations for each one. An event is be a trailing
+edge event and also defined as a single event (with a different Command key
+or EVENT-ID association).
+Note: There are some restrictions to the Event
+definitions.
+An event cannot be both a single event and a leading edge of a two event
+sequence.
+
+A leading edge event can have only one trailing edge event associated
+with it.
+
+If you use the same event as a single or leading edge event
+with multiple mouse button definitions, only the first definition is used.
+Either
+the Command key or EVENT-ID parameter must be specified and associates a Command
+key or EVENT-ID value with the pointer device event indicated by the first
+(and second, if provided) parameters. Valid values for a Command key are CA01
+through CA24, CF01 through CF24, ENTER, ROLLUP, ROLLDOWN, HELP, HOME, PRINT
+and CLEAR. Valid EVENT-IDs are E00 through E15. EVENT-IDs are similar to CAxx
+keys in that no input data is transmitted from the device.
+The QUEUE
+parameter is optional and specifies if the single event being defined should
+be queued by the controller if received while the keyboard is locked. This
+feature is primarily used to allow a double-click to be defined for a mouse
+button that also has either the pressing or releasing of the same button defined.
+If the queueing is not enabled for the double click, the application will
+probably not know that the double-click has occurred since the keyboard will
+still be locked from processing the pressing/releasing of the button. The
+default is *NOQUEUE.
+The following keywords cannot be specified when
+the listed Command key has been used on the MOUBTN keyword:
+
+Command key
+
+Mutually exclusive keyword
+
+CFxx
+
+ALTHELP(CAyy),  CAxx
+where xx=yy.
+
+CAxx
+
+ALTPAGEDWN(CFyy), ALTPAGEUP(CFyy), CFxx
+where xx=yy.
+
+CF01
+
+ALTHELP with no parameter
+
+CA07
+
+ALTPAGEUP with no parameter
+
+CA08
+
+ALTPAGEDWN with no parameter
+
+Although not required, it is valid to specify the CA01-CA24, CF01-CF24,
+ROLLUP, ROLLDOWN, PAGEUP, PAGEDOWN, CLEAR and HLPRTN keywords even though
+the associated function key is defined as a command key to a single or double
+mouse event. Associating a Command key to a mouse event will automatically
+enable the corresponding Command key from the keyboard. If you want to associate
+a response indicator with the function key, you must use one of the listed
+keywords to do this. In that case, the response indicator will be set on regardless
+if the Command key originates from the keyboard or from a mouse event.
+Option
+Indicators are valid for this keyword.
+
+ExampleThe following example shows
+how to specify the MOUBTN keyword.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A MOUBTN(*URP CF03)
+A MOUBTN(*SRP CF12)
+A CF12(12 'CANCEL')
+A R RECORD1
+A MOUBTN(*ULP *UMP ROLLUP)
+A MOUBTN(*UMP *ULP ROLLDOWN)
+A 1 10'ONE--:'
+A FIELD1 10A I 1 17TEXT('ONE')
+A 2 10'TWO--:'
+A FIELD2 10A I 2 17TEXT('TWO')
+AIn this example, 2 Programmable Mouse Button events have
+been defined that will be in effect for all records within this file (unless
+overridden at the record level). These definitions associate the unshifted
+right mouse button pressed event with the CF03 key and the shifted right mouse
+button pressed event with the CF12 key. The CF03 key has no response indicator
+associated with it while the CF12 key has response indicator 12 associated
+with it.
+Within RECORD1, two two-event mouse button events have been
+defined. The first associates the unshifted left mouse button pressed followed
+by the unshifted middle mouse button pressed with the ROLLUP key. The second
+associates the unshifted middle mouse button pressed followed by the unshifted
+left mouse button pressed with the ROLLDOWN key. These definitions are only
+valid when RECORD1 is the last record to be written to the display.

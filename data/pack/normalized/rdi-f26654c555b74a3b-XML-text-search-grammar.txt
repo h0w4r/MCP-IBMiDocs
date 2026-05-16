@@ -1,0 +1,122 @@
+XML text search grammar
+
+IBM i programming resources > SQL > SQL reference > Text search argument syntax > XML text search > XML text search
+
+IBM i programming resources > SQL > SQL reference > Text search argument syntax > XML text search
+
+XML text search grammar
+A subset of the XPath language, which is defined by an
+Extended Backus-Naur Form (EBNF) grammar, is supported by the XML
+search query parser. Queries that do not conform to the supported
+grammar are rejected by the query parser, which throws an exception.
+The EBNF grammar has been simplified in the following ways by:Removing the largest-scale structures for specifying iteration
+and ranges
+Eliminating filter expressions
+Disallowing absolute pathnames in predicate expressions
+Recognizing only one axis (tag) and only in the forward direction
+
+The following table shows the supported grammar in EBNF notation.
+Table 1. Supported
+query grammar in EBNF notationSymbol
+Production
+
+XMLQuery ::=
+QueryPrefix NameSpaceDeclaration QueryString
+| QueryPrefix QueryString
+
+QueryPrefix ::=
+@xmlxp:
+
+QueryString ::=
+"'" PathExpr "'"
+
+PathExpr ::=
+RelativePathExpr
+| "/" RelativePathExpr?
+| "//" RelativePathExpr
+
+RelativePathExpr ::=
+StepExpr ( ( "/" | "//" ) StepExpr )*
+
+StepExpr ::=
+( "." | AbbrevForwardStep ) Predicate?
+
+AbbrevForwardStep ::=
+"@"? (QName | "*")
+
+Predicate ::=
+"[" PredicateExpr "]"
+
+PredicateExpr ::=
+Expr
+| PredicateExpr ( "and" | "or" )
+| "(" PredicateExpr ")"
+
+Expr ::=
+ComparisonExpr | ContainmentExpr
+
+ComparisonExpr ::=
+PathExpr ComparisonOp Literal
+
+ComparisonOp ::=
+"=" | "<" | ">" | "!=" | "<=" | ">="
+
+Literal ::=
+StringLiteral | NumericLiteral | DateLiteral
+
+ContainmentExpr ::=
+PathExpr "contains" "(" StringLiteral ")"
+| PathExpr "excludes" "(" StringLiteral ")"
+
+StringLiteral ::=
+"\"" [^"]* "\""
+| "'" [^']* "'"
+
+DateLiteral ::=
+"xs:date(\"" xmlDate "\")"
+| "xs:dateTime(\"" xmlDateTime "\")"
+
+xmlDate ::=
+yyyy"-"mm"-"dd
+
+xmlDateTime ::=
+yyyy"-"mm"-"dd [T] hh":"mm":"ss"."uuuuuu
+
+NameSpaceDeclaration ::=
+defaultNameSpace (NameSpacePrefixDeclaration)*
+
+defaultNameSpace ::=
+“declare default element namespace
+“  StringLiteral  “;”
+
+NameSpacePrefixDeclaration ::=
+“declare namespace”  NameSpacePrefix “=”
+StringLiteral “;”
+
+NameSpacePrefix ::=
+[^”:]+
+
+For more information about QName, see http://www.w3.org/TR/REC-xml-names/#NT-QName.
+The following information about XML search queries that use XPath
+notation might not be obvious from the EBNF grammar notations:Names not normalized: XML tag and attribute names are not
+normalized when they are indexed. The names are not changed to lowercase
+or modified in any way. Case is significant in XML tag and attribute
+names to get a match. Therefore, the strings that are used for XML
+tag and attribute names in queries must match exactly the names that
+appear in the source documents.
+Free text normalization: Free text in XML documents (text
+between tags, not inside a tag itself) and attribute values are normalized
+before indexing. Text in XML search queries (in contains or excludes operators,
+or in strings that are surrounded by quotation marks) is normalized,
+too. Features such as phrases, synonyms, wildcard characters, and
+lemmas are supported.
+Operator precedence: In XML search predicates, containment
+operators and comparison operators take precedence over logical operators,
+and all logical operators have the same precedence. Containment operators
+are contains and excludes. Comparison operators are
+=, !=, <, >, <= and >=. Logical operators are "and" and "or."
+You can use parentheses to ensure the desired precedence.
+Semantics: In XML search predicates, the comparison operators
+can be applied only to attribute values and not to tags.
+
+Parent topic: XML text search

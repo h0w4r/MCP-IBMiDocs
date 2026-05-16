@@ -1,0 +1,169 @@
+RPAD
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+RPAD
+The RPAD function returns a string composed of expression that
+is padded on the right.
+RPAD(expression,length,pad)
+The RPAD function treats leading or trailing blanks in expression as
+significant. Padding will only occur if the actual length of expression is
+less than length, and pad is not an empty string.
+expression
+An expression that specifies the string from which the result
+is derived. Expression must be a built-in
+string, numeric, or datetime data type. A numeric or datetime argument
+is cast to VARCHAR with a CCSID that is the default SBCS CCSID at
+the current server before evaluating the function. For more information
+about converting numeric or datetime to a character string, see VARCHAR.
+
+length
+An expression that specifies the length of the result. The expression
+must return a value that is a built-in numeric, character-string,
+or graphic-string data type. If the data type of the expression is
+not INTEGER, it is implicitly cast to INTEGER before evaluating the
+function. The value must be zero or a positive integer that is less
+than or equal to n, where n is the maximum length of
+the result data type. See SQL limits for
+more information.If expression is a graphic
+string, length indicates the number of DBCS or Unicode graphic
+characters. If expression is a character string, length indicates
+the number of characters where a character may consist of one or more
+bytes. If expression is a binary string, length indicates
+the number of bytes.
+
+pad
+An expression that specifies the string with which to pad. The
+expression must return a value that is a built-in string, numeric,
+or datetime data type. If the value is a numeric or datetime data
+type, it is implicitly cast to VARCHAR with a CCSID that is the default
+SBCS CCSID at the current server before evaluating the function.
+If pad is not specified, the pad character
+is set as follows:For character and graphic strings, a single-byte, double-byte,
+UTF-16, or UTF-8 blank character based on the data type and CCSID
+of expression.1
+For binary strings, hexadecimal zeros.
+
+The value for expression and the value for pad must
+have compatible data types. If the CCSID of pad is different
+than the CCSID of expression, the pad value is converted
+to the CCSID of expression. For more information about data
+type compatibility, see Assignments and comparisons.
+The
+data type of the result depends on the data type of expression:
+Data type of expression
+Data Type of the
+Result for RPAD
+
+CHAR or VARCHAR or numeric or datetime
+VARCHAR
+
+CLOB
+CLOB
+
+GRAPHIC or VARGRAPHIC
+VARGRAPHIC
+
+DBCLOB
+DBCLOB
+
+BINARY or VARBINARY
+VARBINARY
+
+BLOB
+BLOB
+
+The length attribute of the result depends on length.
+If length is explicitly specified by an integer constant that
+is greater than zero, the length attribute of the result is length.
+If length is explicitly specified by an integer constant that
+is zero, the length attribute of the result is 1. If length is
+specified as an expression, the length attribute of the result is
+the minimum of m+100 and the maximum length of the result data
+type, where m is the length attribute of expression.
+See SQL limits for more information.
+The actual length of the result is determined from length. If length is 0, the actual length is 0 and the result is
+the empty result string.
+If length is equal to the actual length of expression,
+the actual length is the length of expression.
+If length is less than the actual length of expression,
+the result is truncated. The actual length is length unless
+the result data type is varying-length mixed data or varying-length
+Unicode. In this case, only complete characters will be truncated.
+For Unicode data, the actual length may be length-1 to
+prevent a double-byte character from being split.
+For mixed data the actual length may be as little as length-3
+to account for truncation of a double byte character and possibly
+a “shift-in” character (X'0F') and a “shift-out” character (X'0E').
+
+If length is greater than the actual length of expression,
+the actual length is length unless the result data type is
+varying-length mixed data or varying-length Unicode and pad contains
+double-byte characters. In this case, only complete characters will
+be padded. For Unicode data, the actual length may be length-1 to
+prevent a double-byte character from being split.
+For mixed data, the actual length may be may be as little as length-3
+to account for truncation of a double byte character and possibly
+a “shift-in” character (X'0F') and a “shift-out” character (X'0E').
+Also, this result will not have redundant shift codes “at the seam”.
+Thus, if the pad is a string ending with a “shift-in” character (X'0F'),
+and expression begins with a “shift-out” character (X'0E'), these
+two bytes are eliminated from the result.
+
+If any argument can be null, the result can be null; if
+any argument is null, the result is the null value.
+The CCSID of the result is the same as that of expression.
+ExamplesExample 1: Assume that NAME is a VARCHAR(15) column that
+contains the values "Chris", "Meg", and "Jeff". The following query
+will completely pad out a value on the right with periods:SELECT RPAD(NAME,15,'.' ) AS NAME FROM T1;  
+returns:NAME
+---------------
+Chris..........
+Meg............
+Jeff...........
+
+Example 2: Assume that NAME is a VARCHAR(15) column that
+contains the values "Chris", "Meg", and "Jeff". The following query
+will only pad each value to a length of 5:SELECT RPAD(NAME,5,'.' ) AS NAME FROM T1;
+returns:NAME
+-----
+Chris
+Meg..
+Jeff.
+
+Example 3: Assume that NAME is a CHAR(15) column containing
+the values "Chris", "Meg", and "Jeff". Note that the result of RTRIM
+is a varying length string with the blanks removed SELECT RPAD(RTRIM(NAME),15,'.' ) AS NAME FROM T1;
+returns:NAME
+---------------
+Chris..........
+Meg............
+Jeff...........
+
+Example 4: Assume that NAME is a VARCHAR(15) column containing
+the values "Chris", "Meg", and "Jeff". The following query will completely
+pad out a value on the right with pad (note that in some cases,
+a partial instance of the pad specification is returned):SELECT RPAD(NAME,15,'123' ) AS NAME FROM T1;
+returns:NAME
+---------------
+Chris1231231231
+Meg123123123123
+Jeff12312312312
+
+Example 5: Assume that NAME is a VARCHAR(15) column containing
+the values "Chris", "Meg", and "Jeff". Note that "Chris" is truncated,
+"Meg" is padded, and "Jeff" is unchanged:SELECT RPAD(NAME,4,'.' ) AS NAME FROM T1;
+returns:NAME
+----
+Chri
+Meg.
+Jeff
+
+Parent topic: Scalar functions
+
+1 UTF-16 or UCS-2 defines a blank character at code
+point X'0020' and X'3000'. The database manager pads with the blank
+at code point X'0020'. The database manager pads UTF-8 with a blank
+at code point X'20'

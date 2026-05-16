@@ -1,0 +1,180 @@
+RESIGNAL statement
+
+IBM i programming resources > SQL > SQL reference > SQL control statements > SQL control statements
+
+IBM i programming resources > SQL > SQL reference > SQL control statements
+
+RESIGNAL statement
+The RESIGNAL statement is used within a condition handler
+to re-raise the current condition, or raise an alternate condition
+so that it can be processed at a higher level. It causes an exception,
+warning, or not found condition to be returned, along with optional
+message text.
+Issuing the RESIGNAL statement without an operand causes
+the current condition to be passed outwards.
+Syntaxlabel:RESIGNALSQLSTATEVALUEsqlstate-string-constantsqlstate-string-variableSQL-condition-namesignal-informationsignal-informationSETMESSAGE_TEXTCONSTRAINT_CATALOGCONSTRAINT_SCHEMACONSTRAINT_NAMECATALOG_NAMESCHEMA_NAMETABLE_NAMECOLUMN_NAMECURSOR_NAMECLASS_ORIGINSUBCLASS_ORIGIN = SQL-variable-nameSQL-parameter-namediagnostic-string-constant
+Descriptionlabel
+Specifies the label for the RESIGNAL statement. The label name
+cannot be the same as the routine name or another label within the
+same scope. For more information, see References to SQL labels.
+SQLSTATE VALUE
+Specifies the SQLSTATE that will be resignaled. Any valid SQLSTATE
+value can be used. The specified value must follow the rules for SQLSTATEs: Each character must be from the set of digits ('0' through '9')
+or non-accented upper case letters ('A' through 'Z').
+The SQLSTATE class (first two characters) cannot be '00' since
+this represents successful completion.
+
+If the SQLSTATE does not conform to these rules, an error
+is returned.
+sqlstate-string-constant
+The sqlstate-string-constant must be a character string
+constant with exactly 5 characters.
+sqlstate-string-variable
+The sqlstate-string-variable must be a character or Unicode
+graphic variable. The actual length of the contents of the sqlstate-string-variable must
+be 5.
+
+SQL-condition-name
+Specifies the name of the condition that will be returned. The SQL-condition-name must
+be declared within the compound-statement.
+SET
+Introduces the assignment of values to condition-information-items.
+The condition-information-item values can be accessed using
+the GET DIAGNOSTICS statement. The only condition-information-item that
+can be accessed in the SQLCA is MESSAGE_TEXT. MESSAGE_TEXT
+Specifies a string that describes the error or warning. If
+an SQLCA is used,
+the string is returned in the SQLERRMC field of the SQLCA
+if the actual length of the string is longer than 1000 bytes,
+it is truncated without a warning.
+
+CONSTRAINT_CATALOG
+Specifies a string that indicates the name of the database that
+contains a constraint related to the signalled error or warning.
+CONSTRAINT_SCHEMA
+Specifies a string that indicates the name of the schema that
+contains a constraint related to the signalled error or warning.
+CONSTRAINT_NAME
+Specifies a string that indicates the name of a constraint related
+to the signalled error or warning.
+CATALOG_NAME
+Specifies a string that indicates the name of the database that
+contains a table or view related to the signalled error or warning.
+SCHEMA_NAME
+Specifies a string that indicates the name of the schema that
+contains a table or view related to the signalled error or warning.
+TABLE_NAME
+Specifies a string that indicates the name of a table or view
+related to the signalled error or warning.
+COLUMN_NAME
+Specifies a string that indicates the name of a column in the
+table or view related to the signalled error or warning.
+CURSOR_NAME
+Specifies a string that indicates the name of a cursor related
+to the signalled error or warning.
+CLASS_ORIGIN
+Specifies
+a string that indicates the origin of the SQLSTATE class related to
+the signalled error or warning.
+SUBCLASS_ORIGIN
+Specifies
+a string that indicates the origin of the SQLSTATE subclass related
+to the signalled error or warning.
+SQL-variable-name
+Identifies an SQL variable declared within the compound-statement,
+that contains the value to be assigned to the condition-information-item.
+The SQL variable must be defined as CHAR, VARCHAR, Unicode GRAPHIC,
+or Unicode VARGRAPHIC variable.
+SQL-parameter-name
+Identifies an SQL parameter declared within the compound-statement,
+that contains the value to be assigned to the condition-information-item.
+The SQL parameter must be defined as CHAR, VARCHAR, Unicode GRAPHIC,
+or Unicode VARGRAPHIC variable.
+diagnostic-string-constant
+Specifies a character string constant that contains the value
+to be assigned to the condition-information-item.
+
+NotesSQLSTATE
+values: Any valid SQLSTATE value can be used in the RESIGNAL statement.
+However, it is recommended that programmers define new SQLSTATEs based
+on ranges reserved for applications. This prevents the unintentional
+use of an SQLSTATE value that might be defined by the database manager
+in a future release.
+For more information about SQLSTATEs, see the SQL Messages
+and Codes topic collection.
+Assignment: When the RESIGNAL statement is executed,
+the value of each of the specified string-constants and variables is
+assigned to the corresponding condition-information-item. However,
+if the length of a string-constant or variable is longer
+than the maximum length of the corresponding condition-information-item,
+it is truncated without a warning. For details on the assignment rules,
+see Assignments and comparisons. For details on the maximum
+length of specific condition-information-items, see GET DIAGNOSTICS.
+Processing a RESIGNAL statement:
+If the RESIGNAL statement is specified without a SQLSTATE clause
+or a SQL-condition-name, the SQL function, SQL procedure, or
+SQL trigger resignals the identical condition that invoked the handler
+and the SQLCODE is not changed.
+When a RESIGNAL statement is issued and an SQLSTATE or SQL-condition-name is
+specified, the SQLCODE is based on the SQLSTATE value as follows: If the specified SQLSTATE class is either '01' or '02', a warning
+or not found is signalled and the SQLCODE is set to +438.
+Otherwise, an exception is returned and the SQLCODE is set to
+–438.
+
+If the SQLSTATE or condition indicates that an exception
+is signalled (SQLSTATE class other than '01' or '02'):,
+If a handler exists in the same compound statement as the RESIGNAL
+statement, and the compound-statement contains a handler for
+SQLEXCEPTION or the specified SQLSTATE or condition; the exception
+is handled and control is transferred to that handler.
+If the compound-statement is nested and an outer level compound-statement has
+a handler for SQLEXCEPTION or the specified SQLSTATE or condition;
+the exception is handled and control is transferred to that handler.
+Otherwise, the exception is not handled and control is immediately
+returned to the end of the compound statement.
+
+If the SQLSTATE or condition indicates that a warning
+(SQLSTATE class '01') or not found (SQLSTATE class '02') is signalled:
+If a handler exists in the same compound statement as the RESIGNAL
+statement, and the compound-statement contains a handler for
+SQLWARNING (if the SQLSTATE class is '01'), NOT FOUND (if the SQLSTATE
+class is '02'), or the specified SQLSTATE or condition; the warning
+or not found condition is handled and control is transferred to that
+handler.
+If the compound-statement is nested and an
+outer level compound statement contains a handler for SQLWARNING (if
+the SQLSTATE class is '01'), NOT FOUND (if the SQLSTATE class is '02'),
+or the specified SQLSTATE or condition; the warning or not found condition
+is not handled and processing continues with the next statement.
+Otherwise, the warning is not handled and processing continues
+with the next statement.
+
+Considerations for the diagnostics area: The RESIGNAL
+statement might modify the contents of the current diagnostics area.
+If an SQLSTATE or SQL-condition-name is specified as part of
+the RESIGNAL statement, the RESIGNAL statement starts with a clear
+of the diagnostics area and sets the RETURNED_SQLSTATE to reflect
+the specified SQLSTATE or SQL-condition-name. If any signal-information is
+specified, the corresponding items in the condition area are assigned
+the specified values. DB2_RETURNED_SQLCODE is set to +438 or -438
+corresponding to the specified SQLSTATE or SQL-condition-name.
+ExampleThis example detects a division
+by zero error. The IF statement uses a SIGNAL statement to invoke
+the overflow condition handler. The condition handler uses a RESIGNAL
+statement to return a different SQLSTATE value to the client application.
+CREATE PROCEDURE divide ( IN numerator INTEGER,
+IN denominator INTEGER,
+OUT divide_result INTEGER )
+LANGUAGE SQL
+BEGIN
+DECLARE overflow CONDITION FOR '22003';
+DECLARE CONTINUE HANDLER FOR overflow
+RESIGNAL SQLSTATE '22375';
+IF denominator = 0 THEN
+SIGNAL overflow;
+ELSE
+SET divide_result = numerator / denominator;
+END IF;
+END
+
+Parent topic: SQL control statements

@@ -1,0 +1,133 @@
+CCSID (Coded Character Set Identifier) keyword for physical and logical
+files
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Keyword entries for physical and logical files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Keyword entries for physical and logical files (positions 45 through 80)
+
+CCSID (Coded Character Set Identifier) keyword for physical and logical
+files
+
+You can use this keyword to specify a coded character
+set identifier (CCSID) for character fields. The CCSID keyword is a file-
+or field-level keyword on physical files, and a field-level keyword on logical
+files.
+
+The format of the keyword is: CCSID(value [field-display-length | *MIN | *LEN display-positions]
+[*CONVERT | *NOCONVERT] [*NORMALIZE])
+The value is
+a number up to 5 digits long that identifies a specific set of encoding scheme
+identifiers, character set identifiers, code page identifiers, and other relevant
+information that uniquely identifies the coded graphic character representation
+used for the data in the field.
+For logical files, the following characteristics
+must be true before the CCSID keyword is allowed on a logical file field.
+
+If the specified value on the logical file CCSID keyword uses a Unicode
+encoding scheme, then the field data type must be G for a UCS-2 Level 1 or
+a UTF-16 encoding scheme, and the field data type must be A for a UTF-8 encoding
+scheme. Also, the corresponding physical file field must be of types A, G,
+or O.
+
+If the specified value on the logical file CCSID keyword does not use
+the Unicode encoding scheme, then the field data type must be A, O, or G.
+Also, the corresponding physical file field must be a G type field and have
+the CCSID keyword specified with a UCS-2 or UTF-16 value, or be an A (character)
+type field with a UTF-8 CCSID.
+
+The field-display-length parameter is optional and is only used
+when the field is referenced by a field in a display file. The parameter is
+only valid when the value parameter is UCS-2 or UTF-16. The field-display-length
+allows the user to control the field size according to the UCS-2 or UTF-16
+data.
+A special value, *MIN, can be specified instead of a field-display-length.
+It can be defined in a physical file only for use by a referencing field in
+a display file DDS record format. This value is used to specify a field display
+length defined in terms of display positions. This value causes the field
+length on the screen to be equal to the field length defined in the DDS.
+A
+special value, *LEN, along with the display-positions value can be specified
+instead of a field-display-length. It can be defined in the physical file
+only for use by a referencing field in a display file DDS record format. This
+value is used to specify a field display length defined in terms of display
+positions. This value causes the field length on the screen to be equal to
+the display-positions value.
+The *CONVERT parameter is
+optional. It can be defined in a physical file only for use by a referencing
+field in a printer file DDS record format. The parameter specifies that, when
+the field prints, the UCS-2 or UTF-16 data is converted to the target CCSID
+specified on the CHRID command parameter on the CRTPRTF, CHGPRTF, or OVRPRTF
+command. If you do not specify this parameter, the keyword is set to *CONVERT
+as default. If you specify *NOCONVERT, the UCS-2 or UTF-16 data will be not
+converted to the target CCSID.
+The *NORMALIZE parameter
+is optional but provides more predictable results when you are using UTF-8
+and UTF-16 data. You can use this parameter to combine characters in UTF-8
+and UTF-16 data. This support for combining characters allows a resulting
+character to be composed of more than one character. After the first character,
+up to 300 different nonspacing accent characters, such as umlaut and accent,
+can follow in the data string. If the resulting character is one that is already
+defined in the character set, normalization replaces the string of combining
+characters with the hexadecimal value of the defined character. If the resulting
+character is not a defined character, the combining character string is unchanged
+after normalization. For example, normalization of a UTF-16 graphic string
+of an 'e' (X'0065') followed by an acute character (X'0301') results in the
+replacement character é (X'00E9').
+You can use the *NORMALIZE parameter
+only when the CCSID keyword is used at the field level. Without this keyword,
+the system assumes that data inserted or updated into UTF-8 and UTF-16 fields
+is already normalized. *NORMALIZE is valid only with a CCSID keyword UTF-16
+value (on a graphic field) or UTF-8 value (on a character field).
+When
+specified at the file level for physical files, the CCSID keyword applies
+to each character field in the file except those character fields that also
+have the CCSID keyword specified. If the file level CCSID is UCS-2 or UTF-16,
+it is applied to any G field that does not have a CCSID keyword. If a CCSID
+value on the physical file field used the UCS-2 encoding scheme, the data
+type of this field must be type G. If a CCSID value on the physical file field
+used the UTF-8 encoding scheme, the data type of this field must be character.
+If a CCSID value on the physical file field used the UTF-16 encoding scheme,
+the data type of this field must be type G.
+If the CCSID keyword is
+not specified at the file level and not all character fields have the CCSID
+keyword specified, then the fields are assigned the job's default CCSID when
+the file is created.
+
+ExamplesThe following example shows how to specify
+the CCSID keyword for physical files.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A CCSID(285)
+00020A R RECORD1
+00030A FIELD1 75G CCSID(13488)
+00040A FIELD2 150A
+00050A FIELD3 20A
+00060A FIELD4 10A CCSID(1208 *NORMALIZE)
+00070A FIELD5 10G CCSID(1200)
+AFIELD1 is assigned a UCS-2-ccsid value of 13488. FIELD2
+and FIELD3 are assigned a CCSID value of 285. FIELD4 is assigned a UTF-8 CCSID
+value of 1208 and its data will be normalized before being inserted or updated
+in the file. FIELD5 is assigned a UTF-16 CCSID value of 1200 and its data
+will not be normalized before being inserted or updated in the file.
+
+The following example shows how to specify the CCSID keyword on
+a corresponding logical file.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00000A
+00010A R RECORD1
+00020A FIELD1 75A CCSID(37)
+00030A FIELD2 150G CCSID(13488 80)
+00040A FIELD3 20A
+00050A FIELD4 10G CCSID(1200 *NORMALIZE)
+00060A FIELD5 10A
+AThe logical file's FIELD1 is assigned a SBCS CCSID value
+of 37. Conversion occurs between the physical file and the logical file for
+FIELD1 because the physical file field contains UCS-2 data. The logical file's
+FIELD2 is assigned a UCS-2-ccsid value of 13488. Conversion occurs between
+the physical file and the logical file for FIELD2 because the logical file
+contains UCS-2 data. A CCSID is not specified for FIELD3. FIELD4 is assigned
+a UTF-16 CCSID value of 1200. Conversion occurs between the physical file
+and the logical file for FIELD4 because the physical file field contains UTF-8
+character data. The data will be normalized. FIELD5 is assigned the CCSID
+of the job in which the file is created. Conversion occurs between the physical
+file and the logical file for FIELD5 because the physical file field contains
+UTF-16 data. The data will not be normalized.

@@ -1,0 +1,179 @@
+XMLVALIDATE
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+XMLVALIDATE
+The XMLVALIDATE function returns a copy of the input XML
+value augmented with information obtained from XML schema validation,
+including default values and type annotations.
+XMLVALIDATE(DOCUMENTXML-expressionXML-validate-according-to-clause)XML-validate-according-to-clauseACCORDING TO XMLSCHEMAIDXML-schema-nameURIXML-uri1NO NAMESPACELOCATIONXML-uri2XML-valid-element-clauseXML-valid-element-clauseNAMESPACEXML-uri3NO NAMESPACEELEMENTXML-element-name
+DOCUMENT
+Specifies that the XML value resulting from XML-expression must
+be a well-formed XML document that conforms to XML Version 1.0.
+XML-expression
+An expression that returns a value of data type XML. If XML-expression is
+an XML host variable or an implicitly or explicitly typed parameter
+marker, the function performs a validating parse that strips ignorable
+whitespace and the CURRENT IMPLICIT XMLPARSE OPTION setting is not
+considered.
+XML-validate-according-to-clause
+Specifies the information that is to be used when validating the
+input XML value.ACCORDING TO XMLSCHEMA
+Indicates that the XML schema information for validation is explicitly
+specified. If this clause is not included, the XML schema information
+must be provided in the content of the XML-expression value.ID XML-schema-name
+Specifies an SQL identifier for the XML schema that is to be used
+for validation. The name, including the implicit or explicit SQL schema
+qualifier, must uniquely identify an existing XML schema in the XML
+schema repository at the current server. If no XML schema by this
+name exists in the implicitly or explicitly specified SQL schema,
+an error is returned.
+URI XML-uri1
+Specifies the target namespace URI of the XML schema that is to
+be used for validation. The value of XML-uri1 specifies a URI
+as a character string constant that is not empty. The URI must be
+the target namespace of a registered XML schema and, if no LOCATION
+clause is specified, it must uniquely identify the registered XML
+schema.
+NO NAMESPACE
+Specifies that the XML schema for validation has no target namespace.
+The target namespace URI is equivalent to an empty character string
+that cannot be specified as an explicit target namespace URI.
+LOCATION XML-uri2
+Specifies the XML schema location URI of the XML schema that is
+to be used for validation. The value of XML-uri2 specifies
+a URI as a character string constant that is not empty. The XML schema
+location URI, combined with the target namespace URI, must identify
+a registered XML schema, and there must be only one such XML schema
+registered.
+
+XML-valid-element-clause
+Specifies that the XML value in XML-expression must have
+the specified element name as the root element of the XML document.NAMESPACE XML-uri3 or NO NAMESPACE
+Specifies the target namespace for the element that is to be validated.
+If neither clause is specified, the specified element is assumed to
+be in the same namespace as the target namespace of the registered
+XML schema that is to be used for validation.NAMESPACE XML-uri3
+Specifies the namespace URI for the element that is to be validated.
+The value of XML-uri3 specifies a URI as a character string
+constant that is not empty. This can be used when the registered XML
+schema that is to be used for validation has more than one namespace.
+NO NAMESPACE
+Specifies that the element for validation has no target namespace.
+The target namespace URI is equivalent to an empty character string
+which cannot be specified as an explicit target namespace URI.
+ELEMENT xml-element-name
+Specifies the name of a global element in the XML schema that
+is to be used for validation. The specified element, with implicit
+or explicit namespace, must match the root element of the value of XML-expression.
+
+The result of the function is XML. If the value of XML-expression can
+be null, the result can be null; if the value of XML-expression is
+null, the result is the null value. The CCSID of the result is determined
+from the XML-expression.
+The XML validation process is
+performed on a serialized XML value. Because XMLVALIDATE is invoked
+with an argument of type XML, this value is automatically serialized
+prior to validation processing with the following two exceptions:If the argument to XMLVALIDATE is an XML host variable or an implicitly
+or explicitly typed parameter marker, then a validating parse operation
+is performed on the input value (no implicit non-validating parse
+is performed and the CURRENT IMPLICIT XMLPARSE OPTION setting is not
+considered).
+If the argument to XMLVALIDATE is an XMLPARSE invocation using
+the option PRESERVE WHITESPACE, then the XML parsing and XML validation
+of the document may be combined into a single validating parse operation.
+
+To validate a document whose root element does not have a
+namespace, an xsi:noNamespaceSchemaLocation attribute
+must be present on the root element.NotesDetermining
+the XML schema: The XML schema can be specified explicitly as
+part of the XMLVALIDATE invocation or determined from the XML schema
+information in the input XML value. If the XML schema information
+is not specified during invocation, the target namespace and the schema
+location in the input XML value are used to identify the registered
+schema for validation. If an explicit XML schema is not specified,
+the input XML value must contain an XML schema information hint. Explicit
+or implicit XML schema information must identify a registered XML
+schema, and there must be only one such registered XML schema.
+If you do not specify an XML schema document, the database
+server looks in the input document for an xsi:schemaLocation attribute
+that specifies a namespace and location hint for the XML schema. When
+there is no target namespace for the XML schema, the xsi:noNamespaceSchemaLocation attribute
+is used to specify a location hint for the XML schema.
+xsi:schemaLocation or xsi:noNamespaceSchemaLocation attributes
+are defined by the W3C XML schema specification and are called XML
+schema hints. An xsi:schemaLocation attribute contains one
+or more pairs of values that help to locate the XML schema document.
+The first value in each pair is a namespace and the second value is
+a hint that indicates where to find the XML schema for the namespace. DB2® for i will attempt to match
+a namespace and location hint to an XML schema, using the primary
+XML schema document's target namespace and the schemalocation parameter
+that was supplied on the XSR_REGISTER procedure call.
+If
+an XML schema document is specified in the XMLVALIDATE function, it
+overrides the xsi:schemaLocation or xsi:noNamespaceSchemaLocation attribute.
+If xsi:schemaLocation and xsi:noNamespaceSchemaLocation attributes
+are not defined by the XML document, DB2 for
+i will attempt to locate an XML schema where the target namespace
+of the primary XSD matches a namespace in the XML document.
+Specifying
+the XML schema explicitly in the XMLVALIDATE function avoids the parsing
+required to locate the XML schema information hint in the XML value.
+XML
+schema authorization: The XML schema used for validation must
+be registered in the XML schema repository prior to use. The privileges
+held by the authorization ID of the statement must include at least
+one of the following:USAGE privilege on the XML schema that is to be used during validation
+Database administrator authority
+
+ExamplesValidate using the XML schema identified by the XML schema hint
+in the XML instance document.  INSERT INTO T1(XMLCOL)
+VALUES (XMLVALIDATE(?))
+Assume
+that the input parameter marker is bound to an XML value that contains
+the XML schema information.
+<po:order
+xmlns:po='http://my.world.com'
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://my.world.com/world.xsd" >
+...
+</po:order>
+Further, assume that the XML schema
+that is associated with the target namespace "http://my.world.com"
+and by schemaLocation hint "http://my.world.com/world.xsd" is found
+in the XML schema repository
+Based on these assumptions, the
+input XML value will be validated according to that XML schema.
+
+Validate using the XML schema identified by the SQL name PODOCS.WORLDPO  INSERT INTO T1(XMLCOL)
+VALUES(
+    XMLVALIDATE(? ACCORDING TO XMLSCHEMA ID PODOCS.WORLDPO))
+Assuming that the XML schema that is associated with
+SQL name PODOC.WORLDPO is found in the XML schema repository, the
+input XML value will be validated and the type annotated according
+to that XML schema.
+
+Validate a specified element of the XML value.  INSERT INTO T1(XMLCOL)
+VALUES(
+    XMLVALIDATE(?
+ACCORDING TO XMLSCHEMA ID FOO.WORLDPO
+NAMESPACE 'http://my.world.com/Mary'
+ELEMENT "po"))
+Assuming that the XML schema that is associated with
+SQL name FOO.WORLDPO is found in the XML schema repository, the XML
+schema will be validated against the element "po", whose namespace
+is "http://my.world.com/Mary".
+
+XML schema is identified by target namespace and schema location.  INSERT INTO T1(XMLCOL)
+VALUES(
+    XMLVALIDATE(?
+ACCORDING TO XMLSCHEMA URI 'http://my.world.com'
+LOCATION 'http://my.world.com/world.xsd'))
+Assuming that an XML schema associated with the target
+namespace "http://my.world.com" and by schemaLocation hint "http://my.world.com/world.xsd"
+is found in the XML schema repository, the input XML value will be
+validated according to that XML schema.
+
+Parent topic: Scalar functions

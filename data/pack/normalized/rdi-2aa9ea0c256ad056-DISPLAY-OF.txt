@@ -1,0 +1,111 @@
+DISPLAY-OF
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Intrinsic Functions > Intrinsic Functions
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Intrinsic Functions
+
+DISPLAY-OF
+The DISPLAY-OF function returns an alphanumeric character string consisting
+of the content of argument-1 converted to a specific code page representation.
+The type of the function is alphanumeric.
+
+Format 1: Specify target CCSID
+
+>>-FUNCTION DISPLAY-OF--(--argument-1--+------------+--)-------><
+    '-argument-2-'    
+
+argument-1
+Must be of class national. Argument-1 identifies the source string for
+the conversion.
+IBM ExtensionIBM Extension argument-2 End of IBM Extension
+IBM Extension Must be an integer. Argument-2 identifies the target code page for the
+conversion. Argument-2 must be a valid CCSID number identifying an EBCDIC,
+ASCII, UTF-8, or EUC code page. The EBCDIC or ASCII CCSID can identify a
+code page that is SBCS, DBCS, or mixed SBCS/DBCS. End of IBM Extension
+End of IBM Extension
+If argument-2 is omitted, the target code page is the one in effect for
+the CCSID compiler option when the source code was compiled. If the target
+code page in effect is 65535, then default CCSID 37 will be used.
+The returned value is an alphanumeric character string consisting of the
+characters of argument-1 converted to the target code page representation.
+When a source character cannot be converted to a character in the target code
+page, the source character is replaced with the system-defined substitution
+character X'3F' for a single-byte EBCDIC target code page and X'FEFE' for
+a DBCS code page. No exception condition is raised.
+The length of the returned value depends on the content of argument-1 and
+the characteristics of the target code page.
+Exceptions: If the conversion fails, a severe run-time error occurs. Verify that the conversion from the national data (coded using
+the UCS-2 CCSID specified in the National CCSID compiler option or in the
+NTLCCSID PROCESS option) to the target CCSID is supported on the operating
+system.
+Usage notes
+If the target code page is a mixed SBCS/DBCS EBCDIC code page, the returned
+value can include DBCS substrings delimited by shift-out and shift-in control
+characters.
+The DISPLAY-OF function, with an integer argument-2 specified, can be
+used to generate character data represented in a code page that differs from
+that specified in the CCSID compiler option. Special care needs to be taken
+because subsequent COBOL operations on that data can involve implicit conversions
+that assume the data is represented in the EBCDIC code page specified in the
+CCSID compiler option.
+
+Format 2: Specify user substitution character
+
+>>-FUNCTION DISPLAY-OF--(--argument-1--argument-3--)-----------><
+
+argument-1
+Must be of class national. Argument-1 identifies the source string for
+the conversion.
+argument-3
+Must be a literal or data item of class alphabetic, alphanumeric or
+DBCS, with one character position in length. Argument-3 specifies an alphanumeric
+or DBCS substitution character used in conversion of national characters for
+which there is no corresponding alphanumeric or DBCS character. User substitution
+character is only supported for EBCDIC and ASCII code pages. If it is used
+for another code page such as EUC, a compiler error message (of severity 30)
+will be issued and argument-3 will be ignored.
+User substitution character
+has the same CCSID as the target code page CCSID in effect. If the target
+code page CCSID in effect is double byte, only double byte substitution character
+(DBCS) can be specified as argument-3. If the target code page CCSID in effect
+is single byte or mixed byte, only single byte substitution character (alphabetic
+or alphanumeric) can be specified as argument-3, double byte substitution
+character for mixed byte CCSID can not be replaced by user substitution character.
+If inconsistency between the target CCSID type and argument-3 class is detected
+at compile time, a compiler error message (of severity 30) will be issued;
+if inconsistency is detected at runtime, a severe run-time message will be
+issued. If user answers the message with 'G' to continue the program, argument-3
+will be ignored.
+
+The target code page is the one in effect for the CCSID compiler option
+when the source code was compiled. If the CCSID compiler option in effect
+is 65535, then default CCSID 37 will be used.
+The returned value is an alphanumeric character string consisting of the
+characters of argument-1 converted to the target code page representation.
+When a source character cannot be converted to a character in the target code
+page, the source character is replaced with the user substitution character
+argument-3. No exception condition is raised.
+The length of the returned value depends on the content of argument-1 and
+the characteristics of the target code page.
+Exceptions: If the conversion fails, a severe run-time error occurs. Verify
+that the conversion from the source ccsid (UCS-2) to the target CCSID is supported
+on the operating system.
+You
+can nest the DISPLAY-OF and NATIONAL-OF intrinsic functions to easily convert from any CCSID to any
+other CCSID.
+For example, the following code converts an EBCDIC string to an ASCII string:
+77 EBCDIC-CCSID PIC 9(4) BINARY VALUE 1140.
+77 ASCII-CCSID PIC 9(4) BINARY VALUE 819.
+77 Input-EBCDIC PIC X(80).
+77 ASCII-Output PIC X(80).
+. . .
+* Convert EBCDIC to ASCII
+Move Function
+Display-of
+(Function National-of
+(Input-EBCDIC EBCDIC-CCSID)
+ASCII-CCSID
+)
+to ASCII-output
+
+Parent topic: Intrinsic Functions

@@ -1,0 +1,191 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only) > catch blocks (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only) > catch blocks (C++ only)
+
+ILE C/C++ Language Reference
+
+Function try block handlers (C++ only)
+The scope and lifetime of the parameters of a function or constructor
+extend into the handlers of a function try block. The following example
+demonstrates this:
+void f(int &x) try {
+throw 10;
+}
+catch (const int &i)
+{
+x = i;
+}
+
+int main() {
+int v = 0;
+f(v);
+}The value of v after f() is called is 10.
+A function try block on main() does not catch exceptions
+thrown in destructors of objects with static storage duration, or
+constructors of namespace scope objects.
+The following example throws an exception from a destructor of
+a static object:
+#include <iostream>
+using namespace std;
+
+class E {
+public:
+const char* error;
+E(const char* arg) : error(arg) { }
+};
+
+class A {
+public: ~A() { throw E("Exception in ~A()"); }
+};
+
+class B {
+public: ~B() { throw E("Exception in ~B()"); }
+};
+
+int main() try {
+cout << "In main" << endl;
+static A cow;
+B bull;
+}
+catch (E& e) {
+cout << e.error << endl;
+}The following is the output of the above example:
+In main
+Exception in ~B()The run time will not catch the exception thrown
+when object cow is destroyed at the end of the program.
+The following example throws an exception from a constructor of
+a namespace scope object:
+#include <iostream>
+using namespace std;
+
+class E {
+public:
+const char* error;
+E(const char* arg) : error(arg) { }
+};
+
+namespace N {
+class C {
+public:
+C() {
+cout << "In C()" << endl;
+throw E("Exception in C()");
+}
+};
+
+C calf;
+};
+
+int main() try {
+cout << "In main" << endl;
+}
+catch (E& e) {
+cout << e.error << endl;
+}The following is the output of the above example:
+In C()The
+compiler will not catch the exception thrown when object calf is
+created.
+In a function try block's handler, you cannot have a jump into
+the body of a constructor or destructor.
+A return statement cannot appear in a function try block's handler
+of a constructor.
+When the function try block's handler of an object's constructor
+or destructor is entered, fully constructed base classes and members
+of that object are destroyed. The following example demonstrates this:
+#include <iostream>
+using namespace std;
+
+class E {
+public:
+const char* error;
+E(const char* arg) : error(arg) { };
+};
+
+class B {
+public:
+B() { };
+~B() { cout << "~B() called" << endl; };
+};
+
+class D : public B {
+public:
+D();
+~D() { cout << "~D() called" << endl; };
+};
+
+D::D() try : B() {
+throw E("Exception in D()");
+}
+catch(E& e) {
+cout << "Handler of function try block of D(): " << e.error << endl;
+};
+
+int main() {
+try {
+D val;
+}
+catch(...) { }
+}The following is the output of the above example:
+~B() called
+Handler of function try block of D(): Exception in D()When the
+function try block's handler of D() is entered, the run
+time first calls the destructor of the base class of D,
+which is B. The destructor of D is not called
+because val is not fully constructed.
+The run time will rethrow an exception at the end of a function
+try block's handler of a constructor or destructor. All other functions
+will return once they have reached the end of their function try block's
+handler. The following example demonstrates this:
+#include <iostream>
+using namespace std;
+
+class E {
+public:
+const char* error;
+E(const char* arg) : error(arg) { };
+};
+
+class A {
+public:
+A() try { throw E("Exception in A()"); }
+catch(E& e) { cout << "Handler in A(): " << e.error << endl; }
+};
+
+int f() try {
+throw E("Exception in f()");
+return 0;
+}
+catch(E& e) {
+cout << "Handler in f(): " << e.error << endl;
+return 1;
+}
+
+int main() {
+int i = 0;
+try { A cow; }
+catch(E& e) {
+cout << "Handler in main(): " << e.error << endl;
+}
+
+try { i = f(); }
+catch(E& e) {
+cout << "Another handler in main(): " << e.error << endl;
+}
+
+cout << "Returned value of f(): " << i << endl;
+}The following is the output of the above example:
+Handler in A(): Exception in A()
+Handler in main(): Exception in A()
+Handler in f(): Exception in f()
+Returned value of f(): 1
+Related information
+
+The main() function
+The static storage class specifier
+Namespaces (C++ only)
+Destructors (C++ only)
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

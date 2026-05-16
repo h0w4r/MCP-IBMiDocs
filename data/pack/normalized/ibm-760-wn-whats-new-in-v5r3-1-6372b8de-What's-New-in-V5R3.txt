@@ -1,0 +1,331 @@
+What's New in V5R3?
+
+What's New in V5R3?Last Updated: 2025-10-07
+
+The following list describes the enhancements made to ILE RPG in
+V5R3:
+
+New builtin function %SUBARR:
+New builtin
+function %SUBARR allows assignment to a sub-array or returning a
+sub-array as a value.
+
+Along with the existing %LOOKUP builtin
+function, this enhancements enables the implementation of dynamically
+sized arrays with a varying number of elements.
+
+%SUBARR(array
+: start) specifies array elements array(start) to the end of the
+array
+
+%SUBARR(array : start : num) specifies array elements
+array(start) to array(start + num - 1)
+
+Example:
+
+// Copy part of an array to another array:
+resultArr = %subarr(array1:start:num);
+// Copy part of an array to part of another array:
+%subarr(Array1:x:y) = %subarr(Array2:m:n);
+// Sort part of an array
+sorta %subarr(Array3:x:y);
+
+// Sum part of an array
+sum = %xfoot(%subarr(Array4:x:y));
+
+The SORTA operation code is enhanced to allow
+sorting of partial arrays.
+When %SUBARR is specified in factor
+2, the sort only affects the partial array indicated by the %SUBARR
+builtin function.
+
+Direct conversion of date/time/timestamp to numeric,
+using %DEC:
+%DEC is enhanced to allow the first parameter
+to be a date, time or timestamp, and the optional second parameter
+to specify the format of the resulting numeric value.
+
+Example:
+
+D numDdMmYy s 6p 0
+D date s d datfmt(*jul)
+date = D'2003-08-21';
+numDdMmYy = %dec(date : *dmy); // now numDdMmYy = 210803
+
+Control specification CCSID(*CHAR : *JOBRUN)
+for correct conversion of character data at runtime:
+The Control
+specification CCSID keyword is enhanced to allow a first parameter
+of *CHAR. When the first parameter is *CHAR, the second parameter
+must be *JOBRUN. CCSID(*CHAR : *JOBRUN) controls the way character
+data is converted to UCS-2 at runtime. When CCSID(*CHAR:*JOBRUN)
+is specified, character data will be assumed to be in the job CCSID;
+when CCSID(*CHAR : *JOBRUN) is not specified, character data will
+be assumed to be in the mixed-byte CCSID related to the job CCSID.
+
+Second parameter for %TRIM, %TRIMR and %TRIML
+indicating what characters to trim:
+%TRIM is enhanced to allow
+an optional second parameter giving the list of characters to be trimmed.
+
+Example:
+trimchars = '*-.';
+data = '***a-b-c-.'
+result = %trim(data : trimchars);
+// now result = 'a-b-c'. All * - and . were trimmed from the ends of the data
+
+New prototype option OPTIONS(*TRIM) to pass a
+trimmed parameter:
+When OPTIONS(*TRIM) is specified on a prototyped
+parameter, the data that is passed be trimmed of leading and trailing
+blanks. OPTIONS(*TRIM) is valid for character, UCS-2 and graphic
+parameters defined with CONST or VALUE. It is also valid for pointer
+parameters defined with OPTIONS(*STRING). With OPTIONS(*STRING :
+*TRIM), the passed data will be trimmed even if a pointer is passed
+on the call.
+
+Example:
+
+D proc pr
+D parm1 5a const options(*trim)
+D parm2 5a const options(*trim : *rightadj)
+D parm3 5a const varying options(*trim)
+D parm4 * value options(*string : *trim)
+D parm5 * value options(*string : *trim)
+D ptr s *
+D data s 10a
+D fld1 s 5a
+
+/free
+data = ' rst ' + x'00';
+ptr = %addr(data);
+
+proc (' xyz ' : ' @#$ ' : ' 123 ' : ' abc ' : ptr);
+// the called procedure receives the following parameters
+// parm1 = 'xyz '
+// parm2 = ' @#$'
+// parm3 = '123'
+// parm4 = a pointer to 'abc.' (where . is x'00')
+// parm5 = a pointer to 'rst.' (where . is x'00')
+
+Support for 63 digit packed and zoned decimal
+values
+Packed and zoned data can be defined with up to 63
+digits and 63 decimal positions. The previous limit was 31 digits.
+
+Relaxation of the rules for using a result data
+structure for I/O to externally-described files and record formats
+
+The result data structure for I/O to a record format may be an
+externally-described data structure.
+
+A data structure may be specified in the result field for I/O
+to an externally-described file name for operation codes CHAIN, READ,
+READE, READP and READPE.
+
+Examples:
+
+The following program writes to a record format using from an
+externally-described data structure.
+Foutfile o e k disk
+D outrecDs e ds extname(outfile) prefix(O_)
+/free
+O_FLD1 = 'ABCDE';
+O_FLD2 = 7;
+write outrec outrecDs;
+*inlr = *on;
+/end-free
+
+The following program reads from a multi-format logical file into
+data structure INPUT which contains two overlapping subfields holding
+the fields of the respective record formats.
+Flog if e k disk infds(infds)
+D infds ds
+D recname 261 270
+D input ds qualified
+D rec1 likerec(rec1) overlay(input)
+D rec2 likerec(rec2) overlay(input)
+/free
+read log input;
+dow not %eof(log);
+dsply recname;
+if recname = 'REC1';
+// handle rec1
+elseif recname = 'REC2';
+// handle rec2
+endif;
+read log input;
+enddo;
+*inlr = *on;
+/end-free
+
+If a program/module performs a keyed sequential input
+operation to a shared file and it results in an EOF condition, a subsequent
+sequential input operation by the same program/module may be attempted.
+An input request is sent data base and if a record is available for
+input, the data is moved into the program/module and the EOF condition
+is set off.
+
+Support for new environment variables for use
+with RPG programs calling Java™ methods
+
+QIBM_RPG_JAVA_PROPERTIES allows RPG users
+to explicitly set the Java properties used to start the JVM
+This
+environment variable must be set before any RPG program calls a Java
+method in a job.
+
+This environment variable has contains Java
+options, separated and terminated by some character that does not
+appear in any of the option strings. Semicolon is usually a good
+choice.
+
+Examples:
+
+1. Specifying only
+one option: If the system's default JDK is 1.3, and you want
+your RPG programs to use JDK 1.4, set environment variable QIBM_RPG_JAVA_PROPERTIES
+to
+
+'-Djava.version=1.4;' Note
+that even with just one option, a terminating character is required.
+This example uses the semicolon.
+2. Specifying
+more than one option: If you also want to set the os400.stdout
+option to a different value than the default, you could set the environment
+variable to the following value:
+'-Djava.version=1.4!-Dos400.stdout=file:mystdout.txt!'This
+example uses the exclamation mark as the separator/terminator. Note:
+This support is also available in V5R1 and V5R2 with PTFs. V5R1:
+SI10069, V5R2: SI10101.
+
+QIBM_RPG_JAVA_EXCP_TRACE allows RPG users
+to get the exception trace when an RPG call to a Java method ends
+with an exception
+This environment variable can be set, changed,
+or removed at any time.
+
+If this environment variable contains
+the value 'Y', then when a Java exception occurs during a Java method
+call from RPG, or a called Java method throws an exception to its
+caller, the Java trace for the exception will be printed. By default,
+it will be printed to the screen, and may not be possible to read.
+To get it printed to a file, set the Java option os400.stderr. (This
+would have to be done in a new job; it could be done by setting the
+QIBM_RPG_JAVA_PROPERTIES environment variable to
+'-Dos400.stderr=file:stderr.txt;'
+
+An RPG preprocessor enabling the SQL preprocessor
+to handle conditional compilation and nested /COPY
+When the
+RPG compiler is called with a value other than *NONE for parameter
+PPGENOPT, it will behave as an RPG preprocessor. It will generate
+a new source file rather than generating a program. The new source
+file will contain the original source lines that are accepted by the
+conditional compilation directives such as /DEFINE and /IF. It will
+also have the source lines from files included by /COPY statements,
+and optionally it will have the source lines included by /INCLUDE
+statements. The new source file will have the comments from the original
+source file if PPGENOPT(*DFT) or PPGENOPT(*NORMVCOMMENT) is specified.
+When
+the SQL precompiler is called with a value other than *NONE for new
+parameter RPGPPOPT, the precompiler will use this RPG preprocessor
+to handle /COPY, the conditional compilation directives and possibly
+the /INCLUDE directive. This will allow SQLRPGLE source to have nested
+/COPY statements, and conditionally used statements.
+
+Table 1. Changed Language Elements Since V5R2
+
+Language Unit
+
+Element
+
+Description
+
+Control specification keywords
+
+CCSID(*GRAPH:parameter|
+*UCS2:number|
+*CHAR:*JOBRUN)
+
+Can now take a first parameter of *CHAR, with
+a second parameter of *JOBRUN, to control how character data is treated
+at runtime.
+
+Built-in Functions
+
+%DEC(expression {format})
+
+Can now take a parameter of type Date, Time
+or Timestamp
+
+%TRIM(expression:expression)
+
+Can now take a second parameter indicating the
+set of characters to be trimmed
+
+Definition Specification Keywords
+
+OPTIONS(*TRIM)
+
+Indicates that blanks are to be trimmed from
+passed parameters
+
+Definition Specifications
+
+Length and decimal place entries
+
+The length and number of decimal places can
+be 63 for packed and zoned fields.
+
+Input specifications
+
+Length entry
+
+The length can be 32 for packed fields and 63
+for zoned fields.
+
+Decimal place entry
+
+The number of decimal places can be 63 for packed
+and zoned fields.
+
+Calculation specifications
+
+Length and decimal place entries
+
+The length and number of decimal places can
+be 63 for packed and zoned fields.
+
+CHAIN, READ, READE, READP, AND READPE operations
+
+Allow a data structure to be specified in the
+result field when Factor 2 is the name of an externally-described
+file.
+
+CHAIN, READ, READC, READE, READP, READPE, WRITE,
+UPDATE operations
+
+Allow an externally-described data structure
+to be specified in the result field when Factor 2 is the name of an
+externally-described record format.
+
+SORTA operation
+
+Now has an extended Factor 2, allowing %SUBARR
+to be specified.
+
+Table 2. New Language Elements Since V5R2
+
+Language Unit
+
+Element
+
+Description
+
+Built-in Functions
+
+%SUBARR(array:starting element {:number of elements})
+
+Returns a section of the array, or allows a
+section of the array to be modified.

@@ -1,0 +1,94 @@
+Error-Handling Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations > Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations
+
+Error-Handling Operations
+
+The exception-handling operation codes are:
+
+MONITOR (Begin a Monitor Group)
+
+ON-ERROR (On Error)
+
+ON-EXCP (On Exception)
+
+ENDMON, as described in ENDyy (End a Structured Group)
+
+ON-EXIT (On Exit)
+
+These operation codes are available in both the traditional syntax and
+free-form syntax.
+
+MONITOR, ON-ERROR, ON-EXCP and ENDMON are used to code a monitor group. The monitor
+group consists of a monitor block, followed by one or more on-exception or on-error blocks,
+followed by ENDMON.
+
+The on-exception blocks must precede the on-error blocks.
+
+The monitor block contains the code that you think might generate an error.
+The on-error and on-exception blocks contain the code to handle errors that occur in the monitor
+block.
+
+A monitor block consists of a MONITOR operation followed by the operations
+that will be monitored.
+
+An on-exception block consists of an ON-EXCP operation,
+with a list of message IDs, followed by the operations that will be performed
+if an error in the monitor block generates any of the listed message IDs.
+
+An on-error block consists of an ON-ERROR operation,
+with a list of status codes, followed by the operations that will be performed
+if an error in the monitor block generates any of the listed status codes.
+
+When an error occurs in the monitor block and the operation has an (E)
+extender or an error indicator, the error will be handled by the (E) extender
+or the error indicator. If no indicator or extender can handle the error,
+control passes to the on-exception block containing the message ID
+for the error or the on-error block containing the status code for the error.
+When the on-error or on-exception block is finished, control passes to the ENDMON. If there
+is no on-error or on-exception block to handle the error, control passes to the next level
+of exception handling (the *PSSR or INFSR subroutines, or the default error
+handler).
+
+ON-EXIT is used to begin a section of code that runs when the procedure ends,
+either normally or abnormally.
+
+Figure 1. Example of MONITOR, ON-EXCP, and ON-ERROR blocks
+
+/free
+MONITOR; _
+OPEN FILE; |
+DOW getNextRecord (); |
+X = X + 1; +-- This is the monitor block
+nameList(X) = name; |
+ENDDO; |
+CLOSE FILE; _|
+ON-EXCP 'ABC1023' : 'ABC1024'; _
+SND-MSG |
+('Error after ' + name); +-- First on-exception block
+RETURN; _|
+ON-EXCP 'ABC1024'; _
+SND-MSG |
+('getNextRecord error'); +-- Second on-exception block
+RETURN; _|
+ON-ERROR 1216; _
+DSPMSG |
+('Error opening file FILE' |
+: %status); +-- First on-error block
+RETURN; _|
+ON-ERROR 121; _
+DSPMSG |
+('Array NAME is too small' +-- Second on-error block
+: %status); |
+RETURN; _|
+ON-ERROR *ALL; _
+DSPMSG |
+('Unexpected error' +-- Final catch-all on-error block
+: %status); |
+RETURN; _|
+ENDMON; --- End of MONITOR group
+/end-free
+
+Parent topic: Operations

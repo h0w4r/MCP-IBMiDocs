@@ -1,0 +1,56 @@
+Output files from display commands
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Working with files in CL programs or procedures > Working with files in CL programs or procedures
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Working with files in CL programs or procedures
+
+Output files from display commands
+A number of the IBM® display commands place the output from the command
+into a database file (OUTFILE parameter). The data in this file can be received
+directly into a CL procedure or program and processed.
+The following CL procedure accepts two parameters, a user name
+and a library name. The procedure determines the names of all programs, files,
+and data areas in the library and grants normal authority to the specified
+users.
+Note: By using the code example, you agree to the terms of the Code license and disclaimer information.
+PGM PARM(&USER &LIB)
+DCL &USER *CHAR 10
+DCL &LIB *CHAR 10
+(1) DCLF QSYS/QADSPOBJ
+(2) DSPOBJD OBJ(&LIB/*ALL) OBJTYPE(*FILE *PGM *DTAARA) +
+OUTPUT(*OUTFILE) OUTFILE(QTEMP/DSPOBJD)
+(3) OVRDBF QADSPOBJ TOFILE(QTEMP/DSPOBJD)
+(4) READ: RCVF
+(5) MONMSG CPF0864 EXEC(RETURN) /* EXIT WHEN END OF FILE REACHED */
+(6) GRTOBJAUT OBJ(&ODLBNM/&ODOBNM) OBJTYPE(&ODOBTP) +
+USER(&USER) AUT(*CHANGE)
+GOTO READ /*GO BACK FOR NEXT RECORD*/
+ENDPGM
+(1)
+The declared file, QADSPOBJ in QSYS, is the IBM-supplied file that is
+used by the Display Object Description (DSPOBJD) command.
+This file is the primary file that is referred to by the command when creating
+the output file. It is referred to by the CL compiler to determine the format
+of the records and to declare variables for the fields in the record format.
+(2)
+The DSPOBJD command creates a file named DSPOBJD in
+library QTEMP. This file has the same format as file QADSPOBJ.
+(3)
+The Override with Database File (OVRDBF) command overrides
+the declared file (QADSPOBJ) to the file created by the DSPOBJD command.
+(4)
+The Receive File (RCVF) command reads a record from
+the DSPOBJD file. The values of the fields in the record are copied into
+the corresponding CL variables, which were implicitly declared by the Declare
+File (DCLF) command. Because the OVRDBF command
+was used, the file QTEMP/DSPOBJD is read instead of QSYS/QADSPOBJ (the file
+QSYS/QADSPOBJ is not read).
+(5)
+Message CPF0864 is monitored. This indicates that the end of file has
+been reached, so the procedure returns control to the calling procedure.
+(6)
+The Grant Object Authority (GRTOBJAUT) command is processed,
+using the variables for object name, library name and object type, which were
+read by the RCVF command.
+
+Parent topic: Working with files in CL programs or procedures

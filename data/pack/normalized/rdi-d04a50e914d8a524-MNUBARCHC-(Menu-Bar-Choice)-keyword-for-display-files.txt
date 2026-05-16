@@ -1,0 +1,256 @@
+MNUBARCHC (Menu-Bar Choice) keyword for display files
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+MNUBARCHC (Menu-Bar Choice) keyword for display files
+
+You use this field-level keyword to define
+a choice for a menu-bar field.
+
+A menu-bar choice represents a group of related actions
+that the application user can select. A group of actions appears in
+a pull-down menu when the user requests a menu-bar choice.
+The
+format of the keyword is: MNUBARCHC(choice-number pull-down-record choice-text
+[&return-field])
+The choice-number parameter
+is required and specifies an identification number. The choice number
+is returned to the application to indicate which choice in the menu
+bar was selected. Valid values for the choice number are integers
+1 to 99. Duplicate values within a single menu-bar field are not allowed.
+The
+pull-down-record parameter is required and specifies the name of the
+pull-down record that is displayed when the user selects this choice.
+The record specified must exist within the file and must contain a
+PULLDOWN keyword.
+The choice-text parameter is required and
+defines the text that appears in the menu bar for the choice. The
+parameter can be specified in one of two forms:
+As a character string: 'Choice text '
+
+As a program-to-system field: &field-name The field-name
+specified must exist in the menu bar record and must be defined as
+a character field with usage P.
+
+The choice text must fit on one line of the display for
+the smallest display size specified for the file. Because the text
+for the first menu-bar choice on a line begins at position 3 and a
+trailing blank is always inserted after the choice text, the maximum
+length of the choice text is 76 if the smallest display size for the
+file is 24 x 80 and 128 if the smallest display size for the file
+is 27 x 132.
+When the choice text contained in the character
+string or the program-to-system field is displayed, trailing blanks
+in the text are truncated and 3 blank spaces are inserted between
+choices. However, the number of lines that the menu-bar field occupies
+on the display is determined by the sum of the lengths of the choice-text
+parameters, plus 3 blank spaces between each choice. The length of
+the choice-text is either the length of the character string, excluding
+trailing blanks, or the length of the program-to-system field. The
+maximum number of lines that a menu bar field can occupy is 12 lines
+(this includes the separator line).
+Within the choice text,
+you can specify a mnemonic for the choice by using a greater than
+character (>) to indicate the mnemonic character. The character
+to the right of the > is the mnemonic. Examples:
+
+Choice text
+Appears as
+
+'>File'
+
+File
+
+'F>inish'
+
+Finish
+
+'Save >As...'
+
+Save As...
+
+'X >= 1'
+
+X = 1
+
+To specify a > as a character in the text,
+you must specify it twice, just as you must specify the apostrophe
+character twice in order to get a single apostrophe character in the
+text.
+
+Choice text
+Appears as
+
+'X >>= 1'
+
+X >= 1
+
+'X >>>= 1'
+
+X >= 1
+
+Note: It is not possible to specify the > as the
+mnemonic character.
+
+The mnemonic character indicated
+must be a single-byte character and must not be a blank. Only one
+mnemonic is allowed in the choice text, and the same mnemonic character
+cannot be specified for more than one choice.
+The return-field
+parameter is optional and specifies whether control is returned to
+the application because a menu bar choice was selected. This parameter
+specifies the name of a hidden field in the menu-bar record that contains
+the number of the choice selected when control is returned to the
+application. The hidden field is defined as a data type Y (numeric),
+the length of the field is two, and decimal positions are 0. The presence
+of a choice number in this field indicates that control has been returned
+to the application because a menu-bar choice was selected. The next
+operation of the application updates (if necessary) and writes the
+pull-down record associated with that choice; that is, the pull-down
+record specified on the MNUBARCHC keyword for the choice. When a choice
+number is returned in this field, zero is returned in the field that
+contains the choice number after pull-down input has been received.
+Likewise, when pull-down input has been received, zero is returned
+in this field, and the presence of a choice number in menu-bar field
+or the choice field in the application record indicates that the application
+should process the pull-down input.
+The menu bar field contained
+in the MNUBARCHC keywords is defined as an input-capable field with
+data type Y (numeric). The length of the field is two and decimal
+positions 0. If the menu bar record is read, the number of the choice
+selected (if any) is returned in the menu-bar field. The menu-bar
+field must always be defined as starting in row 1, column 2.
+When
+MNUBARCHC is specified on a field, the MNUBAR keyword is required
+at the record level.
+Multiple MNUBARCHC keywords can be specified
+for one menu bar field. The number of MNUBARCHC keywords that can
+be specified is limited only by the lengths of the choice text parameters
+(excluding trailing blanks in character string choice-text) and the
+12 line limit for a MNUBAR. All the choices defined for a menu bar
+field must fit on the screen, allowing for 3 spaces between each choice.
+The
+following keywords can be specified on a field with the MNUBARCHC
+keyword:
+
+ALIAS
+CHCAVAIL
+CHCSLT
+
+INDTXT
+MNUBARSEP
+TEXT
+
+ 
+
+Option indicators are valid for this keyword.
+
+ExamplesThe following examples show how
+to specify the MNUBARCHC keyword.
+
+Example 1|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A DSPSIZ(*DS3 *DS4)
+A R MENUBAR MNUBAR
+A MNUFLD 2Y 0B 1 2
+A MNUBARCHC(1 PULLFILE +
+A '>File ')
+A 01 MNUBARCHC(2 PULLEDIT +
+A '>Edit ')
+A MNUBARCHC(3 PULLVIEW +
+A '>View ')
+A MNUBARCHC(4 PULLOPT +
+A '>Options ' &RTNFLD);
+A MNUBARCHC(5 PULLHELP +
+A '>Help ')
+A RTNFLD 2Y 0HIn this example,
+five menu bar choices (File, Edit, View, Options and Help) are defined
+in a menu bar. If option indicator 01 is on and the menu bar record
+is written before the system displays it, the Edit choice is displayed
+when the system displays the menu bar. If option indicator 01 is off
+or the menu-bar record is not written before the system displays it,
+the Edit choice is not displayed. If the Edit choice is not displayed,
+the list of choices are compressed and the View choice will follow
+the File choice, with 3 blank spaces in between.
+If the File
+choice is selected, record PULLFILE is displayed as a pull-down menu
+beneath the File choice. If the Options choice is selected, control
+is returned to the application. The application can update the PULLOPT
+record before the system displays it as a pull-down menu.
+On
+displays capable of a single-character underline, the mnemonic for
+each choice is the first character in the text. If the menu-bar record
+is read, the menu-bar field MNUFLD contains the number of the choice
+selected, or 0 if no choice was selected.
+The text for each
+choice has been specified as a character string, with 15 spaces available
+for the text. However, the trailing blanks are removed before the
+system calculates how many choices fit on a line. Therefore, the maximum
+space required for the menu bar is 87 positions (28 for the text within
+the character strings, plus 3 spaces between each choice). The menu-bar
+choices occupy one line. The menu-bar separator occupies one more
+line; therefore the entire menu bar occupies two lines.
+
+Example 2|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A DSPSIZ(*DS3 *DS4)
+A R MENUBAR MNUBAR
+A MNUFLD 2Y 0B 1 2
+A MNUBARCHC(1 PULLFILE +
+A &FILETXT);
+A 01 MNUBARCHC(2 PULLEDIT +
+A &EDITTXT);
+A MNUBARCHC(3 PULLVIEW +
+A &VIEWTXT);
+A MNUBARCHC(4 PULLOPT +
+A &OPTTXT &RTNFLD);
+A MNUBARCHC(5 PULLHELP +
+A &HELPTXT);
+A FILETXT 15A P
+A EDITTXT 15A P
+A VIEWTXT 15A P
+A OPTTXT 15A P
+A HELPTXT 15A P
+A RTNFLD 2Y 0H
+AThis example is the same as example 1, except
+that the choice text has been specified using program-to-system fields.
+At
+run time, the choice text to be displayed for each choice is retrieved
+from the program-to-system fields. Any mnemonics must be specified
+in the text supplied by the application at run time. As in example
+1 when the menu-bar record is read, the menu-bar field MNUFLD contains
+the number of the choice selected, or 0 if no choice was selected.
+As
+in example 1, the number of spaces available for the text for each
+choice is 15. The maximum space required for the menu bar is 78 positions
+(15 possible text positions for each of the 5 choices plus 3 spaces
+between choices). Because the smallest display size is 24x80 (*DS3),
+the menu-bar choices occupy 2 lines. The menu-bar separator occupies
+one more line, so the entire menu bar occupies 3 lines. However, the
+actual number of lines that is used to display the choices depends
+on the text that is contained in the program-to-system fields. When
+the menu bar is displayed, the trailing blanks in the P-fields are
+truncated, and 3 blanks are inserted between each choice.
+
+Example 3|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A R MENUBAR MNUBAR
+A MNUFLD 2Y 0B 1 2
+A MNUBARCHC(1 PULLFILE +
+A '>File ')
+A MNUBARCHC(2 PULLEDIT +
+A '>Edit ' &RTNFLD);
+A RTNFLD 2Y 0HIn this example,
+if choice 2 in the menu bar is selected, control is returned to the
+application and field RTNFLD contains the number 2. Field MNUFLD contains
+0, indicating no pull-down input received. The application must read
+record MENUBAR in order to get the contents of field RTNFLD. The application
+must then write record PULLEDIT. The system resumes control of the
+menu-bar interaction. If input is then entered in record PULLEDIT,
+control is returned to the application, and field MNUFLD contains
+number 2. Field RTNFLD contains 0, indicating control has been returned
+because pull-down input was received.
+If choice 1 is selected,
+the system displays pull-down record PULLFILE. If input is entered
+in PULLFILE, control is returned to the application, and field MNUFLD
+contains number 1. Field RTNFLD contains 0, indicating control has
+been returned because pull-down input was received.

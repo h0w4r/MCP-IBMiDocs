@@ -1,0 +1,445 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Data objects and declarations > User-defined types
+
+IBM i programming resources > ILE C/C++ > Language Reference > Data objects and declarations > User-defined types
+
+ILE C/C++ Language Reference
+
+Structures and unions
+
+A structure contains an ordered group of
+data objects. Unlike the elements of an array, the data objects within
+a structure can have varied data types. Each data object in a structure
+is a member or field.
+A union is
+an object similar to a structure except that all of its members start
+at the same location in memory. A union variable can represent the
+value of only one of its members at a time.
+
+In C++, structures and unions are the
+same as classes except that their members and inheritance are public
+by default.
+You can declare a structure or union type separately from the definition
+of variables of that type, as described in Structure and union type definition and Structure and union variable declarations;
+or you can define a structure or union data type and all variables
+that have that type in one statement, as described in Structure and union type and variable definitions in a single
+statement.
+Structures and unions are subject to alignment considerations. For a complete discussion of alignment, see "Aligning
+data" in the ILE C/C++ Programmer’s Guide.
+Related information
+
+Classes and structures (C++ only)
+
+Structure and union type definition
+A structure or union type definition contains
+the struct or union keyword followed by an optional
+identifier (the structure tag) and a brace-enclosed list of members.
+
+Structure or union type definition syntax
+
+>>-+-struct-+--------------------------------------------------->
+'-union--'
+
+.-----------------------.
+V |
+>--+----------------+--{----member_declaration--;-+--}--;------><
+'-tag_identifier-'
+
+The tag_identifier gives a name to the type. If you
+do not provide a tag name, you must put all variable definitions that
+refer to the type within the declaration of the type, as described
+in Structure and union type and variable definitions in a single
+statement. Similarly, you cannot use
+a type qualifier with a structure or union definition; type
+qualifiers placed in front of the struct or union keyword
+can only apply to variables that are declared within the type definition.
+Related information
+
+The aligned type attribute
+The packed type attribute
+
+Member declarations
+The list of members provides
+a structure or union data type with a description of the values that
+can be stored in the structure or union. The definition of a member
+has the form of a standard variable declaration. The names of member
+variables must be distinct within a single structure or union, but
+the same member name may be used in another structure or union type
+that is defined within the same scope, and may even be the same as
+a variable, function, or type name.
+A structure or union member may be of any type except:
+
+any variably modified type
+any void type
+
+a function
+any incomplete typeBecause incomplete types are not allowed as members, a structure
+or union type may not contain an instance of itself as a member, but
+is allowed to contain a pointer to an instance of itself. As a special case, the last element of a structure with
+more than one member may have an incomplete array type, which is called
+a flexible array member, as described in Flexible array members .
+
+As an extension
+to Standard C and C++ , ILE C/C++ also allows
+zero-extent arrays as members of structures and unions, as described
+in Zero-extent array members.
+
+A union member cannot be a class object
+that has a constructor, destructor, or overloaded copy assignment
+operator, nor can it be of reference type. A union member cannot be
+declared with the keyword static.
+A member that does not represent a bit field can be qualified with
+either of the type qualifiers volatile or const.
+The result is an lvalue.
+Structure members are assigned to memory addresses in increasing
+order, with the first component starting at the beginning address
+of the structure name itself. To allow proper alignment of components,
+padding bytes may appear between any consecutive members in the structure
+layout.
+The storage allocated for a union is the storage required for the
+largest member of the union (plus any padding that is required so
+that the union will end at a natural boundary of its member having
+the most stringent requirements). All of a union's components are
+effectively overlaid in memory: each member of a union is allocated
+storage starting at the beginning of the union, and only one member
+can occupy the storage at a time.
+
+Flexible array members
+A flexible array member is permitted
+as the last element of a structure even though it has incomplete type,
+provided that the structure has more than one named member. A flexible
+array member is a C99 feature and can be used to access a variable-length
+object. It is declared with an empty index, as follows:
+array_identifier[ ];
+For example, b is a flexible array member of Foo.
+struct Foo{
+int a;
+int b[];
+};Since a flexible array member has incomplete type, you
+cannot apply the sizeof operator to a flexible array.
+Any structure containing a flexible array member cannot be a member
+of another structure or array.
+IBM extension
+
+ILE C/C++ extends Standard C and C++ to ease
+the restrictions on flexible arrays and allow the following:
+
+Flexible array members can be declared in any part of a structure,
+not just as the last member.
+
+The type of any member that follows the flexible array
+member must be compatible with the type of the flexible array member.
+
+The type of any member following the flexible
+array member is not required to be compatible with the type of the
+flexible array member; however, a warning is issued in this case.
+Structures containing flexible array members can be members of
+other structures.
+Flexible array members can be statically initialized. In the following example:
+struct Foo{
+int a;
+int b[];
+};
+
+struct Foo foo1 = { 55, {6, 8, 10} };
+struct Foo foo2 = { 55, {15, 6, 14, 90} };foo1 creates
+an array b of 3 elements, which are initialized to 6, 8,
+and 10; while foo2 creates an array of 4 elements,
+which are initialized to 15, 6, 14,
+and 90.
+Flexible array members can only be initialized if they are contained
+in the outermost part of nested structures. Members of inner structures
+cannot be initialized.
+End of IBM extension
+Related information
+
+Variable length arrays (C++ only)
+IBM extension
+
+Zero-extent array members
+A zero-extent array is an array with no dimensions. Like a flexible
+array member, a zero-extent array can be used to access a variable-length
+object.
+A zero-extent array must be explicitly declared with zero
+as its dimension:
+array_identifier[0]
+Like a flexible array member, a zero-extent array can be declared
+in any part of a structure, not just as the last member.
+
+The type of any
+member that follows the zero-extent array must be compatible
+with the type of the zero-extent array.
+
+The type of any member following
+the zero-extent array is not required to be compatible with
+the type of the zero-extent array; however, a warning is issued
+in this case.
+Unlike a flexible array member, a structure containing a zero-extent
+array can be a member of another array. Also, the sizeof operator
+can be applied to a zero-extent array; the value returned is
+0.
+A zero-extent array can only be statically initialized with
+an empty set. For example:
+struct foo{
+int a;
+char b[0];
+}; bar = { 100, { } };Otherwise, it must be initialized as a
+dyamically-allocated array.
+Zero-extent array members can only be initialized if they are contained
+in the outermost part of nested structures. Members of inner structures
+cannot be initialized.
+End of IBM extension
+
+Bit field members
+Both C and C++ allow integer members to be
+stored into memory spaces smaller than the compiler would ordinarily
+allow. These
+space-saving structure members are called bit fields,
+and their width in bits can be explicitly declared. Bit fields are
+used in programs that must force a data structure to correspond to
+a fixed hardware representation and are unlikely to be portable.
+
+Bit field member declaration syntax
+
+>>-type_specifier--+------------+--:--constant_expression--;---><
+'-declarator-'
+
+The constant_expression is a constant
+integer expression that indicates the field width in bits. A bit field
+declaration may not use either of the type qualifiers const or volatile.
+C only
+
+In C99, the allowable data types for a bit field include qualified
+and unqualified _Bool, signed int, and unsigned
+int. The default integer type for a bit field is unsigned.
+End of C only
+C++ only
+A bit field can be any integral type or
+enumeration type.
+End of C++ only
+The maximum bit-field length is 64 bits. To increase
+portability, do not use bit fields greater than 32 bits in size.
+The following structure has three bit-field members kingdom,
+phylum, and genus, occupying 12, 6, and 2 bits respectively:
+struct taxonomy {
+int kingdom : 12;
+int phylum : 6;
+int genus : 2;
+};
+When you assign a value that is out of range
+to a bit field, the low-order bit pattern is preserved and the appropriate
+bits are assigned.
+The following restrictions apply to bit fields. You cannot:
+
+Define an array of bit fields
+Take the address of a bit field
+Have a pointer to a bit field
+Have a reference to a bit field
+If a series of bit fields does not add up to the size of
+an int, padding can take place. The amount of padding is
+determined by the alignment characteristics of the members of the
+structure. In some instances, bit fields can cross word boundaries.
+Bit fields with a length of 0 must be unnamed. Unnamed bit
+fields cannot be referenced or initialized.
+The following example demonstrates padding, and is valid for all
+implementations. Suppose that an int occupies 4 bytes.
+The example declares the identifier kitchen to be of type struct
+on_off:
+struct on_off {
+unsigned light : 1;
+unsigned toaster : 1;
+int count; /* 4 bytes */
+unsigned ac : 4;
+unsigned : 4;
+unsigned clock : 1;
+unsigned : 0;
+unsigned flag : 1;
+} kitchen ;
+The structure kitchen contains eight members totalling
+16 bytes. The following table describes the storage that each member
+occupies:
+
+Member name
+Storage occupied
+
+light
+1 bit
+
+toaster
+1 bit
+
+(padding — 30 bits)
+To the next int boundary
+
+count
+The size of an int (4
+bytes)
+
+ac
+4 bits
+
+(unnamed field)
+4 bits
+
+clock
+1 bit
+
+(padding — 23 bits)
+To the next int boundary
+(unnamed field)
+
+flag
+1 bit
+
+(padding — 31 bits)
+To the next int boundary
+
+Related information
+
+"Alignment of bit fields" in the ILE C/C++ Programmer’s Guide
+
+Structure and union variable declarations
+A structure or union declaration has the
+same form as a definition except the declaration does not have a brace-enclosed
+list of members. You must declare the structure or union data type
+before you can define a variable having that type.
+
+Structure or union variable declaration syntax
+
+.-----------------------------.
+V |
+>>---+-------------------------+-+--+-struct-+------------------>
++-storage_class_specifier-+ '-union--'
+'-type_qualifier----------'
+
+>--tag_identifier--declarator--;-------------------------------><
+
+The tag_identifier indicates the previously-defined
+data type of the structure or union.
+
+The keyword struct is optional
+in structure variable declarations.
+You can declare structures or unions having any storage class.
+The storage class specifier and any type qualifiers for the variable
+must appear at the beginning of the statement. Structures or unions
+declared with the register storage class specifier are
+treated as automatic variables.
+The following example defines structure type address:
+struct address {
+int street_no;
+char *street_name;
+char *city;
+char *prov;
+char *postal_code;
+};
+
+The following examples declare two structure variables of type address:
+struct address perm_address;
+struct address temp_address;
+Related information
+
+The aligned variable attribute
+The __align type qualifier
+The packed variable attribute
+Initialization of structures and unions
+Compatibility of structures, unions, and enumerations (C only)
+Dot operator .
+Arrow operator ->
+
+Structure and union type and variable definitions in a single
+statement
+You can define a structure (or union) type and a structure (or
+union) variable in one statement, by putting a declarator and an optional
+initializer after the variable definition. The following example defines
+a union data type (not named) and a union variable (named length):
+union {
+float meters;
+double centimeters;
+long inches;
+} length;
+Note that because this example does not name the data type, length is
+the only variable that can have this data type. Putting an identifier
+after struct or union keyword provides a name
+for the data type and lets you declare additional variables of this
+data type later in the program.
+To specify a storage class specifier for the variable or variables,
+you must put the storage class specifier at the beginning of the statement.
+For example:
+static struct {
+int street_no;
+char *street_name;
+char *city;
+char *prov;
+char *postal_code;
+} perm_address, temp_address;In this
+case, both perm_address and temp_address are
+assigned static storage.
+Type qualifiers can be applied to the variable or variables declared
+in a type definition. Both of the following examples are valid:
+volatile struct class1 {
+char descript[20];
+long code;
+short complete;
+} file1, file2;
+struct class1 {
+char descript[20];
+long code;
+short complete;
+} volatile file1, file2;
+In both cases, the structures file1 and file2 are
+qualified as volatile.
+Related information
+
+Initialization of structures and unions
+Storage class specifiers
+Type qualifiers
+
+Access to structure and union members
+Once structure or union variables have been declared, members are
+referenced by specifying the variable name with the dot operator (.)
+or a pointer with the arrow operator (->) and the
+member name. For example, both of the following:
+perm_address.prov = "Ontario";
+p_perm_address -> prov = "Ontario";assign the string "Ontario" to
+the pointer prov that is in the structure perm_address.
+All references to members of structures and unions, including bit
+fields, must be fully qualified. In the previous example, the fourth
+field cannot be referenced by prov alone, but only by perm_address.prov.
+Related information
+
+Dot operator .
+Arrow operator ->
+
+Anonymous unions
+An anonymous union is a union without a
+name. It cannot be followed by a declarator. An anonymous union is
+not a type; it defines an unnamed object.
+The member names of an anonymous union must be distinct from other
+names within the scope in which the union is declared. You can use
+member names directly in the union scope without any additional member
+access syntax.
+For example, in the following code fragment, you can access the
+data members i and cptr directly because they
+are in the scope containing the anonymous union. Because i and cptr are
+union members and have the same address, you should only use one of
+them at a time. The assignment to the member cptr will
+change the value of the member i.
+void f()
+{
+union { int i; char* cptr ; };
+/* . . . */
+i = 5;
+cptr = "string_in_union"; // overrides the value 5
+}
+
+An anonymous union cannot have protected
+or private members, and it cannot have member functions. A global
+or namespace anonymous union must be declared with the keyword static.
+Related information
+
+The static storage class specifier
+Member functions (C++ only)
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

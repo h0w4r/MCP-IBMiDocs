@@ -1,0 +1,140 @@
+INCLUDE statement
+
+IBM i programming resources > SQL > SQL reference > SQL control statements > SQL control statements
+
+IBM i programming resources > SQL > SQL reference > SQL control statements
+
+INCLUDE statement
+The INCLUDE statement inserts application code, including
+declarations and statements, into an SQL routine body. The included
+code can either be SQL code that is immediately added to the routine
+definition or ILE C code to be added during the create of the SQL
+procedure, SQL function, or SQL trigger.
+AuthorizationThe authorization ID of the
+statement must have the system authorities *OBJOPR and *READ on the
+file that contains the member.
+SyntaxINCLUDESQLmember-name*LIBL/*CURLIB/library-name/file-name(member-name)'string'library-name/file-name(member-name)'string'
+DescriptionThe INCLUDE statement must be specified
+at a point in the source where the included source statements are
+syntactically acceptable. Both forms of the INCLUDE statement can
+be specified as an SQL-procedure-statement within the body
+of a compound-statement. An INCLUDE SQL statement can also
+be specified within the declarations and handlers of a compound-statement.
+There is no limit to the number of includes that can be specified
+in one statement, but the included source cannot contain an embedded
+include.SQL
+The included source contains only SQL syntax that is allowed
+in an SQL-routine-body or SQL-trigger-body. These statements
+will be expanded inline as part of the SQL-routine-body or SQL-trigger-body.
+They will be processed as if they are directly part of the statement
+text for the statement. The statement text saved for the SQL procedure,
+function, or trigger will contain this included source. If the QSYS2.GENERATE_SQL
+procedure is used, the generated source will show the expanded SQL
+statements wherever an INCLUDE SQL was used.
+member-name
+Identifies a member to be included within the SQL procedure, SQL
+function, or SQL trigger. The source file and library will be determined
+using the INCFILE option on the SET OPTION statement. For more information,
+see SET OPTION.
+file-name ( member-name )
+Identifies a source file and member to be included within the
+SQL procedure, SQL function, or SQL trigger. The library containing
+the source file is specified in one of these ways:*LIBL
+All libraries in the job's library list are searched until the
+first match is found. This is the default.
+*CURLIB
+The current library for the job is searched. If no library is
+specified as the current library for the job, QGPL is used.
+library-name
+Identifies the name of the library.
+
+'string'
+Identifies a source stream file to be included. The string will
+be handled as a normal SQL string literal; the source stream file
+rules for escaping characters will not be followed. No suffix will
+be appended to the string.
+
+SQL not specified
+The included source contains only ILE C language statements or
+embedded SQL statements prefixed with EXEC SQL. A corresponding EXEC
+SQL INCLUDE statement will be generated as part of the program source
+that is generated for this SQL procedure, SQL function, or SQL trigger.If
+the include requires additional service programs to be bound during
+the creation of the procedure, function, or trigger, you can use the
+BINDOPT option on the SET OPTION statement to add a BNDSRVPGM parameter
+to reference exports found in other service programs. For more information,
+see SET OPTION.
+library-name / file-name ( member-name )
+Specifies the fully qualified source file and member containing
+ILE C language statements to be included during the creation of the
+SQL procedure, SQL function, or SQL trigger.
+'string'
+Specifies the complete path for a source stream file containing
+ILE C language statements to be included during the creation of the
+SQL procedure, SQL function, or SQL trigger.
+
+NotesCCSID considerations: If the
+CCSID of the SQL statement is different from the CCSID of the source
+for the INCLUDE statement, the INCLUDE source is converted to the
+CCSID of the SQL statement.
+Source considerations: The
+source of a C include should not exceed 160 source columns. Anything
+beyond that position will be truncated.
+String literals in an
+SQL include cannot be longer than the width of the embedding source.
+The
+source of an SQL include should contain complete SQL statements. Although
+not enforced, unpredictable results may occur if this rule is violated.
+SQL
+trigger consideration: When an SQL trigger uses the INCLUDE statement
+to include ILE C, any operation that requires the trigger program
+to be rebuilt has a runtime dependency on the include file. If the
+trigger program is not found, it can be automatically rebuilt by the
+database when the trigger is fired, when the table is copied, or when
+the table is restored. If the include file is not available, the trigger
+will not create and any function requiring the trigger will fail.
+ExamplesUse the INCLUDE statement to embed a common condition handler
+in an SQL function.CREATE FUNCTION H1 ()
+RETURNS INT
+DETERMINISTIC
+NO EXTERNAL ACTION
+NOT FENCED
+BEGIN
+DECLARE RES INT;
+INCLUDE SQL SQLINCLUDE(COMMONCOND);
+
+SET RES = AFUNCTION();
+RETURN RES;
+END;
+COMMONCOND in file SQLINCLUDE in
+the library list contains the following. The condition handler calls
+an SQL procedure named ERR_PROC for a specific not found condition.
+As part of the message handling, it uses the ROUTINE_SCHEMA and ROUTINE_SPECIFIC_NAME
+built-in global variables to indicate the source of the error.DECLARE NO_FUNC CONDITION FOR SQLSTATE '42704';
+DECLARE CONTINUE HANDLER FOR NO_FUNC
+BEGIN
+CALL ERR_PROC(SYSIBM.ROUTINE_SCHEMA CONCAT '.' CONCAT
+SYSIBM.ROUTINE_SPECIFIC_NAME CONCAT
+': Function not found');
+END;
+
+Use the INCLUDE statement to embed a call to a C function. It
+will use the Qp0zLprintf interface to print
+the input parameter.CREATE PROCEDURE LPRINTF(P1 VARCHAR(1000))
+BEGIN
+IF P1 IS NOT NULL THEN
+INCLUDE QGPL/CINCLUDE(MYLPRINTF);
+END IF;
+END;
+Member MYLPRINTF in file CINCLUDE
+in library QGPL contains the following code. Note that this include
+has a reference to the function's input parameter. You need to examine
+the generated C code to determine what the names are. {
+/* declare prototype for Qp0zLprintf */
+extern int Qp0zLprintf (char *format, ...);
+
+/* print input parameter to job log */
+Qp0zLprintf("%.*s\n", LPRINTF.P1.LEN, LPRINTF.P1.DAT);
+}
+
+Parent topic: SQL control statements

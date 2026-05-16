@@ -1,0 +1,753 @@
+Data Structure Examples
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Defining Data and Prototypes > Data Structures > Data Structures
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Defining Data and Prototypes > Data Structures
+
+Data Structure Examples
+
+The following examples show various uses for data structures and
+how to define them.
+
+Example
+
+Description
+
+Using a Data structure to subdivide a field
+
+Using a data structure to subdivide
+a field
+
+Using a data structure to group fields from an input record
+
+Using a data structure to group fields
+
+Using Keywords QUALIFIED, LIKEDS and DIM with data structures
+
+Using keywords QUALIFIED, LIKEDS, and DIM with
+data structures, and how to code fully-qualified subfields
+
+Data structure with absolute and length notation
+
+Data structure with absolute and
+length notation
+
+Rename and initialize an externally described data structure
+
+Rename and initialize an externally
+described data structure
+
+Using PREFIX to rename all fields in an external data structure
+
+Using PREFIX to rename all fields
+in an external data structure
+
+Defining a multiple occurrence data structure
+
+Defining a multiple occurrence data
+structure
+
+Aligning Data Structure Subfields
+
+Aligning data structure subfields
+
+Defining a *LDA data area data structure
+
+Defining a *LDA data area data structure
+
+Using data area data structures to communicate between programs
+
+Using data area data structures to communicate between programs
+
+Using an indicator data structure
+
+Using an indicator data structure
+
+Using a multiple-occurrence indicator data structure
+
+Using a multiple-occurrence indicator
+data structure
+
+Defining a constant data structure
+
+Defining a constant data structure
+
+Using a Data structure to subdivide a field
+
+Records in file FILEIN contain a field, Partno,
+which needs to be subdivided for processing in this program.
+To achieve this, the field Partno is described as a data structure
+using the following data structure definition.
+
+DCL-DS Partno;
+Manufactr CHAR(4);
+Drug CHAR(6);
+Strength CHAR(3);
+Count ZONED(3);
+END-DS;
+
+You can refer to the entire data structure by using Partno, or by
+using the individual subfields Manufactr,
+Drug, Strength
+or Count.
+
+The following example shows the same data structure defined in fixed-form.
+Use length notation to define the data structure subfields.
+
+D Partno DS
+D Manufactr 4
+D Drug 6
+D Strength 3
+D Count 3 0
+D
+
+Using a data structure to group fields from an input record
+
+The input record from the TRANSACTN has the following fields in this order:
+
+PARTNO
+
+QUANTITY
+
+TYPE
+
+CODE
+
+LOCATION
+
+Another file ITEMMASTER has a single field
+ITEM_NBR which contains the
+LOCATION, PARTNO,
+and TYPE data.
+
+You can use a data structure to group the 3 fields from the TRANSACTN
+file so they match the ITEM_NBR field in the ITEMMASTER file.
+
+When you use a data structure to group fields, fields from
+non-adjacent locations on the input record can be made to occupy
+adjacent internal locations. The area can then be referred to by
+the data structure name or individual subfield name.
+
+The following data structure groups the Location,
+Partno, and Type
+into data structure Partkey.
+It is not necessary to specify type information for the subfields since the type
+information comes from the fields in the file.
+
+DCL-DS Partkey;
+Location;
+Partno;
+Type;
+END-DS;
+
+When a record is read from a file, the data from the
+LOCATION, PARTNO,
+and TYPE fields in the record are moved to
+the Location, Partno,
+and Typesubfields of the Partkey
+data structure.
+You can then compare the Partkey data structure to
+the Item_Nbr field from the ITEMMASTER
+file.
+
+READ ITEMMASTER;
+. . .
+READ TRANSACTN;
+IF Partkey = Item_Nbr;
+. . .
+ENDIF;
+
+Using Keywords QUALIFIED,
+LIKEDS and DIM with data structures
+
+The following definitions define two template data structures,
+CustomerInfo and ProductInfo.
+The template data structures are used to define the Bdata structure subfields for the
+data structure array SalesTransaction.
+
+D CustomerInfo DS QUALIFIED TEMPLATE
+D Name 20A
+D Address 50A
+
+D ProductInfo DS QUALIFIED TEMPLATE
+D Number 5A
+D Description 20A
+D Cost 9P 2
+
+D SalesTransaction...
+D DS QUALIFIED
+D Buyer LIKEDS(CustomerInfo)
+D Seller LIKEDS(CustomerInfo)
+D NumProducts 10I 0
+D Products LIKEDS(ProductInfo)
+D DIM(10)
+TotalCost = 0;
+for i = 1 to SalesTransation. Numproducts;
+TotalCost = TotalCost + SalesTransaction.Products(i).Cost;
+dsply SalesTransaction.Products(i).Cost;
+endfor;
+dsply ('Total cost is ' + %char(TotalCost));
+
+Data structure with absolute and length notation
+
+Define a program described data structure called FRED.
+The data structure is composed of 5 fields:
+
+An array Field1 with element length 10 and dimension 70.
+
+A field Field2 with length 30.
+
+A field Field3 occupying the same
+storage as the first part of Field2.
+
+A field Field4 occupying the same
+storage as the last part of Field2.
+
+A binary field Field5
+occupying the same storage as the first 2 bytes of Field3.
+
+Using a fixed-form definition with absolute notation to define the starting position
+and ending position of each field.
+The compiler determines the length of each element of the Field1 array
+by dividing the total length, 700, by the dimension, 70.
+
+D FRED DS
+D Field1 1 700 DIM(70)
+D Field2 701 730
+D Field3 701 715
+D Field5 701 704B 2
+D Field4 716 730
+
+Using a free-form definition with the OVERLAY keyword to subdivide fields.
+
+DCL-DS FRED;
+Field1 CHAR(10) DIM(70);
+Field2 CHAR(30);
+Field3 CHAR(15) OVERLAY(Field2);
+Field5 BINDEC(4:2) OVERLAY(Field3);
+Field4 CHAR(15) OVERLAY(Field2:16);
+END-DS;
+
+Using a fixed-form definition with the OVERLAY keyword to subdivide fields.
+
+D FRED DS
+D Field1 10 DIM(70)
+D Field2 30
+D Field3 15 OVERLAY(Field2)
+D Field5 4B 2 OVERLAY(Field3)
+D Field4 15 OVERLAY(Field2:16)
+
+Rename and initialize an externally described data structure
+
+Define an externally described data structure with internal name
+FRED and external name EXTDS.
+
+Rename field CUST to CUSTNAME.
+
+Initialize CUSTNAME to 'GEORGE' and PRICE to 1234.89.
+
+Specify the DIM keyword for subfield ITMARR.
+The ITMARR subfield is defined in the external description as a
+100 byte character field.
+This divides the 100 byte character
+field into 10 array elements, each 10 bytes long.
+Warning: Using the DIM keyword on an externally described numeric subfield
+should be done with caution, because it will divide the field into
+array elements which might not have valid numeric data for each element of the array.
+
+Using a free-form definition:
+
+DCL-DS Fred EXTNAME('EXTDS');
+CUSTNAME EXTFLD('CUST') INZ('GEORGE');
+PRICE EXTFLD INZ(1234.89);
+ITMARR EXTFLD DIM(10);
+END-DS;
+
+Using a fixed-form definition:
+
+D Fred E DS EXTNAME(EXTDS)
+D CUSTNAME E EXTFLD(CUST) INZ('GEORGE')
+D PRICE E INZ(1234.89)
+D ITMARR E DIM(10)
+
+Using PREFIX to rename all fields in an external data structure
+
+In the following data structure definition, the external subfield names are
+prefixed with 'CU_' unless the subfield has been renamed using the
+EXTFLD keyword.
+
+The free-form definition for the data structure
+
+The EXTFLD is used to identify
+external subfields.
+The EXTFLD keyword can be used to
+rename the subfield by specifying the new name as the parameter for the keyword.
+In the following example, external field NUMBER
+is renamed to Custnum.
+
+DCL-DS extds1 EXTNAME('CUSTDATA')
+PREFIX(CU_);
+Name EXTFLD INZ('Joe''s Garage');
+Custnum EXTFLD('NUMBER');
+END-DS;
+
+The fixed-definition of the same data structure
+
+Specify 'E' in column 22 to identify the subfield as an external subfield.
+Use the EXTFLD keyword to specify
+a new name for the subfield.
+
+... 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+... 6
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords++++++++++++
+D extds1 E DS EXTNAME (CUSTDATA)
+D PREFIX (CU_)
+D Name E INZ ('Joe''s Garage')
+D Custnum E EXTFLD (NUMBER)
+
+The previous data structure is expanded as follows by the compiler:
+
+All externally described fields are included in the data structure.
+
+Subfields that are renamed with a parameter for the
+EXTFLD keyword are assigned their new names.
+
+Subfields that are not renamed are prefixed with the prefix string.
+
+The expanded data structure:
+
+D EXTDS1 E DS
+D CU_NAME E 20A EXTFLD (NAME)
+D INZ ('Joe's Garage')
+D CU_ADDR E 50A EXTFLD (ADDR)
+D CUSTNUM E 9S 0 EXTFLD (NUMBER)
+D CU_SALESMN E 7P 0 EXTFLD (SALESMN)
+
+Defining a multiple occurrence data structure
+
+Define a Multiple Occurrence data structure of 20 elements with:
+
+3 fields with type character and length 20
+
+A field of type character with length 10 which overlaps the second
+field starting at position 2.
+
+The subfields are defined with absolute notation using begin and end positions
+
+Named constant Max_Occur is used to define the number of
+occurrences.
+
+D Max_Occur C CONST(20)
+D
+DDataStruct DS OCCURS (Max_Occur)
+D field1 1 20
+D field2 21 40
+D field21 22 31
+D field3 41 60
+
+The subfields are defined with a mixture of absolute notation and length notation
+
+D DataStruct DS OCCURS(20)
+D field1 20
+D field2 20
+D field21 22 31
+D field3 41 60
+
+Aligning Data Structure Subfields
+
+See ALIGN{(*FULL)} for information about alignment.
+
+In the following example
+
+A data structure defined with the ALIGN.
+The subfields which are defined with just length notation are aligned by the
+compiler.
+The subfields which are defined with a starting position are checked for
+alignment by the compiler and a warning message is issued if the subfield
+is not aligned.
+
+Integer subfields are defined using absolute notation.
+The subfields are on a 4-byte boundary, so they are correctly aligned.
+
+Integer subfields are defined using length notation.
+Subf3 is placed in positions 41-42, directly after Subf2,
+since position 41 is on a 2-byte boundary.
+However, Subf4 must be placed in positions 45-48
+which is the next 4-byte boundary after position 42.
+
+Integer subfields are defined using OVERLAY.
+Subfield Group is defined on a 4-byte boundary, which
+is correct since
+its largest overlaying subfield requiring alignment, Subf7,
+is a 4-byte integer.
+The overlaying subfields Subf6, Subf7,
+and Subf8 are correctly aligned due to valid starting positions
+specified in the OVERLAY keywords.
+
+Integer subfields defined using absolute notation are not properly aligned.
+The starting position for SubfX1 is 10 which is not 2-byte aligned.
+The starting position for SubfX2 is 15 which is not 4-byte aligned.
+
+Integer subfields defined using OVERLAY are not properly aligned.
+Subfield BadGroup is defined on a 4-byte boundary.
+However, the starting positions for the subfields specified by the OVERLAY
+keyword cause the subfields to be incorrectly aligned.
+
+Integer subfields defined using OVERLAY are not properly aligned
+due to the overlaid structure WorseGroup not being aligned
+on a 4-byte boundary.
+
+D MyDS DS ALIGN 1
+D Subf1 33 34I 0 2
+D Subf2 37 40I 0 2
+D Subf3 5I 0 3
+D Subf4 10I 0 3
+D Group 101 120A 4
+D Subf6 5I 0 OVERLAY (Group: 3) 4
+D Subf7 10I 0 OVERLAY (Group: 5) 4
+D Subf8 5U 0 OVERLAY (Group: 9) 4
+D SubfX1 10 11I 0 4
+D SubfX2 15 18I 0 4
+D BadGroup 101 120A 6
+D SubfX3 5I 0 OVERLAY (BadGroup: 2) 6
+D SubfX4 10I 0 OVERLAY (BadGroup: 6) 6
+D SubfX5 10U 0 OVERLAY (BadGroup: 11) 6
+D WorseGroup 200 299A 7
+D SubfX6 5I 0 OVERLAY (WorseGroup) 7
+D SubfX7 10I 0 OVERLAY (WorseGroup: 3) 7
+
+The subfields receive warning messages for the following reasons:
+
+SubfX1: End position 11 is not a multiple of 2 for a 2 byte field.
+
+SubfX2: End position 18 is not a multiple of 4 for a 4 byte field.
+
+SubfX3: End position 103 is not a multiple of 2.
+
+SubfX4: End position 109 is not a multiple of 4.
+
+SubfX5: End position 114 is not a multiple of 4.
+
+SubfX6: End position 201 is not a multiple of 2.
+
+SubfX7: End position 205 is not a multiple of 4.
+
+Defining a *LDA data area data structure
+
+Define a data area data structure based on the *LDA.
+
+A data area data structure with no name is based on the *LDA.
+
+The free-form definition, with *AUTO specified for the
+DTAARA keyword:
+
+DCL-DS *N DTAARA(*AUTO);
+SUBFLD CHAR(600);
+END-DS;
+
+The equivalent fixed-form definition with definition-type U.
+In this case, the DTAARA keyword does not have to be used.
+
+D UDS
+D SUBFLD 1 600A
+
+The data structure is explicitly based on the *LDA.
+Since it is not a data area data structure, it must be handled using IN
+and OUT operations.
+
+The free-form definition:
+
+DCL-DS LDA_DS DTAARA(*LDA);
+SUBFLD CHAR(600);
+END-DS;
+
+IN LDA_DS;
+OUT LDA_DS;
+
+The equivalent fixed-form definition of the data structure:
+
+D LDA_DS DS DTAARA(*LDA)
+D SUBFLD 1 600A
+
+The data structure is explicitly based on the *LDA.
+It is a data area data structure, so it is read in during initialization and written
+out during termination.
+It can also be handled using
+IN
+and OUT operations.
+
+The free-form definition.
+The *AUTO parameter
+defines it as a data area data structure.
+The *USRCTL parameter
+specifies that it can be handled using
+IN
+and OUT operations.
+
+Display the value of the data structure at the
+beginning of the program after the data area has been
+read into the data structure during program initialization.
+
+Change the value of the data structure.
+
+Write out the data area
+
+DCL-DS LDA_DS DTAARA(*LDA : *AUTO : *USRCTL);
+SUBFLD CHAR(50);
+END-DS;
+
+DSPLY SUBFLD; 1
+SUBFLD = 'New value'; 2
+OUT LDA_DS; 3
+
+The equivalent fixed-form definition of the data structure.
+The U definition type
+defines it as a data area data structure.
+The DTAARA
+keyword specifies that it can be handled using
+IN
+and OUT operations.
+
+D LDA_DS UDS DTAARA(*LDA)
+D SUBFLD 1 50A
+
+Using data area data structures to communicate between programs
+
+Program 1: This program uses a data area data structure to save the accumulate
+values of a series of totals.
+
+The data area is read into the data structure during program initialization.
+
+The data area subfields are then added
+to fields from the file SALESDTA.
+
+Indicator *INLR is
+set on so that the data area is written out when the program ends.
+
+Figure 1. Program 1
+
+DCL-F SALESDTA;
+
+DCL-DS Totals DTAARA(*AUTO); // 1
+Tot_amount ZONED(8:2);
+Tot_gross ZONED(10:2);
+Tot_net Zoned(10:2);
+END-DS;
+. . .
+Tot_amount = Tot_amount + amount; // 2
+Tot_gross = Tot_gross + gross;
+Tot_net = Tot_net + net;
+. . .
+*INLR = *ON; // 3
+
+Program 2: This program processes the totals that were calculated in Program 1.
+
+The data area is read into the data structure during program initialization.
+
+The data area subfields are used in calculations.
+
+Figure 2. Program 2
+
+DCL-DS Totals DTAARA(*AUTO); // 1
+Tot_amount ZONED(8:2);
+Tot_gross ZONED(10:2);
+Tot_net Zoned(10:2);
+END-DS;
+. . .
+*IN91 = (Amount2 <> Tot_amount);// 2
+*IN92 = (Gross2 <> Tot_gross);
+*IN93 = (Net2 <> Tot_net);
+. . .
+
+Using an indicator data structure
+
+The INDDS keyword identifies
+the DispInds data structure as
+the indicator data structure for file Disp.
+
+Indicator data structure DispInds
+is defined.
+The position for each subfield is the same as the indicator number
+used to control the display file.
+For example, if the display file refers to indicator 21,
+specify 21 as the position for the indicator in the data structure.
+
+Set the indicators to control the subfile.
+
+The indicators in the indicator data structure are
+used to control the EXFMT
+operations.
+
+Using an indicator data structure allows readable
+names to be used for the indicators set by the
+EXFMT
+operation.
+
+DCL-F Disp WORKSTN INDDS(DispInds); // 1
+
+DCL-DS DispInds; // 2
+// Format QUERY
+ShowName IND POS(21);
+Exit IND POS(3);
+Cancel IND POS(12);
+BlankNum IND POS(31);
+
+// Format DISPSFLCTL
+SFLDSP IND POS(42);
+SFLEND IND POS(43);
+SFLCLR IND POS(44);
+END-DS;
+. . .
+
+SFLDSP = *ON; // 3
+SFLEND = *OFF;
+SFLCLR = *OFF;
+EXFMT DispSFLCTL; // 4
+
+EXFMT Query;
+IF Exit or Return; // 5
+*INLR = *ON;
+RETURN;
+ENDIF;
+
+Using a multiple-occurrence indicator data structure
+
+When you use a multiple-occurrence data structure as the
+indicator data structure for a file, you can use a different occurrence
+for each record format in the file.
+
+The QUERY format
+prompts the user for a name.
+The format has 3 response indicators, 03, 05, and 12.
+
+The ERRMSG format
+shows an error message.
+The format has 3 conditioning indicators, 01, 02, and 03, to
+control which error message is displayed.
+Indicator 03 is used for both formats.
+
+The INDDS keyword identifies
+the DispInds data structure as
+the indicator data structure for file Disp.
+
+Indicator data structure DispInds
+is defined as a multiple occurrence data structure with one
+occurrence for each record format in the file.
+The number of occurrences is set by named constant
+NUM_FORMATS.
+
+Both formats use indicator 03 for different purposes.
+
+Constants are defined for the values that might be returned
+by the CheckName procedure.
+The constants can be used
+
+The first occurrence of the data structure
+is used when showing the QUERY format
+which might set response indicators 03, 05, and 12.
+
+The second occurrence of the data structure
+is used when showing the ERRMSG format
+which might have set conditioning indicator 01, 02, or 03.
+
+Figure 3. Descriptions for file DISP
+
+A INDARA
+A R QUERY CA03(03) CA05(05) CA12(12) 1
+A 3 2'Enter the name'
+A NAME 20A B 3 30CHECK(LC)
+A 23 2'03=Exit 05=Refresh 12=Return'
+A COLOR(BLU)
+A R ERRMSG 2
+A NAME 20A O 4 2
+A 01 4 30'Not found'
+A 02 4 30'Not valid'
+A 02 4 30'Not valid'
+A 03 5 3'Not unique'
+
+Figure 4. Code for the program using display file DISP
+
+DCL-F Disp WORKSTN INDDS(DispInds); // 3
+
+DCL-C NUM_FORMATS 2; // 4
+DCL-DS DispInds OCCURS(NUM_FORMATS) INZ; // 4
+// Format QUERY
+Exit IND POS(3); // 5
+Refresh IND POS(5);
+Cancel IND POS(12);
+
+// Format ERRMSG
+NotFound IND POS(1);
+NotValid IND POS(2);
+NotUnique IND POS(3); // 5
+END-DS;
+
+DCL-C NameOk 0; // 6
+DCL-C NameNotFound 1;
+DCL-C NameNotValid 2;
+DCL-C NameNotUnique 3;
+
+DCL-S rc INT(10);
+
+DOU Exit or Cancel;
+%OCCUR(DispInds) = 1; // 7
+EXFMT QUERY;
+
+SELECT; // 7
+WHEN Exit or Cancel;
+*INLR = *ON;
+RETURN;
+WHEN Refresh;
+RESET QUERY;
+ITER;
+ENDSL;
+
+rc = CheckName (name);
+IF rc <> NameOk;
+%OCCUR(DispInds) = 2; // 8
+CLEAR DispInds;
+
+SELECT rc;
+WHEN-IS NameNotFound;
+NotFound = *ON;
+WHEN-IS NameNotValid;
+NotValid = *ON;
+WHEN-IS NameNotUnique;
+NotUnique = *ON;
+ENDSL;
+EXFMT ERRMSG;
+ENDIF;
+ENDDO;
+
+Defining a constant data structure
+
+Data structure info_defaults is defined with
+CONST.
+The compiler does not allow the subfields of the data structure to be changed.
+
+Data structure info is defined to
+have the same subfields and initialization values as
+info_defaults.
+
+If subfield info.branch is not the
+same as the default value for the branch
+subfield, procedure changeBranch is called.
+
+The subfields of data structure info
+are assigned their default values.
+
+DCL-DS info_defaults CONST QUALIFIED; // 1
+branch VARCHAR(20) INZ('Main branch');
+address VARCHAR(40) INZ('123 Elm St');
+END-DS;
+
+DCL-DS info LIKEDS(info_defaults) INZ(*LIKEDS); // 2
+
+. . .
+getBranchInfo (info);
+if info.branch <> info_defaults.branch; // 3
+changeBranch (info);
+endif;
+. . .
+EVAL-CORR info = info_defaults; // 4
+
+Parent topic: Data Structures

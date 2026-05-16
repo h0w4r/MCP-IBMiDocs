@@ -1,0 +1,57 @@
+Example: Deleting files and source members
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Examples: Defining and creating commands > Examples: Defining and creating commands
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Examples: Defining and creating commands
+
+Example: Deleting files and source members
+This example shows how to define and create a command that deletes
+files and source members.
+You can create a command to delete files and their corresponding
+source members in QDDSSRC.
+The command definition statements for the
+command named Delete File and Source (DFS) are:
+CMD PROMPT('Delete File and Source')
+PARM KWD(FILE) TYPE(*NAME) LEN(10) PROMPT('File Name')
+The command processing program is written assuming that the
+name of the file and the source file member are the same. The program also
+assumes that both the file and the source file are on the library list. If
+the program cannot delete the file, an information message is sent and the
+command attempts to remove the source member. If the source member does not
+exist, an escape message is sent.
+Here is the command processing program.
+Note: By
+using the code example, you agree to the terms of the Code license and disclaimer information.
+PGM PARM(&FILE)
+DCL &FILE TYPE(*CHAR) LEN(10)
+DCL &MSGID TYPE(*CHAR) LEN(7)
+DCL &MSGDTA TYPE(*CHAR) LEN(80)
+DCL &SRCFILE TYPE(*CHAR) LEN(10)
+MONMSG MSGID(CPF0000) EXEC(GOTO ERROR) /* CATCH ALL */
+DLTF &FILE
+MONMSG MSGID(CPF2105) EXEC(DO) /* NOT FOUND */
+RCVMSG MSGTYPE(*EXCP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*INFO) +
+MSGDTA(&MSGDTA)
+GOTO TRYDDS
+ENDDO
+RCVMSG MSGTYPE(*COMP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+/* DELETE FILE COMPLETED */
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*COMP) +
+MSGDTA(&MSGDTA) /* TRY IN QDDSSRC FILE */
+TRYDDS: CHKOBJ QDDSSRC OBJTYPE(*FILE) MBR(&FILE)
+RMVM QDDSSRC MBR(&FILE)
+CHGVAR &SRCFILE 'QDDSSRC'
+GOTO END
+END: RCVMSG MSGTYPE(*COMP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+/* REMOVE MEMBER COMPLETED */
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*COMP) +
+MSGDTA(&MSGDTA)
+RETURN
+ERROR: RCVMSG MSGTYPE(*EXCP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+/* ESCAPE MESSAGE */
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*ESCAPE) +
+MSGDTA(&MSGDTA)
+ENDPGM
+
+Parent topic: Examples: Defining and creating commands

@@ -1,0 +1,59 @@
+Preventing Overlay When Adding Elements to a Variable Table
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Appendixes > Appendix H. Complex OCCURS DEPENDING ON > Appendix H. Complex OCCURS DEPENDING ON
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Appendixes > Appendix H. Complex OCCURS DEPENDING ON
+
+Preventing Overlay When Adding Elements to a Variable Table
+Be careful if you increase the number of elements in a variable-occurrence
+table that is followed by one or more nonsubordinate data items in the same
+group. When you increment the value of the ODO object and add an element to
+a table, you can inadvertently overlay the variably located data items that
+follow the table.
+To avoid this type of error, do the following:
+Save the variably located data items that follow the table in another
+data area.
+Increment the value of the ODO object.
+Move data into the new table element (if needed).
+Restore the variably located data items from the data area where you saved
+them.
+
+In the following example, suppose you want to add an element to the table
+VARY-FIELD-1, whose number of elements depends on the ODO object CONTROL-1.
+VARY-FIELD-1 is followed by the nonsubordinate variably located data item
+GROUP-ITEM-1, whose elements could potentially be overlaid.
+WORKING-STORAGE SECTION.
+01 VARIABLE-REC.
+05 FIELD-1 PIC X(10).
+05 CONTROL-1 PIC S99.
+05 CONTROL-2 PIC S99.
+05 VARY-FIELD-1 OCCURS 1 TO 10 TIMES
+DEPENDING ON CONTROL-1 PIC X(5).
+05 GROUP-ITEM-1.
+10 VARY-FIELD-2
+OCCURS 1 TO 10 TIMES
+DEPENDING ON CONTROL-2 PIC X(9).
+01 STORE-VARY-FIELD-2.
+05 GROUP-ITEM-2.
+10 VARY-FLD-2
+OCCURS 1 TO 10 TIMES
+DEPENDING ON CONTROL-2 PIC X(9).
+Each element of VARY-FIELD-1 has 5 bytes, and each element of VARY-FIELD-2
+has 9 bytes. If CONTROL-1 and CONTROL-2 both contain the value 3, you can
+picture storage for VARY-FIELD-1 and VARY-FIELD-2 as follows:
+
+To add a fourth element to VARY-FIELD-1, code as follows to prevent overlaying
+the first 5 bytes of VARY-FIELD-2. (GROUP-ITEM-2 serves as temporary storage
+for the variably located GROUP-ITEM-1.)
+MOVE GROUP-ITEM-1 TO GROUP-ITEM-2.
+ADD 1 TO CONTROL-1.
+MOVE five-byte-field TO
+VARY-FIELD-1 (CONTROL-1).
+MOVE GROUP-ITEM-2 TO GROUP-ITEM-1.
+You can picture the updated storage for VARY-FIELD-1 and VARY-FIELD-2 as
+follows:
+
+Note that the fourth element of VARY-FIELD-1 did not overlay the first
+element of VARY-FIELD-2.
+
+Parent topic: Appendix H. Complex OCCURS DEPENDING ON

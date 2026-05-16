@@ -1,0 +1,496 @@
+DECLARE CURSOR
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+DECLARE CURSOR
+The DECLARE CURSOR statement defines a cursor.
+InvocationThis statement can only be embedded
+in an application program. It is not an executable statement. It must
+not be specified in Java™.
+AuthorizationNo authorization is required
+to use this statement. However to use OPEN or FETCH for the cursor,
+the privileges held by the authorization ID of the statement must
+include at least one of the following:
+For each table or view identified in the SELECT statement of the
+cursor: The SELECT privilege on the table or view, and
+The system authority *EXECUTE on the library containing the table
+or view
+
+Database administrator authority
+
+The SELECT statement of the cursor is one of the following:
+The prepared select-statement identified
+by the statement-name.
+The specified select-statement.
+
+If statement-name is specified:
+The authorization ID of the statement is the run-time
+authorization ID unless USRPRF(*OWNER) and DYNUSRPRF(*OWNER) were
+specified on the CRTSQLxxx command when the program was created. For
+more information, see Authorization IDs and authorization names.
+The authorization check is performed when the select-statement is
+prepared unless DLYPRP(*YES) is specified on the CRTSQLxxx command.
+The authorization check is performed when the cursor is opened
+for programs compiled with the DLYPRP(*YES) parameter.
+
+If the select-statement is specified:
+If USRPRF(*OWNER) or USRPRF(*NAMING) with SQL naming was specified
+on the CRTSQLxxx command, the authorization ID of the statement is
+the owner of the SQL program or package.
+If USRPRF(*USER) or USRPRF(*NAMING) with system naming was specified
+on the CRTSQLxxx command, the authorization ID of the statement is
+the run-time authorization ID.
+In REXX,
+the authorization ID of the statement is the run-time authorization
+ID.
+The authorization check is performed when the cursor is opened.
+
+For information about the system authorities corresponding
+to SQL privileges, see Corresponding
+System Authorities When Checking Privileges to a Table or View.
+Syntax DECLAREcursor-nameASENSITIVEINSENSITIVESENSITIVEDYNAMICSCROLLNO SCROLLCURSORWITHOUT HOLDWITH HOLDWITHOUT RETURNWITH RETURNTO CALLERTO CLIENTWITHOUT EXTENDED INDICATORSWITH EXTENDED INDICATORS1FORselect-statementstatement-name
+Descriptioncursor-name
+Names
+a cursor. The name must not be the same as the name of another cursor
+declared in your source program.
+ASENSITIVE, SENSITIVE, or INSENSITIVE
+Specifies whether the cursor is asensitive, sensitive, or insensitive
+to changes. If statement-name is
+specified, the default is the corresponding prepare attribute of the
+statement. Otherwise, ASENSITIVE is the default.ASENSITIVE
+Specifies
+that the cursor may behave as SENSITIVE or INSENSITIVE depending on
+how the select-statement is optimized.
+SENSITIVE
+Specifies
+that changes made to the database after the cursor is opened are visible
+in the result table. The cursor has some level of sensitivity to any
+updates or deletes made to the rows underlying its result table after
+the cursor is opened. The cursor is always sensitive to positioned
+updates or deletes using the same cursor. Additionally, the cursor
+can have sensitivity to changes made outside this cursor. If the database
+manager cannot make changes visible to the cursor, then an error is
+returned. The database manager cannot make changes visible to the
+cursor when the cursor implicitly becomes read-only. (See Result table of a cursor.) If
+SENSITIVE is specified, the SELECT statement cannot contain a data-change-table-reference.
+INSENSITIVE
+Specifies
+that once the cursor is opened, it does not have sensitivity to inserts,
+updates, or deletes performed by this or any other activation group.
+If INSENSITIVE is specified, the cursor is read-only and a temporary
+result is created when the cursor is opened. In addition, the SELECT
+statement cannot contain a UPDATE clause and the application must
+allow a copy of the data (ALWCPYDTA(*OPTIMIZE) or ALWCPYDTA(*YES)).
+
+NO SCROLL or SCROLL
+Specifies whether the cursor is scrollable or not scrollable.
+If statement-name is specified,
+the default is the corresponding prepare attribute of the statement.
+Otherwise, NO SCROLL is the default.NO SCROLL
+Specifies
+that the cursor is not scrollable.
+SCROLL
+Specifies
+that the cursor is scrollable. The cursor may or may not have immediate
+sensitivity to inserts, updates, and deletes done by other activation
+groups.
+
+WITHOUT HOLD or WITH HOLD
+Specifies whether the cursor should be prevented from being closed
+as a consequence of a commit operation. If statement-name is
+specified, the default is the corresponding prepare attribute of the
+statement. Otherwise, WITHOUT HOLD is the default.WITHOUT HOLD
+Does
+not prevent the cursor from being closed as a consequence of a commit
+operation.
+WITH HOLD
+Prevents
+the cursor from being closed as a consequence of a commit operation.
+A cursor declared using the WITH HOLD clause is implicitly closed
+at commit time only if the connection associated with the cursor is
+ended during the commit operation. When WITH HOLD is specified,
+a commit operation commits all the changes in the current unit of
+work, and releases all locks except those that are required to maintain
+the cursor position. Afterward, a FETCH statement is required before
+a Positioned UPDATE or DELETE statement can be executed.
+All
+cursors are implicitly closed by a CONNECT (Type 1) or rollback operation.
+All cursors associated with a connection are implicitly closed by
+a disconnect of the connection. A cursor is also implicitly closed
+by a commit operation if WITH HOLD is not specified, or if the connection
+associated with the cursor is in the release-pending state.
+If
+a cursor is closed before the commit operation, the effect is the
+same as if the cursor was declared without the WITH HOLD option.
+
+WITHOUT RETURN or WITH RETURN
+Specifies that the result table of the cursor
+is intended to be used as a procedure result set. If statement-name is
+specified, the default is the corresponding prepare attribute of the
+statement. Otherwise, WITHOUT RETURN is the default.WITHOUT RETURN
+Specifies that the result table of the cursor is not
+intended to be used as a procedure result set.
+WITH RETURN
+Specifies that the result table of the cursor is intended
+to be used as a procedure result set. If the DECLARE CURSOR statement
+is not contained within the source code for a procedure, the clause
+is ignored.For SQL procedures, result sets are only returned
+if a DYNAMIC RESULT SETS clause with a nonzero maximum number of result
+sets is specified on the procedure definition. Cursors defined by using the WITH RETURN clause that are still
+open when the procedure ends define the result sets for the procedure.
+All other open cursors are closed when the procedure ends, provided
+the procedure was not created with CLOSQLCSR(*ENDACTGRP).
+If no cursors in the stored procedure are defined by using the
+WITH RETURN or WITHOUT RETURN clause, then any cursor that is open
+when the stored procedure ends potentially becomes a result set cursor.
+See the DYNAMIC RESULT SETS clause in CREATE PROCEDURE (SQL) for
+further considerations that determine a procedure's result sets.
+
+For external procedures:Any cursors that are defined by using the WITH RETURN clause (or
+identified as a result set cursor in a SET RESULT SETS statement)
+and that are still open when the procedure ends define the potential
+result sets for the procedure, provided the procedure was not created
+with CLOSQLCSR(*ENDACTGRP). All other open cursors remain open.
+If no cursors in the stored procedure are defined by using the
+WITH RETURN or WITHOUT RETURN clause, and no cursors are identified
+as a result set cursor in a SET RESULT SETS statement, then any cursor
+that is open when the stored procedure ends potentially becomes a
+result set cursor.
+See the DYNAMIC RESULT SETS clause in CREATE PROCEDURE (external) for
+further considerations that determine a procedure's result sets.
+
+For non-scrollable cursors, the result set consists of
+all rows from the current cursor position to the end of the result
+table. For scrollable cursors, the result set consists of all rows
+of the result table.
+TO CALLER
+Specifies that the cursor can return a result set to the caller
+of the procedure. For example, if the caller is a client application,
+the result set is returned to the client application.
+TO CLIENT
+Specifies that the cursor can return a result set to the client
+application. This cursor is invisible to any intermediate nested procedures.
+If a function or trigger called the procedure either directly or indirectly,
+result sets cannot be returned to the client and the cursor will be
+closed after the procedure finishes. TO CLIENT may be necessary
+if the result set is returned from an ILE program with multiple modules.
+
+WITHOUT EXTENDED INDICATORS or WITH EXTENDED INDICATORS
+Specifies whether extended indicators are enabled. If statement-name is specified, the
+default is the corresponding prepare attribute of the statement. Otherwise,
+the default is the attribute specified on the containing program or
+service program.WITHOUT EXTENDED INDICATORS
+Specifies that extended indicator
+variables are not enabled, and only updatable columns are allowed
+in the implicit or explicit UPDATE clause or the select-statement.
+WITH EXTENDED INDICATORS
+Specifies that extended indicator
+variables are enabled, and non-updatable columns are allowed in the
+implicit or explicit UPDATE clause of the select-statement.
+
+select-statement
+Specifies
+the SELECT statement of the cursor. See select-statement for
+more information. The select-statement must
+not include parameter markers (except for REXX), but can include references
+to variables. In host languages, other than REXX, the declarations of the host
+variables must precede the DECLARE CURSOR statement in the source
+program. In REXX,
+parameter markers must be used in place of variables and the statement
+must be prepared.
+
+statement-name
+The
+SELECT statement of the cursor is the prepared select-statement identified
+by the statement-name when the cursor is
+opened. The statement-name must not be identical
+to a statement-name specified in another
+DECLARE CURSOR statement of the source program. See PREPARE for an explanation of prepared statements.
+
+NotesPlacement
+of DECLARE CURSOR: The DECLARE CURSOR statement must precede all
+statements that explicitly reference the cursor by name, except in
+C and PL/I.
+Result table of a cursor: A cursor
+in the open state designates a result table and a position
+relative to the rows of that table. The table is the result table
+specified by the SELECT statement of the cursor.
+A cursor is deletable if all of the following are
+true:
+The outer fullselect identifies only one base table or deletable
+view that is not a catalog table or view and is not in a nested table
+expression.
+The outer fullselect does not include a VALUES clause.
+The outer fullselect does not include a GROUP BY clause or HAVING
+clause.
+The outer fullselect does not include aggregate functions in the
+select list.
+The outer fullselect does not include a UNION, UNION ALL, EXCEPT,
+or INTERSECT operator.
+The select-clause of the outer fullselect does not include
+the DISTINCT clause.
+The outer fullselect does not contain a FOR SYSTEM_TIME
+period specification.
+The outer fullselect does not include a data-change-table-reference in
+the FROM clause
+The select-statement does not contain
+an ORDER BY clause and does not contain the UPDATE clause and SENSITIVE
+is not specified in the DECLARE CURSOR statement
+The select-statement does not include
+a FOR READ ONLY clause.
+The result of the outer fullselect does not make use of a temporary
+table.
+The select-statement does not include
+the SCROLL keyword, or the SENSITIVE keyword or UPDATE clause is also
+specified.
+The select list does not include a DATALINK column unless a UPDATE
+clause is specified.
+
+A result column in the select list of the outer fullselect
+associated with a cursor is updatable if all of the following
+are true:
+The cursor is deletable.
+The result column is derived solely from a column of a table or
+an updatable column of a view. That is, at least one result column
+must not be derived from an expression that contains an operator,
+scalar function, constant, or a column that itself is derived from
+such expressions.
+
+A
+cursor is read-only if it is not deletable.
+If the UPDATE clause is omitted, only the columns in the
+SELECT clause of the subselect that can be updated can be changed.
+If
+UPDATE is specified without a list of column names, then the list
+of columns that can appear as targets in the assignment clause of
+subsequent positioned UPDATE statements identifying this cursor is
+determined as follows:If WITH EXTENDED INDICATORS is specified, all the columns of the
+table or view identified in the first FROM clause of the fullselect.
+Otherwise, only the updatable columns of the table or view identified
+in the first FROM clause of the fullselect.
+
+If UPDATE is specified with a list of column names, only
+the columns specified in the list of column names can be appear as
+targets in the assignment clause in subsequent positioned UPDATE statements
+identifying this cursor.
+Scope of a cursor: The scope of cursor-name is
+the source program in which it is defined; that is, the program submitted
+to the precompiler. Thus, a cursor can only be referenced by statements
+that are precompiled with the cursor declaration. For example, a program
+called from another separately compiled program cannot use a cursor
+that was opened by the calling program.
+The scope of cursor-name is also limited to the thread
+in which the program that contains the cursor is running. For example,
+if the same program is running in two separate threads in the same
+job, the second thread cannot use a cursor that was opened by the
+first thread.
+A cursor can only be referred to in the same instance
+of the program in the program stack unless CLOSQLCSR(*ENDJOB), CLOSQLCSR(*ENDSQL),
+or CLOSQLCSR(*ENDACTGRP) is specified on the CRTSQLxxx commands.
+If CLOSQLCSR(*ENDJOB) is specified, the cursor can be referred
+to by any instance of the program on the program stack.
+If CLOSQLCSR(*ENDSQL) is specified, the cursor can be referred
+to by any instance of the program on the program stack until the last
+SQL program on the program stack ends.
+If CLOSQLCSR(*ENDACTGRP) is specified, the cursor can be referred
+to by all instances of the module in the activation group until the
+activation group ends.
+
+Although the scope of a cursor is the program in which
+it is declared, each package created from the program includes a separate
+instance of the cursor and more than one cursor can exist at run time.
+For example, assume a program using CONNECT (Type 2) statements connects
+to location X and location Y in the following sequence:
+EXEC SQL DECLARE C CURSOR FOR…
+EXEC SQL CONNECT TO X;
+EXEC SQL OPEN C;
+EXEC SQL FETCH C INTO…
+EXEC SQL CONNECT TO Y;
+EXEC SQL OPEN C;
+EXEC SQL FETCH C INTO…
+
+The second OPEN C statement does not cause an error because
+it refers to a different instance of cursor C.
+A SELECT statement is evaluated at the time the cursor
+is opened. If the same cursor is opened, closed, and then opened again,
+the results may be different. If the SELECT statement of a cursor
+contains CURRENT DATE, CURRENT TIME, or CURRENT TIMESTAMP, all references
+to these special registers will yield the same respective datetime
+value on each FETCH. The value is determined when the cursor is opened.
+Multiple cursors using the same SELECT statement can be opened concurrently.
+They are each considered independent activities.
+Using sequence expressions: For information regarding
+using NEXT VALUE and PREVIOUS VALUE expressions with a cursor, see Using sequence expressions
+with a cursor.
+Blocking of data: For more efficient processing
+of data, the database manager can block data for read-only cursors.
+If a cursor is not going to be used in a Positioned UPDATE or DELETE
+statement, it should be declared as FOR READ ONLY.
+Usage in REXX: If
+variables are used on the DECLARE CURSOR statement within a REXX procedure,
+then the DECLARE CURSOR must be the object of a PREPARE and EXECUTE.
+Temporary results: Certain select-statements may
+be implemented as temporary result tables.
+A temporary result table is created when: INSENSITIVE is specified
+The ORDER BY and GROUP BY clauses specify different columns or
+columns in a different order.
+The ORDER BY and GROUP BY clauses include a user-defined function
+or one of the following scalar functions: DLVALUE, DLURLPATH, DLURLPATHONLY,
+DLURLSERVER, DLURLSCHEME, or DLURLCOMPLETE for DataLinks with an attribute
+of FILE LINK CONTROL and READ PERMISSION DB.
+The UNION, EXCEPT, INTERSECT, or DISTINCT clauses are specified.
+The ORDER BY or GROUP BY clauses specify columns which are not
+all from the same table.
+A logical file defined by the JOINDFT data definition specifications
+(DDS) keyword is joined to another file.
+A logical file that is based on multiple database file members
+is specified.
+The CURRENT or RELATIVE scroll options are specified on the FETCH
+statement when the select statement of the DECLARE CURSOR contains
+a GROUP BY clause.
+The FETCH FIRST n ROWS ONLY clause is specified.
+
+Queries that include a subquery where: The outermost query does not provide correlated values to any
+inner subselects.
+No IN, = ANY, = SOME, or <> ALL subqueries are referenced by
+the outermost query.
+
+Cursor sensitivity: The ALWCPYDTA precompile option
+is ignored for DYNAMIC SCROLL cursors. If sensitivity to inserts,
+updates, and deletes must be maintained, a temporary copy of the data
+is never made unless a temporary result is required to implement the
+query.
+Scrollable, sensitive cursors with an OFFSET
+and/or FETCH FIRST clause may return rows either before the specified
+offset or after the specified number of rows if: update, delete, or insert operations occur against the underlying
+tables of the cursor while fetching data through the cursor, and
+the fetch operations against the cursor attempt to return the
+same rows that were previously fetched by the cursor.
+
+Syntax alternatives: The following keywords are
+synonyms supported for compatibility to prior releases. These keywords
+are non-standard and should not be used:
+DYNAMIC SCROLL is a synonym for SENSITIVE DYNAMIC SCROLL
+
+ExamplesExample 1: Declare C1 as
+the cursor of a query to retrieve data from the table DEPARTMENT.
+The query itself appears in the DECLARE CURSOR statement.
+EXEC SQL DECLARE C1 CURSOR FOR
+SELECT DEPTNO, DEPTNAME, MGRNO
+FROM DEPARTMENT
+WHERE ADMRDEPT = 'A00';
+
+Example 2: Declare C1 as the cursor of a query
+to retrieve data from the table DEPARTMENT. Assume that the data will
+be updated later with a searched update and should be locked when
+the query executes. The query itself appears in the DECLARE CURSOR
+statement.
+EXEC SQL DECLARE C1 CURSOR FOR
+SELECT DEPTNO, DEPTNAME, MGRNO
+FROM DEPARTMENT
+WHERE ADMRDEPT = 'A00'
+FOR READ ONLY WITH RS USE AND KEEP EXCLUSIVE LOCKS;
+
+Example 3: Declare C2 as the cursor for a statement
+named STMT2.
+EXEC SQL DECLARE C2 CURSOR FOR STMT2;
+
+Example 4: Declare C3® as
+the cursor for a query to be used in positioned updates of the table
+EMPLOYEE. Allow the completed updates to be committed from time to
+time without closing the cursor.
+EXEC SQL DECLARE C3 CURSOR WITH HOLD FOR
+SELECT *
+FROM EMPLOYEE
+FOR UPDATE OF WORKDEPT, PHONENO, JOB, EDLEVEL, SALARY;
+
+Instead of explicitly specifying the columns to be updated,
+an UPDATE clause could have been used without naming the columns.
+This would allow all the updatable columns of the table to be updated.
+Since this cursor is updatable, it can also be used to delete rows
+from the table.
+Example 5: In a C program, use the cursor C1 to
+fetch the values for a given project (PROJNO) from the first four
+columns of the EMPPROJACT table a row at a time and put them into
+the following host variables: EMP(CHAR(6)), PRJ(CHAR(6)), ACT(SMALLINT)
+and TIM(DECIMAL(5,2)). Obtain the value of the project to search
+for from the host variable SEARCH_PRJ (CHAR(6)). Dynamically prepare
+the select-statement to allow the project
+to search by to be specified when the program is executed.
+void main ()
+{
+EXEC SQL BEGIN DECLARE SECTION;
+char EMP[7];
+char PRJ[7];
+char SEARCH_PRJ[7];
+short ACT;
+double TIM;
+char SELECT_STMT[201];
+EXEC SQL END DECLARE SECTION;
+EXEC SQL INCLUDE SQLCA;
+
+strcpy(SELECT_STMT, "SELECT EMPNO, PROJNO, ACTNO, EMPTIME \
+FROM EMPPROJACT \
+WHERE PROJNO = ?");
+.
+.
+.
+EXEC SQL PREPARE SELECT_PRJ FROM :SELECT_STMT;
+
+EXEC SQL DECLARE C1 CURSOR FOR SELECT_PRJ;
+
+/* Obtain the value for SEARCH_PRJ from the user. */
+.
+.
+.
+EXEC SQL OPEN C1 USING :SEARCH_PRJ;
+
+EXEC SQL FETCH C1 INTO :EMP, :PRJ, :ACT, :TIM;
+
+if (strcmp(SQLSTATE, "02000", 5) )
+{
+data_not_found();
+}
+else
+{
+while (strcmp(SQLSTATE, "00", 2) || strcmp(SQLSTATE, "01", 2) )
+{
+EXEC SQL FETCH C1 INTO :EMP, :PRJ, :ACT, :TIM;
+}
+}
+
+EXEC SQL CLOSE C1;
+.
+.
+.
+}
+
+Example 6: The DECLARE CURSOR statement associates
+the cursor name C1 with the results of the SELECT. C1 is an updatable,
+scrollable cursor. EXEC SQL DECLARE C1 SENSITIVE SCROLL CURSOR FOR
+SELECT DEPTNO, DEPTNAME, MGRNO
+FROM TDEPT
+WHERE ADMRDEPT = 'A00';
+
+Example 7: Declare a cursor in order to fetch values
+from four columns and assign the values to variables using the Serializable
+(RR) isolation level:
+DECLARE CURSOR1 CURSOR FOR
+SELECT COL1, COL2, COL3, COL4
+FROM TBLNAME WHERE COL1 = :varname
+WITH RR
+
+Example 8: Assume that the EMPLOYEE table has been
+altered to add a generated column, WEEKLYPAY, that calculates the
+weekly pay based on the yearly salary. Declare a cursor to retrieve
+the system generated column value from a row to be inserted.
+DECLARE C2 CURSOR FOR
+SELECT E.WEEKLYPAY
+FROM FINAL TABLE
+(INSERT INTO EMPLOYEE
+(EMPNO, FIRSTNME, MIDINIT, LASTNAME, EDLEVEL, SALARY)
+VALUES('000420', 'Peter', 'U', 'Bender', 16, 31842)) AS E;
+
+Parent topic: Statements

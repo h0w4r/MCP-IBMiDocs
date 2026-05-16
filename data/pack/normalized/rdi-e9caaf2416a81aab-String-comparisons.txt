@@ -1,0 +1,209 @@
+String comparisons
+
+IBM i programming resources > SQL > SQL reference > Language elements > Assignments and comparisons > Assignments and comparisons
+
+IBM i programming resources > SQL > SQL reference > Language elements > Assignments and comparisons
+
+String comparisons
+There are two different types of string comparisons.
+Binary string comparisonsBinary string
+comparisons always use a collating sequence of *HEX and the corresponding
+bytes of each string are compared. Additionally, two binary strings
+are equal only if the lengths of the two strings are identical. If
+the strings are equal up to the length of the shorter string length,
+the shorter string is considered less than the longer string even
+when the remaining bytes in the longer string are hexadecimal zeros.
+Note that binary strings cannot be compared to character strings unless
+the character string is cast to a binary string.
+Character and graphic string comparisonsCharacter
+and Unicode graphic string comparisons use the collating sequence
+in effect when the statement is executed for all SBCS data and the
+single-byte portion of mixed data. If the collating sequence is *HEX,
+the corresponding bytes of each string are compared. For all other
+collating sequences, the corresponding bytes of the weighted value
+of each string are compared.
+If the strings have different lengths,
+a temporary copy of the shorter string is padded on the right with
+blanks before comparison. The padding makes each string the same length.
+The pad character is always a blank, regardless of the collating sequence.
+For bit data, the pad character is also a blank. For DBCS graphic
+data, the pad character is a DBCS blank (x'4040'). For Unicode graphic
+data, the pad character is a UTF-16 blank. 1
+Two strings
+are equal if any of the following are true:
+Both strings are empty.
+A *HEX collating sequence is used and all corresponding bytes
+are equal.
+A collating sequence other than *HEX is used and all corresponding
+bytes of the weighted value are equal.
+
+An empty string is equal to a blank string. The relationship
+between two unequal strings is determined by a comparison of the first
+pair of unequal bytes (or bytes of the weighted value) from the left
+end of the string. This comparison is made according to the collating
+sequence in effect when the statement is executed.
+In an application
+that will run in multiple environments, the same collating sequence
+(which depends on the CCSIDs of the environments) must be used to
+ensure identical results. The following table illustrates the differences
+between EBCDIC, ASCII, and the DB2® LUW
+default collating sequence for United States English by showing a
+list that is sorted according to each one.
+Table 1. Collating Sequence DifferencesASCII and Unicode
+EBCDIC
+DB2 LUW
+Default
+
+0000
+@@@@
+0000
+
+9999
+co-op
+9999
+
+@@@@
+coop
+@@@@
+
+COOP
+piano forte
+co-op
+
+PIANO-FORTE
+piano-forte
+COOP
+
+co-op
+COOP
+coop
+
+coop
+PIANO-FORTE
+piano forte
+
+piano forte
+0000
+PIANO-FORTE
+
+piano-forte
+9999
+piano-forte
+
+Two varying-length strings with different lengths are equal
+if they differ only in the number of trailing blanks. In operations
+that select one value from a set of such values, the value selected
+is arbitrary. The operations that can involve such an arbitrary selection
+are DISTINCT, MAX, MIN, UNION, EXCEPT, INTERSECT, and references to
+a grouping column. See group-by-clause for
+more information about the arbitrary selection involved in references
+to a grouping column.
+Conversion rules for comparison:When two strings are compared, one of
+the strings is first converted, if necessary, to the coded character
+set of the other string. Character conversion is necessary only if
+all of the following are true:
+The CCSIDs of the two strings are different.
+Neither CCSID is 65535.
+The string selected for conversion is neither null nor empty.
+Conversion between the two CCSIDs is required. For more information,
+see Coded character sets and CCSIDs.
+
+If two strings with different encoding schemes are compared,
+any necessary conversion applies to the string as follows:
+Table 2. Selecting the Resulting Encoding Scheme
+for Character ConversionFirst Operand
+Second
+Operand
+
+SBCS Data
+DBCS Data
+Mixed Data
+Unicode Graphic Data
+
+SBCS Data
+see below
+second
+second
+second
+
+DBCS Data
+first
+see below
+second
+second
+
+Mixed Data
+first
+first
+see below
+second
+
+Unicode Graphic Data
+first
+first
+first
+see below
+
+Otherwise, the string selected for conversion depends on
+the type of each operand. The following table shows which operand
+is selected for conversion, given the operand types:
+Table 3. Selecting the Operand for Character
+ConversionFirst Operand
+Second
+Operand
+
+Column Value
+Derived Value
+Special Register
+Constant
+Variable
+
+Column Value
+second
+second
+second
+second
+second
+
+Derived Value
+first
+second
+second
+second
+second
+
+Special Register
+first
+first
+second
+second
+second
+
+Constant
+first
+first
+first
+second
+second
+
+Variable
+first
+first
+first
+first
+second
+
+A variable that contains data in a foreign encoding scheme
+is always effectively converted to the native encoding scheme before
+it is used in any operation. The above rules are based on the assumption
+that this conversion has already occurred.
+An error is returned
+if a character of the string cannot be converted or if the conversion
+between the pair of CCSIDs is not defined. For more information, see Coded character sets and CCSIDs. A warning occurs if a character
+of the string is converted to the substitution character.
+
+Parent topic: Assignments and comparisons
+
+1 UTF-16 defines a blank
+character at code point X'0020' and X'3000'. The database manager
+pads with the blank at code point X'0020'.

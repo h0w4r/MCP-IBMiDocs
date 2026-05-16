@@ -1,0 +1,328 @@
+Rules for result data types
+
+IBM i programming resources > SQL > SQL reference > Language elements > Language elements
+
+IBM i programming resources > SQL > SQL reference > Language elements
+
+Rules for result data types
+The data types of a result are determined by rules which
+are applied to the operands in an operation. This section explains
+those rules.
+These rules apply to:
+Corresponding columns in UNION, UNION ALL, EXCEPT, or INTERSECT
+operations
+Result expressions of a CASE expression
+Arguments of the scalar functions COALESCE, IFNULL, MAX, MIN,
+and VALUE
+Expression values of the IN list of an IN predicate
+Arguments for the aggregation group ranges in OLAP
+specifications
+
+For the result data type of expressions that involve the
+operators /, *, + and -, see With arithmetic operators.
+For the result data type of expressions that involve the CONCAT operator,
+see With the concatenation operator.
+The data type of the result is determined by the data
+type of the operands. The data types of the first two operands determine
+an intermediate result data type, this data type and the data type
+of the next operand determine a new intermediate result data type,
+and so on. The last intermediate result data type and the data type
+of the last operand determine the data type of the result. For each
+pair of data types, the result data type is determined by the sequential
+application of the rules summarized in the tables that follow.
+If neither operand column allows nulls, the result does
+not allow nulls. Otherwise, the result allows nulls.
+If the data type and attributes of any operand column
+are not the same as those of the result, the operand column values
+are converted to conform to the data type and attributes of the result.
+The conversion operation is exactly the same as if the values were
+assigned to the result. For example,
+If one operand column is CHAR(10), and the other operand column
+is CHAR(5), the result is CHAR(10), and the values derived from the
+CHAR(5) column are padded on the right with five blanks.
+If the whole part of a number cannot be preserved then an error
+is returned.
+
+Numeric operandsNumeric types are compatible
+with other numeric and character-string and graphic-string data types.
+If one operand column is...
+And the other operand is...
+The data type of the result column
+is...
+
+SMALLINT
+SMALLINT or String
+SMALLINT
+
+INTEGER
+SMALLINT, INTEGER, or String
+INTEGER
+
+BIGINT
+SMALLINT, INTEGER, BIGINT, or String
+BIGINT
+
+DECIMAL(w,x)
+SMALLINT
+DECIMAL(p,x) where
+p = min(mp, x+max(w-x,5))
+mp = 31 or 63 (See Note 1)
+
+DECIMAL(w,x)
+INTEGER
+DECIMAL(p,x) where
+p = min(mp, x+max(w-x,11))
+mp = 31 or 63 (See Note 1)
+
+DECIMAL(w,x)
+BIGINT
+DECIMAL(p,x) where
+p = min(mp, x+max(w-x,19))
+mp = 31 or 63 (See Note 1)
+
+DECIMAL(w,x)
+DECIMAL(y,z) or NUMERIC(y,z,)
+DECIMAL(p,s) where
+p = min(mp, max(x,z)+max(w-x,y-z))
+s = max(x,z)
+mp = 31 or 63 (See Note 1)
+
+DECIMAL(w,x)
+String
+DECIMAL(w,x)
+
+NUMERIC(w,x)
+SMALLINT
+NUMERIC(p,x) where
+p = min(mp, x + max(w-x,5))
+mp = 31 or 63 (See Note 1)
+
+NUMERIC(w,x)
+INTEGER
+NUMERIC(p,x) where
+p = min(mp, x + max(w-x,11))
+mp = 31 or 63 (See Note 1)
+
+NUMERIC(w,x)
+BIGINT
+NUMERIC(p,x) where
+p = min(mp, x + max(w-x,19))
+mp = 31 or 63 (See Note 1)
+
+NUMERIC(w,x)
+NUMERIC(y,z)
+NUMERIC(p,s) where
+p = min(mp, max(x,z) + max(w-x, y-z))
+s = max(x,z)
+mp = 31 or 63 (See Note 1)
+
+NUMERIC(w,x)
+String
+NUMERIC(w,x)
+
+NONZERO SCALE BINARY
+NONZERO SCALE BINARY
+NONZERO SCALE BINARY
+(If either operand is nonzero scale binary,
+both operands must be binary with the
+same scale.)
+
+REAL
+REAL
+REAL
+
+REAL
+SMALLINT, INTEGER, BIGINT, DECIMAL,
+NUMERIC, or String
+DOUBLE
+
+DOUBLE
+SMALLINT, INTEGER, BIGINT, DECIMAL,
+NUMERIC, REAL, DOUBLE, or String
+DOUBLE
+
+DECFLOAT(n)
+REAL, DOUBLE, INTEGER, or SMALLINT
+DECFLOAT(n)
+
+DECFLOAT(n)
+DECIMAL(p<=16,s) or
+NUMERIC(p<=16,s)
+
+DECFLOAT(n)
+
+DECFLOAT(n)
+BIGINT,
+DECIMAL(p>16,s), or
+NUMERIC(p>16,s)
+
+DECFLOAT(34)
+
+DECFLOAT(n)
+DECFLOAT(m)
+DECFLOAT(max(n,m))
+
+DECFLOAT(n)
+String
+DECFLOAT(34)
+
+Notes: The value of mp is 63 if: either w or y is greater than 31, or
+a value of 63 was specified for the maximum precision on the DECRESULT
+parameter of the CRTSQLxxx command, RUNSQLSTM command, or SET OPTION
+statement
+
+Otherwise, the value of mp is 31.
+
+Character and graphic string operandsCharacter
+and graphic strings are compatible with other character and graphic
+strings when there is a defined conversion between their corresponding
+CCSIDs. A character string and a graphic string are compatible if
+the encoding scheme of the graphic-string data type is Unicode and
+the character-string data type is not bit data.
+If one operand column is...
+And the other operand is...
+The data type of the result column
+is...
+
+CHAR(x)
+CHAR(y)
+CHAR(z) where z = max(x,y)
+
+GRAPHIC(x)
+CHAR(y) or GRAPHIC(y)
+GRAPHIC(z) where z = max(x,y)
+
+VARCHAR(x)
+CHAR(y) or VARCHAR(y)
+VARCHAR(z) where z = max(x,y)
+
+VARCHAR(x)
+GRAPHIC(y)
+VARGRAPHIC(z) where z = max(x,y)
+
+VARGRAPHIC(x)
+CHAR(y), VARCHAR(y), GRAPHIC(y),
+or VARGRAPHIC(y)
+VARGRAPHIC(z) where z = max(x,y)
+
+CLOB(x)
+CHAR(y), VARCHAR(y), or CLOB(y)
+CLOB(z) where z = max(x,y)
+
+CLOB(x)
+GRAPHIC(y) or VARGRAPHIC(y)
+DBCLOB(z) where z = max(x,y)
+
+DBCLOB(x)
+CHAR(y), VARCHAR(y), CLOB(y), GRAPHIC(y),
+VARGRAPHIC(y), or DBCLOB(y)
+DBCLOB(z) where z = max(x,y)
+
+When one of the operands has a CCSID of 1208,
+the length (x or y value) of every operand that does not have a CCSID
+of 1208 is doubled for determining the result length.
+The CCSID
+of the result graphic string will be derived based on the Conversion rules for operations that combine strings.
+Binary string operandsBinary strings are
+compatible only with other binary strings or character strings FOR
+BIT DATA. Other data types can be treated as a binary-string data
+type by using the BINARY, VARBINARY, or BLOB scalar functions to cast
+the data type to a binary string.
+If one operand column is...
+And the other operand is...
+The data type of the result column
+is...
+
+BINARY(x)
+BINARY(y) or CHAR(y) FOR BIT DATA
+BINARY(z) where z = max(x,y)
+
+VARBINARY(x)
+BINARY(y), VARBINARY(y), CHAR(y)
+FOR BIT DATA, or VARCHAR(y) FOR BIT DATA
+VARBINARY(z) where z = max(x,y)
+
+VARCHAR(x) FOR BIT DATA
+BINARY(y)
+VARBINARY(z) where z = max(x,y)
+
+BLOB(x)
+BINARY(y), VARBINARY(y), BLOB(y),
+CHAR(y) FOR BIT DATA, or VARCHAR(y) FOR BIT DATA
+BLOB(z) where z = max(x,y)
+
+Datetime operandsA DATE type is compatible
+with another DATE type or any character or Unicode graphic string
+expression that contains a valid string representation of a date.
+The data type of the result is DATE.
+A TIME type is compatible with another TIME type or any
+character or Unicode graphic string expression that contains
+a valid string representation of a time. The data type of the result
+is TIME.
+A TIMESTAMP type is compatible with another TIMESTAMP
+type, a DATE type, or any character or Unicode
+graphic string expression that contains a valid string representation
+of a date or a timestamp. The data type of the
+result is TIMESTAMP.
+If one operand column is...
+And the other operand is...
+The data type of the result column
+is...
+
+DATE
+DATE, CHAR(y), VARCHAR(y), CLOB(y),
+GRAPHIC(y), VARGRAPHIC(y), or DBCLOB(y)
+DATE
+
+TIME
+TIME, CHAR(y), VARCHAR(y),
+CLOB(y), GRAPHIC(y), VARGRAPHIC(y), or DBCLOB(y)
+TIME
+
+TIMESTAMP(x)
+TIMESTAMP(y)
+TIMESTAMP(max(x,y))
+
+TIMESTAMP(x)
+DATE, CHAR(y), VARCHAR(y), CLOB(y),,
+GRAPHIC(y), VARGRAPHIC(y). or DBCLOB(y)
+TIMESTAMP(x)
+
+DataLink operandsA DataLink is compatible
+with another DataLink. However, DataLinks with NO LINK CONTROL are
+only compatible with other DataLinks with NO LINK CONTROL; DataLinks
+with FILE LINK CONTROL READ PERMISSION FS are only compatible with
+other DataLinks with FILE LINK CONTROL READ PERMISSION FS; and DataLinks
+with FILE LINK CONTROL READ PERMISSION DB are only compatible with
+other DataLinks with FILE LINK CONTROL READ PERMISSION DB. The data
+type of the result is DATALINK. The length of the result DATALINK
+is the largest length of all the data types.
+If one operand column is...
+And the other operand is...
+The data type of the result column
+is...
+
+DATALINK(x)
+DATALINK(y)
+DATALINK(z) where z = max(x,y)
+
+ROWID operandsA ROWID is compatible with
+another ROWID. The data type of the result is ROWID.
+XML operandsThe XML data type
+is compatible only with another XML data type. The data type of the
+result is XML.
+The result CCSID is the value from the SQL_XML_DATA_CCSID
+QAQQINI option setting as described in XML Values.
+Distinct type operandsA user-defined distinct
+type is compatible only with the same user-defined distinct type.
+The data type of the result is the user-defined distinct type.
+If one operand column is...
+And the other operand is...
+The data type of the result column
+is...
+
+Distinct Type
+Distinct Type
+Distinct Type
+
+Parent topic: Language elements

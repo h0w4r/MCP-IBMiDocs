@@ -1,0 +1,157 @@
+<main role="main"><article role="article" aria-labelledby="rbam6parmsbif__title__1"><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32" aria-hidden="true"><path d="M14 16L24 6 25.4 7.4 16.8 16 25.4 24.6 24 26zM8 4H10V28H8z"></path><title></title></svg>
+<h1 class="topictitle1" id="rbam6parmsbif__title__1">%PARMS built-in function</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-10-07</div>
+
+
+
+
+<div class="body refbody"><p class="shortdesc">The return number of parameters built-in function (%PARMS) returns the number of
+parameters that were passed to the program in which %PARMS is used. </p>
+
+<div class="section">
+<p>The %PARMS built-in function can be used anywhere that CL supports an arithmetic expression.
+%PARMS can be used alone or as part of a more complex arithmetic expression. For example, %PARMS can
+be used to compare the number of parameters that were passed to the program to a numeric CL variable
+in the  COND parameter of an <span class="keyword cmdname">IF</span> or <span class="keyword cmdname">WHEN</span> command. %PARMS can
+also be used to set the value of a CL command parameter, if the associated command object defines
+the parameter with EXPR(*YES) and TYPE of *DEC, *INT2, *INT4, *UINT2, or *UINT4.</p>
+
+<div class="p">The format of the return number of parameters built-in function
+is:<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>%PARMS()</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<p>When %PARMS is used in a program that was called by a bound call, the value returned by %PARMS is
+not available if the calling program or procedure does not pass a minimal operational descriptor.
+The ILE CL or ILE RPG compiler always passes one, but other languages do not. So if the caller is
+written in another ILE language, it will need to pass an operational descriptor on the call. If the
+operational descriptor is not passed, the value returned by %PARMS cannot be trusted. The value
+returned by %PARMS will be -1 if the system can determine that the operational descriptor was not
+passed, but in some cases when the system cannot detect this, the value returned by %PARMS may be an
+incorrect value that is zero or greater.</p>
+
+<p>The following examples are about the return number of parameters built-in function: </p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Return number of parameters when the program was called by a program call by
+<span class="keyword cmdname">CALL</span>. The name of the following program is
+PARMSTESTS.<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>             PGM        PARM(&amp;PARM1 &amp;PARM2 &amp;PARM3)
+             DCL        VAR(&amp;PARM1) TYPE(*DEC) LEN(5 2)
+             DCL        VAR(&amp;PARM2) TYPE(*CHAR) LEN(10)
+             DCL        VAR(&amp;PARM3) TYPE(*INT)
+
+             SELECT
+               WHEN       COND(%PARMS() *EQ 0) THEN(DO)
+                 SNDPGMMSG MSG('0 parm was passed in')
+                 GOTO     LP0
+               ENDDO
+               WHEN       COND(%PARMS() *EQ 1) THEN(DO)
+                 SNDPGMMSG MSG('1 parm was passed in')
+                 GOTO     LP1
+               ENDDO
+               WHEN       COND(%PARMS() *EQ 2) THEN(DO)
+                 SNDPGMMSG MSG('2 parms were passed in')
+                 GOTO     LP2
+               ENDDO
+               WHEN       COND(%PARMS() *EQ 3) THEN(DO)
+                 SNDPGMMSG MSG('3 parms were passed in')
+                 GOTO     LP3
+               ENDDO
+             OTHERWISE  CMD(GOTO CMDLBL(LPE))
+             ENDSELECT
+
+ LP3:        SNDPGMMSG  MSG('parm3:' *BCAT %CHAR(&amp;PARM3))
+ LP2:        SNDPGMMSG  MSG('parm2:' *BCAT &amp;PARM2)
+ LP1:        SNDPGMMSG  MSG('parm1:' *BCAT %CHAR(&amp;PARM1))
+             RETURN
+ LP0:        SNDPGMMSG  MSG('no parameter at all!')
+             RETURN
+ LPE:        SNDPGMMSG  MSG('error in %parm()')
+             ENDPGM</code></pre></div><div class="docs--copy-btn"></div></div><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>             PGM
+             DCL        VAR(&amp;VARDEC) TYPE(*DEC) LEN(5 2) VALUE(123.45)
+             DCL        VAR(&amp;VARCHAR) TYPE(*CHAR) LEN(10) +
+                          VALUE(OUTERPGM)
+             DCL        VAR(&amp;VARINT) TYPE(*INT) VALUE(-123)
+
+             CALL       PGM(PARMSTESTS) PARM(&amp;VARDEC &amp;VARCHAR +
+                          &amp;VARINT)
+             ENDPGM</code></pre></div><div class="docs--copy-btn"></div></div>The
+output of the above program is:
+<pre class="pre screen"><code>3 parms were passed in
+parm3: -123
+parm2: OUTERPGM
+parm1: 123.45</code></pre>
+</li>
+
+<li class="cds--list__item">Return number of parameters when the program was called by a bound call by
+<span class="keyword cmdname">CALLPRC</span>. Still use program PARMSTESTS in the above
+example.<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>             PGM
+             DCL        VAR(&amp;VARDEC) TYPE(*DEC) LEN(5 2) VALUE(123.45)
+             DCL        VAR(&amp;VARCHAR) TYPE(*CHAR) LEN(10) +
+                          VALUE(OUTERPGM)
+             DCL        VAR(&amp;VARINT) TYPE(*INT) VALUE(-123)
+
+             CALLPRC    PRC(PARMSTESTS) PARM((&amp;VARDEC))
+             ENDPGM</code></pre></div><div class="docs--copy-btn"></div></div>The
+output of the above program is: <pre class="pre screen"><code>1 parm was passed in
+parm1: 123.45</code></pre>
+</li>
+
+<li class="cds--list__item">Return number of parameters when the program was called by another ILE language, such as ILE C.
+Still use program PARMSTESTS in the above
+example.<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;decimal.h&gt;
+
+void PARMSTESTS (decimal(5,2)*, char*, int*);
+#pragma descriptor (void PARMSTESTS (void, "", void))
+int main(void)
+{
+  decimal(5,2) vardec = 123.45;
+  char varchar[10] = "OUTERPGMC";
+  int varint = -123;
+
+  PARMSTESTS(&amp;vardec, varchar, &amp;varint);
+  return 0;
+}</code></pre></div><div class="docs--copy-btn"></div></div>The
+output of the above program is:
+<pre class="pre screen"><code>3 parms were passed in
+parm3: -123
+parm2: OUTERPGMC
+parm1: 123.45</code></pre>
+</li>
+
+<li class="cds--list__item">If you specify the special value *OMIT for any parameter in the parameter list in a bound call
+by <span class="keyword cmdname">CALLPRC</span>, the number of *OMIT will count in the return number of parameters by
+%PARMS. Add <span class="keyword cmdname">MONMSG MCH3601</span> before the fist execution statement in
+PARMSTESTS.<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>             PGM
+             DCL        VAR(&amp;VARDEC) TYPE(*DEC) LEN(5 2) VALUE(123.45)
+             DCL        VAR(&amp;VARCHAR) TYPE(*CHAR) LEN(10) +
+                          VALUE(OUTERPGM)
+             DCL        VAR(&amp;VARINT) TYPE(*INT) VALUE(-123)
+
+             CALLPRC    PRC(PARMSTESTS) PARM((&amp;VARDEC) (*OMIT) (*OMIT))
+             ENDPGM</code></pre></div><div class="docs--copy-btn"></div></div>The
+output of the above program is:
+<pre class="pre screen"><code>3 parms were passed in
+Pointer not set for location referenced.
+Pointer not set for location referenced.
+parm1: 123.45</code></pre>
+</li>
+
+</ul>
+
+</div>
+
+</div>
+
+<aside role="complementary" aria-labelledby="rbam6parmsbif__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_i5_74" href="/docs/en/ssw_ibm_i_74/rbam6/contp.htm" title="You can use commands to change the flow of logic within your CL procedure." class="bottom-section-link">Controlling processing within a CL program or CL procedure</a></div></div>
+</div>
+
+<div class="linklist relinfo reltasks ibm-margin-bottom-1" lang="en-us"><h2 class="linkheading bottom-section-h2-title">Related tasks</h2>
+<ul><li class="cds--list__item"><div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_i5_74" href="/docs/en/ssw_ibm_i_74/rbam6/valuv.htm" title="You can change the value of a CL variable using the Change Variable (CHGVAR) command." class="bottom-section-link">Changing the value of a variable</a></div></li>
+</ul></div>
+
+<div class="linklist relinfo relref ibm-margin-bottom-1" lang="en-us"><h2 class="linkheading bottom-section-h2-title">Related reference</h2>
+<ul><li class="cds--list__item"><div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_i5_74" href="/docs/en/ssw_ibm_i_74/rbam6/rbam6builtinfunc.htm" title="Control language (CL) provides several built-in functions. Built-in functions are used in arithmetic, character string, relational, or logical expressions. All of these built-in functions can only be used in compiled CL programs or procedures." class="bottom-section-link">Built-in functions for CL</a></div></li>
+</ul></div>
+</nav></aside><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 16L8 26 6.6 24.6 15.2 16 6.6 7.4 8 6zM22 4H24V28H22z"></path><title></title></svg></article></main>

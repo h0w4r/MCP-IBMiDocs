@@ -1,0 +1,349 @@
+CREATE MASK
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+CREATE MASK
+The CREATE MASK statement creates a column mask for column
+access control at the current server. A column mask specifies what
+value should be returned for the specified column.
+InvocationThis statement can be embedded
+in an application program or issued interactively. It is an executable
+statement that can be dynamically prepared.
+AuthorizationThe authorization ID of the
+statement must have security administrator authority. See Administrative authority.
+Syntax CREATEOR REPLACEMASKmask-nameONtable-nameAScorrelation-nameFOR COLUMNcolumn-nameRETURNcase-expressionDISABLEENABLE
+
+Description OR REPLACE
+Specifies to replace the definition for the column mask if one
+exists at the current server. The existing definition is effectively
+dropped before the new definition is replaced in the catalog.
+mask-name
+Names
+the column mask for column access control. The name, including the
+implicit or explicit qualifier, must not be the same as a column mask
+or a row permission that already exists at the current server. The mask-name cannot
+start with QIBM.If SQL names were specified,
+the mask will be created in the schema specified by the implicit or
+explicit qualifier.
+If system names were specified, the mask
+will be created in the schema that is specified by the qualifier.
+If not qualified and there is no default schema, the mask will be
+created in the same schema as the table-name.
+The schema
+name for the mask-name must be the same as the schema name
+for table-name.
+
+table-name
+Identifies the table on which the column mask is created. The
+name must identify a table that exists at the current server. It must
+not identify a declared temporary table, table in QTEMP, distributed
+table, view, logical file, member alias, file with read triggers,
+or catalog table.
+correlation-name
+Specifies a correlation name that can be used within case-expression to
+designate the table.
+
+FOR COLUMN column-name
+Identifies the column to which the mask applies. It must be an
+unqualified name that identifies a column of the table. A mask must
+not already exist for the column.
+
+RETURN case-expression
+Specifies a CASE expression to be evaluated to determine the value
+to return for the column. The result of the CASE expression is returned
+in place of the column value in a row. The result data type, length,
+null attribute, and CCSID of the CASE expression must be compatible
+with the data type of the column. If the column does not allow the
+null value, the result of the CASE expression cannot be the NULL value.
+For more information about the compatibility of data types see Assignments and comparisons. If the data type of column-name is
+a user defined data type, the result data type of the CASE expression
+must be the same user defined type. Any objects referenced in the
+case expression must exist at the current server. The case expression
+must not reference any of the following:The table for which the column mask is being defined
+A declared global temporary table
+A variable (host variable, SQL variable, SQL parameter, or trigger
+transition variable)
+A parameter marker
+A user-defined function that is defined as NOT SECURED
+A function that is not deterministic1 or
+has an external action
+An RRN, RID, HASHED_VALUE, DATAPARTITIONNAME, DATAPARTITIONNUM,
+DBPARTITIONNAME, or DBPARTITIONNUM function that references the table
+for which the column mask is being defined
+An OLAP specification
+A ROW CHANGE expression
+A sequence reference
+A * or name.* in a select clause
+A table in QTEMP
+A member alias
+A distributed table
+A file with read triggers
+A multi-format logical file
+A remote object
+A view that contains any of the above
+
+ENABLE or DISABLE
+Specifies that the column mask is to be initially enabled or disabled
+for column access control.DISABLE
+Specifies that the column mask is to be disabled for column access
+control. The column mask will remain ineffective regardless of whether
+column access control is activated for the table or not. This is the
+default.
+ENABLE
+Specifies that the column mask is to be enabled for column access
+control. If column access control is not currently activated for this
+table, the column mask will become effective when column access control
+is activated for the table. If column access control is currently
+activated for the table, the column mask becomes effective immediately.
+
+NotesPrerequisites: In
+order to create a mask, IBM® Advanced
+Data Security must be installed.
+How column masks affect
+queries: The application of enabled column masks does not interfere
+with the operations of other clauses within the statement such as
+WHERE, GROUP BY, HAVING, SELECT DISTINCT, or ORDER BY. The rows that
+are returned in the final result table remain the same, except that
+the values in the resulting rows might have been masked by the column
+masks. As such, if the masked column also appears in an ORDER BY clause
+with a sort-key expression, the order is based on the original values
+of the column and the masked values in the final result table might
+not reflect that order. Similarly, the masked values might not reflect
+the uniqueness enforced by a SELECT DISTINCT statement. If the masked
+column is embedded in an expression, the result of the expression
+might become different because the column mask is applied on the column
+before the expression evaluation can take place. For example, a column
+mask on column SSN might change the result of the aggregate function
+COUNT(DISTINCT SSN) because the DISTINCT operation is performed on
+the masked values. However, if the expression in the query is the
+same as the expression that is used to mask the column value in the
+definition of the column mask, the result of the expression might
+remain unchanged. For example, the expression in the query is 'XXX-XX-'
+|| SUBSTR(SSN, 8, 4) and the same expression appears in the definition
+of the column mask. In this particular example, you can remove the
+expression from the query to avoid the same expression being evaluated
+twice.
+Conflicts between the definition of a column mask
+and SQL: A column mask is created as a stand alone object, without
+knowing all of the contexts in which it might be used. To mask the
+value of a column in the final result table, the definition of the
+column mask is merged into a query by DB2®.
+When the definition of the column mask is brought into the context
+of the statement, it might conflict with certain SQL semantics in
+the statement. Therefore, in some situations, the combination of the
+statement and the application of the column mask can return an error.
+When this happens, either the statement needs to be modified or the
+column mask must be dropped or recreated with a different definition.
+Column
+masks and null columns: If the column is not nullable, the definition
+of its column mask will not, most likely, consider a null value for
+the column. After the column access control is activated for the table,
+if the table is the null-padded table in an outer join, the value
+of the column in the final result table might be a null. To ensure
+that the column mask can mask a null value, if the table is the null-padded
+table in an outer join, DB2 will
+add "WHEN target-column IS NULL THEN NULL" as the first WHEN clause
+to the column mask definition. This forces a null value to always
+be masked as a null value. For a nullable column, this removes the
+ability to mask a null value as something else. Example 4 shows this
+added WHEN clause.
+Column mask values for SQL data change
+statements: For INSERT, UPDATE, and MERGE, when a column is referenced
+while deriving the values of a new row, if that column has an enabled
+column mask, the masked value is used to derive the new values. If
+the object table also has column access control activated, the column
+mask that is applied to derive the new values must return the column
+itself, not a constant or an expression. If the column mask does not
+mask the column to itself, the new value cannot be used for insert
+or update and an error is returned. The rules that are used to apply
+column masks in order to derive the new values follow the same rules
+for the final result table of a query. See the data change statements
+for how the column masks are used to affect the insertability and
+updatability.
+Column masks and trigger transition variables: Values
+for OLD ROW and OLD TABLE transition variables will never contain
+masked values.
+A SET transition-variable assignment
+statement can assign masked data to the variable. If a violation check
+constraint does not exist for the column, the masked data will be
+inserted or updated in the table's column and no error will be issued.
+Column
+masks that are created before column access control is activated: The
+CREATE MASK statement is an independent statement that can be used
+to create a column access control mask before column access control
+is activated for a table. The only requirement is that the table and
+the columns exist before the mask is created. Multiple column masks
+can be created for a table but a column can have only one mask. The
+definition of a mask is stored in the DB2 catalog.
+Dependency on the table for which the mask is being created and dependencies
+on other objects referenced in the definition are recorded. A column
+mask can be created as enabled or disabled for column access control.
+An enabled column mask does not take effect until the ALTER TABLE
+statement with the ACTIVATE COLUMN ACCESS CONTROL clause is used to
+activate column access control for the table. A disabled column mask
+remains ineffective even when column access control is activated for
+the table. The ALTER MASK statement can be used to alter between ENABLE
+and DISABLE. After column access control is activated for a table,
+when the table is referenced in a data manipulation statement, all
+enabled column masks that have been created for the table are implicitly
+applied by DB2 to mask the values
+returned for the columns referenced in the final result table of the
+queries or to determine the new values used in the data change statements.
+Column
+masks that are created after column access control is activated: The
+enabled column masks become effective as soon as they are committed.
+Thereafter, when the table is referenced in a data manipulation statement,
+all enabled column masks are implicitly applied by DB2 to the statement. Any disabled column mask
+remains ineffective even when column access control is activated for
+the table.
+No cascaded effect when column or row access control
+enforced tables are referenced in column mask definitions: A column
+mask definition may reference tables and columns that are currently
+enforced by row or column access control. Access control from those
+tables and columns is ignored when the table for which the column
+mask is being created is referenced in a data manipulation statement.
+ExamplesExample 1: After column
+access control is activated for table EMPLOYEE, Paul from the payroll
+department can see the social security number of the employee whose
+employee number is 123456. Mary who is a manager can see only the
+last four characters of the social security number. Peter who is neither
+cannot see the social security number.
+CREATE MASK SSN_MASK ON EMPLOYEE
+FOR COLUMN SSN RETURN
+CASE
+WHEN (VERIFY_GROUP_FOR_USER(SESSION_USER,'PAYROLL') = 1)
+THEN SSN
+WHEN (VERIFY_GROUP_FOR_USER(SESSION_USER,'MGR') = 1)
+THEN 'XXX-XX-' || SUBSTR(SSN,8,4)
+ELSE NULL
+END
+ENABLE;
+
+COMMIT;
+
+ALTER TABLE EMPLOYEE
+ACTIVATE COLUMN ACCESS CONTROL;
+
+COMMIT;
+
+SELECT SSN FROM EMPLOYEE
+WHERE EMPNO = 123456;
+Example 2: In
+the SELECT statement, column SSN is embedded in an expression that
+is the same as the expression used in the column mask SSN_MASK. After
+column access control is activated for table EMPLOYEE, the column
+mask SSN_MASK is applied to column SSN in the SELECT statement. For
+this particular expression, the SELECT statement produces the same
+result as before column access control is activated for all users.
+The user can replace the expression in the SELECT statement with column
+SSN to avoid the same expression getting evaluated twice.
+CREATE MASK SSN_MASK ON EMPLOYEE
+FOR COLUMN SSN RETURN
+CASE
+WHEN (1 = 1)
+THEN 'XXX-XX-' || SUBSTR(SSN,8,4)
+ELSE NULL
+END
+ENABLE;
+
+COMMIT;
+
+ALTER TABLE EMPLOYEE
+ACTIVATE COLUMN ACCESS CONTROL;
+
+COMMIT;
+
+SELECT 'XXX-XX-' || SUBSTR(SSN,8,4) FROM EMPLOYEE
+WHERE EMPNO = 123456;
+Example 3: Employee
+with EMPNO 123456 earns bonus $8000 and salary $80000 in May. When
+the manager retrieves his salary, the manager receives his salary,
+not the null value. This is because of no cascaded effect when column
+mask SALARY_MASK references column BONUS for which column mask BONUS_MASK
+is defined.
+CREATE MASK SALARY_MASK ON EMPLOYEE
+FOR COLUMN SALARY RETURN
+CASE
+WHEN (BONUS < 10000)
+THEN SALARY
+ELSE NULL
+END
+ENABLE;
+
+COMMIT;
+
+CREATE MASK BONUS_MASK ON EMPLOYEE
+FOR COLUMN BONUS RETURN
+CASE
+WHEN (BONUS > 5000)
+THEN NULL
+ELSE BONUS
+END
+ENABLE;
+
+COMMIT;
+
+ALTER TABLE EMPLOYEE
+ACTIVATE COLUMN ACCESS CONTROL;
+
+COMMIT;
+
+SELECT SALARY FROM EMPLOYEE
+WHERE EMPNO = 123456;
+Example 4: This
+example shows DB2 adds "WHEN
+target-column IS NULL THEN NULL" as the first WHEN clause to the column
+mask definition then merges the column mask definition into the statement.
+CREATE TABLE EMPLOYEE (EMPID INT,
+DEPTID CHAR(8),
+SALARY DEC(9,2) NOT NULL,
+BONUS DEC(9,2));
+
+CREATE MASK SALARY_MASK ON EMPLOYEE
+FOR COLUMN SALARY RETURN
+CASE
+WHEN SALARY < 10000
+THEN CAST(SALARY*2 AS DEC(9,2))
+ELSE COALESCE(CAST(SALARY/2 AS DEC(9,2)), BONUS)
+END
+ENABLE;
+
+COMMIT;
+
+CREATE MASK BONUS_MASK ON EMPLOYEE
+FOR COLUMN BONUS RETURN
+CASE
+WHEN BONUS > 1000
+THEN BONUS
+ELSE NULL
+END
+ENABLE;
+
+COMMIT;
+
+ALTER TABLE EMPLOYEE
+ACTIVATE COLUMN ACCESS CONTROL;
+
+COMMIT;
+
+SELECT SALARY FROM DEPT
+LEFT JOIN EMPLOYEE ON DEPTNO = DEPTID;
+
+/* When SALARY_MASK is effectively merged into the above statement,
+* 'WHEN SALARY IS NULL THEN NULL' is added by DB2 as the
+* first WHEN clause, as follows:
+*/
+
+SELECT CASE WHEN SALARY IS NULL THEN NULL
+WHEN SALARY < 10000 THEN CAST(SALARY*2 AS DEC(9,2))
+ELSE COALESCE(CAST(SALARY/2 AS DEC(9,2)), BONUS)
+END SALARY
+FROM DEPT
+LEFT JOIN EMPLOYEE ON DEPTNO = DEPTID;
+
+Parent topic: Statements
+
+1 STATEMENT
+DETERMINISTIC functions are allowed but are not recommended.

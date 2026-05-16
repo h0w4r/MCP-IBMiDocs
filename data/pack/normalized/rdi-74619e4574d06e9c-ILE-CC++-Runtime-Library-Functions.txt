@@ -1,0 +1,111 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+wcsrtombs() — Convert Wide Character String
+to Multibyte String (Restartable)
+Format
+
+#include <wchar.h>
+size_t wcsrtombs (char *dst, const wchar_t **src, size_t len,
+mbstate_t *ps);
+Language Level: ANSI
+Threadsafe: Yes, if the fourth parameter, ps, is not NULL.
+Locale Sensitive: The behavior
+of this function might be affected by the LC_CTYPE category of the
+current locale. The behavior might also be affected by the LC_UNI_CTYPE
+category of the current locale if LOCALETYPE(*LOCALEUCS2) or LOCALETYPE(*LOCALEUTF)
+is specified on the compilation command. This function is not available
+when LOCALETYPE(*CLD) is specified on the compilation command. For
+more information, see Understanding CCSIDs and Locales.
+Wide Character Function: See Wide Characters for more information.
+Description
+This function is the restartable version of wcstombs().
+The wcsrtombs() function converts a sequence of wide
+characters from the array indirectly pointed to by src into
+a sequence of corresponding multibyte characters that begins in the
+shift state described by ps, which, if dst is not a null pointer, are then stored into
+the array pointed to by dst. Conversion continues
+up to and including the ending null wide character, which is also
+stored. Conversion will stop earlier in two cases: when a code is
+reached that does not correspond to a valid multibyte character, or
+(if dst is not a null pointer) when the next
+multibyte element would exceed the limit of len total
+bytes to be stored into the array pointed to by dst.
+Each conversion takes place as if by a call to wcrtomb().
+If dst is not a null pointer, the object
+pointed to by src will be assigned either
+a null pointer (if conversion stopped due to reaching a ending null
+character) or the address of the code just past the last wide character
+converted. If conversion stopped due to reaching a ending null wide
+character, the resulting state described will be the initial conversion
+state.
+Return Value
+If the first code is not a valid wide character, an encoding error
+will occur. wcsrtombs() stores the value of the macro EILSEQ in errno
+and returns (size_t) -1, but the conversion state will be unchanged.
+Otherwise it returns the number of bytes in the resulting multibyte
+character sequence, which is the same as the number of array elements
+changed when dst is not a null pointer.
+If a conversion error occurs, errno may
+be set to ECONVERT.
+Example that uses wcsrtombs()
+
+#include <stdio.h>
+#include <wchar.h>
+#include <string.h>
+
+#define SIZE 20
+
+int main(void)
+{
+char dest[SIZE];
+wchar_t *wcs = L"string";
+wchar_t *ptr;
+size_t count = SIZE;
+size_t length;
+mbstate_t ps = 0;
+
+ptr = (wchar_t *) wcs;
+length = wcsrtombs(dest, ptr, count, &ps);
+printf("%d characters were converted.\n", length);
+printf("The converted string is \"%s\"\n\n", dest);
+
+/* Reset the destination buffer */
+memset(dest, '\0', sizeof(dest));
+
+/* Now convert only 3 characters */
+ptr = (wchar_t *) wcs;
+length = wcsrtombs(dest, ptr, 3, &ps);
+printf("%d characters were converted.\n", length);
+printf("The converted string is \"%s\"\n\n", dest);
+}
+
+/***************** Output should be similar to: **********************
+6 characters were converted.
+The converted string is "string"
+
+3 characters were converted.
+The converted string is "str"
+*/
+Related Information
+
+mblen() — Determine Length of a Multibyte Character
+mbrlen() — Determine Length of a Multibyte Character
+(Restartable)
+mbrtowc() — Convert a Multibyte Character to
+a Wide Character (Restartable)
+mbsrtowcs() — Convert a Multibyte String to
+a Wide Character String (Restartable)
+wcrtomb() — Convert a Wide Character to a Multibyte
+Character (Restartable)
+wcstombs() — Convert Wide-Character String to
+Multibyte String
+<wchar.h>
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

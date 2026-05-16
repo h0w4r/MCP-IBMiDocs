@@ -1,0 +1,71 @@
+VERIFY_GROUP_FOR_USER
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+VERIFY_GROUP_FOR_USER
+The VERIFY_GROUP_FOR_USER function returns a value that
+indicates whether the specified user is in the list of user profiles
+or is a member of any of the group user profiles specified by the
+list of authorization-id-expression arguments.
+VERIFY_GROUP_FOR_USER(SESSION_USERUSERCURRENT_USER,,authorization-id-expression)
+
+SESSION_USER or USER or CURRENT_USER
+Specifies an authorization ID.
+
+authorization-id-expression
+An expression that specifies an authorization name. The existence
+of the authorization name at the current server is not verified. authorization-id-expression must
+return a value of any built-in character-string or graphic-string
+data type. The value of each authorization-id-expression must
+have a length of at least 1 and be less than or equal to 10.
+
+The result of the function is a large integer. The result
+cannot be null.
+The value of the result is 1 if the authorization
+ID represented by the first argument is anywhere in the list of authorization-id-expressions.
+Otherwise, the result is 0.
+The VERIFY_GROUP_FOR_USER function
+is deterministic within a connection. It is not deterministic across
+connections. It can be referenced in a CREATE MASK or CREATE PERMISSION
+statement to verify access to the data.
+ExampleAssume that table EMPLOYEE exists
+and that column level access control is activated for the table. Alex
+(with QIBM_DB_SECADM authority) created the following column mask
+to control what information is returned for a social security number
+depending on who requests the information. The column mask only returns
+the actual social security number if the session user is a member
+of the MGR group profile. Otherwise a masked representation of the
+social security number is returned.CREATE MASK SSN_MASK
+ON EMPLOYEE
+FOR COLUMN SSN
+RETURN
+CASE
+WHEN VERIFY_GROUP_FOR_USER(SESSION_USER,'MGR') = 1
+THEN SSN
+ELSE 'XXX-XX' CONCAT SUBSTR(SSN, 8,4)
+END
+ENABLE;
+An ALTER TABLE statement is then issued
+to activate the column mask on the EMPLOYEE table:ALTER TABLE EMPLOYEE
+ACTIVATE COLUMN ACCESS CONTROL;
+COMMIT;
+
+Assume that Mary is a manager and
+is a member of the MGR group profile. Mary issues the following statement:SELECT SSN FROM EMPLOYEE WHERE NAME = 'Tom';
+The
+SSN_MASK column mask is applied to the SSN column to produce the result
+table. Since Mary is a member of the MGR group profile, the result
+table contains Tom's actual social security number.
+Later,
+Mary is no longer a manager and is removed from the MGR group profile.
+She issues the same query again:SELECT SSN FROM EMPLOYEE WHERE NAME = 'Tom';
+As
+before, the SSN_MASK column mask is applied to the SSN column to produce
+the result table. This time the result table contains a masked version
+of Tom's social security number where only the last 4 digits
+of the actual number are returned. An 'X' is returned for
+the other digits.
+
+Parent topic: Scalar functions

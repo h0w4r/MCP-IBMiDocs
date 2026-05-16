@@ -1,0 +1,65 @@
+Interactive job log considerations
+
+IBM i programming resources > Control language > Control language > Messages > Log messages > Job log > Job log
+
+IBM i programming resources > Control language > Control language > Messages > Log messages > Job log
+
+Interactive job log considerations
+When you use interactive job logs, consider these suggestions.
+The IBM-supplied job descriptions QCTL, QINTER, and QPGMR all have a log
+level of LOG(4 0 *NOLIST); therefore, all messages and both first- and second-level
+text for the messages are written to the job log. However, the job logs are
+not printed unless you specify *LIST on the SIGNOFF command. To change the
+log level for interactive jobs, you can use the Change Job (CHGJOB) or Change
+Job Description (CHGJOBD) command.
+If a display station user uses an IBM-supplied menu or the command entry
+display, all error messages are displayed. If the display station user uses
+a user-written initial program, any unmonitored message causes the initial
+program to end and a job log to be produced. However, if the initial program
+monitors for messages, it receives control when a message is received. In
+this case, it may be important to ensure that the job log is produced so you
+can determine the specific error that occurred. For example, assume that the
+initial program displays a menu that includes a sign-off option, which defaults
+to *NOLIST. The initial program monitors for all exceptions and includes a Change
+Variable (CHGVAR) command that changes the sign-off option to *LIST
+if an exception occurs.
+PGM
+DCLF MENU
+DCL &SIGNOFFOPT TYPE(*CHAR) LEN(7) VALUE(*NOLIST)
+.
+.
+.
+MONMSG MSG(CPF0000) EXEC(GOTO ERROR)
+PROMPT: SNDRCVF RCDFMT(PROMPT)
+CHGVAR &IN41 '0'
+.
+.
+.
+IF (&OPTION *EQ '90') SIGNOFF LOG(&SIGNOFFOPT)
+.
+.
+.
+GOTO PROMPT
+ERROR: CHGVAR &SIGNOFFOPT '*LIST'
+CHGVAR &IN41 '1'
+GOTO PROMPT
+ENDPGM
+If an exception occurs in the previous example, the CHGVAR command changes
+the option on the SIGNOFF command to *LIST and sets on an indicator. This
+indicator could be used to condition a constant that displays a message informing
+the display station user that an unexpected event has occurred and telling
+him what to do.
+If the interactive job is running a CL program or procedure, the CL commands
+are logged only if the log level is 3 or 4 and one of the following is true:
+
+You specified LOG(*YES) on the Create Control Language Program
+(CRTCLPGM) command, the Create Control Language Module
+(CRTCLMOD) command, or the Create Bound CL Program (CRTBNDCL) command.
+You specified LOG(*JOB) on the Create Control Language Program
+(CRTCLPGM) command, the Create Control Language Module
+(CRTCLMOD) command, or the Create Bound CL Program (CRTBNDCL) command,
+and (*YES) is the current LOGCLPGM job attribute. You can set and change
+the LOGCLPGM job attribute by using the LOGCLPGM parameter on the SBMJOB,
+CRTJOBD, CRTJOBD, and CHGJOBD commands.
+
+Parent topic: Job log

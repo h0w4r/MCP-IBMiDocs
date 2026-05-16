@@ -1,0 +1,119 @@
+ALIGN{(*FULL)}
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > Definition-Specification Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords
+
+ALIGN{(*FULL)}
+
+The ALIGN keyword is used to align float, integer, and unsigned subfields.
+When ALIGN is specified, 2-byte subfields are aligned on a 2-byte boundary,
+4-byte subfields are aligned on a 4-byte boundary, and 8-byte subfields are
+aligned on an 8-byte boundary. Alignment might improve performance
+when accessing float, integer, or unsigned subfields.
+
+Specify ALIGN on the data structure definition. However, you cannot specify
+ALIGN for either the file information data structure (INFDS) or the program
+status data structure (PSDS).
+
+Alignment occurs only to data structure subfields defined with length notation
+and without the keyword OVERLAY. A diagnostic message is issued if subfields
+that are defined with absolute notation or by using the OVERLAY keyword
+are not properly aligned.
+
+Pointer subfields are always aligned on a 16-byte boundary whether or not
+ALIGN is specified.
+
+Specify ALIGN(*FULL) if you want the data structure length to be a multiple of
+the required alignment.
+
+The data structure length might need to be a multiple of the required alignment when you are passing the parameter to some functions or APIs. For example, when calling a C® function or API with a data structure parameter that is defined in C without the _packed keyword, the RPG data structure for the API should be defined
+with ALIGN(*FULL). Using ALIGN(*FULL) will ensure that the data structure is large enough.
+For example, the regex_t data structure, which is
+defined in member REGEX of source file
+QSYSINC/H has a length of 656.
+A matching data structure that is defined in RPG with the ALIGN keyword has a length of only 644,
+while a matching data structure defined with the ALIGN(*FULL) keyword has the correct length of 656.
+If ALIGN(*FULL) is not specified with the *FULL parameter,
+then calling the regcomp() API might result
+in data corruption because the RPG data structure is smaller than the API requires.
+
+When using %SIZE to determine the distance between elements of an array of data structures,
+or the occurrences of a multiple-occurrence data structure,
+if the data structure is defined with ALIGN(*FULL), you can use %SIZE(ds_name).
+However, if the data structure is defined simply with ALIGN, or if the ALIGN keyword
+is not specified and the data structure contains a pointer, then you must use %SIZE(ds_name:*ALL)
+divided by %ELEM(ds_name).
+Warning: See %SIZE (Get Size in Bytes) for information on how the OVERLAY keyword
+can also affect the distance between elements of an array.
+
+Examples showing the effect of the ALIGN keyword
+
+The data structures in the following examples all have the same subfields.
+
+Data structure ds1_no_align is defined without the ALIGN keyword.
+Integer subfield sub2 is in position 2.
+Character subfield sub3 is in position 6. There is no padding at the end of the data
+structure so the size is 6.
+For the array version of the data structure, the result of %SIZE with *ALL
+(2) is a multiple
+of the result of %SIZE with only one parameter (1).
+
+DCL-DS ds1_no_align QUALIFIED;
+sub1 CHAR(1);
+sub2 INT(10);
+sub3 CHAR(1);
+END-DS;
+
+DCL-DS ds1_no_align_arr LIKEDS(ds1_no_align) DIM(2);
+
+size = %SIZE(ds1_no_align); // 6
+size = %SIZE(ds1_no_align_arr); // 6 1
+size = %SIZE(ds1_no_align_arr : *ALL); // 12 2
+
+Data structure ds2_simple_align is defined with the ALIGN keyword
+with no parameter.
+Integer subfield sub2 requires 4-byte alignment, so it is in position 5.
+Character subfield sub3 is in position 9. There is no padding at the end of the data
+structure so the size is 9.
+For the array version of the data structure, the result of %SIZE with *ALL
+(2) is not a multiple
+of the result of %SIZE with only one parameter (1).
+
+DCL-DS ds2_simple_align ALIGN QUALIFIED;
+sub1 CHAR(1);
+sub2 INT(10);
+sub3 CHAR(1);
+END-DS;
+
+DCL-DS ds2_simple_align_arr LIKEDS(ds2_simple_align) DIM(2);
+
+size = %SIZE(ds2_simple_align); // 9
+size = %SIZE(ds2_simple_align_arr); // 9 1
+size = %SIZE(ds2_simple_align_arr : *ALL); // 24 2
+
+Data structure ds3_align_full is defined with the ALIGN(*FULL) keyword.
+Integer subfield sub2 requires 4-byte alignment, so it is in position 5.
+Character subfield sub3 is in position 9. The natural size of the data structure is 9,
+but the size of the data structure must be
+a multiple of the highest alignment that is required by any subfield. Padding is added
+at the end of the data structure to force the size to be 12.
+For the array version of the data structure, the result of %SIZE with *ALL
+(2) is a multiple
+of the result of %SIZE with only one parameter (1).
+
+DCL-DS ds3_align_full ALIGN(*FULL) QUALIFIED;
+sub1 CHAR(1);
+sub2 INT(10);
+sub3 CHAR(1);
+END-DS;
+
+DCL-DS ds3_align_full_arr LIKEDS(ds3_align_full) DIM(2);
+
+size = %SIZE(ds3_align_full); // 12
+size = %SIZE(ds3_align_full_arr); // 12 1
+size = %SIZE(ds3_align_full_arr : *ALL); // 24 2
+
+See Aligning Data Structure Subfields for more information.
+
+Parent topic: Definition-Specification Keywords

@@ -1,0 +1,206 @@
+<html><head></head><body><main role="main"><article role="article" aria-labelledby="rbafzrefintex__title__1">
+<h1 class="topictitle1" id="rbafzrefintex__title__1">Referential constraints</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-10-07</div>
+
+
+
+<div class="body conbody"><p class="shortdesc"><em>Referential integrity</em> is the state of a database
+in which all values of all foreign keys are valid. A <em>foreign key</em> is
+a key that is part of the definition of a referential constraint.</p>
+
+<p>A <em>referential constraint</em> is the rule that the values of
+the foreign key are valid only if:</p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">They appear as values of a parent key, or</li>
+
+<li class="cds--list__item">Some component of the foreign key is null.</li>
+
+</ul>
+
+<p>The base
+table containing the parent key is called the <span class="ph synph"><span class="ph var">parent table</span></span> of
+the referential constraint, and the base table containing the foreign
+key is said to be a <em>dependent</em> of that table.</p>
+
+<p>Referential constraints are optional and can be defined in CREATE
+TABLE statements and ALTER TABLE statements. Referential constraints
+are enforced by the database manager during the execution of INSERT,
+UPDATE, and DELETE statements. The enforcement is effectively performed
+at the completion of the statement except for delete and update rules
+of RESTRICT which are enforced as rows are processed.</p>
+
+<p>Referential constraints with a delete or update rule of RESTRICT
+are always enforced before any other referential constraints. Other
+referential constraints are enforced in an order independent manner.
+That is, the order does not affect the result of the operation. Within
+an SQL statement: </p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">A row can be marked for deletion by any number of referential
+constraints with a delete rule of CASCADE.</li>
+
+<li class="cds--list__item">A row can only be updated by one referential constraint with a
+delete rule of SET NULL or SET DEFAULT.</li>
+
+<li class="cds--list__item">A row that was updated by a referential constraint cannot also
+be marked for deletion by another referential constraint with a delete
+rule of CASCADE.</li>
+
+</ul>
+
+<p>The
+rules of referential integrity involve the following concepts and
+terminology:</p>
+
+<dl>
+<dt class="dlterm">Parent key</dt>
+
+<dd class="dlentry">A primary key or unique key of a referential constraint.</dd>
+
+
+<dt class="dlterm">Parent row</dt>
+
+<dd class="dlentry">A row that has at least one dependent row.</dd>
+
+
+<dt class="dlterm">Parent table</dt>
+
+<dd class="dlentry">A base table that is a parent in at least one referential constraint.
+A base table can be defined as a parent in an arbitrary number of
+referential constraints.</dd>
+
+
+<dt class="dlterm">Dependent table</dt>
+
+<dd class="dlentry">A base table that is a dependent in at least one referential constraint.
+A base table can be defined as a dependent in an arbitrary number
+of referential constraints. A dependent table can also be a parent
+table.</dd>
+
+
+<dt class="dlterm">Descendent table</dt>
+
+<dd class="dlentry">A base table is a descendent of base table T if it is a dependent
+of T or a descendent of a dependent of T.</dd>
+
+
+<dt class="dlterm">Dependent row</dt>
+
+<dd class="dlentry">A row that has at least one parent row.</dd>
+
+
+<dt class="dlterm">Descendent row</dt>
+
+<dd class="dlentry">A row is a descendent of row p if it is a dependent of p or a
+descendent of a dependent of p.</dd>
+
+
+<dt class="dlterm">Referential cycle</dt>
+
+<dd class="dlentry">A set of referential constraints such that each table in the set
+is a descendent of itself.</dd>
+
+
+<dt class="dlterm">Self-referencing row</dt>
+
+<dd class="dlentry">A row that is a parent of itself.</dd>
+
+
+<dt class="dlterm">Self-referencing table</dt>
+
+<dd class="dlentry">A base table that is a parent and a dependent in the same referential
+constraint. The constraint is called a <em>self-referencing constraint</em>.</dd>
+
+</dl>
+
+<p>The insert rule of a referential constraint is that a nonnull insert
+value of the foreign key must match some value of the parent key of
+the parent table. The value of a composite foreign key is null if
+any component of the value is null.</p>
+
+<p>The
+update rule of a referential constraint is specified when the referential
+constraint is defined. The choices are NO ACTION and RESTRICT. The
+update rule applies when a row of the parent or dependent table is
+updated. The update rule of a referential constraint is that a nonnull
+update value of a foreign key must match some value of the parent
+key of the parent table. The value of a composite foreign key is treated
+as null if any component of the value is null.</p>
+
+<p>The delete rule of a referential constraint is specified when the
+referential constraint is defined. The choices are RESTRICT, NO ACTION,
+CASCADE, SET NULL or SET DEFAULT. SET NULL can be specified only if
+some column of the foreign key allows null values.</p>
+
+<p>The
+delete rule of a referential constraint applies when a row of the
+parent table is deleted. More precisely, the rule applies when a row
+of the parent table is the object of a delete or propagated delete
+operation (defined below) and that row has dependents in the dependent
+table of the referential constraint. Let P denote the parent table,
+let D denote the dependent table, and let p denote a parent row that
+is the object of a delete or propagated delete operation. If the delete
+rule is:</p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">RESTRICT or NO ACTION, an error is returned and no rows are deleted</li>
+
+<li class="cds--list__item">CASCADE, the delete operation is propagated to the dependents
+of p in D</li>
+
+<li class="cds--list__item">SET NULL, each nullable column of the foreign key of each dependent
+of p in D is set to null</li>
+
+<li class="cds--list__item">SET DEFAULT, each column of the foreign key of each dependent
+of p in D is set to its default value</li>
+
+</ul>
+
+<p>Each referential constraint in which a table is a parent has its
+own delete rule, and all applicable delete rules are used to determine
+the result of a delete operation. Thus, a row cannot be deleted if
+it has dependents in a referential constraint with a delete rule of
+RESTRICT or NO ACTION, or if the deletion cascades to any of its descendants
+that are dependents in a referential constraint with the delete rule
+of RESTRICT or NO ACTION.</p>
+
+<p>The deletion of a row from parent table P involves other tables
+and may affect rows of these tables: </p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If table D is a dependent of P and the delete rule is RESTRICT
+or NO ACTION, D is involved in the operation but is not affected by
+the operation.</li>
+
+<li class="cds--list__item">If D is a dependent of P and the delete rule is SET NULL, D is
+involved in the operation, and rows of D may be updated during the
+operation.</li>
+
+<li class="cds--list__item">If D is a dependent of P and the delete rule is SET DEFAULT, D
+is involved in the operation, and rows of D may be updated during
+the operation.</li>
+
+<li class="cds--list__item">If D is a dependent of P and the delete rule is CASCADE, D is
+involved in the operation and rows of D may be deleted during the
+operation. <p>If rows of D are deleted, the delete operation on P
+is said to be propagated to D. If D is also a parent table, the actions
+described in this list apply, in turn, to the dependents of D.</p>
+</li>
+
+</ul>
+
+<p>Any base table that may be involved in a delete operation
+on P is said to be <em>delete-connected</em> to P. Thus, a base table
+is delete-connected to base table P if it is a dependent of P or a
+dependent of a base table to which delete operations from P cascade.</p>
+
+<p>For more information on defining referential constraints, see <a href="/docs/en/ssw_ibm_i_75/db2/rbafzatabl.htm" title="The ALTER TABLE statement alters the definition of a table.">ALTER TABLE</a> or <a href="/docs/en/ssw_ibm_i_75/db2/rbafzhctabl.htm" title="The CREATE TABLE statement defines a table at the current server. The definition must include its name and the names and attributes of its columns. The definition may include other attributes of the table such as primary key.">CREATE TABLE</a>.</p>
+
+</div>
+
+
+<aside role="complementary" aria-labelledby="rbafzrefintex__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_75" href="/docs/en/ssw_ibm_i_75/db2/rbafzch1constraints.htm" title="A constraint is a rule that the database manager enforces." class="bottom-section-link">Constraints</a></div></div>
+</div>
+</nav></aside></article></main><script type="text/javascript"  src="/k4npW7/pGK8/gE6J/t69g/C9FUel/kOm3tmmSJb8GVp7c/HFFCUAE/BCdkVQ/t9HyMB"></script></body></html>

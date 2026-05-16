@@ -1,0 +1,266 @@
+READ Statement - Format 4 - Transaction (Nonsubfile)
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > READ Statement > Transaction Files > Transaction Files
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > READ Statement > Transaction Files
+
+READ Statement - Format 4 - Transaction (Nonsubfile)
+
+READ Statement - Format 4 - Transaction (Nonsubfile)
+
+>>-READ--file-name--+--------+--+--------------------+---------->
+    '-RECORD-' '-INTO--identifier-1-'   
+
+>--+----------------------------------+------------------------->
+   '-FORMAT--+----+--+-identifier-2-+-'   
+    '-IS-' '-literal-1----'    
+
+>--+------------------------------------+----------------------->
+   '-TERMINAL--+----+--+-identifier-3-+-'   
+    '-IS-' '-literal-2----'    
+
+>--+---------------------------------------+-------------------->
+   '-+-INDICATOR--+--+-----+--identifier-4-'   
+    +-INDICATORS-+ +-IS--+    
+    '-INDIC------' '-ARE-'    
+
+>--+---------------------------------+-------------------------->
+   '-NO DATA--imperative-statement-1-'   
+
+>--+-------------------------------------+---------------------->
+   '-+----+--END--imperative-statement-2-'   
+    '-AT-'    
+
+>--+------------------------------------------+--+----------+--><
+   '-NOT--+----+--END--imperative-statement-3-' '-END-READ-'   
+    '-AT-'    
+
+Format 4
+is used only to read a format that is not a subfile record. The RELATIVE KEY
+data item, if specified in the FILE-CONTROL entry, is not used. The
+Format 4 READ statement is not valid for a subfile record; however,
+a Format 4 READ statement for the subfile control record format must
+be used to put those subfile records that were updated on a display
+into the subfile.
+If the data is available, it is returned in the record area. The
+names of the record format and the program device are returned in
+the I-O-FEEDBACK area and in the CONTROL-AREA.
+The READ statement is valid only when there are acquired devices
+for the file. If a READ is executed and there are no acquired devices,
+the file status is set to 92 (logic error).
+The manner in which the Format 4 READ statement functions depends
+on whether: The READ is for a single device file or a multiple device file
+A specific program device has been requested through the TERMINAL
+phrase
+A specific record format has been requested through the FORMAT
+phrase
+The NO DATA phrase has been specified
+
+In the following discussions, references to “data available
+or returned” include the situation where only the response indicators
+are set. This is so even when a separate indicator area is used and
+the indicators are not returned in the record area for the file.
+The following chart shows the possible combinations of phrases,
+and the function performed for a single device file or a multiple
+device file. For example, if TERMINAL is N, FORMAT is N, and NO DATA
+is N, then the single device is D and multiple device is A.
+ 
+Phrase
+Y=Yes N=No
+
+Checked at Compilation
+TERMINAL3
+FORMAT3
+NO DATA
+
+N N N N Y Y Y Y
+N N Y Y N N Y Y
+N Y N Y N Y N Y
+
+Determined at Execution
+Single Device
+Multiple Device
+
+D C D B D C D B
+A A D B D C D B
+
+Codes A through D are explained below. Note: If
+the phrase is specified and the data item or literal is blank, the
+phrase is treated at execution time as if it were not specified.
+
+Code A–Read From Invited Program Device (Multiple Device
+Files only)
+This type of READ receives data from the first invited program
+device that has data available. An invited program device is a workstation
+or communications device (such as APPC, SNUF, BSCEL, Asynchronous
+Communications) that has been invited to send input. Inviting is
+done by writing to the program device with a format that has the DDS
+keyword INVITE specified. Once an invited program device is actually
+read from, it is no longer invited. That program device will not
+be used for input by another READ statement unless re-invited, or
+unless a READ is directed to it specifying the TERMINAL phrase or
+FORMAT phrase.
+The record format returned from the program device is determined
+by the system. For information on how this is determined for work
+stations, refer to the File Systems and Management section
+of the Database and File Systems category in the IBM® i
+Information Center at this
+Web site - http://www.ibm.com/systems/i/infocenter/. For communications
+devices, see the ICF Programming manual
+for more information on format selection processing for an ICF file.
+This READ can complete without returning any data in the following
+cases: There are no invited devices and the timer function is not in
+effect. (This is the AT END condition.)
+A controlled cancellation of the job occurs. This results in
+a file status value of 0A and a major-minor return code value of 0309.
+The NO DATA phrase is omitted and the specified wait time expires.
+This results in a file status value of 00 and a major-minor return
+code value of 0310. The specified wait time is the value entered
+on the WAITRCD parameter for the file or the time interval specified
+on the timer function.
+The NO DATA phrase is specified and there is no data immediately
+available when the READ is executed.
+
+If data is available, it is returned in the record area. The record
+format is returned in the I-O-FEEDBACK area and in the CONTROL-AREA.
+For more information about “reading from invited program devices,”
+see the Application Display Programming manual
+for display stations, and the ICF Programming manual
+for communications devices.
+Code B–Read From One Program Device (Invalid combination)
+A compilation time message is issued and the NO DATA phrase is
+ignored. See the table entry for the same combination of phrases
+with the NO DATA phrase omitted.
+Code C–Read From One Program Device (with NO DATA phrase)
+This function of the READ statement never causes program execution
+to stop and wait until data is available. Either the data is immediately
+available or the NO DATA imperative statement is executed.
+This READ function can be used to periodically check if data is
+available from a particular program device (either the default program
+device or one specified by the TERMINAL phrase). This checking for
+data is done in the following manner: The program device is determined as follows: If the TERMINAL phrase was omitted or contains blanks, the default
+program device is used. The default program device is the one used
+by the last attempted READ, WRITE, REWRITE, ACQUIRE, or DROP statement.
+If none of the above I-O operations were previously executed, the
+default program device is the first program device acquired.
+If the TERMINAL phrase was specified, the indicated program device
+is used.
+
+A check is done to determine if data is available and if the program
+device is invited.
+If data is available, that data is returned in the record area
+and the program device is no longer invited. If no data is immediately
+available, the NO DATA imperative statement is executed and the program
+device remains invited.
+If the program device is not invited, the AT END condition exists
+and the file status is set to 10.
+
+Code D–Read From One Program Device (without NO DATA Phrase)
+This READ always waits for data to be made available. Even if
+the job receives a controlled cancellation, or a WAITRCD time is specified
+for the file, the program will never regain control from the READ
+statement. This READ operation is performed in the following manner: The program device is determined as follows: If the TERMINAL phrase is omitted or contains a blank value, the
+default program device is used. The default program device is the
+program device used by the last attempted READ, WRITE, REWRITE, ACQUIRE,
+DROP or ACCEPT (Attribute Data) statement. If none of these operations
+has been done, the program device implicitly acquired when the file
+was opened is used. If there are no acquired devices, the AT END
+condition exists.
+If the TERMINAL phrase is specified, the indicated program device
+is used.
+
+The record format is determined as follows: If the FORMAT phrase is omitted or contains blanks, the record
+format returned is determined by the system. For information on how
+the record format is determined for workstation devices, refer to
+the ICF Programming book. For information
+about how the record format is determined for communications devices,
+see the section on the FMTSLT parameter for the ADDICFDEVE and OVRICFDEVE
+commands in the ICF Programming book.
+If the FORMAT phrase is specified, the indicated record format
+is returned. If the data available does not match the requested record
+format, a file status of 9K is set.
+
+Program execution stops until data becomes available. The data
+is returned in the record area after the READ statement is executed.
+If the program device was previously invited, it will no longer be
+invited after this READ statement.
+
+INTO Phrase
+The INTO phrase cannot be specified unless: All records associated with the file and the data item specified
+in the INTO phrase are group items or elementary alphanumeric items. OR
+
+Only one record description is subordinate to the file description
+entry.
+
+KEY IS Phrase
+The KEY IS phrase may be specified only for indexed files. Data-name
+must identify a record key associated with file-name-1. Data-name-1
+may be qualified; it may not be subscripted. Note: The KEY IS phrase
+is syntax checked only and has no effect on the operation of the READ
+statement.
+
+FORMAT Phrase
+Literal-1
+or identifier-2 specifies the name of the record format to be read.
+Literal-1, if specified, must be nonnumeric, uppercase, and 10 characters
+or less in length. Identifier-2, if specified, must refer to an alphanumeric
+data item, 10 characters or less in length. If identifier-2 contains
+blanks, the READ statement is executed as if the FORMAT phrase were
+omitted.
+NO DATA Phrase
+When the NO DATA phrase is specified, the READ statement will
+determine whether data is immediately available. If data is available,
+the data is returned in the record area. If no data is immediately
+available, imperative-statement-1 is executed. The NO DATA phrase
+prevents the READ statement from waiting for data to become available.
+TERMINAL Phrase
+Literal-2 or identifier-3 specifies the program device name. Literal-2,
+if specified, must be nonnumeric and 10 characters or less in length.
+Identifier-3, if specified, must refer to an alphanumeric data item,
+10 characters or less in length. The program device must have been
+acquired before the READ statement is executed. If identifier-3 contains
+blanks, the READ statement is executed as if the TERMINAL phrase was
+omitted. For a single device file, the TERMINAL phrase can be omitted.
+The program device is assumed to be that single device. If the
+TERMINAL phrase is omitted for a READ of a Transaction file that has
+acquired multiple program devices, the default program device is used.
+
+INDICATOR Phrase, INDICATORS Phrase, INDIC Phrase
+Specifies which indicators are to be read when a data record is
+read. Indicators can be used to pass information about the data record
+and how it was entered into the program. Identifier-4 must be either
+an elementary Boolean data item specified without the OCCURS clause
+or a group item that has elementary Boolean data items subordinate
+to it.
+For detailed information on the INDICATORS phrase, refer
+to Using Indicators with Transaction Files in the IBM Rational® Development Studio for i: ILE COBOL
+Programmer's Guide.
+
+AT END Phrase
+The AT END phrase serves to explicitly delimit the scope of the
+statement. Imperative-statement-2 is executed when the AT END condition
+is detected. The AT END condition occurs when there are no invited
+program devices and the timer function is not in effect. The AT
+END phrase should be specified when no applicable USE procedure is
+specified for the file-name. If the AT END phrase and a USE procedure
+are both specified for a file, and the AT END condition arises, control
+transfers to the AT END imperative statement and the USE procedure
+is not run.
+
+NOT AT END Phrase
+This phrase allows you to specify procedures that will be performed
+when the AT END condition does not exist for the statement that is
+used.
+END-READ Phrase
+This explicit scope terminator serves to delimit the scope of
+the READ statement. END-READ permits a conditional READ statement
+to be nested in another conditional statement. END-READ may also be
+used with an imperative READ statement. For more information, see Delimited Scope Statements.
+
+Related Information Transaction Files
+
+Parent topic: Transaction Files
+
+1 If
+the phrase is specified and the data item or literal is blank, the
+phrase is treated at execution time as if it were not specified.

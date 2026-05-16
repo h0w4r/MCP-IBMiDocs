@@ -1,0 +1,87 @@
+Rules for passing and using file parameters
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > LIKEFILE(filename) > Rules for the LIKEFILE keyword for prototyped parameters: > Rules for the LIKEFILE keyword for prototyped parameters:
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > LIKEFILE(filename) > Rules for the LIKEFILE keyword for prototyped parameters:
+
+Rules for passing and using file parameters
+
+The passed file must be defined with the same parent file as the prototyped
+parameter.
+
+The file parameter is qualified. If the record formats of the parent file
+FILE1 are REC1 and REC2, then the record formats of the file parameter PARM
+must be referred to in the called procedure by PARM.REC1 and PARM.REC2.
+
+Any settings for the passed file that are defined using File specification
+keywords are in effect for all procedures that access the file, either directly
+or through parameter passing. For example, if the EXTFILE keyword is specified
+with a variable holding the external file name, and a called procedure opens
+the file, then the value of the caller's variable will be used to set the
+name of the file to be opened. If the called procedure needs to change or
+access those variables associated with the file through keywords, the calling
+procedure must pass the variables as separate parameters.
+
+The file-feedback built-in functions %EOF(filename), %EQUAL(filename),
+%FOUND(filename), %OPEN(filename), and %STATUS(filename) can be used in the
+called procedure to determine the current state of the file parameter by specifying
+the name of the file parameter as the operand to the built-in function.
+For more information on passing a file parameter between modules, see Variables Associated with Files
+and Example of passing a file and passing a data structure with the associated variables..
+
+Figure 1. Passing a file as a parameter to a procedure
+
+* Define a file template to be used for defining actual files
+* and the file parameter
+Finfile_t IF E DISK TEMPLATE BLOCK(*YES)
+F EXTDESC('MYLIB/MYFILE')
+F RENAME(R01M2:inRec)
+
+* Define two actual files that can be passed to the file parameter
+Ffile1 LIKEFILE(infile_t)
+F EXTFILE('MYLIB/FILE1')
+Ffile2 LIKEFILE(infile_t)
+F EXTFILE('MYLIB/FILE2')
+
+* Define a data structure type for the file data
+D inData_t DS LIKEREC(infile_t.inRec:*INPUT)
+D TEMPLATE
+
+* Define the prototype for a procedure to handle the files
+D nextValidRec PR N
+D infile LIKEFILE(infile_t)
+D data LIKEDS(inData_t)
+
+* Define variables to hold the record data
+D f1Data DS LIKEDS(inData_t)
+D f2Data DS LIKEDS(inData_t)
+
+/FREE
+// Process valid records from each file until one
+// of the files has no more valid records
+DOW nextValidRec(file1 : f1Data)
+AND nextValidRec(file2 : f2Data);
+// ... process the data from the files
+ENDDO;
+*INLR = '1';
+/END-FREE
+
+* The procedure that will process the file parameter
+P nextValidRec B
+D nextValidRec PI N
+D infile LIKEFILE(infile_t)
+D data LIKEDS(inData_t)
+/FREE
+// Search for a valid record in the file parameter
+READ infile data;
+DOW NOT %EOF(infile);
+IF data.active = 'Y';
+RETURN *ON; // This is a valid record
+ENDIF;
+READ infile data;
+ENDDO;
+RETURN *OFF; // No valid record was found
+/END-FREE
+P nextValidRec E
+
+Parent topic: Rules for the LIKEFILE keyword for prototyped parameters:

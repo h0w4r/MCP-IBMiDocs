@@ -1,0 +1,296 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="INCLUDE SQLDA declarations">
+<meta name="abstract" content="This section shows the equivalent INCLUDE SQLDA declaration for C and C++, COBOL, ILE COBOL, PL/I, and ILE RPG.">
+<meta name="Description" content="This section shows the equivalent INCLUDE SQLDA declaration for C and C++, COBOL, ILE COBOL, PL/I, and ILE RPG.">
+<meta name="DC.Relation" scheme="URI" content="rbafzsqldda.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzsqldda.htm">
+<title>INCLUDE SQLDA declarations</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzincludesqlda.htm" + anchorParam);
+}
+</script>
+</head>
+<body class="pagebreak" id="rbafzincludesqlda">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsqldda.htm">SQLDA &#40;SQL descriptor area&#41;</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d500850e7"><h1 class="topictitle1" id="d500850e7">INCLUDE SQLDA declarations</h1>
+<div class="body refbody"><p class="shortdesc">This section shows the equivalent INCLUDE SQLDA declaration
+for C and C++, COBOL, ILE COBOL, PL/I, and ILE RPG.</p>
+<section><h2 class="sectiontitle">For C and C++</h2><p>In
+C and C++, INCLUDE SQLDA declarations are equivalent to the following:</p>
+</section><div class="example"> <figure class="fignone"><figcaption>Figure 1. INCLUDE SQLDA Declarations for C and C++</figcaption><pre class="codeblock"><code>#ifndef SQLDASIZE
+struct sqlda
+{
+       unsigned char  sqldaid[8];
+       long           sqldabc;
+       short          sqln;
+       short          sqld;
+       struct sqlvar
+       {
+              short          sqltype;
+              short          sqllen;
+              union {
+                unsigned char *sqldata;
+                long long sqld_result_set_locator;  };
+              union {
+                short *sqlind;
+                long sqld_row_change;
+                long sqld_result_set_rows;   };
+              struct sqlname
+              {
+                     short          length;
+                     unsigned char  data[30];
+              } sqlname;
+       } sqlvar[1];
+};
+
+struct sqlvar2
+       { struct
+                {  long           sqllonglen;
+                   char           reserve1[28];
+                }  len;
+                char *sqldatalen;
+                struct sqldistinct_type
+                       {  short          length;
+                          unsigned char  data[30];
+                       } sqldatatype_name;
+       };
+
+#define  SQLDASIZE(n) (sizeof(struct sqlda)+(n-1) * sizeof(struct sqlvar))
+#endif</code></pre>
+</figure>
+</div>
+<div class="example"><pre class="codeblock"><code>/*********************************************************************/
+/* Macros for using the sqlvar2 fields.                              */
+/*********************************************************************/
+
+/*********************************************************************/
+/*   '2' in the 7th byte of sqldaid indicates a doubled number of    */
+/*       sqlvar entries.                                             */
+/*   '3' in the 7th byte of sqldaid indicates a tripled number of    */
+/*       sqlvar entries.                                             */
+/*   '4' in the 7th byte of sqldaid indicates a quadrupled number of */
+/*       sqlvar entries.                                             */
+/*********************************************************************/
+#define SQLDOUBLED '2'
+#define SQLSINGLED ' '
+
+/*********************************************************************/
+/* GETSQLDOUBLED(daptr) returns 1 if the SQLDA pointed to by         */
+/* daptr has been doubled, or 0 if it has not been doubled.          */
+/*********************************************************************/
+#define GETSQLDOUBLED(daptr) (((daptr)-&gt;sqldaid[6]==  \
+ (char) SQLDOUBLED)  ?                                \
+    (1)           :      \
+    (0)             )
+
+/*********************************************************************/
+/* SETSQLDOUBLED(daptr, SQLDOUBLED) sets the 7th byte of sqldaid     */
+/* to '2'.                                                           */
+/* SETSQLDOUBLED(daptr, SQLSINGLED) sets the 7th byte of sqldaid     */
+/* to be a ' '.                                                      */
+/*********************************************************************/
+#define SETSQLDOUBLED(daptr, newvalue)                \
+  (((daptr)-&gt;sqldaid[6] =(newvalue)))
+
+/*********************************************************************/
+/* GETSQLDALONGLEN(daptr,n) returns the data length of the nth       */
+/* entry in the sqlda pointed to by daptr. Use this only if the      */
+/* sqlda was doubled or tripled and the nth SQLVAR entry has a       */
+/* LOB datatype.                                                     */
+/*********************************************************************/
+#define GETSQLDALONGLEN(daptr,n) ((long) (((struct sqlvar2 *) \
+&amp;((daptr)-&gt;sqlvar[(n) +((daptr)-&gt;sqld)])) -&gt;len.sqllonglen))
+
+/*********************************************************************/
+/* SETSQLDALONGLEN(daptr,n,len) sets the sqllonglen field of the     */
+/* sqlda pointed to by daptr to len for the nth entry. Use this only */
+/* if the sqlda was doubled or tripled and the nth SQLVAR entry has  */
+/* a LOB datatype.                                                   */
+/*********************************************************************/
+#define SETSQLDALONGLEN(daptr,n,length) {             \
+ struct sqlvar2 *var2ptr;                             \
+ var2ptr = (struct sqlvar2 *) &amp;((daptr)-&gt;sqlvar[(n)+  \
+   ((daptr)-&gt;sqld)]);                                 \
+ var2ptr-&gt;len.sqllonglen = (long) (length);               \
+}
+
+/*********************************************************************/
+/* SETSQLDALENPTR(daptr,n,ptr) sets a pointer to the data length for */
+/* the nth entry in the sqlda pointed to by daptr.                   */
+/* Use this only if the sqlda has been doubled or tripled.           */
+/*********************************************************************/
+#define SETSQLDALENPTR(daptr,n,ptr) {                 \
+ struct sqlvar2 *var2ptr;                             \
+ var2ptr = (struct sqlvar2 *) &amp;((daptr)-&gt;sqlvar[(n)+  \
+   ((daptr)-&gt;sqld)]);                                 \
+ var2ptr-&gt;sqldatalen = (char *) ptr;                  \
+ }</code></pre>
+</div>
+<div class="example"><pre class="codeblock"><code>/*********************************************************************/
+/* GETSQLDALENPTR(daptr,n) returns a pointer to the data length for  */
+/* the nth entry in the sqlda pointed to by daptr. Unlike the inline */
+/* value (union sql8bytelen len), which is 8 bytes, the sqldatalen   */
+/* pointer field returns a pointer to a long (4 byte) integer.       */
+/* If the SQLDATALEN pointer is zero, a NULL pointer is be returned. */
+/*                                                                   */
+/* NOTE: Use this only if the sqlda has been doubled or tripled.     */
+/*********************************************************************/
+#define GETSQLDALENPTR(daptr,n) (                     \
+  (((struct sqlvar2 *) &amp;(daptr)-&gt;sqlvar[(n) +         \
+    (daptr)-&gt;sqld])-&gt;sqldatalen == NULL) ?            \
+   ((long *) NULL ) : ((long *) ((struct sqlvar2 *)   \
+  &amp;(daptr)-&gt;sqlvar[(n) + (daptr) -&gt;sqld])-&gt;sqldatalen))</code></pre>
+</div>
+<section class="pagebreak"><h2 class="sectiontitle">For COBOL and ILE COBOL</h2><p>In
+COBOL and ILE COBOL, INCLUDE SQLDA declarations are equivalent to
+the following:</p>
+</section><div class="example"> <figure class="fignone"><figcaption>Figure 2. INCLUDE SQLDA Declarations for COBOL</figcaption><pre class="codeblock"><code>1 SQLDA.
+  05 SQLDAID     PIC X(8).
+  05 SQLDABC     PIC S9(9) BINARY.
+  05 SQLN        PIC S9(4) BINARY.
+  05 SQLD        PIC S9(4) BINARY.
+  05 SQLVAR OCCURS 0 TO 409 TIMES DEPENDING ON SQLD.
+     10 SQLVAR1.
+        15 SQLTYPE   PIC S9(4) BINARY.
+        15 SQLLEN    PIC S9(4) BINARY.
+        15 FILLER  REDEFINES SQLLEN.
+           20 SQLPRECISION PIC X.
+           20 SQLSCALE     PIC X.
+        15 SQLRES    PIC X(12).
+        15 SQLDATA   POINTER.
+        15 SQL-RESULT-SET-LOCATOR-R REDEFINES SQLDATA.
+           20 SQL-RESULT-SET-LOCATOR PIC S9(18) BINARY.
+        15 SQLIND   POINTER.
+        15 SQL-ROW-CHANGE-SQL-R REDEFINES SQLIND.
+           20 SQLD-ROW-CHANGE FIC S9(9) BINARY.
+        15 SQL-RESULT-SET-ROWS-R PIC REDEFINES SQLIND.
+           20 SQLD-RESULT-SET-ROWS PIC S9(9) BINARY.
+        15 SQLNAME.
+           49 SQLNAMEL PIC S9(4) BINARY.
+           49 SQLNAMEC PIC X(30).
+     10 SQLVAR2 REDEFINES SQLVAR1.
+        15 SQLVAR2-RESERVED-1 PIC S9(9) BINARY.
+        15 SQLLONGLEN REDEFINEDS SQLVAR2-RESERVED-1
+                                 PIC S9(9) BINARY.
+        15 SQLVAR2-RESERVED-2 PIC X(28).
+        15 SQLDATALEN POINTER.
+        15 SQLDATATYPE-NAME.
+           49 SQLDATATYPE_NAMEL PIC S9(4) BINARY.
+           49 SQLDATATYPE_NAMEC PIC X(30).
+            </code></pre>
+</figure>
+</div>
+<section class="pagebreak"><h2 class="sectiontitle">For PL/I</h2><p>In
+PL/I, INCLUDE SQLDA declarations are equivalent to the following:</p>
+</section><div class="example"> <figure class="fignone"><figcaption>Figure 3. INCLUDE SQLDA Declarations for PL/I</figcaption><pre class="codeblock"><code>DCL 1 SQLDA BASED(SQLDAPTR),
+      2 SQLDAID     CHAR(8),
+      2 SQLDABC     BIN FIXED(31),
+      2 SQLN        BIN FIXED,
+      2 SQLD        BIN FIXED,
+      2 SQLVAR      (99),
+        3 SQLTYPE   BIN FIXED,
+        3 SQLLEN    BIN FIXED,
+        3 SQLRES    CHAR(12),
+        3 SQLDATA   PTR,
+        3 SQLIND    PTR,
+        3 SQLNAME   CHAR(30) VAR,
+
+    1 SQLDA2 BASED(SQLDAPTR),
+      2 SQLDAID2    CHAR(8),
+      2 SQLDABC2    FIXED(31) BINARY,
+      2 SQLN2       FIXED(15) BINARY,
+      2 SQLD2       FIXED(15) BINARY,
+      2 SQLVAR2     (99),
+        3 SQLBIGLEN,
+          4 SQLLONGL FIXED(31) BINARY,
+          4 SQLRSVDL FIXED(31) BINARY,
+        3 SQLDATAL  POINTER,
+        3 SQLTNAME  CHAR(30) VAR;
+
+    DECLARE SQLSIZE    FIXED(15) BINARY;
+    DECLARE SQLDAPTR   PTR;
+    DECLARE SQLDOUBLED CHAR(1)   INITIAL('2') STATIC;
+    DECLARE SQLSINGLED CHAR(1)   INITIAL(' ') STATIC;</code></pre>
+</figure>
+</div>
+<section class="pagebreak"><h2 class="sectiontitle">For ILE RPG</h2><p>In
+ILE RPG, INCLUDE SQLDA declarations are equivalent to the following:</p>
+</section><div class="example"> <figure class="fignone"><figcaption>Figure 4. INCLUDE SQLDA Declarations for ILE RPG</figcaption><img alt="Start of change" src="./delta.gif"><pre class="codeblock"><code>// SQL DESCRIPTOR AREA                 
+DCL-DS SQLDA;                          
+  SQLDAID CHAR(8);                     
+  SQLDABC INT(10);                     
+  SQLN INT(5);                         
+  SQLD INT(5);                         
+  SQL_VAR CHAR(80) DIM(SQL_NUM);       
+   *N POINTER OVERLAY(SQL_VAR:17);     
+   *N POINTER OVERLAY(SQL_VAR:33);     
+END-DS SQLDA;                          
+DCL-DS SQLVAR;                                       
+  SQLTYPE INT(5);                                    
+  SQLLEN INT(5);                                     
+  SQLRES CHAR(12);                                   
+  SQLINFO1 CHAR(16);                                 
+   SQLDATA POINTER OVERLAY(SQLINFO1);                
+   SQL_RESULT_SET_LOCATOR INT(20) OVERLAY(SQLINFO1); 
+  SQLINFO2 CHAR(16);                                 
+   SQLIND POINTER OVERLAY(SQLINFO2);                 
+   SQL_ROW_CHANGE INT(10) OVERLAY(SQLINFO2);         
+   SQL_RESULT_SET_ROWS INT(10) OVERLAY(SQLINFO2);    
+  SQLNAMELEN INT(5);                                 
+  SQLNAME CHAR(30);                                  
+END-DS SQLVAR;                                       
+// EXTENDED SQLDA                                    
+DCL-DS SQLVAR2;                                      
+  SQLLONGL INT(10);            
+   SQLRSVDL CHAR(28);          
+   SQLDATAL POINTER;           
+   SQLTNAMELN INT(5);          
+   SQLTNAME CHAR(30);          
+END-DS SQLVAR2;                </code></pre><img alt="End of change" src="./deltaend.gif">
+</figure>
+</div>
+<section><p>The user is responsible for the definition of SQL_NUM.
+SQL_NUM must be defined as a numeric constant with the dimension required
+for SQL_VAR.</p>
+</section><section><p>Since RPG does not support structures within arrays, the
+SQLDA generates three data structures. The second and third data structures
+are used to setup/reference the part of the SQLDA which contains the
+field descriptions.</p>
+</section><section><p>To set the field descriptions of the SQLDA the program
+sets up the field description in the subfields of SQLVAR (or SQLVAR2)
+and then does a MOVEA of SQLVAR (or SQLVAR2) to SQL_VAR, n  where
+n is the number of the field in the SQLDA. This is repeated until
+all the field descriptions are set.</p>
+</section><section><p>When the SQLDA  field descriptions are to be referenced
+the user does a MOVEA of SQL_VAR, n to SQLVAR (or SQLVAR2) where n
+is the number of the field description to be processed.</p>
+</section></div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzsqldda.htm" title="An SQLDA is a set of variables that is used for execution of the SQL DESCRIBE statement, and it may optionally be used by the PREPARE, OPEN, CALL, FETCH, and EXECUTE statements.">SQLDA (SQL descriptor area)</a></li>
+</ul>
+</aside></article></main></body></html>

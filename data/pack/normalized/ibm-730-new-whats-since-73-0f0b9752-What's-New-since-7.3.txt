@@ -1,0 +1,1218 @@
+What's New since 7.3?
+
+What's New since 7.3?Last Updated: 2025-10-07
+
+This section was last updated in the first half of the year 2023.
+
+This section describes the enhancements made to ILE RPG after 7.3 with PTFs.
+
+See https://www.ibm.com/support/pages/rpg-cafe
+to determine the PTFs you need on the systems where you are compiling and running your programs.
+
+Warning:
+Some enhancements require a compile-time PTF and a runtime PTF.
+If a program uses an enhancement that requires a runtime PTF,
+you must ensure that the runtime PTF is applied on any system where the program is restored.
+
+If you restore your program on a system at a later release, different runtime PTFs are required for each release.
+
+New parameter PPMINOUTLN for CRTBNDRPG and CRTRPGMOD
+to control the record length of the
+output file specified by the PPSRCFILE parameter.
+
+The record length of the output file is the maximum of the value specified by the PPMINOUTLN
+parameter and the longest record length in the source file specified by the SRCFILE or
+SRCSTMF parameter.
+The default is 100.
+You can specify a value between 100 and 32754 inclusive.
+
+Note:
+When you use the CRTSQLRPGI command with a value other than *NONE
+for the RPGPPOPT parameter,
+the CRTBNDRPG or CRTRPGMOD command is invoked with the PPSRCFILE parameter.
+You can use the COMPILEOPTS parameter of the CRTSQLRPGI command to
+specify the PPMINOUTLN parameter for the CRTBNDRPG or CRTRPGMOD command.
+
+This enhancement is available with compile-time PTFs in the first of the year 2023.
+
+Support for PCML version 8
+
+If you want to take advantage of version 8 of PCML, you can specify *V8 in the PGMINFO keyword,
+or you can set environment variable QIBM_RPG_PCML_VERSION to the value '8.0' at compile time.
+With PCML version 8, the generated PCML adds a "boolean" attribute to indicator items.
+
+CTL-OPT PGMINFO(*PCML : V8);
+
+See PGMINFO(*PCML | *NO | *DCLCASE { : *MODULE { : *Vx }}).
+This enhancement is available with a compile-time PTF in the first half of the year 2023.
+
+Note:
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+New operation code SND-MSG
+
+With SND-MSG, you can send an informational message or an escape message to a program or procedure
+on the call stack.
+
+In the following example, "Hello from RPG" is sent to the joblog as an informational message to the joblog.
+The two SND-MSG operations are equivalent. The first SND-MSG defaults to having *INFO as
+the message type. The second SND-MSG explicitly specifies *INFO.
+
+When *INFO is specified as the message-type, or the message-type operand is not specified,
+the message is sent by default to the current procedure.
+
+DCL-S name VARCHAR(20) inz('RPG');
+
+SND-MSG 'Hello from ' + name;
+
+SND-MSG *INFO 'Hello from ' + name;
+
+In the following example, message ACT1234 from message file *LIBL/MYMSGF
+is sent as an escape message to the caller of the current procedure.
+When *ESCAPE is specified, the message is sent by default to the caller of the current procedure.
+
+Assume that the message has two replacement values.
+
+TYPE(*CHAR) LEN(25)
+
+TYPE(*DEC) LEN(10)
+
+DCL-DS ACT1234_text qualified;
+account_name char(25);
+account_number packed(10);
+END-DS;
+
+CHAIN (acct_num) FILE;
+IF NOT %FOUND();
+ACT1234_text.account_name = name;
+ACT1234_text.account_number = acct_num;
+SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text);
+ENDIF;
+
+The SND-MSG operation in the following example is similar to the previous example, but the message
+is explicitly sent to the call-stack entry 'MYCLPGM'.
+The RPG programmer expects that a program called MYCLPGM has been called before the current procedure,
+and that MYCLPGM has not returned yet.
+If the RPG programmer is debugging the program, and uses the DSPJOB command with parameter
+OPTION(*PGMSTK), the program stack must show that MYCLPGM is an active caller
+of the current procedure.
+
+SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text)
+%TARGET('MYCLPGM');
+
+The SND-MSG operation in the following example is similar to the previous example, but the message
+is explicitly sent to the caller of MYCLPGM, by specifying the value 1
+for the offset operand of %TARGET.
+
+SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text)
+%TARGET('MYCLPGM' : 1);
+
+If an error occurs while sending the message, the SND-MSG operation fails with new status
+code 126.
+If you send an escape message to the current procedure, the RPG procedure fails with status code 9999.
+
+See SND-MSG (Send a Message to the Joblog).
+This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2022.
+
+This enhancement is also available in 7.3 with a compile-time PTF and a runtime PTF.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+If you restore your program on a system at a later release, different runtime PTFs are required for each release.
+
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+New operation code ON-EXCP
+
+You can monitor for specific message IDs in a MONITOR group by listing
+the message IDs in an ON-EXCP operation code.
+ON-EXCP is similar to ON-ERROR, but with ON-EXCP, you list the message IDs to be monitored.
+The ON-EXCP operations must precede any ON-ERROR operations in the MONITOR group.
+
+Specify the (C) extender to limit ON-EXCP to escape messages sent to
+the procedure containing the ON-EXCP statement.
+
+In the following example, the MONITOR group has two ON-EXCP blocks
+and one ON-ERROR block.
+
+MONITOR;
+ON-EXCP 'ABC1234' : 'ABC2345';
+// handle exception messages
+ON-EXCP 'DEF1234';
+// handle another exception message
+ON-ERROR 222;
+// handle pointer-not-set
+ENDMON;
+
+See ON-EXCP (On Exception).
+This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2022.
+
+This enhancement is also available in 7.3 with a compile-time PTF and a runtime PTF.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+If you restore your program on a system at a later release, different runtime PTFs are required for each release.
+
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+New built-in functions %MAXARR and %MINARR
+
+You can find the index of the maximum value or minimum value in an array by using %MAXARR
+or %MINARR.
+In the following example
+
+After the assignment from %LIST,
+the maximum value in the array is 'Yellow' (array1(2)).
+The minimum value is 'Blue' (array1(3)).
+
+%MAXARR(array1) returns 2.
+
+%MINARR(array1) returns 3. When %MINARR(array1) is used as an index
+for array1, the value assigned to minVal is
+'Blue'.
+
+DCL-S array1 VARCHAR(10) DIM(3);
+DCL-S i INT(10);
+DCL-S minVal LIKE(array1);
+
+array1 = %LIST('Red' : 'Yellow' : 'Blue'); //  1 
+
+i = %MAXARR(array1); //  2 
+// i = 2
+
+minVal = array1(%MINARR(array1)); //  3 
+// minVal = 'Blue'
+
+See %MAXARR and %MINARR (Maximum or Minimum Element in an Array).
+
+This enhancement is available with a compile-time PTF in the last half of the year 2021.
+
+Sort an array data structure by more than one subfield
+
+Use %FIELDS to list the subfields for sorting an array data structure.
+In the following example, data structure array info
+is sorted by subfields dueDate and orderId.
+To determine the required order of two elements of info,
+subfield dueDate is compared first.
+If the value of dueDate is equal in the two elements,
+then subfield orderId is used to determine the
+order of the two elements of info.
+
+info(2).dueDate is greater than info(3).dueDate
+so it is not necessary to compare the second subfield orderId
+to determine the relative order of elements 2 and 3.
+
+info(1).dueDate is equal to info(3).dueDate
+so info(1).orderId is compared to info(3).orderId
+to determine the relative order of elements 1 and 3.
+
+DCL-DS info QUALIFIED DIM(3);
+orderId packed(5);
+dueDate DATE(*ISO);
+quantity int(10);
+END-DS;
+
+info(1).orderId = 23456;
+info(1).dueDate = D'2021-09-08';
+info(1).quantity = 5;
+
+info(2).orderId = 12345;
+info(2).dueDate = D'2021-10-08';
+info(2).quantity = 3;
+
+info(3).orderId = 12345;
+info(3).dueDate = D'2021-09-08';
+info(3).quantity = 25;
+
+SORTA info %FIELDS(dueDate : orderId);
+
+// info(1).orderId = 12345
+// info(1).dueDate = D'2021-09-08'
+// info(1).quantity = 25
+//
+// info(2).orderId = 23456
+// info(2).dueDate = D'2021-09-08'
+// info(2).quantity = 5
+//
+// info(3).orderId = 12345
+// info(3).dueDate = D'2021-10-08'
+// info(3).quantity = 3
+
+See %FIELDS (Subfields for sorting).
+
+This enhancement is available with a compile-time PTF in the last half of the year 2021.
+
+See the value of named constants in the debugger
+
+Specify Control keyword DEBUG(*CONSTANTS) to enable viewing the value
+of named constants in the debugger.
+
+CTL-OPT DEBUG(*CONSTANTS);
+
+See DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}.
+
+This enhancement is available with a compile-time PTF in the last half of the year 2021.
+A PTF is also needed for the debugger at compile-time and runtime.
+
+Warning:
+You must ensure that the debugger PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+New built-in functions %LOWER and %UPPER
+
+You can convert the case of a character or UCS-2 string
+to lower case by using the %LOWER built-in function
+or to upper case by using the built-in function %UPPER.
+You can limit the conversion to only part of the
+string by specifying the start and length for
+the conversion.
+
+In the following example, the characters
+following the first character are converted to lower case.
+
+DCL-S string VARCHAR(20);
+
+string = %LOWER('GÖTEBORG' : 2);
+// string = "Göteborg"
+
+See %LOWER and %UPPER (Convert to Lower or Upper Case).
+
+This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2021.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+New built-in function %SPLIT
+
+You can split a string into a temporary array of substrings
+by using %SPLIT.
+By default, the string is split at blanks.
+You can specify a second parameter with the characters you want to
+split at.
+
+In the following examples, the result of %SPLIT is
+assigned to an array.
+
+In the first assignment, the string is split at blanks.
+
+In the second assignment, the string is split at either
+asterisks or blanks.
+
+DCL-S array VARCHAR(20) DIM(10);
+
+array = %SPLIT(' **One** **Two** **Three** '); //  1 
+// array(1) = '**One**'
+// array(2) = '**Two**'
+// array(3) = '**Three**'
+
+array = %SPLIT(' **One** **Two** **Three** ' : ' *'); //  2 
+// array(1) = 'One'
+// array(2) = 'Two'
+// array(3) = 'Three'
+
+See %SPLIT (Split String into Substrings).
+
+This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2021.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+A new option *STRICTKEYS is added to the EXPROPTS Control keyword.
+
+When EXPROPTS(*STRICTKEYS) is specified, the rules are more strict for
+specifying the search argument for keyed file operations using
+a list of keys or %KDS.
+
+See *STRICTKEYS.
+
+This enhancement is available with a compile-time PTF in the first half of the year 2021.
+
+New built-in function %RANGE
+
+You can check whether a value is in the range of two other
+values by using the %RANGE built-in function.
+In the following example, the IF statement is true if
+num is greater than or equal to 1 and
+less than or equal to 10.
+
+DCL-S num PACKED(15:5);
+
+IF num IN %RANGE(1 : 10);
+...
+ENDIF;
+
+See %RANGE (lower-limit : upper-limit).
+
+This enhancement is available with a compile-time PTF in the last half of the year 2020.
+
+New built-in function %LIST
+
+You can define a temporary array by using built-in function %LIST.
+%LIST is allowed in calculations anywhere an array is allowed
+except SORTA, %LOOKUPxx, or %SUBARR.
+In the following example, the first four elements of
+the libraries
+array are assigned from the values in the %LIST built-in function.
+The first element of libraries is assigned
+the value 'QGPL', the second element is assigned the value of
+variable currentUserProfile and so on.
+
+DCL-S libraries CHAR(10) DIM(10);
+
+libraries = %LIST ('QGPL'
+: currentUserProfile
+: 'QTEMP'
+: getDevLib ());
+
+See %LIST (item { : item { : item ... } } ).
+
+This enhancement is available with a compile-time PTF in the last half of the year 2020.
+
+New operation code FOR-EACH
+
+The FOR-EACH operation code begins a group of operations that iterates through the elements
+of an array, %LIST, %SPLIT, or %SUBARR.
+The first operand of FOR-EACH is a variable that receives the value of the
+current element in the array or %LIST.
+
+The loop ends with the ENDFOR operation code.
+
+In the following example, each element of the
+filenames array is processed in the
+FOR-EACH group.
+Within the group of operation codes between the FOR-EACH operation and
+the ENDFOR operation, the file
+variable has the value of the current element of the filenames array.
+
+DCL-S filenames CHAR(10) DIM(10);
+DCL-S file CHAR(10);
+DCL-S numFilenames INT(10);
+...
+FOR-EACH file in %SUBARR(filenames : 1 : numFilenames);
+process (file);
+ENDFOR;
+
+See FOR-EACH (For Each).
+
+This enhancement is available with a compile-time PTF in the last half of the year 2020.
+
+New IN operator
+
+The IN operator is used to determine whether an item
+is in an array or %LIST, or in a range.
+
+IF item IN %RANGE(lower_limit : upper_limit);
+...
+ENDIF;
+IF item IN myArray;
+...
+ENDIF;
+
+IF item IN %LIST(item1 : item2 : ...);
+ENDIF;
+
+See IN operator.
+
+This enhancement is available with a compile-time PTF in the last half of the year 2020.
+
+Allow blanks for built-in functions that convert character to numeric
+
+A new option *ALWBLANKNUM is added to the EXPROPTS Control keyword.
+
+When EXPROPTS(*ALWBLANKNUM) is specified, the numeric conversion built-in functions
+%DEC, %DECH, %FLOAT, %INT, %INTH, %UNS, and %UNSH, a blank character value is allowed.
+These built-in functions return zero if the character
+operand is blank or it has a length of zero.
+For DATA-INTO and XML-INTO, if the value for a numeric field is blank or empty, a value of zero
+is placed in the value.
+
+In the following example, the %DEC operation does not fail due to
+a blank value because EXPROPTS(*ALWBLANKNUM) is specified.
+
+CTL-OPT EXPROPTS(*ALWBLANKNUM);
+
+DCL-S num PACKED(15:5);
+DCL-S string CHAR(10) INZ(*BLANKS);
+
+num = %DEC(string : 63 : 15);
+
+See EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)
+and Rules for converting character values to numeric values using built-in functions.
+
+This enhancement is available with a compile-time PTF and a runtime PTF in the last half of the year 2020.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+Allow thousands separators for built-in functions that convert character to numeric
+
+A new option *USEDECEDIT is added to the EXPROPTS Control keyword.
+
+When EXPROPTS(*USEDECEDIT) is specified, the numeric conversion built-in functions
+%DEC, %DECH, %FLOAT, %INT, %INTH, %UNS, and %UNSH interpret the period and comma
+characters according to the setting defined by the Control keyword DECEDIT.
+This keyword also affects the way the data for a numeric field is processed by
+DATA-INTO and XML-INTO.
+
+By default, and with DECEDIT('.') or DECEDIT('0.'), or with
+DECEDIT(*JOBRUN) when the job DECFMT value is not J, the period is the decimal-point character
+and the comma is the digit-separator (thousands separator) character.
+
+With DECEDIT(',') or DECEDIT('0,'), or with
+DECEDIT(*JOBRUN) when the job DECFMT value is J, the comma is the decimal-point character
+and the period is the digit-separator.
+
+In the following example
+
+Keyword EXPROPTS(*USEDECEDIT) is specified.
+
+Keyword DECEDIT keyword is not specified, so the decimal-point character
+defaults to the period and the digit-separator character defaults to the comma.
+
+The string '1,234,567.89' is allowed for %DEC. The commas are
+ignored because the comma is the digit-separator character.
+
+The %DEC built-in function returns 1234567.89.
+
+CTL-OPT EXPROPTS(*USEDECEDIT);
+
+DCL-S num PACKED(15:5);
+
+num = %DEC('1,234,567.89' : 15 : 5);
+
+See EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)
+and Rules for converting character values to numeric values using built-in functions.
+
+This enhancement is available with a compile-time PTF and a runtime PTF in the last half of the year 2020.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+Optionally require prototypes for the main procedure and exported procedures
+
+Parameter REQPREXP is added to the CRTBNDRPG and CRTRPGMOD commands to control
+how the compiler responds when no prototype is specified for an exported procedure.
+Additionally, the keyword REQPREXP can be specified as a Control Specification keyword.
+The default for the parameter is *NO.
+
+With the *WARN level,
+the compiler issues a warning diagnostic message.
+
+With the *REQUIRE level, the compiler issues a severe diagnostic message,
+which causes the compile to fail.
+
+You can specify keyword REQPROTO(*NO) for an exported procedure
+or for the procedure interface of the
+cycle-main procedure to indicate that
+a prototype is never required for the procedure.
+
+See REQPREXP(*NO | *WARN | *REQUIRE),
+REQPROTO(*NO) for exported procedures, and
+REQPROTO(*NO) for the procedure interface of the cycle-main procedure.
+
+This enhancement is available with several compile-time PTFs in the last half of the year 2020.
+
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+See or change the return value from a procedure while debugging
+
+If Control keyword DEBUG(*RETVAL) is specified,
+you can evaluate special variable _QRNU_RETVAL
+to see or change the value that the procedure will return.
+
+Set a breakpoint on the last statement of the procedure to view or change the value of this variable.
+
+In free-form code, set the breakpoint on the END-PROC statement.
+
+In fixed-form code, set the breakpoint on the Procedure-End specification.
+
+For example, a programmer is debugging the following procedure.
+
+The procedure returns the value 'abcde'.
+
+The programmer sets a breakpoint on the END-PROC statement.
+
+In the debug session, the programmer displays the return value.
+
+CTL-OPT DEBUG(*RETVAL);
+...
+DCL-PROC myProc;
+DCL-PI *n CHAR(10) END-PI;
+
+RETURN 'abcde';  1 
+END-PROC;  2 
+
+In the debug session at the END-PROC statement, the programmer displays the return value.
+
+The programmer changes the return value to '12345'.
+
+The value '12345' is returned from the procedure.
+
+> EVAL _qrnu_retval  1 
+_QRNU_RETVAL = 'abcde '
+> EVAL _qrnu_retval = '12345'  2 
+_QRNU_RETVAL = '12345' = '12345 '
+
+See DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}.
+
+This enhancement is available with a compile-time PTF in the last half of the year 2020.
+
+%TIMESTAMP to return microsecond precision
+
+%TIMESTAMP() now returns a timestamp with microsecond precision.
+If you specify %TIMESTAMP(*UNIQUE), the returned timestamp
+has a nonzero value for all 12 fractional digits.
+The first 6 fractional seconds provide microsecond precision.
+The final 6 digits are used to create a unique timestamp.
+
+See %TIMESTAMP (Convert to Timestamp).
+This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2020.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+A variable or expression is allowed for the second parameter of %KDS
+
+The second parameter of %KDS is the number of keys to use for
+the keyed operation.
+You can now specify a variable or expression for the second parameter.
+
+DCL-F myfile KEYED;
+DCL-DS keys LIKEREC(myRec : *KEY);
+DCL-S numKeys INT(10);
+
+numKeys = 3;
+CHAIN %KDS(keys : numKeys) myRec;
+READE %KDS(keys : numKeys - 1) myRec;
+
+See %KDS (Search Arguments in Data Structure).
+This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2020.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+Qualified name for the LIKEDS keyword
+
+You can now specify a qualified name for the LIKEDS keyword.
+In the following example
+
+Data structure subfield employees
+is defined directly in data structure employee_info.
+
+The LIKEDS keyword for the parameter for procedure
+check_employee is defined by using the LIKEDS
+keyword to define the parameter the same as the qualified subfield
+employee_info.employeeds.
+
+DCL-DS employee_info QUALIFIED;
+num_employees INT(10);
+DCL-DS employees DIM(20); //  1 
+name VARCHAR(25);
+salary PACKED(7:2);
+END-DS;
+END-DS;
+DCL-PR check_employee IND;
+employee LIKEDS(employee_info.employees); //  2 
+END-PI;
+
+See Specifying LIKEDS with a qualified data structure name.
+This enhancement is available with a compile-time PTF in the last half of the year 2019.
+
+*ON and *OFF can be logical expressions
+
+You can now use *ON and *OFF directly in conditional statements.
+For example, if you want an infinitely DOW loop, you can code "DOW *ON".
+
+DOW *ON;
+...
+ENDDO;
+
+This enhancement is available with a compile-time PTF in the last half of the year 2019.
+
+New operation code DATA-GEN
+
+DATA-GEN generates a structured document, such as JSON or CSV, from
+an RPG variable.
+It requires a generator to generate the document.
+The DATA-GEN operation calls the generator, passing it the names and values of the
+RPG variables, and the generator passes the text for the structured document
+back to the DATA-GEN operation, which places the
+information into the output file or the output RPG variable.
+
+DCL-DS product QUALIFIED;
+name VARCHAR(25);
+id CHAR(10);
+price PACKED(9 : 2);
+END-DS product;
+
+DATA-GEN product %DATA('ProductInfo.JSON' : 'doc=file')
+%GEN('MYLIB/MYJSONGEN');
+
+See DATA-GEN (Generate a Document from a Variable),
+%DATA (document {:options}),
+%GEN (generator {: options}).
+This enhancement is available with a compile-time PTF and a runtime PTF in the last half of the year 2019.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+Overloaded prototypes
+
+The OVERLOAD keyword defines a list of other prototypes that can be called
+by using the name of the prototype with the OVERLOAD keyword.
+When the prototype with the OVERLOAD keyword is used in a call operation, the compiler uses
+the parameters that are specified for the call to determine which of the candidate prototypes
+that are listed in the OVERLOAD keyword to call.
+In the following example, FORMAT is defined with the OVERLOAD keyword.
+
+For the first call to FORMAT, the parameter has type Date,
+so FORMAT_DATE is called.
+
+For the second call to FORMAT, the parameter has type Time,
+so FORMAT_TIME is called.
+
+For the second call to FORMAT, the parameters have type Character,
+so FORMAT_MESSAGE is called.
+
+DCL-PR format_date VARCHAR(100);
+dateParm DATE(*ISO) CONST;
+END-PR;
+DCL-PR format_time VARCHAR(100);
+timeParm TIME(*ISO) CONST;
+END-PR;
+DCL-PR format_message VARCHAR(100);
+msgid CHAR(7) CONST;
+replacement_text VARCHAR(100) CONST OPTIONS(*NOPASS);
+END-PR;
+DCL-PR format VARCHAR(100) OVERLOAD(format_time : format_date : format_message);
+DCL-S result varchar(50);
+
+result = format(%date()); //  1 
+result = format(%time()); //  2 
+result = format('MSG0100' : filename); //  3 
+
+See OVERLOAD(prototype1 { : prototype2 ...}).
+This enhancement is available with a compile-time PTF in the last half of the year 2019.
+
+OPTIONS(*EXACT) for prototyped parameters
+
+When OPTIONS(*EXACT) is specified for a prototyped parameter, additional rules apply to ensure that
+the called procedure receives the same value as the passed parameter.
+For example, without OPTIONS(*EXACT), the compiler allows the passed parameter to be longer than the prototyped parameter,
+and it allows a data structure to be passed that is related by LIKEDS to a different data structure from the passed parameter.
+With OPTIONS(*EXACT), the passed parameter cannot be longer than the prototyped parameter, and if the prototyped
+parameter is defined with LIKEDS keyword, the passed parameter must be related by LIKEDS to the same data structure.
+
+In the following example, field fld10 can be passed to parameter parm5
+of prototype p1, but the called procedure receives the value "abcde" instead of the full value
+'abcdefghij' of fld10.
+
+Field fld10 cannot be passed to parameter parm5Exact
+of prototype p2 because the length, 10, of fld10 is greater than
+the length, 5, of the prototyped parameter parm5Exact.
+
+dcl-pr p1;
+parm5 char(5);
+end-pr;
+dcl-pr p2;
+parm5Exact char(5) OPTIONS(*EXACT);
+end-pr;
+dcl-s fld10 char(10) inz('abcdefghij');
+
+p1 (fld10);
+p2 (fld10); // Error
+
+See OPTIONS(*EXACT).
+This enhancement is available with a compile-time PTF in the last half of the year 2019.
+
+SAMEPOS keyword
+
+The SAMEPOS keyword positions a subfield at the same starting position as another subfield.
+See SAMEPOS(subfield).
+
+This enhancement is available with a compile-time PTF in the first half of the year 2019.
+
+New PSDS subfields
+
+The following new subfields are added to the Program Status Data Structure:
+
+Internal job ID, in positions 380 - 395.
+
+System name, in positions 396 - 403.
+
+See Program Status Data Structure
+
+This enhancement is available with a runtime PTF in the first half of the year 2019.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the enhancement is required.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+New operation code DATA-INTO
+
+DATA-INTO reads data from a structured document, such as JSON, into
+an RPG variable.
+It requires a parser to parse the document.
+The DATA-INTO operation calls the parser, and the parser passes the information in
+the document back to the DATA-INTO operation, which places the
+information into the RPG variable.
+
+DCL-DS product QUALIFIED;
+name VARCHAR(25);
+id CHAR(10);
+price PACKED(9 : 2);
+END-DS product;
+
+DATA-INTO product %DATA('ProductInfo.JSON' : 'doc=file')
+%PARSER('MYLIB/MYJSONPARS');
+
+See DATA-INTO (Parse a Document into a Variable),
+%DATA (document {:options}),
+%PARSER (parser {: options}).
+This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2018.
+
+This enhancement is also available in 7.2 with compile-time and runtime PTFs.
+
+Warning:
+You must ensure that the runtime PTF is applied on any system where the program is restored.
+If you compile your program with TGTRLS(*V7R2M0), different runtime PTFs are required for 7.2 and 7.3 systems.
+See https://www.ibm.com/support/pages/rpg-cafe
+for PTF details.
+
+Built-in function %PROC()
+
+%PROC() returns the external name of the current procedure.
+See %PROC (Return Name of Current Procedure).
+This enhancement is available with a compile-time PTF in the last half of the year 2017.
+
+This enhancement is also available in 7.2 with a compile-time PTF.
+
+More places that complex qualified names can be used
+
+Complex qualified names are now allowed in the following places:
+
+Built-in function %ELEM.
+See %ELEM (Get Number of Elements).
+
+Built-in function %SIZE.
+See %SIZE (Get Size in Bytes).
+
+Operation code DEALLOC.
+See DEALLOC (Free Storage).
+
+Operation code RESET.
+See RESET (Reset).
+
+This enhancement is available with a compile-time PTF in the first half of the year 2017.
+
+This enhancement is also available in 7.2 with a compile-time PTF.
+
+Nested data structure subfields
+
+When a qualified data structure is defined with free-form syntax,
+a subfield can be directly defined as a nested data structure subfield.
+The street subfield in the following data structure
+is referred to as product.manufacturer.address.street.
+
+DCL-DS product QUALIFIED;
+name VARCHAR(25);
+id CHAR(10);
+DCL-DS manufacturer;
+name VARCHAR(10);
+DCL-DS address;
+street VARCHAR(50);
+city VARCHAR(25);
+END-DS address;
+active IND;
+END-DS manufacturer;
+price PACKED(9 : 2);
+END-DS product;
+
+See Nested data structure subfield.
+This enhancement is available with a compile-time PTF in the first half of the year 2017.
+
+This enhancement is also available in 7.2 with a compile-time PTF.
+
+New built-in functions %MAX and %MIN
+
+%MAX returns the maximum value of its operands. %MIN returns the minimum value of its operands.
+There must be at least two operands, but there is no upper limit on the number of operands when
+%MAX or %MIN are used in calculations. When %MAX or %MIN are used in Declaration statements, there
+must be exactly two numeric operands.
+
+In the following example, after the assignment operations, maxval has the
+value 'Zorro' and minval has the value 'Batman'.
+
+DCL-S maxval VARCHAR(10);
+DCL-S minval VARCHAR(10);
+DCL-S name1 VARCHAR(20) INZ('Robin');
+DCL-S name2 VARCHAR(10) INZ('Batman');
+
+maxval = %MAX(name1 : name2 : 'Zorro');
+minval = %MIN(name1 : name2 : 'Zorro');
+
+See %MAX and %MIN (Maximum or Minimum Value).
+This enhancement is available with a compile-time PTF in the first half of the year 2017.
+
+This enhancement is also available in 7.2 with a compile-time PTF.
+
+ALIGN(*FULL) to define the length of a data structure as a multiple of its alignment
+
+When *FULL is specified for the ALIGN keyword,
+the length of the data structure is a multiple of the alignment size.
+Without *FULL, the length of the data structure is determined by highest end position of the subfields.
+Specify the *FULL parameter when an aligned data structure is passed as a parameter to a function or API,
+or when you use %SIZE to determine the distance between the elements in an array of aligned data structures.
+For example, the following two data structures have a float subfield followed by a character subfield with length 1.
+The alignment size for both data structures is 8.
+The size of data structure DS_ALIGN_FULL is 16, while the size of data structure DS_ALIGN is 9.
+
+DCL-DS ds_align_full ALIGN(*FULL) QUALIFIED;
+sub1 FLOAT(8);
+sub2 CHAR(1);
+END-DS;
+
+DCL-DS ds_align ALIGN QUALIFIED;
+sub1 FLOAT(8);
+sub2 CHAR(1);
+END-DS;
+
+See ALIGN{(*FULL)}.
+This enhancement is available with a compile-time PTF in the first half of the year 2017.
+
+This enhancement is also available in 7.2 with a compile-time PTF.
+
+ON-EXIT section
+
+The ON-EXIT section runs every time that a procedure ends, whether the
+procedure ends normally or abnormally.
+In the following example, the procedure allocates heap storage.
+The code that follows the ON-EXIT operation is always run, so the
+heap storage is always deallocated.
+The ON-EXIT section is run whether
+the procedure ends suddenly due to an unhandled exception, or the procedure
+is canceled due to the job ending, or the procedure returns normally due
+to reaching the end of the main part of the procedure or due to reaching
+a RETURN operation.
+
+dcl-proc myproc;
+p = %alloc(100);
+
+...
+on-exit;
+dealloc(n) p;
+end-proc;
+
+See ON-EXIT (On Exit)
+
+This enhancement is available with a compile-time PTF in the last half of the year 2016.
+
+This enhancement is also available in 7.2 with a compile-time PTF.
+
+New parameter TGTCCSID for CRTBNDRPG and CRTRPGMOD to support compiling from Unicode source
+
+The ILE RPG compiler normally reads the source files for a compile in the CCSID of the primary source file.
+Since the compiler supports reading the source only in an EBCDIC CCSID, this means that the compile fails
+when the primary source file has a Unicode CCSID such as UTF-8 or UTF-16.
+
+The TGTCCSID parameter for the CRTBNDRPG and CRTRPGMOD allows the RPG programmer to specify
+the CCSID with which the compiler reads the source files for the compile.
+Specify TGTCCSID(*JOB) or specify a specific EBCDIC CCSID such as TGTCCSID(37) or TGTCCSID(5035).
+
+The default is TGTCCSID(*SRC).
+
+This enhancement is available with compile-time PTFs in the last half of the year 2016.
+
+This enhancement is also available in 7.1 and 7.2 with compile-time PTFs.
+
+Table 1. Changed Language Elements Since 7.3: Definitions
+
+Element
+
+Description
+
+DCL-DS operation code
+
+DCL-DS can be nested within a qualified data structure.
+See Nested data structure subfield.
+
+ALIGN(*FULL)
+
+The ALIGN keyword can have parameter *FULL causing
+the length of a data structure to be a multiple of its alignment.
+See ALIGN{(*FULL)}.
+
+LIKEDS keyword
+
+The parameter for LIKEDS can be a simple-qualified name.
+See Specifying LIKEDS with a qualified data structure name.
+
+OPTIONS(*EXACT)
+
+The OPTIONS keyword for a prototyped parameter can have
+value *EXACT, indicating that additional rules should be applied by the compiler when checking
+the validity of the passed parameter.
+See OPTIONS(*EXACT).
+
+Table 2. Changed Language Elements Since 7.3: Built-in functions
+
+Element
+
+Description
+
+%KDS
+
+A variable can now be specified as the second parameter of %KDS.
+See %KDS (Search Arguments in Data Structure).
+
+%TIMESTAMP
+
+%TIMESTAMP() returns a value with microsecond precision.
+%TIMESTAMP(*UNIQUE) returns a unique timestamp.
+See %TIMESTAMP (Convert to Timestamp).
+
+Table 3. Changed Language Elements Since 7.3: Control specification keywords
+
+Element
+
+Description
+
+DEBUG keyword
+
+Specify parameter *RETVAL if you want to
+debug the return value from a procedure.
+
+Specify parameter *CONSTANTS if you want to view the
+value of named constants in the debugger.
+
+See DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}.
+
+EXPROPTS keyword
+
+Parameters *ALWBLANKNUM, *USEDECEDIT, and *STRICTKEYS can now be specified for the
+EXPROPTS keyword.
+See EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT).
+
+Table 4. Changed Language Elements Since 7.3: Operation codes
+
+Element
+
+Description
+
+SORTA operation code
+
+%FIELDS can be specified with SORTA to list the subfields for sorting.
+See %FIELDS (Subfields for sorting).
+
+Table 5. New Language Elements Since 7.3: Directives
+
+Element
+
+Description
+
+/OVERLOAD
+
+Specify /OVERLOAD DETAIL to obtain detailed information
+about calls to
+overloaded prototypes in the statements following the directive.
+Specify /OVERLOAD NODETAIL to stop obtaining the detailed information.
+See /OVERLOAD DETAIL | NODETAIL.
+
+Table 6. New Language Elements Since 7.3: Control specification keywords
+
+Element
+
+Description
+
+REQPREXP
+
+Controls whether prototypes are required for the main procedure
+and exported subprocedures.
+See REQPREXP(*NO | *WARN | *REQUIRE).
+
+Table 7. New Language Elements Since 7.3: Expression Operators
+
+Element
+
+Description
+
+IN
+
+Used in a binary conditional statement that tests whether
+the first operand is in the second operand.
+See IN operator.
+
+Table 8. New Language Elements Since 7.3: Built-in functions
+
+Element
+
+Description
+
+%DATA
+
+Specifies the document to be parsed by the DATA-INTO operation code
+See %DATA (document {:options}).
+
+%GEN
+
+Specifies the generator for the DATA-GEN operation code
+See %GEN (generator {: options}).
+
+%LIST
+
+Returns a temporary array
+See %LIST (item { : item { : item ... } } ).
+
+%LOWER
+
+Returns the input string converted to lower case.
+See %LOWER (Convert to Lower Case).
+
+%MAX
+
+Returns the maximum value of its operands
+See %MAX (Maximum Value).
+
+%MAXARR
+
+Returns the index of the maximum value in the array
+See %MAXARR and %MINARR (Maximum or Minimum Element in an Array).
+
+%MIN
+
+Returns the minimum value of its operands
+See %MIN (Minimum Value).
+
+%MINARR
+
+Returns the index of the minimum value in the array
+See %MAXARR and %MINARR (Maximum or Minimum Element in an Array).
+
+%MSG
+
+Specifies the message ID for SND-MSG
+See %MSG (message-id : message-file { : replacement-text } ).
+
+%PARSER
+
+Specifies the parser for the DATA-INTO operation code
+See %PARSER (parser {: options}).
+
+%PROC
+
+Returns the external name of the current procedure
+See %PROC (Return Name of Current Procedure).
+
+%RANGE
+
+Specifies the range to check with the IN operator
+See %RANGE (lower-limit : upper-limit).
+
+%SPLIT
+
+Returns an array of substrings
+See %SPLIT (Split String into Substrings).
+
+%TARGET
+
+Specifies the target program or procedure for SND-MSG
+See %TARGET (program-or-procedure { : offset } ).
+
+%UPPER
+
+Returns the input string converted to upper case.
+See %UPPER (Convert to Upper Case).
+
+Table 9. New Language Elements Since 7.3: Procedure
+specification keywords
+
+Element
+
+Description
+
+REQPROTO
+
+REQPROTO(*NO) indicates that a
+prototype is never required for the exported procedure.
+See REQPROTO(*NO).
+
+Table 10. New Language Elements Since 7.3: Definition keywords
+
+Element
+
+Description
+
+OVERLOAD
+
+Defines candidate prototypes that can be called by the name of the overloaded prototype
+(the prototype with the OVERLOAD keyword)
+See OVERLOAD(prototype1 { : prototype2 ...}).
+
+REQPROTO
+
+REQPROTO(*NO) can be specified on the procedure interface
+for the cycle-main procedure to indicate that a prototype is never required.
+See REQPROTO(*NO).
+
+SAMEPOS
+
+Positions a subfield at the same starting position as another subfield
+See SAMEPOS(subfield).
+
+Table 11. New Language Elements Since 7.3: Operation codes
+
+Element
+
+Description
+
+DATA-GEN
+
+Generate a structured document from
+an RPG variable.
+See DATA-GEN (Generate a Document from a Variable).
+
+DATA-INTO
+
+Import data from a structured document into
+an RPG variable.
+See DATA-INTO (Parse a Document into a Variable).
+
+FOR-EACH
+
+Iterate through the items in an array, %LIST, or sub-array
+See FOR-EACH (For Each).
+
+ON-EXCP
+
+Monitor for a specific escape message ID
+See ON-EXCP (On Exception).
+
+ON-EXIT
+
+Begins a section of code that runs when the procedure ends, either normally or abnormally
+See ON-EXIT (On Exit).
+
+SND-MSG
+
+Send a message to the joblog
+See SND-MSG (Send a Message to the Joblog).

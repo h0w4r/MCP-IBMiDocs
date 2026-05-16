@@ -1,0 +1,109 @@
+Character and graphic string assignments
+
+IBM i programming resources > SQL > SQL reference > Language elements > Assignments and comparisons > String assignments > String assignments
+
+IBM i programming resources > SQL > SQL reference > Language elements > Assignments and comparisons > String assignments
+
+Character and graphic string assignments
+The following rules apply when the assignment target is
+a string.
+When a datetime data type is involved, see Datetime assignments. For the special considerations that
+apply when a distinct type is involved in an assignment, especially
+to a variable, see Distinct type assignments.
+Assignments from numeric to stringsWhen
+a number is assigned to a string data type, it is converted to the
+target string data type using the rules for a CAST specification.
+For more information, see CAST specification.
+Storage assignment:The basic rule is that
+the length of a string assigned to a column, parameter
+of a function or procedure, or transition variable must not be
+greater than the length attribute of the column or parameter. If the
+string is longer than the length attribute of that column ,
+parameter, or transition variable, an error is returned. Trailing
+blanks are normally included in the length of the string. For storage
+assignments, however, trailing blanks are not included in the length
+of the string.
+When a string is assigned
+to a fixed-length string column, parameter, or transition
+variable and the length of the string is less than the length
+attribute of the target, the string is padded on the right with the
+necessary number of single-byte, double-byte, or UTF-16 or UCS-2 blanks.1 The pad character
+is always a blank, even for bit data.
+Retrieval assignment:The length of a string assigned to a
+variable (but not a parameter or transition variable) can
+be greater than the length attribute of the variable. When a string
+is assigned to a variable and the string is longer than the length
+attribute of the variable, the string is truncated on the right by
+the necessary number of characters. When this occurs, an SQLSTATE
+of '01004' is assigned to the RETURNED_SQLSTATE condition area item
+in the SQL Diagnostics Area (or the value 'W' is assigned to the SQLWARN1
+field of the SQLCA). Furthermore, if an indicator variable is provided,
+it is set to the original length of the string. If only the NUL-terminator
+is truncated for a C NUL-terminated host variable and the *NOCNULRQD
+option was specified on the CRTSQLCI or CRTSQLCPPI command (or CNULRQD(*NO)
+on the SET OPTION statement), an SQLSTATE of '01004' is assigned to
+the RETURNED_SQLSTATE condition area item in the SQL Diagnostics Area
+(or the value of 'N' is assigned to the SQLWARN1 field of the SQLCA)
+and a NUL is not placed in the variable.
+When a string is assigned to a fixed-length variable and
+the length of the string is less than the length attribute of the
+target, the string is padded on the right with the necessary number
+of single-byte, double-byte, or UTF-16 or UCS-2 blanks.1 The pad character
+is always a blank, even for bit data.
+When a string of length n is
+assigned to a varying-length string variable with a maximum length
+greater than n, the characters after the nth character
+of the variable are undefined.
+Assignments to mixed strings:If a string
+contains mixed data, the assignment rules may require truncation within
+a sequence of double-byte codes. To prevent the loss of the shift-in
+character that ends the double-byte sequence, additional characters
+may be truncated from the end of the string, and a shift-in character
+added. In the truncated result, there is always an even number of
+bytes between each shift-out character and its matching shift-in character.
+Assignments to C NUL-terminated strings:When
+a string of length n is assigned to a C NUL-terminated string
+variable with a length greater than n+1:
+If the *CNULRQD option was specified on the CRTSQLCI or CRTSQLCPPI
+command (or CNULRQD(*YES) on the SET OPTION statement), the string
+is padded on the right with x-n-1 blanks where x is the length of
+the variable. The padded string is then assigned to the variable and
+the NUL-terminator is placed in the next character position.
+If the *NOCNULRQD precompiler option was specified on the CRTSQLCI
+or CRTSQLCPPI command (or CNULRQD(*NO) on the SET OPTION statement),
+the string is not padded on the right. The string is assigned to the
+variable and the NUL-terminator is placed in the next character position.
+
+Conversion rules for assignmentsA string assigned to a column, variable,
+or parameter is first converted, if necessary, to the coded character
+set of the target. Character conversion is necessary only if all of
+the following are true:
+The CCSIDs are different.
+Neither CCSID is 65535.
+The string is neither null nor empty.
+Conversion between the two CCSIDs is required. For more information,
+see Coded character sets and CCSIDs.
+
+An error occurs if:
+Conversion between the pair of CCSIDs is not defined. For more
+information, see Coded character sets and CCSIDs.
+A character of the string cannot be converted, and the operation
+is assignment to a column or assignment to a host variable without
+an indicator variable. For example, a double-byte character (DBCS)
+cannot be converted to a column or host variable with a single-byte
+character (SBCS) CCSID.
+
+A warning occurs if:
+A character of the string is converted to the substitution character.
+A character of the string cannot be converted, and the assignment
+is not to a column or to a host variable without an indicator variable.
+For example, a DBCS character cannot be converted to a host variable
+with an SBCS CCSID. In this case, the string is not assigned to the
+host variable and the indicator variable is set to -2.
+
+Parent topic: String assignments
+
+1 UTF-16 or UCS-2 defines a blank
+character at code point X'0020' and X'3000'. The database manager
+pads with the blank at code point X'0020'. The database manager pads
+UTF-8 with a blank at code point X'20'

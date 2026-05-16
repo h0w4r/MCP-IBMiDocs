@@ -1,0 +1,194 @@
+Passing parameters
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures > Controlling flow and communicating between programs and procedures
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures
+
+Passing parameters
+When you pass control to another program or procedure, you can
+also pass information to it for modification or use within the receiving program
+or procedure.
+Note: By using the code examples, you agree to the terms of the Code license and disclaimer information.
+You can specify the information
+to be passed on the PARM parameter on the Call (CALL) command
+or the Call Bound Procedure (CALLPRC) command. The characteristics
+and requirements for these commands are slightly different.
+For instance,
+if PROGA contains the following command:
+CALL PROGB PARM(&AREA)
+then it calls PROGB and passes the value of &AREA to it.
+PROGB must start with the PGM command, which also must specify the parameter
+it is to receive:
+PGM PARM(&AREA) /* PROGB */
+For the Call (CALL) command or the Call
+Bound Procedure (CALLPRC) command, you must specify the parameters
+passed on the PARM parameter, and you must specify them on the PARM parameter
+of the PGM command in the receiving program or procedure. Because parameters
+are passed by position, not name, the position of the value passed in the Call
+(CALL) command or the Call Bound Procedure (CALLPRC) command
+must be the same as its position on the receiving PGM command. For example,
+if PROGA contains the following command:
+CALL PROGB PARM(&A &B &C ABC)
+it passes three variables and a character string, and if PROGB
+starts with:
+PGM PARM(&C &B &A &D) /*PROGB*/
+then the value of &A in PROGA is used for &C in PROGB,
+and so on; &D in PROGB is ABC. The order of the DCL
+statements in PROGB is unimportant. Only the order in which the parameters
+are specified on the PGM statement determines what variables are passed.
+In
+addition to the position of the parameters, you must pay careful attention
+to their length and type. Parameters listed in the receiving procedure or
+program must be declared as the same length and type as they are in the calling
+procedure or program. Decimal constants are always passed with a length of (15 5).
+When
+you use the Call Bound Procedure (CALLPRC) command and
+pass character string constants, you must specify the exact number of bytes,
+and pass exactly that number. The called procedure can use the information
+in the operational descriptor to determine the exact number of bytes passed.
+You can use the API CEEDOD to access the operational descriptor.
+When
+you use the CALL command, character string constants of 32 bytes or less are
+always passed with a length of 32 bytes. If the string is longer than 32,
+you must specify the exact number of bytes, and pass exactly that number.
+The
+following is an example of a procedure or program that receives the value &VAR1:
+
+PGM PARM(&VAR1) /*PGMA*/
+DCL VAR1 *CHAR LEN(36)
+.
+.
+.
+ENDPGM
+The CALL command or Call Bound Procedure (CALLPRC) command
+must specify 36 characters:
+CALLPRC PGMA(ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJ)
+The following example specifies the default lengths:
+PGM PARM(&P1 &P2)
+DCL VAR(&P1) TYPE(*CHAR) LEN(32)
+DCL VAR(&P2) TYPE(*DEC) LEN(15 5)
+IF (&P1 *EQ DATA) THEN(CALL MYPROG &P2)
+ENDPGM
+To call this program, you could specify:
+CALL PROG (DATA 136)
+The character string DATA is passed to &P1; the decimal
+value 136 is passed to &P2
+Referring to locally defined variables
+incurs less overhead than referring to passed variables. Therefore, if the
+called procedure or program frequently refers to passed variables, performance
+can be improved by copying the passed values into a local variable and referring
+to the locally defined value rather than the passed value.
+When
+an original program model (OPM) CL program is called, the number of parameters
+that are passed to it must exactly match the number that is expected by the
+program. The number that is expected is determined at the time the program
+is created. (The operating system prevents you from calling a program with
+more or fewer parameters than the program expects). When calling an ILE program
+or procedure, the operating system does not check the number of parameters
+that are passed on the call. In addition, the space where the operating system
+stores the parameters is not reinitialized between program or procedure calls.
+Calling a program or procedure that expects n parameters
+with n-1 parameters makes the system use whatever is in the
+parameter space to access the nth parameter. The results
+of this action are very unpredictable. This also applies to programs
+or procedures written in other ILE languages that call CL programs or procedures
+or are called by CL programs or procedures.
+This also gives you more
+flexibility when you write ILE CL programs or procedures, because you can
+write programs or procedures that have variable length parameter lists. For
+example, based on the value of one parameter, a parameter that is specified
+later in the list may not be required. If the controlling parameter indicated
+an unspecified optional parameter, the called programs or procedure need not
+to attempt to refer to the optional parameter.
+You can also specify
+the special value *OMIT for any parameter that you want to omit from the parameter
+list. If you specify *OMIT for a parameter, the calling program or procedure
+passes a null pointer. The program or procedure that is called has to be prepared
+to handle a null pointer if it refers to a parameter that is omitted. In control
+language (CL), you can check for a null pointer by monitoring for MCH3601
+on the first reference to the omittable parameter. The program or procedure
+must take appropriate action if it receives a MCH3601.
+When calling
+programs or procedures, you can pass arguments by reference and by value.
+The
+following example has two CL procedures. The first procedure expects one parameter;
+if that parameter remains unspecified, results will be unpredictable. The
+first procedure calls another procedure, PROC1. PROC1 expects one or two parameters.
+If the value of the first parameter is '1', it expects the second parameter
+as specified. If the value of the second parameter is '0', it assumes that
+the second parameter remained unspecified and used a default value instead.
+PROC1 also uses the CEEDOD API to determine the actual length that is passed
+for the second parameter.
+MAIN: PGM PARM(&TEXT)/* &TEXT must be specified. Results will be +
+unpredictable if it is omitted.*/
+DCL VAR(&TEXT) TYPE(*CHAR) LEN(10)
+CALLPRC PRC(PROC1) PARM('0')
+CALLPRC PRC(PROC1) PARM('1' &TEXT)
+CALLPRC PRC(PROC1) PARM('1' 'Goodbye')
+ENDPGM
+
+PROC1: PGM PARM(&P1 &P2) /* PROC1 - Procedure with optional +
+parameter &P2 */
+DCL VAR(&P1) TYPE(*LGL) /*Flag which indicates +
+whether or not &P2 will be specified. If +
+value is '1', then &P2 is specified */
+DCL VAR(&P2) TYPE(*CHAR) LEN(10)
+DCL VAR(&MSG) TYPE(*CHAR) LEN(10)
+DCL VAR(&PARMPOS) TYPE(*CHAR) LEN(4) /* +
+Parameter position for CEEDOD*/
+DCL VAR(&PARMDESC) TYPE(*CHAR) LEN(4) /* +
+Parameter description for CEEDOD*/
+DCL VAR(&PARMTYPE) TYPE(*CHAR) LEN(4) /* +
+Parameter datatype from CEEDOD*/
+DCL VAR(&PARMINFO1) TYPE(*CHAR) LEN(4) /* +
+Parameter information from CEEDOD */
+DCL VAR(&PARMINFO2) TYPE(*CHAR) LEN(4) /* +
+Parameter information from CEEDOD */
+DCL VAR(&PARMLEN) TYPE(*CHAR) LEN(4) /* +
+Parameter length from CEEDOD*/
+DCL VAR(&PARMLEND) TYPE(*DEC) LEN(3 0) /* +
+Decimal form of parameter length*/
+IF COND(&P1) THEN(DO) /* Parm 2 is+
+specified, so use the parm value for the +
+message text*/
+CHGVAR VAR(%BIN(&PARMPOS 1 4)) VALUE(2) /* Tell +
+CEEDOD that we want the operational +
+descriptor for the second parameter*/
+CALLPRC PRC(CEEDOD) PARM(&PARMPOS &PARMDESC +
+&PARMTYPE &PARMINFO1 &PARMINFO2 &PARMLEN) +
+/* Call CEEDOD to get the length of data +
+specified for &P2*/
+CHGVAR VAR(&PARMLEND) VALUE(%BIN(&PARMLEN 1 4)) /* +
+Convert the length returned by CEEDOD to +
+decimal format*/
+CHGVAR VAR(&MSG) VALUE(%SST(&P2 1 &PARMLEND)) /* +
+Copy the data passed in to a local variable*/
+ENDO
+ELSE CMD(CHGVAR VAR(%MSG) VALUE('Hello')) /* Use +
+"Hello" for the message text*/
+SNDPGMMSG MSG(&MSG)
+ENDPGM
+
+Using the Call Program command to pass control to a called program
+When the Call Program (CALL) command is issued
+by a CL procedure, each parameter value passed to the called program can be
+a character string constant, a numeric constant, a logical constant, or a
+CL variable.
+Common errors when calling programs and procedures
+In passing values on a Call Program (CALL) command
+or a Call Bound Procedure (CALLPRC) command, you might
+encounter some errors. Some of these errors can be very difficult to debug,
+and some have serious consequences for program functions.
+
+Parent topic: Controlling flow and communicating between programs and procedures
+
+Related tasks
+Using the Call Program command to pass control
+Using the Call Bound Procedure command to pass control
+Example: Using the Transfer Control command
+
+Related information
+Call Bound Procedure (CALLPRC) command
+Call Program (CALL) command
+Retrieve Operational Descriptor Information (CEEDOD) API
+ILE Concepts

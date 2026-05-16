@@ -1,0 +1,221 @@
+ON-EXIT (On Exit)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+ON-EXIT (On Exit)
+
+Free-Form Syntax
+
+ON-EXIT {status}
+
+Code
+
+Factor 1
+
+Extended Factor 2
+
+ON-EXIT
+
+ 
+
+status indicator
+
+The ON-EXIT operation code begins the ON-EXIT section.
+The ON-EXIT section contains code that runs every time that the procedure ends, whether it ends normally or abnormally.
+The ON-EXIT section runs under the following conditions:
+
+The procedure reaches the end of the main part of the procedure.
+
+The procedure reaches a RETURN operation.
+
+The procedure ends with an unhandled exception.
+
+The procedure is canceled, due to the end of the job or subsystem, or
+due to an exception message being sent to a procedure higher in the call stack.
+
+By placing your clean-up code, such as deleting temporary files and deallocating heap storage, in the ON-EXIT section,
+you ensure that it is always run, even if your procedure ends with an unhandled exception, or if it is canceled.
+
+Extended Factor 2 contains an optional indicator variable that indicates whether the procedure ended normally or abnormally.
+If the procedure returned normally, the indicator is set to *OFF. If the procedure ended with an unhandled exception or
+if the procedure was canceled for any other reason, the indicator is set to *ON.
+
+The ON-EXIT section is coded at the end of the subprocedure, following any subroutines.
+
+All variables and files defined in the procedure are available in the ON-EXIT section.
+
+Running the ON-EXIT part of the procedure does not change the state of the main part of the procedure.
+If the procedure was canceled due to an unhandled exception, that exception is still active after the
+ON-EXIT part of the procedure runs.
+
+For a procedure that returns a value, if the procedure ends normally, the value set by the RETURN
+statement can be overridden by a RETURN statement in the ON-EXIT procedure.
+If the ON-EXIT does not have a RETURN statement, then the procedure returns the value set by the RETURN statement
+in the main body of the procedure.
+See Example where the ON-EXIT section returns a new value.
+
+If there is an exception during ON-EXIT processing, the effect of the exception depends on
+how the procedure ended.
+
+If the procedure ended normally, then the procedure now ends with the new exception.
+
+If the procedure ended abnormally due to an unhandled exception, then the ON-EXIT section ends immediately
+and the exception handling for the original exception continues.
+The new exception has no effect on the exception handling for the original procedure call.
+The procedure is still considered to have ended due to the original exception.
+
+If the procedure was canceled due to some other reason such as the job ending,
+then the ON-EXIT section ends immediately.
+The exception in the ON-EXIT section has no effect on the overall cancellation processing.
+
+An exception during ON-EXIT processing can occur in the following cases:
+
+An exception that occurs while setting the status indicator.
+This can occur if the status indicator is an array element, and
+the index is out of bounds, or if the status indicator is based on a pointer that is not set.
+
+An exception that occurs within the code that follows the ON-EXIT statement.
+
+The ON-EXIT section is run in a separate subprocedure.
+The name of the ON-EXIT subprocedure begins with "_QRNI_ON_EXIT_" and ends with the name of the procedure that contains the
+ON-EXIT operation.
+For example, the external name of the ON-EXIT subprocedure for a
+procedure with the external name "myProc" is "_QRNI_ON_EXIT_myProc".
+
+Within the ON-EXIT section, the %PROC
+built-in function requires a parameter:
+
+%PROC(*ONEXIT) returns the external name of the procedure that handles the code in the ON-EXIT.
+
+%PROC(*OWNER) returns the external name of the procedure that contains the ON-EXIT section.
+
+The ON-EXIT section is invoked exactly once for each call to the procedure.
+If an exception occurs in the ON-EXIT section after a normal return, the ON-EXIT section is not run again.
+
+Restrictions for the ON-EXIT section
+
+The following are not allowed in a procedure with an ON-EXIT section:
+
+Local SPECIAL files.
+
+Local open access files.
+
+*PSSR subroutines. Use a MONITOR group instead.
+
+Multiple occurrence data structures. Use a data structure array instead.
+
+Tables. Use an array instead.
+
+ON-EXIT is not allowed in a Java™ native method. Move the logic for the native method into another procedure that is called by the native method.
+
+ON-EXIT is not allowed in a cycle-main procedure.
+Move the logic for the cycle-main procedure into another procedure that is called by the cycle-main procedure,
+or change your module to use a linear-main procedure.
+
+The following are not allowed in the ON-EXIT section:
+
+Calls to the APIs CEEDOD, CEEGSI, and CEETSTA.
+Call these procedures in the main body of the procedure and save the results in local variables.
+
+Operation codes BEGSR, DUMP, EXSR, GOTO, RESET, TAG.
+
+Debugging considerations
+
+When the breakpoint for the ON-EXIT operation is reached, the status indicator is already set.
+
+The breakpoint for the statement that ends the procedure is reached when the ON-EXIT section ends.
+It is not reached at the end of the main body of the procedure.
+
+Since the ON-EXIT section is implemented as a separate procedure, it is not possible to simply
+step from the main part of the procedure to the ON-EXIT section by using the step-over debugger command.
+To debug the ON-EXIT section, you can either use the step-into debugger command
+from the last statement in the main body of the procedure,
+or set a breakpoint on the ON-EXIT operation.
+
+Example of a procedure with an ON-EXIT section
+
+In the following example, if num_orders has the value zero at the line marked
+1, resulting in a divide-by-zero exception,
+control passes immediately to the ON-EXIT section beginning
+at the line marked 3.
+The indicator isAbnormalReturn has the value '1'.
+
+If num_orders is not zero, the procedure continues to the return operation
+at the line marked 2 and control passes to the ON-EXIT section
+at 3.
+The indicator isAbnormalReturn has the value '0'.
+
+dcl-proc myproc;
+dcl-s isAbnormalReturn ind;
+...
+p = %alloc(100);
+price = total_cost / num_orders; 1
+filename = crtTempFile();
+return; 2
+on-exit isAbnormalReturn; 3
+dealloc(n) p;
+if filename <> blanks;
+dltTempFile (filename);
+endif;
+if isAbnormalReturn;
+reportProblem ();
+endif;
+end-proc;
+
+Example where the ON-EXIT section returns a new value
+
+In the following example, the procedure has a RETURN operation
+in the main part of the procedure at the line marked 3,
+and in the ON-EXIT section at the line marked 4.
+The RETURN in the ON-EXIT section is only run if the
+returnFromOnExit parameter has the value *ON.
+
+The first time the procedure is called, at the line marked 1,
+the parameter has the value *OFF, so the RETURN operation in the ON-EXIT section is
+not run.
+The procedure returns the value set by the RETURN operation in the main part of the procedure.
+
+The second time the procedure is called, at the line marked 2,
+the parameter has the value *ON, so the RETURN operation in the ON-EXIT section is
+run.
+The procedure returns the value set by the RETURN operation in the ON-EXIT section.
+
+ctl-opt dftactgrp(*no);
+dcl-s rc packed(5);
+
+rc = myProc2 (*off); // 1
+dsply ('value returned is ' + %char(rc));
+rc = myProc2 (*on); // 2
+dsply ('value returned is ' + %char(rc));
+return;
+
+dcl-proc myproc2;
+dcl-pi *n packed(5) extproc(*dclcase);
+returnFromOnExit ind const;
+end-pi;
+dsply ('------ ' + %PROC() + ' starting');
+dsply (%PROC() + ' returning 5');
+return 5; // 3
+on-exit;
+dsply (%PROC(*ONEXIT) + ' ON-EXIT for ' + %PROC(*OWNER));
+if returnFromOnExit;
+dsply (%PROC(*ONEXIT) + ' returning 6');
+return 6; // 4
+endif;
+end-proc;
+
+The output from the procedure is
+
+DSPLY ------ myproc2 starting
+DSPLY myproc2 returning 5
+DSPLY _QRNI_ON_EXIT_myproc2 ON-EXIT for myproc2
+DSPLY value returned is 5
+DSPLY ------ myproc2 starting
+DSPLY myproc2 returning 5
+DSPLY _QRNI_ON_EXIT_myproc2 ON-EXIT for myproc2
+DSPLY _QRNI_ON_EXIT_myproc2 returning 6
+DSPLY value returned is 6
+
+Parent topic: Operation Codes

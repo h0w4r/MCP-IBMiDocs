@@ -1,0 +1,171 @@
+Examples of the EVAL-CORR operation
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > EVAL-CORR (Assign corresponding subfields) > EVAL-CORR (Assign corresponding subfields)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > EVAL-CORR (Assign corresponding subfields)
+
+Examples of the EVAL-CORR operation
+
+Figure 1. EVAL-CORR with externally-described data structure
+I/O
+
+* Physical file EVALCORRPF
+A R PFREC
+A NAME 25A
+A IDNO 10P 0
+A CITY 20A
+* Display file EVALCORRDF
+A R DSPFREC
+A 3 2'Name'
+A NAME 25A O 3 15
+A 4 2'City'
+A CITY 20A B 4 15CHECK(LC)
+* RPG program
+Fevalcorrpfuf e disk
+Fevalcorrdfcf e workstn
+
+D pf_ds e ds extname(evalcorrpf : *input)
+D qualified
+D pf_save_ds ds likeds(pf_ds)
+D dspf_ds e ds extname(evalcorrdf : *all)
+D qualified
+/free
+read pfrec pf_ds;
+dow not %eof;
+// Assign all subfields with the same name and type
+// to the data structure for the EXFMT operation
+// to the display file (NAME and CITY)
+eval-corr dspf_ds = pf_ds;
+
+// Show the screen to the user
+exfmt dspfrec dspf_ds;
+// Save the original physical file record
+// and assign the display file subfields to the
+// physical file data structure. Then compare
+// the physical file data structure to the saved
+// version to see if any fields have changed.
+eval pf_save_ds = pf_ds;
+eval-corr pf_ds = dspf_ds;
+if pf_ds <> pf_save_ds;
+// Some of the fields have changed
+update pfrec pf_ds;
+endif;
+read pfrec pf_ds;
+enddo;
+*inlr = '1';
+
+Figure 2. EVAL-CORR between program-described data structures
+
+* The two data structures ds1 and ds2 have several
+* subfields, some having the same names and
+* compatible types:
+* num - appears in both, has compatible type
+* extra - appears only in ds1
+* char - appears in both, has identical type
+* other - appears only in ds1
+* diff - appears in both, types are not compatible
+* another - appears only in ds2
+D ds1 ds qualified
+D num 10i 0
+D extra d
+D char 20a
+D otherfld 1a
+D diff 5p 0
+D ds2 ds qualified
+D char 20a
+D diff 5a
+D another 5a
+D num 15p 5
+
+/free
+// assign corresponding fields from DS1 to DS2
+EVAL-CORR ds2 = ds1;
+// this EVAL-CORR is equivalent to these EVAL operations
+// between all the subfields which have the same name
+// in both data structures and which have a compatible
+// data type
+// EVAL ds2.num = ds1.num;
+// EVAL ds2.char = ds1.char;
+// - Subfields "extra" and "another" are not affected
+// because there is no subfield of the same name in
+// the other data structure.
+// - Subfield "diff" is not selected because the
+// subfields do not a compatible type
+
+Figure 3. EVAL-CORR with null-capable subfields
+
+* DDS for file EVALCORRN1
+A R REC1
+A FLD1 10A ALWNULL
+A FLD2 10A ALWNULL
+A FLD3 10A
+A FLD4 10A
+A FLD5 5P 0 ALWNULL
+* DDS for file EVALCORRN2
+A R REC2
+A FLD1 10A ALWNULL
+A FLD2 10A
+A FLD3 10A ALWNULL
+A FLD4 10A
+A FLD5 5A ALWNULL
+* In the following example, data structure "ds1"
+* is defined from REC1 in file EVALCORRN1 and
+* data structure "ds2" is defined from REC2 in
+* file EVALCORRN2 above. The EVAL-CORR operation
+* does the following:
+* 1. DS2.FLD1 is assigned the value of DS1.FLD1
+* and %NULLIND(DS2.FLD1) is assigned the value of
+* %NULLIND(DS1.FLD1)
+* 2. DS2.FLD2 is assigned the value of DS1.FLD2
+* 3. DS2.FLD3 is assigned the value of DS1.FLD3
+* and %NULLIND(DS2.FLD3) is assigned *OFF
+* 4. DS2.FLD4 is assigned the value of DS1.FLD4
+* The null-indicator for DS1.FLD2 is ignored because
+* the target subfield DS2.FLD2 is not null-capable.
+* DS2.FLD5 is ignored because DS1.FLD5 has a different
+* data type, so the subfields do not correspond.
+H ALWNULL(*USRCTL)
+FEVALCORRN1IF E DISK
+FEVALCORRN2O E DISK
+D ds1 DS LIKEREC(REC1:*INPUT)
+D ds2 DS LIKEREC(REC2:*OUTPUT)
+C READ REC1 ds1
+C EVAL-CORR ds2 = ds1
+C WRITE REC2 ds2
+
+Figure 4. EVAL-CORR with nested subfield data structures
+
+D ds0 ds qualified
+D num 10i 0
+D char 20a varying
+* A data structure with a nested subfield data structure
+D ds1 ds qualified
+D a likeds(ds0)
+D b likeds(ds0)
+D char 20a varying
+D otherfld 1a
+* A data structure with a nested subfield data structure
+D ds2 ds qualified
+D char 20a
+D another 5a
+D b likeds(ds0)
+
+/free
+// assign corresponding fields from DS1 to DS2
+EVAL-CORR ds2 = ds1;
+// this EVAL-CORR is equivalent to these EVAL operations
+// EVAL ds2.b.num = ds1.b.num;
+// EVAL ds2.b.char = ds1.b.char;
+// EVAL ds2.char = ds1.char;
+// assign corresponding fields from DS1.A to DS0
+EVAL-CORR(H) ds0 = ds1.a;
+// this EVAL-CORR is equivalent to these EVAL operations
+// EVAL(H) ds0.num = ds1.a.num;
+// EVAL ds0.char = ds1.a.char;
+// assign corresponding fields from DS1.A to DS2.B
+EVAL-CORR ds2.b = ds1.a;
+// this EVAL-CORR is equivalent to these EVAL operations
+// EVAL ds2.b.num = ds1.a.num;
+// EVAL ds2.b.char = ds1.a.char;
+
+Parent topic: EVAL-CORR (Assign corresponding subfields)

@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="(PICS-1.1 &quot;http://www.icra.org/ratingsv02.html&quot; l gen true r (cz 1 lz 1 nz 1 oz 1 vz 1) &quot;http://www.rsac.org/ratingsv01.html&quot; l gen true r (n 0 s 0 v 0 l 0) &quot;http://www.classify.org/safesurf/&quot; l gen true r (SS~~000 1))" http-equiv="PICS-Label" />
+<meta content="reference" name="DC.Type" />
+<meta content="Example: Performing date arithmetic" name="DC.Title" />
+<meta content="This program illustrates how to write a CL program that adds or subtracts a given number of days for the current system date." name="abstract" />
+<meta content="This program illustrates how to write a CL program that adds or subtracts a given number of days for the current system date." name="description" />
+<meta content="retrieving, program attribute, attribute, timing out" name="DC.subject" />
+<meta content="retrieving, program attribute, attribute, timing out" name="keywords" />
+<meta content="sampl.htm" name="DC.Relation" scheme="URI" />
+<meta content="© Copyright IBM Corporation 1998, 2010" name="copyright" />
+<meta content="© Copyright IBM Corporation 1998, 2010" name="DC.Rights.Owner" />
+<meta content="XHTML" name="DC.Format" />
+<meta content="datearith" name="DC.Identifier" />
+<meta content="en-us" name="DC.Language" />
+<!-- Licensed Materials Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link href="./ibmdita.css" rel="stylesheet" type="text/css" />
+<link href="./help.css" rel="stylesheet" type="text/css" />
+<link href="sampl.htm" rel="Start" />
+<title>Example: Performing date arithmetic for i5/OS</title>
+
+<script src="../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.langref2.doc%2Fdatearith.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="datearith">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../nav/2_3" shape="rect">Control language</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/rbam6clmain.htm" shape="rect">Control language</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/clpro.htm" shape="rect">CL programming</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/sampl.htm" shape="rect">Examples: CL programming</a></div>
+<a name="datearith" shape="rect"><!-- --></a>
+<h1 class="title topictitle1">Example: Performing date arithmetic</h1>
+<div class="body refbody"><p class="shortdesc">This program illustrates how to write a CL program that adds or
+subtracts a given number of days for the current system date.</p>
+<div class="section"><div class="note note"><span class="notetitle">Note:</span> By using the code example, you agree to the terms
+of the <a class="xref" href="codedisclaimer.htm" shape="rect">Code license and disclaimer information</a>.</div>
+<pre class="pre codeblock" xml:space="preserve">/* Calculate new date from current system date.  Pass negative     */   
+/* number to subtract, positive number to add                      */   
+/*                                                                 */   
+/* The first parameter is a character 8 date in YYYYMMDD format    */   
+/* or the special value *CURRENT                                   */   
+/*                                                                 */   
+/* The second parameter is a decimal value for the number of days  */   
+/* to adjust the first parameter by                                */   
+/*                                                                 */   
+/* Test cases:  CALL CALCDATE (*CURRENT -5)                        */   
+/*              CALL CALCDATE (*CURRENT  5)                        */   
+/*              CALL CALCDATE ('20030225' -90)                     */   
+/*              CALL CALCDATE ('30020228' 90)                      */   
+/*                                                                 */   
+/* There is no error handling in this sample, so make sure the     */   
+/* input dates are valid (that is, no 20031325).  The valid date   */  
+/* date range is Oct 14 1582 to Dec 31 9999                        */  
+/*                                                                 */  
+             PGM        PARM(&amp;curdate &amp;DAYSTOCHG)                     
+             DCL        VAR(&amp;CURDATE) TYPE(*CHAR) LEN(8)              
+             DCL        VAR(&amp;DAYSTOCHG) TYPE(*DEC) LEN(15 5)          
+             DCL        VAR(&amp;DATETIME) TYPE(*CHAR) LEN(17)            
+             DCL        VAR(&amp;DATE) TYPE(*CHAR) LEN(8)                 
+             DCL        VAR(&amp;LILDATEINT) TYPE(*CHAR) LEN(4)           
+             DCL        VAR(&amp;LILDATEDEC) TYPE(*DEC) LEN(10 0)         
+             DCL        VAR(&amp;ERRCOD) TYPE(*CHAR) LEN(4) +             
+                          VALUE(X'00000000')                          
+             DCL        VAR(&amp;MSG) TYPE(*CHAR) LEN(50)                 
+             IF         COND(&amp;CURDATE = '*CURRENT') THEN(DO)          
+             CALL       PGM(QWCCVTDT) PARM('*CURRENT' ' ' '*YYMD' +   
+                          &amp;DATETIME &amp;ERRCOD) /* Get current system +
+                          date and time in YYYYMMDD */                  
+             CHGVAR     VAR(&amp;DATE) VALUE(%SST(&amp;DATETIME 1 8)) /* Get + 
+                           just the date portion */                     
+             ENDDO                                                     
+             ELSE       CMD(CHGVAR VAR(&amp;DATE) VALUE(&amp;CURDATE)) /* +    
+                           Use the date provided */                     
+             CALLPRC    PRC(CEEDAYS) PARM(&amp;DATE 'YYYYMMDD' +           
+                           &amp;LILDATEINT *OMIT) /* Get Lilian date for +  
+                           current date */                              
+             CHGVAR     VAR(&amp;LILDATEDEC) VALUE(%BIN(&amp;LILDATEINT)) /* + 
+                           Get Lilian date in decimal format */         
+             CHGVAR     VAR(&amp;LILDATEDEC) VALUE(&amp;LILDATEDEC + +         
+                           &amp;DAYSTOCHG) /* Adjust specified number +     
+                           of days */                                   
+             CHGVAR     VAR(%BIN(&amp;LILDATEINT)) VALUE(&amp;LILDATEDEC) /* + 
+                           Get Lilian date in integer format */         
+             CALLPRC    PRC(CEEDATE) PARM(&amp;LILDATEINT 'YYYYMMDD' +     
+                          &amp;DATE *OMIT) /* Return calculated date in +  
+                          YYYYMMDD format */                           
+             CHGVAR     VAR(&amp;MSG) VALUE('The new date is ' *CAT &amp;DATE) 
+             SNDPGMMSG  MSG(&amp;MSG) TOPGMQ(*EXT)                         
+             ENDPGM  </pre>
+</div>
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="sampl.htm" shape="rect" title="These examples demonstrate the flexibility, simplicity, and versatility of CL programs.">Examples: CL programming</a></div>
+</div>
+</div></body>
+</html>

@@ -1,0 +1,89 @@
+SET transition-variable
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+SET transition-variable
+The SET transition-variable statement assigns values to
+new transition variables.
+InvocationThis statement can only be used
+as an SQL statement in a BEFORE trigger. It is an executable statement
+that cannot be dynamically prepared.
+AuthorizationIf a row-fullselect is
+specified, see fullselect for an explanation
+of the authorization required for each subselect.
+SyntaxSET,transition-variable = expressionNULLDEFAULT(,transition-variable) = (,expressionNULLDEFAULT1row-fullselect2)
+Descriptiontransition-variable
+Identifies the column to be updated in the new row. A transition-variable must
+identify a column in the subject table of a trigger, optionally qualified
+by a correlation name that identifies the new value. An OLD transition-variable must
+not be identified. A transition-variable must
+not be identified more than once in the same SET transition-variable
+statement.
+The data type of each transition-variable must
+be compatible with its corresponding result column. Values are assigned
+to transition-variables according to the
+storage assignment rules. For more information see Assignments and comparisons.
+
+expression
+Specifies
+the new value of the transition-variable.
+The expression is any expression of the
+type described in Expressions. The expression
+cannot include an aggregate function. An expression may
+contain references to OLD and NEW transition-variables.
+If the CREATE TRIGGER statement contains both OLD and NEW clauses,
+references to transition-variables must
+be qualified by the correlation-name.
+
+NULL
+Specifies
+the null value. NULL can only be specified for nullable columns.
+DEFAULT
+Specifies
+that the default value of the column associated with the transition-variable will
+be used. DEFAULT is not allowed if the column is an IDENTITY column,
+a row change timestamp column, or has a ROWID data type.
+row-fullselect
+A fullselect that returns a single
+result row. The result column values are assigned to each corresponding transition-variable.
+If the result of the fullselect is no rows, then null values are assigned.
+An error is returned if there is more than one row in the result.
+
+NotesMultiple
+assignments: If more than one assignment is included in the same
+SET transition-variable statement, all expressions
+are evaluated before the assignments are performed. Thus, references
+to transition-variables in an expression
+are always the value of the transition-variables
+prior to any assignment in the SET statement.
+ExamplesExample 1: Ensure that the
+salary column is never greater than 50000. If the new value is greater
+than 50000, set it to 50000.
+CREATE TRIGGER LIMIT_SALARY
+BEFORE INSERT ON EMPLOYEE
+REFERENCING NEW AS NEW_VAR
+FOR EACH ROW MODE DB2SQL
+WHEN (NEW_VAR.SALARY > 50000)
+BEGIN ATOMIC
+SET NEW_VAR.SALARY = 50000;
+END
+
+Example 2: When the job title is updated, increase
+the salary based on the new job title. Assign the years in the position
+to 0.
+CREATE TRIGGER SET_SALARY
+BEFORE UPDATE OF JOB ON STAFF
+REFERENCING OLD AS OLD_VAR
+NEW AS NEW_VAR
+FOR EACH ROW MODE DB2SQL
+BEGIN ATOMIC
+SET (NEW_VAR.SALARY, NEW_VAR.YEARS) =
+(OLD_VAR.SALARY * CASE NEW_VAR.JOB
+WHEN 'Sales' THEN 1.1
+WHEN 'Mgr' THEN 1.05
+ELSE 1 END ,0);
+END
+
+Parent topic: Statements

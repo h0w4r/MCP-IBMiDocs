@@ -1,0 +1,151 @@
+Defining substitution variables
+
+IBM i programming resources > Control language > Control language > Messages > Defining message descriptions > Adding messages to a file > Adding messages to a file
+
+IBM i programming resources > Control language > Control language > Messages > Defining message descriptions > Adding messages to a file
+
+Defining substitution variables
+On the FMT parameter on the Add Message Description
+(ADDMSGD) command, you can specify substitution variables
+for either first-level or second-level messages.
+For example:
+File &1 not found
+contains the substitution variable &1. When the
+message is displayed or retrieved, the variable &1 is replaced
+with the name of the file that could not be found. This name is supplied
+by the sender of the message. For example:
+File ORDHDRP not found
+Compare this to:
+File not found
+Substitution variables can make your message more specific
+and more meaningful.
+The substitution variable must begin with &
+(ampersand) and be followed by n, where n is any number from 1 through
+99. For example, for the message:
+File &1 not found
+the substitution variable is defined as:
+FMT((*CHAR 10))
+When you assign numbers to substitution variables,
+you must begin with the number 1 and use the numbers consecutively.
+For example, &1, &2, &3, and so on. However, you do
+not have to use all the substitution variables defined for a message
+description in the message that is sent.
+For example, the message:
+
+File &3 not available
+is valid even though &1 and &2 are not used
+in the messages. However, to do this, you must define &1, &2,
+and &3 on the FMT parameter of the Add Message Description
+(ADDMSGD) command. For the preceding message, the FMT parameter
+could be:
+FMT((*CHAR 10) (*CHAR 2) (*CHAR 10))
+where the first value describes &1, the second &2,
+and the third &3. The description for &1 and &2 must
+be present if &3 is used. In addition, when this message is sent,
+the MSGDTA parameter on the Send Program Message (SNDPGMMSG) command should
+include all the data described on the FMT parameter. To send the preceding
+message, the MSGDTA parameter should be at least 22 characters long.
+For
+the preceding message, you could also specify the FMT parameter as:
+
+FMT((*CHAR 0) (*CHAR 0) (*CHAR 10))
+Because &1 and &2 are not used in the message,
+they can be described with a length of 0. Then no message data needs
+to be sent. (The MSGDTA parameter on the SNDPGMMSG command needs to
+be only 10 characters long in this case.)
+An example of using &3
+in the message and including &1 and &2 in the FMT parameter
+is when &1 and &2 are specified on the DMPLST parameter. (The
+DMPLST parameter specifies that the data is to be dumped when this
+message is sent as an escape message to a program that is not monitoring
+for it.)
+The substitution variables do not have to be specified
+in the message in the same order in which they are defined in the
+FMT parameter. For example, three values can be defined in the FMT
+parameter as:
+FMT((*CHAR 10) (*CHAR 10) (*CHAR 7))
+The substitution variables can be used in the message
+as follows:
+Object &1 of type &3 in library &2 is not available
+If this message is sent in a CL procedure or program,
+you can concatenate the values used for the message data such as:
+
+SNDPGMMSG .....MSGDTA(&OBJ *CAT &LIB *CAT &OBJTYPE)
+You must specify the format of the message data field
+for the substitution variable by specifying the data type and, optionally,
+the length on the Add Message Description (ADDMSGD) command.
+The valid data types for message data fields are:
+Binary (*BIN). A binary integer (either 2, 4, or 8 bytes long)
+formatted as a signed decimal integer. Unless provided a specified
+length, the system will assume that the binary integer is 2.
+Character string (*CHAR). A string of character data not to be
+enclosed in single quotation marks. Trailing blanks are deleted.
+If length is not specified in the message description, the sender
+determines the length of the field.
+Convertible character string (*CCHAR). A string of character data
+not to be enclosed in single quotation marks. Trailing blanks are
+deleted. The length is always determined by the sender. If data of
+this type is sent to a message queue that has a CCSID tag other then
+65535 or 65534, the data is converted from the CCSID of the message
+data to the CCSID of the message queue. Conversions can also occur
+on data of this type when the data is obtained from the message queue
+using a receive or display function. See CCSID support for
+messages for more information about the use of message handlers
+with CCSIDs.
+Coordinated Universal Time date stamp (*UTCD).
+An 8-byte field that contains a system date time stamp in Coordinated
+Universal Time (UTC). The date in the output message is adjusted from
+UTC by the time zone specified for the job. The date is formatted
+by using the job definition attributes for date format QDATFMT and
+date separator QDATSEP. When the 8-byte field is passed as hexadecimal
+zero (X'0000000000000000'), the value is formatted as *N.
+Coordinated Universal Time date and time stamp
+(*UTC). An 8-byte field that contains a system date time stamp in
+UTC. The output-formatted date time stamp contains the date followed
+by one blank separator and the time. The date and time in the output
+message are adjusted from UTC by the time zone specified for the job.
+The date is formatted by using the job definition attributes for the
+date format, QDATFMT, and the date separator, QDATSEP. The time is
+formatted by using the job definition attribute for time separator
+QTIMSEP. When the 8-byte field is passed as hexadecimal zero (X'0000000000000000'),
+the value is formatted as *N.
+Coordinated Universal Time time stamp (*UTCT).
+An 8-byte field that contains a system date time stamp in UTC. The
+time in the output message is adjusted from UTC by the time zone specified
+for the job and is formatted by using the job definition attribute
+for the time separator, QTIMSEP. When the 8-byte field is passed
+as hexadecimal zero (X'0000000000000000'), the value is formatted
+as *N.
+Date and time stamp (*DTS). An 8-byte system date and time stamp
+for which the date is to be formatted as specified in the QDATFMT
+and QDATSEP system values and the time is to be formatted as hh:mm:ss.
+Decimal (*DEC). A packed decimal number to be formatted as a
+signed decimal number with a decimal point. Length must be specified;
+decimal positions default to 0.
+Hexadecimal (*HEX). A string to be preceded by the character
+X and enclosed in single quotation marks; each byte of the string
+is to be converted into two hexadecimal characters (0 through 9 and
+A through F). If length is not specified in the message description,
+the sender determines the length of the field.
+Quoted character string (*QTDCHAR). A string of character data
+to be enclosed in single quotation marks. Preceding and trailing
+blanks are not deleted. If length is not specified in the message
+description, the sender determines the length of the field.
+Time interval (*ITV). An 8-byte time interval that contains the
+time to the nearest whole second for various wait timeout conditions.
+Unsigned binary (*UBIN). An unsigned binary integer (either 2, 4 or 8 bytes
+long) formatted as an unsigned decimal integer. Unless provided a
+specified length, the system assumes that the binary integer is 2.
+
+The following data types are valid only in IBM-supplied message
+descriptions and should not be used for other messages:
+Space pointer (*SPP). A 16-byte pointer to a program object.
+In a dump, the data in the object is formatted the same as the *HEX
+type data. *SPP cannot be used as substitution text in a message;
+it can only be used as part of the DMPLST parameter on the Add
+Message Description (ADDMSGD) command.
+System pointer (*SYP). A 16-byte pointer to a system object.
+In a message or message help, the 10-character name of the object
+is formatted the same as the *CHAR type data.
+
+Parent topic: Adding messages to a file

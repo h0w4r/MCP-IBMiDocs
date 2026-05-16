@@ -1,0 +1,160 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 5. Running a Program > Managing Activation Groups
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 5. Running a Program > Managing Activation Groups
+
+ILE C/C++ Programmer's Guide
+Specifying an Activation Group
+When an OS/400 job is started, the system automatically creates two
+activation groups to be used by OPM programs. One activation group is
+reserved for OS/400 system code. The other activation group is used for
+all other OPM programs. The symbol used to represent this activation
+group is *DFTACTGRP. You cannot delete the OPM default activation
+groups. The system deletes them when your job ends.
+Note:OPM programs always run in the default activation group; you cannot
+change their activation group specification.
+
+For ILE programs you specify the activation group that should be used at
+run time through the ACTGRP parameter of the Create Program or Create Service
+Program commands. You can choose between:
+
+Running your program in a named activation group.
+Accepting the default activation group:
+
+*NEW for programs
+*CALLER for service programs
+
+Activating a program into the activation group of a calling
+program.
+
+Running a Program in a Named Activation Group
+To manage a collection of ILE programs and service programs as one
+application, you create a named activation group for them by specifying a
+user-defined name on the ACTGRP parameter.
+The system creates the named activation group as soon as the first program
+that has specified this activation group is called. This group is then
+used by all programs and service programs that have specified its name.
+A named activation group ends when it is deleted through the Reclaim
+Activation Group (RCLACTGRP) command. This command can only be used
+when the activation group is no longer in use. It also ends when you
+call the exit() function in your code.
+When a named activation group ends, all resources associated with the
+programs and service programs of the group are returned to the system.
+Note:Using named activation groups may result in non-ISO compliant run-time
+behavior. If a program created using named activation groups remains
+activated by a return statement, you encounter the following problems:
+
+Static variables are not re-initialized.
+Static constructors are not called again.
+Static destructors are not called on return.
+Other programs activated in the same activation group may terminate your
+program, although they seem to be independent.
+Your program is not portable, if you count on the behavior of the named
+activation group.
+
+Figure 34. Running Programs in a Named Activation Group
+
+In the following example, programs PROG1, PROG2, and
+PROG3 are part of the same application and run in the same
+activation group, GROUP1. Figure 34 illustrates this scenario:
+To create these programs in the same activation group, you specify
+GROUP1 on the ACTGRP parameter when you create each
+program:
+CRTCPPMOD MODULE(PROG1) SRCSTMF(prog1.cpp)
+CRTPGM PGM(PROG1) MODULE(PROG1) ACTGRP(GROUP1)
+CRTCPPMOD MODULE(PROG2) SRCSTMF(prog2.cpp)
+CRTPGM PGM(PROG2) MODULE(PROG2) ACTGRP(GROUP1)
+CRTCPPMOD MODULE(PROG3) SRCSTMF(prog3.cpp)
+CRTPGM PGM(PROG3) MODULE(PROG3) ACTGRP(GROUP1)
+
+Running a Program in Activation Group *NEW
+To create a new activation group whenever your program is called, specify
+*NEW on the ACTGRP parameter. In this case, the
+system creates a name for the activation group that is unique within your
+job.
+*NEW is the default value of the ACTGRP parameter on the CRTPGM
+command. An activation group created with *NEW always ends
+when the last program associated with it ends.
+Note:*NEW is not valid for a service program, which can only run in the
+activation group of its caller, or in a named activation group.
+
+If you create a program with ACTGRP(*NEW), more than one user can
+call the program at the same time without using the same activation
+group. Each call uses a new copy of the program. Each new copy
+has its own data and opens its files.
+In the following example, programs PROG4, PROG5, and
+PROG6 run in separate unnamed activation groups.
+Figure 35. Running Programs in Unnamed Activation Groups
+
+By default, each program is created into a different activation group,
+identified by the ACTGRP parameter (*NEW).
+CRTCPPMOD MODULE(PROG4) SRCSTMF(prog4.cpp)
+CRTPGM PGM(PROG4) MODULE(PROG4) ACTGRP(*NEW)
+CRTCPPMOD MODULE(PROG5) SRCSTMF(prog5.cpp)
+CRTPGM PGM(PROG5) MODULE(PROG5) ACTGRP(*NEW)
+CRTCPPMOD MODULE(PROG6) SRCSTMF(prog6.cpp)
+CRTPGM PGM(PROG6) MODULE(PROG6) ACTGRP(*NEW)
+
+Because *NEW is the default, you obtain the same result with the
+following invocations:
+CRTBNDCPP PGM(PROG4) SRCSTMF(prog4.cpp)
+CRTBNDCPP PGM(PROG5) SRCSTMF(prog5.cpp)
+CRTBNDCPP PGM(PROG6) SRCSTMF(prog6.cpp)
+
+Note:If you invoke three modules in one command a single program object
+PROG is created in activation group *NEW:
+CRTCPPMOD MODULE(PROG7) SRCSTMF(prog7.cpp)
+CRTCPPMOD MODULE(PROG8) SRCSTMF(prog8.cpp)
+CRTCPPMOD MODULE(PROG9) SRCSTMF(prog9.cpp)
+CRTPGM PGM(PROG) MODULE(PROG7 PROG8 PROG9)
+
+Non-Standard Behavior with Named Activation Groups
+If the ACTGRP parameter of the CRTPGM command is specified as a
+value other than *NEW, the application's run-time behavior may
+not follow ISO semantics. Run-time and class libraries assume that
+programs are built with ACTGRP(*NEW)
+Non-ISO behavior may occur during:
+
+Program termination - exit(), abort(), atexit()
+Signal handling - signal(), raise()
+Multibyte string handling - mblen()
+Any locale-dependent library functions - isalpha(), qsort()
+
+In the default activation groups, I/O files are not automatically
+closed. The I/O buffers are not flushed unless explicitly
+requested.
+Running a Program in Activation Group (*CALLER)
+You can specify that an ILE program or an ILE service program be activated
+within the activation group of a calling program, by setting ACTGRP
+to *CALLER. With this attribute, a new activation group is
+never created when the program or service program is activated. Through
+this option, ILE C/C++ programs can run within the OPM default activation
+groups when the caller is an OPM program.
+Certain restrictions exist for ILE C/C++ programs running in the OPM
+default activation groups. For example, you are not allowed to register
+atexit() functions within the OPM default activation groups.
+If the activation group is named, all calls to programs in this activation
+group within the same job share the same instance of the ILE C/C++ run-time
+library state.
+It is possible to create an ISO-compliant application whose programs are
+created with options other than ACTGRP(*NEW). While non-ISO
+behavior may be desirable in certain cases, it is the responsibility of the
+application designer to ensure that the sharing of resources and run-time
+states across all programs in the activation group does not result in
+incorrect behavior.
+In the following example, a service program SRV1 is activated
+into the respective activation groups of programsPROG7 and
+PROG8. PROG7 runs in a named activation group
+GROUP2, while PROG8 runs in an unnamed activation group
+*NEW.
+Figure 36. Running a Service Program in the Activation Groups of Calling Programs
+
+By default,the service program SRV1 is created into the
+activation group of each calling program.
+CRTCPPMOD MODULE(SRV1) SRCSTMF(srv1.cpp)
+CRTSRVPGM SRVPGM(SRV1) MODULE(SRV1)
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

@@ -1,0 +1,260 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Validating _DecimalT Class Template Constants to a File</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog567.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog545.htm">Chapter 27&#46; Using Packed Decimal Data in a C++ Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P>
+<HR><H2><A NAME="HDRHCPPDECTWRITECONSTANTS" HREF="cpprog02.htm#ToC_744">Validating _DecimalT Class Template Constants to a File</A></H2>
+<P>When you write <TT>_DecimalT</TT> template-class constants to a
+file, scan them back into a <TT>_DecimalT</TT> template-class, and then pass
+the <TT>_DecimalT</TT> template-class array to a function with
+<TT>printf()</TT>. If the file cannot be opened, or if the contents
+of the array are not valid, an error message is generated.
+<P>The following figure provides an example.
+<P>
+<P><B><A NAME="Figure_315" HREF="cpprog09.htm#FT_Figure_315">Figure 315. Example of Writing _DecimalT Class Template Constants to a File</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>
+<BR>
+// This program shows how to write _DecimalT class template
+<BR>// constants to a file
+<BR>// and scan them back again. Shows how to pass a _DecimalT
+<BR>// class template array to a function.
+<BR>
+<BR>#include &lt;bcd.h&gt;
+<BR>#include &lt;iostream.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>
+<BR>#define N    3          // Array size for decimal declaration.
+<BR>
+<BR>FILE *stream;                        // File pointer declaration.
+<BR>
+<BR>                                     // Declare valid array.
+<BR>
+<BR>_DecimalT&lt;4,2&gt; arr_1[] = {__D("12.35"), __D("25.00"),
+<BR>                                              __D("-19.58")};
+<BR>_DecimalT&lt;4,2&gt; arr_2[N];
+<BR>
+<BR>void write_num(_DecimalT&lt;4,2&gt; a[N]); //Declare function to
+<BR>                                      // write to a file.
+<BR>
+<BR>void read_num(_DecimalT&lt;4,2&gt; b[N]); //Declare function to
+<BR>                                       //read from a file.
+<BR>
+<BR>int main(void)
+<BR>{
+<BR>int reposition=0;
+<BR>                                    // Open the file. Must use fopen()
+<BR>                                            // to access a physical file.
+<BR>if ((stream = fopen("*CURLIB/OUTFILE","w+")) == NULL)
+<BR>{
+<BR>   cout &lt;&lt;"Can not open file";
+<BR>   exit(EXIT_FAILURE);
+<BR>}
+<BR>write_num(arr_1);     // Call function to write values of the
+<BR>                        // array to outfile with fprintf().
+<BR>
+<BR>reposition=fseek(stream, 0L, SEEK_SET);
+<BR>
+<BR>if (reposition!=0)
+<BR>  {
+<BR>    cout &lt;&lt;"FSEEK failed to position file pointer"&nbsp;&lt;&lt;endl;
+<BR>    exit(EXIT_FAILURE);
+<BR>
+<BR>  }
+<BR>read_num(arr_2);      // Call function to read values of the
+<BR>                         // array from file using fscanf().
+<BR>
+<BR>fclose(stream);       // Close the file.
+<BR>}
+<BR>
+</PRE>
+<PRE>
+<BR>
+// write_num is passed a the array.  These values are written to a
+<BR>// text file with fprintf(). If the function is successful a 0 is
+<BR>// returned, otherwise a negative value is returned (indicating an
+<BR>// error.
+<BR>
+<BR>void write_num(_DecimalT&lt;4,2&gt; a[N])
+<BR>
+<BR>{
+<BR>
+<BR>   int i, j;
+<BR>
+<BR>   for (i=0;i &lt; N;i++)
+<BR>      {
+<BR>        j = fprintf(stream,"%D(4,2)\n",a[i]);
+<BR>        if (j &lt; 0)
+<BR>        cout &lt;&lt;"Number not written to file" &lt;&lt;[a]&nbsp;&lt;&lt;endl;
+<BR>      }
+<BR>}
+<BR>// read_num is passed a the array.  The values are
+<BR>// read from a text file with fscanf().
+<BR>// If the function is successful a 0 is returned, otherwise a
+<BR>// negative value is returned (indicating an error).
+<BR>
+<BR>void read_num(_DecimalT&lt;4,2&gt; b[N])
+<BR>{
+<BR>   int i, j;
+<BR>
+<BR>   for (i=0;i &lt; sizeof(b)/sizeof(b[0]);i++)
+<BR>     {
+<BR>       j = fscanf(stream,"%D(4,2)\n",&amp;b[i]);
+<BR>       if (j &lt; 0)
+<BR>       cout &lt;&lt;"Error when reading from file"&nbsp;&lt;&lt;endl;
+<BR>     }
+<BR>   cout &lt;&lt;"b[0]="&nbsp;&lt;&lt;endl;
+<BR>   cout &lt;&lt;"b[1]="&nbsp;&lt;&lt;endl;
+<BR>   cout &lt;&lt;"b[2]="&nbsp;&lt;&lt;endl;
+<BR>}
+<BR>
+</PRE>
+</TD></TR></TABLE>
+<P>The output is:
+<PRE>
++--------------------------------------------------------------------------------+
+|b[0]=12.35                                                                      |
+|b[1]=25.00                                                                      |
+|b[2]=-19.58                                                                     |
++--------------------------------------------------------------------------------+</PRE>
+<P>You can rewrite this program to use the <TT>ofstream</TT> class, as shown
+in the following figure:
+<P><B><A NAME="Figure_316" HREF="cpprog09.htm#FT_Figure_316">Figure 316. Example of Writing _DecimalT Class Template Constants to a File Using the ofstream Class</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>
+<BR>
+// This program shows how to write _DecimalT template
+<BR>// constants to a file
+<BR>// and scan them back again. Shows how to pass a _DecimalT
+<BR>// class template array to a function.
+<BR>
+<BR>#include &lt;bcd.h&gt;
+<BR>#include &lt;iostream.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;fstream.h&gt;
+<BR>
+<BR>#define N    3                       // Array size
+<BR>                                       // for decimal declaration.
+<BR>
+<BR>                                     // Declare valid
+<BR>                                       // array.
+<BR>
+<BR>_DecimalT&lt;4,2&gt; arr_1[] = {__D("12.35"), __D("25.00"),
+<BR>                                              __D("-19.58")};
+<BR>_DecimalT&lt;4,2&gt; arr_2[N];
+<BR>
+<BR>void write_num(_DecimalT&lt;4,2&gt; a[N]); //Declare function to
+<BR>                                      // write to a file.
+<BR>
+<BR>void read_num(_DecimalT&lt;4,2&gt; b[N]); //Declare function to
+<BR>                                       //read from a file.
+<BR>
+<BR>int main ( void )
+<BR>{
+<BR>write_num(arr_1);               // Call function to write
+<BR>                                    // values of the
+<BR>                                    // array to outf with fprintf
+<BR>                                    // library function.
+<BR>
+<BR>read_num(arr_2);                    // Call function to read
+<BR>                                         // values of the
+<BR>                                         // array from file using
+<BR>                                         // fscanf() function.
+<BR>}
+<BR>
+<BR>
+</PRE>
+<PRE>// write_num is passed an array.  These values are
+// written to a text file with the fstream class.
+// If the function is successful a 0 is returned, otherwise a
+// negative value is returned (indicating an error).
+ 
+void write_num(_DecimalT&lt;4,2> a[N])
+{
+  int i;
+   ofstream outf("data",ios::trunc || ios::out,
+                        filebuf::openprot);
+   if (!outf)
+      {
+        cerr &lt;&lt; "Could not open file 'data' " &lt;&lt;endl;
+        exit (EXIT_FAILURE);
+      }
+   for (i=0; i (lt) N; i++) {
+     {
+        outf &lt;&lt; a[i];
+     }
+     outf.close()
+}
+// read_num is passed an array.  The values are
+// read from a text file with the fstream class.
+// If the function is successful a 0 is returned, otherwise a
+// negative value is returned (indicating an error).
+ 
+void read_num(_DecimalT&lt;4,2> b[N])
+{
+   int i;
+   ifstream file("data");
+ 
+   if (!file)
+      {
+        cerr &lt;&lt; "Could not open file 'data' " &lt;&lt;endl;
+        exit (EXIT_FAILURE);
+      }
+for (i=0; i&lt;N; i++)
+      {
+        file >> b[i];
+        cout &lt;&lt; "b["&lt;&lt; i &lt;&lt;"]=" &lt;&lt;b[i]; &lt;&lt;endl;
+      }
+   if (file.eof())
+      {
+        cerr &lt;&lt; "Unexpected EOF!" &lt;&lt;endl;
+        exit (EXIT_FAILURE);
+       }
+       file.close();
+}
+ 
+ 
+</PRE>
+</TD></TR></TABLE>
+<P>The output is:
+<PRE>
++--------------------------------------------------------------------------------+
+|b[0]=12.35                                                                      |
+|b[1]=25.00                                                                      |
+|b[2]=-19.58                                                                     |
++--------------------------------------------------------------------------------+</PRE>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog566.htm">Previous Page</A> | <A HREF="cpprog568.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

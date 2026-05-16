@@ -1,0 +1,130 @@
+MQRECEIVEALLCLOB
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Table functions > Table functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Table functions
+
+MQRECEIVEALLCLOB
+The MQRECEIVEALLCLOB function returns a table that contains
+the messages and message metadata from a specified MQSeries® location with a CLOB column with
+removal of the messages from the queue.
+MQRECEIVEALLCLOB(receive-service,service-policy,correl-id,num-rows1)
+
+The MQRECEIVEALLCLOB function returns a table containing
+the messages and message metadata from the MQSeries location that is specified by receive-service,
+using the quality-of-service policy that is defined in service-policy.
+Performing this operation removes the messages from the queue that
+is associated with receive-service.receive-service
+An expression that returns a value that is a built-in character
+string or graphic string data type that is not a LOB. The value of
+the expression must not be an empty string or a string with trailing
+blanks. The expression must have an actual length that is no greater
+than 48 bytes. The value of the expression must refer to a service
+point that is defined in the SYSIBM.MQSERVICE table. A service point
+is a logical end-point from where a message is sent or received. Service
+point definitions include the name of the MQSeries queue manager and queue. For more
+information about MQSeries Application
+Messaging, see SQL Programming.If receive-service is
+not specified or the null value, DB2®.DEFAULT.SERVICE
+is used.
+
+service-policy
+An expression that returns a value that is a built-in character
+string or graphic string data type that is not a LOB. The value of
+the expression must not be an empty string or a string with trailing
+blanks. The expression must have an actual length that is no greater
+than 48 bytes. The value of the expression must refer to a service
+policy that is defined in the SYSIBM.MQPOLICY table. A service policy
+specifies a set of quality-of-service options that are to be applied
+to this messaging operation. These options include message priority
+and message persistence. For more information about MQSeries Application Messaging, see SQL Programming.If service-policy is
+not specified or the null value, DB2.DEFAULT.POLICY
+is used.
+
+correl-id
+An expression that returns a value that is a built-in character
+string or graphic string data type that is not a LOB. The expression
+must have an actual length that is no greater than 24 bytes. The value
+of the expression specifies the correlation identifier that is associated
+with this message. A correlation identifier is often specified in
+request-and-reply scenarios to associate requests with replies. The
+first message with a matching correlation identifier is returned.
+For more information about MQSeries Application
+Messaging, see SQL Programming.A fixed length string with
+trailing blanks is considered a valid value. However, when the correl-id is
+specified on another request such as MQSEND, the identical correl-id must
+be specified to be recognized as a match. For example, specifying
+a value of 'test' for correl-id on MQRECEIVEALLCLOB does not
+match a correl-id value of 'test ' (with trailing blanks) specified
+earlier on an MQSEND request.
+If correl-id is not specified
+or is an empty string or the null value, a correlation identifier
+is not used, and the message at the beginning of the queue is returned.
+
+num-rows
+An expression that returns a value that is a SMALLINT or INTEGER
+data type whose value is a positive integer or zero. The value of
+the expression specifies the maximum number of messages to return.If num-rows is
+not specified or the value of expression is zero, all available messages
+are returned.
+
+The result of the function is a table with the format
+shown in the following table. All the columns are nullable.Table 1. Format of the resulting table for MQRECEIVEALLCLOBColumn name
+Data type
+Contains
+
+MSG
+CLOB(2M)
+The contents of the MQSeries message
+
+CORRELID
+VARCHAR(24)
+The correlation ID that is used to relate messages
+
+TOPIC
+VARCHAR(40)
+Reserved
+
+QNAME
+VARCHAR(48)
+The name of the queue from which the message
+was received
+
+MSGID
+VARCHAR(24)
+The unique, MQSeries-assigned
+identifier for the message
+
+MSGFORMAT
+VARCHAR(8)
+The format of the message, as defined by MQSeries
+
+The CCSID of the result columns, except for CORRELID and
+MSGID, is the default CCSID at the current server.
+NotesPrerequisites: In
+order to use the MQSeries functions, IBM® MQSeries for IBM i
+must be installed, configured, and operational.
+ExampleThis example receives all the messages from the queue specified
+by the default service (DB2.DEFAULT.SERVICE),
+using the default policy (DB2.DEFAULT.POLICY).
+The messages and all the metadata are returned as a table.   SELECT *
+FROM TABLE (MQRECEIVEALLCLOB ()) AS T
+
+This example receives all the messages from the head of the queue
+specified by the service MYSERVICE, using the default policy (DB2.DEFAULT.POLICY). Only the MSG
+and CORRELID columns are returned.   SELECT T.MSG, T.CORRELID
+FROM TABLE (MQRECEIVEALLCLOB ('MYSERVICE')) AS T
+
+This example receives all of the message from the head of the
+queue specified by the service "MYSERVICE", using the policy "MYPOLICY".
+Only messages with a CORRELID of '1234' are returned. Only the MSG
+and CORRELID columns are returned.   SELECT *
+FROM TABLE (MQRECEIVEALLCLOB ('MYSERVICE','MYPOLICY','1234')) AS T
+
+This example receives the first 10 messages from the head of the
+queue specified by the default service (DB2.DEFAULT.SERVICE),
+using the default policy (DB2.DEFAULT.POLICY).
+All columns are returned.   SELECT *
+FROM TABLE (MQRECEIVEALLCLOB (10)) AS T
+
+Parent topic: Table functions

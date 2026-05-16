@@ -1,0 +1,197 @@
+common-table-expression
+
+IBM i programming resources > SQL > SQL reference > Queries > select-statement > select-statement
+
+IBM i programming resources > SQL > SQL reference > Queries > select-statement
+
+common-table-expression
+A common-table-expression permits
+defining a result table with a table-identifier that
+can be specified as a table name in any FROM clause of the fullselect
+that follows. Multiple common table expressions can be specified following
+the single WITH keyword. Each common table expression specified can
+also be referenced by name in the FROM clause of subsequent common
+table expressions.
+table-identifier(,column-name)AS(fullselect)search-clausecycle-clausesearch-clauseSEARCHDEPTH FIRSTBREADTH FIRSTBY,column-nameSETseq-column-namecycle-clauseCYCLE,column-nameSETcycle-column-nameTOconstantDEFAULTconstantUSINGusing-column-name
+If a list of columns is specified, it must consist of
+as many names as there are columns in the result table of the fullselect.
+Each column-name must be unique and unqualified.
+If these column names are not specified, the names are derived from
+the select list of the subselect used to define the common table expression.
+The table-identifier of a common
+table expression must be different from any other common table expression table-identifier in
+the same statement. A common table expression table-identifier can
+be specified as a table name in any FROM clause throughout the fullselect.
+A table-identifier of a common table expression
+overrides any existing table, view, or alias (in the catalog) with
+the same unqualified name or any table-identifier specified
+for a trigger.
+If more than one common table expression is defined in
+the same statement, cyclic references between the common table expressions
+are not permitted. A cyclic reference occurs
+when two common table expressions dt1 and dt2 are
+created such that dt1 refers to dt2 and dt2 refers
+to dt1.
+The table name of a common table
+expression can only be referenced in the select-statement,
+INSERT statement, or CREATE VIEW statement that defines it.
+If a select-statement, INSERT
+statement, or CREATE VIEW statement refers to an unqualified table
+name, the following rules are applied to determine which table is
+actually being referenced:
+If the unqualified name corresponds to one or more common table
+expression names that are specified in the select-statement,
+the name identifies the common table expression that is in the innermost
+scope.
+If in a CREATE TRIGGER statement and the unqualified name corresponds
+to a transition table name, the name identifies that transition table.
+Otherwise, the name identifies a persistent table, a temporary
+table, or a view that is present in the default schema.
+
+A common-table-expression can
+be used:
+In place of a view to avoid creating the view (when general use
+of the view is not required and positioned UPDATE or DELETE is not
+used)
+To enable grouping by a column that is derived from a scalar-fullselect
+or function that is not deterministic
+When the required result table is based on variables
+When the same result table needs to be shared in a fullselect
+When the result needs to be derived using recursion
+
+If
+a fullselect of a common table expression
+contains a reference to itself in a FROM clause, the common table
+expression is a recursive table expression.
+Queries using recursion are useful in supporting applications such
+as bill of materials (BOM), reservation systems, and network planning.
+The following restrictions must be true of a recursive common-table-expression:
+Each fullselect that is part of the recursion cycle must start
+with SELECT or SELECT ALL. Use of SELECT DISTINCT is not allowed.
+The UNION ALL set operator must be specified.
+A list of column-names must be specified
+following the table-identifier of the common-table-expression.
+The first fullselect of the first union (the initialization fullselect)
+must not include a reference to the common-table-expression itself
+in any FROM clause.
+Each fullselect that is part of the recursion cycle must
+not include any aggregate functions, GROUP BY clauses, or HAVING clauses.
+The FROM clauses of these fullselects can include at most
+one reference to a common-table-expression that
+is part of a recursion cycle.
+The table being defined in the common-table-expression cannot
+be referenced in a subquery of a fullselect that defines the common-table-expression.
+LEFT OUTER JOIN and FULL OUTER JOIN are not allowed if the common-table-expression is
+the right operand. RIGHT OUTER JOIN and FULL OUTER JOIN are not allowed
+if the common-table-expression is the left
+operand.
+Each fullselect other than the initialization fullselect that
+is part of the recursion cycle must not include an ORDER BY clause.
+
+If a column name of the common-table-expression is
+referred to in the iterative fullselect, the attributes of
+the result columns are determined using the rules for result columns.
+For more information see Rules for result data types.
+search-clause
+The SEARCH clause in the definition of the recursive common-table-expression is
+used to specify the order in which the result rows are to be returned. SEARCH DEPTH FIRST
+Each
+parent or containing item appears in the result before the items that
+it contains.
+SEARCH BREADTH FIRST
+Sibling items are grouped
+before subordinate items.
+BY column-name,…
+Identifies the columns that associate the parent and
+child relationship of the recursive query. Each column-name must
+unambiguously identify a column of the parent. The column must not
+be a DATALINK or XML column. The rules for unambiguous column references
+are the same as in the other clauses of the fullselect. See Column name qualifiers to avoid ambiguity for more information. The column-name must
+identify a column name of the recursive common-table-expression.
+The column-name must not be qualified.
+
+SET seq-column-name
+Specifies the name of a result column that contains an ordinal
+number of the current row in the recursive query result. The data
+type of the seq-column-name is BIGINT. The seq-column-name may
+only be referenced in the ORDER BY clause of the outer fullselect
+that references the common-table-expression.
+The seq-column-name cannot be referenced
+in the fullselect that defines the common-table-expression.
+The seq-column-name must
+not be the same as using-column-name or cycle-column-name.
+
+cycle-clause
+The CYCLE clause in the definition of the recursive common-table-expression is
+used to prevent an infinite loop in the recursive query when the parent
+and child relationship of the data results in a loop. CYCLE column-name,…
+Specifies
+the list of columns that represent the parent/child join relationship
+values for the recursion. Any new row from the query is first checked
+for a duplicate value (per these column names) in the existing rows
+that lead to this row in the recursive query results to determine
+if there is a cycle. Each column-name must
+identify a result column of the common table expression. It must not
+be an XML or DataLink column. The same column-name must
+not be specified more than once.
+
+SET cycle-column-name
+Specifies the name of a result column that is set based on whether
+a cycle has been detected in the recursive query: If a duplicate row is encountered, indicating that a cycle has
+been detected in the data, the cycle-column-name is
+set to the TO constant.
+If a duplicate row is not encountered, indicating that a cycle
+has not been detected in the data, the cycle-column-name is
+set to the DEFAULT constant.
+
+The data type of the cycle-column-name is
+CHAR(1). When cyclic data in the row is encountered, the duplicate
+row is not returned to the recursive query process for further recursion
+and that child branch of the query is stopped. By specifying the provided cycle-column-name is
+in the result set of the main fullselect, the existence of cyclic
+data can actually be determined and even corrected if that is wanted.
+The cycle-column-name must
+not be the same as using-column-name or seq-column-name.
+The cycle-column-name can
+be referenced in the fullselect that defines the common-table-expression.
+
+TO constant
+Specifies a CHAR(1) constant value to assign to the cycle-column if
+a cycle has been detected in the data. The TO constant must
+not be equal to the DEFAULT constant.
+DEFAULT constant
+Specifies a CHAR(1) constant value to assign to the cycle-column if
+a cycle has not been detected in the data. The DEFAULT constant must
+not be equal to the TO constant.
+USING using-column-name
+Identifies the temporary results consisting of the columns from
+the CYCLE column list. The temporary result is used by the database
+manager to identify duplicate rows in the query result. The using-column-name must
+not be the same as cycle-column-name or seq-column-name.
+
+When developing recursive common table expressions, remember
+that an infinite recursion cycle (loop) can be created. Ensure that
+recursion cycles will end. This is especially important if the data
+involved is cyclic. A recursive common table expression is expected
+to include a predicate that will prevent an infinite loop. The recursive
+common table expression is expected to include:In the iterative fullselect, an integer column incremented
+by a constant.
+A predicate in the WHERE clause of the iterative fullselect in
+the form "counter_col < constant" or "counter_col < :hostvar".
+
+A warning is issued if this syntax is not found in the
+recursive common table expression.
+Recursive common table expressions are not allowed if
+the query specifies:
+a distributed table,
+a table with a read trigger, or
+a logical file built over multiple physical file members.
+
+Recursion example: bill of materials
+Bill of materials (BOM) applications are a common requirement
+in many business environments. To illustrate the capability of a recursive
+common table expression for BOM applications, consider a table of
+parts with associated subparts and the quantity of subparts required
+by the part.
+
+Parent topic: select-statement

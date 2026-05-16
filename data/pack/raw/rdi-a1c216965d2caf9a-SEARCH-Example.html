@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="© Copyright IBM Corporation 2016" name="copyright" />
+<meta content="© Copyright IBM Corporation 2016" name="DC.Rights.Owner" />
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="topic" name="DC.Type" />
+<meta content="SEARCH Example" name="DC.Title" />
+<meta content="srchst.htm" name="DC.Relation" scheme="URI" />
+<meta content="ILE COBOL" name="prodname" />
+<meta content="7.3" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.Date" scheme="iso8601" />
+<meta content="June 2012" name="DC.Date.Created" />
+<meta content="XHTML" name="DC.Format" />
+<meta content="srchxmp" name="DC.Identifier" />
+<meta content="en-us" name="DC.Language" />
+<meta content="ZZ" name="IBM.Country" />
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link href="./ibmdita.css" rel="stylesheet" type="text/css" />
+<link href="./ic.css" rel="stylesheet" type="text/css" />
+<link href="srchst.htm" rel="Start" />
+<title>SEARCH Example</title>
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilecbl.ref.doc%2Ftopics%2Fsrchxmp.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="srchxmp">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_1" shape="rect">ILE COBOL</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/rzasbmain.htm" shape="rect">ILE COBOL Language Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/procdiv.htm" shape="rect">Procedure Division</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/prodivs.htm" shape="rect">Procedure Division Statements</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/srchst.htm" shape="rect">SEARCH Statement</a></div>
+<div role="main">
+<!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+<h1 class="title topictitle1">SEARCH Example</h1>
+<div class="body"><div class="p">The following example searches an inventory table for items that match
+those from input data.  The key is ITEM-NUMBER.  
+<pre class="pre codeblock" xml:space="preserve"><code>.. 1 ... ... 2 ... ... 3 ... ... 4 ... ... 5 ... ... 6 ... ... 7
+ 
+ DATA DIVISION.
+ FILE SECTION.
+ FD  SALES-DATA
+     BLOCK CONTAINS 1 RECORDS
+     RECORD CONTAINS 80 CHARACTERS
+     LABEL RECORDS STANDARD
+     DATA RECORD IS SALES-REPORTS.
+ 01  SALES-REPORTS                  PIC X(80).
+ FD  PRINTED-REPORT
+     BLOCK CONTAINS 1 RECORDS
+     RECORD CONTAINS 132 CHARACTERS
+     LABEL RECORDS OMITTED
+     DATA RECORD IS PRINTER-OUTPUT.
+ 01  PRINTER-OUTPUT                 PIC X(132).
+ FD  INVENTORY-DATA
+     BLOCK CONTAINS 1 RECORDS
+     RECORD CONTAINS 40 CHARACTERS
+     LABEL RECORDS STANDARD
+     DATA RECORD IS INVENTORY-RECORD.
+ 01  INVENTORY-RECORD.
+     03  I-NUMBER                  PIC 9(4).
+     03  INV-ID                    PIC X(26).
+     03  I-COST                    PIC 9(8)V99.
+ WORKING-STORAGE SECTION.
+ 01  EOF-SW              PIC X      VALUE "N".
+ 01  EOF-SW2             PIC X      VALUE "N".
+ 01  SUB1                PIC 99.
+ 01  RECORDS-NOT-FOUND   PIC 9(5)   VALUE ZEROS.
+ 01  TOTAL-COSTS         PIC 9(10)  VALUE ZEROS.
+ 01  HOLD-INPUT-DATA.
+     03  INVENTORY-NUMBER          PIC 9999.
+     03  PURCHASE-COST             PIC 9(4)V99.
+     03  PURCHASE-DATE             PIC 9(6).
+     03  FILLER                    PIC X(64).
+ 01  PRINTER-SPECS.
+     03  PRINT-LINE.
+         05  OUTPUT-ITEM-NUMBER    PIC ZZZ9.
+         05  FILLER                PIC X(48) VALUE SPACES.
+         05  TOTAL-COSTS-0         PIC $(8).99.
+ 01  PRODUCT-TABLE.
+     05  INVENTORY-NUMBERS         OCCURS 50 TIMES
+                                   ASCENDING KEY ITEM-NUMBER
+                                   INDEXED BY INDEX-1.
+             07  ITEM-NUMBER       PIC 9(4).
+             07  ITEM-DESCRIPTION  PIC X(26).
+             07  ITEM-COST         PIC 9(8)V99. </code></pre>
+
+<pre class="pre codeblock" xml:space="preserve"><code>.. 1  ... ... 2 ... ... 3 ... ... 4 ... ... 5 ... ... 6 ... ...7
+ 
+ PROCEDURE DIVISION.
+ 100-START-IT.
+     OPEN INPUT SALES-DATA INVENTORY-DATA OUTPUT PRINTED-REPORT.
+     MOVE HIGH-VALUES TO PRODUCT-TABLE.
+     PERFORM READ-INVENTORY-DATA.
+ LOAD-TABLE-ROUTINE.
+     PERFORM LOAD-IT VARYING SUB1 FROM 1 BY 1 UNTIL SUB1 &gt; 50
+                     OR EOF-SW2 = "Y".
+     PERFORM 110-READ-IT.
+ 200-MAIN-ROUTINE.
+     PERFORM PROCESS-DATA UNTIL EOF-SW = "Y".
+     MOVE TOTAL-COSTS TO TOTAL-COSTS-0.
+     PERFORM WRITE-REPORT THRU WRITE-REPORT-EXIT.
+     DISPLAY "RECORDS NOT FOUND - " RECORDS-NOT-FOUND
+       UPON MYTUBE.
+ STOP RUN.
+ PROCESS-DATA.
+     SEARCH ALL INVENTORY-NUMBERS
+       AT END PERFORM KEY-NOT-FOUND THRU NOT-FOUND-EXIT
+       WHEN ITEM-NUMBER (INDEX-1) = INVENTORY-NUMBER
+          MOVE ITEM-NUMBER (INDEX-1) TO OUTPUT-ITEM-NUMBER
+          MOVE ITEM-COST (INDEX-1) TO TOTAL-COSTS-0
+          ADD ITEM-COST (INDEX-1) TO TOTAL-COSTS
+          PERFORM WRITE-REPORT THRU WRITE-REPORT-EXIT.
+     PERFORM 110-READ-IT.
+ KEY-NOT-FOUND.
+     ADD 1 TO RECORDS-NOT-FOUND.
+ NOT-FOUND-EXIT.
+     EXIT.
+ LOAD-IT.
+     MOVE INVENTORY-RECORD TO INVENTORY-NUMBERS (SUB1).
+     PERFORM READ-INVENTORY-DATA.
+ WRITE-REPORT.
+     WRITE PRINTER-OUTPUT FROM PRINTER-SPECS.
+ WRITE-REPORT-EXIT.
+     EXIT.
+ READ-INVENTORY-DATA.
+     READ INVENTORY-DATA
+       AT END MOVE "Y" TO EOF-SW2.
+ 110-READ-IT.
+     READ SALES-DATA INTO HOLD-INPUT-DATA
+       AT END MOVE "Y" TO EOF-SW.</code></pre>
+</div>
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="srchst.htm" shape="rect">SEARCH Statement</a></div>
+</div>
+</div></div></body>
+</html>

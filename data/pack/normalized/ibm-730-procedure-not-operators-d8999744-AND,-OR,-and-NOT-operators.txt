@@ -1,0 +1,229 @@
+*AND, *OR, and *NOT operators
+
+*AND, *OR, and *NOT operatorsLast Updated: 2025-10-07
+
+The logical operators *AND and *OR specify the relationship
+between operands in a logical expression. The logical operator *NOT
+is used to negate logical variables or constants.
+
+*AND and *OR are the reserved values used to specify the
+relationship between operands in a logical expression. The ampersand
+symbol (&) can replace the reserved value *AND, and the vertical
+bar (|) can replace *OR. The reserved values must be preceded and
+followed by blanks. The operands in a logical expression consist of
+relational expressions or logical variables or constants separated
+by logical operators. The *AND operator indicates that both operands
+(on either side of the operator) have to be true to produce a true
+result. The *OR operator indicates that one or the other of its operands
+must be true to produce a true result.
+
+Note: Using the ampersand
+symbol or the vertical bar can cause problems because the symbols
+are not at the same code point for all code pages. To avoid this,
+use *AND and *OR instead of the symbols.
+
+Use operators other
+than logical operators in expressions to indicate the actions to perform
+on the operands in the expression or the relationship between the
+operands. There are three kinds of operators other than logical operators:
+
+Arithmetic (+, -, *, /)
+
+Character (*CAT, ||, *BCAT, |>, *TCAT, |<)
+
+Relational (*EQ, =, *GT, >, *LT, <, *GE, >=, *LE, <=,
+*NE, ¬=, *NG, ¬>, *NL, ¬<)
+
+The following examples are about logical expressions:
+
+((&C *LT 1) *AND (&TIME *GT 1430))
+(&C *LT 1 *AND &TIME *GT 1430)
+((&C < 1) & (&TIME>1430))
+((&C< 1) & (&TIME>1430))
+In each of these cases, the logical expression consists
+of three parts: two operands and one operator (*AND or *OR, or their
+symbols). It is the type of operator (*AND or *OR) that characterizes
+the expression as logical, not the type of operand. Operands in logical
+expressions can be logical variables or other expressions, such as
+relational expressions. (Relational expressions are characterized
+by &gt, &lt, or = symbols or corresponding reserved values.)
+For instance, in following example the entire logical expression
+is enclosed in parentheses, and both operands are relational expressions,
+also enclosed separately in parentheses:
+
+((&C *LT 1) *AND (&TIME *GT 1430))
+As you can see from the second example of logical expressions,
+the operands need not be enclosed in separate parentheses, but it
+is recommended for clarity. Parentheses are not needed because *AND
+and *OR have different priorities. *AND is always considered before
+*OR. For operators of the same priority, parentheses can be used
+to control the order in which operations are performed.
+A simple
+relational expression can be written as the condition in a command:
+
+IF (&A=&B) THEN(DO)
+.
+.
+.
+ENDDO
+The operands in this relational expression could also
+be constants.
+If you want to specify more than one condition,
+you can use a logical expression with relational expressions as operands:
+
+IF ((&A=&B) *AND (&C=&D)) THEN(DO)
+.
+.
+.
+ENDDO
+The series of dependent IF commands cited as an example
+in Embedded IF commands in a CL program or procedure could be coded:
+
+PGM
+DCL &RESP *DEC 1
+DCL &A *DEC 1
+DCL &B *CHAR 2
+IF ((&RESP=1) *AND (&A=5) *AND (&B=NO)) THEN(DO)
+.
+.
+.
+ENDDO
+CHGVAR &A VALUE(8)
+CALLPRC PROC(DAILY)
+ENDPGM
+Here the logical operators are again used between relational
+expressions.
+Because a logical expression can also have other
+logical expressions as operands, quite complex logic is possible:
+
+IF (((&A=&B) *OR (&A=&C)) *AND ((&C=1) *OR (&D='0'))) THEN(DO)
+In this case, &D is defined as a logical variable.
+The
+result of the evaluation of any relational or logical expression is
+a '1' or '0' (true or false). The dependent command is processed
+only if the complete expression is evaluated as true ('1'). The following
+command is interpreted in these terms:
+
+IF ((&A = &B) *AND (&C = &D)) THEN(DO)
+
+((true'1') *AND (not true'0'))
+(not true '0')
+The expression is finally evaluated as not true ('0'),
+and, therefore, the DO is not processed. For an explanation of how
+this evaluation was reached, see the matrices later in this section.
+This
+same process is used to evaluate a logical expression using logical
+variables, as in this example:
+
+PGM
+DCL &A *LGL
+DCL &B *LGL
+IF (&A *OR &B) THEN(CALL PGM(PGMA))
+.
+.
+.
+ENDPGM
+Here the conditional expression is evaluated to see
+if the value of &A or of &B is equal to '1' (true). If either
+is true, the whole expression is true, and PGMA is called.
+The
+final evaluation arrived at for all these examples of logical expressions
+is based on standard matrices comparing two values (referred to here
+as &A and &B) under an *OR or *AND operator.
+Use the
+following matrix when using *OR with logical variables or constants:
+
+If &A is:
+
+'0' '0' '1' '1'
+
+and &B is:
+
+'0' '1' '0' '1'
+
+the OR expression is:
+
+'0' '1' '1' '1'
+
+In short, for multiple OR operators with logical
+variables or constants, the expression is false ('0') if all values
+are false. The expression is true ('1') if any values are true.
+
+PGM
+DCL &A *LGL VALUE('0')
+DCL &B *LGL VALUE('1')
+DCL &C *LGL VALUE('1')
+IF (&A *OR &B *OR &C) THEN(CALL PGMA)
+.
+.
+.
+ENDPGM
+Here the values are not all false; therefore, the expression
+is true, and PGMA is called.
+Use the following matrix when evaluating
+a logical expression with *AND with logical variables or constants:
+
+If &A is:
+
+'0' '0' '1' '1'
+
+and &B is:
+
+'0' '1' '0' '1'
+
+the ANDed expression is:
+
+'0' '0' '0' '1'
+
+For multiple AND operators with logical variables
+or constants, the expression is false ('0') when any value is false,
+and true when they are all true.
+
+PGM
+DCL &A *LGL VALUE('0')
+DCL &B *LGL VALUE('1')
+DCL &C *LGL VALUE('1')
+IF (&A *AND &B *AND &C) THEN(CALL PGMA)
+.
+.
+.
+ENDPGM
+Here the values are not all true; therefore, the expression
+is false, and PGMA is not called.
+These logical operators can
+only be used within an expression when the operands represent a logical
+value, as in the preceding examples. It is incorrect to attempt to
+use OR or AND for variables that are not logical. For instance:
+
+PGM
+DCL &A *CHAR 3
+DCL &B *CHAR 3
+DCL &C *CHAR 3
+
+Incorrect: IF (&A *OR &B *OR &C = YES) THEN...
+The correct coding for this would be:
+
+IF ((&A=YES) *OR (&B=YES) *OR (&C=YES)) THEN...
+In this case, the ORing occurs between relational expressions.
+The
+logical operator *NOT (or ¬) is used to negate logical variables or
+constants. Any *NOT operators must be evaluated before the *AND or
+*OR operators are evaluated. Any values that follow *NOT operators
+must be evaluated before the logical relationship between the operands
+is evaluated.
+
+PGM
+DCL &A *LGL '1'
+DCL &B *LGL '0'
+IF (&A *AND *NOT &B) THEN(CALL PGMA)
+In this example, the values are all true; therefore,
+the expression is true, and PGMA is called.
+
+PGM
+DCL &A *LGL
+DCL &B *CHAR 3 VALUE('ABC')
+DCL &C *CHAR 3 VALUE('XYZ')
+CHGVAR &A VALUE(&B *EQ &C)
+IF (&A) THEN(CALLPRC PROCA)
+In this example, the value is false, therefore, PROCA
+is not called.

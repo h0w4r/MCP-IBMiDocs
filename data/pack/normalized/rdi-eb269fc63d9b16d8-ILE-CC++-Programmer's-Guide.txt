@@ -1,0 +1,392 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 4. Performing I/O Operations > Chapter 17. Using ILE C/C++ Stream Functions with the iSeries Integrated File System > Using the Integrated File System (IFS)
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 4. Performing I/O Operations > Chapter 17. Using ILE C/C++ Stream Functions with the iSeries Integrated File System > Using the Integrated File System (IFS)
+
+ILE C/C++ Programmer's Guide
+Header File Search
+The compiler uses different search techniques when entering your source
+file using the source stream file parameters. The compiler no longer
+uses the library list search method.
+Include File Links
+ILE C/C++ headers, along with system headers, are located in
+QSYSINC/H. The links are in the directory
+/QIBM/include.
+For example, the links are as follows for assert.h:
+
+Display Symbolic Link Object link:
+/QIBM/include/assert.h
+Content of Link:
+/qsys.lib/qsysinc.lib/h.file/assert.mbr
+
+Include Directive Syntax
+The #include directive syntax depends on the file system specified
+for the root source file: Integrated File System (IFS) or Data
+Management (DM) file system.
+Integrated File System (IFS) compilations
+
+IFS is a hierarchical file system similar to that found on AIX.
+When an IFS file specification is used for the root source file (that is,
+when the SRCSTRMF option is used), all #include directives within
+that compilation are similarly resolved to the IFS file system. The
+syntactical variations are:
+
+Table 9. Integrated File System Compilations
+
+#include specification
+enclosed in < >
+enclosed in " "
+
+filename (e.g., <cstdio>)
+resolves to [syssearchpath]/filename
+resolves to [usrsearchpath]/filename
+
+dir/filename (e.g., <sys/limits.h>)
+resolves to [syssearchpath]/dir/filename
+resolves to [usrsearchpath]/dir/filename
+
+/dir/filename (e.g., "/home/header.h")
+resolves to /dir/filename
+resolves to /dir/filename
+
+Data Management File System (DM) compilations
+
+DM is the traditional iSeries monolithic (fixed-depth) file system. It
+is composed of a number of libraries, which contain objects. There are
+a fixed set of object types - source files are found within *FILE object
+types, in sub-objects called members. All native iSeries processes have
+an ordered library list (*LIBL) and, in general, iSeries objects are resolved
+by searching through this library list. The library list has three
+components, ordered as follows:
+
+The System Library List (*SYSLIBL): A set of libraries
+which comprises the operating system.
+The Product Library List (*PRDLIBL): Officially licensed
+programs typically add themselves to the product library list when run.
+For example, the C and C++ compilers add their product library QCPPLE to the
+library list when run.
+The User Library List (*URSLIBL): Libraries that you can
+configure or order.
+
+When a DM file specification is used for the root source file (that is,
+when the SRCFILE/SRCMBR options are used), all #include directives
+within that compilation are similarly resolved to the DM filesystem.
+The syntactical variations are:
+
+Table 10. Data Management File System Compilations
+
+#include specification
+library
+file
+member
+
+mbr
+default search1
+default file2
+mbr
+
+mbr.file
+default search1
+file
+mbr
+
+file/mbr
+default search1
+file
+mbr
+
+file(mbr)
+default search1
+file
+mbr
+
+file/mbr.ext3
+default search1
+file
+mbr or mbr.ext3
+
+lib/file/mbr
+lib
+file
+mbr
+
+lib/file(mbr)
+lib
+file
+mbr
+
+Notes:
+
+For default library search paths:
+Note:When the *SYSINCPATH option is specified, the compiler treats user includes
+(" ") the same as system includes (< >).
+
+When the library is not specified, and:
+
+the #include specification is enclosed in < >: Search
+the *LIBL.
+the #include specification is enclosed in " ": Check the
+library containing the root source file; if not found there, then search
+the *USRLIBL; if still not found, search the *LIBL.
+
+When the library is specified, and:
+
+the #include specification is enclosed in < >: Search
+the lib/file/mbr only.
+the #include specification is enclosed in " ": Search for
+the member in the library/file specified.
+
+For the Default file:
+
+When includes have the form #include <mbr>:
+
+C: default file is H.
+
+: the default file is STD.
+
+When includes have the form #include "mbr": the default
+file is the root source file.
+
+For mbr.ext:
+
+When the #include specification is enclosed in < >, and:
+
+the member name has the h extension:
+<file/mbr.h> format resolves to member
+mbr in file file. This rule is for POSIX support
+(for example, to be able to include specifications like
+<sys/limits.h>). The only member names which
+activate POSIX support are extensions of h or H.
+Otherwise, <file/mbr.ext> resolves to file
+file, and member mbr.ext
+
+When the #include specification is enclosed in " ":
+"file/mbr.ext" resolves to file file, and member
+mbr.ext
+
+Include Search Path Rules
+This section lists rules governing search paths for the following:
+
+INCDIR (Include Directory) command parameter
+INCLUDE environment variable
+*STDINC/*NOSTDINC command options
+*SYSINCPATH/*NOSYSINCPATH command options
+
+INCDIR (Include Directory) Command Parameter
+The Include Directory parameter (INCDIR) works with the Create Module and
+Create Bound Program compiler commands, allowing you to redefine the path used
+to locate include header files (with the #include directive) when
+compiling a source stream file only. The parameter is ignored if the
+source file's location is not defined as an IFS path via the Source
+Stream File (SRCSTMF) parameter, or if the full (absolute) path name is
+specified on the #include directive.
+The parameter accepts a list of IFS directories. These directories
+are inserted into the include search path in the order they are
+entered.
+The include files search path adheres to the following directory search
+order to locate the file:
+
+Table 11. INCDIR Command Parameter
+
+#include type
+Directory Search Order
+
+#include <file_name>
+
+If you specify a directory in the INCDIR parameter, the compiler searches
+for file_name in that directory first.
+If more than one directory is specified, the compiler searches the
+directories in the order that they appear on the command line.
+Searches the directory /QIBM/include.
+
+#include "file_name"
+
+Searches the directory where your current source file resides. The
+current source file is the file that contains the #include
+"file_name" directive.
+If you specify a directory in the INCDIR parameter, the compiler searches
+for file_name in that directory.
+If more than one directory is specified, the compiler searches the
+directories in the order that they appear on the command line.
+Searches the directory /QIBM/include.
+
+For example, if you enter the following value for the INCDIR
+parameter:
+Include directory . . . . . . . INCDIR '/tmp/dir1'
++ for more values './dir2'
+
+and with your source stream file you include the following header
+files:
+#include "foo.h"
+#include <stdio.h>
+
+The compiler first searches for a file "foo.h" in the directory
+where the root source file resides. If the file is found, it is
+included and the search ends. Otherwise, the compiler searches the
+directories entered INCDIR, starting with "/tmp/dir1". If the file is
+found, this file is included. If the directory does not exist, or if
+the file does not exist within that directory, the compiler continues to
+search in the subdirectory "dir2" within the current working directory
+(symbolized by "."). Again, if the file is found, this file is
+included, otherwise, because the directories in INCDIR path have now been
+exhausted, the default user include path (/QIBM/include) is used to find the
+header.
+As for <stdio.h>, the same logic is followed in the
+same order, except the initial search in the root source directory is
+bypassed.
+INCLUDE Environment Variable
+The INCLUDE environment variable value:
+
+Contains a path of directories delimited by colons (:)
+Does not override the order
+Has higher priority in the search order than the default include path
+Has a lower priority in the search order than INCDIR and the root
+source's directory (for a user-defined include search)
+
+.
+If the include search contains a defined INCLUDE environment
+variable for both C and C++ compilers, the resulting include search order
+including is as shown in the following table:
+
+Table 12. Include Search Order
+
+#include type
+Directory Search Order
+
+#include <file_name>
+
+If you specify a directory in the INCDIR parameter, the compiler searches
+for file_name in that directory first.
+If more than one directory is specified, the compiler searches the
+directories in the order that they appear on the command line.
+If the INCLUDE environment variable is defined, the compiler searches the
+directories in the order they appear in the INCLUDE path.
+Searches the directory /QIBM/include.
+
+#include "file_name"
+
+Searches the directory where your current source file
+resides. The current source file is the one that contains the directive
+#include "file_name".
+If you specify a directory in the INCDIR parameter, the compiler searches
+for file_name in that directory.
+If more than one directory is specified, the compiler searches the
+directories in the order that they appear on the command line.
+If the INCLUDE environment variable is defined, the compiler searches the
+directories in the order they appear in the INCLUDE environment
+variable.
+Searches the directory /QIBM/include.
+
+Note:This feature is only available for source stream file compiles.
+
+*STDINC/*NOSTDINC Command Options
+The *STDINC/*NOSTDINC command options have been added to the OPTION
+parameter of the CRTCMOD/CRTCPPMOD and CRTBNDC/CRTBNDCPP commands.
+The *STDINC and *NOSTDINC command options work on the CRTCMOD/CRTCPPMOD and
+CRTBNDC/CRTBNDCPP commands.
+The *NOSTDINC option allows you to remove the default include path
+(/QIBM/include for IFS source stream files; QSYSINC for data management
+source file members) from the search order, while the *STDINC option retains
+the default include path at the end of the order. *STDINC is the
+default.
+The *STDINC option works as did the former SYSINC parameter for data
+management source file members. The options relate to the old parameter
+values as follows:
+
+Table 13. Parameter Values
+
+SYSINC values
+Equivalent New Command Option
+
+*YES
+*STDINC
+
+*NO
+*NOSTDINC
+
+*INCDIRFIRST/*NOINCDIRFIRST Command Options:
+The *INCDIRFIRST option allows you to process the directories listed via
+the INCDIR parameter first in the search order (that is, before the root
+source file directory) in a user include search, while the *NOINCDIRFIRST
+option retains INCDIR directories to their default position in the user
+include search order as described above.
+Note:These options are valid only for source stream file compiles.
+
+If *INCDIRFIRST is selected, the following changes occur to the user
+include search order:
+
+Table 14. INCDIRFIRST Command Options
+
+#include type
+Directory Search Order
+
+#include "file_name"
+
+If you specify a directory in the INCDIR parameter, the compiler searches
+for file_name in that directory.
+If more than one directory is specified, the compiler searches the
+directories in the order that they appear on the command line.
+Searches the directory where your current root source file resides.
+If the INCLUDE environment variable is defined, the compiler searches the
+directories in the order they appear in the INCLUDE path.
+If the *NOSTDINC compiler option is not chosen, search the default include
+directory /QIBM/include.
+
+*SYSINCPATH/*NOSYSINCPATH Command Options
+The *SYSINCPATH/*NOSYSINCPATH command options work on the Create Module and
+Create Bound Program commands.
+The *SYSINCPATH option changes the search path of user includes to the
+system include search path. It is equivalent to changing the
+double-qoutes in the user #include directive (#include
+"file_name") to angle brackets (#include
+<file_name>). *NOSYSINCPATH is the default
+value.
+Considerations for Specifying Source Stream Files
+When you specify the SRCSTMF parameter during program or module
+creation, the *MODULE object contains no source file attribute
+information.
+If the source is specified via the SRCFILE/SRCMBR parameters,
+the INCDIR parameter and the INCLUDE environment variable are ignored.
+When the source resides in the Data Management file system, the library list
+is used to search for include files. The library list (*LIBL) has no
+concept of the directory file structure.
+If the source file is not specified via the SRCSTMF parameter,
+the job's *LIBL is used to find the include files.
+Restrictions on the Absolute Include Path Name
+If you specify an absolute (full) path name on the #include
+directive, the INCDIR parameter and the INCLUDE environment variable have no
+effect.
+Example:
+Assume the following:
+
+There is a statement like #include "myinc.h" in a C/C++
+source file
+You are compiling a source member from the QSYS file system through the
+SRCSTMF parameter in the following command:
+CRTCMOD MODULE(MYSOURCE) SRCSTMF('/qsys.lib/goodness.lib/qcppsrc.file/mysource.mbr')
+
+ILE C/C++ tries to find something called
+/qsys.lib/goodness.lib/qcppsrc.file/myinc.h,
+which is an invalid Integrated File System filename because
+.h is not a valid object type in the QSYS file
+system.
+If you want to use a header file that is in the QSYS file system, you must
+do either of the following:
+
+Specify the path in the source code, as shown below:
+#include "/qsys.lib/goodness.lib/h.file/myinc.mbr"
+
+Set the search path appropriately, as shown in Examples of Using Integrated File System Source. Then you can leave the path out of the include
+statement, as shown below:
+#include "myinc.mbr"
+
+Recommendation for Source and Header Files
+If you are porting from other platforms which have hierarchical file
+systems (such as the Microsoft(R) Windows(R), UNIX, or OS/2 operating
+systems), consider that the Integrated File System (IFS) is more compatible
+with those file systems. To avoid changing your current C/C++ source
+code, put source and header files into IFS.
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

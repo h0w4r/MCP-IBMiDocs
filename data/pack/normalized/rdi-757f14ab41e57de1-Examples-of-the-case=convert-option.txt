@@ -1,0 +1,164 @@
+Examples of the case=convert option
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > case (default lower) > case (default lower)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > case (default lower)
+
+Examples of the case=convert option
+
+The XML document contains names with alphabetic characters that
+are not valid characters for RPG subfields.
+The following data
+structures are used in the example
+D etudiant ds qualified
+D age 3p 0
+D nom 25a varying
+D ecole 50a varying
+
+D student ds likeds(etudiant)
+
+Assume
+that file info.xml contains the following lines:
+<Étudiant Nom="Élise" Âge="12">
+<École>Collège Saint-Merri</École>
+</Étudiant>
+
+Options case=convert ccsid=ucs2 are specified. Option case=convert specifies
+that the names in the XML document will be converted using the *LANGIDSHR translation
+table for the job before matching to the RPG names in the path and
+in the list of subfields. The names Étudiant, Âge,
+and École will be converted to ETUDIANT, AGE,
+AND ECOLE. The XML data itself is not converted, so the subfield ecole will
+receive the value "Collège Saint-Merri" as it appears in the XML
+document.
+The path option is not necessary, because the default
+path is the name of the RPG variable ETUDIANT, which matches
+the converted form of the actual XML name, Étudiant.
+
+xml-into etudiant %xml('info.xml'
+: 'doc=file case=convert '
++ 'ccsid=ucs2');
+// etudiant.nom = 'Élise'
+// etudiant.age = 12
+// etudiant.ecole = 'Collège Saint-Merri'
+
+The RPG data structure is called student. The path option
+must be specified to indicate that the Étudiant XML element
+matches the student data structure. The path option is specified
+as path=etudiant, to match the XML name after conversion.
+xml-into student %xml('info.xml'
+: 'doc=file case=convert '
++ 'ccsid=ucs2 path=etudiant');
+// student.nom = 'Élise'
+// student.age = 12
+// student.ecole = 'Collège Saint-Merri'
+
+The XML document contains names with non-alphanumeric characters
+that XML supports but that cannot be used in RPG names.
+The following
+data structures are used in the examples
+D employee_info ds qualified
+D last_name 25a varying
+D first_name 25a varying
+D is_manager 1a
+
+D emp ds likeds(employee_info)
+Assume
+that file data.xml contains the following lines:
+<employee-info is-manager="y">
+<last-name>Smith</last-name>
+<first-name>John</first-name>
+</employee-info>
+
+Option case=convert is specified. After any conversion
+of the alphabetic characters using the *LANGIDSHR table for
+the job, the next step converts any remaining characters that are
+not A-Z or 0-9 to the underscore character. XML names employee-info, is-manager, last-name,
+and first-name are converted to EMPLOYEE_INFO, IS_MANAGER, LAST_NAME,
+AND FIRST_NAME.
+The RPG data structure name employee_info matches
+the converted form, EMPLOYEE_INFO, of the XML name employee-info,
+so the path option is not required.
+
+xml-into employee_info %xml('data.xml'
+: 'doc=file case=convert ');
+// employee_info.last_name = 'Smith'
+// employee_info.first_name = 'John'
+// employee_info.is_manager = 'y'
+
+The RPG data structure is called emp. The path option
+must be specified to indicate that the employee-info XML
+element matches the emp data structure. The path option is
+specified as path=employee_info, to match the XML name after
+conversion.
+xml-into emp %xml('data.xml'
+: 'doc=file case=convert '
++ 'ccsid=ucs2 path=employee_info' );
+// emp.last_name = 'Smith'
+// emp.first_name = 'John'
+// emp.is_manager = 'y'
+
+The XML document contains names with double-byte data.
+The
+following definitions are used in the examples
+D employee_info_ ds qualified
+D last_name_ 25a varying
+D first_name_ 25a varying
+D is_manager_ 1a
+
+Assume that
+file data.xml contains the following lines, where "DBCS"
+represents double-byte data:
+<employee_info_DBCS is_manager_DBCS="y">
+<last_name_DBCS>Smith</last_name_DBCS>
+<first_name_DBCS>John</first_name_DBCS>
+</employee_info_DBCS>
+
+Option case=convert is
+specified. After any conversion of the alphabetic characters using
+the *LANGIDSHR table for the job, the next step converts
+any remaining characters that are not A-Z or 0-9 to the underscore
+character, including DBCS data and the associated shift-out
+and shift-in characters. After this step, the XML name last_name_DBCS would
+be converted to LAST_NAME_____. The next step merges any
+remaining underscores, including any underscores that appeared in
+the original name, to a single underscore. The resulting name is LAST_NAME_.
+
+xml-into employee_info_ %xml('data.xml'
+: 'doc=file case=convert '
++ 'ccsid=ucs2');
+// employee_info_.last_name_ = 'Smith'
+// employee_info_.first_name_ = 'John'
+// employee_info_.is_manager_ = 'y'
+
+The XML document contains names with double-byte data at the beginning
+of the name.
+The following definitions are used in the examples
+D employee_info ds qualified
+D last_name 25a varying
+D first_name 25a varying
+D is_manager 1a
+
+Assume that
+file data.xml contains the following lines, where "DBCS"
+represents double-byte data:
+<DBCS_employee_info DBCS_is_manager="y">
+<DBCS_last_name>Smith</DBCS_last_name>
+<DBCS_first_name>John</DBCS_first_name>
+</DBCS_employee_info>
+
+Option case=convert is
+specified. After the conversion of the non-alphanumeric characters
+to a single underscore, the name DBCS_last_name is converted
+to _LAST_NAME. Since RPG does not support names starting
+with an underscore, the initial underscore is removed. The final converted
+name is LAST_NAME.
+
+xml-into employee_info %xml('data.xml'
+: 'doc=file case=convert '
++ 'ccsid=ucs2');
+// employee_info.last_name = 'Smith'
+// employee_info.first_name = 'John'
+// employee_info.is_manager = 'y'
+
+Parent topic: case (default lower)

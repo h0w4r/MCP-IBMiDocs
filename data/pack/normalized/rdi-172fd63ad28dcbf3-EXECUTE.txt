@@ -1,0 +1,189 @@
+EXECUTE
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+EXECUTE
+The EXECUTE statement executes a prepared SQL statement.
+InvocationThis statement can only be embedded
+in an application program, SQL function, SQL procedure, or trigger.
+It is an executable statement that cannot be dynamically prepared.
+It must not be specified in Java™.
+Authorization If a global variable
+is referenced in a statement, the privileges held by the authorization
+ID of the statement must include at least one of the following:
+For the global variable identified in the statement, The READ privilege on the global variable, and
+The system authority *EXECUTE on the library containing the global
+variable
+
+Database administrator authority
+
+The authorization rules are those defined for the SQL statement
+specified by EXECUTE. For example, see the description of INSERT for
+the authorization rules that apply when an INSERT statement is executed
+using EXECUTE.
+The authorization ID of the statement is the
+run-time authorization ID unless DYNUSRPRF(*OWNER) was specified on
+the CRTSQLxxx command when the program was created. For more information,
+see Authorization IDs and authorization names.
+SyntaxEXECUTEstatement-nameUSING,variableSQL-descriptorsUSING DESCRIPTORdescriptor-nameSQL-descriptorsINTOSQLDESCRIPTORLOCALGLOBALSQL-descriptor-nameUSINGSQL1DESCRIPTORLOCALGLOBALSQL-descriptor-name
+Descriptionstatement-name
+Identifies
+the prepared statement to be executed. When the EXECUTE statement
+is executed, the name must identify a prepared statement at the current
+server. The prepared statement cannot be a SELECT statement.
+USING
+Introduces a list of
+variables whose values are substituted for the parameter markers (question
+marks) in the prepared statement. For an explanation of parameter
+markers, see PREPARE. If the prepared
+statement includes parameter markers, the USING clause must be used.
+USING is ignored if there are no parameter markers. variable,...
+Identifies
+one of more host structures or variables that must be declared in
+the program in accordance with the rules for declaring host structures
+and variables. A reference to a host structure is replaced by a reference
+to each of its variables. The number of variables must be the same
+as the number of parameter markers in the prepared statement. The nth
+variable corresponds to the nth parameter marker in the prepared
+statement.A global variable may only be used if the
+current connection is a local connection (not a DRDA® connection).
+
+SQL-descriptors
+INTO
+Identifies
+an SQL descriptor which contains valid descriptions of the output
+variables to be used with the EXECUTE statement. This clause is only
+valid for a CALL or VALUES INTO statement. Before the EXECUTE statement
+is executed, a descriptor must be allocated using the ALLOCATE DESCRIPTOR
+statement. LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope. See GET DESCRIPTOR for an explanation of the information
+that is placed in the SQL descriptor.
+
+USING
+Identifies an SQL descriptor which contains valid descriptions
+of the input variables to be used with the EXECUTE statement. Before
+the EXECUTE statement is executed, a descriptor must be allocated
+using the ALLOCATE DESCRIPTOR statement. LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation. The information is returned from the descriptor
+known in this local scope.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session. The information is returned from the descriptor
+known to any program that executes using the same database connection.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope. See SET DESCRIPTOR for an explanation of the information
+in the SQL descriptor.
+
+DESCRIPTOR descriptor-name
+Identifies an SQLDA that
+must contain a valid description of variables. Before the EXECUTE
+statement is processed, the user must set the following fields in
+the SQLDA. (The rules for REXX are different. For more information, see
+the Embedded
+SQL Programming topic collection.)
+SQLN to indicate the number of SQLVAR occurrences provided in
+the SQLDA.
+SQLDABC to indicate the number of bytes of storage allocated for
+the SQLDA.
+SQLD to indicate the number of variables used in the SQLDA when
+processing the statement.
+SQLVAR occurrences to indicate the attributes of the variables.
+
+The SQLDA must have enough storage to contain all SQLVAR occurrences.
+If LOBs or distinct types are present in the results, there must be
+additional SQLVAR entries for each parameter. For more information
+about the SQLDA, which includes a description of the SQLVAR and an
+explanation on how to determine the number of SQLVAR occurrences,
+see Determining how many SQLVAR occurrences are needed.
+SQLD
+must be set to a value greater than or equal to zero and less than
+or equal to SQLN. It must be the same as the number of parameter markers
+in the prepared statement. The nth variable described by the
+SQLDA corresponds to the nth parameter marker in the prepared
+statement.
+
+Note that RPG/400® does
+not provide the function for setting pointers. Because the SQLDA uses
+pointers to locate the appropriate variables, you have to set these
+pointers outside your RPG/400 application.
+
+NotesParameter
+marker replacement: Before the prepared statement is executed,
+each parameter marker in the statement is effectively replaced by
+its corresponding variable. The replacement of a parameter marker
+is an assignment operation in which the source is the value of the
+variable, and the target is a variable within the database manager.
+For a typed parameter marker, the attributes of the target variable
+are those specified by the CAST specification. For an untyped parameter
+marker, the attributes of the target variable are determined according
+to the context of the parameter marker. For the rules that affect
+parameter markers, see Table 1.
+Let V denote a variable that corresponds to parameter
+marker P. The value of V is assigned to the target variable for P
+using storage assignment rules as described in Assignments and comparisons. Thus:
+V must be compatible with the target.
+If V is a number, the absolute value of its integral part must
+not be greater than the maximum absolute value of the integral part
+of the target.
+If the attributes of V are not identical to the attributes of
+the target, the value is converted to conform to the attributes of
+the target.
+If the target cannot contain nulls, the value of V must not be
+null.
+
+However, unlike the storage assignment rules:
+If V is a string, the value will be truncated (without an error),
+if its length is greater than the length attribute of the target.
+
+When the prepared statement is executed, the value used
+in place of P is the value of the target variable for P. For example,
+if V is CHAR(6) and the target is CHAR(8), the value used in place
+of P is the value of V padded with two blanks.
+ExampleThis example of portions of a COBOL
+program shows how an INSERT statement with parameter markers is prepared
+and executed.
+EXEC SQL BEGIN DECLARE SECTION END-EXEC.
+77 EMP PIC X(6).
+77 PRJ PIC X(6).
+77 ACT PIC S9(4) COMP-4.
+77 TIM PIC S9(3)V9(2).
+01 HOLDER.
+49 HOLDER-LENGTH PIC S9(4) COMP-4.
+49 HOLDER-VALUE PIC X(80).
+EXEC SQL END DECLARE SECTION END-EXEC.
+.
+.
+.
+MOVE 70 TO HOLDER-LENGTH.
+MOVE "INSERT INTO EMPPROJACT (EMPNO, PROJNO, ACTNO, EMPTIME)
+- "VALUES (?, ?, ?, ?)" TO HOLDER-VALUE.
+EXEC SQL PREPARE MYINSERT FROM :HOLDER END-EXEC.
+
+IF SQLCODE = 0
+PERFORM DO-INSERT THRU END-DO-INSERT
+ELSE
+PERFORM ERROR-CONDITION.
+
+DO-INSERT.
+MOVE "000010" TO EMP.
+MOVE "AD3100" TO PRJ.
+MOVE 160 TO ACT.
+MOVE .50 TO TIM.
+EXEC SQL EXECUTE MYINSERT USING :EMP, :PRJ, :ACT, :TIM END-EXEC.
+END-DO-INSERT.
+.
+.
+.
+
+Parent topic: Statements

@@ -1,0 +1,106 @@
+CLEAR Examples
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > CLEAR (Clear) > CLEAR (Clear)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > CLEAR (Clear)
+
+CLEAR Examples
+
+Figure 1 shows an example of the CLEAR operation.
+
+Figure 2 shows an example of the field initialization
+for the CLEAR record format.
+
+The examples in RESET Examples also apply to CLEAR, except
+for the actual operation performed on the fields.
+
+Figure 1. CLEAR Operation
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+D*Name++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D DS1 DS
+D Num 2 5 0
+D Char 20 30A
+D
+D MODS DS OCCURS(2)
+D Fld1 1 5
+D Fld2 6 10 0
+
+* In the following example, CLEAR sets all subfields in the data
+* structure DS1 to their defaults, CHAR to blank, NUM to zero.
+/FREE
+CLEAR DS1;
+
+// In the following example, CLEAR sets all occurrences for the
+// multiple occurrence data structure MODS to their default values
+// Fld1 to blank, Fld2 to zero.
+CLEAR *ALL MODS;
+/END-FREE
+
+Figure 2. Field Initialization for the CLEAR
+Record Format
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+A* Field2 and Field3 are defined as output capable fields and can be
+A* affected by the CLEAR operation. Indicator 10 can also be
+A* changed by the CLEAR operation even though it conditions an
+A* input only field because field indicators are all treated
+A* as output fields. The reason for this is that *ALL was not specifie
+A* on the CLEAR operation
+A*
+A*N01N02N03T.Name++++++RLen++TDpBLinPosFunctions++++++++++++++++++++*
+A R FMT01
+A 10 Field1 10A I 2 30
+A Field2 10A O 3 30
+A Field3 10A B 4 30
+A*
+A* End of DDS source
+A*
+
+F*Flename++IPEASFRlen+LKlen+AIDevice+.Keywords+++++++++++++++++++++++++
+FWORKSTN CF E WORKSTN INCLUDE(FMT01)
+F
+D*Name++++++++++ETDsFrom+++To/L+++IDc.Keywords++++++++++++++++++++++++
+D IN C 'INPUT DATA'
+
+/FREE
+CLEAR FMT01;
+WRITE FMT01;
+
+// Loop until PF03 is pressed
+DOW NOT *IN03;
+READ FMT01;
+*INLR = %EOF;
+
+// PF04 will transfer input fields to output fields.
+IF *IN04;
+Field2 = Field3;
+Field3 = Field1;
+CLEAR *IN04;
+ENDIF;
+Field1 = IN;
+
+// When PF11 is pressed, all the fields in the record format
+// defined as output or both will be reset to the values they
+// held after the initialization step.
+IF *IN11;
+RESET FMT01;
+CLEAR *IN11;
+ENDIF;
+
+// When PF12 is pressed, all the fields in the record
+// format defined as output or both will be cleared.
+IF *IN12;
+CLEAR FMT01;
+CLEAR *IN12;
+ENDIF;
+
+IF NOT *IN03;
+WRITE FMT01;
+ENDIF;
+ENDDO;
+
+*INLR = *ON;
+/END-FREE
+
+Parent topic: CLEAR (Clear)

@@ -1,0 +1,104 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 18. Using Externally Described Files in a Program > Defining and Using Indicators
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 18. Using Externally Described Files in a Program > Defining and Using Indicators
+
+ILE C/C++ Programmer's Guide
+Creating a Separate Indicator Area
+To use indicators as a separate structure you must specify:
+
+the DDS keyword INDARA in the external description of the file
+the INDICATORS option on the #pragma mapinc directive
+or the GENCSRC command.
+use indicators=y when opening the file
+
+You must also set the address of the separate indicator area by using the
+_Rindara() function for record files, before performing I/O
+operations.
+Note:If you specify indicators on the #pragma mapinc directive and do not
+use the DDS keyword INDARA in your external file description, you
+will receive a warning message at compile time.
+
+If indicators are requested, and exist in the format, a 99-byte structure
+definition is created. The structure definition contains a field
+declaration for each indicator defined in the DDS. The name of each
+field is INXX, where XX is the DDS indicator
+number. The sequence of bytes between indicators is defined as
+INXX_INYY, where XX is the first undefined byte and YY is
+the last undefined byte in a sequence.
+
+Figure 122. DDS Source for Indicators
+
+A INDARA
+A R FMT
+A CF01(50)
+A CF02(51)
+A CF03(99 'EXIT')
+A 1 35'PHONE BOOK'
+A DSPATR(HI)
+A 7 28'Name:'
+A NAME 11A I 7 34
+A 9 25'Address:'
+A ADDRESS 20A O 9 34
+A 11 25'Phone #:'
+A PHONE_NUM 8A O 11 34
+A 23 34'F3 - EXIT'
+
+#pragma mapinc("example/temp","exindic/test(fmt)","indicators","")
+#include "example/temp"
+
+When this DDS is included in your ILE C/C++ program, the following
+structure is generated:
+
+Figure 123. Structure Definition for Indicators
+
+/* ------------------------------------------------------------------ */
+/* DEVICE FILE: EXINDIC/TEST */
+/* FILE CREATION DATE: 93/09/01 */
+/* RECORD FORMAT: FMT */
+/* FORMAT LEVEL IDENTIFIER: 371E00A681EA7 */
+/* ------------------------------------------------------------------ */
+/* INDICATORS FOR FORMAT FMT */
+/* INDICATOR 50 */
+/* INDICATOR 51 */
+/* INDICATOR 99 */
+/* ------------------------------------------------------------------ */
+typedef struct {
+char IN01_IN49[49]; /* UNUSED INDICATOR(S) */
+char IN50;
+char IN51;
+char IN52_IN98[47]; /* UNUSED INDICATOR(S) */
+char IN99;
+}EXINDIC_TEST_FMT_indic_t;
+
+This shows a type definition of a structure for the indicators in the
+format FMT of the file EXINDIC/TEST. The external file description
+contains three indicators: IN50, IN51, and IN99. The DDS keyword
+INDARA is also specified in the DDS for the file.
+If indicators are defined for a record format and the INDICATOR option is
+not specified on the #pragma mapinc directive or GENCSRC command, a
+list of the indicators in the DDS is included as a comment in the header
+description.
+
+The following shows the header description created when the file description
+for the file EXINDIC/TEST is included in your program and the indicators
+option is not specified on the #pragma mapinc directive.
+
+Figure 124. Header Description Showing Comments for Indicators
+
+/* ------------------------------------------------------------------ */
+/* DEVICE FILE: EXINDIC/TEST */
+/* CREATION DATE: 93/09/01 */
+/* RECORD FORMAT: FMT */
+/* FORMAT LEVEL IDENTIFIER: 371E00A681EA7 */
+/* ------------------------------------------------------------------ */
+/* INDICATORS FOR RECORD FORMAT FMT */
+/* INDICATOR 50 */
+/* INDICATOR 51 */
+/* INDICATOR 99 */
+/* ------------------------------------------------------------------ */
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

@@ -1,0 +1,89 @@
+SAVEPOINT
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+SAVEPOINT
+The SAVEPOINT statement sets a savepoint within a unit
+of work to identify a point in time within the unit of work to which
+relational database changes can be rolled back.
+InvocationThis statement can be embedded
+in an application program or issued interactively. It is an executable
+statement that can be dynamically prepared.
+AuthorizationNone required.
+SyntaxSAVEPOINTsavepoint-nameUNIQUEON ROLLBACK RETAIN CURSORSON ROLLBACK RETAIN LOCKS1
+Descriptionsavepoint-name
+Identifies
+a new savepoint. The specified savepoint-name cannot
+begin with 'SYS'.
+UNIQUE
+Specifies
+that the application program cannot reuse the savepoint name within
+the unit of work. An error occurs if a savepoint with the same name
+as savepoint-name already exists within
+the unit of work. Omitting UNIQUE indicates that the application
+can reuse the savepoint name within the unit of work. If savepoint-name identifies
+a savepoint that already exists within the unit of work and the savepoint
+was not created with the UNIQUE option, the existing savepoint is
+destroyed and a new savepoint is created. Destroying a savepoint to
+reuse its name for another savepoint is not the same as releasing
+the savepoint. Reusing a savepoint name destroys only one savepoint.
+Releasing a savepoint with the RELEASE SAVEPOINT statement releases
+the savepoint and all savepoints that have been subsequently set.
+
+ON ROLLBACK RETAIN CURSORS
+Specifies that cursors that are opened after the savepoint is
+set are not closed upon rollback to the savepoint. If SQL schema statements are executed for a table or view within
+the scope of the SAVEPOINT statement, any cursor that references that
+table or view is closed. Attempts to use such a cursor after a ROLLBACK
+TO SAVEPOINT results in an error.
+Otherwise, the cursor is not affected by the ROLLBACK TO SAVEPOINT
+(it remains open and positioned).
+
+Although these cursors remain open after rollback to the savepoint,
+they might not be usable. For example, if rolling back to the savepoint
+causes the insertion of a row on which the cursor is positioned to
+be rolled back, using the cursor to update or delete the row results
+in an error.
+ON ROLLBACK RETAIN LOCKS
+Specifies that any locks that are acquired after the savepoint
+is set are not released on rollback to the savepoint.
+
+NotesSavepoint
+persistence: A savepoint, S, is destroyed when:A COMMIT or ROLLBACK (without a TO SAVEPOINT clause) statement
+is executed.
+A ROLLBACK TO SAVEPOINT statement is executed that specifies savepoint S or
+a savepoint that was established earlier than S in the unit
+of work.
+A RELEASE SAVEPOINT statement is executed that specifies savepoint S or
+a savepoint that was established earlier than S in the unit
+of work.
+A SAVEPOINT statement specifies the same name as an existing savepoint
+that was not created with the UNIQUE keyword.
+
+Effect on INSERT: In an application, inserts may
+be buffered. The buffer will be flushed when SAVEPOINT, ROLLBACK,
+or RELEASE TO SAVEPOINT statements are issued.
+SAVEPOINT restriction: A SAVEPOINT statement is
+not allowed if commitment control is not active for the activation
+group. For information about determining which commitment definition
+is used, see Notes in
+COMMIT statement.
+ExampleAssume that you want to set three
+savepoints at various points in a unit of work. Name the first savepoint
+A and allow the savepoint name to be reused. Name the second savepoint
+B and do not allow the name to be reused. Because you no longer need
+savepoint A when you are ready to set the third savepoint, reuse A
+as the name of the savepoint.
+SAVEPOINT A ON ROLLBACK RETAIN CURSORS;
+.
+.
+.
+SAVEPOINT B UNIQUE ON ROLLBACK RETAIN CURSORS;
+.
+.
+.
+SAVEPOINT A ON ROLLBACK RETAIN CURSORS;
+
+Parent topic: Statements

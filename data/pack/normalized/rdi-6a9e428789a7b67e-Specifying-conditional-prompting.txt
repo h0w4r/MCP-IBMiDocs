@@ -1,0 +1,147 @@
+Specifying conditional prompting
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Specifying prompt control > Specifying prompt control
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Specifying prompt control
+
+Specifying conditional prompting
+You can specify that a parameter is prompted for only when certain
+conditions are met.
+When prompting the user for a command, a parameter that is conditioned
+by other parameters is displayed if:
+It is selected by the value specified for the controlling parameter.
+The value specified for the controlling parameter is in error.
+A value was specified for the conditioned parameter.
+A function key was pressed during prompting to request that all parameters
+be displayed.
+
+When a user is to be prompted for a conditioned parameter and no value
+has yet been specified for its controlling parameter, all parameters previously
+selected are displayed. When the user presses the Enter key, the controlling
+parameter is then tested to determine if the conditioned parameter should
+be displayed or not.
+To specify conditional prompting in the command definition source, specify
+a label name in the PMTCTL parameter on the PARM statement for each parameter
+that is conditioned by another parameter. The label specified must be defined
+on a PMTCTL statement which specifies the controlling parameter and the condition
+being tested to select the parameter for prompting. More than one PARM statement
+can refer to the same label.
+On the PMTCTL statement, specify the name of the controlling parameter,
+one or more conditions to be tested, and the number of conditions that must
+be true to select the conditioned parameters for prompting. If the controlling
+parameter has special value mapping, the value entered on the PMTCTL statement
+must be the to-value. If the controlling parameter is a list or qualified
+name, only the first list item or qualifier is compared.
+In the following example, parameters OUTFILE and OUTMBR is selected only
+if *OUTFILE is specified for the OUTPUT parameter, and parameter OUTQ is selected
+only if *PRINT is specified for the OUTPUT parameter. PARM OUTPUT TYPE(*CHAR) LEN(1) DFT(*) RSTD(*YES) +
+SPCVAL((*) (*PRINT P) (*OUTFILE F))
+PARM OUTFILE TYPE(Q1) PMTCTL(OUTFILE)
+PARM OUTMBR TYPE(*NAME) LEN(10) PMTCTL(OUTFILE)
+PARM OUTLINK TYPE(*CHAR) LEN(10)
+PARM OUTQ TYPE(Q1) PMTCTL(PRINT)
+Q1: QUAL TYPE(*NAME) LEN(10)
+QUAL TYPE(*NAME) LEN(10) SPCVAL(*LIBL) DFT(*LIBL)
+OUTFILE: PMTCTL CTL(OUTPUT) COND((*EQ F)) NBRTRUE(*EQ 1)
+PRINT: PMTCTL CTL(OUTPUT) COND((*EQ P)) NBRTRUE(*EQ 1)
+
+In this previous example, the user is prompted for the OUTLINK parameter
+after the condition for OUTMBR parameter has been tested. In some cases,
+the user should be prompted for the OUTLINK parameter before the OUTMBR parameter
+is tested. To specify a different prompt order, either reorder the parameters
+in the command definition source or use the PROMPT keyword on the PARM statement
+for the OUTLINK parameter.
+A label can refer to a group of PMTCTL statements. This allows you to
+condition a parameter with more than one controlling parameter. To specify
+a group of PMTCTL statements, enter the label on the first statement in the
+group. No other statements can be placed between the PMTCTL statements in
+the group.
+Use the LGLREL parameter to specify the logical relationship between the
+statements in the group. The LGLREL parameter is not allowed on the first
+PMTCTL statement in a group. For subsequent PMTCTL statements, the LGLREL
+parameter specifies the logical relationship (*AND or *OR) to the PMTCTL statement
+or statements preceding it. Statements in a group can be logically related
+in any combination of *AND and *OR relationships (*AND relationships are
+checked first, then *OR relationships).
+The following example shows how the logical relationship is used to group
+multiple PMTCTL statements. In this example, parameter P3 is selected when
+any one of the following conditions exists:
+*ALL is specified for P1.
+*SOME is specified for P1 and *ALL is specified for P2.
+*NONE is specified for P1 and *ALL is not specified for P2.
+
+PARM P1 TYPE(*CHAR) LEN(5) RSTD(*YES) VALUES(*ALL *SOME *NONE)
+PARM P2 TYPE(*NAME) LEN(10) SPCVAL(*ALL)
+PARM P3 TYPE(*CHAR) LEN(10) PMTCTL(PMTCTL1)
+PMTCTL1:PMTCTL CTL(P1) COND((*EQ *ALL))
+PMTCTL CTL(P1) COND((*EQ *SOME)) LGLREL(*OR)
+PMTCTL CTL(P2) COND((*EQ *ALL)) LGLREL(*AND)
+PMTCTL CTL(P1) COND((*EQ *NONE)) LGLREL(*OR)
+PMTCTL CTL(P2) COND((*NE *ALL)) LGLREL(*AND)
+An exit program can be specified to perform additional processing on a
+controlling parameter before it is tested. The exit program can be used to
+condition prompting based on:
+The type or other attribute of an object
+A list item or qualifier other than the first one
+An entire list or qualified name
+
+To specify an exit program, specify the qualified name of the program in
+the PMTCTLPGM parameter on the PARM statement for the controlling parameter.
+The exit program is run during prompting when checking a parameter. The conditions
+on the PMTCTL statement are compared with the value returned by the exit program
+rather than the value specified for the controlling parameter.
+When the system cannot find or successfully run the exit program, the system
+assumes any conditions that would use the returned value as true.
+The exit program must be written to accept three parameters:
+A 20-character field. The prompter passes the name of the command in
+the first 10 characters and the name of the controlling parameter in the last
+10 characters. This field should not be changed.
+The value of the controlling parameter. This field is in the same format
+as it is when passed to the command processing program and should not be changed.
+If the controlling parameter is defined as VARY(*YES) the value is not
+preceded by a length value. If the controlling parameter is PASSATR(*YES),
+the attribute byte is not included.
+A 32-character field into which the exit program places the value to be
+tested in the PMTCTL statements. The value being tested in the PMTCTL
+statement must be returned in the same format as the declared data type.
+
+In the following example, OBJ is a qualified name which may be the name
+of a command, program, or file. The exit program determines the object type
+and returns the type in the variable &RTNVAL:
+CMD
+PARM OBJ TYPE(Q1) PMTCTLPGM(CNVTYPE)
+Q1: QUAL TYPE(*NAME) LEN(10)
+QUAL TYPE(*NAME) LEN(10) SPCVAL(*LIBL) DFT(*LIBL)
+PARM CMDPARM TYPE(*CHAR) LEN(10) PMTCTL(CMD)
+PARM PGMPARM TYPE(*CHAR) LEN(10) PMTCTL(PGM)
+PARM FILEPARM TYPE(*CHAR) LEN(10) PMTCTL(FILE)
+CMD: PMTCTL CTL(OBJ) COND((*EQ *CMD) (*EQ *)) NBRTRUE(*EQ 1)
+PGM: PMTCTL CTL(OBJ) COND((*EQ *PGM) (*EQ *)) NBRTRUE(*EQ 1)
+FILE: PMTCTL CTL(OBJ) COND((*EQ *FILE) (*EQ *)) NBRTRUE(*EQ 1)
+The source for the exit program is shown here.
+Note: By using the code example, you agree to the terms of the Code license and disclaimer information.
+PGM PARM(&CMD &PARMVAL &RTNVAL)
+DCL &CMD *CHAR 20 /* Command and parameter name */
+DCL &PARMVAL *CHAR 20 /* Parameter value */
+DCL &RTNVAL *CHAR 32 /* Return value */
+DCL &OBJNAM *CHAR 10 /* Object name */
+DCL &OBJLIB *CHAR 10 /* Object type */
+CHGVAR &OBJNAM %SST(&PARMVAL 1 10)
+CHGVAR &OBJLIB %SST(&PARMVAL 11 10)
+CHGVAR &RTNVAL '*' /* Initialize return value to error*/
+CHKOBJ &OBJLIB/&OBJNAM *CMD /* See if command exists */
+MONMSG CPF9801 EXEC(GOTO NOTCMD) /* Skip if no command */
+CHGVAR &RTNVAL '*CMD' /* Indicate object is a command */
+RETURN /* Exit */
+NOTCMD:
+CHKOBJ &OBJLIB/&OBJNAM *PGM /* See if program exists */
+MONMSG CPF9801 EXEC(GOTO NOTPGM) /* Skip if no program */
+CHGVAR &RTNVAL '*PGM' /* Indicate object is a program */
+RETURN /* Exit */
+NOTPGM:
+CHKOBJ &OBJLIB/&OBJNAM *FILE /* See if file exists */
+MONMSG CPF9801 EXEC(RETURN) /* Exit if no file */
+CHGVAR &RTNVAL '*FILE' /* Indicate object is a file */
+ENDPGM
+
+Parent topic: Specifying prompt control

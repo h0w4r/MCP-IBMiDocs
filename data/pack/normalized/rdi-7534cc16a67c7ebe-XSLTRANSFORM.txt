@@ -1,0 +1,148 @@
+XSLTRANSFORM
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+XSLTRANSFORM
+The XSLTRANSFORM transforms an XML document into a different
+data format. The data can be transformed into any form possible for
+the XSLT processor, including but not limited to XML, HTML, or plain
+text.
+XSLTRANSFORM(XML-documentUSINGxsl-stylesheetWITHxsl-parametersASCLOB(2G)ASdata-type)data-typeCHARACTERCHAR(1)(integer)CHARACTERCHARVARYINGVARCHAR(integer)FOR BIT DATAFOR SBCS DATAFOR MIXED DATAccsid-clauseCHARACTERCHARLARGE OBJECTCLOB(1M)(integerKMG)FOR SBCS DATAFOR MIXED DATAccsid-clauseGRAPHIC(1)(integer)GRAPHIC VARYINGVARGRAPHIC(integer)DBCLOB(1M)(integerKMG)ccsid-clauseNATIONAL CHARACTERNATIONAL CHARNCHAR(1)(integer)NATIONAL CHARACTERNATIONAL CHARNCHARVARYINGNVARCHAR(integer)NATIONAL CHARACTERNCHARLARGE OBJECTNCLOB(1M)(integerKMG)normalize-clauseBINARY(1)(integer)BINARY VARYINGVARBINARY(integer)BLOBBINARY LARGE OBJECT(1M)(integerKMG)
+ccsid-clauseCCSIDintegernormalize-clausenormalize-clauseNOT NORMALIZEDNORMALIZED
+Use XSLTRANSFORM to convert XML data into other formats
+including the conversion of XML documents that conform to one XML
+schema into documents that conform to another XML schema.
+XML-document
+A character string, Unicode graphic string, binary
+string, or XML expression that returns a well-formed XML document.
+This is the document that is transformed using the XSL style sheet
+specified in xsl-stylesheet.
+xsl-stylesheet
+A character string, Unicode graphic string, binary
+string, or XML expression that returns a well-formed XML document.
+The document is an XSL style sheet that conforms to the XSLT Version
+1.10 Recommendation. Style sheets incorporating the xsl:include declaration
+are not supported. This stylesheet is applied to transform the value
+specified in xml-document.
+xsl-parameters
+A character string, Unicode graphic string, binary
+string, or XML expression that returns a well-formed XML document.
+This is a document that provides parameter values to the XSL stylesheet
+specified in xsl-stylesheet. The value of the parameter can
+be specified as an attribute or as text.
+The syntax of the parameter document is as follows:<params xmlns="http://www.ibm.com/XSLTransformParameters">
+<param name="..." value="..."/>
+<param name="...">enter value here</param> ... </params>
+Note:
+The stylesheet document must have xsl:param element(s)
+in it with name attribute values that match the ones specified in
+the parameter document.
+
+AS data-type
+Specifies the result data type. The implicit or explicit length
+attribute of the specified result data type must be sufficient to
+contain the transformed output. The default result data type is CLOB(2G).If a CCSID is specified and the data-type is
+GRAPHIC, VARGRAPHIC, or DBCLOB, the CCSID must be a Unicode CCSID.
+If the CCSID attribute is not specified, the CCSID is
+determined as if the XML-document was cast to data-type as
+described in CAST specification.
+
+The result of the function has the data type specified.
+CCSID conversion that results in data loss can occur when storing
+any of the above documents in a character data type.
+If either XML-document or xsl-stylesheet is
+null, the result is the null value.
+NotePrerequisites:
+In order to use the XSLTRANSFORM function, the XML Toolkit for IBM® i and International
+Components for Unicode (ICU option) must be installed.
+ExampleThis example
+illustrates how to use XSLT as a formatting engine. To get set up,
+first insert the two example documents below into the database.CREATE TABLE XML_TAB (c1 INT, xml_doc CLOB(2M), xsl_doc CLOB(256K));
+INSERT INTO XML_TAB VALUES
+(1, '<?xml version="1.0"?>
+<students xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:noNamespaceSchemaLocation = "/home/steffen/xsd/xslt.xsd">
+<student studentID="1" firstName="Steffen" lastName="Siegmund"
+age="23" university="Rostock"/>
+</students>',
+
+'<?xml version="1.0" encoding="UTF-8"?>
+<xsl:stylesheet version="1.0"
+xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:param name="headline"/>
+<xsl:param name="showUniversity"/>
+
+<xsl:template match="students">
+<html>
+<head/>
+<body>
+<h1><xsl:value-of select="$headline"/></h1>
+<table border="1">
+<th>
+<tr>
+<td width="80">StudentID</td>
+<td width="200">First Name</td>
+<td width="200">Last Name</td>
+<td width="50">Age</td>
+<xsl:choose>
+<xsl:when test="$showUniversity =''true''">
+<td width="200">University</td>
+</xsl:when>
+</xsl:choose>
+</tr>
+</th>
+<xsl:apply-templates/>
+</table>
+</body>
+</html>
+</xsl:template>
+<xsl:template match="student">
+<tr>
+<td><xsl:value-of select="@studentID"/></td>
+<td><xsl:value-of select="@firstName"/></td>
+<td><xsl:value-of select="@lastName"/></td>
+<td><xsl:value-of select="@age"/></td>
+<xsl:choose>
+<xsl:when test="$showUniversity = ''true''">
+<td><xsl:value-of select="@university"/></td>
+</xsl:when>
+</xsl:choose>
+</tr>
+</xsl:template>
+</xsl:stylesheet>');
+Next, call the XSLTRANSFORM function to convert the XML
+data into HTML and display it. SELECT XSLTRANSFORM (XML_DOC USING XSL_DOC
+WITH '<params xmlns="http://www.ibm.com/XSLTransformParameters"></params>')
+FROM XML_TAB;
+The result is this document: <html>
+<head>
+<META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+</head>
+<body>
+<h1></h1>
+<table border="1">
+<th>
+<tr>
+<td width="80">StudentID</td>
+<td width="200">First Name</td>
+<td width="200">Last Name</td>
+<td width="50">Age</td>
+</tr>
+</th>
+<tr>
+<td>1</td>
+<td>Steffen</td>
+<td>Siegmund</td>
+<td>23</td>
+</tr>
+</table>
+</body>
+</html>
+In this example, the output is HTML and the
+parameters influence only what HTML is produced and what data is brought
+over to it. As such it illustrates the use of XSLT as a formatting
+engine for end-user output.
+
+Parent topic: Scalar functions

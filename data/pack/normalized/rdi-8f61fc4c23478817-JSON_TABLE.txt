@@ -1,0 +1,416 @@
+JSON_TABLE
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Table functions > Table functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Table functions
+
+JSON_TABLE
+The JSON_TABLE table function returns a result table from
+the evaluation of SQL/JSON path expressions. Each item in the result
+sequence of the row SQL/JSON path expression represents one or many
+rows in the result table.
+JSON_TABLE(json-expressionFORMAT JSONFORMAT BSON,sql-json-path-expressionASpath-nameCOLUMNS(,json-table-regular-column-definitionjson-table-formatted-column-definitionjson-table-ordinality-column-definitionjson-table-nested-column-definition)EMPTY ON ERRORERROR ON ERROR1)
+json-table-regular-column-definitioncolumn-namedata-typePATHcolumn-path-expression-constantNULL ON EMPTYERRORDEFAULTdefault-expressionON EMPTYNULLERRORDEFAULTdefault-expressionON ERRORjson-table-formatted-column-definitioncolumn-namedata-typeFORMAT JSONPATHcolumn-path-expression-constantWITHOUTARRAYWRAPPERWITHUNCONDITIONALCONDITIONALARRAYWRAPPERKEEP
+QUOTESON SCALAR STRINGOMIT QUOTESON SCALAR
+STRINGNULL ON EMPTYERROREMPTY ARRAYEMPTY OBJECTON EMPTYNULLERROREMPTY ARRAYEMPTY OBJECTON ERRORjson-table-ordinality-column-definitioncolumn-nameFOR ORDINALITYjson-table-nested-column-definitionNESTEDPATHnested-path-expression-constantASnested-path-nameCOLUMNS(,json-table-regular-column-definitionjson-table-formatted-column-definitionjson-table-ordinality-column-definitionjson-table-nested-column-definition)
+data-typeSMALLINTINTEGERINTBIGINTDECIMALDECNUMERICNUM(5,0)(integer,0, integer)FLOAT(53)(integer)REALDOUBLEPRECISIONDECFLOAT(34)(16)CHARACTERCHAR(1)(integer)CHARACTERCHARVARYINGVARCHAR(integer)FOR SBCS DATAFOR MIXED DATAccsid-clauseCHARACTERCHARLARGE OBJECTCLOB(1M)(integerKMG)FOR SBCS DATAFOR MIXED DATAccsid-clauseGRAPHIC(1)(integer)GRAPHIC VARYINGVARGRAPHIC(integer)DBCLOB(1M)(integerKMG)ccsid-clauseNATIONAL CHARACTERNATIONAL CHARNCHAR(1)(integer)NATIONAL CHARACTERNATIONAL CHARNCHARVARYINGNVARCHAR(integer)NATIONAL CHARACTERNCHARLARGE OBJECTNCLOB(1M)(integerKMG)normalize-clauseDATETIME(0)TIMESTAMP(6)(integer)ccsid-clauseCCSIDintegernormalize-clausenormalize-clauseNOT NORMALIZEDNORMALIZED
+json-expression
+Specifies an expression that returns a character, graphic, or
+binary string value. If a character or graphic value is returned,
+it must contain correctly formatted JSON data. If a binary value is
+returned, it must contain the BSON representation of JSON data.
+The json-expression specifies the initial context item
+for the sql-json-path-expression, identified within sql-json-path-expression as $.
+If json-expression does not contain correctly formatted
+data, JSON_TABLE returns an empty table unless a different error behavior
+is specified with an ON ERROR clause.
+FORMAT JSON or FORMAT BSON
+Specifies how json-expression is to be interpreted. FORMAT JSON
+Indicates that json-expression contains JSON data. If json-expression is
+binary data, the data is interpreted as UTF-8 or UTF-16. The binary
+data cannot be encoded using an EBCDIC CCSID.
+FORMAT BSON
+Indicates that json-expression contains the BSON representation
+of JSON data. When FORMAT BSON is specified, json-expression must
+be a binary string data type.
+
+If the FORMAT clause is not specified and json-expression is
+a character or graphic string, json-expression is treated as
+JSON. If json-expression is a binary string, json-expression is
+treated as BSON.
+sql-json-path-expression
+Specifies a character or graphic string expression that is interpreted
+as an SQL/JSON path expression. This expression returns an output
+sequence where each item in the sequence is used by the column definitions
+to generate one or more rows in the output table. If the output sequence
+is empty, the result of JSON_TABLE is an empty table. sql-json-path-expression must
+not be an empty string or a string of all blanks.
+For information on the content of an SQL/JSON path expression,
+see sql-json-path-expression.
+AS path-name
+Specifies a name to be used to identify the sql-json-path-expression.
+EMPTY ON ERROR or ERROR ON ERROR
+Specifies the desired behavior of JSON_TABLE when a table level
+error is encountered. EMPTY ON ERROR
+An empty table is returned when a table level error is encountered.
+This is the default.
+ERROR ON ERROR
+An error is returned when a table level error is encountered.
+
+COLUMNS
+Specifies the output columns of the result table including the
+column name, data type, and how the column value is computed for each
+row.
+The sum of all the result column lengths cannot exceed 64K bytes.
+For information on the byte counts of columns according to data type,
+see Maximum row sizes.
+This function can return up to approximately 200 columns, depending
+on the length of the column name and the length of the column path.json-table-regular-column-definition
+Specifies an output column of the result table including the column
+name, data type, and an SQL/JSON path expression to extract the value
+from the sequence item for the row.column-name
+Specifies the name of the column in the result table. The name
+cannot be qualified and the same name cannot be used for more than
+one column of the result table.
+data-type
+Specifies the data type of the column. For CHAR and VARCHAR columns,
+the CCSID cannot be 65535.
+PATH column-path-expression-constant
+Specifies a character or graphic string constant that is interpreted
+as an SQL/JSON path. The column-path-expression-constant specifies
+an SQL/JSON path expression that determines the column value with
+respect to an item that is the result of evaluating the SQL/JSON path
+expression in sql-json-path-expression. Given an item from
+the result of processing the sql-json-path-expression as the
+externally provided context item, the column-path-expression-constant is
+evaluated and returns an output sequence. The column value is determined
+based on this output sequence as follows:If an empty sequence is returned, the ON EMPTY clause provides
+the value of the column. If ERROR ON EMPTY is specified, an error
+is issued.
+If an empty sequence is returned and no ON EMPTY clause is specified,
+the null value is assigned to the column.
+If a single element sequence is returned and the type of the element
+is not a JSON array or a JSON object, the value is converted to the data-type specified
+for the column.
+If a single element sequence is returned and the type of the element
+is a JSON array or a JSON object, an error is returned.
+If a sequence with more than one element is returned, an error
+is returned.
+If an error occurs, the ON ERROR clause specifies the value of
+the column.
+
+The value of column-path-expression-constant must not
+be an empty string or a string of all blanks. If the PATH clause is
+not specified, the column-path-expression-constant is defined
+as '$.' prepended to the column-name.
+ON EMPTY
+Specifies the behavior when an empty sequence is returned for
+the column. NULL ON EMPTY
+An SQL null value is returned. This is the default.
+ERROR ON EMPTY
+An error is returned.
+DEFAULT default-expression ON EMPTY
+The value specified by default-expression is returned.
+
+ON ERROR
+Specifies the behavior when an error is returned for the column.
+NULL ON ERROR
+An SQL null value is returned. This is the default.
+ERROR ON ERROR
+An error is returned.
+DEFAULT default-expression ON ERROR
+The value specified by default-expression is returned.
+
+If this clause is not specified:If a table level ERROR ON ERROR clause is specified, an error
+is returned.
+Otherwise, an SQL null value is returned.
+
+json-table-formatted-column-definition
+Specifies an output column of the result table including the column
+name, data type, and an SQL/JSON path expression to extract the value
+from the sequence item for the row. The extracted value is formatted
+as a JSON string.column-name
+Specifies the name of the column in the result table. The name
+cannot be qualified and the same name cannot be used for more than
+one column of the result table.
+data-type
+Specifies the data type of the column. The data type must be a
+character or graphic type. For CHAR and VARCHAR columns, the CCSID
+cannot be 65535.
+FORMAT JSON
+Indicates that the retrieved data should be formatted as a JSON
+string.
+PATH column-path-expression-constant
+Specifies a character or graphic string constant that is interpreted
+as an SQL/JSON path.
+The column-path-expression-constant specifies an SQL/JSON
+path expression that determines the column value with respect to an
+item that is the result of evaluating the SQL/JSON path expression
+in sql-json-path-expression as well as all the paths specified
+by prior NESTED PATHs. Given an item from the result of processing
+the sql-json-path-expression as the externally provided context
+item, the column-path-expression-constant is evaluated and
+returns an output sequence. The column value is determined based on
+this output sequence as follows:If an empty sequence is returned, the ON EMPTY clause provides
+the value of the column. If ERROR ON EMPTY is specified, an error
+is returned.
+If an empty sequence is returned and no ON EMPTY clause is specified,
+the null value is assigned to the column.
+If an error occurs, the ON ERROR clause specifies the value of
+the column.
+
+The value for column-path-expression-constant must not
+be an empty string or a string of all blanks. If the PATH clause is
+not specified, the column-path-expression-constant is defined
+as '$.' prepended to the column-name.
+Only sequences that exist as a complete entity in the JSON document
+can be returned. Consequently, the following types of JSON path expressions
+are not allowed:$.*
+$.[1,2,7,8]
+$.[2 to last]
+
+WITHOUT ARRAY WRAPPER or WITH ARRAY WRAPPER
+Specifies whether the output value should be wrapped in a JSON
+array.WITHOUT ARRAY WRAPPER
+Indicates that the result is not wrapped. This is the default.
+Using an SQL/JSON path that results in a sequence of two or more SQL/JSON
+elements results in an error.
+WITH UNCONDITIONAL ARRAY WRAPPER
+Indicates that the result is enclosed in square brackets to create
+a JSON array.
+WITH CONDITIONAL ARRAY WRAPPER
+Indicates that the result is enclosed in square brackets to create
+a JSON array if more than one SQL/JSON element is returned.
+
+KEEP QUOTES or OMIT QUOTES
+Specifies whether the surrounding quotes should be removed when
+a scalar string is returned. KEEP QUOTES
+Indicates quotes are not removed from scalar strings. This is
+the default.
+OMIT QUOTES
+Indicates quotes are removed from scalar strings. When OMIT QUOTES
+is specified, the WITH ARRAY WRAPPER clause cannot be specified
+
+ON EMPTY
+Specifies the behavior when an empty sequence is returned for
+a column. NULL ON EMPTY
+An SQL null value is returned. This is the default.
+ERROR ON EMPTY
+An error is returned.
+EMPTY ARRAY ON EMPTY
+An empty JSON array is returned.
+EMPTY OBJECT ON EMPTY
+An empty JSON object is returned.
+
+ON ERROR
+Specifies the behavior when an error is returned for a column.
+NULL ON ERROR
+An SQL null value is returned.
+ERROR ON ERROR
+An error is returned.
+EMPTY ARRAY ON ERROR
+An empty JSON array is returned.
+EMPTY OBJECT ON ERROR
+An empty JSON object is returned.
+
+If this clause is not specified:If a table level ERROR ON ERROR clause is specified, an error
+is returned.
+Otherwise, an SQL null value is returned.
+
+json-table-ordinality-column-definition
+Specifies an ordinality column of the result table.column-name
+Specifies the name of the column in the result table. The name
+cannot be qualified and the same name cannot be used for more than
+one column of the result table.
+FOR ORDINALITY
+Specifies that column-name is the ordinality column of
+the result table for the enclosing nesting level. The data type of
+this column is BIGINT. If the ordinality column is not within a nested column definition,
+the rows of the result table are numbered sequentially, starting with
+1, and the ordinality column contains the sequential number of the
+current row.
+If the ordinality column is within a nested column definition,
+the rows produced by the enclosing nested column definition are numbered
+sequentially, starting with 1, and the ordinality column contains
+the sequential number of the current row. If the enclosing nested
+column definition is within an outer nested column definition, the
+numbering restarts with 1 each time the path expression of the enclosing
+nested column definition is applied to the result of the outer nested
+column definition.
+
+json-table-nested-column-definition
+Specifies one or more columns that are nested at the current level.NESTED PATH nested-path-expression-constant
+Specifies a character or graphic string constant that is interpreted
+as an SQL/JSON path. The nested-path-expression-constant specifies
+an SQL/JSON path expression that determines the column value with
+respect to an item that is the result of evaluating the SQL/JSON path
+expression in sql-json-path-expression as well as the nested-path-expression-constant from
+prior NESTED PATHs. Given an item from the result of processing the sql-json-path-expression as
+the externally provided context item and the nested-path-expression-constant from
+prior NESTED PATHs, the nested-path-expression-constant is
+evaluated and is used as the context for the nested columns.
+AS nested-path-name
+Specifies the name of the current path.
+COLUMNS
+Specifies the columns to be included in this nesting level.
+
+Table 1. Supported JSON to SQL result column conversionsJSON type
+SQL type
+Notes
+
+Number
+SMALLINT
+INTEGER
+BIGINT
+
+If the source value is beyond the range of the
+target data type, an overflow error is returned.
+
+Number
+DECIMAL
+NUMERIC
+
+The resulting number value is converted, if
+necessary, to the precision and scale of the target data type. The
+necessary number of leading zeros are added or removed. In the fractional
+part of the number, the necessary number of trailing zeros are added
+or the necessary number of digits are eliminated. This truncation
+behavior is similar to the behavior of the cast from DECIMAL to DECIMAL.
+
+Number
+FLOAT
+DOUBLE
+REAL
+DECFLOAT
+
+If the source value is beyond the range of the
+target data type, an overflow error is returned. If the source value
+contains more significant digits than the precision of the target
+data type, the source value is rounded to the precision of the target
+data type.
+
+String or Number
+CHAR
+VARCHAR
+CLOB
+GRAPHIC
+VARGRAPHIC
+DBCLOB
+
+The resulting value is converted, if necessary,
+to the CCSID of the target data type using the rules described in Conversion rules for assignments before
+it is converted to the target type with a limited length. Truncation
+occurs if the specified length limit is smaller than the length of
+the resulting string after CCSID conversion. A warning occurs if any
+non-blank characters are truncated. If the target type is a fixed-length
+string (CHAR or GRAPHIC) and the specified length of the target type
+is greater than the length of the resulting string from CCSID conversion,
+blanks are padded at the end. This truncation and padding behavior
+is similar to retrieval assignment of character or graphic strings.
+
+String
+DATE
+The JSON string is converted to a date value.
+The JSON string must be in one of the following formats:ISO
+yyyy-mm-dd
+USA
+mm/dd/yyyy
+EUR
+dd.mm.yyyy
+JIS
+yyyy-mm-dd
+
+String
+TIME
+The JSON string is converted to a time value.
+The JSON string must be in one of the following formats:ISO
+hh.mm.ss
+EUR
+hh.mm.ss
+JIS
+hh:mm:ss
+HMS
+hh:mm:ss
+
+String
+TIMESTAMP
+The JSON string is converted to a timestamp
+value. The JSON string must be in one of the following formats:ISO
+yyyy-mm-dd hh:mm:ss.nnnnnn
+IBMSQL
+yyyy-mm-dd-hh.mm.ss.nnnnnn
+ISO-8601
+yyyy-mm-ddThh:mm:ss.nnnnnn<+/-Offset>
+
+Array or Object
+CHAR
+VARCHAR
+CLOB
+GRAPHIC
+VARGRAPHIC
+DBCLOB
+
+Must be returned using a FORMAT JSON column.
+JSON arrays or objects are returned as JSON formatted character strings.
+The resultant conversion is that same as for string types.
+
+Null
+Any
+A JSON null value is converted to an SQL null
+value
+
+Boolean
+CHAR
+VARCHAR
+CLOB
+GRAPHIC
+VARGRAPHIC
+DBCLOB
+
+A JSON boolean value is converted to either
+a true or false string
+and is returned as a string using the conversion rules for JSON strings.
+
+ExamplesThese examples operate on the following
+JSON document:{
+"id" : 901,
+"name" : { "first":"John", "last":"Doe" },
+"phones": [ { "type":"home", "number":"555-3762"},
+{ "type":"work", "number":"555-8792"}]
+}
+
+List the employee id, first name, last name, and first phone type
+and number:SELECT U."id", U."first name",U."last name",U."phone type",U."phone number"
+FROM EMPLOYEE_TABLE E
+JSON_TABLE(E.jsondoc,
+'lax $'
+COLUMNS( "id" INTEGER,
+"first name" VARCHAR(20) PATH 'lax $.name.first',
+"last name" VARCHAR(20) PATH 'lax $.name.last',
+"phone type" VARCHAR(20) PATH 'lax $.phones[0].type',
+"phone number" VARCHAR(20) PATH 'lax $.phones[0].number')
+) AS U
+Returns:id first name last name phone type phone number
+--- ---------- --------- ---------- ------------
+901 John Doe home 555-3762
+
+List the employee id, first name, last name, and all available
+telephone types and numbers:SELECT U."id", U."first name",U."last name",U."phone type",U."number" AS "phone number"
+FROM EMPLOYEE_TABLE E
+JSON_TABLE(E.jsondoc,
+'lax $'
+COLUMNS( "id" INTEGER,
+"first name" VARCHAR(20) PATH 'lax $.name.first',
+"last name" VARCHAR(20) PATH 'lax $.name.last',
+NESTED PATH 'lax $.phones[*]'
+COLUMNS (
+"phone type" VARCHAR(20) PATH 'lax $.type',
+"number" VARCHAR(20) )
+)
+) AS U
+Returns:id first name last name phone type phone number
+--- ---------- --------- ---------- ------------
+901 John Doe home 555-3762
+901 John Doe work 555-8792
+
+Parent topic: Table functions

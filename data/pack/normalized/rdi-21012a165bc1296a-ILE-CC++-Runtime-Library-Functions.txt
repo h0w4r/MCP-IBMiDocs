@@ -1,0 +1,109 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+longjmp() — Restore Stack Environment
+Format
+#include <setjmp.h>
+void longjmp(jmp_buf env, int value);
+Language Level: ANSI
+Threadsafe: Yes.
+Description
+The longjmp() function restores a stack environment previously saved
+in env by the setjmp() function. The setjmp() and longjmp() functions
+provide a way to perform a non-local goto. They are often
+used in signal handlers.
+A call to the setjmp() function causes the current stack environment
+to be saved in env. A subsequent call to longjmp() restores
+the saved environment and returns control to a point in the program
+corresponding to the setjmp()call. Processing resumes as if the setjmp() call
+had just returned the given value.
+All variables (except register variables) that are available to
+the function that receives control contain the values they had when longjmp() was
+called. The values of register variables are unpredictable. Nonvolatile auto variables
+that are changed between calls to the setjmp() and longjmp() functions
+are also unpredictable.
+
+Note:
+Ensure that the function that
+calls the setjmp() function does not return before you call the corresponding longjmp() function.
+Calling longjmp() after the function calling the setjmp() function returns
+causes unpredictable program behavior.
+The value argument must be nonzero. If you give a zero
+argument for value, longjmp() substitutes 1 in its
+place.
+Return Value
+The longjmp() function does not use the normal function call and return
+mechanisms; it has no return value.
+Example that uses longjmp()
+This example saves the stack environment at the statement:
+
+if(setjmp(mark) != 0) ...
+When the system first performs the if statement, it saves
+the environment in mark and sets the condition to FALSE because
+the setjmp() function returns a 0 when it saves the environment. The
+program prints the message:
+
+setjmp has been called
+The subsequent call to function p() causes
+it to call the longjmp() function. Control is transferred to the point
+in the main() function immediately after the call to the setjmp() function
+using the environment saved in the mark variable.
+This time, the condition is TRUE because -1 is specified
+in the second parameter on the longjmp() function call as the return
+value to be placed on the stack. The example then performs the statements
+in the block, prints the message "longjmp() has been called",
+calls the recover() function, and leaves the program.
+
+#include <stdio.h>
+#include <setjmp.h>
+#include <stdlib.h>
+
+jmp_buf mark;
+
+void p(void);
+void recover(void);
+
+int main(void)
+{
+if (setjmp(mark) != 0)
+{
+printf("longjmp has been called\n");
+recover();
+exit(1);
+}
+printf("setjmp has been called\n");
+printf("Calling function p()\n");
+p();
+printf("This point should never be reached\n");
+}
+
+void p(void)
+{
+printf("Calling longjmp() from inside function p()\n");
+longjmp(mark, -1);
+printf("This point should never be reached\n");
+}
+
+void recover(void)
+{
+printf("Performing function recover()\n");
+}
+/*******************Output should be as follows: **********************
+setjmp has been called
+Calling function p()
+Calling longjmp() from inside function p()
+longjmp has been called
+Performing function recover()
+**********************************************************************/
+Related Information
+
+setjmp() — Preserve Environment
+<setjmp.h>
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

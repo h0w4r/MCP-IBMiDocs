@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="(PICS-1.1 &quot;http://www.icra.org/ratingsv02.html&quot; l gen true r (cz 1 lz 1 nz 1 oz 1 vz 1) &quot;http://www.rsac.org/ratingsv01.html&quot; l gen true r (n 0 s 0 v 0 l 0) &quot;http://www.classify.org/safesurf/&quot; l gen true r (SS~~000 1))" http-equiv="PICS-Label" />
+<meta content="task" name="DC.Type" />
+<meta content="Example: Receiving messages from QSYSMSG" name="DC.Title" />
+<meta content="This example program receives messages from the QSYSMSG message queue." name="abstract" />
+<meta content="This example program receives messages from the QSYSMSG message queue." name="description" />
+<meta content="sample program to receive message from QSYSMSG, example, receiving message from QSYSMSG, message, sample program to receive from QSYSMSG" name="DC.subject" />
+<meta content="sample program to receive message from QSYSMSG, example, receiving message from QSYSMSG, message, sample program to receive from QSYSMSG" name="keywords" />
+<meta content="qsysm.htm" name="DC.Relation" scheme="URI" />
+<meta content="© Copyright IBM Corporation 1998, 2010" name="copyright" />
+<meta content="© Copyright IBM Corporation 1998, 2010" name="DC.Rights.Owner" />
+<meta content="XHTML" name="DC.Format" />
+<meta content="sprmq" name="DC.Identifier" />
+<meta content="en-us" name="DC.Language" />
+<!-- Licensed Materials Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link href="./ibmdita.css" rel="stylesheet" type="text/css" />
+<link href="./help.css" rel="stylesheet" type="text/css" />
+<link href="qsysm.htm" rel="Start" />
+<title>Example: Receiving messages from QSYSMSG for i5/OS</title>
+
+<script src="../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.langref2.doc%2Fsprmq.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="sprmq">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../nav/2_3" shape="rect">Control language</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/rbam6clmain.htm" shape="rect">Control language</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/wmsgs.htm" shape="rect">Messages</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/qsysm.htm" shape="rect">QSYSMSG message queue</a></div>
+<a name="sprmq" shape="rect"><!-- --></a>
+<h1 class="title topictitle1">Example: Receiving messages from QSYSMSG</h1>
+<div class="body taskbody"><p class="shortdesc">This example program receives messages from the
+QSYSMSG message queue.</p>
+<div class="section context"> <p class="p">The program consists of a single procedure which is receiving
+messages and handling message CPF1269.  The reason code in the CPF1269 message
+is in binary format. This must be converted to a decimal value for the comparisons
+to the 704 and 705 reason codes. The procedure issues the <span class="keyword cmdname">End Mode
+(ENDMOD)</span> command to prevent new jobs from being started until the
+situation is understood.  It then sends the same message to a user-defined
+message queue to be reviewed by the security officer.  It also sends a message
+to the system operator to indicate what occurred.  If a different message
+is received, it is sent to the system operator.</p>
+<p class="p">A separate job would
+be started to call this sample program.  The job would remain active, waiting
+for a message to arrive.  The job could be ended using the <span class="keyword cmdname">End Job
+(ENDJOB)</span> command.</p>
+<div class="note note"><span class="notetitle">Note:</span> By using the code examples, you agree
+to the terms of the <a class="xref" href="codedisclaimer.htm" shape="rect">Code license and disclaimer information</a>.</div>
+<pre class="pre codeblock" xml:space="preserve"> /********************************************************************/
+ /*                                                                  */
+ /*  Example program to receive messages from QSYSMSG                 */
+ /*                                                                  */
+ /********************************************************************/
+ /*                                                                  */
+ /*  Program looks for message CPF1269 with a reason code of 704     */
+ /*  or 705.  If found then notify QSECOFR of the security failure.  */
+ /*  Otherwise resend the message to QSYSOPR.                        */
+ /*                                                                  */
+ /*  The following describes message CPF1269                         */
+ /*                                                                  */
+ /*      CPF1269:  Program start request received on communications  */
+ /*                device &amp;1 was rejected with reason codes &amp;6,; &amp;7;  */
+ /*                                                                  */
+ /*      Message data from DSPMSGD CPF1269                           */
+ /*                                                                  */
+ /*        Data  type   offset length Description                    */
+ /*                                                                  */
+ /*         &amp;1   *CHAR      1     10  Device                         */
+ /*         &amp;2   *CHAR     11      8  Mode                           */
+ /*         &amp;3   *CHAR     19     10  Job - number                   */
+ /*         &amp;4   *CHAR     29     10  Job - user                     */
+ /*         &amp;5   *CHAR     39      6  Job - name                     */
+ /*         &amp;6   *BIN      45      2  Reason code - major            */
+ /*         &amp;7   *BIN      47      2  Reason code - minor            */
+ /*         &amp;8   *CHAR     49      8  Remote location name           */
+ /*         &amp;9   *CHAR     57  *VARY  Unit of work identifier        */
+ /*                                                                  */
+ /********************************************************************/
+ 
+           PGM
+ 
+           DCL        &amp;MSGID   *CHAR LEN(  7)
+           DCL        &amp;MSGDTA  *CHAR LEN(100)
+           DCL        &amp;MSG     *CHAR LEN(132)
+ 
+           DCL        &amp;DEVICE  *CHAR LEN( 10)
+           DCL        &amp;MODE    *CHAR LEN(  8)
+           DCL        &amp;RMTLOC  *CHAR LEN(  8)
+ 
+           MONMSG     CPF0000  EXEC(GOTO PROBLEM)
+           /**********************************************************/
+           /* Fetch messages from QSYSMSG message queue              */
+           /**********************************************************/</pre>
+<pre class="pre codeblock" xml:space="preserve"> LOOP:     RCVMSG     MSGQ(QSYS/QSYSMSG) WAIT(*MAX) MSGID(&amp;MSGID) +
+                          MSG(&amp;MSG) MSGDTA(&amp;MSGDTA)
+ 
+           IF         ((&amp;MSGID *EQ 'CPF1269') /* Start failed msg */ +
+             *AND      ((%BIN(&amp;MSGDTA 45 2) *EQ 704)                 +
+               *OR      (%BIN(&amp;MSGDTA 45 2) *EQ 705)) )              +
+           THEN(DO)
+             /********************************************************/
+             /* Report security failure to QSECOFR                   */
+             /********************************************************/
+ 
+             CHGVAR     &amp;DEVICE %SST(&amp;MSGDTA 1 10) /* Extract device */
+             CHGVAR     &amp;MODE   %SST(&amp;MSGDTA 11 8) /* Extract mode   */
+             CHGVAR     &amp;RMTLOC %SST(&amp;MSGDTA 49 8) /* Get loc name   */
+ 
+             ENDMOD     RMTLOCNAME(&amp;RMTLOC) MODE(&amp;MODE)
+ 
+             SNDPGMMSG  MSGID(&amp;MSGID) MSGF(QCPFMSG) MSGDTA(&amp;MSGDTA) +
+                          TOMSGQ(QSECOFR)
+ 
+             SNDPGMMSG  MSG('Device ' *CAT &amp;DEVICE *TCAT ' Mode '  +
+                          *CAT &amp;MODE *TCAT ' had security failure, +
+                          session max changed to zero')            +
+                          TOMSGQ(QSYSOPR)
+           ENDDO
+           ELSE DO
+             /********************************************************/
+             /* Other message - Resend to QSYSOPR                    */
+             /********************************************************/
+ 
+             SNDPGMMSG  MSGID(&amp;MSGID) MSGF(QCPFMSG) MSGDTA(&amp;MSGDTA) +
+                           TOMSGQ(QSYSOPR)
+ 
+             /* SNDPGMMSG would fail if the message does            */
+             /*   not have a MSGID or is not in QCPFMSG             */
+ 
+             MONMSG     MSGID(CPF0000)  +
+                        EXEC(SNDPGMMSG MSG(&amp;MSG) TOMSGQ(QSYSOPR))
+           ENDDO
+ 
+           GOTO       LOOP    /* Go fetch next message              */
+ 
+ 
+           /**********************************************************/
+           /* Notify QSYSOPR of abnormal end                         */
+           /**********************************************************/
+ 
+ PROBLEM:  SNDPGMMSG  MSG('QSYSMSG job has abnormally ended') +
+                          TOMSGQ(QSYSOPR)
+           MONMSG     CPF0000
+ 
+           SNDPGMMSG  MSGID(CPF9898) MSGF(QCPFMSG) MSGTYPE(*ESCAPE) +
+                         MSGDTA('Unexpected error occurred')
+           MONMSG     CPF0000
+ 
+           ENDPGM</pre>
+</div>
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="qsysm.htm" shape="rect" title="QSYSMSG is a queue that you can create if you plan to handle the list of serious messages that are sent to the queue.">QSYSMSG message queue</a></div>
+</div>
+</div></body>
+</html>

@@ -1,0 +1,237 @@
+SETLL (Set Lower Limit)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+SETLL (Set Lower Limit)
+
+Free-Form Syntax
+
+SETLL{(EHMR)} search-arg name
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+SETLL (E)
+
+search-arg
+
+name (file
+or record format)
+
+ 
+
+NR
+
+ER
+
+EQ
+
+The SETLL operation positions a file at the next record that has
+a key or relative record number that is greater than or equal to the
+search argument (key or relative record number) operand specified
+(search-arg). The file must be a full procedural file.
+
+The search argument, search-arg, must be the
+key or relative record number used to retrieve the record. If access
+is by key, search-arg can be a a single key in the form of
+a field name, a named constant, a figurative constant, or a literal.
+See Figure 2 for an example of searching key fields.
+
+If the file is an externally-described file, search-arg can
+also be a composite key in the form of a KLIST name, a list of values,
+or %KDS. For keys specified using a KLIST, key fields must have the same CCSID as
+the key in the file. See the example at the end of %KDS (Search Arguments in Data Structure) for
+an illustration of search arguments in a data structure.
+
+See *STRICTKEYS
+for information about the effect Control keyword EXPROPTS(*STRICTKEYS)
+has on the rules for specifying keys with a list of values or %KDS.
+
+If access
+is by relative record number, search-arg must be an integer
+literal or a numeric field with zero decimal positions.
+
+The name operand is required and can contain
+either a file name or a record format name. A record format name is
+allowed only with an externally described file.
+
+The resulting indicators reflect the status of the operation. You
+can specify an indicator in positions 71-72 that is set on when the
+search argument is greater than the highest key or relative record
+number in the file. This information can also be obtained from the
+%FOUND built-in function, which returns '0' if no record is found,
+and '1' if a record is found.
+
+To handle SETLL exceptions (file status codes greater
+than 1000), either the operation code extender 'E' or an error indicator
+ER can be specified, but not both. For more information on error handling,
+see File Exception/Errors.
+
+You can specify an indicator in positions 75-76 that is set on
+when a record is present whose key or relative record number is equal
+to the search argument. This information can also be obtained from
+the %EQUAL built-in function, which returns '1' if an exact match
+is found.
+
+When using SETLL with an indicator in positions 75 and
+76 or with %EQUAL, the comparison between the specified key and the
+actual key in the file is normally done by data management. In some
+cases this is impossible, causing the comparison to be done using
+the hexadecimal collating sequence. This can give different results
+than expected. For more information, see the section "Unexpected Results
+Using Keyed Files" in Rational® Development Studio for i: ILE RPG Programmer's Guide.
+
+If name is a file name for which the lower
+limit is to be set, the file is positioned at the first record with
+a key or relative record number equal to or greater than the search
+argument specified (search-arg).
+
+If name is a record format name for which
+the lower limit is to be set, the file is positioned at the first
+record of the specified type that has a key equal to or greater than
+the search argument specified (search-arg).
+
+You can use the special values *START and *END for search-arg.
+*START positions to the beginning of the file and *END positions to
+the end of the file. Both positionings are independent of the collating
+sequence used for keyed files and
+independent of null-valued key fields. If you specify either *START or *END
+for search-arg, note the following:
+
+The name of the file must be specified as the name operand.
+
+Either an error indicator (positions 73-74) or the 'E' extender
+may be specified.
+
+Figurative constants can also be used to position the file.
+However, there are some situations where using *LOVAL or *HIVAL does
+not position the file exactly at the first or last record in the file;
+it is better to use *START and *END if you want to position to the
+first or last record in the file.
+Note: The discussion and examples of using figurative constants
+which follow, assume that *LOVAL and *HIVAL are not used as actual
+keys in the file.
+
+When used with a file with a composite key, figurative constants
+are treated as though each field of the key contained the figurative
+constant value. Using SETLL with *LOVAL positions the file so that
+the first read retrieves the record with the lowest key,
+if the file does not contain any records with null-capable key fields.
+In most
+cases (when duplicate keys are not allowed), *HIVAL positions the
+file so that a READP retrieves the last record in the file, or a READ
+receives an end-of-file indication. However, note the following cases
+for using *LOVAL and *HIVAL:
+
+With an externally described file that has a key in descending
+order, *HIVAL positions the file so that the first read operation
+retrieves the record with the highest
+key, and *LOVAL positions the file so that a READP operation retrieves
+the record with the lowest key.
+
+If a record is added or a key field altered after a SETLL operation
+with either *LOVAL or *HIVAL, the file may no longer be positioned
+to the record with the lowest or highest key.
+
+*LOVAL for numeric keys represents a key value X‘99...9D’
+and *HIVAL represents a key value X‘99...9F’. If the keys
+are float numeric, *HIVAL and *LOVAL are defined differently. See Figurative Constants. When a program described file has a packed decimal
+key specified in the file specifications but the actual file key field
+contains character data, records may have keys that are less than
+*LOVAL or greater than *HIVAL. When a key field contains unsigned
+binary data, *LOVAL may not be the lowest key.
+
+When *LOVAL or *HIVAL are used with key fields with a Date or Time
+data type, the values are dependent of the Date-Time format used.
+For details on these values please see Data Types and Data Formats.
+
+When figurative constants such as *LOVAL or *HIVAL are used with null-capable key fields,
+records with null-valued keys will not be found by the search.
+
+Figure 1 shows
+the use of figurative constants with the SETGT operation. Figurative
+constants are used the same way with the SETLL operation.
+
+Remember the following when using the SETLL operation:
+
+If the SETLL operation is not successful (no records found condition),
+the file is positioned to the end of the file.
+
+When end of file is reached on a file being processed by SETLL,
+another SETLL can be issued to reposition the file.
+
+After a SETLL operation successfully positions the file at a record,
+you retrieve this record by reading the file. Before you read the
+file, however, records may be deleted from the file by another job
+or through another file in your job. Thus, you may not get the record
+you expected. Even if the %EQUAL built-in function is also set on
+or the resulting indicator in positions 75 and 76 is set on to indicate
+you found a matching record, you may not get that record. For information
+on preventing unexpected modification of your files, see the discussion
+of allocating objects in the IBM® i
+Information Center Programming
+topic..
+
+SETLL does not cause the system to access a data record. If you
+are only interested in verifying that a key actually exists, SETLL
+with an equal indicator (positions 75-76) or the %EQUAL built-in function
+is a better performing solution than the CHAIN operation in most cases.
+Under special cases of a multiple format logical file with sparse
+keys, CHAIN can be a faster solution than SETLL.
+
+See Database Null Value Support for information on handling records with
+null-capable fields and keys.
+
+For more information, see File Operations.
+
+Note: Operation code extenders H, M, and R are allowed
+only when the search argument is a list or is %KDS().
+See Keys for File Operations
+and Ensuring Accuracy.
+
+In the following example, the file ORDFIL contains order records.
+The key field is the order number (ORDER) field. There are multiple
+records for each order. ORDFIL looks like this in the calculation
+specifications:
+
+Figure 1. SETLL Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* All the 101 records in ORDFIL are to be printed. The value 101
+* has previously been placed in ORDER. The SETLL operation
+* positions the file at the first record with the key value 101
+* and %EQUAL will return '1'.
+C
+C ORDER SETLL ORDFIL
+C
+* The following DO loop processes all the records that have the
+* same key value.
+C
+C IF %EQUAL
+C DOU %EOF
+C ORDER READE ORDFIL
+C IF NOT %EOF
+C EXCEPT DETAIL
+C ENDIF
+C ENDDO
+C ENDIF
+C
+* The READE operation reads the second, third, and fourth 101
+* records in the same manner as the first 101 record was read.
+* After the fourth 101 record is read, the READE operation is
+* attempted. Because the 102 record is not of the same group,
+* %EOF will return '1', the EXCEPT operation is bypassed, and
+* the DOU loop ends.
+
+Parent topic: Operation Codes

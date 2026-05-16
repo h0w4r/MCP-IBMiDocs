@@ -1,0 +1,208 @@
+NULLIND{(null-indicator)}
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > Definition-Specification Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords
+
+NULLIND{(null-indicator)}
+
+The NULLIND keyword allows you to explicitly define the
+%NULLIND value for a field
+or data structure.
+
+When the NULLIND keyword is specified for an item, the parameter for the keyword is used
+as the null-indicator, null-indicator array, or null-indicator data structure
+for the item being defined.
+
+You can omit the parameter for the NULLIND keyword if the item being defined
+is not a data structure.
+In that case, the variable or array is null-capable, but the null-indicators must
+be addressed by using the %NULLIND built-in function.
+
+An indicator specified as a parameter to a NULLIND keyword can be addressed either
+by its name, or by the %NULLIND built-in function for the associated item.
+For example, if field myField is defined with NULLIND(myNullind),
+then %NULLIND(myField)
+and myNullind both represent the indicator myNullind.
+If array data structure myDs is defined with NULLIND(myDsNulls),
+then myDsNulls(i).addr
+and %NULLIND(myDs(i).addr) both represent the
+indicator myDsNulls(i).addr.
+
+The parameter for the NULLIND keyword must be identical to the item being defined in
+every way other than the data type of the subfields.
+
+If the item is a data structure, it must be an externally-described data structure.
+The parameter for the NULLIND keyword
+must also be externally-described with the extract-type for the
+EXTNAME or LIKEREC keyword
+as the item, with the addition of the *NULL parameter.
+
+The NULLIND keyword cannot be specified for an individual external subfield.
+Subfields of externally-described data structures are automatically defined
+as null-capable if the external field is null-capable.
+To define a specific indicator as the null-indicator for an externally-described
+subfield, you must define an externally-described null-indicator data structure and associate it with the
+externally-described data structure.
+
+The NULLIND keyword cannot be specified for a program-described data structure.
+The NULLIND keyword can be specified for additional program-described subfields of
+an externally-described data structure, but the null-indicators for program-described
+subfields will not be considered when the data structure is used with an I/O operation.
+
+If the item is an array, the parameter for the NULLIND keyword must also be an array,
+with the same dimension.
+
+If the item is a subfield, the parameter for the NULLIND keyword must be a subfield
+in the same data structure.
+If the data structure is qualified, the parameter
+for the NULLIND keyword must be specified without the qualifying data
+structure name.
+See the example below.
+
+Fields that are defined with the LIKE keyword, or data structures that are defined with the LIKEDS
+keyword do not inherit the NULLIND keyword for the parameter of the LIKE or LIKEDS keyword.
+However, data structures that defined with the LIKEDS keyword do inherit the
+relationships defined by the NULLIND keywords specified for the subfields of the
+data structure specified as the parameter of the NULLIND keyword.
+See the example below.
+
+The parameter for the NULLIND keyword must have the same scope and the same storage
+type as the item.
+For example, if the item is a static field in a subprocedure, the parameter for the NULLIND
+keyword must also be a static field in the same subprocedure.
+
+When the NULLIND keyword is specified for a prototyped parameter
+
+The parameter for the NULLIND keyword is required.
+
+The parameter for the NULLIND keyword must be another parameter in the parameter list.
+
+OPTIONS(*NULLIND) is not allowed for the parameter
+
+The parameter for the NULLIND keyword cannot be null-capable or have null-capable subfields.
+
+The parameter for the NULLIND keyword can be specified for only one item.
+
+The NULLIND keyword is allowed only if the
+ALWNULL(*USRCTL) keyword is in effect.
+
+Examples
+
+In the following example, field DUEDATE is defined with the
+NULLIND keyword with no parameter.
+The null-indicator for DUEDATE is addressed by using the %NULLIND built-in function.
+
+dcl-s dueDate date nullind;
+
+if not %nullind(dueDate) and dueDate > %date();
+sendReminder (custId : dueDate);
+endif;
+
+In the following example, array empBonus is defined with the
+NULLIND keyword with parameter empBonus_null.
+empBonus_null is also defined as an array with the same dimension.
+The null-indicator for empBonus can be addressed by using either
+the %NULLIND built-in function or the empBonus_null array.
+The two FOR loops behave the same:
+
+In the first FOR loop, the null-indicator is used directly.
+
+In the second FOR loop, the %NULLIND is used.
+
+dcl-c MAX_EMPLOYEES 50;
+dcl-s empBonus packed(5:2) dim(MAX_EMPLOYEES) nullind(empBonus_null);
+dcl-s empBonus_null ind dim(MAX_EMPLOYEES);
+dcl-s numEmployees int(10);
+
+for i = 1 to numEmployees;
+if not empBonus_null(i); // 1
+applyBonus (emp(i) : empBonus(i));
+endif;
+endfor;
+
+for i = 1 to numEmployees;
+if not %nullind(empBonus(i)); // 2
+applyBonus (emp(i) : empBonus(i));
+endif;
+endfor;
+
+In the following example of a trigger program, data structure
+beforeDs is defined with EXTNAME(*INPUT), and data structure
+beforeNull is defined with EXTNAME(*INPUT : *NULL).
+Data structure beforeNull is specified as the null-indicator
+data structure for data structure beforeDsl.
+The subfields of the beforeNull data structure can be addressed
+either by their names, or by using the %NULLIND built-in function
+with the subfields of the beforeDsl data structure.
+The two IF statements behave the same:
+
+In the first IF statement, the null-indicator is used directly.
+
+In the second IF statement, %NULLIND is used to address the null-indicator.
+
+dcl-ds before extname('CUSTFILE':*input) based(pBefore)
+nullind(beforeNull) end-ds;
+dcl-ds beforeNull extname('CUSTFILE':*input:*null) based(pBeforeNull)
+end-ds;
+
+pBefore = %addr(trgbuf) + trgbuf.beforeOffset;
+pBeforeNull = %addr(trgbuf) + trgbuf.beforeNullMapOffset;
+
+if beforeNull.quantity; // 1
+...
+
+if %nullind(beforeDs.quantity); // 2
+...
+
+In the following example,
+qualified data structure ds1 has two subfields that are defined with the
+NULLIND keyword.
+
+When subfields sub1_null and sub2_null
+are specified as the
+parameters for the NULLIND keywords, they are specified without being
+qualified by the data structure name.
+
+When the subfields of data structure DS1 are used in calculations,
+they are qualified by the data structure name, since the data structure is qualified.
+
+dcl-ds ds1 qualified;
+sub1 char(10) nullind(sub1_null); 1
+sub2 likerec(custRec:*input) nullind(sub2_nulls); 1
+sub1_null ind;
+sub2_nulls likerec(custRec:*input:*null);
+end-ds;
+
+if ds1.sub1_null 2
+or ds1.sub2_nulls.quantity; 2;
+...
+
+The following example shows how the null-indicator relationship
+for subfields is inherited by a data structure that is defined with the LIKEDS keyword,
+but null-capability is not inherited by a field that is defined with the LIKE keyword.
+
+Data structure DS2 is defined with the LIKEDS keyword
+with data structure DS1 specified as the parameter.
+Refer to the example above for the definition of DS1.
+
+Field FLD1 is defined with the NULLIND keyword.
+
+Field FLD2 is defined with the LIKE keyword with
+field FLD1 specified as the parameter.
+FLD2 is not null-capable, since null-capability is not
+inherited by the LIKE keyword.
+
+The null-indicator relationships for the subfields of DS2
+are inherited from the NULLIND keywords defined for the subfields of DS1.
+DS2.SUB1 is null-capable;
+its null-indicator is DS2.SUB1_NULL.
+
+dcl-ds ds2 likeds(ds1) inz; 1
+dcl-s fld1 char(10) nullind(null1); 2
+dcl-s fld2 like(fld1); 3
+
+if %nullind(ds2.sub1); 4
+...
+
+Parent topic: Definition-Specification Keywords

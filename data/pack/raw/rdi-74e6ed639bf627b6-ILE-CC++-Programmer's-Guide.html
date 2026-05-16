@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Establishing the Default Program Device</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="acquiring, default program device, _Racquire() function">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog364.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog306.htm">Part 5&#46; Working with iSeries File Systems and Devices</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog356.htm">Chapter 20&#46; Using Device Files in a Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<HR><H2><A NAME="HDRESTDEFDEV" HREF="cpprog02.htm#ToC_432">Establishing the Default Program Device</A></H2>
+<P>You can establish the default device for display and ICF files.
+<P><B>Example:</B>
+<P>The following example illustrates how to explicitly establish a default
+program device for a display file using the <TT>_Racquire()</TT>
+function. 
+<DL><DT><B>Note:</B></DT><DD>To run this example you must use a display device that is defined on your
+system in place of DEVICE2.
+</DD></DL> 
+<OL TYPE=1>
+<LI>To create the display file T1520DDD using the DDS shown below,
+enter: 
+<PRE>
+<BR>
+CRTDSPF FILE(MYLIB/T1520DDD) SRCFILE(QCPPLE/QADDSSRC) MAXDEV(2)
+</PRE>
+<P>
+<P><B><A NAME="Figure_141" HREF="cpprog09.htm#FT_Figure_141">Figure 141. T1520DDD -- DDS Source for an I/O Display</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+     A                                      DSPSIZ(24 80 *DS3)
+<BR>     A          R EXAMPLE
+<BR>     A            OUTPUT         5A  O  5 20
+<BR>     A            INPUT         20A  I  7 20
+<BR>     A                                  5 10'OUTPUT:'
+<BR>     A                                  7 10'INPUT:'
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI><A NAME="LIOVERSTD"></A>To override the file STDOUT with the printer file QPRINT,
+enter: 
+<PRE>
+<BR>
+OVRPRTF FILE(STDOUT) TOFILE(QPRINT)
+</PRE>
+</LI><LI>To create the program T1520DEV using the source shown below, enter: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520DEV) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+<P>
+<P><B><A NAME="Figure_142" HREF="cpprog09.htm#FT_Figure_142">Figure 142. T1520DEV -- ILE C Source to Establish a Default Device</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program establishes a default device using the _Racquire      */
+<BR>/* function.                                                          */
+<BR>&nbsp;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>#include &lt;signal.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>&nbsp;
+<BR>void handler ( int );
+<BR>
+<BR>int main(void)
+<BR>{
+<BR>    _RFILE   *fp;
+<BR>    _RIOFB_T *rfb;
+<BR>    char     buf[21];
+<BR>&nbsp;
+<BR>    signal (SIGALL, handler );
+<BR>&nbsp;
+<BR>    if (( fp = _Ropen ( "*LIBL/T1520DDD","ar+" )) == NULL )
+<BR>    {
+<BR>        printf ( "Could not open the display file\n" );
+<BR>        exit ( 1 );
+<BR>    }
+<BR>    _Racquire ( fp,"DEVICE2" );            /* Acquire the device.     */
+<BR>                                           /* DEVICE2 is now the      */
+<BR>                                           /* default program device. */
+<BR>    _Rformat ( fp,"EXAMPLE" );             /* Select the record       */
+<BR>                                           /* format.                 */
+<BR>    _Rwrite ( fp, "Hello", 5 );            /* Write to the default    */
+<BR>                                           /* program device.         */
+<BR>&nbsp;
+<BR>    rfb = _Rreadn ( fp, buf, 20, __DFT );  /* Read from the default   */
+<BR>                                           /* program device.         */
+<BR>&nbsp;
+<BR>    buf[rfb -&gt; num_bytes] = '\0';
+<BR>&nbsp;
+<BR>    printf ( "Response from device : %s\n", buf );
+<BR>&nbsp;
+<BR>    _Rrelease ( fp, "DEVICE2" );
+<BR>    _Rclose ( fp );
+<BR>}
+<BR>&nbsp;
+<BR>void handler ( int sig )
+<BR>{
+<BR>&nbsp;
+<BR>   printf ( "message = %7.7s\n", _EXCP_MSGID );
+<BR>   printf ( "program continues \n" );
+<BR>   signal ( SIGALL, handler );
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>The <TT>_Racquire()</TT> function explicitly acquires the program
+device DEVICE2. DEVICE2 is the current program device. The
+<TT>_Rformat()</TT> function selects the record format EXAMPLE.
+The <TT>_Rwrite()</TT> function writes data to the default device.
+The <TT>_Rreadn()</TT> function reads the string from the current program
+device DEVICE2.
+</LI><LI>To run the program T1520DEV, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520DEV)
+</PRE>
+<P>The output is as follows: 
+<PRE>
++--------------------------------------------------------------------------------+
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|        OUTPUT:   Hello                                                         |
+|                                                                                |
+|         INPUT:      __________________                                         |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
++--------------------------------------------------------------------------------+</PRE>
+</LI><LI>Type <TT>GOOD MORNING</TT> on the input line and press Enter. 
+<P>The file QPRINT contains: 
+<PRE>
+<BR>
+Response from device : GOOD MORNING
+</PRE>
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog363.htm">Previous Page</A> | <A HREF="cpprog365.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

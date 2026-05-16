@@ -1,0 +1,252 @@
+WINDOW (Window) keyword for display files
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+WINDOW (Window) keyword for display files
+
+You use this record-level keyword to
+specify that the record format you are defining will be displayed
+using a window.
+
+A window is information that overlays part of the display.
+A window is typically smaller than the actual workstation display,
+and can be positioned anywhere on the display.
+The WINDOW keyword
+has two formats that can be used. These formats do the following tasks:
+
+Define a window by specifying the location and size of a window;
+this is known as a window definition record.
+
+Refer to a record format name where the window location and size
+have been defined; this is known as a window-reference record.
+
+The format for the keyword is specified as follows: WINDOW(start-line | &start-line-field start-position
+| &start-position-field window-lines window-positions
+[*MSGLIN | *NOMSGLIN])
+[*RSTCSR | *NORSTCSR])
+or
+WINDOW(*DFT window-lines window-position
+[*MSGLIN | *NOMSGLIN]
+[*RSTCSR | *NORSTCSR])
+Specify this format of the
+WINDOW keyword to define a window. The record format you are defining
+is displayed in this window. Up to 12 windows can be shown on the
+display at one time. You can define more than 12 windows in DDS, but
+only 12 can be displayed at the same time. However, if USRRSTDSP is
+specified, the number of windows is unlimited. All fields defined
+in this record must fit within the window.
+The parameters specify
+the following items:
+The number or the name of a field containing the number of the
+line that is to contain the upper-left corner of the window border.
+If a field name is specified, the field must exist in the record format
+and the field must be defined as a signed numeric (data type S) and
+program-to-system (usage P) field with length no greater than 3.
+
+The number or the name of a field containing the number of the
+position that is to contain the upper-left corner of the window border.
+If a field name is specified, the field must exist in the record format
+and the field must be defined as a signed numeric (data type S) and
+program-to-system (usage P) field with length no greater than 3.
+
+The number of window-lines within the window. The window-lines
+can be no more than the available lines for the display size minus
+2. This is because the upper and lower window borders each occupy
+one line. The last window-line in a window is used as the message
+line and cannot contain any fields. For example, if a WINDOW keyword
+is coded that specifies 10 window-lines for the window, only nine
+of those lines can contain fields; the 10th line is the message line.
+
+The number of window-positions within the window. The window-positions
+can be no more than the available positions for the display size minus
+4. This is because both right and left borders need an attribute byte
+inside the window. An attribute byte exists between the border character
+and the available window positions. For DBCS-capable windows, the
+system might need an additional 2 bytes on each side of the window
+for a shift-out character and shift-in character for any underlying
+DBCS fields.
+
+The MSGLIN parameter specifies if a window contains a message
+line. If this parameter is not specified, the default is *MSGLIN.
+*NOMSGLIN moves the message out of the window and places it at the
+bottom of the display or where the MSGLOC keyword defines the location.
+The last usable line in the window is reserved for error messages;
+no records are displayed there. If the error message is longer than
+the line, it is truncated to fit.
+
+The *RSTCSR parameter specifies if the user should be allowed
+limited function when the cursor is outside of the window. When *NORSTCSR
+is specified and the cursor is outside of the window, the user will
+be allowed to press a function key and have it function as if the
+cursor were within the window. When the user specifies *RSTCSR on
+a controller that supports enhanced interface for nonprogrammable
+workstations, the user will be able to move the cursor out of the
+window (except with a mouse). For other workstations, when the user
+attempts to press a function key while the cursor is outside of the
+window, the user will receive a beep and the cursor will be placed
+inside the window. Control will not be returned to the application.
+*RSTCSR is the default.
+
+The special value, *DFT, specified in place of the start-line
+and start-position parameters, indicates that the system will determine
+the start line and start position of the window. The window is positioned
+relative to the cursor location, similar to application help windows
+with variable starting locations. More information about the rules
+the system uses to position the window can be found in the Application Display Programming book.
+The
+second format for the WINDOW keyword is WINDOW(record-format-name).
+Specify
+this format of the WINDOW keyword to display the record format you
+are defining in a window that is defined on another record format.
+The
+parameter specifies the record format name that has the window attributes
+specified. The record format that uses this parameter is displayed
+in the window defined on the referenced record.
+The field locations
+specified within a record format with the WINDOW keyword are relative
+to the first usable window location in the upper-left corner of the
+window. The first usable window location is on the first line below
+the upper border and two positions to the right of the left border
+(an ending attribute byte occupies the first byte to the right of
+the border).
+When a window is displayed, any records currently
+on the display are suspended if USRRSTDSP is not specified. The suspended
+records can be visible around the sides of the window. Input is allowed
+only within the active window. To remove the window from the display,
+a record can be written to an underlying window or a non-window record
+must be overlaid on the display.
+The WINDOW keyword is not allowed
+on a record format that has any one of the following keywords specified:
+
+ALWROL
+ASSUME
+MNUBAR
+
+PULLDOWN
+SFL
+USRDFN
+
+Note: The WINDOW keyword is allowed on a record with the SFLCTL
+keyword. This allows subfiles to be displayed within a window.
+WINDOW
+cannot be specified for the record format specified by the PASSRCD
+keyword.
+The ERRSFL keyword is ignored for records that have
+the WINDOW keyword specified.
+The MSGLOC keyword is ignored
+for records that have the WINDOW keyword specified, unless NOMSGLIN
+is specified.
+If a record format has both a WINDOW and WDWBORDER
+keyword specified, specify the start-line, start-position, window-lines,
+and window-positions parameters on the WINDOW keyword. The WINDOW
+keyword should not specify the record-format-name parameter.
+Option
+indicators are not valid for this keyword. However, display size condition
+names can be used.
+
+Example 1The following example shows how
+to specify the WINDOW keyword to define a window.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A R WINDOW1 WINDOW(4 20 9 30 *NORSTCSR)
+A FIELD1 8A B 5 10
+A FIELD2 10A B 6 10
+A R WINDOW2 WINDOW(*DFT 9 30 *NOMSGLIN)
+AWhen the WINDOW1 record is displayed, the upper-left
+corner of the window border is on line 4 position 20 of the display.
+The lower-right corner of the border is located 10 lines lower than
+the upper border and 33 positions to the right of the left border.
+Lower border line = upper border line + window-lines + 1
+
+Right border position = left border position + window-positions
++ 3
+
+The FIELD1 field starts 2 lines lower than the upper border
+and 11 positions (the ending attribute byte for the border character
+has been taken into account) to the right of the left border character
+(line 6, position 31 on the display).
+Actual field line = upper border line + line number of field
+
+Actual field position = left border position + position of field
++ 1
+
+The FIELD2 field starts 6 lines lower than the upper border
+and 11 positions to the right of the left border (line 10, position
+31 on the display).
+If the cursor is moved outside of the window,
+the function keys will remain active.
+When the WINDOW 2 record
+is displayed, the upper-left corner of the window border is at the
+cursor position during run time. The message line does not appear
+inside the window, it appears at the bottom of the display.
+If
+the cursor is moved outside of the window, the function keys are inactive.
+If the user presses a function key, they will receive a beep and the
+cursor will be place within the window.
+
+Example 2The following example shows how
+to use the WINDOW keyword to display multiple records in the same
+window.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A R WINDOW1 WINDOW(&LINE &POS 9 30)
+A USERID 8A O 2 10
+A LINE 2S 0P
+A POS 3S 0P
+A
+A R RECORD1 WINDOW(WINDOW1)
+A OVERLAY
+A FIELD1 5A B 7 2
+A FIELD2 20A B 8 5
+A
+A R RECORD2 WINDOW(WINDOW1)
+A FIELD3 10A B 2 2
+A FIELD4 8A B 8 5
+A FIELD4 8A B 8 5
+AWhen the WINDOW1 record is displayed, the upper-left
+corner of the border will be at the line and position numbers specified
+by the LINE and POS fields. The lower-right corner of the border is
+located 10 lines lower than the upper border and 33 positions to the
+right of the left border.
+The USERID field starts 2 lines lower
+than the upper border and 11 positions to the right of the left border
+character.
+If RECORD1 (from the previous example) is displayed,
+it is placed within WINDOW1. Its fields are positioned with respect
+to the upper-left corner of the window. The fields from record WINDOW1
+which were on the display remain because the OVERLAY keyword was used
+on RECORD1 and the two records do not overlap.
+If RECORD2 (from
+the previous example) is displayed, it is also placed within WINDOW1.
+Its fields are positioned with respect to the upper-left corner of
+the window. Because the OVERLAY keyword was not used, the fields from
+records WINDOW1 and RECORD1 are removed from the window.
+
+Example 3The following example shows how
+to use the WINDOW keyword with a subfile.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A R SFLDATA SFL
+A NAME 20A B 4 5
+A RANK 10A B 4 27
+A SERIAL 8A B 4 38
+A
+A R WINDOW1 SFLCTL(SFLDATA)
+A WINDOW(8 25 10 50)
+A SFLPAG(4)
+A SFLSIZ(17)
+A SFLDSP
+A SFLDSPCTL
+A 2 5'Full Name'
+A 2 27'Rank'
+A 2 38'Serial Nbr'
+AWhen the WINDOW1 subfile control record is displayed,
+it and the subfile are displayed in a window. The upper-left corner
+of the window border is at line 8, position 25 on the display. The
+lower-right corner of the border is located on line 19, position 78.
+The
+fields from both the subfile record and subfile control record are
+located with respect to the first usable window position in the upper-left
+corner of the window. For example, the NAME field in the SFLDATA record
+starts on the 4th window line and the 5th window position, which is
+the same as the 12th line on the display and the 31st position on
+the display.

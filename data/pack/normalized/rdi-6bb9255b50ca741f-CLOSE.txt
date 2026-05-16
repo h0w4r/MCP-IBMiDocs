@@ -1,0 +1,93 @@
+CLOSE
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+CLOSE
+The CLOSE statement closes a cursor. If a result table
+was created when the cursor was opened, that table is destroyed.
+InvocationThis statement can only be embedded
+in an application program. It is an executable statement that cannot
+be dynamically prepared. It must not be specified in Java™.
+AuthorizationNone required. See DECLARE CURSOR for the authorization required to
+use a cursor.
+SyntaxCLOSEcursor-name
+Descriptioncursor-name
+Identifies
+the cursor to be closed. The cursor-name must identify a declared
+cursor as explained in the DECLARE CURSOR statement. When the CLOSE
+statement is executed, the cursor must be in the open state.
+
+NotesImplicit
+cursor close: All cursors in a program are in the closed state
+when:
+The program is called. If CLOSQLCSR(*ENDPGM) is specified, all cursors are in the closed
+state each time the program is called.
+If CLOSQLCSR(*ENDSQL) is specified, all cursors are in the closed
+state only the first time the program is called as long as one SQL
+program remains on the call stack.
+If CLOSQLCSR(*ENDJOB) is specified, all cursors are in the closed
+state only the first time the program is called in the job.
+If CLOSQLCSR(*ENDMOD) is specified, all cursors are in the closed
+state each time the module is initiated.
+If CLOSQLCSR(*ENDACTGRP) is specified, all cursors are in the
+closed state the first time the module in the program is initiated
+within the activation group.
+
+A program starts a new unit of work by executing a COMMIT or ROLLBACK
+statement without a HOLD option. Cursors declared with the HOLD option
+are not closed by a COMMIT statement.
+
+Note: The DB2® for
+i database
+manager will open files in order to implement queries. The closing
+of the files can be separate from the SQL CLOSE statement. For more
+information, see SQL Programming.
+Close cursors for
+performance: Explicitly closing cursors as soon as possible can
+improve performance.
+Procedure considerations: Special
+rules apply to cursors within procedures that have not been closed
+before returning to the calling program. For more information, see CALL.
+ExampleIn a COBOL program, use the cursor
+C1 to fetch the values from the first four columns of the EMPPROJACT
+table a row at a time and put them in the following host variables:
+EMP (CHAR(6))
+PRJ (CHAR(6))
+ACT (SMALLINT)
+TIM (DECIMAL(5,2))
+
+Finally, close the cursor.
+EXEC SQL BEGIN DECLARE SECTION END-EXEC.
+77 EMP PIC X(6).
+77 PRJ PIC X(6).
+77 ACT PIC S9(4) BINARY.
+77 TIM PIC S9(3)V9(2) PACKED-DECIMAL.
+EXEC SQL END DECLARE SECTION END-EXEC.
+.
+.
+.
+
+EXEC SQL DECLARE C1 CURSOR FOR
+SELECT EMPNO, PROJNO, ACTNO, EMPTIME
+FROM EMPPROJACT END-EXEC.
+
+EXEC SQL OPEN C1 END-EXEC.
+
+EXEC SQL FETCH C1 INTO :EMP, :PRJ, :ACT, :TIM END-EXEC.
+
+IF SQLSTATE = '02000'
+PERFORM DATA-NOT-FOUND
+ELSE
+PERFORM GET-REST-OF-ACTIVITY UNTIL SQLSTATE IS NOT EQUAL TO '00000'.
+
+EXEC SQL CLOSE C1 END-EXEC.
+
+GET-REST-OF-ACTIVITY
+EXEC SQL FETCH C1 INTO :EMP, :PRJ, :ACT, :TIM END-EXEC.
+.
+.
+.
+
+Parent topic: Statements

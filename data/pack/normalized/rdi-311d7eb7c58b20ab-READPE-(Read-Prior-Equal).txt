@@ -1,0 +1,211 @@
+READPE (Read Prior Equal)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+READPE (Read Prior Equal)
+
+Free-Form Syntax
+
+READPE{(ENHMR)} search-arg|*KEY name {data-structure}
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+READPE (E N)
+
+search-arg
+
+name (file
+or record format)
+
+data-structure
+
+_
+
+ER
+
+BOF
+
+The READPE operation retrieves the next prior sequential record
+from a full procedural file if the key of the record matches the search
+argument. If the key of the record does not match the search argument,
+a BOF condition occurs, and the record is not returned
+to the program. A BOF condition also applies when beginning of file
+occurs.
+
+The search argument, search-arg,
+identifies the record to be retrieved. The search-arg operand
+is optional in traditional syntax but required in free-form syntax. search-arg can be:
+
+A field name, a literal, a named constant, or a figurative constant.
+
+A KLIST name for an externally described file.
+
+A list of key values enclosed in parentheses. See Figure 2 for an example of searching using a list of key
+values.
+
+%KDS to indicate that the search arguments are the
+subfields of a data structure. See the example at the end of %KDS (Search Arguments in Data Structure) for an illustration of search arguments in a data structure.
+
+*KEY or (in traditional syntax only) no value. If the full key
+of the next prior record is equal to that of the current record, the
+next prior record in the file is retrieved. The full key is defined
+by the record format or file used in factor 2.
+
+For keys specified using a KLIST, key fields must have the same CCSID as
+the key in the file.
+
+See *STRICTKEYS
+for information about the effect Control keyword EXPROPTS(*STRICTKEYS)
+has on the rules for specifying keys with a list of values or %KDS.
+
+The name operand must be the name of the file
+or record format to be retrieved. A record format name is allowed
+only with an externally described file.
+
+If the data-structure operand is specified,
+the record is read directly into the data structure. If name refers
+to a program-described
+file, the data structure
+can be any data structure of the same length as the file's declared
+record length. If name refers to an externally-described
+file or a record format from an externally described file, the data
+structure must be a data structure defined with EXTNAME(...:*INPUT or *ALL)
+or LIKEREC(...:*INPUT or *ALL). See File Operations for
+information on how to define the data structure and how data is transferred
+between the file and the data structure.
+
+If the file from which you are reading is an update disk file,
+you can specify an N operation extender to indicate that no lock should
+be placed on the record when it is read. See the Rational® Development Studio for i: ILE RPG Programmer's Guide for
+more information.
+
+To handle READPE exceptions (file status codes greater
+than 1000), either the operation code extender 'E' or an error indicator
+ER can be specified, but not both. For more information on error handling,
+see File Exception/Errors.
+
+You can specify an indicator in positions 75-76 that will be set
+on if a BOF condition occurs: that is, if a record is not found with
+a key equal to the search argument or if a beginning of file is encountered.
+This information can also be obtained from the %EOF built-in function,
+which returns '1' if a BOF condition occurs and '0' otherwise.
+
+If there is a record-lock error (status 1218), the file
+is still positioned at the locked record and the next read operation
+will attempt to read that record again. Otherwise, if there is any
+other error or a beginning of file condition, you must reposition
+the file (using a CHAIN, SETLL, or SETGT operation). See CHAIN (Random Retrieval from a File), SETGT (Set Greater Than), or SETLL (Set Lower Limit).
+
+Note: If a file is defined as update and the
+N operation extender is not specified , occasionally a READPE operation
+will be forced to wait for a temporary record lock for a record whose
+key value does not match the search argument. Once the temporary lock
+has been obtained, if the key value does not match the search argument,
+the temporary lock is released.
+In most cases, RPG can perform
+READPE by using system support that does not require obtaining a temporary
+record lock to determine whether there is a matching record. However,
+in other cases, RPG cannot use this support, and must request the
+next record before it can determine whether the record matches the
+READPE request.
+
+Some of the reasons that would require RPG
+to obtain a temporary lock on the next record for a READPE operation
+are:
+
+the key of the current record is not the same as the search argument
+
+the current record is not the same as the requested record
+
+there are null-capable fields in the file
+
+ALWNULL(*USRCTL) was specified for the module
+
+the file has end-of-file delay
+
+Normally, the comparison between the specified key and
+the actual key in the file is done by data management. In some cases
+this is impossible, causing the comparison to be done using the hexadecimal
+collating sequence. This can give different results than expected.
+For more information, see the section "Unexpected Results Using Keyed
+Files" in Rational Development Studio for i: ILE RPG Programmer's Guide.
+
+A READPE with the search-arg operand specified
+that immediately follows an OPEN operation or a BOF condition returns
+BOF. A READPE with no search-arg specified
+that immediately follows an OPEN operation or a BOF condition results
+in an error condition. The error indicator in positions 73 and 74,
+if specified, is set on or the 'E' extender, checked with %ERROR,
+if specified, is set on. The file must be
+repositioned using a CHAIN, SETLL, READ, READE or READP with search-arg specified, prior to issuing a READPE operation
+with factor 1 blank. A SETGT operation code should not be used to
+position the file prior to issuing a READPE (with no search-arg specified)
+as this results in a record-not-found condition (because the record
+previous to the current record never has the same key as the current
+record after a SETGT is issued). If search-arg is
+specified with the same key for both operation codes, then this error
+condition will not occur.
+
+See Database Null Value Support for information on handling records with
+null-capable fields and keys.
+
+For more information, see File Operations.
+
+Note: Operation code extenders H, M, and R are allowed
+only when the search argument is a list or is %KDS().
+See Keys for File Operations
+and Ensuring Accuracy.
+
+Figure 1. READPE Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* With Factor 1 Specified...
+*
+* The previous record is read and the key compared to FieldA.
+* Indicator 99 is set on if the record's key does not match
+* FieldA.
+C FieldA READPE FileA 99
+*
+* The previous record is read from FileB and the key compared
+* to FieldB. The record is placed in data structure Ds1. If
+* the record key does not match FieldB, indicator 99 is set on.
+C FieldB READPE FileB Ds1 99
+*
+* The previous record from record format RecA is read, and
+* the key compared to FieldC. Indicator 88 is set on if the
+* operation is not completed successfully, and 99 is set on if
+* the record key does not match FieldC.
+C FieldC READPE RecA 8899
+*
+* With No Factor 1 Specified...
+*
+* The previous record in the access path is retrieved if its
+* key value equals the key value of the current record.
+* Indicator 99 is set on if the key values are not equal.
+C READPE FileA 99
+*
+* The previous record is retrieved from FileB if its key value
+* matches the key value of the record at the current position
+* in the file. The record is placed in data structure Ds1.
+* Indicator 99 is set on if the key values are not equal.
+C READPE FileB Ds1 99
+*
+* The previous record from record format RecA is retrieved if
+* its key value matches the key value of the current record in
+* the access path. Indicator 88 is set on if the operation is
+* not successful; 99 is set on if the key values are unequal.
+C READPE RecA 8899
+
+Parent topic: Operation Codes

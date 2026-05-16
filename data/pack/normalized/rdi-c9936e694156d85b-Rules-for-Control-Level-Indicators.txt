@@ -1,0 +1,202 @@
+Rules for Control Level Indicators
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > RPG IV Indicators > Indicators Defined on RPG IV Specifications > Control Level Indicators (L1-L9) > Control Level Indicators (L1-L9)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > RPG IV Indicators > Indicators Defined on RPG IV Specifications > Control Level Indicators (L1-L9)
+
+Rules for Control Level Indicators
+
+When you assign control level indicators, remember the following:
+
+You can specify control fields only for primary or secondary files.
+
+You cannot specify control fields for full procedural files; numeric
+input fields of type binary, integer, unsigned or float; or look-ahead
+fields.
+
+You cannot use control level indicators when an array name is
+specified in positions 49 through 62 of the input specifications;
+however, you can use control level indicators with an array element.
+Control level indicators are not allowed for null-capable fields.
+
+Control level compare operations are processed for records in
+the order in which they are found, regardless of the file from which
+they come.
+
+If you use the same control level indicator in different record
+types or in different files, the control fields associated with that
+control level indicator must be the same length (see Figure 1) except for date, time, and timestamp fields which
+need only match in type (that is, they can be different formats).
+
+The control level indicator field length is the length of a control
+level indicator in a record. For example, if L1 has a field length
+of 10 bytes in a record, the control level indicator field length
+for L1 is 10 positions.
+The control level indicator field length
+for split control fields is the sum of the lengths of all fields associated
+with a control level indicator in a record. If L2 has a split control
+field consisting of 3 fields of length: 12 bytes, 2 bytes and 4 bytes;
+then the control level indicator field length for L2 is 18 positions.
+
+If
+multiple records use the same control level indicator, then the control
+level indicator field length is the length of only one record, not
+the sum of all the lengths of the records.
+
+Within a program,
+the sum of the control level indicator field lengths of all control
+level indicators cannot exceed 256 positions.
+
+Record positions in control fields assigned different control
+level indicators can overlap in the same record type (see Figure 2). For record types that require control or match
+fields, the total length of the control or match field must be less
+than or equal to 256. For example, in Figure 2, 15 positions
+have been assigned to control levels.
+
+Field names are ignored in control level operations. Therefore,
+fields from different record types that have been assigned the same
+control level indicator can have the same name.
+
+Control levels need not be written in any sequence. An L2 entry
+can appear before L1. All lower level indicators need not be assigned.
+
+If different record types in a file do not have the same number
+of control fields, unwanted control breaks can occur.
+
+Figure 3 shows an example
+of how to avoid unwanted control breaks.
+
+Figure 1. Control Level Indicators (Two Record
+Types)
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+A* EMPLOYEE MASTER FILE -- EMPMSTL
+A R EMPREC PFILE(EMPMSTL)
+A EMPLNO 6
+A DEPT 3
+A DIVSON 1
+A*
+A* (ADDITIONAL FIELDS)
+A*
+A R EMPTIM PFILE(EMPMSTP)
+A EMPLNO 6
+A DEPT 3
+A DIVSON 1
+A*
+A* (ADDITIONAL FIELDS)
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+IFilename++SqNORiPos1+NCCPos2+NCCPos3+NCC................................
+I........................Fmt+SPFrom+To+++DcField+++++++++L1M1FrPlMnZr....
+*
+* In this example, control level indicators are defined for three
+* fields. The names of the control fields (DIVSON, DEPT, EMPLNO)
+* give an indication of their relative importance.
+* The division (DIVSON) is the most important group.
+* It is given the highest control level indicator used (L3).
+* The department (DEPT) ranks below the division;
+* L2 is assigned to it. The employee field (EMPLNO) has
+* the lowest control level indicator (L1) assigned to it.
+*
+IEMPREC 10
+I EMPLNO L1
+I DIVSON L3
+I DEPT L2
+*
+* The same control level indicators can be used for different record
+* types. However, the control fields having the same indicators must
+* be the same length. For records in an externally described file,
+* the field attributes are defined in the external description.
+*
+IEMPTIM 20
+I EMPLNO L1
+I DEPT L2
+I DIVSON L3
+
+Figure 2. Overlapping Control Fields
+
+Figure 3. How to Avoid Unwanted Control Breaks
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+IFilename++SqNORiPos1+NCCPos2+NCCPos3+NCC................................
+I........................Fmt+SPFrom+To+++DcField+++++++++L1M1FrPlMnZr....
+ISALES 01
+I 1 2 L2FLD L2
+I 3 15 NAME
+IITEM 02
+I 1 2 L2FLD L2
+I 3 5 L1FLD L1
+I 6 8 AMT
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+* Indicator 11 is set on when the salesman record is read.
+*
+C 01 SETON 11
+*
+* Indicator 11 is set off when the item record is read.
+* This allows the normal L1 control break to occur.
+*
+C 02 SETOFF 11
+C 02AMT ADD L1TOT L1TOT 5 0
+CL1 L1TOT ADD L2TOT L2TOT 5 0
+CL2 L2TOT ADD LRTOT LRTOT 5 0
+*
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+OFilename++DF..N01N02N03Excnam++++B++A++Sb+Sa+...........................
+O..............N01N02N03Field+++++++++YB.End++PConstant/editword/DTformat
+OPRINTER D 01 1 1
+O L2FLD 5
+O NAME 25
+O D 02 1
+O L1FLD 15
+O AMT Z 15
+*
+* When the next item record causes an L1 control break, no total
+* output is printed if indicator 11 is on. Detail calculations
+* are then processed for the item record.
+*
+OFilename++DF..N01N02N03Excnam++++B++A++Sb+Sa+...........................
+O..............N01N02N03Field+++++++++YB.End++PConstant/editword/DTformat
+O T L1N11 1
+O L1TOT ZB 25
+O 27 '*'
+O T L2 1
+O L2TOT ZB 25
+O 28 '**'
+O T LR 1
+O LRTOT ZB 25
+
+Different record types normally contain the same number of control
+fields. However, some applications require a different number of
+control fields in some records.
+
+The salesman records contain only the L2 control field. The item
+records contain both L1 and L2 control fields. With normal RPG IV coding,
+an unwanted control break is created by the first item record following
+the salesman record. This is recognized by an L1 control break immediately
+following the salesman record and results in an asterisk being printed
+on the line below the salesman record.
+
+Numeric control fields are compared in zoned decimal format. Packed
+numeric input fields lengths can be determined by the formula:
+d = 2n - 1 Where
+d = number of digits in the field and n = length of the input field.
+The number of digits in a packed numeric field is always odd; therefore,
+when a packed numeric field is compared with a zoned decimal numeric
+field, the zoned field must have an odd length.
+
+When numeric control fields with decimal positions are compared
+to determine whether a control break has occurred, they are always
+treated as if they had no decimal positions. For instance, 3.46 is
+considered equal to 346.
+
+If you specify a field as numeric, only the positive numeric value
+determines whether a control break has occurred; that is, a field
+is always considered to be positive. For example, -5 is considered
+equal to +5.
+
+Date and time fields are converted to *ISO format before being
+compared
+
+Graphic data is compared by hexadecimal value
+
+Parent topic: Control Level Indicators (L1-L9)

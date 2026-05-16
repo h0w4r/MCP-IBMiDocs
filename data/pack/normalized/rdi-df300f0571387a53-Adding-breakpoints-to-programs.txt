@@ -1,0 +1,163 @@
+Adding breakpoints to programs
+
+IBM i programming resources > Control language > Control language > Debugging CL programs and procedures > Debugging original program model programs > Breakpoints > Breakpoints
+
+IBM i programming resources > Control language > Control language > Debugging CL programs and procedures > Debugging original program model programs > Breakpoints
+
+Adding breakpoints to programs
+To add breakpoints to the program you want to
+debug, use the Add Breakpoint (ADDBKP) command.
+You can specify up to 10 statement identifiers on the one ADDBKP command.
+The program variables specified on an ADDBKP command apply
+only to the breakpoints specified on that command. Up to 10 variables can
+be specified in one ADDBKP command.
+You can also
+specify the name of the program to which the breakpoint is to be added. If
+you do not specify the name of the program that you want the breakpoint added
+to, the breakpoint is added to the default program specified on the STRDBG,
+CHGDBG, or ADDPGM command.
+To add a breakpoint to a program, specify
+a statement identifier, which can be:
+A statement label
+A statement number
+A machine interface (MI) instruction number
+
+When you add a breakpoint to a program, you can also specify program
+variables whose values or partial values you want to display when the breakpoint
+is reached. These variables can be shown in character or hexadecimal format.
+Program
+processing stops at a breakpoint before the instruction is processed. For
+an interactive job, the system displays what breakpoint the program has stopped
+at and, if requested, the values of the program variables.
+In high-level
+language programs, different statements and labels may be mapped to the same
+internal instruction. This happens when there are several inoperable statements
+(such as DO and ENDDO) following one another in a program. You can use the
+IRP list to determine which statements or labels are mapped to the same instruction.
+The
+result of different statements being mapped to the same instruction is that
+a breakpoint being added may redefine a previous breakpoint that was added
+for a different statement. When this occurs, a new breakpoint replaces the
+previously added breakpoint, that is, the previous breakpoint is removed and
+the new breakpoint is added. After this information is displayed, you can
+do any of the following:
+End the most recent request by pressing F3.
+Continue program processing by pressing Enter.
+Go to the command entry display at the next request level by pressing
+F10. From this display, you can: Enter any CL command that can be used in an interactive debug environment.
+You may display or change the values of variables in your program, add or
+remove programs from debug mode, or perform other debug commands.
+Continue processing the program by entering the Resume Breakpoint
+(RSMBKP) command.
+Return to the breakpoint display by pressing F3.
+Return to the command entry display at the previous request level by entering
+the End Request (ENDRQS) command.
+
+For a batch job, a breakpoint program can be called when a breakpoint
+is reached. You must create this breakpoint program to handle the breakpoint
+information. The breakpoint information is passed to the breakpoint program.
+The breakpoint program is another program such as a CL program that can contain
+the same commands (requests for function) that you would have entered interactively
+for an interactive job. For example, the program can display and change variables
+or add and remove breakpoints. Any function valid in a batch job can be requested.
+When the breakpoint program completes processing, the program being debugged
+continues.
+A message is recorded in the job log for every breakpoint
+for the debug job.
+The following ADDBKP commands
+add breakpoints to the program CUS310. CUS310 is the default program, so it
+does not have to be specified. The value of the variable &ARBAL is shown
+when the second breakpoint is reached.
+ADDBKP STMT(900)
+ADDBKP STMT(2200) PGMVAR('&ARBAL')
+Note: You must enclose CL variables within single quotation
+marks.
+The source for CUS310 looks like this.
+Note: By
+using the code example, you agree to the terms of the Code license and disclaimer information.
+5728PW1 R01M00 880101 SEU SOURCE LISTING
+
+SOURCE FILE . . . . . . . QGPL/QCLSRC
+MEMBER . . . . . . . . . CUS310
+
+SEQNBR*...+... 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+...
+6 ...+... 7 ...+... 8 ...
+100 PGM PARM(&NBRITEMS &ITEMPRC &PARBAL &PTOTBAL)
+200 DCL VAR(&PARBAL) TYPE(*DEC) LEN(15 5) /*
+INPUT AREA INV BALANCE */
+300 DCL VAR(&PTOTBAL) TYPE(*DEC) LEN(15 5) /*
+INPUT TOTAL INV BALANCE*/
+400 DCL VAR(&NBRITEMS) TYPE(*DEC) LEN(15 5) /*
+NUMBER OF ITEMS */
+500 DCL VAR(&ITEMPRC) TYPE(*DEC) LEN(15 5) /*
+PRICE OF THE ITEM */
+600 DCL VAR(&ARBAL) TYPE(*DEC) LEN(5 2) /*
+AREA INVENTORY BALANCE */
+700 DCL VAR(&TOTBAL) TYPE(*DEC) LEN(5 2) /*
+TOTAL INVENTORY BALANCE*/
+800 DCL VAR(&TOTITEM) TYPE(*DEC) LEN(5 2) /*
+TOTAL PRICE OF ITEMS */
+900 CHGVAR VAR(&ARBAL) VALUE(&PARBAL)
+1000 CHGVAR VAR(&TOTBAL) VALUE(&PTOTBAL)
+1100 IF COND(&NBRITEMS *EQ 0) THEN(DO)
+1200 SNDPGMMSG MSG('The number of items is zero. This item +
+1300 should be ordered.') TOMSGQ(INVLIB/INVQUEUE)
+1400 GOTO CMDLBL(EXIT)
+1500 ENDDO
+1600 CHGVAR VAR(&TOTITEM) VALUE(&NBRITEMS * &ITEMPRC)
+1700 IF COND(&NBRITEMS *GT 50) THEN(DO)
+1800 SNDPGMMSG MSG('Too much inventory for this item.') +
+1900 TOMSGQ(INVLIB/INVQUEUE)
+2000 ENDDO
+2100 CHGVAR VAR(&ARBAL) VALUE(&ARBAL + &TOTITEM)
+2200 IF COND(&ARBAL *GT 1000) THEN(DO)
+2300 SNDPGMMSG MSG('The area has too much money in +
+2400 inventory.') TOMSGQ(INVLIB/INVQUEUE)
+2500 ENDDO
+2600 CHGVAR VAR(&TOTBAL) VALUE(&TOTBAL + &TOTITEM)
+2700 EXIT: ENDPGM
+The following is displayed as a result of reaching the first
+breakpoint:
+Display Breakpoint
+
+Statement/Instruction . . . . . . . . . : 900 /0009
+Program . . . . . . . . . . . . . . . . : CUS310
+Recursion level . . . . . . . . . . . . : 1
+
+Press Enter to continue.
+
+F3=Exit program F10=Command entry
+
+The following is displayed as a result of reaching the second
+breakpoint:
+Display Breakpoint
+
+Statement/Instruction . . . . . . . . . : 2200 /0022
+Program . . . . . . . . . . . . . . . . : CUS310
+Recursion level . . . . . . . . . . . . : 1
+Start position . . . . . . . . . . . . : 1
+Format . . . . . . . . . . . . . . . . : *CHAR
+Length . . . . . . . . . . . . . . . . : *DCL
+
+Variable . . . . . . . . . . . . . . . : &ARBAL
+Type . . . . . . . . . . . . . . . . : PACKED
+Length . . . . . . . . . . . . . . . : 5 2
+'610.00'
+
+Press Enter to continue.
+
+F3=Exit program F10=Command entry
+
+The variable &ARBAL is shown. (Note that the value of &ARBAL
+will vary depending on the parameter values passed to the program.) You can
+press F10 to display the command entry display so that you could change the
+value of the variable &ARBAL to alter your program's processing. You
+use the Change Program Variable (CHGPGMVAR) command to
+change the value of a variable.
+
+Parent topic: Breakpoints
+
+Related information
+Resume Breakpoint (RSMBKP) command
+Add Breakpoint (ADDBKP) command
+CL command finder

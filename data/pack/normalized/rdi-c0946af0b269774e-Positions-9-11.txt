@@ -1,0 +1,191 @@
+Positions 9-11
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > RPG IV Indicators > Using Indicators > Indicators Conditioning Calculations > Indicators Conditioning Calculations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > RPG IV Indicators > Using Indicators > Indicators Conditioning Calculations
+
+Positions 9-11
+
+You can use positions 9 through 11 of the calculation specifications
+to specify indicators that control the conditions under which an operation
+is processed. You can specify N is position 9 to indicate that the
+indicator should be tested for the value of off ('0') The valid entries
+for positions 10 through 11 are:
+
+01-99
+
+H1-H9
+
+MR
+
+OA-OG, OV
+
+L1-L9
+
+LR
+
+U1-U8
+
+KA-KN, KP-KY
+
+RT
+
+Any indicator that you use in positions 9 through 11 must be previously
+defined as one of the following types of indicators:
+
+Overflow indicators (file description specifications OFLIND(indicator)
+
+Record identifying indicators (input specifications, positions
+21 and 22)
+
+Control level indicators (input specifications, positions 63 and
+64)
+
+Field indicators (input specifications, positions 69 through 74)
+
+Resulting indicators (calculation specifications, positions 71
+through 76)
+
+External indicators
+
+Indicators are set on, such as LR and MR
+
+*IN array, *IN(xx) array element, or *INxx field (see Indicators Referred to As Data for a description of how an indicator is defined when
+used with one of these reserved words).
+
+If the indicator must be off to condition the operation, place
+an N in positions 9. The indicators in grouped AND/OR lines, plus
+the control level indicators (if specified in positions 7 and 8),
+must all be exactly as specified before the operation is done as in Figure 1.
+
+Figure 1. Conditioning Operations (Control
+Level Indicators)
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+*
+C 25
+CAN L1 SUB TOTAL TOTAL A
+CL2 10
+CANNL3TOTAL MULT 05 SLSTAX B
+*
+
+Assume that indicator 25 represents a record type and that a control
+level 2 break occurred when record type 25 was read. L1 and L2 are
+both on. All operations conditioned by the control level indicators
+in positions 7 and 8 are done before operations conditioned by control
+level indicators in positions 9 through 11. Therefore, the operation
+in B occurs before the operation in A.
+The operation in A is done on the first record of
+the new control group indicated by 25, whereas the operation in B is
+a total operation done for all records of the previous control group.
+
+The operation in B can be done when the L2 indicator
+is on provided the other conditions are met: Indicator 10 must be
+on; the L3 indicator must not be on.
+
+The operation conditioned by both L2 and NL3 is done only when
+a control level 2 break occurs. These two indicators are used together
+because this operation is not to be done when a control level 3 break
+occurs, even though L2 is also on.
+
+Some special considerations you should know when using conditioning
+indicators in positions 9 through 11 are as follows:
+
+With externally described work station files, the conditioning
+indicators on the calculation specifications must be either defined
+in the RPG program or be defined in the DDS source for the workstation
+file.
+
+With program described workstation files, the indicators used
+for the workstation file are unknown at compile time of the RPG program.
+Thus indicators 01-99 are assumed to be declared and they can be
+used to condition the calculation specifications without defining
+them.
+
+Halt indicators can be used to end the program or to prevent the
+operation from being processed when a specified error condition is
+found in the input data or in another calculation. Using a halt indicator
+is necessary because the record that causes the halt is completely
+processed before the program stops. Therefore, if the operation is
+processed on an error condition, the results are in error. A halt
+indicator can also be used to condition an operation that is to be
+done only when an error occurs.
+
+If LR is specified in positions 9 through 11, the calculation
+is done after the last record has been processed or after LR is set
+on.
+
+If a control level indicator is used in positions 9 through 11
+and positions 7 and 8 are not used (detail time), the operation conditioned
+by the indicator is done only on the record that causes a control
+break or any higher level control break.
+
+If a control level indicator is specified in positions 7 and 8
+(total time) and MR is specified in positions 9 through 11, MR indicates
+the matching condition of the previous record and not the one just
+read that caused the control break. After all operations conditioned
+by control level indicators in positions 7 and 8 are done, MR then
+indicates the matching condition of the record just read.
+
+If positions 7 and 8 and positions 9 through 11 are blank, the
+calculation specified on the line is done at detail calculation time.
+
+Figure 2 and Figure 3 show examples
+of conditioning indicators.
+
+Figure 2. Conditioning Operations (Field Indicators)
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+IFilenameSqNORiPos1NCCPos2NCCPos3NCC.PFromTo++DField+L1M1FrPlMnZr...*
+I........................Fmt+SPFrom+To+++DcField+++++++++L1M1FrPlMnZr....
+*
+* Field indicators can be used to condition operations. Assume the
+* program is to find weekly earnings including overtime. The over-
+* time field is checked to determine if overtime was entered.
+* If the employee has worked overtime, the field is positive and -
+* indicator 10 is set on. In all cases the weekly regular wage
+* is calculated. However, overtime pay is added only if
+* indicator 10 is on.
+*
+ITIME AB 01
+I 1 7 EMPLNO
+I 8 10 0OVERTM 10
+I 15 20 2RATE
+I 21 25 2RATEOT
+CL0N01Factor1+++++++Opcode(E)+Extended-factor2+++++++++++++++++++++++++++
+*
+* Field indicator 10 was assigned on the input specifications.
+* It is used here to condition calculation operations.
+*
+C EVAL (H) PAY = RATE * 40
+C 10 EVAL (H) PAY = PAY + (OVERTM * RATEOT)
+
+Figure 3. Conditioning Operations (Record
+Identifying Indicators)
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+IFilename++SqNORiPos1+NCCPos2+NCCPos3+NCC................................
+I........................Fmt+SPFrom+To+++DcField+++++++++L1M1FrPlMnZr....
+*
+* A record identifying indicator is used to condition an operation.
+* When a record is read with a T in position 1, the 01 indicator is
+* set on. If this indicator is on, the field named SAVE is added
+* to SUM. When a record without T in position 1 is read, the 02
+* indicator is set on. The subtract operation, conditioned by 02,
+* then performed instead of the add operation.
+*
+IFILE AA 01 1 CT
+I OR 02 1NCT
+I 10 15 2SAVE
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+*
+* Record identifying indicators 01 and 02 are assigned on the input
+* specifications. They are used here to condition calculation
+* operations.
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+C 01 ADD SAVE SUM 8 2
+C 02 SUB SAVE SUM 8 2
+
+Parent topic: Indicators Conditioning Calculations

@@ -1,0 +1,402 @@
+Expected format of data for DATA-INTO
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > DATA-INTO (Parse a Document into a Variable) > DATA-INTO (Parse a Document into a Variable)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > DATA-INTO (Parse a Document into a Variable)
+
+Expected format of data for DATA-INTO
+
+The structure of the data within the document is expected to match the structure
+of the RPG variable.
+
+The named data matching the RPG variable can be at any nesting
+level of the document, but the path option must be specified
+if the named data is not at the assumed nesting level of the document.
+The following assumptions are made when the path option is
+not specified.
+
+If the parser does not report a name for the outermost
+item of the document, the name of the target variable is assumed.
+For example, if the target of the DATA-INTO operation is myDs.mySubfield, then
+RPG assumes that the outermost item in the document has the name "MYSUBFIELD".
+
+If the parser reports a name for the outermost item of the document,
+the name must match the name of the target variable of the DATA-INTO operation.
+
+If the RPG variable is a data structure, the document
+must also represent a structure with subfields.
+The parser must first report that it has found a structure, and then
+it must report the names and values of the subfields of the structure.
+The order of the subfield information within the document is not
+required to match the order of the subfields within the RPG data structure.
+
+Items matching RPG arrays must be children of the same
+parent item.
+It is not required that these child items are reported sequentially
+within the document; they may be interleaved with other items.
+
+The examples in this section use an imaginary document format.
+Most lines start with a name followed by either "StartStruct" if it
+is a structure, "StartArray" if it is an array, or the value in quotes
+if it is a scalar value.
+Values for an array do not have a name.
+
+Here is an example of a document in this imaginary format.
+The equivalent XML and JSON documents are also shown.
+
+The imaginary format
+
+Equivalent XML document
+
+Equivalent JSON document
+
+info StartStruct
+team "A"
+leader "Jack"
+members StartArray
+"Mary"
+"Adam"
+EndArray
+EndStruct
+
+<info>info
+<team>A</team>
+<leader>Jack</leader>
+<members>Mary</members>
+<members>Adam</members>
+</info>
+
+"info": {
+"team" : "A",
+"leader" : "Jack",
+"members" : [
+"Mary",
+"Adam" ] }
+
+Scalar variable
+
+A scalar variable can be a standalone field (1),
+an table name (2), an element of an array (3),
+or a subfield (4).
+
+DCL-S libname CHAR(10);
+DCL-S tab01 CHAR(10) DIM(3);
+DCL-S arr CHAR(10) DIM(3);
+DCL-DS ds;
+subfield CHAR(10);
+END-DS;
+DCL-DS qualDs QUALIFIED;
+subfield CHAR(10);
+END-DS;
+
+DATA-INTO libname %DATA(document : options) // 1
+%PARSER(parser : parserOptions);
+
+DATA-INTO tab01 %DATA(document : options) // 2
+%PARSER(parser : parserOptions);
+
+DATA-INTO arr(1) %DATA(document : options) // 3
+%PARSER(parser : parserOptions);
+
+DATA-INTO subfield %DATA(document : options) // 4
+%PARSER(parser : parserOptions);
+
+DATA-INTO qualDs.subfield %DATA(document : options) // 4
+%PARSER(parser : parserOptions);
+
+Sample documents in the imaginary language
+
+path option for %DATA
+
+"MYLIB"
+
+blank
+
+library "MYLIB"
+
+'path=library'
+
+info StartStruct
+library "MYLIB"
+EndStruct
+
+'path=info/library'
+
+Simple data structure or multiple-occurrence data structure
+
+DCL-DS pgm;
+name CHAR(10);
+lib CHAR(10);
+END-DS;
+
+OR
+
+DCL-DS pgm OCCURS(5);
+name CHAR(10);
+lib CHAR(10);
+END-DS;
+
+DATA-INTO pgm %DATA(doc : option)
+%PARSER(parser : parserOption);
+
+Sample documents in the imaginary language
+
+path option for %DATA
+
+StartStruct
+name "data"
+lib "data"
+EndStruct
+
+blank
+
+pgm StartStruct
+lib "data"
+name "data"
+EndStruct
+
+blank
+
+program StartStruct
+name "data"
+lib "data"
+EndStruct
+
+'path=program'
+
+api StartStruct
+program StartStruct
+name "data"
+lib "data"
+EndStruct
+EndStruct
+
+'path=api/program'
+
+Array of scalar type
+
+DCL-S sites CHAR(25) DIM(3);
+
+DATA-INTO sites %DATA(doc : option)
+%PARSER(parser : parserOption);
+
+Sample documents in the imaginary language
+
+path option for %DATA
+
+StartArray
+"data 1"
+"data 2"
+"data 3"
+EndArray
+
+blank
+
+info StartStruct
+custsites "data 1"
+custsites "data 2"
+custsites "data 3"
+EndStruct
+
+'path=info/custsites'
+
+Array of data structures
+
+DCL-DS pgm QUALIFIED DIM(3);
+name CHAR(10);
+lib CHAR(10);
+END-DS;
+
+DATA-INTO pgm %DATA(doc : option)
+%PARSER(parser : parserOption);
+
+Sample documents in the imaginary language
+
+path option for %DATA
+
+StartArray
+StartStruct
+name "name1"
+lib "lib1"
+EndStruct
+StartStruct
+name "name2"
+lib "lib2"
+EndStruct
+StartStruct
+name "name3"
+lib "lib3"
+EndStruct
+EndArray
+
+blank
+
+programs StartStruct
+pgm StartArray
+StartStruct
+name "name1"
+lib "lib1"
+EndStruct
+StartStruct
+name "name2"
+lib "lib2"
+EndStruct
+StartStruct
+name "name3"
+lib "lib3"
+EndStruct
+EndArray
+EndStruct
+
+'path=programs/pgm'
+
+Complex data structure
+
+DCL-DS dtaaraInfo QUALIFIED;
+DCL-DS dtaara;
+name CHAR(10);
+lib CHAR(10);
+END-DS;
+type INT(10);
+value CHAR(100);
+END-DS;
+
+DATA-INTO dtaaraInfo %DATA(doc : option)
+%PARSER(parser : parserOption);
+
+Sample documents in the imaginary language
+
+path option for %DATA
+
+dtaarainfo StartStruct
+type "data"
+value "data"
+dtaara StartStruct
+name "data"
+lib "data"
+EndStruct
+EndStruct
+
+blank
+
+sys StartStruct
+sysName "data"
+obj StartStruct
+dta StartStruct
+dtaara StartStruct
+name "data"
+lib "data"
+EndStruct
+type "data"
+value "data"
+EndStruct
+EndStruct
+EndStruct
+
+'path=sys/obj/dta'
+
+%HANDLER procedure with array of data structures
+
+DCL-DS myCommArea;
+total UNS(20);
+END-DS;
+DCL-DS custType QUALIFIED;
+name VARCHAR(50);
+id_no INT(10);
+city CHAR(20);
+END-DS;
+DCL-PR custHdlr;
+commArea LIKEDS(myCommArea);
+custinfo LIKEDS(custType) DIM(5) CONST;
+numElems UNS(10) CONST;
+END-PR;
+
+DATA-INTO %HANDLER(custHdlr : myCommArea);
+%DATA(doc : option)
+%PARSER(parser : parserOption);
+
+Note: The path option is
+required when %HANDLER is specified.
+
+Sample documents in the imaginary language
+
+path option
+
+cust StartArray
+StartStruct
+name "data"
+id_no "data"
+city "data"
+EndStruct
+StartStruct
+name "data"
+id_no "data"
+city "data"
+EndStruct
+...
+StartStruct
+name "data"
+id_no "data"
+city "data"
+EndStruct
+EndArray
+
+'path=cust'
+
+info StartStruct
+cust StartArray
+StartStruct
+name "data"
+id_no "data"
+city "data"
+EndStruct
+StartStruct
+name "data"
+id_no "data"
+city "data"
+EndStruct
+...
+StartStruct
+name "data"
+id_no "data"
+city "data"
+EndStruct
+EndArray
+EndStruct
+
+'path=info/cust'
+
+Handler procedure with array of scalar types
+
+DCL-S total UNS(20);
+
+DCL-PR nameHdlr;
+commArea LIKEDS(myCommArea);
+names CHAR(10) DIM(5) CONST;
+numNames UNS(10) CONST;
+END-PR;
+
+DATA-INTO %HANDLER(nameHdlr : total);
+%DATA(doc : option)
+%PARSER(parser : parserOption);
+
+Note: The path option is
+required when %HANDLER is specified.
+
+Sample documents in the imaginary language
+
+path option
+
+names StartArray
+"data"
+"data"
+"data"
+:
+:
+"data"
+"data"
+EndArray
+
+'path=names'
+
+Parent topic: DATA-INTO (Parse a Document into a Variable)

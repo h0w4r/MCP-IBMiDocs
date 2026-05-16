@@ -1,0 +1,1504 @@
+MOVE (Move)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+MOVE (Move)
+
+Free-Form Syntax
+
+(not allowed - use the EVAL or EVALR operations,
+or built-in functions such as %CHAR, %DATE, %DEC , %DECH, %GRAPH, %INT, %INTH, %TIME, %TIMESTAMP , %UCS2, %UNS, or %UNSH )
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+MOVE (P)
+
+Data Attributes
+
+Source field
+
+Target field
+
++
+
+-
+
+ZB
+
+The MOVE operation transfers characters from factor 2 to the result
+field. Moving starts with the rightmost character of factor 2.
+
+When moving Date, Time or Timestamp data,
+factor 1 must be blank unless either the source or the target is a
+character or numeric field.
+
+Otherwise, factor 1 contains the date or time format compatible
+with the character or numeric field that is the source or target of
+the operation. For information on the formats that can be used see Date Data Type, Time Data Type, and Timestamp Data Type.
+
+If the source or target is a character field, you may optionally
+indicate the separator following the format in factor 1. Only separators
+that are valid for that format are allowed.
+
+If factor 2 is *DATE or UDATE and the result is a Date field, factor
+1 is not required. If factor 1 contains a date format it must be compatible
+with the format of *DATE or UDATE as specified by the DATEDIT keyword
+on the control specification.
+
+When moving character, graphic, UCS-2, or numeric
+data, if factor 2 is longer than the result field, the excess
+leftmost characters or digits of factor 2 are not moved. If the result
+field is longer than factor 2, the excess leftmost characters or digits
+in the result field are unchanged, unless padding is specified.
+
+You cannot specify resulting indicators if the result field is
+an array; you can specify them if it is an array element, or a non-array
+field.
+
+If factor 2 is shorter than the length of the result field, a P
+specified in the operation extender position causes the result field
+to be padded on the left after the move occurs.
+
+Float numeric fields and literals are not allowed as Factor 2 or
+Result-Field entries.
+
+If CCSID(*GRAPH : IGNORE) is specified or assumed for the module,
+MOVE operations between UCS-2 and graphic data are not allowed.
+
+When moving variable-length character, graphic,
+or UCS-2 data, the variable-length field works in exactly the
+same way as a fixed-length field with the same current length. A MOVE operation does not change the length of a variable-length
+result field. For examples, see Figures Figure 5 to Figure 10. The
+graphic literals in this examples are not valid graphic literals.
+See Graphic Format for more information.
+
+The tables which appear following the examples, show how data is
+moved from factor 2 to the result field. For further information on
+the MOVE operation, see Move Operations or Conversion Operations.
+
+Figure 1. MOVE Operation with Date
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+* Control specification date format
+H DATFMT(*ISO)
+*
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++++++++++
+D DATE_ISO S D
+D DATE_YMD S D DATFMT(*YMD)
+D INZ(D'1992-03-24')
+D DATE_EUR S D DATFMT(*EUR)
+D INZ(D'2197-08-26')
+D DATE_JIS S D DATFMT(*JIS)
+D NUM_DATE1 S 6P 0 INZ(210991)
+D NUM_DATE2 S 7P 0
+D CHAR_DATE S 8 INZ('02/01/53')
+D CHAR_DATE10 S 10A
+D CHAR_LONGJUL S 8A INZ('2039/166')
+D DATE_USA S D DATFMT(*USA)
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+H1LoEq..
+* Move between Date fields. DATE_EUR will contain 24.03.1992
+*
+C MOVE DATE_YMD DATE_EUR
+*
+* Convert numeric value in ddmmyy format into a *ISO Date.
+* DATE_ISO will contain 1991-09-21 after each of the 2 moves.
+C *DMY MOVE 210991 DATE_ISO
+C *DMY MOVE NUM_DATE1 DATE_ISO
+*
+* Move a character value representing a *MDY date to a *JIS Date.
+* DATE_JIS will contain 1953-02-01 after each of the 2 moves.
+C *MDY/ MOVE '02/01/53' DATE_JIS
+C *MDY/ MOVE CHAR_DATE DATE_JIS
+*
+* Move a date field to a character field, using the
+* date format and separators based on the job attributes
+C *JOBRUN MOVE (P) DATE_JIS CHAR_DATE
+* Move a date field to a character field, using the
+* date format with 4-digit years related to the job
+* date format. If the job date format is *DMY, *LONGJOBRUN
+* uses the related *EUR format.
+C *LONGJOBRUN MOVE (P) DATE_JIS CHAR_DATE10
+*
+* Move a date field to a numeric field, using the
+* date format based on the job attributes
+*
+* Note: If the job format happens to be *JUL, the date will
+* be placed in the rightmost 5 digits of NUM_DATE1.
+* The MOVEL operation might be a better choice.
+*
+C *JOBRUN MOVE (P) DATE_JIS NUM_DATE1
+*
+* DATE_USA will contain 12-31-9999
+C MOVE *HIVAL DATE_USA
+*
+* Execution error, resulting in error code 114. Year is not in
+* 1940-2039 date range. DATE_YMD will be unchanged.
+C MOVE DATE_USA DATE_YMD
+*
+* Move a *EUR date field to a numeric field that will
+* represent a *CMDY date. NUM_DATE2 will contain 2082697
+* after the move.
+C *CMDY MOVE DATE_EUR NUM_DATE2
+*
+* Move a character value representing a *LONGJUL date to
+* a *YMD date. DATE_YMD will be 39/06/15 after the move.
+C *LONGJUL MOVE CHAR_LONGJUL DATE_YMD
+
+Figure 2. MOVE Operation with Date and Time
+without Separators
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+* Specify default format for date fields
+H DATFMT(*ISO)
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++++++++++
+D date_USA S D DATFMT(*USA)
+D datefld S D
+D timefld S T INZ(T'14.23.10')
+D chr_dateA S 6 INZ('041596')
+D chr_dateB S 7 INZ('0610807')
+D chr_time S 6
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+H1LoEq..
+* Move a character value representing a *MDY date to a D(Date) value.
+* *MDY0 indicates that the character date in Factor 2 does not
+* contain separators.
+* datefld will contain 1996-04-15 after the move.
+C *MDY0 MOVE chr_dateA datefld
+* Move a field containing a T(Time) value to a character value in the
+* *EUR format. *EUR0 indicates that the result field should not
+* contain separators.
+* chr_time will contain '142310' after the move.
+C *EUR0 MOVE timefld chr_time
+* Move a character value representing a *CYMD date to a *USA
+* Date. Date_USA will contain 08/07/1961 after the move.
+* 0 in *CYMD indicates that the character value does not
+* contain separators.
+C *CYMD0 MOVE chr_dateB date_USA
+
+Figure 3. MOVE Operation with Timestamp
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+* Control specification DATEDIT format
+*
+H DATEDIT(*MDY)
+*
+DName+++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++++++
+D Jobstart S Z
+D Datestart S D
+D Timestart S T
+D Timebegin S T inz(T'05.02.23')
+D Datebegin S D inz(D'1991-09-24')
+D TmStamp S Z inz
+*
+* Set the timestamp Jobstart with the job start Date and Time
+*
+* Factor 1 of the MOVE *DATE (*USA = MMDDYYYY) is consistent
+* with the value specified for the DATEDIT keyword on the
+* control specification, since DATEDIT(*MDY) indicates that
+* *DATE is formatted as MMDDYYYY.
+*
+* Note: It is not necessary to specify factor 1 with *DATE or
+* UDATE.
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+C *USA MOVE *DATE Datestart
+C TIME StrTime 6 0
+C *HMS MOVE StrTime Timestart
+C MOVE Datestart Jobstart
+C MOVE Timestart Jobstart
+*
+* After the following C specifications are performed, the field
+* stampchar will contain '1991-10-24-05.17.23.000000'.
+*
+* First assign a timestamp the value of a given time+15 minutes and
+* given date + 30 days. Move tmstamp to a character field.
+* stampchar will contain '1991-10-24-05.17.23.000000'.
+*
+C ADDDUR 15:*minutes Timebegin
+C ADDDUR 30:*days Datebegin
+C MOVE Timebegin TmStamp
+C MOVE Datebegin TmStamp
+C MOVE TmStamp stampchar 26
+* Move the timestamp to a character field without separators. After
+* the move, STAMPCHAR will contain ' 19911024051723000000'.
+C *ISO0 MOVE(P) TMSTAMP STAMPCHAR0
+
+Figure 4. MOVE between character and graphic
+fields
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++
+*
+* Example of MOVE between graphic and character fields
+*
+D char_fld1 S 10A inz('oK1K2K3 i')
+D dbcs_fld1 S 4G
+D char_fld2 S 10A inz(*ALL'Z')
+D dbcs_fld2 S 3G inz(G'oK1K2K3i')
+*
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiL
+*
+* Value of dbcs_fld1 after MOVE operation is 'K1K2K3 '
+* Value of char_fld2 after MOVE oepration is 'ZZoK1K2K3i'
+*
+C MOVE char_fld1 dbcs_fld1
+C MOVE dbcs_fld2 char_fld2
+
+Figure 5. MOVE from a variable-length field
+to variable-length field
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++
+*
+* Example of MOVE from variable to variable length
+* for character fields
+*
+D var5a S 5A INZ('ABCDE') VARYING
+D var5b S 5A INZ('ABCDE') VARYING
+D var5c S 5A INZ('ABCDE') VARYING
+D var10a S 10A INZ('0123456789') VARYING
+D var10b S 10A INZ('ZXCVBNM') VARYING
+D var15a S 15A INZ('FGH') VARYING
+D var15b S 15A INZ('FGH') VARYING
+D var15c S 15A INZ('QWERTYUIOPAS') VARYING
+*
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiL
+*
+C MOVE var15a var5a
+* var5a = 'ABFGH' (length=5)
+C MOVE var10a var5b
+* var5b = '56789' (length=5)
+C MOVE var5c var15a
+* var15a = 'CDE' (length=3)
+C MOVE var10b var15b
+* var15b = 'BNM' (length=3)
+C MOVE var15c var10b
+* var10b = 'YUIOPAS' (length=7)
+
+Figure 6. MOVE from a variable-length field
+to a fixed-length field
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++
+*
+* Example of MOVE from variable to fixed length
+* for character fields
+*
+D var5 S 5A INZ('ABCDE') VARYING
+D var10 S 10A INZ('0123456789') VARYING
+D var15 S 15A INZ('FGH') VARYING
+D fix5a S 5A INZ('MNOPQ')
+D fix5b S 5A INZ('MNOPQ')
+D fix5c S 5A INZ('MNOPQ')
+*
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiL
+*
+C MOVE var5 fix5a
+* fix5a = 'ABCDE'
+C MOVE var10 fix5b
+* fix5b = '56789'
+C MOVE var15 fix5c
+* fix5c = 'MNFGH'
+
+Figure 7. MOVE from a fixed-length field to
+a variable-length field
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++
+*
+* Example of MOVE from fixed to variable length
+* for character fields
+*
+D var5 S 5A INZ('ABCDE') VARYING
+D var10 S 10A INZ('0123456789') VARYING
+D var15 S 15A INZ('FGHIJKL') VARYING
+D fix5 S 5A INZ('.....')
+D fix10 S 10A INZ('PQRSTUVWXY')
+*
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiL
+*
+C MOVE fix10 var5
+* var5 = 'UVWXY' (length=5)
+C MOVE fix5 var10
+* var10 = '01234.....' (length=10)
+C MOVE fix10 var15
+* var15 = 'STUVWXY' (length=7)
+
+Figure 8. MOVE(P) from a variable-length field
+to a variable-length field
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++
+*
+* Example of MOVE(P) from variable to variable length
+* for character fields
+*
+D var5a S 5A INZ('ABCDE') VARYING
+D var5b S 5A INZ('ABCDE') VARYING
+D var5c S 5A INZ('ABCDE') VARYING
+D var10 S 10A INZ('0123456789') VARYING
+D var15a S 15A INZ('FGH') VARYING
+D var15b S 15A INZ('FGH') VARYING
+D var15c S 15A INZ('FGH') VARYING
+*
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiL
+*
+C MOVE(P) var15a var5a
+* var5a = ' FGH' (length=5)
+C MOVE(P) var10 var5b
+* var5b = '56789' (length=5)
+C MOVE(P) var5c var15b
+* var15b = 'CDE' (length=3)
+C MOVE(P) var10 var15c
+* var15c = '789' (length=3)
+
+Figure 9. MOVE(P) from a variable-length field
+to a fixed-length field
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++
+*
+* Example of MOVE(P) from variable to fixed length
+* for character fields
+*
+D var5 S 5A INZ('ABCDE') VARYING
+D var10 S 10A INZ('0123456789') VARYING
+D var15 S 15A INZ('FGH') VARYING
+D fix5a S 5A INZ('MNOPQ')
+D fix5b S 5A INZ('MNOPQ')
+D fix5c S 5A INZ('MNOPQ')
+*
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiL
+*
+C MOVE(P) var5 fix5a
+* fix5a = 'ABCDE'
+C MOVE(P) var10 fix5b
+* fix5b = '56789'
+C MOVE(P) var15 fix5c
+* fix5c = ' FGH'
+
+Figure 10. MOVE(P) from a fixed-length field
+to a variable-length field
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++
+*
+* Example of MOVE(P) from fixed to variable length
+* for character fields
+*
+D var5 S 5A INZ('ABCDE') VARYING
+D var10 S 10A INZ('0123456789') VARYING
+D var15a S 15A INZ('FGHIJKLMNOPQR') VARYING
+D var15b S 15A INZ('FGHIJ') VARYING
+D fix5 S 5A INZ('')
+D fix10 S 10A INZ('PQRSTUVWXY')
+*
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiL
+*
+C MOVE(P) fix10 var5
+* var5 = 'UVWXY' (length=5 before and after)
+C MOVE(P) fix10 var10
+* var10 = 'PQRSTUVWXY' (length=10 before and after)
+C MOVE(P) fix10 var15a
+* var15a = ' PQRSTUVWXY' (length=13 before and after)
+C MOVE(P) fix10 var15b
+* var15b = 'UVWXY' (length=5 before and after)
+
+Table 1. Moving a Character Field to a Date-Time
+Field. Factor 1 specifies the format of the Factor 2 entry
+
+Factor 1
+Entry
+
+Factor 2
+(Character)
+
+Result
+Field
+
+Value
+
+DTZ Type
+
+*MDY-
+
+11-19-75
+
+75/323
+
+D(*JUL)
+
+*JUL
+
+92/114
+
+23/04/92
+
+D(*DMY)
+
+*YMD
+
+14/01/28
+
+01/28/2014
+
+D(*USA)
+
+*YMD0
+
+140128
+
+01/28/2014
+
+D(*USA)
+
+*EUR
+
+31.01.2025
+
+2025.01.31
+
+D(*ISO)
+
+*DMYY/
+
+31/01/2025
+
+2025.01.31
+
+D(*ISO)
+
+*USA
+
+12/31/9999
+
+31.12.9999
+
+D(*EUR)
+
+*MDYY&
+
+12 31 9999
+
+31.12.9999
+
+D(*EUR)
+
+*ISO
+
+2036-05-21
+
+21/05/36
+
+D(*DMY)
+
+*YYMD/
+
+2036/05/21
+
+21/05/36
+
+D(*DMY)
+
+*JUL
+
+45/333
+
+11/29/1945
+
+D(*USA)
+
+*MDY/
+
+03/05/33
+
+03.05.33
+
+D(*MDY.)
+
+*CYMD&
+
+121 07 08
+
+08.07.2021
+
+D(*EUR)
+
+*CYMD0
+
+1210708
+
+07,08,21
+
+D(*MDY,)
+
+*CMDY.
+
+107.08.21
+
+21-07-08
+
+D(*YMD-)
+
+*CDMY0
+
+1080721
+
+07/08/2021
+
+D(*USA)
+
+*LONGJUL-
+
+2021-189
+
+08/07/2021
+
+D(*EUR)
+
+*HMS&
+
+23 12 56
+
+23.12.56
+
+T(*ISO)
+
+*USA
+
+1:00 PM
+
+13.00.00
+
+T(*EUR)
+
+*EUR
+
+11.10.07
+
+11:10:07
+
+T(*JIS)
+
+*JIS
+
+14:16:18
+
+14.16.18
+
+T(*HMS.)
+
+*ISO
+
+24.00.00
+
+12:00 AM
+
+T(*USA)
+
+Blank
+
+1991-09-14-13.12.56.123456
+
+1991-09-14-13.12.56.123456
+
+Z(*ISO)
+
+*ISO
+
+1991-09-14-13.12.56.123456
+
+1991-09-14-13.12.56.123456
+
+Z(*ISO)
+
+Table 2. Moving a Numeric Field to a Date-Time
+Field. Factor 1 specifies the format of the Factor 2 entry
+
+Factor 1
+Entry1
+
+Factor 2
+(Numeric)
+
+Result
+Field
+
+Value
+
+DTZ Type
+
+*MDY
+
+111975
+
+75/323
+
+D(*JUL)
+
+*JUL
+
+92114
+
+23/04/92
+
+D(*DMY)
+
+*YMD
+
+140128
+
+01/28/2014
+
+D(*USA)
+
+*EUR
+
+31129999
+
+12/31.9999
+
+D(*USA)
+
+*DMYY
+
+31129999
+
+12/31.9999
+
+D(*USA)
+
+*USA2
+
+12319999
+
+31.12.9999
+
+D(*EUR)
+
+*MDYY
+
+12319999
+
+31.12.9999
+
+D(*EUR)
+
+*ISO
+
+20360521
+
+21/05/36
+
+D(*DMY)
+
+*YYMD
+
+20360521
+
+21/05/36
+
+D(*DMY)
+
+*JUL
+
+45333
+
+11/29/1945
+
+D(*USA)
+
+*MDY
+
+030533
+
+03.05.33
+
+D(*MDY.)
+
+*CYMD
+
+1210708
+
+08.07.2021
+
+D(*EUR)
+
+*CMDY
+
+1070821
+
+21-07-08
+
+D(*YMD-)
+
+*CDMY
+
+1080721
+
+07/08/2021
+
+D(*USA)
+
+*LONGJUL
+
+2021189
+
+08/07/2021
+
+D(*EUR)
+
+*USA
+
+*DATE (092195)3
+
+1995-09-21
+
+D(*JIS)
+
+Blank
+
+*DATE (092195)3
+
+1995-09-21
+
+D(*JIS)
+
+*MDY
+
+UDATE (092195)3
+
+21.09.1995
+
+D(*EUR)
+
+*HMS
+
+231256
+
+23.12.56
+
+T(*ISO)
+
+*EUR
+
+111007
+
+11:10:07
+
+T(*JIS)
+
+*JIS
+
+141618
+
+14.16.18
+
+T(*HMS.)
+
+*ISO
+
+240000
+
+12:00 AM
+
+T(*USA)
+
+Blank4
+
+19910914131256123456
+
+1991-09-14-13.12.56.123456
+
+Z(*ISO)
+
+Note:
+A separator of zero (0) is not allowed in factor 1 for movement
+between date, time or timestamp fields and numeric classes.
+
+Time format *USA is not allowed for movement between time and
+numeric classes.
+
+For *DATE and UDATE, assume that the job date in the job description
+is of *MDY format and contains 092195. Factor 1 is optional and will
+default to the correct format. If factor 2 is *DATE, and factor 1
+is coded, it must be a 4-digit year date format. If factor 2 is UDATE,
+and factor 1 is coded, it must be a 2-digit year date format.
+
+For moves of timestamp fields, factor 1 is optional. If it is
+coded it must be *ISO or *ISO0.
+
+Table 3. Moving a Date-Time Field to a
+Character Field.
+
+Factor 1
+Entry
+
+Factor 2
+
+Result Field
+(Character)
+
+Value
+
+DTZ Type
+
+*JUL
+
+11-19-75
+
+D(*MDY-)
+
+75/323
+
+*DMY-
+
+92/114
+
+D(*JUL)
+
+23-04-92
+
+*USA
+
+14/01/28
+
+D(*YMD)
+
+01/28/2014
+
+*MDYY-
+
+14/01/28
+
+D(*YMD)
+
+01-28-2014
+
+*EUR
+
+12/31/9999
+
+D(*USA)
+
+31.12.9999
+
+*DMYY-
+
+12/31/9999
+
+D(*USA)
+
+31-12-9999
+
+*DMY,
+
+2036-05-21
+
+D(*ISO)
+
+21,05,36
+
+*USA
+
+45/333
+
+D(*JUL)
+
+11/29/1945
+
+*USA0
+
+45/333
+
+D(*JUL)
+
+11291945
+
+*MDY&
+
+03/05/33
+
+D(*MDY)
+
+03 05 33
+
+*CYMD,
+
+03 07 08
+
+D(*MDY&);
+
+108,03,07
+
+*CYMD0
+
+21/07/08
+
+D(*DMY)
+
+1080721
+
+*CMDY
+
+21-07-08
+
+D(*YMD-)
+
+107/08/21
+
+*CDMY-
+
+07/08/2021
+
+D(*USA)
+
+108-07-21
+
+*LONGJUL&
+
+08/07/2021
+
+D(*EUR)
+
+2021 189
+
+*ISO
+
+23 12 56
+
+T(*HMS&);
+
+23.12.56
+
+*EUR
+
+11:00 AM
+
+T(*USA)
+
+11.00.00
+
+*JIS
+
+11.10.07
+
+T(*EUR)
+
+11:10:07
+
+*HMS,
+
+14:16:18
+
+T(*JIS)
+
+14,16,18
+
+*USA
+
+24.00.00
+
+T(*ISO)
+
+12:00 AM
+
+Blank
+
+2045-10-27-23.34.59.123456
+
+Z(*ISO)
+
+2045-10-27-23.34.59.123456
+
+Table 4. Moving a Date-Time Field to a
+Numeric Field.
+
+Factor 1
+Entry
+
+Factor 2
+
+Result Field
+(Numeric)
+
+Value
+
+DTZ Type
+
+*JUL
+
+11-19-75
+
+D(*MDY-)
+
+75323
+
+*DMY-
+
+92/114
+
+D(*JUL)
+
+230492
+
+*USA
+
+14/01/28
+
+D(*YMD)
+
+01282014
+
+*MDYY
+
+14/01/28
+
+D(*YMD)
+
+01282014
+
+*EUR
+
+12/31/9999
+
+D(*USA)
+
+31129999
+
+*DMYY
+
+12/31/9999
+
+D(*USA)
+
+31129999
+
+*DMY,
+
+2036-05-21
+
+D(*ISO)
+
+210536
+
+*USA
+
+45/333
+
+D(*JUL)
+
+11291945
+
+*MDY&
+
+03/05/33
+
+D(*MDY)
+
+030533
+
+*CYMD,
+
+03 07 08
+
+D(*MDY&);
+
+1080307
+
+*CMDY
+
+21-07-08
+
+D(*YMD-)
+
+1070821
+
+*CDMY-
+
+07/08/2021
+
+D(*USA)
+
+1080721
+
+*LONGJUL&
+
+08/07/2021
+
+D(*EUR)
+
+2021189
+
+*ISO
+
+23 12 56
+
+T(*HMS&);
+
+231256
+
+*EUR
+
+11:00 AM
+
+T(*USA)
+
+110000
+
+*JIS
+
+11.10.07
+
+T(*EUR)
+
+111007
+
+*HMS,
+
+14:16:18
+
+T(*JIS)
+
+141618
+
+*ISO
+
+2045-10-27-23.34.59.123456
+
+Z(*ISO)
+
+20451027233459123456
+
+Table 5. Moving Date-Time Fields to Date-Time
+Fields. Assume that the initial value of the timestamp is 1985-12-03-14.23.34.123456.
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Value
+
+DTZ Type
+
+Value
+
+DTZ Type
+
+N/A
+
+1986-06-24
+
+D(*ISO)
+
+86/06/24
+
+D(*YMD)
+
+N/A
+
+23 07 12
+
+D(*DMY&);
+
+23.07.2012
+
+D(*EUR)
+
+N/A
+
+11:53 PM
+
+T(USA)
+
+23.53.00
+
+T(*EUR)
+
+N/A
+
+19.59.59
+
+T(*HMS.)
+
+19:59:59
+
+T(*JIS)
+
+N/A
+
+1985-12-03-14.23.34.123456
+
+Z(*ISO.)
+
+1985-12-03-14.23.34.123456
+
+Z(*ISO)
+
+N/A
+
+75.06.30
+
+D(*YMD.)
+
+1975-06-30-14.23.34.123456
+
+Z(*ISO)
+
+N/A
+
+09/23/2234
+
+D(*USA)
+
+2234-09-23-14.23.34.123456
+
+Z(*ISO)
+
+N/A
+
+18,45,59
+
+T(*HMS,)
+
+1985-12-03-18.45.59.000000
+
+Z(*ISO)
+
+N/A
+
+2:00 PM
+
+T(*USA)
+
+1985-12-03-14.00.00.000000
+
+Z(*ISO)
+
+N/A
+
+1985-12-03-14.23.34.123456
+
+Z(*ISO.)
+
+12/03/85
+
+D(*MDY)
+
+N/A
+
+1985-12-03-14.23.34.123456
+
+Z(*ISO.)
+
+12/03/1985
+
+D(*USA)
+
+N/A
+
+1985-12-03-14.23.34.123456
+
+Z(*ISO.)
+
+14:23:34
+
+T(*HMS)
+
+N/A
+
+1985-12-03-14.23.34.123456
+
+Z(*ISO.)
+
+02:23 PM
+
+T(*USA)
+
+Table 6. Moving a Date field to a Character
+field. The result field is larger than factor 2. Assume
+that Factor 1 contains *ISO and that the result field is defined as
+
+D Result_Fld 20A INZ('ABCDEFGHIJabcdefghij')
+
+Operation
+Code
+
+Factor
+2
+
+Value of Result Field
+after move operation
+
+Value
+
+DTZ Type
+
+MOVE
+
+11 19 75
+
+D(*MDY&);
+
+'ABCDEFGHIJ1975-11-19'
+
+MOVE(P)
+
+11 19 75
+
+D(*MDY&);
+
+' 1975-11-19'
+
+MOVEL
+
+11 19 75
+
+D(*MDY&);
+
+'1975-11-19abcdefghij'
+
+MOVEL(P)
+
+11 19 75
+
+D(MDY&);
+
+'1975-11-19 '
+
+Table 7. Moving a Time field to a Numeric
+field. The result field is larger than factor 2. Assume
+that Factor 1 contains *ISO and that the result field is defined as
+
+D Result_Fld 20S INZ(11111111111111111111)
+
+Operation
+Code
+
+Factor
+2
+
+Value of Result Field
+after move operation
+
+Value
+
+DTZ Type
+
+MOVE
+
+9:42 PM
+
+T(*USA)
+
+11111111111111214200
+
+MOVE(P)
+
+9:42 PM
+
+T(*USA)
+
+00000000000000214200
+
+MOVEL
+
+9:42 PM
+
+T(*USA)
+
+21420011111111111111
+
+MOVEL(P)
+
+9:42 PM
+
+T(*USA)
+
+21420000000000000000
+
+Table 8. Moving a Numeric field to a Time
+field. Factor 2 is larger than the result field. The highlighted
+portion shows the part of the factor 2 field that is moved.
+
+Operation
+Code
+
+Factor 2
+
+Result
+Field
+
+DTZ Type
+
+Value
+
+MOVE
+
+11:12:13:14
+
+T(*EUR)
+
+12.13.14
+
+MOVEL
+
+11:12:13:14
+
+T(*EUR)
+
+11.12.13
+
+Table 9. Moving a Numeric field to a Timestamp
+field. Factor 2 is larger than the result field. The highlighted
+portion shows the part of the factor 2 field that is moved.
+
+Operation
+Code
+
+Factor 2
+
+Result
+Field
+
+DTZ Type
+
+Value
+
+MOVE
+
+12340618230323123420123456
+
+Z(*ISO)
+
+1823-03-23-12.34.20.123456
+
+MOVEL
+
+12340618230323123420123456
+
+Z(*ISO)
+
+1234-06-18-23.03.23.123420
+
+Figure 11. MOVE Operation
+
+Parent topic: Operation Codes

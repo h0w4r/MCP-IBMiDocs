@@ -1,0 +1,160 @@
+Memory Management Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations > Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations
+
+Memory Management Operations
+
+The memory management operations are shown in the following
+table.
+
+Table 1. Memory Management Operations.
+
+Operation
+
+Traditional Syntax
+
+Free-Form Syntax
+
+Allocate Storage
+
+ALLOC (Allocate Storage)
+
+%ALLOC (Allocate Storage)
+
+Free Storage
+
+DEALLOC (Free Storage)
+
+DEALLOC (Free Storage)
+
+Reallocate Storage
+
+REALLOC (Reallocate Storage with New Length)
+
+%REALLOC (Reallocate Storage)
+
+Get the Address of a Variable
+
+ 
+
+%ADDR (Get Address of Variable)
+
+Get the Address of a Procedure
+
+ 
+
+%PADDR (Get Procedure Address)
+
+The ALLOC operation allocates heap storage and sets the result-field pointer
+to point to the storage. The storage is uninitialized.
+
+The REALLOC operation changes the length of the heap storage pointed to
+by the result-field pointer. New storage is allocated and initialized to the
+value of the old storage. The data is truncated if the new size is smaller
+than the old size. If the new size is greater than the old size, the storage
+following the copied data is uninitialized. The old storage is released. The
+result-field pointer is set to point to the new storage.
+
+The DEALLOC operation releases the heap storage that the result-field pointer
+is set to. If operational extender (N) is specified, the pointer is set to
+*NULL after a successful deallocation.
+
+Storage is implicitly freed when the activation group ends. Setting LR
+on will not free any heap storage allocated by the module, but any pointers
+to heap storage will be lost.
+
+There are two types of heap storage: single-level and teraspace.
+You can use the ALLOC keyword on the
+Control specification to control
+which type of heap storage is used by your memory management operations.
+
+There are advantages and disadvantages of each type of heap storage.
+
+The maximum size of an individual allocation or reallocation is
+larger for teraspace heap storage.
+
+The maximum size that RPG allows
+for the %ALLOC and %REALLOC built-in functions is 4294967295 bytes.
+When you use single-level heap storage, the maximum size that RPG allows
+is 16776704 bytes.
+
+RPG allows the larger maximum of 4294967295 bytes for the ALLOC and
+REALLOC operation codes when the compiler can detect at compile time that
+memory management operations will use teraspace heap storage.
+If RPG memory management operations will use single-level heap storage,
+or if the compiler cannot detect the type of heap storage at compile time,
+then the smaller limit of 16776704 bytes will be in effect.
+
+Note that the actual maximum size that you can allocate
+may be less than the maximum size that RPG allows, depending on
+the availability of heap storage at runtime.
+
+The system functions that RPG uses to reallocate and deallocate
+teraspace heap storage can handle pointers to either single-level heap
+storage or teraspace heap storage.
+When the teraspace reallocation function
+is used to reallocate a pointer, the new
+allocation will be the same type of heap storage as the original allocation.
+
+The system functions that RPG uses to reallocate and deallocate
+single-level heap storage can only handle pointers to single-level
+heap storage.
+
+Single-level storage can provide greater integrity than
+teraspace storage.
+For example, using single-level storage, the storage that
+can be affected by a storage over-run is measured in megabytes; for
+teraspace storage, it is measured in terabytes.
+
+For more information on the different types of heap storage,
+see the chapter on storage management in ILE Concepts, SC41-5606.
+
+Misuse of heap storage can cause problems. The following example illustrates
+a scenario to avoid:
+
+D Fld1 S 25A BASED(Ptr1)
+D Fld2 S 5A BASED(Ptr2)
+D Ptr1 S *
+D Ptr2 S *
+....
+C ALLOC 25 Ptr1
+C DEALLOC Ptr1
+* After this point, Fld1 should not be accessed since the
+* basing pointer Ptr1 no longer points to allocated storage.
+C CALL 'SOMEPGM'
+
+* During the previous call to 'SOMEPGM', several storage allocations
+* may have been done. In any case, it is extremely dangerous to
+* make the following assignment, since 25 bytes of storage will
+* be filled with 'a'. It is impossible to know what that storage
+* is currently being used for.
+C EVAL Fld1 = *ALL'a'
+
+Following are more problematic situations:
+
+A similar error can be made if a pointer is copied before being reallocated
+or deallocated. Great care must be taken when copying pointers to allocated
+storage, to ensure that they are not used after the storage is deallocated
+or reallocated.
+
+If a pointer to heap storage is copied, the copy can be used to deallocate
+or reallocate the storage. In this case, the original pointer should not be
+used until it is set to a new value.
+
+If a pointer to heap storage is passed as a parameter, the callee could
+deallocate or reallocate the storage. After the call returns, attempts to
+access the storage through pointer could cause problems.
+
+If a pointer to heap storage is set in the *INZSR, a later RESET of the
+pointer could cause the pointer to get set to storage that is no longer allocated.
+
+Another type of problem can be caused if a pointer to heap storage is
+lost (by being cleared, or set to a new pointer by an ALLOC operation, for
+example). Once the pointer is lost, the storage it pointed to cannot be freed.
+This storage is unavailable to be allocated since the system does not know
+that the storage is no longer addressable. The storage will not be freed until
+the activation group ends.
+
+Parent topic: Operations

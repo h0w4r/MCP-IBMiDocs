@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Loading an Array from Identical Externally-Described Fields" name="DC.title" />
+<meta content="arr_rt_load.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="arr_extflds" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Loading an Array from Identical Externally-Described Fields</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Farr_extflds.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="arr_extflds">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dataprt.htm" shape="rect">Definitions</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/arrays.htm" shape="rect">Using Arrays and Tables</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/arrbasic.htm" shape="rect">Arrays</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/arr_rt_load.htm" shape="rect">Loading a Run-Time Array</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">Loading an Array from Identical Externally-Described Fields</h1>
+
+
+<div class="body">
+<p class="p">If an input record from a externally-described database file has
+several fields that are defined identically, you can define a data
+structure that will allow you to process those fields as though they
+were an array.  There are three cases to consider:  </p>
+
+<div class="p">
+<ol class="ol">
+<li class="li">The fields are consecutive in the record and appear at the beginning
+of the record.
+<pre class="pre codeblock" xml:space="preserve"><code>      A          R REC
+      A            FLD1           5P 0
+      A            FLD2           5P 0
+      A            FLD3           5P 0
+      A            OTHER         10A  </code></pre> For this case, you
+can use an externally-described data structure and define your array
+as an additional subfield, mapping the array to the fields using the
+OVERLAY keyword:
+<pre class="pre codeblock" xml:space="preserve"><code>      FMYFILE    IF   E             DISK
+      D myDS          E DS                  EXTNAME(MYFILE)
+      D   fldArray                          LIKE(FLD1) DIM(3)
+      D                                     OVERLAY(myDs)
+
+      C                   READ      MYFILE
+      C                   FOR       i = 1 to %ELEM(fldArray)
+      C*                     ... process fldArray(i)
+      C                   ENDFOR     </code></pre>  </li>
+
+<li class="li">The fields are consecutive in the record but do not appear at
+the beginning of the record.
+<pre class="pre codeblock" xml:space="preserve"><code>      A          R REC
+      A            OTHER1        10A
+      A            ... more fields
+      A            FLD1          15A
+      A            FLD2          15A
+      A            FLD3          15A
+      A            OTHER2        10A  </code></pre> For this case, you
+can use an externally-described data structure and define your array
+as a standalone field, mapping the array to the fields using the BASED
+keyword, and initializing the basing pointer to the address of the
+first field.
+<pre class="pre codeblock" xml:space="preserve"><code>      FMYFILE    IF   E             DISK
+      D myDS          E DS                  EXTNAME(MYFILE)
+
+      D fldArray        S                   LIKE(FLD1) DIM(3)
+      D                                     BASED(pFldArray)
+      D pFldArray       S               *   INZ(%addr(FLD1))
+
+      C                   READ      MYFILE
+      C                   FOR       i = 1 to %ELEM(fldArray)
+      C*                     ... process fldArray(i)
+      C                   ENDFOR         </code></pre> </li>
+
+<li class="li">The fields are not consecutive in the record.
+<pre class="pre codeblock" xml:space="preserve"><code>      A          R REC
+      A            OTHER1        10A
+      A            FLD1            T         TIMFMT(*ISO)
+      A            FLD2            T         TIMFMT(*ISO)
+      A            OTHER2        10A
+      A            FLD3            T         TIMFMT(*ISO)
+      A            OTHER3        10A           </code></pre>  For this
+case, you must define a program-described data structure and list
+the fields to be used for the array without defining any type information.
+Then map the array to the fields using the OVERLAY keyword.
+<pre class="pre codeblock" xml:space="preserve"><code>      FMYFILE    IF   E             DISK
+      D myDS            DS
+      D   FLD1
+      D   FLD2
+      D   FLD3
+      D   fldArray                          LIKE(FLD1) DIM(3)
+      D                                     OVERLAY(myDs)
+      C                   READ      MYFILE
+      C                   FOR       i = 1 to %ELEM(fldArray)
+      C*                     ... process fldArray(i)
+      C                   ENDFOR         </code></pre></li>
+
+</ol>
+</div>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="arr_rt_load.htm" shape="rect">Loading a Run-Time Array</a></div>
+</div>
+</div></body>
+</html>

@@ -1,0 +1,141 @@
+LIKEDS(data_structure_name)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > Definition-Specification Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords
+
+LIKEDS(data_structure_name)
+
+The LIKEDS keyword is used to define a data structure, data structure subfield, prototyped return value, or prototyped parameter
+like another data structure. The subfields of the new item
+will be identical to the subfields of the parent data structure specified
+as the parameter to the LIKEDS keyword.
+
+A data structure defined using LIKEDS is automatically qualified
+even if the parent data structure is not qualified. The subfields must be
+referred to using the qualified notation DSNAME.SUBFIELDNAME. If the parent
+data structure has any unnamed subfields, the child data structure will have
+the same unnamed subfields.
+
+LIKEDS can be coded for subfields of a qualified data structure.
+When LIKEDS is coded on a data structure subfield definition, the subfield
+data structure is automatically defined as QUALIFIED. Subfields in a LIKEDS
+subfield data structure are referenced in fully qualified form: "ds.subf.subfa". Subfields defined with LIKEDS are themselves data structures, and
+can be used wherever a data structure is required.
+
+The values of the ALIGN and ALTSEQ keywords are inherited by the new data
+structure. The values of the OCCURS, DIM, NOOPT, NULLIND, and INZ
+keywords are not inherited. To initialize the subfields in the same way as
+the parent data structure, specify INZ(*LIKEDS).
+
+However, the values of the DIM, NOOPT, and NULLIND keywords specified
+for the subfields of the parent data structure are inherited
+by the subfields of the new data structure.
+
+Figure 1. Defining data structures using LIKEDS
+
+* Data structure qualDs is a qualified data structure
+* with two named subfields and one unnamed subfield
+
+D qualDs DS QUALIFIED
+D a1 10A
+D 2A
+D a2 5P 0 DIM(3)
+* Data structure unqualDs is a non-qualified data structure
+* with one named subfield and one unnamed subfield
+
+D unqualDs DS
+D b1 5A
+D 5A
+* Data structure likeQual is defined LIKEDS(qualDs)
+
+D likeQual DS LIKEDS(qualDs)
+* Data structure likeUnqual is defined LIKEDS(unqualDs)
+
+D likeUnqual DS LIKEDS(unqualDs)
+/FREE
+// Set values in the subfields of the
+// parent data structures.
+
+qualDs.a1 = 'abc';
+qualDs.a2(1) = 25;
+b1 = 'xyz';
+
+// Set values in the subfields of the
+// child data structures.
+
+likeQual.a1 = 'def';
+likeQual.a2(2) = -250;
+likeUnqual.b1 = 'rst';
+
+// Display some of the subfields
+
+dsply likeQual.a1; // displays 'def'
+
+dsply b1; // displays 'xyz'
+
+Figure 2. Using INZ(*LIKEDS)
+
+D sysName DS qualified
+D lib 10A inz('*LIBL')
+D obj 10A
+D userSpace DS LIKEDS(sysName) INZ(*LIKEDS)
+// The variable "userSpace" was initialized with *LIKEDS, so the
+// first 'lib' subfield was initialized to '*LIBL'. The second
+// 'obj' subfield must be set using a calculation.
+C eval userSpace.obj = 'TEMPSPACE'
+
+Figure 3. Using a data structure parameter in
+a subprocedure
+
+P createSpace B
+D createSpace PI
+D name LIKEDS(sysName)
+/free
+if name.lib = *blanks;
+name.lib = '*LIBL';
+endif;
+QUSCRTUS (name : *blanks : 4096 : ' ' : '*USE' : *blanks);
+/end-free
+P createSpace E
+
+Specifying LIKEDS with a qualified data structure name
+
+Data structure employees is defined as a subfield
+of qualified data structure employee_info.
+
+The check_employee procedure is called, passing
+an element of the employee_info.employees
+data structure array.
+
+The employee parameter of the check_employee
+procedure is with the LIKEDS keyword with the qualified data structure
+employee_info.employees.
+
+The subfields of the employee parameter are the same as
+the subfields of the qualified data structure subfield employee_info.employees.
+
+DCL-DS employee_info QUALIFIED;
+num_employees INT(10);
+DCL-DS employees DIM(20); // 1
+name VARCHAR(25);
+salary PACKED(7:2);
+END-DS;
+END-DS;
+
+...
+ok = check_employee (employee_info.employees(i)); // 2
+...
+
+DCL-PROC check_employee;
+DCL-PI *N IND;
+employee LIKEDS(employee_info.employees); // 3
+END-PI;
+
+if (employee.salary < MIN_SALARY); // 4
+...
+endif;
+
+END-PROC;
+
+Parent topic: Definition-Specification Keywords

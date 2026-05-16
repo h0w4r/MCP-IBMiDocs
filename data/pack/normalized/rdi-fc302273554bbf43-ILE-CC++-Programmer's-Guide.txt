@@ -1,0 +1,97 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 6. Improving Run-Time Performance > Minimizing Exception Handling
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 6. Improving Run-Time Performance > Minimizing Exception Handling
+
+ILE C/C++ Programmer's Guide
+
+Minimizing Percolation of Exceptions
+
+Try to handle an exception in the place it occurs. There is some
+processing overhead incurred with exception percolation.
+Example of Exception Percolation for a Sample ILE C Source Code
+
+The following figure shows an example of ILE C source code for handling
+exceptions. Below the figure is an example of an exception that can
+occur and the steps the code takes to handle the exception.
+Figure 39. T1520XH7 -- ILE C Source for Exception Handling
+
+#include <stdio.h>
+#include <except.h>
+#include <signal.h>
+#include <lecond.h>
+void handler1(_INTRPT_Hndlr_Parms_T * __ptr128 parms)
+{
+printf("In handler1: will not handle the exception\n");
+}
+void handler2(_INTRPT_Hndlr_Parms_T * __ptr128 parms)
+{
+printf("In handler2: will not handle the exception\n");
+}
+void handler3(_FEEDBACK *condition, _POINTER *token, _INT4 *result_code,
+_FEEDBACK *new_condition)
+{
+printf("In handler3: will not handle the exception\n");
+}
+void handler4(_INTRPT_Hndlr_Parms_T * __ptr 128 parms)
+{
+printf("In handler4: will not handle the exception\n");
+}
+void fred(void)
+{
+_HDLR_ENTRY hdlr = handler3;
+char *p = NULL;
+#pragma exception_handler(handler2, 0, 0, \
+_C2_MH_ESCAPE | _C2_MH_FUNCTION_CHECK)
+CEEHDLR(&hdlr, NULL, NULL);
+#pragma exception_handler(handler1, 0, 0, _C2_MH_ESCAPE)
+*p = 'x'; /* exception */
+}
+int main(void)
+{
+signal(SIGSEGV, SIG_DFL);
+#pragma exception_handler(handler4, 0, 0, \
+_C2_MH_ESCAPE | _C2_MH_FUNCTION_CHECK)
+fred();
+}
+
+The sequence of exceptions and handling actions that occur when the source
+code in Figure 39 is run is:
+
+An escape exception occurs in function fred().
+handler1 gets control because it is monitoring for an escape
+message, it is the closest nested monitor to the exception, and it has highest
+priority because it is a direct handler.
+handler2 gets control because it is monitoring for an escape
+message, and has a higher priority than a CEEHDLR.
+handler3 gets control (from CEEHDLR).
+signal handler gets control. Even though it is
+registered in main, signal is scoped to the activation group and
+therefore will get control. It gets control after handler1,
+handler2, and handler3 because it has a lower priority
+than either direct handlers or CEEHDLRs. Because the action is SIG_DFL,
+the exception is not handled.
+The exception is percolated to main().
+handler4 gets control.
+The exception is still not handled. Thus, when it hits the control
+boundary (the PEP for main()), it is turned into a function check
+and is re-driven.
+handler1 does NOT get control, because it is not monitoring for
+a function check.
+handler2 gets control because it is monitoring for function
+check.
+handler3 gets control because CEEHDLRs get control for all
+*ESCAPE, *STATUS, *NOTIFY, and Function Check messages.
+signal handler does NOT get control because signal
+does not recognize function checks.
+The function check is percolated to main().
+handler4 gets control because it is monitoring for function
+check.
+The function check percolates to the control boundary and causes the
+ending.
+(CEE9901) *ESCAPE is sent to the caller of main().
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

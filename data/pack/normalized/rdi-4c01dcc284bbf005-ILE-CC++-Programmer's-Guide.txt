@@ -1,0 +1,72 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 22. Using OS/400 pointers in a Program > Declaring Pointer Variables
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 22. Using OS/400 pointers in a Program > Declaring Pointer Variables
+
+ILE C/C++ Programmer's Guide
+Declaring a Function Pointer with OS-Linkage in ILE C and ILE C++
+
+Pointers to OS-linkage functions (programs) and system pointers (_SYSPTR) are
+data-type compatible. You can use a system pointer to hold the address
+of a program and then call that program through the system pointer.
+Note:A call through a system pointer that contains the address of a system object
+that is not a program results in undefined behavior.
+
+To force the ILE C compiler to associate system pointer types with the
+OS/400 pointer types, do both of the following tasks:
+
+Define system pointer types as pointers to void (void *).
+Define the #pragma pointer directives in the header file.
+
+Figure 191 shows you how to declare a pointer to an iSeries OS/400
+program as a function pointer with OS-linkage in ILE C. Figure 192 shows you how to declare a pointer to an iSeries OS/400
+program as a function pointer with OS-linkage in ILE C++.
+Note:If the #pragma linkage OS directive is omitted from the code, the ILE C
+compiler assumes that os_fct_ptr is a pointer to a bound C function returning
+void, and will issue a compilation error for incompatible pointer types
+between os_fct_ptr and the system pointer returned by rslvsp().
+
+Figure 191. ILE C Source to Declare a Pointer to an iSeries Program as a Function Pointer
+
+#include <miptrnam.h> 
+#include <stdio.h> 
+#pragma datamodel(p128) 
+typedef void (OS_fct_t) ( void ); 
+#pragma linkage(OS_fct_t,OS)
+#pragma datamodel(pop)
+int main ( void ) 
+{
+OS_fct_t *os_fct_ptr; char pgm_name[10];
+printf("Enter the program name : \n");
+scanf("%s", pgm_name);
+/* Dynamic assignment of a system pointer to program "MYPGM" */
+/* in *LIBL. The rslvsp MI library function will resolve to */
+/* this program at runtime and return a system pointer to */
+/* the program object. */
+os_fct_ptr = rslvsp(_Program, pgm_name, "*LIBL", _AUTH_OBJ_MGMT);
+os_fct_ptr(); /* OS-linkage *PGM call using a */ 
+/* pointer. */ }
+
+Figure 192. ILE C++ Source to Declare a Pointer to an iSeries Program as a Function Pointer
+
+#include <miptrnam.h>
+#include <stdio.h>
+extern "OS" typedef void (OS_fct_t) (void);
+int main ( void )
+{
+OS_fct_t *os_fct_ptr;
+char pgm_name[10];
+printf("Enter the program name : \n");
+scanf("%s", pgm_name);
+/* Dynamic assignment of a system pointer to program "MYPGM" */
+/* in *LIBL. The rslvsp MI library function will resolve to */
+/* this program at runtime and return a system pointer to */
+/* the program object. */
+os_fct_ptr = (OS_fct_t*) rslvsp(_Program, pgm_name, "*LIBL", _AUTH_OBJ_MGMT);
+os_fct_ptr(); /* OS-linkage *PGM call using a pointer */
+}
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

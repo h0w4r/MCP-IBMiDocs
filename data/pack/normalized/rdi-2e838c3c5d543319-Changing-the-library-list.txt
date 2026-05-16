@@ -1,0 +1,120 @@
+Changing the library list
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Libraries > Library lists > Library lists
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Libraries > Library lists
+
+Changing the library list
+You can change the library list in a variety of ways.
+For a running job, you can add entries to or remove
+entries from the library list by using the Add Library List Entry
+(ADDLIBLE) command or the Remove Library List Entry (RMVLIBLE) command,
+or you can change the libraries in the library list by using the Change
+Library List (CHGLIBL) command or the Edit Library List
+(EDTLIBL) command. These commands change the user part of the library
+list, not the system part.
+The current library may be added or changed
+using the Change Current Library (CHGCURLIB) or CHGLIBL
+command. The current library can also be changed in the user's user profile,
+at sign-on, or on the Submit Job (SBMJOB) command. The
+product libraries cannot be added using a CL command; these libraries are
+added by the system when a command or menu using them is run. The product
+libraries cannot be changed with a CL command; however, they can be changed
+with the Change Library List (QLICHGLL) API.
+When
+you use these commands, the change to the library list affects only the job
+in which the command is run, and the change is effective only as long as the
+job is running, or until you change the job's library list again. When the
+library list is changed through the use of these commands, the libraries must
+exist when the command is run. A library cannot be deleted if it exists in
+your job's library list. If it exists in another job's library list, it cannot
+be deleted only if the system value QLIBLCKLVL is set to lock libraries in
+the library search list.
+When a job is started, the user portion of
+the library list is determined by the values contained in the job description
+or by values specified on the Submit Job (SBMJOB) command.
+A value of *SYSVAL can be specified, which causes the libraries specified
+by the system value QUSRLIBL to become the user portion of the library list.
+If you have specified library names in both the job description and the Batch
+Job (BCHJOB) or Submit Job (SBMJOB) command,
+the library names specified in the BCHJOB or SBMJOB command override both
+the libraries specified in the job description and the system value QUSRLIBL.
+The
+following shows the order in which the user part of the library list specified
+in QUSRLIBL is overridden by commands for individual jobs:
+A library list can be specified in the job description that, when the
+job is run, overrides the library list specified in QUSRLIBL.
+When a job is submitted either through a Batch Job (BCHJOB) command
+or a Submit Job (SBMJOB) command, a library list can be
+specified on the command. This list overrides the library list specified
+in the job description or in the system value QUSRLIBL.
+When a job is submitted using the Submit Job (SBMJOB) command,
+*CURRENT (the default) can be specified for the library list. *CURRENT indicates
+that the library list of the job issuing the Submit Job (SBMJOB) command
+is used.
+Within a job, an ADDLIBLE, a RMVLIBLE, or a CHGLIBL command
+can be used. These commands override any previous library list specifications.
+The current library for the job can be changed using the CHGCURLIB or
+CHGLIBL command.
+
+Instead of entering the CHGLIBL command each time you want to change
+the library list, you can place the command in a CL program:
+PGM /* SETLIBL - Set library list */
+CHGLIBL LIBL(APPDEVLIB QGPL QTEMP)
+ENDPGM
+If you normally work with this library list, you could set
+up an initial program to establish the library list instead of calling the
+program each time:
+PGM /* Initial program for QPGMR */
+CHGLIBL LIBL(APPDEVLIB QGPL QTEMP)
+TFRCTL PGM(QPGMMENU)
+ENDPGM
+This program must be created and the user profile to which
+it will apply changed to specify the new initial program. Control then transfers
+from this program to the QPGMMENU program, which displays the Programmer Menu.
+If
+you occasionally need to add a library to the library list specified in your
+initial program, you can use the ADDLIBLE command to add that library to the
+library list. For example, the following command adds the library JONES to
+the end of the library list:
+ADDLIBLE LIB(JONES) POSITION(*LAST)
+If part of your job requires a different library list, you
+can write a CL program that saves the current library list and later restores
+it, such as the following program.
+PGM
+DCL &LIBL *CHAR 2750
+DCL &CMD *CHAR 2760
+(1) RTVJOBA USRLIBL(&LIBL)
+(2) CHGLIBL (QGPL QTEMP)
+.
+.
+.
+(3) CHGVAR &CMD ('CHGLIBL (' *CAT &LIBL *TCAT ')')
+(4) CALL QCMDEXC (&CMD 2760)
+.
+.
+.
+ENDPGM
+(1)
+Command to save the library list. The library list is stored into variable &LIBL.
+Each library name occupies 10 bytes (padded on the right with blanks if necessary),
+and one blank is between each library name.
+(2)
+This command changes the library list as required by the following function.
+(3)
+The Change Variable (CHGVAR) command builds a CHGLIBL
+command in variable &CMD.
+(4)
+QCMDEXC is called to process the command string in variable &CMD.
+The CHGVAR command is required before the call to QCMDEXC because concatenation
+cannot be done on the CALL command.
+
+Parent topic: Library lists
+
+Related information
+Job description in Work Management
+CL command finder
+Change Current Library (CHGCURLIB) command
+Submit Job (SBMJOB) command
+Add Library List Entry (ADDLIBLE) command
+Remove Library List Entry (RMVLIBLE) command

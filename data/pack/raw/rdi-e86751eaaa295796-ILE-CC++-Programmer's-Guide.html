@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Record Functions for Diskette Files</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="record functions, diskette files">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog396.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog306.htm">Part 5&#46; Working with iSeries File Systems and Devices</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog356.htm">Chapter 20&#46; Using Device Files in a Program</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog391.htm">Writing to a Diskette File</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="Header_486" HREF="cpprog02.htm#ToC_486">Record Functions for Diskette Files</A></H3>
+<P>Use the following record functions to process diskette files: 
+<UL>
+<LI><TT>_Rclose()</TT>
+</LI><LI><TT>_Rfeod()</TT>
+</LI><LI><TT>_Riofbk()</TT>
+</LI><LI><TT>_Ropen()</TT>
+</LI><LI><TT>_Ropfbk()</TT>
+</LI><LI><TT>_Rreadn()</TT>
+</LI><LI><TT>_Rupfb()</TT>
+</LI><LI><TT>_Rwrite()</TT>
+</LI></UL>
+<P><B>Example:</B>
+<P>The following example shows how to write to a diskette file. 
+<OL TYPE=1>
+<LI>To create the diskette file T1520DKF, enter: 
+<PRE>
+<BR>
+CRTDKTF FILE(MYLIB/T1520DKF) DEV(DKT02) LABEL(FILE1)
+<BR>EXCHTYPE(*I) SPOOL(*NO)
+</PRE>
+</LI><LI>Enter: 
+<PRE>
+<BR>
+CRTPF FILE(MYLIB/T1520DDI) SRCFILE(QCPPLE/QADDSSRC)
+<BR>SHARE(*YES)
+</PRE>
+<P>
+<P>To create the physical file T1520DDI using the following DDS source: 
+<P><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+     A          R CUST
+<BR>     A            NAME          20A
+<BR>     A            AGE            3B
+<BR>     A            DENTAL         6B
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI>Type the following records into the database file T1520DDI:
+<P><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+Dave Bolt           35 350
+<BR>Mary Smith          54 444
+<BR>Mike Tomas          25 545
+<BR>Alex Michaels       32 512
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI>To select only records that have a value greater than 400 in the DENTAL
+field, enter: 
+<PRE>
+<BR>
+OPNQRYF FILE((MYLIB/T1520DDI)) QRYSLT('DENTAL *GT 400') OPNSCOPE(*JOB)
+</PRE>
+</LI><LI>To create the program T1520DSK using the source shown below, enter: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520DSK) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+<P>
+<P>
+<P><B><A NAME="Figure_157" HREF="cpprog09.htm#FT_Figure_157">Figure 157. T1520DSK -- ILE C Source to Write Records to a Diskette File</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program illustrates how to write to a diskette file.          */
+<BR>&nbsp;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>&nbsp;
+<BR>#define  BUF_SIZE 30
+<BR>&nbsp;
+<BR>int main(void)
+<BR>{
+<BR>    _RFILE *dktf;
+<BR>    _RFILE *dbf;
+<BR>    char   buf [BUF_SIZE];
+<BR>&nbsp;
+<BR>/* Open the diskette file                                             */
+<BR>&nbsp;
+<BR>    if (( dktf = _Ropen ( "*LIBL/T1520DKF", "wr blkrcd=y lrecl=100" )) == NULL )
+<BR>    {
+<BR>        printf ( "DISKETTE file did not open \n" );
+<BR>        exit ( 1 );
+<BR>    }
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* Open the database file.                                            */
+<BR>&nbsp;
+<BR>    if ( ( dbf  = _Ropen ( "*LIBL/T1520DDI", "rr") ) == NULL)
+<BR>    {
+<BR>        printf ( "DATABASE file did not open\n" );
+<BR>        exit ( 2 );
+<BR>    }
+<BR>&nbsp;
+<BR>/* Copy all the database records meeting the OPNQRYF selection        */
+<BR>/* criteria to the diskette file.                                     */
+<BR>&nbsp;
+<BR>    while (( _Rreadn ( dbf, buf, BUF_SIZE,__DFT) ) -&gt; num_bytes != EOF )
+<BR>    {
+<BR>        _Rwrite ( dktf, buf, BUF_SIZE );
+<BR>    }
+<BR>    _Rclose ( dktf );
+<BR>    _Rclose ( dbf );
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE> 
+<P>The <TT>_Ropen()</TT> function opens the diskette file T1520DKF and
+the database file T1520DDI. The <TT>_Rreadn()</TT> function reads
+all database records. The <TT>_Rwrite()</TT> function copies all
+database records that have a value > 400 in the DENTAL field to the diskette
+file T1520DKF.
+</LI><LI>To run the program T1520DSK, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520DSK)
+</PRE>
+<P>The output to the diskette file is as follows: 
+<P><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+ Mary Smith         444
+<BR> Mike Tomas         545
+<BR> Alex Michaels      512
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>After you run the program, the diskette file contains only the records that
+satisfied the selection criteria.
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog395.htm">Previous Page</A> | <A HREF="cpprog397.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

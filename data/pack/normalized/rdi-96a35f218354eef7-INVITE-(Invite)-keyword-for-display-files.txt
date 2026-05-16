@@ -1,0 +1,120 @@
+INVITE (Invite) keyword for display files
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+INVITE (Invite) keyword for display files
+
+You use this file-level or record-level keyword to
+invite the device for a later read operation.
+
+To send an invite to a specific device, your program sends an
+output operation to the device with the INVITE keyword in effect. If the record
+format used has output-capable fields, the data is sent to the device before
+the device is invited.
+This keyword has no parameters.
+INVITE
+must be used if the display file can have multiple acquired devices and your
+program does read from invited devices operations. This is because a read
+from invited devices to a multiple device display file only returns a record
+from one of the devices that was invited. If you want all the acquired devices
+to be able to return data, an output operation with INVITE in effect must
+be sent to each device before the read from invited devices. Even if there
+is only one device acquired on the multiple device file, the device must be
+invited via INVITE before a read from invited devices.
+INVITE also gives
+you the ability to create a subset of acquired devices that are eligible to
+respond on a read from invited devices. For example, if ten devices are currently
+acquired to the file but only three devices were invited, the next read from
+invited devices operation returns a record from one of the three invited devices.
+This is true even if the other devices have data available.
+INVITE provides
+some performance improvement. Normally a read request is issued to a device
+when your program sends an input operation. However, INVITE allows you to
+request the read when you issue the output operation. After the output operation
+is complete, your program can do other processing while the device is issuing
+data and the IBM® i operating
+system is processing the received data. This can be a significant improvement
+if the device is remote.
+For specific instructions on when an invite
+operation is necessary and how to specify a read from invited devices operation
+in your program, see the appropriate high-level language manual.
+INVITE
+cannot be specified at both the file and record level and cannot be specified
+with the subfile keyword (SFL).
+Option indicators are valid for this
+keyword.
+
+Special considerations when using the INVITE keywordThe
+following list shows special considerations when you use the INVITE keyword:
+
+An input operation sent to a specific device does not require
+an invite operation. Input operations with a specified record format name
+or device are directed to one device. If that device has an invite outstanding
+at the time of the input operation, the invite operation is deleted after
+the input operation is completed.
+
+After an invite operation has been sent to a device, the only
+valid operations (in addition to a read-operation-from-invited-devices operation)
+are these:
+An input operation to a specific device.
+
+An output operation with data that tries to cancel the invite operation.
+If the cancel operation is successful, the data is written. If the INVITE
+keyword is in effect on the output operation, the device is invited again.
+If the cancel operation is not successful (because the data has already been
+received by the system), the output operation fails. Your program must perform
+an input operation to process the data. The input operation erases the invite
+operation for that device.
+
+On a read operation from invited devices operation to a display file,
+only data from devices with an outstanding invite operation are considered.
+The input operation waits for data from any of the invited devices. (See the
+WAITRCD parameter on the Create Display File (CRTDSPF) and Change Display
+File (CHGDSPF) commands.) If none of the invited devices responds before the
+wait time ends, a notify message is sent and no data is returned. All invited
+devices remain invited.
+
+If more than one device obtained by the display file has an
+invite operation outstanding, a read-operation-from-invited-devices
+operation returns the next available record from one of the invited devices.
+If records are received from more than one device before this input operation,
+the other records are kept for subsequent input operations.
+
+When a read operation from invited devices operation to a display file
+returns a record to your program from an invited device, the invite operation
+for that device is deleted. Other devices that have an invite outstanding
+remain invited. The device that sent the record your program read must be
+invited again if you want to receive data from this device on a later read
+from invited devices operation.
+
+If no device was invited or if a device was invited but the job was canceled
+with the controlled option, a read operation from invited devices operation
+to a display file results in a notify message and no data is returned to your
+program. All invited devices remain invited.
+
+If you want to invite a device but have no data to send it, issue an output
+operation using a record format containing no output-capable fields with INVITE
+in effect.
+
+After the first record is received from an invited display device, the
+device should not be re-invited until all the record formats on the display
+with input-capable fields are read by your program. Your program can read
+those other record formats if you specify the record format name and the device
+name on the read operation.
+
+If your display file has the delayed write option (DFRWRT(*YES) parameter
+on the (Create Display File (CRTDSPF) and Change Display File (CHGDSPF) commands),
+an output operation with the INVITE keyword in effect causes the delayed output
+to appear on the display before the device is invited.
+
+ExampleThe following example shows how to specify
+the INVITE keyword.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A 01 INVITE
+00020A R RCD1
+00030A FLD1 10 2 2
+00030A FLD2 5 2 24
+AINVITE is in effect only when option indicator 01 is
+set on.

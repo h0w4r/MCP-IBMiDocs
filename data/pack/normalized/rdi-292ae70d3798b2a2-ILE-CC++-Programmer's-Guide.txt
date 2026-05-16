@@ -1,0 +1,303 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 25. Working with Multi-Language Applications > Passing Arguments from a CL Program to an ILE C++ Program
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 25. Working with Multi-Language Applications > Passing Arguments from a CL Program to an ILE C++ Program
+
+ILE C/C++ Programmer's Guide
+CL Example: a Multi-Language ILE Application
+This program shows you some typical steps in creating a program that uses
+several ILE programming languages.
+Program Description
+This program is an ILE version of the small transaction-processing program
+described in the ILE-OPM CL Example: Calling OPM, COBOL, and RPG Programs from an ILE C++ Program.
+Program Structure
+The program consists of the following components:
+
+A CL command T2123CM3 that accepts the user input and passes it
+to an ILE CL program
+An ILE CL program T2123CL3 that processes the input and passes
+it to an ILE program
+An ILE program T2123ICB in which the main() function
+of a C++ module T2123ICB calls a procedure CalcAndFormat
+in an ILE COBOL module T2123CB2
+A service program T2123SP3, created from a C++ source file
+t2123icc.cpp, that exports the variable TAXRATE
+A service program T2123SP4, created from an ILE RPG module
+object T2123RP2, that writes an audit trail of all transactions to
+a file
+An externally described file T2123DD2 that receives the audit
+trail data
+
+Figure 237 shows the ILE structure.
+Figure 237. ILE Structure
+
+Program Activation
+The programs T2123CL3 and T2123ICB are created with
+the CRTPGM default for the ACTGRP parameter,
+ACTGRP(*NEW). When the CL program calls the ILE C++ program, a
+new activation group is started.
+Figure 238. Basic Object Structure
+
+The service programs are created with the CRTSRVPGM default for the
+ACTGRP parameter, ACTGRP(*CALLER). When they are
+called, they are activated within the activation group of the calling
+program.
+Figure 238 shows the basic object structure used in this
+example.
+Application Modules and Files
+This program includes an externally described file, a CL program, a command
+prompt, two C++ source files, and ILE COBOL source file and an ILE RPG source
+file.
+
+C++ Program T2123ICB.CPP
+The source for the ILE C++ program T2123ICB is almost identical
+to the source shown in C++ Source File T2123IC5. The difference lies in the linkage specifications
+used for interlanguage calls. See Figure 239.
+C++ Source File T2123ICC
+The source for the ILE C++ module T2123ICC shows the variable
+TAXRATE is exported from this module to be used by ILE COBOL and
+ILE RPG procedures. See Figure 240.
+Note:The choice of language for TAXRATE is C++ because weak definitions
+(EXTERNALs from COBOL) cannot be exported out of a service program to a strong
+definition language like C or C++, while C or C++ can export to COBOL.
+
+CL Program T2123CL3
+The CL program T2123CL3 passes the CL variables
+item_name, price, quantity, and
+user_id by reference to an ILE C++ program
+T2123IC5.
+CL Command Prompt T2123CM3
+You use the CL command prompt T2123CM3 to prompt the user to
+enter item names, prices, and quantities that will be used by the C++ program
+T2123ICB.
+ILE COBOL Module T2123CB2
+The ILE COBOL procedure in T2123CB2 receives pointers to the
+values of the variables price, quantity and
+taxrate, and pointers to formatted_cost and
+success_flag. The CalcAndFormat() function
+calculates and formats the total cost. Parameters are passed from the
+ILE C++ program to the ILE COBOL procedure to do the tax calculation.
+See Figure 241.
+ILE RPG Module T2123RP2
+The ILE RPG module T2123RP2 contains the
+WriteAuditTrail() function which writes the audit trail for the
+program. See Figure 242.
+Service Program T2123SP3
+Service program T2123SP3 is created from the C++ module
+T2123ICC. It exports the variable TAXRATE.
+Service Program T2123SP4
+Service program T2123SP4 is created from the ILE RPG module
+T2123RP2. It exports the procedure
+T2123RP2.
+Externally Described File T2123DD2
+The file T2123DD2 contains the audit trail for the C++ program
+T2123ICB. The DDS source defines the fields for the audit
+file. See Externally Described File T2123DD2 for the DDS source of the audit file
+T2123DD2.
+
+C++ Source File T2123ICB.CPP
+:
+Figure 239. Example of the Interlanguage Call Capabilities of an ILE C++ Program
+
+// This program demonstrates the interlanguage call capability
+// of an ILE C++ program. This program is called by a CL
+// program that passes an item name, price, quantity and user ID.
+// A COBOL procedure is called to calculate and format total
+// cost. An RPG procedure is called to write an audit trail.
+
+#include <iostream.h>
+#include <stdlib.h>
+#include <string.h>
+#include <bcd.h>
+
+// The #pragma map directive maps a function name to the bound
+// procedure name so that the purpose of the procedure is clear.
+// Tell the compiler that there are bound procedure calls and
+// arguments are to be passed by value-reference.
+
+extern "COBOL" void CalcAndFormat(_DecimalT <10,2>,
+short int, char[],
+char *);
+
+#pragma map(CalcAndFormat,"T2123CB2")
+
+extern "RPG" void WriteAuditTrail(char[],
+char[],
+_DecimalT<10,2>,
+short int, char[]);
+
+#pragma map(WriteAuditTrail,"T2123RP2")
+
+int main(int argc, char *argv[])
+{
+// Incoming arguments from a CL program have been verified by
+// the *CMD and null-terminated within the CL program.
+// Incoming arguments are passed by reference from a CL program.
+
+char *user_id;
+char *item_name;
+short int quantity;
+_DecimalT<10, 2> price;
+char formatted_cost[22];
+
+// Remove null terminator for RPG program. Item name is null
+// terminated for C++.
+
+char rpg_item_name[20];
+char null_formatted_cost[22];
+char success_flag = 'N';
+int i;
+
+//Incoming arguments are all pointers.
+item_name = argv[1];
+price = *((_DecimalT<10, 2> *) argv[2]);
+quantity = *((short *) argv[3]);
+user_id = argv[4];
+
+// Call the COBOL program to do the calculation, and return a
+// Y/N flag, and a formatted result.
+
+CalcAndFormat(price, quantity, formatted_cost, &success_flag);
+
+memcpy(null_formatted_cost,formatted_cost,sizeof(formatted_cost));
+
+// Null terminate the result.
+
+formatted_cost[21] = '\0';
+if (success_flag == 'Y')
+{
+for (i=0; i<20; i++)
+{
+
+// Remove null terminator for the RPG program.
+
+if (*(item_name+i) == '\0')
+{
+rpg_item_name[i] = ' ';
+}
+else
+{
+rpg_item_name[i] = *(item_name+i);
+}
+}
+
+// Call an RPG program to write audit records.
+
+WriteAuditTrail(user_id, rpg_item_name, price, quantity,
+formatted_cost);
+
+cout <<"plus tax =" << quantity << item_name << null_formatted_cost
+<<endl <<endl;
+}
+else
+{
+cout <<"Calculation failed" <<endl;
+}
+}
+
+C++ Source File T2123ICC
+
+Figure 240. C++ Source Code T2123ICC that Exports a Variable for Use by ILE COBOL and ILE RPG Procedures
+
+// Export the tax rate data.
+#include <bcd.h>
+const _DecimalT <2,2> TAXRATE = __D(".15");
+
+Note:Weak definitions (EXTERNALs from COBOL) cannot be exported out of a service
+program to a strong definition language like C or C++, while C or C++ can
+export to COBOL. The choice of language for TAXRATE is
+C++.
+
+ILE COBOL Program T2123CB2
+
+Figure 241. T2123CB2
+
+IDENTIFICATION DIVISION.
+PROGRAM-ID. T1520CB2 INITIAL.
+******************************************************
+* parameters: *
+* incoming: PRICE, QUANTITY *
+* returns : TOTAL-COST (PRICE*QUANTITY*1.TAXRATE) *
+* SUCCESS-FLAG. *
+* TAXRATE : An imported value. *
+******************************************************
+ENVIRONMENT DIVISION.
+CONFIGURATION SECTION.
+SOURCE-COMPUTER. IBM-ISERIES.
+OBJECT-COMPUTER. IBM-ISERIES.
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+
+01 WS-TOTAL-COST PIC S9(13)V99 COMP-3.
+01 WS-TAXRATE PIC S9V99 COMP-3
+VALUE 1.
+01 TAXRATE EXTERNAL PIC SV99 COMP-3.
+
+LINKAGE SECTION.
+01 LS-PRICE PIC S9(8)V9(2) COMP-3.
+01 LS-QUANTITY PIC S9(4) COMP-4.
+01 LS-TOTAL-COST PIC $$,$$$,$$$,$$$,$$$.99
+DISPLAY.
+01 LS-OPERATION-SUCCESSFUL PIC X DISPLAY.
+
+PROCEDURE DIVISION USING LS-PRICE
+LS-QUANTITY
+LS-TOTAL-COST
+LS-OPERATION-SUCCESSFUL.
+
+MAINLINE.
+MOVE "Y" TO LS-OPERATION-SUCCESSFUL.
+PERFORM CALCULATE-COST.
+PERFORM FORMAT-COST.
+EXIT PROGRAM.
+
+CALCULATE-COST.
+ADD TAXRATE TO WS-TAXRATE.
+COMPUTE WS-TOTAL-COST ROUNDED = LS-QUANTITY *
+LS-PRICE *
+WS-TAXRATE
+
+ON SIZE ERROR
+MOVE "N" TO LS-OPERATION-SUCCESSFUL
+END-COMPUTE.
+
+FORMAT-COST.
+MOVE WS-TOTAL-COST TO LS-TOTAL-COST.
+
+ILE RPG Module T2123RP2
+
+Figure 242. ILE RPG Module T2123RP2
+
+FT1520DD2 O A E DISK
+D TAXRATE S 3P 2 IMPORT
+D QTYIN DS
+D QTYBIN 1 4B 0
+C *ENTRY PLIST
+C PARM USER 10
+C PARM ITEM 20
+C PARM PRICE 10 2
+C PARM QTYIN
+C PARM TOTAL 21
+C EXSR ADDREC
+C SETON LR
+C ADDREC BEGSR
+C MOVEL UDATE DATE
+C MOVE QTYBIN QTY
+C MOVE TAXRATE TXRATE
+C WRITE T1520DD2R
+C ENDSR
+
+Invoking the ILE Program
+T2123ICB is considered the main program. It runs in the
+new activation group that is created when the CL program T2123CL3
+is called.
+To enter data for the program T2123ICB enter the command:
+T2123CM2 and press F4 (Prompt). You can enter the sample
+data in Invoking the ILE-OPM Program.
+The output is the same as for the OPM version of this program.
+The physical file T2123DD2 contains the same data as shown in
+the OPM version in Invoking the ILE-OPM Program.
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

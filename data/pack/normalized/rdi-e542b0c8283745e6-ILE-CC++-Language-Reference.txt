@@ -1,0 +1,78 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Expressions and operators > new expressions (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Expressions and operators > new expressions (C++ only)
+
+ILE C/C++ Language Reference
+
+Placement syntax
+Arguments
+specifying an allocated storage location can be supplied to new by
+using the argument_list, also called the placement syntax. If placement arguments are used, a declaration of operator
+new() or operator new[]() with these arguments
+must exist. For example:
+#include <new>
+using namespace std;
+
+class X
+{
+public:
+void* operator new(size_t,int, int){ /* ... */ }
+};
+
+// ...
+
+int main ()
+{
+X* ptr = new(1,2) X;
+}
+The placement syntax is commonly used to invoke the global placement new function.
+The global placement new function initializes an object
+or objects at the location specified by the placement argument in
+the placement new expression. This location must address storage that
+has previously been allocated by some other means, because the global
+placement new function does not itself allocate memory.
+In the following example, no new memory is allocated by the calls new(whole)
+X(8);, new(seg2) X(9);, or new(seg3) X(10); Instead,
+the constructors X(8), X(9), and X(10) are
+called to reinitialize the memory allocated to the buffer whole.
+Because placement new does not allocate memory, you
+should not use delete to deallocate objects created with
+the placement syntax. You can only delete the entire memory pool (delete
+whole). In the example, you can keep the memory buffer but destroy
+the object stored in it by explicitly calling a destructor.
+#include <new>
+class X
+{
+public:
+X(int n): id(n){ }
+~X(){ }
+private:
+int id;
+// ...
+};
+
+int main()
+{
+char* whole = new char[ 3 * sizeof(X) ]; // a 3-part buffer
+X * p1 = new(whole) X(8); // fill the front
+char* seg2 = &whole[ sizeof(X) ]; // mark second segment
+X * p2 = new(seg2) X(9); // fill second segment
+char* seg3 = &whole[ 2 * sizeof(X) ]; // mark third segment
+X * p3 = new(seg3) X(10); // fill third segment
+
+p2->~X(); // clear only middle segment, but keep the buffer
+// ...
+return 0;
+}The placement new syntax can also be used for passing
+parameters to an allocation routine rather than to a constructor.
+Related information
+
+delete expressions (C++ only)
+Scope resolution operator :: (C++ only)
+Overview of constructors and destructors (C++
+only)
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

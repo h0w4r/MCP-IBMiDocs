@@ -1,0 +1,264 @@
+Field descriptions in an SQLDA header
+
+IBM i programming resources > SQL > SQL reference > SQLDA (SQL descriptor area) > SQLDA (SQL descriptor area)
+
+IBM i programming resources > SQL > SQL reference > SQLDA (SQL descriptor area)
+
+Field descriptions in an SQLDA header
+An SQLDA consists of four variables in a header structure
+followed by an arbitrary number of occurrences of a sequence of five
+variables collectively named SQLVAR. In OPEN, CALL, FETCH, and EXECUTE,
+each occurrence of SQLVAR describes a variable. In PREPARE and DESCRIBE,
+each occurrence describes a column of a result table.
+The SQL INCLUDE statement provides the following field
+names:
+Table 1. Field Descriptions
+for an SQLDA Header C Name
+1
+
+PL/I Name
+COBOL Name
+
+Field
+Data Type
+
+Usage in DESCRIBE and PREPARE
+(set by the database manager except for SQLN)
+Usage in FETCH, OPEN, CALL, or
+EXECUTE (set by the user prior to executing the statement)
+
+sqldaid
+SQLDAID
+
+CHAR(8)
+An 'eye catcher' for storage dumps,
+containing 'SQLDA '. The 7th byte of the SQLDAID can be used to
+determine whether more than one SQLVAR entry is needed for each column.
+For details, see Determining how many SQLVAR occurrences are needed.
+
+A '2' in the 7th byte indicates that
+two SQLVAR entries were allocated for each column. A '3' in the
+7th byte indicates that three SQLVAR entries were allocated for each
+column.
+A '4' in the 7th byte indicates that four SQLVAR entries
+were allocated for each column.
+
+sqldabc
+SQLDABC
+
+INTEGER
+Length of the SQLDA.
+Number of bytes of storage allocated
+for the SQLDA. Enough storage must be allocated to contain SQLN occurrences.
+SQLDABC must be set to a value greater than or equal to 16+SQLN*(80),
+where 80 is the length of an SQLVAR occurrence. If LOBs or distinct
+types are specified, there must be two SQLVAR entries for each parameter
+marker.
+
+sqln
+SQLN
+
+SMALLINT
+Unchanged by the database manager.
+Must be set to a value greater than or equal to zero before the PREPARE
+or DESCRIBE statement is executed. It should be set to a value that
+is greater than or equal to the number of columns in the result or
+a multiple of the number of columns in the result when multiple sets
+of SQLVAR entries are necessary. Indicates the total number of occurrences
+of SQLVAR.
+Total number of occurrences of SQLVAR
+provided in the SQLDA. SQLN must be set to a value greater than or
+equal to zero. If LOBs or distinct types are specified, there
+must be two SQLVAR entries for each parameter marker and SQLN must
+be set to two times the number of parameter markers.
+
+sqld
+SQLD
+
+SMALLINT
+The number of columns described by
+occurrences of SQLVAR (zero if the statement being described is not
+a select-statement, CALL, or VALUES INTO).
+Number of occurrences of SQLVAR entries
+in the SQLDA that are used when executing the statement. SQLD must
+be set to a value greater than or equal to zero and less than or equal
+to SQLN.
+
+Determining
+how many SQLVAR occurrences are neededThe
+number of SQLVAR occurrences needed depends on the statement that
+the SQLDA was provided for and the data types of the columns or parameters
+being described. See the tables above for more information.
+The 7th byte of SQLDAID is always set to the number of
+sets of SQLVARs necessary when LOBs or UDTs are in the result set.
+If SQLD is not set to a sufficient number of SQLVAR occurrences:
+When LOBs and UDTs are not in the result set, SQLD is set to the
+total number of SQLVAR occurrences needed for all sets. When there
+are LOBs or UDTs in the result set, SQLD is set to the number of columns
+in the result table and the seventh byte of SQLDAID indicates the
+number of sets of SQLVAR entries needed. The number of required SQLVAR
+entries can always be determined by multiplying SQLD by the value
+in the seventh byte of SQLDAID.
+A warning (SQLSTATE 01594) is returned if at least enough SQLVARs
+were specified for the Base SQLVAR Entries. The Base SQLVAR entries
+are returned, but no extended SQLVARs are returned.
+A warning (SQLSTATE 01005) is returned if enough SQLVARs were
+not specified for even the Base SQLVAR Entries. No SQLVAR entries
+are returned.2
+
+Table 2, Table 3, and Table 4 show how to map the
+base and extended SQLVAR entries. For an SQLDA that contains both
+base and extended SQLVAR entries, the base SQLVAR entries are in the
+first block, followed by a block of extended SQLVAR entries, which
+if necessary, are followed by a second or third block of extended
+SQLVAR entries. In each block, the number of occurrences of the SQLVAR
+entry is equal to the value in SQLD even though many of the extended
+SQLVAR entries might be unused.
+Table 2. Contents of SQLVAR Arrays for USING NAMES, USING SYSTEM NAMES,
+USING LABELS or USING ANYLOBs
+DISTINCT types
+7th byte of SQLDAID
+SQLN Minimum
+First Set (Base)
+Second Set (Extended)
+Third Set (Extended)
+Fourth Set (Extended)
+
+No
+No
+Blank
+n
+Column names, system column names,
+or labels
+Not used
+Not used
+Not used
+
+Yes
+No
+2
+2n
+Column names, system column names,
+or labels
+LOBs
+Not used
+Not used
+
+No
+Yes
+2
+2n
+Column names, system column names,
+or labels
+Distinct types
+Not used
+Not used
+
+Yes
+Yes
+2
+2n
+Column names, system column names,
+or labels
+LOBs and distinct types
+Not used
+Not used
+
+Table 3. Contents of
+SQLVAR Arrays for USING BOTHLOBs
+DISTINCT types
+7th byte of SQLDAID
+SQLN Minimum
+First Set (Base)
+Second Set (Extended)
+Third Set (Extended)
+Fourth Set (Extended)
+
+No
+No
+2
+2n
+Column names
+Labels
+Not used
+Not used
+
+Yes
+No
+2
+2n
+Column names
+LOBs and labels
+Not used
+Not used
+
+No
+Yes
+3
+3n
+Column names
+Distinct types
+Labels
+Not used
+
+Yes
+Yes
+3
+3n
+Column names
+LOBs and distinct types
+Labels
+Not used
+
+Table 4. Contents of
+SQLVAR Arrays for USING ALLLOBs
+DISTINCT types
+7th byte of SQLDAID
+SQLN Minimum
+First Set (Base)
+Second Set (Extended)
+Third Set (Extended)
+Fourth Set (Extended)
+
+No
+No
+3
+3n
+System column names
+Labels
+Column names
+Not used
+
+Yes
+No
+3
+3n
+System column names
+LOBs and labels
+Column names
+Not used
+
+No
+Yes
+4
+4n
+System column names
+Distinct types
+Labels
+Column names
+
+Yes
+Yes
+4
+4n
+System column names
+LOBs and distinct types
+Labels
+Column names
+
+Parent topic: SQLDA (SQL descriptor area)
+
+1 In this column, the lowercase name is the
+C Name. The uppercase name is the COBOL, PL/I, or RPG Name.2 If LOBs or UDTs are not in the result set, the warning
+is only returned if the standards option is specified. For information
+about the standards option, see Standards compliance.

@@ -1,0 +1,158 @@
+CVTOPT(*VARCHAR) and CVTOPT(*VARGRAPHIC)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Data Types and Data Formats > Character Data Type > Variable-Length Character, Graphic and UCS-2 Formats > Variable-Length Character, Graphic and UCS-2 Formats
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Data Types and Data Formats > Character Data Type > Variable-Length Character, Graphic and UCS-2 Formats
+
+CVTOPT(*VARCHAR) and CVTOPT(*VARGRAPHIC)
+
+The ILE RPG compiler can internally define variable-length character,
+graphic, or UCS-2 fields from an externally described file or data structure
+as fixed-length character fields. Although converting variable-length character,
+graphic, and UCS-2 fields to fixed-length format is not necessary, CVTOPT
+remains in the language to support programs written before variable-length
+fields were supported.
+
+You can convert variable-length fields by specifying *VARCHAR (for variable-length
+character fields) or *VARGRAPHIC (for variable-length graphic or UCS-2 fields)
+on the CVTOPT control specification keyword or command
+parameter. When *VARCHAR or *VARGRAPHIC is not specified, or *NOVARCHAR or
+*NOVARGRAPHIC is specified, variable-length fields are not converted to fixed-length
+character and can be used in your ILE RPG program as variable-length.
+
+The following conditions apply when *VARCHAR or *VARGRAPHIC is specified:
+
+If a variable-length field is extracted from an externally described file
+or an externally described data structure, it is declared in an ILE RPG program
+as a fixed-length character field.
+
+For single-byte character fields, the length of the declared ILE RPG field
+is the length of the DDS field plus 2 bytes.
+
+For DBCS-graphic data fields, the length of the declared ILE RPG field
+is twice the length of the DDS field plus 2 bytes.
+
+The two extra bytes in the ILE RPG field contain a unsigned integer
+number which represents the current length of the variable-length field. Figure 1 shows the ILE RPG field length of variable-length fields.
+
+For variable-length graphic fields defined as fixed-length character fields,
+the length is double the number of graphic characters.
+Figure 1. ILE RPG Field
+Length of Converted Variable-Length Fields
+
+Your ILE RPG program can perform any valid character calculation operations
+on the declared fixed-length field. However, because of the structure of the
+field, the first two bytes of the field must contain valid unsigned integer
+data when the field is written to a file. An I/O exception error will occur
+for an output operation if the first two bytes of the field contain invalid
+field-length data.
+
+Control-level indicators, match field entries, and field indicators are
+not allowed on an input specification if the input field is a variable-length
+field from an externally described input file.
+
+Sequential-within-limits processing is not allowed when a file contains
+variable-length key fields.
+
+Keyed operations are not allowed when factor 1 of a keyed operation corresponds
+to a variable-length key field in an externally described file.
+
+If you choose to selectively output certain fields in a record and the
+variable-length field is either not specified on the output specification
+or is ignored in the ILE RPG program, the ILE RPG compiler will place
+a default value in the output buffer of the newly added record. The default
+is 0 in the first two bytes and blanks in all of the remaining bytes.
+
+If you want to change converted variable-length fields, ensure that the
+current field length is correct. One way to do this is:
+
+Define a data structure with the variable-length field name as a subfield
+name.
+
+Define a 5-digit unsigned integer subfield overlaying the beginning of
+the field, and define an N-byte character subfield overlaying the field starting
+at position 3.
+
+Update the field.
+
+Alternatively, you can move another variable-length field left-aligned
+into the field. An example of how to change a converted variable-length field
+in an ILE RPG program follows.
+
+Figure 2. Converting a Variable-Length Character Field
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7....+..
+A*
+A* File MASTER contains a variable-length field
+A*
+AAN01N02N03T.Name++++++Rlen++TDpBLinPosFunctions+++++++++++++++++++++
+A*
+A R REC
+A FLDVAR 100 VARLEN
+*..1....+....2....+....3....+....4....+....5....+....6....+....7....+.. *
+*
+* Specify the CVTOPT(*VARCHAR) keyword on a control
+* specification or compile the ILE RPG program with
+* CVTOPT(*VARCHAR) on the command.
+*
+HKeywords++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*
+H CVTOPT(*VARCHAR)
+*
+* Externally described file name is MASTER.
+*
+FFilename++IPEASFRlen+LKlen+AIDevice+.Keywords++++++++++++++++++++++++++++
+*
+FMASTER UF E DISK
+*
+* FLDVAR is a variable-length field defined in DDS with
+* a DDS length of 100. Notice that the RPG field length
+* is 102.
+*
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+*
+D DS
+D FLDVAR 1 102
+D FLDLEN 5U 0 OVERLAY(FLDVAR:1)
+D FLDCHR 100 OVERLAY(FLDVAR:3)
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+*
+* A character value is moved to the field FLDCHR.
+* After the CHECKR operation, FLDLEN has a value of 5.
+C READ MASTER LR
+C MOVEL 'SALES' FLDCHR
+C ' ' CHECKR FLDCHR FLDLEN
+C NLR UPDATE REC
+
+If you would like to use a converted variable-length graphic field, you
+can code a 2-byte unsigned integer field to hold the length, and a graphic
+subfield of length N to hold the data portion of the field.
+Figure 3. Converting a Variable-Length Graphic Field
+
+*
+* Specify the CVTOPT(*VARGRAPHIC) keyword on a control
+* specification or compile the ILE RPG program with
+* CVTOPT(*VARGRAPHIC) on the command.
+*
+* The variable-length graphic field VGRAPH is declared in the
+* DDS as length 3. This means the maximum length of the field
+* is 3 double bytes, or 6 bytes. The total length of the field,
+* counting the length portion, is 8 bytes.
+*
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+*
+D DS
+DVGRAPH 8
+D VLEN 4U 0 OVERLAY(VGRAPH:1)
+D VDATA 3G OVERLAY(VGRAPH:3)
+*
+* Assume GRPH is a fixed-length graphic field of length 2
+* double bytes. Copy GRPH into VGRAPH and set the length of
+* VGRAPH to 2.
+*
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+C*
+C MOVEL GRPH VDATA
+C Z-ADD 2 VLEN
+
+Parent topic: Variable-Length Character, Graphic and UCS-2 Formats

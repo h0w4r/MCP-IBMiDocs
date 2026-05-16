@@ -1,0 +1,214 @@
+CREATE PERMISSION
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+CREATE PERMISSION
+The CREATE PERMISSION statement creates a row permission
+for row access control at the current server. It determines the rows
+within a table that are available based on the result of the search-condition.
+InvocationThis statement can be embedded
+in an application program or issued interactively. It is an executable
+statement that can be dynamically prepared.
+AuthorizationThe authorization ID of the
+statement must have security administrator authority. See Administrative authority.
+Syntax CREATEOR REPLACEPERMISSIONpermission-nameONtable-nameAScorrelation-nameFOR ROWS WHEREsearch-conditionENFORCED
+FOR ALL ACCESSDISABLEENABLE
+
+Description OR REPLACE
+Specifies to replace the definition for the row permission if
+one exists at the current server. The existing definition is effectively
+dropped before the new definition is replaced in the catalog.
+permission-name
+Names
+the row permission for row access control. The name, including the
+implicit or explicit qualifier, must not be the same as a column mask
+or a row permission that already exists at the current server. The permission-name cannot
+start with QIBM.If SQL names were specified,
+the permission will be created in the schema specified by the implicit
+or explicit qualifier.
+If system names were specified, the permission
+will be created in the schema that is specified by the qualifier.
+If not qualified and there is no default schema, the permission will
+be created in the same schema as the table-name.
+The
+schema name for the permission-name must be the same as the
+schema name for table-name.
+
+table-name
+Identifies the table on which the column permission is created.
+The name must identify a table that exists at the current server.
+It must not identify a declared temporary table, table in QTEMP, distributed
+table, view, logical file, member alias, file with read triggers,
+or catalog table.
+correlation-name
+Specifies a correlation name that can be used within search-condition to
+designate the table.
+
+FOR ROWS WHERE
+Indicates that a row permission is created. A row permission specifies
+a search condition under which rows of the table can be accessed.search-condition
+Specifies a condition that can be true, false, or unknown for
+a row of the table.
+The search-condition follows the same rules used by the
+search condition in a WHERE clause. In addition, it must not reference
+any of the following:The table for which the row permission is being defined
+A declared global temporary table
+A variable (host variable, SQL variable, SQL parameter, or trigger
+transition variable)
+A parameter marker
+A user-defined function that is defined as NOT SECURED
+A function that is not deterministic1 or
+has an external action
+An RRN, RID, HASHED_VALUE, DATAPARTITIONNAME, DATAPARTITIONNUM,
+DBPARTITIONNAME, or DBPARTITIONNUM function that references the table
+for which the row permission is being defined
+An OLAP specification
+A ROW CHANGE expression
+A sequence reference
+A * or name.* in a select clause
+A table in QTEMP
+A member alias
+A distributed table
+A file with read triggers
+A multi-format logical file
+A remote object
+A view that contains any of the above
+
+ENFORCED FOR ALL ACCESS
+Specifies that the row permission applies to all references of
+the table. If row access control is activated for the table, when
+the table is referenced in a data manipulation statement, DB2® implicitly applies the row permission
+to control the access of the table. If the reference of the table
+is for a fetch operation such as SELECT, the application of the row
+permission determines what set of rows can be retrieved by the user
+who requested the fetch operation. If the reference of the table is
+for a data change operation such as INSERT, the application of the
+row permission determines whether all rows to be changed are insertable
+or updatable by the user who requested the data change operation.
+ENABLE or DISABLE
+Specifies that the row permission is to be initially enabled or
+disabled for row access control.DISABLE
+Specifies that the row permission is to be disabled for row access
+control. The row permission will remain ineffective regardless of
+whether row access control is activated for the table or not. This
+is the default.
+ENABLE
+Specifies that the row permission is to be enabled for row access
+control. If row access control is not currently activated for this
+table, the row permission will become effective when row access control
+is activated for the table. If row access control is currently activated
+for the table, the row permission becomes effective immediately.
+
+NotesPrerequisites: In
+order to create a permission, IBM® Advanced
+Data Security must be installed.How row permissions are applied
+and how they affect certain statements: See the ALTER TABLE statement
+with the ACTIVATE ROW ACCESS CONTROL clause for information on how
+to activate row access control and how row permissions are applied.
+See the description of subselect for information on how the application
+of row permissions affects the fetch operation. See the data change
+statements for information on how the application of row permissions
+affects the data change operation.
+Row permissions that are
+created before row access control is activated for a table: The
+CREATE PERMISSION statement is an independent statement that can be
+used to create a row permission before row access control is activated
+for a table. The only requirement is that the table and the columns
+exist before the permission is created. Multiple row permissions can
+be created for a table.
+The definition of the row permission
+is stored in the DB2 catalog.
+Dependency on the table for which the permission is being created
+and dependencies on other objects referenced in the definition are
+recorded. A row permission can be created as enabled or disabled for
+row access control. An enabled row permission does not take effect
+until the ALTER TABLE statement with the ACTIVATE ROW ACCESS CONTROL
+clause is used to activate row access control for the table. A disabled
+row permission remains ineffective even when row access control is
+activated for the table. The ALTER PERMISSION statement can be used
+to alter between ENABLE and DISABLE.
+After row access control
+is activated for a table, when the table is referenced in a data manipulation
+statement, all enabled row permissions that are defined for the table
+are implicitly applied by DB2 to
+control access to the table.
+Row permissions that are created
+after row access control is activated for a table: An enabled
+row permission becomes effective as soon as it is committed. Thereafter,
+when the table is referenced in a data manipulation statement, all
+enabled row permissions are implicitly applied to the statement. Any
+disabled row permission remains ineffective even when row access control
+is activated for the table.
+No cascaded effect when row or
+column access control enforced tables are referenced in row permission
+definitions: A row permission definition may reference tables
+and columns that are currently enforced by row or column access control.
+Access control from those tables is ignored when the table for which
+the row permission is being created is referenced in a data manipulation
+statement.
+DECRESULT option for permissions: The DECRESULT
+option for permissions will always use maximum precision of 63, maximum
+scale of 63, and minimum divide scale of 0.
+ExamplesExample 1: Secure user-defined
+function ACCOUNTING_UDF in row permission SALARY_ROW_ACCESS processes
+the sensitive data in column SALARY. After row access control is activated
+for table EMPLOYEE, Accountant Paul retrieves the salary of employee
+with EMPNO 123456 who is making $100,000 a year. Paul may or may not
+see the row depending on the output value from user-defined function
+ACCOUNTING_UDF.
+CREATE PERMISSION SALARY_ROW_ACCESS ON EMPLOYEE
+FOR ROWS WHERE VERIFY_GROUP_FOR_USER(SESSION_USER,'MGR','ACCOUNTING') = 1
+AND
+ACCOUNTING_UDF(SALARY) < 120000
+ENFORCED FOR ALL ACCESS
+ENABLE;
+
+COMMIT;
+
+ALTER TABLE EMPLOYEE
+ACTIVATE ROW ACCESS CONTROL;
+
+COMMIT;
+
+SELECT SALARY FROM EMPLOYEE
+WHERE EMPNO = 123456;
+Example 2: The
+tellers in a bank can only access customers from their branch. All
+tellers have secondary authorization ID TELLER. The customer service
+representatives are allowed to access all customers of the bank. All
+customer service representatives have secondary authorization ID CSR.
+A row permission is created for each group of personnel in the bank
+according to the access rules defined by someone with security administrator
+authority. After row access control is activated for table CUSTOMER,
+in a SELECT statement the search conditions of both row permissions
+are merged into the statement and they are combined with the logical
+OR operator to control the set of rows accessible by each group.CREATE PERMISSION TELLER_ROW_ACCESS ON CUSTOMER
+FOR ROWS WHERE VERIFY_GROUP_FOR_USER(SESSION_USER,'TELLER') = 1
+AND
+BRANCH = (SELECT HOME_BRANCH FROM INTERNAL_INFO
+WHERE EMP_ID = SESSION_USER)
+ENFORCED FOR ALL ACCESS
+ENABLE;
+
+COMMIT;
+
+CREATE PERMISSION CSR_ROW_ACCESS ON CUSTOMER
+FOR ROWS WHERE VERIFY_GROUP_FOR_USER(SESSION_USER,'CSR') = 1
+ENFORCED FOR ALL ACCESS
+ENABLE;
+
+COMMIT;
+
+ALTER TABLE CUSTOMER
+ACTIVATE ROW ACCESS CONTROL;
+
+COMMIT;
+
+SELECT * FROM CUSTOMER;
+
+Parent topic: Statements
+
+1 STATEMENT
+DETERMINISTIC functions are allowed but are not recommended.

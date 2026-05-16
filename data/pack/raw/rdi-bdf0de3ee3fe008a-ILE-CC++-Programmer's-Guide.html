@@ -1,0 +1,212 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Example: Setting Up a Signal Handler</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog431.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog406.htm">Chapter 21&#46; Handling Exceptions in a Program</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog424.htm">Using the C&#47;C++ Signal Handler</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="Header_541" HREF="cpprog02.htm#ToC_541">Example: Setting Up a Signal Handler</A></H3>
+<P>The following example shows how to set up a signal handler.
+The example illustrates that when there is no signal handler set up the
+default action for SIGIO is SIG_IGN. The exception is
+ignored. When a signal handler is set up for SIGIO, the signal handler
+is called.
+<P><H4><A NAME="Header_542">Instructions</A></H4>
+<OL TYPE=1>
+<LI>To create the program T1520SIG, enter:
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520SIG) SRCFILE(QCPPLE/QACSRC)
+</PRE> <A HREF="#FIGFIGT1520SIG">Figure 182</A> shows the source code.
+</LI><LI>To run program T1520SIG, enter:
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520SIG)
+</PRE> The output appears in a series of screens: 
+<PRE>
++--------------------------------------------------------------------------------+
+|  The first read starts                                                         |
+|  Read record 1                                                                 |
+|  Read record 2                                                                 |
+|  Read record 3                                                                 |
+|  Read record 4                                                                 |
+|  Read record 5                                                                 |
++--------------------------------------------------------------------------------+</PRE>
+<P>
+<PRE>
++--------------------------------------------------------------------------------+
+|  The first read finishes                                                       |
+|  The second read starts                                                        |
+|  Read record 1                                                                 |
+|  Read record 2                                                                 |
+|  Read record 3                                                                 |
+|  Read record 4                                                                 |
+|  Read record 5                                                                 |
+|  In SIGIO handler                                                              |
+|  Exception message ID is CPF5001                                               |
+|  Signal raised is 9                                                            |
+|  The second read finishes                                                      |
+|  The third read starts                                                         |
+|  Read record 1                                                                 |
+|  Read record 2                                                                 |
+|  Read record 3                                                                 |
+|  Read record 4                                                                 |
+|  Read record 5                                                                 |
+|  In SIGALL handler                                                             |
+|  Exception message ID is CPF5001                                               |
+|  Signal raised is 9                                                            |
+|  The third read finishes                                                       |
+|  Press ENTER to end terminal session.                                          |
+| ===>                                                                           |
+| F3=Exit F4=End of File F6=Print F9=Retrieve F17=Top                            |
+| F18=Bottom  F19=Left   F20=Right F21=User Window                               |
++--------------------------------------------------------------------------------+</PRE>
+</LI></OL>
+<P><H4><A NAME="Header_543">Source Code Sample that Sets Up Signal Handlers</A></H4>
+<P>
+<P><B><A NAME="FIGFIGT1520SIG" HREF="cpprog09.htm#FT_FIGFIGT1520SIG">Figure 182. T1520SIG -- ILE C Source that Sets Up Signal Handlers</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+#include &lt;stdio.h&gt;
+<BR>#include &lt;signal.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;string.h&gt;
+<BR>#define FILE_NAME "QTEMP/MY_FILE"
+<BR>#define RCD_LEN   80
+<BR>#define NUM_RCD   5
+<BR>/* The signal handler for SIGIO.                                      */
+<BR>static void handler_SIGIO(int sig)
+<BR>{
+<BR>    printf("In SIGIO handler\n");
+<BR>    printf("Exception message ID is %7.7s\n", _EXCP_MSGID);
+<BR>    printf("Signal raised is %d\n", sig);
+<BR>}
+<BR>/* The signal handler for SIGALL.                                     */
+<BR>static void handler_SIGALL(int sig)
+<BR>{
+<BR>    _INTRPT_Hndlr_Parms_T data;
+<BR>    _GetExcData(&amp;data);
+<BR>    printf("In SIGALL handler\n");
+<BR>    printf("Exception message ID is %7.7s\n", data.Msg_Id);
+<BR>    printf("Signal raised is %d\n", sig);
+<BR>}
+<BR>int main(void)
+<BR>{
+<BR>    _RFILE *fp;
+<BR>    int     i;
+<BR>    char    buf[RCD_LEN];
+<BR>    char    cmd[100];
+<BR>/* Create a file.                                                     */
+<BR>    sprintf(cmd, "CRTPF FILE(%s) RCDLEN(%d)", FILE_NAME, RCD_LEN);
+<BR>    system(cmd);
+<BR>/* Open the file for write.                                           */
+<BR>    if ( (fp = _Ropen(FILE_NAME, "wr")) == NULL )
+<BR>    {
+<BR>        printf("Open for write fails\n");
+<BR>        exit(1);
+<BR>    }
+<BR>/* Write some data into the file.                                     */
+<BR>    memset(buf, '1', RCD_LEN);
+<BR>    for ( i = 0; i &lt; NUM_RCD; i++ )
+<BR>    {
+<BR>        _Rwrite(fp, buf, RCD_LEN);
+<BR>    }
+<BR>    _Rclose(fp);
+<BR>/* Open the file for the first read.                                  */
+<BR>    if ( (fp = _Ropen(FILE_NAME, "rr")) == NULL )
+<BR>    {
+<BR>        printf("Open for the first read fails\n");
+<BR>        exit(2);
+<BR>    }
+<BR>/* Read until end-of-file.                                            */
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* Since there is no signal handler set up and the default            */
+<BR>/* action for SIGIO is SIG_IGN, the EOF exception is ignored.         */
+<BR>    i = 1;
+<BR>    printf("The first read starts\n");
+<BR>    while ( _Rreadn(fp, buf, RCD_LEN, __DFT)-&gt;num_bytes != EOF )
+<BR>    {
+<BR>        printf("Read record %d\n", i++);
+<BR>    }
+<BR>    _Rclose(fp);
+<BR>    printf("The first read finishes\n");
+<BR>/* Set up a signal handler for SIGIO.                                 */
+<BR>    signal(SIGIO, handler_SIGIO);
+<BR>/* Open the file for the second read.                                 */
+<BR>    if ( (fp = _Ropen(FILE_NAME, "rr")) == NULL )
+<BR>    {
+<BR>        printf("Open for the second read fails\n");
+<BR>        exit(3);
+<BR>    }
+<BR>/* Read until end of file.                                            */
+<BR>/* Since a signal handler is set up for SIGIO, the signal             */
+<BR>/* handler is called when the EOF exception is generated.             */
+<BR>    i = 1;
+<BR>    printf("The second read starts\n");
+<BR>    while ( _Rreadn(fp, buf, RCD_LEN, __DFT)-&gt;num_bytes != EOF )
+<BR>    {
+<BR>        printf("Read record %d\n", i++);
+<BR>    }
+<BR>    _Rclose(fp);
+<BR>    printf("The second read finishes\n");
+<BR>/* Set up a signal handler for SIGALL.                                */
+<BR>    signal(SIGALL, handler_SIGALL);
+<BR>/* Open the file for the third read.                                  */
+<BR>    if ( (fp = _Ropen(FILE_NAME, "rr")) == NULL )
+<BR>    {
+<BR>        printf("Open for the third read fails\n");
+<BR>        exit(4);
+<BR>    }
+<BR>/* Read until end of file.                                            */
+<BR>/* Since there is no signal handler for SIGIO but there is a          */
+<BR>/* signal handler for SIGALL, the signal handler for SIGALL           */
+<BR>/* is called when the EOF exception is generated. But                 */
+<BR>/* the signal ID passed to the SIGALL signal handler is still         */
+<BR>/* equal to SIGIO.                                                    */
+<BR>    i = 1;
+<BR>    printf("The third read starts\n");
+<BR>    while ( _Rreadn(fp, buf, RCD_LEN, __DFT)-&gt;num_bytes != EOF )
+<BR>    {
+<BR>        printf("Read record %d\n", i++);
+<BR>    }
+<BR>    _Rclose(fp);
+<BR>    printf("The third read finishes\n");
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog430.htm">Previous Page</A> | <A HREF="cpprog432.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

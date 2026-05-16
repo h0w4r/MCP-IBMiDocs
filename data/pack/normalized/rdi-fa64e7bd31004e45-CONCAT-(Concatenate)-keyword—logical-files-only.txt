@@ -1,0 +1,152 @@
+CONCAT (Concatenate) keyword—logical files only
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Keyword entries for physical and logical files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Keyword entries for physical and logical files (positions 45 through 80)
+
+CONCAT (Concatenate) keyword—logical files only
+
+You can use this field-level keyword to combine
+two or more fields from the physical-file record format into one field in
+the logical-file record format you are defining. The name of
+this concatenated field must appear in positions 19 through 28.
+
+The format of the keyword is: CONCAT(field-1 field-2...)
+Specify
+the physical file field names in the order in which you want them to be concatenated,
+and separate them by blanks.
+If the same physical field is specified
+more than once in a record format in the logical file (that is, by using either
+RENAME or CONCAT), the sequence in which the fields are specified in the logical
+file is the sequence in which the data is moved to the physical file on an
+update or insert operation. Thus, the value in the last occurrence of the
+physical field is the value that is put in the physical record and is the
+value that is used for all keys built over that physical field. All previous
+values of the same field are ignored.
+If you want to use a field defined
+using the CONCAT keyword or a field specified as a parameter value on the
+CONCAT keyword as a key field, see the Key field name topic.
+Binary
+character fields can be concatenated only with other binary character fields.
+UTF-8 fields can be concatenated only with other UTF-8 fields. UCS-2 and UTF-16
+fields can be concatenated only with fields of the same type or with each
+other.
+You cannot include a field containing decimal positions other
+than zero in a concatenated field. You can include a field having decimal
+positions of zero in which case the field is treated as an integer field.
+The IBM® i program assigns the length
+of the concatenated field as the sum of the lengths (digits and characters)
+of the fields included in the concatenation.
+The operating system assigns
+the field to be fixed length or variable length based on the fields that are
+concatenated. The general rules are:
+Concatenation of a variable-length field to either a fixed-length field
+or another variable-length field results in a variable-length field.
+
+Concatenation of a fixed-length field to a fixed-length field results
+in a fixed-length field unless the VARLEN keyword is also specified on the
+same field as the CONCAT keyword. Note: If the result of the concatenation
+is a variable-length field, a field that allows the null value, a UCS-2 field,
+a UTF-16 field, a UTF-8 field, or a binary character field, the CONCAT field
+must be input only (I in position 38). If a logical file record format contains
+a concatenation, it cannot contain any fields that allow the null value from
+the physical file record format of the based-on file.
+
+The operating system assigns the data type based on the data types
+of the fields that are being concatenated. The general rules are:
+If the concatenation contains one or more hexadecimal (H) fields, the
+resulting data type is hexadecimal (H).
+
+If the concatenation contains one or more character (A) fields, but no
+hexadecimal fields, the resulting data type is character (A).
+
+If the concatenation contains only numeric (S, P, B) fields, the resulting
+data type is zoned decimal (S).
+
+If the concatenation contains UTF-8 fields, the result is a UTF-8 field.
+
+If the concatenation contains UCS-2 or UTF-16 field, the result is UTF-16
+if there is at least one UTF-16 field in the list; otherwise, the result is
+UCS-2.
+
+If the concatenation contains binary character fields, the result is binary
+character.
+
+When concatenating numeric fields, the sign of the farthest right
+field in the concatenation is used as the sign of the concatenated field.
+The signs of the other fields are ignored; however, they are present in the
+concatenated field. Therefore, if a negative value appears in a field other
+than the last field, you must take appropriate action to delete the embedded
+signs (such as converting the concatenated field to packed decimal).
+The
+maximum length of a concatenated field varies, depending on the data type
+of the concatenated field and the length of the fields being concatenated.
+If the concatenated field is zoned decimal (S), its total length cannot exceed
+63 bytes. If the field is character (A) or hexadecimal (H), its total length
+cannot exceed 32 766 bytes. If the concatenated field is a variable length
+field, its total length cannot exceed 32 740 (32 739 if the field
+also allows the null value).
+You cannot include a floating-point, date,
+time, or timestamp field in a concatenated field.
+In join logical files,
+the fields to be concatenated must be from the same physical file. The first
+field specified on the CONCAT keyword identifies which physical file is used.
+The first field must, therefore, be unique among the physical files the join
+logical file is based on, or you must also specify the JREF keyword following
+the CONCAT keyword to specify which physical file to use.
+
+ExamplesThe following examples show how to specify
+the CONCAT keyword.
+
+Example 1 MTH, DAY, and YEAR are fields in the
+physical file that are concatenated into one field DATE in the logical file,
+as shown in the following example.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD1 PFILE(PF1)
+00020A DATE CONCAT(MTH DAY YEAR)
+A
+
+Example 2In the following example, if the program
+changes DATE from 01 03 81 to 02 05 81, the value placed in the physical record
+does not change because the fields specified last are MTH (value 01), DAY
+(value 03), and YEAR (value 81). However, if MTH, DAY, and YEAR are changed
+to new values, the value of DATE in the physical record also changes.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD2 PFILE(PF1)
+00020A DATE CONCAT(MTH DAY YEAR)
+00030A MTH
+00040A DAY
+00050A YEAR
+A
+
+Example 3In the following example, fields from
+the physical file are concatenated into more than one field in the logical
+file.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD3 PFILE(PF1)
+00020A DATE CONCAT(MTH DAY YEAR)
+00030A CMPDAT CONCAT(DAY MTH YEAR)
+A
+
+Example 4 In the following example, if the fields
+from PF1 are:
+FIXED1 is a fixed length field.
+
+FIXED2 is a fixed length field.
+
+VARLEN1 is a variable length field.
+
+The resulting fields are:
+FIELD1 is a variable length field.
+
+FIELD2 is a fixed length field.
+
+FIELD3 is a variable length field.
+
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD4 PFILE(PF1)
+00020A FIELD1 CONCAT(FIXED1 VARLEN1)
+00030A FIELD2 CONCAT(FIXED1 FIXED2)
+00040A FIELD3 CONCAT(FIXED1 FIXED2)
+00050A VARLEN
+A

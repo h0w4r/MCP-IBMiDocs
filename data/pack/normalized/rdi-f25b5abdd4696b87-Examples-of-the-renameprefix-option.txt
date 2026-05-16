@@ -1,0 +1,118 @@
+Examples of the renameprefix option
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > renameprefix > renameprefix
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > renameprefix
+
+Examples of the renameprefix option
+
+The following definitions are used in the example:
+
+Data structure order_info is used by the
+RPG program to hold information about an order.
+
+Data structure order_info_gen has
+the same subfields as order_info_gen
+and it has additional subfields for use with the DATA-GEN operation,
+for renaming some of the subfields, and to provide a counter for
+some of the subfields.
+
+The subfields marked with 3
+have names beginning with rename_ and ending
+with the name of another subfield at the same level of the data structure.
+For example, subfields rename_item and item
+are both subfields of data structure order_info_gen,
+and subfields rename_price and price
+are both subfields of data structure order_info_gen.item.
+Option "renameprefix=rename-" is specified in the second operand of the
+%DATA built-in function, so the subfields whose names begin with
+rename_ are used as renameprefix subfields by DATA-GEN.
+When subfield order_info_gen.item is generated, the
+generator will receive the value of the order_info_gen.rename_item ("Item ordered")
+rather than the name of the subfield ("item").
+
+The EVAL-CORR operation is used to assign the subfields from data stucture
+order_info to data structure order_info_gen
+where the subfields have the same name.
+
+Subfield order_info_gen.num_item is set to the number of
+elements returned by the call to getOrder.
+Option "countprefix=num_" is specified for the DATA-GEN operation, so
+subfield order_info_gen.num_item is a
+"countprefix" subfield for order_info_gen.item.
+For more information about the "countprefix" option, see countprefix.
+
+Option "name=Order" is specified in the options parameter of %DATA.
+Without the "name" option, the first name passed to the generator for the data structure would
+be "order_info_gen".
+With option "name=Order", the first name passed to the generator is "Order".
+
+Option "countprefix=num_" is specified in the options parameter of %DATA.
+This option indicates that the countprefix subfields num_item and num_itemName
+are used to indicate how many of the counted subfields item and itemName
+are to be generated.
+
+Option "renameprefix=num_" is specified in the options parameter of %DATA.
+This option indicates that the renameprefix subfields rename_id
+and rename_item are used to indicate the names to be passed to the
+generator for renamed subfields item and id.
+
+DCL-DS order_info QUALIFIED; // 1
+dueDate DATE(*ISO);
+item LIKEREC(orders) DIM(20);
+END-DS;
+DCL-DS order_info_gen QUALIFIED INZ; // 2
+rename_item VARCHAR(10) INZ('Item ordered'); // 3
+num_item INT(10);
+DCL-DS item DIM(20);
+rename_itemId VARCHAR(20) INZ('Item ID'); // 3
+rename_price VARCHAR(100); // 3
+rename_quantity VARCHAR(100); // 3
+itemId VARCHAR(100);
+price PACKED(7:2);
+quantity INT(10);
+END-DS;
+END-DS;
+DCL-S num_items INT(10);
+
+num_items = getOrder (order_info);
+
+EVAL-CORR order_info_gen = order_info; // 4
+order_info_gen.num_item = numItems; // 5
+
+DATA-GEN order_info_gen %DATA('myOrder.txt'
+: 'doc=file '
++ 'name=Order ' // 6
++ 'countprefix=num_ ' // 7
++ 'renameprefix=rename_') // 8
+%GEN('MYGENPGM');
+
+If the value of numItems is 2, the value of order_info_gen.rename_item(1) is
+'Door handle X25-E", and the value of order_info_gen.rename_item(2) is "Shelving Unit X42-B",
+then the following names will be passed to the generator.
+
+"Order", as specified by the "name" option for data structure order_info_gen.
+
+"Item ID", as specified by subfield rename_id for subfield id.
+
+"Door handle X25-E", as specified by order_info_gen.rename_item(1) for
+subfield order_info_gen.Item(1)
+
+"Price", the defined name of order_info_gen.Item(1).Price, in the same mixed case
+as it was defined.
+
+"Quantity", the defined name of order_info_gen.Item(1).Quantity, in the same mixed case
+as it was defined.
+
+"Shelving Unit X42-B", as specified by order_info_gen.rename_item(2) for
+subfield order_info_gen.Item(2)
+
+"Price", the defined name of order_info_gen.Item(2).Price, in the same mixed case
+as it was defined.
+
+"Quantity", the defined name of order_info_gen.Item(2).Quantity, in the same mixed case
+as it was defined.
+
+For more information about the "name" option, see name (no default).
+
+Parent topic: renameprefix

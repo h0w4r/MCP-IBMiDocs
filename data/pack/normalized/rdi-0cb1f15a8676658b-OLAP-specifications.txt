@@ -1,0 +1,448 @@
+OLAP specifications
+
+IBM i programming resources > SQL > SQL reference > Language elements > Expressions > Expressions
+
+IBM i programming resources > SQL > SQL reference > Language elements > Expressions
+
+OLAP specifications
+On-Line Analytical Processing (OLAP) specifications provide
+the ability to return ranking, row numbering, and other aggregate
+function information as a scalar value in a query result.
+Figure 0. OLAP-specificationordered-OLAP-specificationnumbering-specificationaggregation-specificationordered-OLAP-specificationlag-functionlead-functionRANK()DENSE_RANK()NTILE(expression)CUME_DIST()PERCENT_RANK()OVER(window-partition-clausewindow-order-clause)lag-functionLAG(expression,offset,default-value)RESPECT NULLSIGNORE NULLSlead-functionLEAD(expression,offset,default-value)RESPECT NULLSIGNORE NULLSwindow-partition-clausePARTITION BY,partitioning-expression
+
+window-order-clauseORDER BY,sort-key-expressionASCNULLS LASTASCNULLS FIRSTDESCNULLS FIRSTDESC
+NULLS LASTORDER OFtable-designatornumbering-specificationROW_NUMBER()OVER(window-partition-clausewindow-order-clause)aggregation-specificationaggregate-functionOLAP-aggregate-functionOVER(window-partition-clauseRANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED
+FOLLOWINGROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWINGwindow-order-clauseRANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT
+ROWwindow-aggregation-group-clause)aggregate-functionAVG functionCORRELATION functionCOUNT functionCOUNT_BIG functionCOVARIANCE functionCOVARIANCE_SAMP functionMAX functionMEDIAN functionMIN functionPERCENTILE_CONT functionPERCENTILE_DISC functionRegression functionSTDDEV functionSTDDEV_SAMP functionSUM functionVARIANCE functionVARIANCE_SAMP function
+
+OLAP-aggregate-functionfirst-value-functionlast-value-functionnth-value-functionratio-to-report-functionfirst-value-functionFIRST_VALUE(expression)RESPECT NULLSIGNORE NULLSlast-value-functionLAST_VALUE(expression)RESPECT NULLSIGNORE NULLSnth-value-functionNTH_VALUE(expression,n-expression)FROM FIRSTFROM LASTRESPECT NULLSIGNORE NULLSratio-to-report-functionRATIO_TO_REPORT(expression)window-aggregation-group-clauseROWSRANGEgroup-startgroup-betweengroup-endgroup-startUNBOUNDED PRECEDINGunsigned-constantPRECEDINGCURRENT ROWgroup-betweenBETWEENgroup-bound1ANDgroup-bound2group-bound1UNBOUNDED PRECEDINGunsigned-constantPRECEDINGunsigned-constantFOLLOWINGCURRENT ROW
+
+group-bound2UNBOUNDED FOLLOWINGunsigned-constantPRECEDINGunsigned-constantFOLLOWINGCURRENT ROWgroup-endUNBOUNDED FOLLOWINGunsigned-constantFOLLOWING
+
+An OLAP specification can be included in
+an expression in a select-clause or the
+ORDER BY clause of a select-statement. The
+query result to which the OLAP specification is applied is the result
+table of the innermost subselect that includes the OLAP specification.
+OLAP specifications are sometimes referred to as window functions.
+An OLAP specification is not valid in a WHERE, VALUES,
+GROUP BY, HAVING, or SET clause, or join-condition in an ON
+clause of a joined table. An OLAP specification cannot be used as
+an argument of an aggregate function in the select-clause.
+When invoking an OLAP specification, a window is specified
+that defines the rows over which the function is applied, and in what
+order.
+ordered-OLAP-specification
+Specifies OLAP operations that require a window-order-clause.LAG or LEAD
+Returns an expression value computed using rows prior to
+or following the current row.offset must be a positive integer
+or positive bigint constant. If offset is not specified, the
+value 1 is used.
+default-value must be an expression
+that is castable to the type of expression. If default-value is
+not specified, the default value is the null value.
+If IGNORE
+NULLS is specified, all rows where the expression value is
+the null value are not considered in the calculation.
+LAG
+The
+LAG function returns the expression value for the row at offset rows
+before the current row. If a window-partition-clause is specified, offset means offset rows
+before the current row and within the current partition.
+LEAD
+The
+LEAD function returns the expression value for the row at offset rows
+after the current row. If a window-partition-clause is specified, offset means offset rows
+after the current row and within the current partition.
+
+If offset goes beyond the scope of the current
+partition, the default-value is returned.The data type of
+the result is the data type of expression. The result can be
+null. If IGNORE NULLS is specified and all values in the window are
+null, the result is the null value.
+
+RANK or DENSE_RANK
+Specifies that the ordinal rank of a row within the window is
+computed. Rows that are not distinct with respect to the ordering
+within their window are assigned the same rank. The results of ranking
+may be defined with or without gaps in the numbers resulting from
+duplicate values. The data type of the result is BIGINT. The result
+cannot be null.
+RANK
+Specifies
+that the rank of a row is defined as 1 plus the number of rows that
+strictly precede the row. Thus, if two or more rows are not distinct
+with respect to the ordering, then there will be one or more gaps
+in the sequential rank numbering.
+DENSE_RANK
+Specifies
+that the rank of a row is defined as 1 plus the number of preceding
+rows that are distinct with respect to the ordering. Therefore, there
+will be no gaps in the sequential rank numbering.
+
+NTILE
+Specifies
+that the quantile rank of a row within the window is computed.The
+argument must be castable to a BIGINT. If expression does not
+return a SMALLINT, INTEGER, or BIGINT, it is cast to BIGINT before
+evaluating the function. It must have a value greater than zero. expression must
+not contain a scalar-fullselect, a column reference, or a user-defined
+function reference.
+The result is the quantile rank of the current
+row. The argument determines the number of quantiles in the result,
+which is determined by dividing the number of rows in the window by
+the value of the argument. If the number of rows within the window
+is not evenly divisible by the argument, each quantile will have a
+least n rows, and quantiles 1 through m will each have n+1 rows.r is the number of rows in the window
+q is the value of the argument
+m = MOD (r , q )
+n = TRUNC (r , q )
+
+The data type of the result is SMALLINT, INTEGER, or BIGINT
+based on the value of the argument. If the argument can be null, the
+result can be null. If the argument is null, the result is the null
+value.
+
+CUME_DIST
+A
+cumulative distribution function that determines a percentile ranking
+for each row, expressed as a decimal fraction ranging from 0 to 1.
+Given the default ascending order of rows, CUME_DIST computes the
+number of rows that are ranked lower than or equal to the current
+row, including the current row, divided by the total number of rows
+in the partition. If the window_order_clause specifies descending
+order, CUME_DIST computes the number of rows that are ranked higher
+than or equal to the current row divided by the total number of rows
+in the partition. For example, given default ordering, if there
+are ten rows in the partition and the current row ranks lower than
+six of those rows, the CUME_DIST result is 0.7 (six rows plus the
+current row = 7/10). The lowest-ranking row in a partition has a CUME_DIST
+value of 1.0, assuming default ascending order. If there is a single
+row in the partition, its CUME_DIST value is also 1.0.
+The data
+type of the result is DECFLOAT(34). The result cannot be null.
+
+PERCENT_RANK
+The
+PERCENT_RANK function is a distribution function that returns a relative
+percentile rank of a row within an OLAP window, expressed as a value
+between 0.0 - 1.0. When the number of rows in the OLAP window is greater
+than 1, the result is computed as follows: The RANK of the current row in the OLAP window minus 1 divided
+by the number of rows in the OLAP window minus 1.
+
+Otherwise, the result is 0.0.
+The data type of the result
+is DECFLOAT(34). The result cannot be null.
+
+numbering-specification
+Specifies an OLAP operation that returns sequential numbers
+for each row.ROW_NUMBER
+Specifies
+that a sequential row number is computed for the row within the window
+defined by the ordering, starting with 1 for the first row. If the
+ORDER BY clause is not specified in the window, the row numbers are
+assigned to the rows in arbitrary order, as returned by the subselect
+(not according to any ORDER BY clause in the select-statement).The
+data type of the result is BIGINT. The result cannot be null.
+
+window-partition-clause
+Defines the partition within which the OLAP operation is applied.PARTITION BY (partitioning-expression,...)
+Defines
+the partition within which the OLAP operation is applied. A partitioning-expression is
+an expression used in defining the partitioning of the result set.
+Each column name referenced in a partitioning-expression must
+unambiguously reference a column of the result table
+of the subselect that contains the OLAP specification. A partitioning-expression cannot
+include a scalar-fullselect or any function
+that is not deterministic or has an external action.
+
+window-order-clause
+Defines the ordering of rows within a partition that is used
+to determine the value of the OLAP specification. It does not define
+the ordering of the result table.ORDER BY (sort-key-expression,...)
+A sort-key-expression is
+an expression used in defining the ordering of the rows within a window
+partition. Each column name referenced in a sort-key-expression must
+unambiguously reference a column of the result table of the subselect,
+including the OLAP specification. A sort-key-expression cannot
+include a scalar-fullselect or any function
+that is not deterministic or that has an external action.
+The sum of the length attributes of the sort-key-expressions must
+not exceed 3.5 gigabytes.
+ASC
+Specifies
+that the values of the sort-key-expression are
+used in ascending order.
+DESC
+Specifies
+that the values of the sort-key-expression are
+used in descending order.
+NULLS FIRST
+Specifies
+that the window ordering considers null values before all non-null
+values in the sort order.
+NULLS LAST
+Specifies
+that the window ordering considers null values after all non-null
+values in the sort order.
+ORDER OF table-designator
+Specifies
+that the same ordering used in table-designator should
+be applied to the result table of the subselect. There must be a table
+reference matching table-designator in the
+FROM clause of the subselect that specifies this clause and the table
+reference must identify a nested-table-expression or common-table-expression.
+The subselect (or fullselect) corresponding to the specified table-designator must
+include an ORDER BY clause that is dependent on the data. The ordering
+that is applied is the same as if the columns of the ORDER BY clause
+in the nested subselect (or fullselect) were included in the outer
+subselect (or fullselect), and these columns were specified in place
+of the ORDER OF clause.
+
+OLAP-aggregate-function
+Specifies a function that will compute a single value from the
+OLAP window.FIRST_VALUE or LAST_VALUE
+Returns the first or last
+value in an OLAP window.If IGNORE NULLS is specified, all rows
+where the expression value is the null value are not considered
+in the calculation.FIRST_VALUE
+The result is the expression value for the first row in
+an OLAP window.
+LAST_VALUE
+The result is the expression value for the last row in
+an OLAP window.
+
+The data type of the result is the data type of expression.
+The result can be null. If IGNORE NULLS is specified and all values
+in the window are null, the result is the null value.
+
+NTH_VALUE
+Returns
+the expression value for the nth row in an OLAP window.n-expression must
+be an integer constant or variable with a value greater than zero.
+If
+IGNORE NULLS is specified, all rows where the expression value
+is the null value are not considered in the calculation.
+If
+FROM FIRST is specified, the nth value is computed counting
+forward from the beginning of the OLAP window.
+If FROM LAST
+is specified, the nth value is computed counting backward from
+the end of the OLAP window.
+The result is the nth value
+within the OLAP window as determined by n-expression.
+The
+data type of the result is the data type of expression. The
+result can be null. If n-expression is null, then the result
+is the null value. If IGNORE NULLS is specified and all values in
+the window are null, the result is the null value.
+FIRST_VALUE(expression)
+is equivalent to NTH_VALUE(expression, 1) FROM FIRST.
+LAST_VALUE(expression)
+is equivalent to NTH_VALUE(expression, 1) FROM LAST.
+
+RATIO_TO_REPORT
+Returns
+the ratio of an argument to the sum of the arguments in an OLAP window.
+For example, the following functions are equivalent: RATIO_TO_REPORT(expression) OVER (...)
+CAST(expression AS DECFLOAT(34)) /
+SUM(CAST(expression as DECFLOAT(34))) OVER(...)
+The
+argument must be an expression that is castable to DECFLOAT(34). The
+division is performed using DECFLOAT(34).
+The data type of the
+result is DECFLOAT(34). If the argument can be null, the result can
+be null; if the argument is null, the result is the null value.
+
+window-aggregation-group-clause
+The aggregation group of a given row is a set of rows that is
+defined in relation to the given row (in the ordering of the rows
+in the partition of the given row). window-aggregation-group-clause specifies
+the aggregation group. If this clause is not specified and a window-order-clause is
+also not specified, the aggregation group consists of all rows of
+the window partition. The aggregation group of all rows of the window
+partition can be explicitly specified using the RANGE or ROWS clauses.
+
+If window-order-clause is specified but window-aggregation-group-clause is
+not specified, the window aggregation group consists of all rows that
+precede a given row of the partition of the given row or all rows
+that are peers of the given row in the window ordering of the window
+partition that is defined by the window-order-clause ROW
+Specifies that the aggregation group is defined by counting rows.
+RANGE
+Specifies that the aggregation group is defined by an offset from
+a sort key.
+group-start
+Specifies the starting point for the aggregation group. The aggregation
+group end is the CURRENT ROW. Specifying group-start is equivalent
+to specifying group-between as BETWEEN group-start AND
+CURRENT ROW.
+group-between
+Specifies that the aggregation group start and end based on either
+ROWS or RANGE.
+group-end
+Specifies the ending point for the aggregation group. The aggregation
+group start is the CURRENT ROW. Specifying group-end is equivalent
+to specifying group-between as BETWEEN CURRENT ROW AND group-end.
+UNBOUNDED PRECEDING
+Specifies that the entire partition that precedes the current
+row is included in the aggregation group. This can be specified with
+either the ROWS or RANGE clauses. Including the entire partition that
+precedes the current row can also be specified with multiple sort-key-expressions in
+the window-order-clause.
+UNBOUNDED FOLLOWING
+Specifies that the entire partition that follows the current row
+is included in the aggregation group. This can be specified with either
+the ROWS or RANGE clauses. Including the entire partition that follows
+the current row can also be specified with multiple sort-key-expressions in
+the window-order-clause.
+CURRENT ROW
+Specifies that the aggregation group starts or ends based on the
+current row. If ROWS is specified, the current row is the aggregation
+group boundary. If RANGE is specified, the aggregation group boundary
+includes the set of rows with the values specified for the sort-key-expression as
+the current row. This clause cannot be specified in group-bound-2 if group-bound-1 specifies unsigned-constant FOLLOWING.
+unsigned-constant PRECEDING
+Specifies either the range or the number of rows that precede
+the current row. If ROWS is specified, unsigned-constant must
+be zero or a positive integer or positive bigint that indicates a
+number of rows. If RANGE is specified, the data type of unsigned-constant must
+be comparable to the data type of the sort-key-expression of
+the window-order-clause. Only one sort-key-expression is
+allowed, and the data type of sort-key-expression must allow
+subtraction. This clause cannot be specified in group-bound-2 if group-bound-1 is
+CURRENT ROW or unsigned-constant FOLLOWING.
+unsigned-constant FOLLOWING
+Specifies either the range or the number of rows that follow the
+current row. If ROWS is specified, unsigned-constant must be
+zero or a positive integer or positive bigint that indicates a number
+of rows. If RANGE is specified, the data type of unsigned-constant must
+be comparable to the data type of the sort-key-expression of
+the window-order-clause. Only one sort-key-expression is
+allowed, and the data type of sort-key-expression must allow
+addition.
+
+NotesComparisons: Partitioning
+and ordering are performed in accordance with the comparison rules
+described in Assignments and comparisons.
+Collating
+sequence: If a collating sequence other than *HEX is in effect
+when the statement that contains the OLAP expression is executed,
+and the partitioning-expressions or the sort-key-expressions are
+SBCS data, mixed data, or Unicode data, then the results are determined
+using the weighted values. The weighted values are derived by applying
+the collating sequence to the partitioning-expressions and
+the sort-key-expressions.
+Column masks: If a column
+that is referenced in the partitioning-expression or the sort-key-expression of
+the OLAP specification is defined to have a column mask, the column
+mask is not applied.
+Restrictions: An OLAP specification
+is not allowed if the query specifies: a distributed table,
+a table with a read trigger, or
+a logical file built over multiple physical file members.
+
+Determinism: An OLAP specification is non-deterministic.
+Syntax
+alternatives:
+DENSERANK can be specified in place of DENSE_RANK.
+ROWNUMBER can be specified in place of ROW_NUMBER.
+IGNORE NULLS or RESPECT NULLS can be specified as
+a string-constant final argument to LAG, LEAD, FIRST_VALUE,
+and LAST_VALUE.
+
+ExamplesDisplay the ranking of employees, in order by surname, according
+to their total salary (based on salary plus bonus) that have a total
+salary more than $30,000:   SELECT EMPNO, LASTNAME, FIRSTNME, SALARY+BONUS AS TOTAL_SALARY,
+      RANK() OVER (ORDER BY SALARY+BONUS DESC) AS RANK_SALARY
+    FROM EMPLOYEE
+    WHERE SALARY+BONUS > 30000
+    ORDER BY LASTNAME
+Note that
+if the result is to be ordered by the ranking, then replace ORDER
+BY LASTNAME with:   ORDER BY RANK_SALARY
+or:   ORDER BY RANK() OVER (ORDER BY SALARY+BONUS DESC)
+
+Rank the departments according to their average total salary:   SELECT WORKDEPT, AVG(SALARY+BONUS) AS AVG_TOTAL_SALARY,
+      RANK() OVER (ORDER BY AVG( SALARY+BONUS) DESC) AS RANK_AVG_SAL
+    FROM EMPLOYEE
+    GROUP BY WORKDEPT
+    ORDER BY RANK_AVG_SAL
+
+Rank the employees within a department according to their education
+level. Having multiple employees with the same rank in the department
+should not increase the next ranking value:   SELECT WORKDEPT, EMPNO, LASTNAME, FIRSTNME, EDLEVEL,
+      DENSE_RANK() OVER (PARTITION BY WORKDEPT ORDER BY EDLEVEL DESC)
+AS RANK_EDLEVEL
+    FROM EMPLOYEE
+    ORDER BY WORKDEPT, LASTNAME
+
+Provide row numbers in the result of a query:   SELECT ROW_NUMBER() OVER (ORDER BY WORKDEPT, LASTNAME ) AS NUMBER,
+      LASTNAME, SALARY
+    FROM EMPLOYEE
+    ORDER BY WORKDEPT, LASTNAME
+
+List the top five wage earners:   SELECT EMPNO, LASTNAME, FIRSTNME, TOTAL_SALARY, RANK_SALARY
+    FROM (SELECT EMPNO, LASTNAME, FIRSTNME, SALARY+BONUS AS TOTAL_SALARY,
+     RANK() OVER (ORDER BY SALARY+BONUS DESC) AS RANK_SALARY
+     FROM EMPLOYEE) AS RANKED_EMPLOYEE
+    WHERE RANK_SALARY < 6
+    ORDER BY RANK_SALARY
+Note
+that a nested table expression was used to first compute the result,
+including the rankings, before the rank could be used in the WHERE
+clause. A common table expression could also have been used.
+
+Compute the top 3 stock prices for stock ABC using
+NTH_VALUE:SELECT Symbol, StockDate, Price,
+FIRST_VALUE(Price) OVER (PARTITION BY Symbol ORDER BY StockDate) AS FIRST_PRICE,
+NTH_VALUE(Price, 2) OVER (PARTITION BY Symbol ORDER BY StockDate) AS SECOND_PRICE,
+NTH_VALUE(Price, 3) OVER (PARTITION BY Symbol ORDER BY StockDate) AS THIRD_PRICE
+FROM DailyStockData
+WHERE StockDate BETWEEN CURRENT DATE - 1 MONTH AND CURRENT DATE
+AND Symbol = 'ABC'
+
+Compute the quartile rank using NTILE:SELECT proc_id, total_sales,
+NTILE(4) OVER (ORDER BY total_sales DESC) AS Quartile
+FROM Sales
+
+Calculate the 30 day moving average for the stocks
+'ABC' and 'XYZ' during 2005:WITH V1(SYMBOL, TRADINGDATE, MOVINGAVG30DAY) AS
+(
+SELECT SYMBOL, TRADINGDATE,
+AVG(CLOSINGPRICE) OVER (PARTITION BY SYMBOL
+ORDER BY TRADINGDATE
+ROWS BETWEEN 29 PRECEDING AND CURRENT ROW)
+FROM DAILYSTOCKDATA
+WHERE SYMBOL IN ('ABC', 'XYZ')
+AND TRADINGDATE BETWEEN DATE('2005-01-01') - 2 MONTHS AND '2005-12-31'
+)
+SELECT SYMBOL, TRADINGDATE, MOVINGAVG30DAY
+FROM V1
+WHERE TRADINGDATE BETWEEN '2005-01-01' AND '2005-12-31'
+ORDER BY SYMBOL, TRADINGDATE
+
+Display the difference between each employee's salary
+and the median of the salaries of that employee's department:SELECT EMPNO, WORKDEPT, SALARY,
+SALARY - (MEDIAN(SALARY) OVER (PARTITION BY WORKDEPT))
+FROM EMPLOYEE
+ORDER BY WORKDEPT
+
+Display the difference between each employee's salary
+and the 90th percentile of salaries within that employee's department:SELECT EMPNO, WORKDEPT, SALARY,
+SALARY - (PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY SALARY)
+OVER (PARTITION BY WORKDEPT))
+FROM EMPLOYEE
+ORDER BY WORKDEPT
+
+Find the cumulative distribution and the relative
+percentile rank of each employee's salary within their department.SELECT EMPNO, WORKDEPT, SALARY,
+CAST(CUME_DIST() OVER (PARTITION BY WORKDEPT ORDER BY SALARY) AS DECIMAL(4,3))
+AS CUME_DIST,
+CAST(PERCENT_RANK() OVER (PARTITION BY WORKDEPT ORDER BY SALARY)
+AS DECIMAL(4,3))
+AS PERCENT_RANK
+FROM EMP
+ORDER BY WORKDEPT, SALARY
+
+Parent topic: Expressions

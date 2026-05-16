@@ -1,0 +1,106 @@
+READC (Read Next Changed Record)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+READC (Read Next Changed Record)
+
+Free-Form Syntax
+
+READC{(E)} record-name {data-structure}
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+READC (E)
+
+ 
+
+record-name
+
+data structure
+
+_
+
+ER
+
+EOF
+
+The READC operation can be used only with an externally described
+WORKSTN file to obtain the next changed record in a subfile. The record-name operand is required and must be the name
+of a record format defined as a subfile by the SFILE keyword on the
+file description specifications. (See SFILE(recformat:rrnfield) for information
+on the SFILE keyword.)
+
+For a multiple device file, data is read from the subfile record
+associated with a program device; the program device is identified
+by the field specified in the DEVID keyword on the file specifications.
+If there is no such entry, data is read from the program device used
+for the last successful input operation.
+
+To handle READC exceptions (file status codes greater
+than 1000), either the operation code extender 'E' or an error indicator
+ER can be specified, but not both. For more information on error handling,
+see File Exception/Errors.
+
+You can specify an indicator in positions 75-76 that will be set
+on when there are no more changed records in the subfile. This information
+can also be obtained from the %EOF built-in function, which returns
+'1' if there are no more changed records in the subfile and '0' otherwise.
+
+If the data-structure operand is specified,
+the record is read directly into the data structure. The data structure
+must be a data structure defined with EXTNAME(...:*INPUT or *ALL)
+or LIKEREC(...:*INPUT or *ALL). See File Operations for
+information on how to define the data structure and how data is transferred
+between the file and the data structure.
+
+Figure 1. READC example
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+FFilename++IPEASFRlen+LKlen+AIDevice+.Keywords++++++++++++++++++++++++++++
+* CUSSCR is a WORKSTN file which displays a list of records from
+* the CUSINFO file. SFCUSR is the subfile name.
+*
+FCUSINFO UF E DISK
+FCUSSCR CF E WORKSTN SFILE(SFCUSR:RRN)
+F
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+* After the subfile has been loaded with the records from the
+* CUSINFO file. It is written out to the screen using EXFMT with
+* the subfile control record, CTLCUS. If there are any changes in
+* any one of the records listed on the screen, the READC operation
+* will read the changed records one by one in the do while loop.
+* The corresponding record in the CUSINFO file will be located
+* with the CHAIN operation and will be updated with the changed
+* field.
+C :
+C EXFMT CTLCUS
+C :
+* SCUSNO, SCUSNAM, SCUSADR, and SCUSTEL are fields defined in the
+* subfile. CUSNAM, CUSADR, and CUSTEL are fields defined in a
+* record, CUSREC which is defined in the file CUSINFO.
+*
+C READC SFCUSR
+C DOW %EOF = *OFF
+C SCUSNO CHAIN (E) CUSINFO
+* Update the record only if the record is found in the file.
+C :
+C IF NOT %ERROR
+C EVAL CUSNAM = SCUSNAM
+C EVAL CUSADR = SCUSADR
+C EVAL CUSTEL = SCUSTEL
+C UPDATE CUSREC
+C ENDIF
+C READC (E) SFCUSR
+C ENDDO
+
+Parent topic: Operation Codes

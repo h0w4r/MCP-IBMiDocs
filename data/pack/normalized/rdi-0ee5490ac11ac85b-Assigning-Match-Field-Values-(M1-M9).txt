@@ -1,0 +1,223 @@
+Assigning Match Field Values (M1-M9)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Primary/Secondary Multi-file Processing > Multi-file Processing with Match Fields > Multi-file Processing with Match Fields
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Primary/Secondary Multi-file Processing > Multi-file Processing with Match Fields
+
+Assigning Match Field Values (M1-M9)
+
+When assigning match field values (M1 through M9) to fields on
+the input specifications in positions 65 and 66, consider the following:
+
+Sequence checking is done for all record types with match field
+specifications. All match fields must be in the same order, either
+all ascending or all descending. The contents of the fields to which
+M1 through M9 are assigned are checked for correct sequence. An error
+in sequence causes the RPG IV exception/error handling routine to
+receive control. When the program continues processing, the next record
+from the same file is read.
+
+Not all files used in the program must have match fields. Not
+all record types within one file must have match fields either. However,
+at least one record type from two files must have match fields if
+files are ever to be matched.
+
+The same match field values must be specified for all record types
+that are used in matching. See Figure 1.
+
+Date, time, and timestamp match fields with the same match field
+values (M1 through M9) must be the same type (for example, all date)
+but can be different formats.
+
+All character, graphic, or numeric match fields with the same
+match field values (M1 through M9) should be the same length and type.
+If the match field contains packed data, the zoned decimal length
+(two times packed length - 1) is used as the length of the match field.
+It is valid to match a packed field in one record against a zoned
+decimal field in another if the digit lengths are identical. The length
+must always be odd because the length of a packed field is always
+odd.
+
+Record positions of different match fields can overlap, but the
+total length of all fields must not exceed 256 characters.
+
+If more than one match field is specified for a record type, all
+the fields are combined and treated as one continuous field (see Figure 1). The fields are combined according to descending
+sequence (M9 to M1) of matching field values.
+
+Match fields values cannot be repeated in a record.
+
+All match fields given the same matching field value (M1 through
+M9) are considered numeric if any one of the match fields is described
+as numeric.
+
+When numeric fields having decimal positions are matched, they
+are treated as if they had no decimal position. For instance 3.46
+is considered equal to 346.
+
+Only the digit portions of numeric match fields are compared.
+Even though a field is negative, it is considered to be positive
+because the sign of the numeric field is ignored. Therefore, a -5
+matches a +5.
+
+Date and time fields are converted to *ISO format for comparisons
+
+Graphic data is compared hexadecimally
+
+Whenever more than one matching field value is used, all match
+fields must match before the MR indicator is set on. For example,
+if match field values M1, M2, and M3 are specified, all three fields
+from a primary record must match all three match fields from a secondary
+record. A match on only the fields specified by M1 and M2 fields will
+not set the MR indicator on (see Figure 1).
+
+UCS-2 fields cannot be used for matching fields.
+
+Matching fields cannot be used for lookahead fields, and arrays.
+
+Field names are ignored in matching record operations. Therefore,
+fields from different record types that are assigned the same match
+level can have the same name.
+
+If an alternate collating sequence or a file translation is defined
+for the program, character fields are matched according to the alternate
+sequence specified.
+
+Null-capable fields, character fields defined with ALTSEQ(*NONE),
+and binary, float, integer and unsigned fields (B, F, I, or U in position
+36 of the input specifications) cannot be assigned a match field value.
+
+Match fields that have no field record relation indicator must
+be described before those that do. When the field record relation
+indicator is used with match fields, the field record relation indicator
+should be the same as a record identifying indicator for this file,
+and the match fields must be grouped according to the field record
+relation indicator.
+
+When
+any match value (M1 through M9) is specified for a field without a
+field record relation indicator, all match values used must be specified
+once without a field record relation indicator. If all match fields
+are not common to all records, a dummy match field should be used.
+Field record relation indicators are invalid for externally described
+files. (see Figure 2).
+
+Match fields are independent of control level indicators (L1 through
+L9).
+
+If multi-file processing is specified and the LR indicator is
+set on, the program bypasses the multi-file processing routine.
+
+Figure 1 is
+an example of how match fields are specified.
+
+Figure 1. Match Fields in Which All Values Match
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+FFilename++IPEASFRlen+LKlen+AIDevice+.Keywords++++++++++++++++++++++++++++
+* The files in this example are externally described (E in position
+* 22) and are to be processed by keys (K in position 34).
+FMASTER IP E K DISK
+FWEEKLY IS E K DISK
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+IRcdname+++....Ri........................................................
+I..............Ext-field+..................Field+++++++++L1M1..PlMnZr....
+* MASTER FILE
+IEMPMAS 01
+I EMPLNO M1
+I DIVSON M3
+I DEPT M2
+IDEPTMS 02
+I EMPLNO M1
+I DEPT M2
+I DIVSON M3
+* WEEKLY FILE
+IWEEKRC 03
+I EMPLNO M1
+I DIVSON M3
+I DEPT M2
+
+Three files are used in matching records. All the files have three
+match fields specified, and all use the same values (M1, M2, M3) to
+indicate which fields must match. The MR indicator is set on only
+if all three match fields in either of the files EMPMAS and DEPTMS
+are the same as all three fields from the WEEKRC file.
+
+The three match fields in each file are combined and treated as
+one match field organized in the following descending sequence:
+
+DIVSON
+
+M3
+
+DEPT
+
+M2
+
+EMPLNO
+
+M1
+
+The order in which the match fields are specified in the input
+specifications does not affect the organization of the match fields.
+
+Figure 2. Match Fields with a Dummy M2 Field
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+IFilename++SqNORiPos1+NCCPos2+NCCPos3+NCC................................
+I........................Fmt+SPFrom+To+++DcField+++++++++L1M1FrPlMnZr....
+IDISK AB 01 1 C1
+I OR 02 1 C2
+I OR 03 1 C3
+I 1 10 0EMPNO M1
+I 11 15 0DUMMY M2
+I 11 15 0DEPT M202
+I 16 20 0DEPT M203
+
+Three
+different record types are found in the input file. All three contain
+a match field in positions 1 through 10. Two of them have a second
+match field. Because M1 is found on all record types, it can be specified
+without a field record relation entry in positions 67 and 68. If
+one match value (M1 through M9) is specified without field record
+relation entries, all match values must be specified once without
+field record relation entries. Because the value M1 is specified
+without field record relationship, an M2 value must also be specified
+once without field record relationship. The M2 field is not on all
+record types; therefore a dummy M2 field must be specified next.
+The dummy field can be given any unique name, but its specified length
+must be equal to the length of the true M2 field. The M2 field is
+then related to the record types on which it is found by field record
+relation entries.
+
+Figure 3. Match Field Specifications for
+Three Disk Files
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+FFilename++IPEASFRlen+LKlen+AIDevice+.Keywords++++++++++++++++++++++++++++
+FPRIMARY IPEA F 64 DISK
+FFIRSTSEC IS A F 64 DISK
+FSECSEC IS A F 64 DISK
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...
+IFilename++SqNORiPos1+NCCPos2+NCCPos3+NCC................................
+I........................Fmt+SPFrom+To+++DcField+++++++++L1M1FrPlMnZr....
+IPRIMARY AA 01 1 CP 2NC
+I 2 3 MATCH M1
+*
+I BB 02 1 CP 2 C
+I 2 3 NOM
+*
+IFIRSTSEC AB 03 1 CS 2NC
+I 2 3 MATCH M1
+*
+I BC 04 1 CS 2 C
+I 2 3 NOM
+*
+ISECSEC AC 05 1 CT 2NC
+I 2 3 MATCH M1
+*
+I BD 06 1 CT 2 C
+I 2 3 NOM
+
+Parent topic: Multi-file Processing with Match Fields

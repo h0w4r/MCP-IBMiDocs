@@ -1,0 +1,172 @@
+Select/omit field name
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Define physical and logical files using DDS > Positional entries for physical and logical files (positions 1 through 44) > Name for physical and logical files (positions 19 through 28)
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Define physical and logical files using DDS > Positional entries for physical and logical files (positions 1 through 44) > Name for physical and logical files (positions 19 through 28)
+
+Select/omit field name
+
+You use select/omit fields to tell
+the operating system how to select or omit records when your program retrieves
+them using this record format. The only records affected are those from the
+physical files specified for the PFILE or JFILE keyword for this record format.
+
+The following rules apply to select/omit fields in logical files:
+
+You can specify select/omit fields only if you also specify key fields
+or if you also specify the DYNSLT keyword for the file. You can also specify
+*NONE as a key field to satisfy the requirement for a key field when your
+application requires no key fields.
+
+For simple and multiple-format logical files, the operating system uses
+the following search order to match select/omit field names with defined fields:
+
+Fields specified in DDS positions 19 through 28
+
+Fields specified as parameters on the CONCAT or RENAME keyword
+
+If the field name is specified more than once, the first occurrence
+is used.
+The field name on a CONCAT or RENAME keyword and the associated
+field name in positions 19 through 28 cannot both be specified as select/omit
+fields.
+The parameter name on the SST keyword is not valid as a select/omit
+field unless it is defined elsewhere in the logical file record format.
+For
+join logical files, the select/omit field name you specify must be specified
+at the field level in positions 19 through 28.
+
+When using the select/omit fields, specify either
+S or O in position 17. By specifying either S or O, the select and omit comparison
+statements are joined by OR. The system treats the select and omit comparison
+statements that are joined by OR independently from one another. That is,
+if the select or omit comparison condition is met, the record is either selected
+or omitted. If the condition is not met, the system proceeds to the next comparison.
+By specifying a blank in position 17, the select and omit comparison
+statements are joined by AND. The combined comparisons must be met before
+the record is selected or omitted. See Figure 1 and Figure 2. In positions 19 through 28, specify a field
+name whose contents at processing time determine whether the record is to
+be selected or omitted based on the select/omit keyword specified for this
+field. The select/omit keywords are COMP, RANGE, and VALUES. The last select/omit
+specification can be made with the ALL keyword, but a field name is not permitted.
+The
+field must appear in both the physical file record format and the logical
+file record format. Select/omit statements must follow all field and key field
+level entries for the record format. You can specify both select and omit
+for the same record format. The following information applies:
+If you specify both select and omit for a record format, the order in
+which you specify them is important.The select/omit statements are processed
+in the order they are specified; if a record satisfies a statement, the record
+is either selected or omitted as specified, and remaining select/omit statements
+are not examined for that record. See Figure 3.
+
+If you specify both select and omit statements, you can indicate whether
+records not meeting any of the values specified are to be selected or omitted.
+
+If you do not specify the ALL keyword, the action taken for the records
+that do not meet the values is the converse of the type of the last statement
+specified. Records that do not meet selection values are omitted, and records
+that do not meet omission values are selected.
+
+There are limits to the number of select/omit statements you can
+specify in a single logical file. If you specify many select/omit statements
+and you cannot create the file, reduce the overhead for the file through the
+following changes in the specifications, in decreasing order of importance:
+
+Reduce the number of record formats in the file.
+
+Reduce the number of physical files specified on the PFILE or JFILE keyword.
+
+Reduce the number of fields used (single occurrences) in the select/omit
+specifications.
+
+You cannot specify a floating-point field as a select/omit field.
+It
+is possible to have an access path with select/omit and process the file in
+arrival sequence. For example, CPYF can be specified with FROMRCD(1) or the
+high-level language cannot request keyed processing. In this case, the processing
+is the same as if the DYNSLT keyword had been specified.
+
+Figure 1 shows how
+to specify the select/omit field using select statements that are joined by
+AND.
+Figure 1. Specifying the Select/Omit field (example
+1)
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD1 PFILE(PARTS)
+00020A PNO
+00030A DSC
+00040A UPR
+00050A QOH
+00060A K PNO
+00070A S UPR COMP(GT 5.00)
+00080A QOH COMP(LT 10)
+00090A O ALL
+A
+
+In Figure 1, records
+are selected only if they satisfy two select statements. The first statement
+selects records in which the value of field UPR is greater than 5.00. The
+second statement selects records in which the value of field QOH is less than
+10. S is not specified in position 17 for field QOH. Therefore, these select
+statements are joined by AND. For a record to be read by a program, both conditions
+specified must be true.
+
+Figure 2 shows how to specify the
+select/omit field with an omit statement that is joined by OR and two select
+statements that are joined by AND.
+Figure 2. Specifying the
+Select/Omit field (example 2)
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD1 PFILE(PARTS)
+00020A PNO
+00030A DSC
+00040A UPR
+00050A QOH
+00060A K PNO
+00070A O DSC COMP(EQ 'HAMMER')
+00080A S UPR COMP(GT 5.00)
+00090A QOH COMP(LT 10)
+00100A O ALL
+A
+
+In Figure 2, records are supplied
+to the program if they pass both of the following tests:
+The DSC field is not equal to HAMMER.
+
+The UPR field is greater than 5.00 and the QOH field is less than 10.
+
+Figure 3 shows several ways to
+specify the same select/omit logic.
+Figure 3. Specifying
+the Select/Omit field (example 3)
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A S ST COMP(EQ 'NY')
+00020A REP COMP(EQ 'JSMITH') 1
+00030A YEAR COMP(LT 78)
+00040A O ALL
+A
+00050A O YEAR COMP(GE 78)
+00060A S ST COMP(EQ 'NY') 2
+00070A REP COMP(EQ 'JSMITH')
+00080A O ALL
+A
+00090A O REP COMP(NE 'JSMITH')
+00100A O ST COMP(NE 'NY') 3
+00110A S YEAR COMP(LT 78)
+00120A O ALL
+A
+
+In Figure 3, you want to select all
+the records before 1978 for a marketing representative named JSMITH in the
+state of New York. There are three ways to code this example:
+All records must be compared with the select fields ST, REP, and YEAR
+before they can be selected or omitted.
+
+All records in and after 1978 are omitted in the first comparison. Then,
+only the records before 1978 are compared with ST and REP. Only two select
+fields must be satisfied. This way is more efficient than method 1.
+
+All records that are not associated with JSMITH in the state of New York
+are omitted in the first and second comparisons. Then, all records left are
+compared to YEAR. This is more efficient than method 1 or method 2.

@@ -1,0 +1,106 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Column name qualifiers in correlated references">
+<meta name="abstract" content="A subselect is a form of a query that can be used as a component of various SQL statements.">
+<meta name="Description" content="A subselect is a form of a query that can be used as a component of various SQL statements.">
+<meta name="DC.subject" content="subquery, description, correlated reference, lateral correlation">
+<meta name="keywords" content="subquery, description, correlated reference, lateral correlation">
+<meta name="DC.Relation" scheme="URI" content="rbafzch2col.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzch2col.htm">
+<title>Column name qualifiers in correlated references</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzc2corr.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzc2corr">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsqlelem.htm">Language elements</a> > <a href="../../topic/db2/rbafzch2col.htm">Column names</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d70329e7"><h1 class="topictitle1" id="d70329e7">Column name qualifiers in correlated references</h1>
+<div class="body refbody"><p class="shortdesc">A <em>subselect</em> is a form of a query that can be used
+as a component of various SQL statements.</p>
+<section><p>Refer to <a href="rbafzsubsel.htm" title="A query specifies a result table or an intermediate result table. A query is a component of certain SQL statements.">Queries</a> for more
+information about subselects. A <em>subquery</em> is a form of a fullselect
+that is enclosed within parentheses. For example, a <em>subquery</em> can
+be used in a search condition. A fullselect used in the FROM clause
+of a query is called a <em>nested table expression</em>.</p>
+</section><section><p>A subquery can include search conditions of its own, and
+these search conditions can, in turn, include subqueries. Therefore,
+an SQL statement can contain a hierarchy of subqueries. Those elements
+of the hierarchy that contain subqueries are said to be at a higher
+level than the subqueries they contain.</p>
+</section><section><p>Every element of the hierarchy has a clause that establishes
+one or more table designators. This is the FROM clause, except in
+the highest level of an UPDATE or DELETE statement. A search condition,
+the select list, the join clause, an argument of a table function
+in a subquery, or a <em>nested table expression</em> that is preceded
+by the LATERAL keyword can reference not only columns of the tables
+identified by the FROM clause of its own element of the hierarchy,
+but also columns of tables identified at any level along the path
+from its own element to the highest level of the hierarchy. A reference
+to a column of a table identified at a higher level is called a <em>correlated
+reference</em>. A reference to a column of a table identified at the
+same level from a <em>nested table expression</em> through the use of
+the LATERAL keyword is called <em>lateral correlation</em>.</p>
+</section><section><p>A correlated reference to column C of table T can be of
+the form C, T.C, or Q.C, if Q is a correlation name defined for T.
+However, a correlated reference in the form of an unqualified column
+name is not good practice. The following explanation is based on the
+assumption that a correlated reference is always in the form of a
+qualified column name and that the qualifier is a correlation name.</p>
+</section><section><p>Q.C is a correlated reference only if these three conditions
+are met:</p>
+</section><section> <ul><li>Q.C is used in a search condition, select list, join clause, or
+an argument of a table function in a subquery.</li>
+<li>Q does not designate a table used in the FROM clause of that subquery,
+select list, join clause, or an argument of a table function in a
+subquery.</li>
+<li>Q does designate a table used at some higher level.</li>
+</ul>
+</section><section><p>Q.C refers to column C of the table or view at the level
+where Q is used as the table designator of that table or view. Because
+the same table or view can be identified at many levels, unique correlation
+names are recommended as table designators. If Q is used to designate
+a table at more than one level, Q.C refers to the lowest level that
+contains the subquery that includes Q.C.</p>
+</section><section><p>In the following statement, Q is used as a correlation
+name for T1 and T2, but Q.C refers to the correlation name associated
+with T2, because it is the lowest level that contains the subquery
+that includes Q.C. </p>
+</section><div class="example"> <pre class="codeblock"><code><span class="ph uicontrol">SELECT</span> *
+  <span class="ph uicontrol">FROM</span> T1 Q
+  <span class="ph uicontrol">WHERE</span> A &lt; <span class="ph uicontrol">ALL (SELECT</span> B
+                   <span class="ph uicontrol">FROM</span> T2 Q
+                   <span class="ph uicontrol">WHERE</span> B &lt; <span class="ph uicontrol">ANY (SELECT</span> D
+                                    <span class="ph uicontrol">FROM</span> T3
+                                    <span class="ph uicontrol">WHERE</span> D = Q.C))
+ </code></pre>
+</div>
+</div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzch2col.htm" title="The meaning of a column name depends on its context.">Column names</a></li>
+</ul>
+</aside></article></main></body></html>

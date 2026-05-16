@@ -1,0 +1,186 @@
+RECID (Record Identification) keyword for ICF files
+
+IBM i programming resources > DDS > DDS Reference: ICF Files > DDS keyword entries for ICF files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS Reference: ICF Files > DDS keyword entries for ICF files (positions 45 through 80)
+
+RECID (Record Identification) keyword for ICF files
+
+You can use this record-level keyword to allow
+your program to identify a record-by-record format when it issues a read-from-invited-devices
+operation using the name of the file.
+
+When you use an input operation, the IBM® i operating
+system compares data in the record received with the selection value specified
+in the parameter values. The selection value is that data beginning at the
+specified starting position, and it must equal the specified compare value.
+Your program can then determine the record format of the data just read.
+The
+format of the keyword is: RECID(starting-position compare-value)
+The
+starting-position parameter specifies a position relative to the start of
+the data in the buffer (disregarding indicators) to test for the record's
+ID. If the INDARA keyword is used, the start of data and buffer positions
+are the same. For a description of the buffer, see Example 3.
+The position parameter can be either nnnnnor *POSnnnnnwhere
+nnnnn is a number that is one to five digits long. For example, the following
+are equivalent pairs: 1 and *POS1
+34 and *POS34
+12025 and *POS12025
+The compare-value parameter can be one
+of the following parameters:
+
+Value
+
+Meaning
+
+*ZERO
+
+The value to be tested for is zero (hexadecimal
+F0).
+
+*BLANK
+
+The value to be tested for is blank (hexadecimal
+40).
+
+'character-string'
+
+The value to be tested for is the specified character
+string. The length of the string is limited to the length from the RECID position
+parameter specified to the end of the shortest nonzero record format in the
+file (not including that record format's indicators or program fields).
+
+A record format specifying the RECID keyword must contain at least
+one data field (usage of B).
+You can specify the RECID keyword more
+than once in a record format. If you do so, data in the record is compared
+with each RECID keyword in the order specified until a match is found. The
+first record format whose selection value is satisfied by the data is the
+record format selected. If no match is found or no user data is received,
+the RECID default record format is used. The RECID default record format will
+be the first record format in the file that does not have the RECID keyword
+specified for it. However, if every record format in the file has the RECID
+keyword specified for it, the default record format will be the first record
+format in the file.
+A message is issued to your program when data is
+received and no match is found and the RECID default record format has the
+RECID keyword specified for it.
+When your program compares
+the data received with the RECID keyword, if the position to be compared is
+beyond the last byte of data received, the data is assumed to be blanks (hexadecimal
+40).
+This keyword is ignored at program run time unless the FMTSLT(*RECID)
+parameter is specified on the ADDICFDEVE, CHGICFDEVE, or OVRICFDEVE command.
+You
+cannot specify RECID on the same record format as the VARBUFMGT keyword.
+Option
+indicators are not valid for this keyword.
+
+Example 1 Record format DFTFMT is
+the RECID default record format.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R DFTFMT
+00020A ID 3A
+00030A FLD1 20A
+00040A FLD2 5B 0
+A
+00050A R RCD1 RECID(1 'ABC')
+00060A ID 3A
+00070A FLD1 10S 0
+00080A FLD2 5B 0
+A
+00090A R RCD2 RECID(1 'DEF')
+00100A ID 3A
+00110A FLD1 10S 0
+00120A FLD2 5A
+00130A FLD3 2B 0
+A
+
+Example 2 Record format RCD1 is
+the RECID default record format. If no match is found, an escape message is
+issued to your program because the RECID default record format has the RECID
+keyword specified for it. If no data is received, record format RCD1 is used.
+An
+application program reads header and detail records from an ICF file. The
+program issues input operations to the file name (not to individual record
+names) and receives the records (headers and details) in the order the sending
+application sends them. In this example, the sending and receiving applications
+provide an explicit code (an H for header records and a D for detail records)
+to identify which type of record is being sent and received. The RECID keyword
+identifies where in the input buffer (disregarding indicators) the H or D
+appears and specifies the value (starting in the position specified) that
+identifies the type of record.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RCD1 RECID(1 'H')
+00020A ID 1A
+00030A FLD1 10A
+00040A FLD2 10A
+00050A FLD3 6S 2
+A
+00060A R RCD2 RECID(1 'D')
+00070A ID 1A
+00080A FLD1 8S 2
+00090A FLD2 10A
+00100A FLD3 5B 0
+A
+00110A R RCD3 RECID(1 'L')
+00120A ID 1A
+00130A FLD1 50A
+A
+
+Example 3 In this example,
+three record formats are defined in the ICF file. The application program
+issues input operations using the file name, for instance, RPTFILE.
+Assume that the records received on nine successive input operations
+are one header, then three details, then one header, then four details. The
+sending application must identify the headers by placing an H in field CODE
+and must identify the details by placing a D in field CODE. For each input
+operation, the IBM i operating
+system compares the value in position 1 in the buffer with the value specified
+on the RECID keyword. (Position 1 is the location of field CODE in the buffer.)
+If the value in a record is H, the IBM i operating
+system selects record format name HEADER; if the value in a record is D, the IBM i operating system selects record
+format name DETAIL.
+Record format CATCH, the RECID default
+record format, is the record format name selected if the record received does
+not contain either H or D in the first position of the data portion of the
+buffer.
+Here is the buffer for record format HEADER:
+Response indicator 10 (1 byte)
+CODE (1 byte)
+TITLE (30 bytes)
+ACTNBR (6 bytes)
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R HEADER RECID(1 'H')
+00020A RCVTRNRND(10 'Host stopped sending')
+00030A CODE 1
+00040A TITLE 30
+00050A ACTNBR 6 0
+00060A R DETAIL RECID(1 'D')
+00070A CODE 1
+00080A ITMNBR 8 0
+00090A DESCRP 20
+00100A R CATCH
+00110A FIELD 37
+A
+
+Example 4 Three record formats need
+to be distinguished from one another; the first character in the value parameter
+is the same. Specifying the most specific (longest) value parameter first
+in the DDS enables the IBM i operating
+system to distinguish the first record format from the others. The reason
+is that if the first 10 positions of the buffer contain ABCDEFGHIJ and RCD3
+is specified first, RCD3 will be identified even though RCD1 is required.
+RCD1 and RCD2 cannot be identified because the IBM i operating
+system does not test after one successful match.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A R RCD1 RECID(1 'ABC')
+A FLD1 10
+A R RCD2 RECID(1 'AB')
+A FLD1 10
+A R RCD3 RECID(1 'A')
+A FLD1 10
+A R CATCH
+A FIELD 10
+A

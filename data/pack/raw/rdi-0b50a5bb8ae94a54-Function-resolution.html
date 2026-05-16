@@ -1,0 +1,134 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Function resolution">
+<meta name="abstract" content="A function is invoked by its function name, which is implicitly or explicitly qualified with a schema name, followed by parentheses that enclose the arguments to the function.">
+<meta name="Description" content="A function is invoked by its function name, which is implicitly or explicitly qualified with a schema name, followed by parentheses that enclose the arguments to the function.">
+<meta name="DC.subject" content="function, resolution">
+<meta name="keywords" content="function, resolution">
+<meta name="DC.Relation" scheme="URI" content="rbafzch2function.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzch2function.htm">
+<title>Function resolution</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzfuncres.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzfuncres">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsqlelem.htm">Language elements</a> > <a href="../../topic/db2/rbafzch2function.htm">Functions</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d430165e7"><h1 class="topictitle1" id="d430165e7">Function resolution</h1>
+<div class="body refbody"><p class="shortdesc">A function is invoked by its function name, which is implicitly
+or explicitly qualified with a schema name, followed by parentheses
+that enclose the arguments to the function.</p>
+<section><p>Within the database, each function is uniquely identified
+by its function signature, which is its schema name, function name,
+the number of parameters, and the data types of the parameters. Thus,
+a schema can contain several functions that have the same name but
+each of which have a different number of parameters, or parameters
+with different data types. Or, a function with the same name, number
+of parameters, and types of parameters can exist in multiple schemas.
+When any function is invoked, the database manager must determine
+which function to execute. This process is called <span class="ph synph"><span class="ph var">function
+resolution</span></span>.</p>
+</section><section><p><strong>Determining the set of candidate functions:</strong></p>
+<ul><li>Let A be the number of arguments in a function invocation.  </li>
+<li>Let P be the number of parameters in a function signature.  </li>
+<li>Let N be the number of parameters in a function signature without
+a defined default. </li>
+</ul>
+<p>Candidate functions for resolution of a function invocation
+are selected based on the following criteria:</p>
+<ul><li>Each candidate function has a matching name and applicable number
+of parameters. An applicable number of parameters satisfies the condition
+N ≤ A ≤ P. </li>
+<li>Each parameter of a candidate function that does not have a corresponding
+argument in the function invocation, specified by either position
+or name, is defined with a default. </li>
+<li>Each candidate function from a set of one or more schemas has
+the EXECUTE privilege associated with the authorization ID of the
+statement invoking the function. </li>
+</ul>
+</section><section><p>Function resolution is similar for functions that are
+invoked with a qualified or unqualified function name with the exception
+that for an unqualified name, the database manager needs to search
+more than one schema.</p>
+</section><section> <ul><li><em>Qualified function resolution:</em> When a function is invoked
+with a function name and a schema name, the database manager only
+searches the specified schema for candidate functions. <p>If no candidate
+function in the schema is found, an error is returned. If a function
+is selected, its successful use depends on it being invoked in a context
+in which the returned result is allowed. For example, if the function
+returns an integer data type where a character data type is required,
+or returns a table where a table is not allowed, an error is returned.</p>
+ </li>
+<li><em>Unqualified function resolution:</em> When a function is invoked
+with only a function name, the database manager needs to search more
+than one schema to resolve the function instance to execute. The SQL
+path contains the list of schemas to search. For each schema in the
+SQL path (see <a href="rbafzpath.htm" title="The SQL path is an ordered list of schema names. The database manager uses the path to resolve the schema name for unqualified type names (built-in types, distinct types, and array types), function names, variable names, and procedure names that appear in any context other than as the main object of an ALTER, CREATE, DROP, COMMENT, LABEL, GRANT, or REVOKE statement.">SQL path</a>), the database manager
+selects candidate functions.<p>If no candidate function in any schema
+in the path is found, an error is returned. If a function is selected,
+its successful use depends on it being invoked in a context in which
+the returned result is allowed. For example, if the function returns
+an integer data type where a character data type is required, or returns
+a table where a table is not allowed, an error is returned.</p>
+</li>
+</ul>
+</section><section><p>After the database manager identifies
+the candidate functions, it selects the candidate with the best fit
+as the function instance to execute (see <a href="rbafzbestfit.htm" title="There might be more than one function with the same name that is a candidate for execution. In that case, the data types of the parameters, the position of the schema in the SQL path, and the total number of parameters of each function in the set of candidate functions are used to determine if the function meets the best fit requirements. Note that the data type of the result of the function or the type of function (aggregate, scalar, or table) under consideration does not enter into this determination.">Determining the best fit</a>).
+If more than one schema contains the function instance with the best
+fit (the function signatures are identical except for the schema name),
+the database manager selects the function whose schema is earliest
+in the SQL path.</p>
+</section><section><p>Function resolution applies to all functions, including
+built-in functions. Built-in functions logically exist in schema QSYS2.
+If schema QSYS2 is not explicitly specified in the SQL path, the schema
+is implicitly assumed at the front of the path. When an unqualified
+function name is specified, the SQL path must be set to a list of
+schemas in the desired search order so that the intended function
+is selected.</p>
+</section><section><p>In a CREATE VIEW or CREATE TABLE statement,
+function resolution occurs at the time the view or materialized query
+table is created. If another function with the same name is subsequently
+created, the view or materialized query table is not affected, even
+if the new function is a better fit than the one chosen at the time
+the view or materialized table was created. In a CREATE FUNCTION,
+CREATE PROCEDURE, CREATE TRIGGER, CREATE VARIABLE, CREATE MASK, or
+CREATE PERMISSION statement, function resolution occurs at the time
+the function, procedure, trigger, variable, mask, or permission is
+created. The schema of the function that was chosen is saved in the
+trigger, variable, mask, and permission. It is also saved in functions
+and procedures for default expressions. If another function with the
+same name is subsequently created, the function, procedure, trigger,
+variable, mask, permission, or routine default is only affected if
+the new function is a better fit than the one chosen at the time the
+object was created.</p>
+</section></div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzch2function.htm" title="A function is an operation denoted by a function name followed by one or more operands that are enclosed in parentheses. It represents a relationship between a set of input values and a set of result values. The input values to a function are called arguments. For example, a function can be passed two input arguments that have date and time data types and return a value with a timestamp data type as the result.">Functions</a></li>
+</ul>
+</aside></article></main></body></html>

@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Source Code Samples</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog439.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog406.htm">Chapter 21&#46; Handling Exceptions in a Program</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog437.htm">Example&#58; Using a Variety of Ways to Detect Errors and Handle Exceptions</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRHSRCSAMPLES" HREF="cpprog02.htm#ToC_551">Source Code Samples</A></H3>
+<P>The figures in this section show the source code used in <A HREF="cpprog438.htm#HDRHEXEXCHANDL">Instructions</A>.
+<P><B><A NAME="FIGFIGT1520DDJ" HREF="cpprog09.htm#FT_FIGFIGT1520DDJ">Figure 186. T1520DDJ -- DDS Source for a Phone Book Display</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+     A                                      DSPSIZ(24 80 *DS3)
+<BR>     A                                      INDARA
+<BR>     A          R PHONE
+<BR>     A                                      CF03(03 'EXIT')
+<BR>     A                                      CF05(05 'REFRESH')
+<BR>     A                                  7 28'Name:'
+<BR>     A            NAME          11A  B  7 34
+<BR>     A                                  9 25'Address:'
+<BR>     A            ADDRESS       20A  B  9 34
+<BR>     A                                 11 25'Phone #:'
+<BR>     A            PHONE_NUM      8A  B 11 34
+<BR>     A                                  1 35'PHONE BOOK'
+<BR>     A                                      DSPATR(HI)
+<BR>     A                                 16 19'&lt;ENTER&gt; :  Saves changes'
+<BR>     A                                 17 21'f3    :  Exits with changes saved'
+<BR>     A                                 18 21'f5    :  Brings back original fiel-
+<BR>     A                                      d values'
+<BR>     A  05                             21 32'Screen refreshed'
+<BR>     A  05                                  DSPATR(HI)
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>
+<P><B><A NAME="FIGFIGT1520EHD" HREF="cpprog09.htm#FT_FIGFIGT1520EHD">Figure 187. T1520EHD -- ILE C Source to Handle Exceptions</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program illustrates how to:                                   */
+<BR>/*                - check the major/minor return code                 */
+<BR>/*                - check the errno global variable                   */
+<BR>/*                - get error information from the                    */
+<BR>/*                  _EXCP_MSGID global variable                       */
+<BR>/*                - use the signal function.                          */
+<BR>
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;string.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;stddef.h&gt;
+<BR>#include &lt;errno.h&gt;
+<BR>#include &lt;signal.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>
+<BR>#define IND_ON  '1'
+<BR>#define IND_OFF '0'
+<BR>#define HELP    0
+<BR>#define EXIT    2
+<BR>#define REFRESH 4
+<BR>#define FALSE   0
+<BR>#define TRUE    1
+<BR>
+<BR>typedef struct PHONE_LIST_T{
+<BR>    char name[11];
+<BR>    char address[20];
+<BR>    char phone[8];
+<BR>}PHONE_LIST_T;
+<BR>void error_check(void);
+<BR>/* The error checking routine.                                        */
+<BR>void error_check(void)
+<BR>{
+<BR>   if (errno == EIOERROR || errno == EIORECERR)
+<BR>     printf("id:%7.7s\n",  _EXCP_MSGID);
+<BR>   if (strncmp(_Maj_Min_rc.major_rc,"00",2) ||
+<BR>       strncmp(_Maj_Min_rc.major_rc,"00",2))
+<BR>
+<BR>       printf("Major : %2.2s\tMinor : %2.2s\n",
+<BR>              _Maj_Min_rc.major_rc,_Maj_Min_rc.minor_rc);
+<BR>   errno = 0;
+<BR>}
+<BR>/* The signal handler routine.                                        */
+<BR>
+<BR>void sighd(int sig)
+<BR>{
+<BR>   signal(SIGIO,&amp;sighd);
+<BR>}
+<BR>
+<BR>/*  M A I N   L I N E                                                 */
+<BR>
+<BR>int main(void)
+<BR>{
+<BR>   FILE *dspf;
+<BR>   PHONE_LIST_T phone_inp_rec,
+<BR>                phone_out_rec = { "Smith, John",
+<BR>                                  "2711 Westsyde Rd.   ",
+<BR>                                  "721-9729" };
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+   _SYSindara indicator_area;
+<BR>   int ret_code;
+<BR>
+<BR>   errno = 0;
+<BR>
+<BR>   signal(SIGIO,&amp;sighd);  /* Register sighd as a handler for I/O exceptions */
+<BR>
+<BR>   if ((dspf = fopen("*LIBL/T1520DDJ", "ab+ type=record indicators=y"))
+<BR>           == NULL)
+<BR>   {
+<BR>     printf("Display file could not be opened");
+<BR>     exit(1);
+<BR>   }
+<BR>   _Rindara((_RFILE *) dspf,indicator_area);
+<BR>   _Rformat((_RFILE *) dspf,"PHONE");
+<BR>
+<BR>   memset(indicator_area,IND_OFF,sizeof(indicator_area));
+<BR>   do
+<BR>   {
+<BR>     ret_code = fwrite(&amp;phone_out_rec,1,sizeof(phone_out_rec),dspf);
+<BR>     error_check();   /* Write the records to the display file.       */
+<BR>     ret_code = fread(&amp;phone_inp_rec,1,sizeof(phone_inp_rec),dspf);
+<BR>     error_check();   /* Read the records from the display file.      */
+<BR>     if (indicator_area[EXIT] == IND_ON)
+<BR>       phone_inp_rec = phone_out_rec;
+<BR>   }
+<BR>   while (indicator_area[REFRESH] == IND_ON);
+<BR>
+<BR>   _Rclose((_RFILE *)dspf);
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog438.htm">Previous Page</A> | <A HREF="cpprog440.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

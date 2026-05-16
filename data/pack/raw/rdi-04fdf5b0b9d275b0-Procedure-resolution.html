@@ -1,0 +1,140 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Procedure resolution">
+<meta name="abstract" content="Given a procedure invocation, DB2 must decide which of the possible procedures with the same name to execute.">
+<meta name="Description" content="Given a procedure invocation, DB2 must decide which of the possible procedures with the same name to execute.">
+<meta name="DC.subject" content="Procedure resolution">
+<meta name="keywords" content="Procedure resolution">
+<meta name="DC.Relation" scheme="URI" content="rbafzsqlelem.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzsqlelem.htm">
+<title>Procedure resolution</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzprocres.htm" + anchorParam);
+}
+</script>
+</head>
+<body class="pagebreak" id="rbafzprocres">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsqlelem.htm">Language elements</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d542132e7"><h1 class="topictitle1" id="d542132e7">Procedure resolution</h1>
+<div class="body refbody"><p class="shortdesc">Given a procedure invocation, DB2® must
+decide which of the possible procedures with the same name to execute. </p>
+<section><div class="p"><ul><li>Let <em>A</em> be the number of arguments in a procedure invocation. </li>
+<li>Let <em>P</em> be the number of parameters in a procedure signature.</li>
+<li>Let <em>N</em> be the number of parameters without a default. </li>
+</ul>
+</div>
+<div class="p">Candidate procedures for resolution of a procedure invocation
+are selected based on the following criteria:<ul><li>Each candidate procedure has a matching name and an applicable
+number of parameters. An applicable number of parameters satisfies
+the condition <em>N</em> ≤ <em>A</em> ≤ <em>P</em>. </li>
+<li>Each candidate procedure has parameters such that for each named
+argument in the CALL statement there exists a parameter with a matching
+name that does not already correspond to a positional (or unnamed)
+argument. </li>
+<li>Each parameter of a candidate procedure that does not have a corresponding
+argument in the CALL statement, specified by either position or name,
+is defined with a default. </li>
+<li>Each candidate procedure from a set of one or more schemas has
+the EXECUTE privilege associated with the authorization ID of the
+CALL statement. The authorities of any objects referenced in a default
+expression are not considered.</li>
+</ul>
+</div>
+<div class="p">In addition, the set of candidate procedures depends on
+how the procedure name is qualified.<ul><li>If the procedure name is unqualified, procedure resolution is
+done as follows:<p>Search all procedures with a schema in the SQL
+path for candidate procedures. If one or more candidate procedures
+are found in the schemas of the SQL path, then these candidate procedures
+are included in the candidate list. If there is a single candidate
+procedure in the list, resolution is complete. If there are multiple
+candidate procedures, choose the procedure whose schema is earliest
+in the SQL path. If there are still multiple candidate procedures,
+select the candidate procedure with the lowest number of parameters.</p>
+<p>If
+there are no candidate procedures, an error is returned.</p>
+</li>
+<li>If the procedure name is qualified, procedure resolution is done
+as follows:<p>Search within the schema specified by the qualifier
+for candidate procedures. If a single candidate procedure exists,
+resolution is complete. If there are multiple candidate procedures,
+choose the candidate procedure with the lowest number of parameters
+and resolution is complete. If the schema does not exist or there
+are no authorized candidate procedures, an error is returned.</p>
+</li>
+</ul>
+</div>
+</section><div class="example"><div class="p"> <em>Example 1:</em> There are six FOO procedures,
+in four different schemas, registered as follows (note that not all
+required keywords appear):    <pre class="codeblock"><code>  <strong>CREATE PROCEDURE</strong> AUGUSTUS.FOO (<strong>INT</strong>) <strong>SPECIFIC</strong> FOO_1 ...
+  <strong>CREATE PROCEDURE</strong> AUGUSTUS.FOO (<strong>DOUBLE</strong>, <strong>DECIMAL</strong>(15, 3)) <strong>SPECIFIC</strong> FOO_2 ...
+  <strong>CREATE PROCEDURE</strong> JULIUS.FOO (<strong>INT</strong>) <strong>SPECIFIC</strong> FOO_3 ...
+  <strong>CREATE PROCEDURE</strong> JULIUS.FOO (<strong>INT</strong>, <strong>INT</strong>, <strong>INT</strong>) <strong>SPECIFIC</strong> FOO_4 ...
+  <strong>CREATE PROCEDURE</strong> CAESAR.FOO (<strong>INT</strong>, <strong>INT</strong>) <strong>SPECIFIC</strong> FOO_5 ...
+  <strong>CREATE PROCEDURE</strong> NERO.FOO (<strong>INT</strong>,<strong>INT</strong>) <strong>SPECIFIC</strong> FOO_6 ...</code></pre>
+ The
+procedure reference is as follows (where I1 and I2 are INTEGER values):
+    <pre class="codeblock"><code>  <strong>CALL</strong> FOO(I1, I2)</code></pre>
+Assume that the application making this reference has
+an SQL path established as:    <pre class="codeblock"><code> "JULIUS", "AUGUSTUS", "CAESAR"</code></pre>
+Following through the algorithm, the procedure with specific
+name FOO_6 is eliminated as a candidate, because the schema "NERO"
+is not included in the SQL path. FOO_1, FOO_3, and FOO_4 are eliminated
+as candidates, because they have the wrong number of parameters. The
+remaining candidates are considered in order, as determined by the
+SQL path. Note that the types of the arguments and parameters are
+ignored. The parameters of FOO_5 exactly match the arguments in the
+CALL, but FOO_2 is chosen because "AUGUSTUS" appears before "CAESAR"
+in the SQL path.</div>
+ </div>
+<div class="example"><div class="p"> <em>Example 2:</em> The following examples
+illustrate procedure resolution using named parameters in the CALL
+statement:<pre class="codeblock"><code> <strong>CREATE PROCEDURE</strong> p1(i1 <strong>INT</strong>)...
+ <strong>CREATE PROCEDURE</strong> p1(i1 <strong>INT DEFAULT</strong> 0, i2 <strong>INT DEFAULT</strong> 0)...
+ 
+<strong>CALL</strong> p1(i2=&gt;1)</code></pre>
+Since the argument names are taken
+into consideration during the candidate selection process, only the
+second version of p1 will be considered a candidate. Furthermore,
+it can be successfully called because i1 in this version of p1 is
+defined with a default, so only specifying i2 on the call to p1 is valid. The
+procedure will be passed a value of 0 for parameter i1.<pre class="codeblock"><code>  <strong>CREATE PROCEDURE</strong> p2(i1 <strong>INT</strong>, i2 <strong>INT DEFAULT</strong> 0)...
+  <strong>CREATE PROCEDURE</strong> p2(i1 INT <strong>DEFAULT 0</strong>, i2 <strong>INT DEFAULT</strong> 0, i3 <strong>INT DEFAULT</strong> 0)...
+  
+  <strong>CALL</strong> p2(i2=&gt;1)</code></pre>
+One of the criteria for a procedure
+parameter which does not have a corresponding argument in the CALL
+statement (specified by either position or name) is that the parameter
+is defined with a default value. Therefore, the first version of p2
+is not considered a candidate since parameter i1 does not have a default
+defined. The second version of p2 will be selected and the default
+values for the first and third parameters will be passed.</div>
+ </div>
+</div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzsqlelem.htm" title="This section defines the basic syntax of SQL and language elements that are common to many SQL statements.">Language elements</a></li>
+</ul>
+</aside></article></main></body></html>

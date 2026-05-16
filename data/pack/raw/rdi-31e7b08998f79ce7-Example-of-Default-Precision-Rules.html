@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Example of Default Precision Rules" name="DC.title" />
+<meta content="precision of expression results, default example" name="DC.subject" />
+<meta content="precision of expression results, default example" name="keywords" />
+<meta content="prcsnr.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="precxdf" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Example of Default Precision Rules</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Fprecxdf.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="precxdf">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rpgops.htm" shape="rect">Operations, Expressions, and Functions</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/expr9.htm" shape="rect">Expressions</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/prcsnr.htm" shape="rect">Precision Rules for Numeric Operations</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">Example of Default Precision Rules</h1>
+
+
+<div class="body">
+<p class="p">This example shows how the default precision rules work.</p>
+
+<div class="fig figborder" id="precxdf__precsn7"><span class="figcap"><span class="fig--title-label">Figure 1. </span>Precision of Intermediate Results</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code>DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+D FLD1            S             15P 4
+D FLD2            S             15P 2
+D FLD3            S              5P 2
+D FLD4            S              9P 4
+D FLD5            S              9P 4
+CL0N01Factor1+++++++Opcode(E)+Extended-factor2+++++++++++++++++++++++++++
+C                   EVAL      FLD1 = FLD2/(((FLD3/100)*FLD4)+FLD5)
+                                            (   <span class="ph"><span class="keyword calloutlabel">1</span></span>  )
+                                           (         <span class="ph"><span class="keyword calloutlabel">2</span></span>   )
+                                          (                <span class="ph"><span class="keyword calloutlabel">3</span></span>   )
+                                    (    <span class="ph"><span class="keyword calloutlabel">4</span></span>                      )</code></pre></div>
+
+<div class="p">When the above Calculation specification is processed, the resulting value
+assigned to FLD1 will have a precision of zero decimals, not the <span class="ph">three</span> decimals expected. The reason is that when it gets to the last
+evaluation (<span class="keyword calloutlabel">4</span> in the above example), the number to which
+the factor is scaled is negative. To see why, look at how the expression is
+evaluated.
+<dl class="dl">
+<dt class="dt dlterm"><span class="keyword calloutlabel">1</span></dt>
+
+<dd class="dd">Evaluate FLD3/100
+<div class="p">Rules:
+<pre class="pre codeblock" xml:space="preserve"><code> Lr = 63
+ Dr = max(63-((L1-D1)+D2),0)
+    = max(63-((5-2)+0),0)
+    = max(63-3,0)
+    = 60
+
+</code></pre></div>
+</dd>
+
+<dt class="dt dlterm"><span class="keyword calloutlabel">2</span></dt>
+
+<dd class="dd">Evaluate (Result of 1 * FLD4)
+<div class="p">Rules:
+<pre class="pre codeblock" xml:space="preserve"><code>Lr = min(L1+L2,63)
+   = min(63+9,63)
+   = 63
+Dr = min(D1+D2,63-min((L1-D1)+(L2-D2),63))
+   = min(60+4,63-min((63-60)+(9-4),63))
+   = min(64,63-min(4+5,63)
+   = min(64,55)
+   = 55 </code></pre></div>
+</dd>
+
+<dt class="dt dlterm"><span class="keyword calloutlabel">3</span></dt>
+
+<dd class="dd">Evaluate (Result of 2 + FLD5)
+<div class="p">Rules:
+<pre class="pre codeblock" xml:space="preserve"><code>T  = min(max(L1-D1,L2-D2)+1,63)
+   = min(max(63-55,9-4)+1,63)
+   = min(max(8,5)+1,63)
+   = min(9,63)
+   = 9
+Dr = min(max(D1,D2),31-T)
+   = min(max(55,4),63-9)
+   = min(55,54)
+   = 54
+Lr = T + Dr
+   = 9 + 54 = 63 </code></pre></div>
+</dd>
+
+<dt class="dt dlterm"><span class="keyword calloutlabel">4</span></dt>
+
+<dd class="dd">Evaluate FLD2/Result of 3
+<div class="p">Rules:
+<pre class="pre codeblock" xml:space="preserve"><code>Lr = 63
+Dr = max(63-((L1-D1)+D2),0)
+   = max(63-((15-2)+ 54),0)
+   = max(63-(13+54),0)
+   = max(-4,0)
+****  NEGATIVE NUMBER TO WHICH FACTOR IS SCALED   ****    = 0
+
+</code></pre></div>
+</dd>
+
+</dl>
+</div>
+
+<p class="p">To avoid this problem, you can change the above expression so that the
+first evaluation is a multiplication rather than a division, that is, FLD3
+* 0.01 or use the %DEC built-in function to set the sub-expression FLD3/100:
+%DEC(FLD3/100 : 15 : 4) or use operation extender (R) to ensure that the number
+of decimal positions never falls below 4.</p>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="prcsnr.htm" shape="rect">Precision Rules for Numeric Operations</a></div>
+</div>
+</div></body>
+</html>

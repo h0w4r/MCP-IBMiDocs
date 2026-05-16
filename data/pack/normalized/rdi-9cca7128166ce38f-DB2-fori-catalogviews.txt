@@ -1,0 +1,237 @@
+DB2 for
+i catalog
+views
+
+IBM i programming resources > SQL > SQL reference > DB2 for i SQL reference
+
+IBM i programming resources > SQL > SQL reference
+
+DB2 for
+i catalog
+views
+The views contained in a DB2® for
+i catalog are described
+in this section.
+The database manager maintains a set of tables containing
+information about the data in each relational database. These tables
+are collectively known as the catalog. The catalog tables contain
+information about tables, user-defined functions, distinct types,
+parameters, procedures, packages, views, indexes, aliases, sequences,
+variables, constraints, triggers, XSR objects, and
+languages supported by DB2 for
+i.
+The catalog also contains information about all relational databases
+that are accessible from this system.
+There are three classes of catalog views:
+IBM® i catalog
+tables and views The IBM i catalog
+tables and views are modeled after the ANS and ISO catalog views,
+but are not identical to the ANS and ISO catalog views. These tables
+and views are compatible with prior releases of DB2 for
+i.
+These tables
+and views exist in schemas QSYS and QSYS2.
+The catalog tables
+and views contain information about all tables, parameters, procedures,
+functions, distinct types, packages, XSR objects, views,
+indexes, aliases, sequences, variables, triggers, and constraints
+in the entire relational database. When an SQL schema is created,
+an additional subset of these views are created into the schema that
+only contain information about tables, packages, views, indexes, and
+constraints in that schema.
+
+ODBC and JDBC catalog views The ODBC and JDBC catalog views
+are designed to satisfy ODBC and JDBC metadata API requests. For example,
+SQLCOLUMNS. These views are compatible with views on DB2 LUW Version 8. These views will be modified
+as ODBC or JDBC enhances or modifies their metadata APIs.
+These
+views exist in schema SYSIBM.
+
+ANS and ISO catalog views The ANS and ISO catalog views are
+designed to comply with the ANS and ISO SQL standard (the Information
+Schema catalog views). These views will be modified as the ANS and
+ISO standard is enhanced or modified.
+There are several columns
+in these views that are reserved for future standard enhancements.
+There
+are two versions of these views:
+The first version of
+these views exist in schema INFORMATION_SCHEMA1. Only rows associated with
+objects to which the user has some privilege are included in the views.
+This version is compatible with the ANS and ISO SQL standard. If
+you use of this set of catalog views to prevent users from seeing
+any information about objects to which they have no privilege, you
+should revoke privileges to the other catalog views from users and
+PUBLIC.
+
+The second version of these views exist in schema SYSIBM. All
+rows are included in these views whether or not the user has some
+privilege to the objects associated with rows in the views. These
+views are compatible with views on DB2 LUW
+Version 8 and will generally perform better than the ANS and ISO views
+in QSYS2.
+
+For example, assume that a user has the SELECT privilege to
+the QSYS2.TABLES and SYSIBM.TABLES catalog views but does not have
+any privilege to a table called WORK.EMPLOYEE. The following SQL statement
+will not return a result row:
+  SELECT *
+    FROM QSYS2.TABLES
+    WHERE TABLE_SCHEMA = 'WORK' AND TABLE_NAME = 'EMPLOYEE'
+However,
+the following SQL statement will return a result row:
+  SELECT *
+    FROM SYSIBM.TABLES
+    WHERE TABLE_SCHEMA = 'WORK' AND TABLE_NAME = 'EMPLOYEE'
+
+Note: Some of these views use special catalog
+functions as part of the view definition. These functions exist in
+SYSIBM and QSYS2. If these functions are used directly in applications,
+care should be taken because they may be incompatibly changed in future
+releases or fix packs.
+NotesNames in the Catalog: In
+general, all names stored in columns of a catalog table are undelimited
+and case sensitive. For example, assume the following table was created:
+CREATE TABLE "colname"/"long_table_name"
+("long_column_name" CHAR(10),
+INTCOL INTEGER)
+
+If the following select statement is used to return information
+about the mapping between SQL names and system names, the following
+select statement could be used:
+SELECT TABLE_NAME, SYSTEM_TABLE_NAME, COLUMN_NAME, SYSTEM_COLUMN_NAME
+FROM QSYS2/SYSCOLUMNS
+WHERE TABLE_NAME = 'long_table_name' AND
+TABLE_SCHEMA = 'colname'
+
+The following rows would be returned:
+TABLE_NAME
+SYSTEM_TABLE_NAME
+COLUMN_NAME
+SYSTEM_COLUMN_NAME
+
+long_table_name
+"long0001"
+long_column_name
+LONG_00001
+
+long_table_name
+"long0001"
+INTCOL
+INTCOL
+
+System Names in the Catalog: In general, the longer
+SQL column names should be used rather than the short system column
+names. The short system column names for IBM i catalog tables and
+views are explicitly maintained for compatibility with prior releases
+and other DB2 products. The
+short system column names for the ODBC and JDBC catalog views and
+the ANS and ISO catalog views are not explicitly maintained and may
+change between releases.
+Null Values in the Catalog: If the information
+in a column is not applicable, the null value is returned. Using the
+table created above, the following select statement, which queries
+the NUMERIC_SCALE and the CHARACTER_MAXIMUM_LENGTH, would return the
+null value when the data was not applicable to the data type of the
+column.
+SELECT COLUMN_NAME, NUMERIC_SCALE, CHARACTER_MAXIMUM_LENGTH
+FROM QSYS2/SYSCOLUMNS
+WHERE TABLE_NAME = 'long_table_name' AND
+TABLE_SCHEMA = 'colname'
+
+The following rows would be returned:
+COLUMN_NAME
+NUMERIC_SCALE
+CHARACTER_MAXIMUM_LENGTH
+
+long_column_name
+?
+10
+
+INTCOL
+0
+?
+
+Because numeric scale is not valid for a character column,
+the null value is returned for NUMERIC_SCALE for the "long_column_name"
+column. Because character length is not valid for a numeric column,
+the null value is returned for CHARACTER_MAXIMUM_LENGTH for the INTCOL
+column.
+Install and Backup Considerations: Certain catalog
+tables and any views created over the catalog tables and views should
+be regularly saved:
+The catalog table QSYS.QADBXRDBD contains relational database
+information. This table should be regularly saved.
+When an ILE external function or procedure or an SQL function
+or procedure is restored, information is automatically inserted into
+these catalog tables. This does not occur for non-ILE external functions
+and procedures. In order to back up the definitions of non-ILE external
+functions or procedures, ensure that the catalog tables SYSROUTINES
+and SYSPARMS are saved or ensure you have a back up of the SQL source
+statements that were used to create these functions and procedures.
+All catalog views in the QSYS2 or SYSIBM schemas are system objects.
+This means that any user views created over these catalog views must
+be deleted when the operating system is installed. All dependent objects
+must be deleted as well. To avoid this requirement, you can save
+views before installation and then restore them afterwards.
+Catalog tables in the QSYS library are also system objects. However,
+the catalog tables in the QSYS library are not deleted during installation.
+Hence, any views created over these tables are preserved throughout
+the installation process.
+
+Granting Privileges to Catalog Views: Tables and
+views in the catalog are like any other database tables and views.
+If you have authorization, you can use SQL statements to look at data
+in the catalog views in the same way that you retrieve data from any
+other table. The tables and views in the catalogs are shipped with
+the SELECT privilege to PUBLIC. This privilege may be revoked and
+the SELECT privilege granted to individual users.
+QSYS Catalog Tables: Most of the catalog views
+are based on the following tables in the QSYS library (sometimes called
+the database cross reference files). These tables are not shipped
+with the SELECT privilege to PUBLIC and should not be used directly:
+QADBCCST
+QADBPKG
+QADBXSFLD
+
+QADBFDEP
+QADBXCTLS
+QADBXTRIGB
+
+QADBFCST
+QADBXCTLSD
+QADBXTRIGC
+
+QADBIFLD
+QADBXRDBD
+QADBXTRIGD
+
+QADBKFLD
+QADBXREF
+ 
+
+Use of SELECT *: New columns are likely to be added
+to tables and views in the catalog as new functionality is implemented
+and as the ISO/ANSI standards evolve. For this reason, it is recommended
+that SELECT * not be used when accessing catalog tables and views
+unless your application is prepared to tolerate these new columns.
+
+IBM i catalog tables and views
+The IBM i catalog
+includes the views and tables in the QSYS2 schema displayed in this
+section.
+ODBC and JDBC catalog views
+The catalog includes the views and tables in the SYSIBM
+library displayed in this section.
+ANS and ISO catalog views
+There are two versions of some of the ANS and ISO catalog
+views. The version documented is the normal set of ANS and ISO views.
+A second set of views have names that are limited to no more than
+18 characters and other than the view names are not documented in
+this book.
+
+Parent topic: DB2 for i SQL reference
+
+1 INFORMATION_SCHEMA
+is the ANS and ISO SQL standard schema name that contains catalog
+views. It is a synonym for QSYS2.

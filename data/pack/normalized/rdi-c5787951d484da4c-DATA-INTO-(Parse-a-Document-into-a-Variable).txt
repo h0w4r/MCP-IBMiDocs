@@ -1,0 +1,330 @@
+DATA-INTO (Parse a Document into a Variable)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+DATA-INTO (Parse a Document into a Variable)
+
+Free-Form Syntax
+
+DATA-INTO{(EH)}
+receiver
+%DATA(document {: options1 })
+%PARSER(parser {: options2 });
+
+DATA-INTO{(EH)}
+%HANDLER(handlerProc : commArea)
+%DATA(document {: options1 })
+%PARSER(parser {: options2 });
+
+Code
+
+Factor 1
+
+Extended Factor 2
+
+DATA-INTO
+
+ 
+
+receiver
+%DATA(document {: options1 })
+%PARSER(parser {: options2 })
+
+DATA-INTO
+
+ 
+
+%HANDLER(handlerProc : commArea)
+%DATA(document {: options1 })
+%PARSER(parser {: options2 })
+
+The DATA-INTO operation imports the data from a structured document into an
+RPG variable.
+DATA-INTO is similar to XML-INTO except that XML-INTO can only work with XML documents,
+while DATA-INTO can work with any structured document.
+DATA-INTO also differs from XML-INTO in that DATA-INTO requires a parser that can
+parse the data in the document.
+
+The DATA-INTO operation passes the document text to the parser, which uses
+callback functions to gradually pass the names and values of the data in the document
+to the DATA-INTO operation.
+The DATA-INTO operation places the information into the target RPG variable.
+
+For information on writing a parser for the DATA-INTO operation,
+see the Rational® Open Access: RPG Edition
+topic.
+
+The DATA-INTO operation can operate in two different ways:
+
+Reading the data directly into an RPG variable
+
+Reading the data gradually into an array parameter which is passed
+to the procedure specified by %HANDLER(handlerProc).
+
+The first operand specifies the target of the parsed data. It can
+contain a variable name or the %HANDLER built-in function.
+
+The second operand must be the %DATA built-in function, identifying
+the document to be parsed and the options controlling the way
+the information is used to set the RPG variable.
+See %DATA (document {:options}) for more information
+on %DATA.
+
+The third operand must be the %PARSER built-in function, identifying
+the program or procedure to do the parsing, and the parser-specific options.
+See %PARSER (parser {: options}) for more information on %PARSER.
+
+See Rules for transferring data to RPG variables for XML-INTO and DATA-INTO.
+
+If the first operand is a variable name:
+
+Parsing will be done directly into the variable.
+
+It is optional for the parser to report the name
+of the first item found.
+However, if the parser does report the name of the first item found,
+the name is expected to be the
+same as the name of the variable.
+This can be overridden using the path option.
+For example, if the variable name is MYDS,
+and the parser reports the name of the outermost structure as "order",
+then "path=order" should be specified in the options for %DATA.
+
+If the required information is more deeply nested within the document,
+then the "path" option must be used to locate the required information.
+For example, if name of the outermost structure in the document is "info",
+and the required information is in a structure with the name "order" nested
+within the "info" structure, then "path=info/order" should be
+specified in the options for %DATA.
+
+If the variable is a data structure, some subfields may be set
+by the operation even if the operation ends in error.
+
+If the variable is an array, the parsing will only search for
+as much data as will fit in the array.
+The "Number of Elements set by XML-INTO or DATA-INTO"
+subfield in positions 372 - 379 of the PSDS will be set to the number
+of elements successfully set by the operation. For an array of data
+structures, this value will not include the element being set if a
+parsing error occurs while parsing the data for the subfields of the
+element; however, this array element may have some of its subfields
+set by the operation.
+
+If the first operand is the %HANDLER built-in function:
+
+The procedure specified as the first operand of %HANDLER will
+be called when the parser has parsed enough data to fill the specified
+number of RPG array elements handled by the procedure. When the handler
+returns, the parser will continue to parse the data until it has
+parsed enough data to again fill the specified number of array
+elements to call the handling procedure. This continues until the
+document is completely parsed, or until the procedure returns a return
+code indicating that the parsing should halt.
+The final call to
+the handling procedure may have fewer RPG array elements than the
+handling procedure can handle. The handling procedure should always
+refer to the "number of elements" parameter to ensure it does not
+access array elements that do not have any data.
+
+The communication-area
+variable specified as the second operand of %HANDLER will be passed
+by the parser as the first parameter to the handling procedure, allowing
+the procedure coding the DATA-INTO operation to communicate with the
+handling procedure, and allowing the handling procedure to save information
+from one call to the next.
+
+Each element of the temporary variable used to hold the array
+parameter for the procedure will be cleared to its default value before
+it is loaded from the data.
+
+The path option must be used to specify
+the name of the item within the document to search for.
+See %DATA options for the DATA-INTO operation code and Expected format of data for DATA-INTO
+for information about the path option.
+
+The array-handling procedure may be called several times during
+the DATA-INTO operaton. When the parser has found the number of elements
+specified by the DIM keyword on the second parameter, the procedure
+will be called. The final time the procedure is called may have fewer
+elements than specified by the DIM keyword. If there are no elements
+found, the procedure will not be called.
+The handling procedure
+must have the following parameters and return type:
+
+Parameter number or return value
+
+Data type and passing mode
+
+Description
+
+Return value
+
+4-byte integer (10I 0)
+
+Returning a value of zero indicates that parsing should continue;
+returning any other value indictes that parsing should end.
+
+1
+
+Any type, passed by reference
+
+Used to communicate between the DATA-INTO operation and the
+handler, and between successive calls to the handler.
+
+2
+
+Array, or array of data structures, passed by read-only reference
+(CONST keyword)
+
+The array elements contain the data from the items specified
+by the path option.
+
+3
+
+4-byte unsigned (10U 0), passed by value
+
+The number of array elements in the second parameter that represent
+data.
+
+See %HANDLER (handlingProcedure : communicationArea ) for more information on %HANDLER.
+
+Subfields of a data structure will be set in the order they appear
+in the document; the order could be important if subfields overlap
+within the data structure.
+
+%NULLIND is not updated for any field or subfield during an DATA-INTO
+operation.
+
+Operation extender H can be specified to cause numeric data to
+be assigned half-adjusted. Operation extender E can be specified to
+handle the following status codes:
+
+00352
+
+Invalid DATA-INTO option
+
+00354
+
+Error preparing for parsing
+
+00355
+
+The parser program or procedure is not available.
+
+00356
+
+The document does not match the RPG variable.
+
+00357
+
+The parser detected an error in the document.
+
+00358
+
+The was an error in the information provided by the parser.
+
+00359
+
+An error occurred while running the parser program or procedure.
+
+Note: Operation extenders can be specified only when Free-form
+syntax is used.
+
+For status 00357, the error code from the parser will be placed
+in the subfield "External return code" in positions 368-371 of the
+PSDS. This subfield will be set to zero at the beginning of the operation
+and set to the value returned by the parser at the end of the operation.
+The meaning of the error code is determined by the parser.
+
+If an unknown, invalid or unrelated option is found in the options
+parameter of the %DATA built-in function, the operation will fail with
+status code 00352 (Error in DATA-INTO options).
+The External return code
+subfield in the PSDS will not be updated from the initial value of
+zero, set when the operation begins.
+
+The document is expected to match the RPG variable with respect
+to the names of the items in the document.
+
+The data for an RPG data structure is expected to have
+items with the same name as the data structure and nested items
+with the same names as the RPG subfields.
+
+The data for an RPG array is normally reported as an array by the parser.
+However, it is also valid to have a series of
+items with the same name as the RPG array.
+
+The path option can be used to set the name of the item
+matching the name of the specified variable, but it cannot
+be used to set the names of the items matching
+a specified variable's subfields.
+For example, if variable DS1 has
+a subfield SF1, the item for DS1 can have any name, but the
+item for SF1 must have the name "sf1" (or "SF1",
+"Sf1", etc.,
+depending on the case option).
+
+When the document does not match the RPG variable, for example
+if the document does not contain the default or specified path,
+or if it is missing some items to match the subfields
+of an RPG data structure, the DATA-INTO operation will fail with status
+00356.
+The allowextra, allowmissing,
+and countprefix options can
+be used to specify whether an item can have more or less data
+than is required to fully set the RPG variable.
+
+If the data for an item is not valid for the type of the RPG variable it matches,
+the operation will fail with status 0356; the specific status code
+for the assignment error will appear in the replacement text for message
+RNX0356.
+
+Tip: To avoid the DATA-INTO operation failing
+because the data cannot be successfully assigned to RPG fields with
+types such as Date or Numeric, the receiver variable can be defined
+with subfields that are all of type character or UCS-2. Then the data
+can be converted to other data types by the RPG program using the
+conversion built-in functions %DATE, %INT, and so on.
+
+See Examples of DATA-INTO parsers for information about
+where you can find examples of parsers for the DATA-INTO operation.
+
+To obtain a trace from the parser, set the QIBM_RPG_DATA_INTO_TRACE_PARSER
+environment variable with a value of "*STDOUT".
+
+ADDENVVAR QIBM_RPG_DATA_INTO_TRACE_PARSER VALUE('*STDOUT')
+
+Note:
+If the trace output does not show up immediately, or if it flashes too quickly to see, you can view the
+standard output by calling the following ILE RPG program.
+Compile the program with CRTBNDRPG.
+
+**FREE
+CTL-OPT ACTGRP(*NEW);
+DCL-PR printf EXTPROC(*DCLCASE);
+p POINTER VALUE OPTIONS(*STRING : *NOPASS);
+END-PR;
+DCL-PR getchar INT(10) EXTPROC(*DCLCASE) END-PR;
+DCL-C EOL x'15';
+
+printf (EOL);
+getchar ();
+return;
+
+The following C® program will accomplish the same thing. Compile the program with CRTBNDC.
+#include <stdio.h>
+main()
+{
+printf("\n");
+getchar();
+}
+
+%DATA options for the DATA-INTO operation code
+
+Expected format of data for DATA-INTO
+
+Examples of DATA-INTO parsers
+
+Parent topic: Operation Codes

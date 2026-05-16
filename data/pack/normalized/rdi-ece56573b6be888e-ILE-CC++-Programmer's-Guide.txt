@@ -1,0 +1,135 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 20. Using Device Files in a Program > Using Printer Files
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 20. Using Device Files in a Program > Using Printer Files
+
+ILE C/C++ Programmer's Guide
+Record Functions for Printer Files
+Use the following record functions to process printer files:
+
+_Rclose()
+_Rfeod()
+_Rformat()
+_Rindara()
+_Riofbk()
+_Ropen()
+_Ropnfbk()
+_Rupfb()
+_Rwrite()
+
+Example:
+The following example uses First Character Forms Control in a program
+described printer file. Employees' names and serial numbers are
+read from a physical file and written to the printer file.
+
+To create the printer file T1520FCP, enter:
+
+CRTPRTF FILE(MYLIB/T1520FCP) CTLCHAR(*FCFC)
+CHLVAL((1 (13)))
+
+To create the physical file T1520FCI, enter:
+
+CRTPF FILE(MYLIB/T1520FCI) RCDLEN(30)
+
+Type the names and serial numbers as follows into T1520FCI:
+
+Jim Roberts 1234567890
+Karen Smith 2314563567
+John Doe 5646357324
+
+To create the program T1520FCF using the source shown below, enter:
+
+CRTBNDC PGM(MYLIB/T1520FCF) SRCFILE(QCPPLE/QACSRC)
+
+Figure 154. T1520FCF -- ILE C Source to Use First Character Forms Control
+
+/* This program illustrates how to use a printer stream file, the */
+/* _fwrite() function and the first character forms control. */ 
+#include <stdio.h>
+#include <string.h>
+#define BUF_SIZE 53
+#define BUF_OFFSET 20
+
+int main(void)
+{
+FILE *dbf;
+FILE *prtf;
+char buf [BUF_SIZE];
+char tmpbuf [BUF_SIZE];
+ 
+/* Open the printer file using the first character forms control. */
+/* recfm and lrecl are required. */ 
+prtf = fopen ("*LIBL/T1520FCP", "wb type=record recfm=fa lrecl=53" );
+dbf = fopen ("*LIBL/T1520FCI", "rb type=record blksize=0" );
+ 
+/* Print out the header information. */ 
+memset ( buf, ' ', BUF_SIZE );
+ 
+/* Use channel value 1. */ 
+strncpy ( buf, "1 EMPLOYEE INFORMATION",47 );
+fwrite ( buf, 1, BUF_SIZE, prtf );
+
+/* Use single spacing. */ 
+strncpy ( buf," --------------------",47 );
+fwrite ( buf, 1, BUF_SIZE, prtf );
+/* Use triple spacing. */ 
+strncpy ( buf,"- NAME SERIAL NUMBER"
+,BUF_SIZE );
+fwrite ( buf, 1, BUF_SIZE, prtf ); 
+strncpy ( buf," ---- -------------"
+,BUF_SIZE );
+fwrite ( buf, 1, BUF_SIZE, prtf );
+
+/* Print out the employee information. */ 
+while ( fread ( tmpbuf, 1, BUF_SIZE, dbf ))
+{
+memset ( buf, ' ', BUF_SIZE );
+ 
+/* Use double spacing. */ 
+buf[0] = '0';
+strncpy ( buf + BUF_OFFSET, tmpbuf, strlen(tmpbuf) );
+fwrite ( buf, 1, BUF_SIZE, prtf );
+} 
+fclose ( prtf );
+fclose ( dbf );
+}
+
+The fopen() function opens the printer stream file T1520FCP
+using record at a time processing. The fopen() function also
+opens the physical file T1520FCI for record at a time processing. The
+strncpy() function copies the records into the print buffer.
+The fwrite() function prints out the employee records.
+To run the program T1520FCF, enter:
+
+CALL PGM(MYLIB/T1520FCF)
+
+The output file is as follows:
++--------------------------------------------------------------------------------+
+| |
+| EMPLOYEE INFORMATION |
+| -------------------- |
+| NAME SERIAL NUMBER |
+| ---- ------------- |
+| Jim Roberts 1234567890 |
+| Karen Smith 2314563567 |
+| John Doe 5646357324 |
++--------------------------------------------------------------------------------+
+
+The printed output file is as follows:
+
+EMPLOYEE INFORMATION
+--------------------
+
+NAME SERIAL NUMBER
+---- -------------
+
+Jim Roberts 1234567890
+
+Karen Smith 2314563567
+
+John Doe 5646357324
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

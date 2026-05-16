@@ -1,0 +1,517 @@
+<main role="main"><article role="article" aria-labelledby="rpgrelv7r4__title__1">
+<h1 class="topictitle1" id="rpgrelv7r4__title__1">What's New in 7.4?</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-10-07</div>
+
+
+<div class="body">
+<p>This section describes the enhancements made to ILE RPG in 7.4.</p>
+
+<dl>
+
+<dt class="dlterm">Varying-dimension arrays</dt>
+
+<dd class="dlentry">
+A varying-dimension array is defined with DIM(*AUTO:maximum_elements) or DIM(*VAR:maximum_elements).
+The second parameter of the DIM keyword indicates the maximum number of elements in the array.
+<div class="p">The dimension of a varying-dimension array can be changed by assigning a value to the %ELEM
+built-in function.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S array_auto CHAR(10) DIM(*AUTO:100);
+DCL-S array_var CHAR(10) DIM(*VAR:100);
+%ELEM(array_auto) = 5;
+%ELEM(array_var) = 5;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<div class="p">The dimension of a varying-dimension array defined with DIM(*AUTO) increases when there is an
+assignment statement to an element that is greater than the current number of elements.
+In the following example, array <var class="keyword varname">arr</var> is defined with
+DIM(*AUTO:1000) (<span class="keyword calloutlabel">&nbsp;1&nbsp;</span>).
+The current number of elements of the array is automatically increased when there
+is an assignment to a new element.
+The dimension of the array is zero before the assignment to arr(5).
+The dimension is 5 after the assignment(<span class="keyword calloutlabel">&nbsp;2&nbsp;</span>).
+Elements 1 to 4 are initialized with the value specified by the INZ keyword ('?').
+Element 5 is set to the value specified by the assignment statement ('x').
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-s arr CHAR(10) DIM(*AUTO:1000) INZ('?'); // &nbsp;1&nbsp;
+
+arr(5) = 'x'; // &nbsp;2&nbsp;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<div class="p">You can specify *NEXT as the index for an array defined with DIM(*AUTO)
+when the array is modified by an assignment statement.
+The dimension of the array increases by one.
+In the following example, array <var class="keyword varname">custArray</var> is defined with
+DIM(*AUTO:1000) (<span class="keyword calloutlabel">&nbsp;1&nbsp;</span>).
+The current number of elements of the array is automatically increased by
+one for each assignment to custArray(*NEXT). (<span class="keyword calloutlabel">&nbsp;2&nbsp;</span>).
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-F custfile;
+DCL-DS custDs LIKEREC(custRec);
+DCL-S numCustElems INT(10);
+DCL-DS custArray LIKEDS(custDs) DIM(*AUTO:1000); // &nbsp;1&nbsp;
+
+READ file custDs;
+DOW NOT %EOF;
+   custArray(*next) = custDs; // &nbsp;2&nbsp;
+   READ file custDs;
+ENDDO;
+numCustElems = %ELEM(custArray);
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p><span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/vardimarray.htm">Varying-dimension arrays</a></span></p>
+
+</dd>
+
+
+
+<dt class="dlterm">DIM(*CTDATA)</dt>
+
+<dd class="dlentry">
+Specify DIM(*CTDATA) to specify that the dimension of a compile-time array or
+table is determined by the number of records in the compile-time data.
+<p><span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/ddim.htm">DIM({*AUTO:|*CTDATA|*VAR:}numeric_constant)</a></span></p>
+
+</dd>
+
+
+
+<dt class="dlterm">SAMEPOS keyword</dt>
+
+<dd class="dlentry">
+The SAMEPOS keyword positions a subfield at the same starting position as another subfield.
+<p><span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/dkwsamepos.htm">SAMEPOS(subfield)</a></span></p>
+
+<p>This enhancement is also available in 7.3 with a PTF.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New PSDS subfields</dt>
+
+<dd class="dlentry">
+The following new subfields are added to the Program Status Data Structure:
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Internal job ID, in positions 380 to 395.</li>
+
+<li class="cds--list__item">System name, in positions 396 - 403.</li>
+
+</ul>
+
+<p><span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/psdsdt9.htm">Program Status Data Structure</a></span></p>
+
+<p>This enhancement is also available in 7.3 with a PTF.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">ON-EXIT section</dt>
+
+<dd class="dlentry">
+The ON-EXIT section runs every time that a procedure ends, whether the
+procedure ends normally or abnormally.
+<p>In the following example, the procedure allocates heap storage.
+The code that follows the ON-EXIT operation is always run, so the
+heap storage is always deallocated.
+The ON-EXIT section is run whether
+the procedure ends suddenly due to an unhandled exception, or the procedure
+is canceled due to the job ending, or the procedure returns normally due
+to reaching the end of the main part of the procedure or due to reaching
+a RETURN operation.
+</p>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+dcl-proc myproc;
+   p = %alloc(100);
+
+   ...
+on-exit;
+   dealloc(n) p;
+end-proc;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<p><span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/zzonexit.htm">ON-EXIT (On Exit)</a></span></p>
+
+<p>This enhancement is also available in 7.2 and 7.3 with PTFs.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Nested data structure subfields</dt>
+
+<dd class="dlentry">
+When a qualified data structure is defined using free-form syntax,
+a subfield can be directly defined as a nested data structure subfield.
+The <var class="keyword varname">street</var> subfield in the following data structure
+is referred to as <var class="keyword varname">product.manufacturer.address.street</var>.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS product QUALIFIED;
+   name VARCHAR(25);
+   id CHAR(10);
+   DCL-DS manufacturer;
+      name VARCHAR(10);
+      DCL-DS address;
+         street VARCHAR(50);
+         city VARCHAR(25);
+      END-DS address;
+      active IND;
+   END-DS manufacturer;
+   price PACKED(9 : 2);
+END-DS product;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/freesubfield.htm#freesubfield__nested">Nested data structure subfield</a>.</span>
+<p>This enhancement is also available in 7.2 and 7.3 with PTFs.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New operation code DATA-INTO</dt>
+
+<dd class="dlentry">DATA-INTO reads data from a structured document, such as JSON, into
+an RPG variable.
+It requires a parser to parse the document.
+The DATA-INTO operation calls the parser, and the parser passes the information in
+the document back to the DATA-INTO operation, which places the
+information into the RPG variable.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS product QUALIFIED;
+   name VARCHAR(25);
+   id CHAR(10);
+   price PACKED(9 : 2);
+END-DS product;
+
+DATA-INTO product %DATA('ProductInfo.JSON' : 'doc=file')
+                  %PARSER('MYLIB/MYJSONPARS');
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/zzdatainto.htm">DATA-INTO (Parse a Document into a Variable)</a>,
+<a href="/docs/en/ssw_ibm_i_76/rzasd/bbdata.htm">%DATA (document {:options})</a>,
+<a href="/docs/en/ssw_ibm_i_76/rzasd/bbparser.htm">%PARSER (parser {: options})</a>.</span>
+<p>This enhancement is also available in 7.2 and 7.3 with PTFs.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Built-in function %PROC()</dt>
+
+<dd class="dlentry">%PROC() returns the external name of the current procedure.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbproc.htm">%PROC (Return Name of Current Procedure)</a>.</span>
+<p>This enhancement is also available in 7.2 and 7.3 with PTFs.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">More places that complex qualified names can be used</dt>
+
+<dd class="dlentry">Complex qualified names are now allowed in the following places:
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Built-in function %ELEM.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbelem.htm">%ELEM (Get Number of Elements)</a>.</span>
+</li>
+
+<li class="cds--list__item">Built-in function %SIZE.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbsize.htm">%SIZE (Get Size in Bytes)</a>.</span>
+</li>
+
+<li class="cds--list__item">Operation code DEALLOC.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/zzdeall.htm">DEALLOC (Free Storage)</a>.</span>
+</li>
+
+<li class="cds--list__item">Operation code RESET.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/zzreset.htm">RESET (Reset)</a>.</span>
+</li>
+
+</ul>
+
+<p>This enhancement is also available in 7.2 and 7.3 with PTFs.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New built-in functions %MAX and %MIN</dt>
+
+<dd class="dlentry">
+%MAX returns the maximum value of its operands. %MIN returns the minimum value of its operands.
+There must be at least two operands, but there is no upper limit on the number of operands when
+%MAX or %MIN are used in calculations. When %MAX or %MIN are used in Declaration statements, there
+must be exactly two numeric operands.
+<p>
+In the following example, after the assignment operations, <var class="keyword varname">maxval</var> has the
+value 'Zorro' and <var class="keyword varname">minval</var> has the value 'Batman'.</p>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+   DCL-S maxval VARCHAR(10);
+   DCL-S minval VARCHAR(10);
+   DCL-S name1 VARCHAR(20) INZ('Robin');
+   DCL-S name2 VARCHAR(10) INZ('Batman');
+
+   maxval = %MAX(name1 : name2 : 'Zorro');
+   minval = %MIN(name1 : name2 : 'Zorro');
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbmaxmin.htm">%MAX and %MIN (Maximum or Minimum Value)</a>.</span>
+<p>This enhancement is also available in 7.2 and 7.3 with PTFs.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">ALIGN(*FULL) to define the length of a data structure as a multiple of its alignment</dt>
+
+<dd class="dlentry">
+When *FULL is specified for the ALIGN keyword,
+the length of the data structure is a multiple of the alignment size.
+Without *FULL, the length of the data structure is determined by highest end position of the subfields.
+Specify the *FULL parameter when defining an aligned data structure to be passed as a parameter to a function or API,
+or if you use %SIZE to determine the distance between the elements in an array of aligned data structures.
+<p>For example, the following two data structures have a float subfield followed by a character subfield with length 1.
+The alignment size for both data structures is 8.
+The size of data structure DS_ALIGN_FULL is 16, while the size of data structure DS_ALIGN is 9.
+</p>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS ds_align_full ALIGN(*FULL) QUALIFIED;
+    sub1 FLOAT(8);
+    sub2 CHAR(1);
+END-DS;
+
+DCL-DS ds_align ALIGN QUALIFIED;
+    sub1 FLOAT(8);
+    sub2 CHAR(1);
+END-DS;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/dalign.htm">ALIGN{(*FULL)}</a>.</span>
+<p>This enhancement is also available in 7.2 and 7.3 with PTFs.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New parameter TGTCCSID for CRTBNDRPG and CRTRPGMOD to support compiling from Unicode source</dt>
+
+<dd class="dlentry">
+The ILE RPG compiler normally reads the source files for a compile in the CCSID of the primary source file.
+Since the compiler supports reading the source only in an EBCDIC CCSID, this means that the compile fails
+when the primary source file has a Unicode CCSID such as UTF-8 or UTF-16.
+<p>
+The TGTCCSID parameter for the CRTBNDRPG and CRTRPGMOD allows the RPG programmer to specify
+the CCSID with which the compiler reads the source files for the compile.
+Specify TGTCCSID(*JOB) or specify a specific EBCDIC CCSID such as TGTCCSID(37) or TGTCCSID(5035).
+</p>
+
+<p>The default is TGTCCSID(*SRC).</p>
+
+
+<p>This enhancement is also available in 7.1, 7.2, and 7.3 with PTFs.</p>
+
+</dd>
+
+
+</dl>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 1. Changed Language Elements Since 7.3: Built-in functions</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r4__entry__1" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r4__entry__2" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r4__entry__1 ">%ELEM</td>
+
+<td headers="rpgrelv7r4__entry__2 ">A second parameter *ALLOC, *KEEP, or *MAX can be specified
+if the array is a varying-dimension array.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbelem.htm">%ELEM (Get Number of Elements)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 2. Changed Language Elements Since 7.3: Definitions</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r4__entry__5" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r4__entry__6" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r4__entry__5 ">DIM keyword</td>
+
+<td headers="rpgrelv7r4__entry__6 ">
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The parameter can be *AUTO or *VAR to define a varying-dimension array.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/vardimarray.htm">Varying-dimension arrays</a>.</span></li>
+
+<li class="cds--list__item">The parameter can be *CTDATA to indicate that the dimension of the
+array or table is determined from the number of records in the
+compile-time data.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/ddim.htm">DIM({*AUTO:|*CTDATA|*VAR:}numeric_constant)</a>.</span></li>
+
+</ul>
+
+</td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r4__entry__5 ">DCL-DS operation code</td>
+
+<td headers="rpgrelv7r4__entry__6 ">DCL-DS can be nested within a qualified data structure.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/freesubfield.htm#freesubfield__nested">Nested data structure subfield</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r4__entry__5 ">ALIGN(*FULL)</td>
+
+<td headers="rpgrelv7r4__entry__6 ">The ALIGN keyword can have parameter *FULL causing
+the length of a data structure to be a multiple of its alignment.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/dalign.htm">ALIGN{(*FULL)}</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 3. New Language Elements Since 7.3: Built-in functions</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r4__entry__13" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r4__entry__14" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r4__entry__13 ">%DATA</td>
+
+<td headers="rpgrelv7r4__entry__14 ">Specifies the document to be parsed by the DATA-INTO operation code
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbdata.htm">%DATA (document {:options})</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r4__entry__13 ">%MAX</td>
+
+<td headers="rpgrelv7r4__entry__14 ">Returns the maximum value of its operands
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbmaxvalue.htm">%MAX (Maximum Value)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r4__entry__13 ">%MIN</td>
+
+<td headers="rpgrelv7r4__entry__14 ">Returns the minimum value of its operands
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbminvalue.htm">%MIN (Minimum Value)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r4__entry__13 ">%PARSER</td>
+
+<td headers="rpgrelv7r4__entry__14 ">Specifies the parser for the DATA-INTO operation code
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbparser.htm">%PARSER (parser {: options})</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r4__entry__13 ">%PROC</td>
+
+<td headers="rpgrelv7r4__entry__14 ">Returns the external name of the current procedure
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/bbproc.htm">%PROC (Return Name of Current Procedure)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 4. New Language Elements Since 7.3: Definition keywords</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r4__entry__25" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r4__entry__26" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r4__entry__25 ">SAMEPOS</td>
+
+<td headers="rpgrelv7r4__entry__26 ">Positions a subfield at the same starting position as another subfield
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/dkwsamepos.htm">SAMEPOS(subfield)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 5. New Language Elements Since 7.3: Operation codes</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r4__entry__29" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r4__entry__30" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r4__entry__29 ">DATA-INTO</td>
+
+<td headers="rpgrelv7r4__entry__30 ">Import data from a structured document into
+an RPG variable.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/zzdatainto.htm">DATA-INTO (Parse a Document into a Variable)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r4__entry__29 ">ON-EXIT </td>
+
+<td headers="rpgrelv7r4__entry__30 ">Begins a section of code that runs when the procedure ends, either normally or abnormally
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_76/rzasd/zzonexit.htm">ON-EXIT (On Exit)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+</div>
+
+<aside role="complementary" aria-labelledby="rpgrelv7r4__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_76" href="/docs/en/ssw_ibm_i_76/rzasl/rpgrnewrel.htm" title="New and changed features in each release of the ILE RPG compiler since V3R1" class="bottom-section-link">What's New</a></div></div>
+</div>
+</nav></aside></article></main>

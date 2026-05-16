@@ -1,0 +1,116 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="CREATE_WRAPPED">
+<meta name="abstract" content="The CREATE_WRAPPED procedure transforms a readable DDL statement into an obfuscated DDL statement and then deploys the object in the database.">
+<meta name="Description" content="The CREATE_WRAPPED procedure transforms a readable DDL statement into an obfuscated DDL statement and then deploys the object in the database.">
+<meta name="DC.subject" content="procedure, CREATE_WRAPPED, CREATE_WRAPPED procedure, obfuscating, function, trigger">
+<meta name="keywords" content="procedure, CREATE_WRAPPED, CREATE_WRAPPED procedure, obfuscating, function, trigger">
+<meta name="DC.Relation" scheme="URI" content="rbafzprocs.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzprocs.htm">
+<title>CREATE_WRAPPED</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzproccrt_wrapped.htm" + anchorParam);
+}
+</script>
+</head>
+<body class="pagebreak" id="rbafzproccrt_wrapped">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzprocs.htm">Procedures</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d541825e7"><h1 class="topictitle1" id="d541825e7">CREATE_WRAPPED</h1>
+<div class="body refbody"><p class="shortdesc">The CREATE_WRAPPED procedure transforms a readable DDL
+statement into an obfuscated DDL statement and then deploys the object
+in the database.</p>
+<section class="section refsyn"><figure class="fig syntaxdiagram fignone"><span class="figgroup groupseq"><span class="keyword kwd">CREATE_WRAPPED</span><span class="ph delim">(</span><span class="figgroup groupseq"><span class="ph var">object-definition-string</span></span><span class="ph delim">)</span></span></figure>
+</section><section> <p>In an obfuscated DDL statement, the procedural logic
+and embedded SQL statements are scrambled in such a way that any intellectual
+property in the logic cannot be easily extracted.</p>
+<p>The schema
+is SYSIBMADM.</p>
+<dl class="parml"><dt class="pt dlterm"><span class="ph synph"><span class="ph var">object-definition-string</span></span></dt>
+<dd class="pd">A string of type CLOB containing a DDL statement. It can be one
+of the following SQL statements:<ul><li>CREATE FUNCTION (SQL scalar)</li>
+<li>CREATE FUNCTION (SQL table)</li>
+<li>CREATE PROCEDURE (SQL)</li>
+<li>CREATE TRIGGER</li>
+</ul>
+</dd>
+</dl>
+</section><section><div class="p">The procedure transforms the input into an obfuscated DDL statement string and then dynamically
+executes that DDL statement. The encoding consists of a prefix of the original statement up to and
+including the routine signature or trigger name, followed by the keyword WRAPPED. This keyword is
+followed by information about the application server that invoked the function.&nbsp;The information has
+the form <em>pppvvrrm</em> where:<ul><li><em>ppp</em> identifies the product using the following 3 characters:<ul><li>QSQ for <span class="keyword">DB2® for
+i</span></li>
+<li>SQL for DB2 Database for Linux, UNIX, and Windows</li>
+</ul>
+</li>
+<li><em>vv</em> is a two-digit version identifier, such as '07'</li>
+<li><em>rr</em> is a two-digit release identifier, such as '02'</li>
+<li><em>m</em> is a one-character modification level identifier, such as '0'</li>
+</ul>
+For example DB2 for i version 7.3 is identified as
+'QSQ07030'.</div>
+<p>This application
+server information is followed by a string of letters (a-z and A-Z),
+digits (0-9), underscores, and colons.</p>
+<p>The encoded DDL statement
+may be up to one-third longer than the plain text form of the statement.
+If the result exceeds the maximum length for SQL statements, an error
+is issued.</p>
+</section><section><h2 class="sectiontitle">Note</h2>The encoding of the statement is meant
+to obfuscate the content and should not be considered as a form of
+strong encryption.</section><section><h2 class="sectiontitle">Examples</h2></section><div class="example"><p> <em>Example 1:</em> Produce an obfuscated version of a
+function that computes a yearly salary from an hourly wage given a
+40 hour work week. </p>
+<pre class="codeblock"><code><strong>CALL CREATE_WRAPPED</strong>('CREATE FUNCTION salary(wage DECFLOAT) 
+                            RETURNS DECFLOAT RETURN wage * 40 * 52');
+
+<strong>SELECT ROUTINE_DEFINITION FROM</strong> QSYS2.SYSROUTINES 
+    <strong>WHERE</strong> routine_name ='SALARY' <strong>AND</strong> routine_schema = <strong>CURRENT SCHEMA</strong>;    </code></pre>
+<p>Upon
+successful completion of the CALL statement, the ROUTINE_DEFINITION
+column in QSYS2.SYSROUTINES for the row corresponding to routine 'SALARY'
+would be something of the form:</p>
+<pre class="codeblock"><code>WRAPPED QSQ07020 &lt;encoded-suffix&gt;</code></pre>
+</div>
+<div class="example"><p> <em>Example 2:</em> Produce an obfuscated version of a
+trigger that sets a complex default. </p>
+<pre class="codeblock"><code><strong>CALL CREATE_WRAPPED</strong>('CREATE OR REPLACE TRIGGER trig1 BEFORE INSERT ON emp 
+                       REFERENCING NEW AS n FOR EACH ROW 
+                       WHEN (n.bonus IS NULL) SET n.bonus = n.salary * .04');
+
+<strong>SELECT</strong> ACTION_STATEMENT <strong>FROM</strong> QSYS2.SYSTRIGGERS 
+    <strong>WHERE</strong> trigname ='TRIG1' <strong>AND</strong> trigschema = <strong>CURRENT SCHEMA</strong>;     </code></pre>
+<p>Upon successful completion of the CALL statement, the
+ACTION_STATEMENT column in QSYS2.SYSTRIGGERS for the row corresponding
+to trigger 'TRIG1' would be something of the form:</p>
+<pre class="codeblock"><code>WRAPPED QSQ07020 &lt;encoded-suffix&gt;</code></pre>
+</div>
+</div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzprocs.htm" title="This chapter contains syntax diagrams, semantic descriptions, rules, and examples of the use of the system supplied procedures.">Procedures</a></li>
+</ul>
+</aside></article></main></body></html>

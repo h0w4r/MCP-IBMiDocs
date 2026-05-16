@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Obtaining Feedback Information</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="I/O feedback area, devices, programs, _Riofbk() function, _Riofbk(), functions">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog366.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog306.htm">Part 5&#46; Working with iSeries File Systems and Devices</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog356.htm">Chapter 20&#46; Using Device Files in a Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<HR><H2><A NAME="HDRFBKINFO" HREF="cpprog02.htm#ToC_434">Obtaining Feedback Information</A></H2>
+<P>You can obtain additional information about the program devices associated
+with your application by using OS/400 system feedback areas.
+<P><B>Example:</B>
+<P>The following example uses the <TT>_Riofbk()</TT> function. 
+<OL TYPE=1>
+<LI>To create the display file T1520DDF using the DDS source shown below,
+enter: 
+<PRE>
+<BR>
+CRTDSPF FILE(MYLIB/T1520DDF) SRCFILE(QCPPLE/QADDSSRC) MAXDEV(2)
+</PRE>
+<P><B><A NAME="Figure_145" HREF="cpprog09.htm#FT_Figure_145">Figure 145. T1520DDF -- DDS Source for a Feedback Display</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+     A                                      DSPSIZ(24 80 *DS3)
+<BR>     A          R EXAMPLE
+<BR>     A            OUTPUT         5A  O  5 20
+<BR>     A            INPUT         20A  I  7 20
+<BR>     A                                  5 10'OUTPUT:'
+<BR>     A                                  7 10'INPUT:'
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI>To override the file STDOUT with the printer file QPRINT, enter: 
+<PRE>
+<BR>
+OVRPRTF FILE(STDOUT) TOFILE(QPRINT)
+</PRE>
+</LI><LI>To create the program T1520FBK using the source shown below, enter: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520FBK) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+<P>
+<P>
+<P><B><A NAME="Figure_146" HREF="cpprog09.htm#FT_Figure_146">Figure 146. T1520FBK -- ILE C Source to Use Feedback Information</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program illustrates how to use the _Riofbk function to access */
+<BR>/* the I/O feedback area.                                             */&nbsp;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>#include &lt;signal.h&gt;
+<BR>#include &lt;xxfdbk.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;string.h&gt;
+<BR>static void handler (int);
+<BR>&nbsp;
+<BR>_RFILE *fp;/* Signal handler for _Racquire exceptions                            */
+<BR>&nbsp;
+<BR>static void handler (int sig)
+<BR>{
+<BR>    _XXIOFB_T         *io_feedbk;
+<BR>    _XXIOFB_DSP_ICF_T *dsp_io_feedbk;
+<BR>&nbsp;
+<BR>    signal ( SIGIO, handler );
+<BR>&nbsp;
+<BR>    io_feedbk = _Riofbk ( fp );
+<BR>    dsp_io_feedbk = (_XXIOFB_DSP_ICF_T *)( (char *)(io_feedbk) +
+<BR>                    io_feedbk-&gt;file_dep_fb_offset );
+<BR>    printf ( "Acquire failed\n" );
+<BR>    printf ( "Major code: %2.2s\tMinor code: %2.2s\n",
+<BR>             dsp_io_feedbk-&gt;major_ret_code,dsp_io_feedbk-&gt;minor_ret_code );
+<BR>    exit ( 1 );
+<BR>}
+<BR>int main(void)
+<BR>{
+<BR>    char     buf[20];
+<BR>    _RIOFB_T *rfb;
+<BR>&nbsp;
+<BR>  if (( fp = _Ropen ( "*LIBL/T1520DDF", "ar+") ) == NULL )
+<BR>    {
+<BR>      printf ( "Could not open the display file\n" );
+<BR>      exit ( 2 );
+<BR>    }
+<BR>    signal ( SIGIO, handler );
+<BR>&nbsp;
+<BR>    _Racquire ( fp, "DEVICE1" );/*Acquire the device.  DEVICE1 is     */
+<BR>                                /* now the default program device.    */
+<BR>                                /* NOTE : If the device is not        */
+<BR>                                /* acquired, exceptions are issued.   */
+<BR>    _Rformat ( fp, "EXAMPLE" ); /* Select the record format.          */&nbsp;
+<BR>    _Rwrite ( fp, "Hello", 5 ); /* Write to default program device.   */
+<BR>&nbsp;
+<BR>                                /* Read from default program device.  */&nbsp;
+<BR>    rfb = _Rreadn ( fp, buf, 21, __DFT );
+<BR>&nbsp;
+<BR>    printf ( "user entered: %20.20s\n", buf );
+<BR>&nbsp;
+<BR>    _Rclose ( fp );
+<BR>    return(0);
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE> 
+<P>This program uses two typedefs _XXIOFB_T for common I/O feedback, and
+_XXIOFB_DSP_ICF_T for display file specific I/O feedback. A
+pointer to the I/O feedback is returned by _Riofbk (fp).
+</LI><LI>To run the program T1520FBK, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520FBK)
+</PRE>
+<P>
+<P>The output is as follows: 
+<PRE>
++--------------------------------------------------------------------------------+
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|        OUTPUT:   Hello                                                         |
+|                                                                                |
+|        INPUT:                                                                  |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
++--------------------------------------------------------------------------------+</PRE>
+<P>
+<P>The <TT>signal()</TT> function is called before an error to establish a
+signal handler. If an exception occurs during the acquire operation,
+the signal handler is called to write the major/minor return code to
+<TT>stdout</TT>. 
+<PRE>
++--------------------------------------------------------------------------------+
+|Acquire failed                                                                  |
+|Major code: 82 Minor code: AA                                                   |
++--------------------------------------------------------------------------------+</PRE>
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog365.htm">Previous Page</A> | <A HREF="cpprog367.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

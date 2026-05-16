@@ -1,0 +1,103 @@
+Examples of a select-statement
+
+IBM i programming resources > SQL > SQL reference > Queries > select-statement > select-statement
+
+IBM i programming resources > SQL > SQL reference > Queries > select-statement
+
+Examples of a select-statement
+You can use select-statement in many different ways.
+Example 1Select all columns and rows from
+the EMPLOYEE table.
+SELECT * FROM EMPLOYEE
+
+Example 2Select the project name (PROJNAME),
+start date (PRSTDATE), and end date (PRENDATE) from the PROJECT table.
+Order the result table by the end date with the most recent dates
+appearing first.
+SELECT PROJNAME, PRSTDATE, PRENDATE
+FROM PROJECT
+ORDER BY PRENDATE DESC
+
+Example 3Select the department number (WORKDEPT)
+and average departmental salary (SALARY) for all departments in the
+EMPLOYEE table. Arrange the result table in ascending order by average
+departmental salary.
+SELECT WORKDEPT, AVG(SALARY)
+FROM EMPLOYEE
+GROUP BY WORKDEPT
+ORDER BY AVGSAL
+
+Example 4Declare a cursor named UP_CUR,
+to be used in a C program, that updates the start date (PRSTDATE)
+and the end date (PRENDATE) columns in the PROJECT table. The program
+must receive both of these values together with the project number
+(PROJNO) value for each row. The declaration specifies that the access
+path for the query be optimized for the retrieval of a maximum of
+2 rows. Even so, the program can retrieve more than 2 rows from the
+result table. However, when more than 2 rows are retrieved, performance
+could possibly degrade.
+EXEC SQL DECLARE UP_CUR CURSOR FOR
+SELECT PROJNO, PRSTDATE, PRENDATE
+FROM PROJECT
+FOR UPDATE OF PRSTDATE, PRENDATE
+OPTIMIZE FOR 2 ROWS ;
+
+Example 5Select
+items from a table with an isolation level of Read Stability (RS).
+SELECT NAME, SALARY
+FROM PAYROLL
+WHERE DEPT = 704
+WITH RS
+
+Example 6This example names
+the expression SALARY+BONUS+COMM as TOTAL_PAY:
+SELECT SALARY+BONUS+COMM AS TOTAL_PAY
+FROM EMPLOYEE
+ORDER BY TOTAL_PAY
+
+Example 7Determine the employee number
+and salary of sales representatives along with the average salary
+and head count of their departments. Also, list the average salary
+of the department with the highest average salary.
+Using a common table expression for this case saves the
+overhead of creating the DINFO view as a regular view. Because of
+the context of the rest of the fullselect, only the rows for the department
+of the sales representatives need to be considered by the view.
+WITH
+DINFO (DEPTNO, AVGSALARY, EMPCOUNT) AS
+(SELECT OTHERS.WORKDEPT, AVG(OTHERS.SALARY), COUNT(*)
+FROM EMPLOYEE OTHERS
+GROUP BY OTHERS.WORKDEPT),
+DINFOMAX AS
+(SELECT MAX(AVGSALARY) AS AVGMAX
+FROM DINFO)
+SELECT THIS_EMP.EMPNO, THIS_EMP.SALARY, DINFO.AVGSALARY, DINFO.EMPCOUNT,
+DINFOMAX.AVGMAX
+FROM EMPLOYEE THIS_EMP, DINFO, DINFOMAX
+WHERE THIS_EMP.JOB = 'SALESREP'
+AND THIS_EMP.WORKDEPT = DINFO.DEPTNO
+
+Example 8Find the average charges for each
+subscriber (SNO) in the state of California during the last Friday
+of each month in the first quarter of 2000. Group the result according
+to SNO. Each MONTHnn table has columns for SNO, CHARGES, and DATE.
+The CUST table has columns for SNO and STATE. SELECT V.SNO, AVG( V.CHARGES)
+FROM CUST, LATERAL (
+SELECT SNO, CHARGES, DATE
+FROM MONTH1
+WHERE DATE BETWEEN '01/01/2000' AND '01/31/2000'
+UNION ALL
+SELECT SNO, CHARGES, DATE
+FROM MONTH2
+WHERE DATE BETWEEN '02/01/2000' AND '02/29/2000'
+UNION ALL
+SELECT SNO, CHARGES, DATE
+FROM MONTH3
+WHERE DATE BETWEEN '03/01/2000' AND '03/31/2000'
+) AS V (SNO, CHARGES, DATE)
+WHERE CUST.SNO=V.SNO
+AND CUST.STATE='CA'
+AND DATE IN ('01/28/2000','02/25/2000','03/31/2000')
+GROUP BY V.SNO
+
+Parent topic: select-statement

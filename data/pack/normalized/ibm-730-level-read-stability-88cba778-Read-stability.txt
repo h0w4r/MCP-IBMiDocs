@@ -1,0 +1,45 @@
+Read stability
+
+Read stabilityLast Updated: 2025-10-07
+
+Like level RR, level Read Stability (RS) ensures that:
+
+Any row read during a unit of work is not changed by other activation
+groups that use different commitment definitions until the unit of
+work is complete. 1
+
+Any row changed (or a row that is currently locked with an UPDATE
+row lock) by another activation group using a different commitment
+definition cannot be read until it is committed.
+
+Unlike RR, RS does not completely isolate the activation group
+from the effects of concurrent activation groups that use a different
+commitment definition. At level RS, activation groups that issue the
+same query more than once might see additional rows. These additional
+rows are called phantom rows.
+
+For example, a phantom row can occur in the following situation:
+
+Activation group P1 reads the set of rows n that satisfy
+some search condition.
+
+Activation group P2 then INSERTs one or more rows that satisfy
+the search condition and COMMITs those INSERTs.
+
+P1 reads the set of rows again with the same search condition
+and obtains both the original rows and the rows inserted by P2.
+
+In addition to any exclusive locks, an activation group running
+at level RS acquires at least share locks on all the rows it reads.
+
+In the SQL 2003 Core standard, Read Stability is called Repeatable
+Read.
+
+Db2® for
+i supports
+read stability through COMMIT(*ALL) or COMMIT(*RS).
+
+1 For WITH HOLD cursors,
+these rules apply to when the rows were actually read. For read-only WITH
+HOLD cursors, the rows may have actually been read in
+a prior unit of work.

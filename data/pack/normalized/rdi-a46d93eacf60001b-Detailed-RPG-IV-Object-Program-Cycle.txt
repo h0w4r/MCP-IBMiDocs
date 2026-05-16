@@ -1,0 +1,329 @@
+Detailed RPG IV Object Program Cycle
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > Procedures and the Program Logic Cycle > RPG Cycle and other implicit Logic > Program Cycle > Detailed RPG IV Program Cycle > Detailed RPG IV Program Cycle
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > Procedures and the Program Logic Cycle > RPG Cycle and other implicit Logic > Program Cycle > Detailed RPG IV Program Cycle
+
+Detailed RPG IV Object Program Cycle
+
+Figure 1 shows the specific steps in the detailed
+flow of the RPG IV program cycle. The item numbers in the following
+description refer to the numbers in the figure. Routines are flowcharted
+in Figure 2 and in Figure 1.
+
+1
+
+The RT indicator is set off. If *ENTRY PLIST is specified the
+parameters are resolved.
+
+2
+
+RPG IV checks for the first invocation of the program. If
+it is the first invocation, program initialization continues. If
+not, it moves the result field to factor 1 in the PARM statements
+in *ENTRY PLIST and branches to step 5.
+
+3
+
+The program is initialized at *INIT in the cycle. This process
+includes: performing data structure and subfield initialization,
+setting user date fields; opening global files; loading all data area
+data structures, arrays and tables; moving the result field to factor
+1 in the PARM statements in *ENTRY PLIST; running the initialization
+subroutine *INZSR; and storing the structures and variables for the
+RESET operation. Global files are opened in reverse order of their
+specification on the File Description Specifications.
+
+4
+
+Heading and detail lines (identified by an H or D in position
+17 of the output specifications) are written before the first record
+is read. Heading and detail lines are always processed at the same
+time. If conditioning indicators are specified, the proper indicator
+setting must be satisfied. If fetch overflow logic is specified and
+the overflow indicator is on, the appropriate overflow lines are written.
+File translation, if specified, is done for heading and detail lines
+and overflow output. This step is the return point in the program
+if factor 2 of an ENDSR operation contains the value *DETL.
+
+5
+
+The halt indicators (H1 through H9) are tested. If all the halt
+indicators are off, the program branches to step 8. Halt indicators
+can be set on anytime during the program. This step is the return
+point in the program if factor 2 of an ENDSR operation contains the
+value *GETIN.
+
+a.
+
+If any halt indicators are on, a message is issued to the user.
+
+b.
+
+If the response is to continue, the halt indicator is set off,
+and the program returns to step 5. If the response is to cancel,
+the program goes to step 6.
+
+6
+
+If the response is to cancel with a dump, the program goes to
+step 7; otherwise, the program branches to step 36.
+
+7
+
+The program issues a dump and branches to step 36 (abnormal
+ending).
+
+8
+
+All record identifying, 1P (first page), and control level (L1
+through L9) indicators are set off. All overflow indicators (OA through
+OG, OV) are set off unless they have been set on during preceding
+detail calculations or detail output. Any other indicators that are
+on remain on.
+
+9
+
+If the LR (last record) indicator is on, the program continues
+with step 10. If it is not on, the program branches to step 11.
+
+10
+
+The appropriate control level (L1 through L9) indicators are
+set on and the program branches to step 29.
+
+11
+
+If the RT indicator is on, the program continues with step 12;
+otherwise, the program branches to step 14.
+
+12
+
+Factor 2 is moved to the result field for the parameters of
+the *ENTRY PLIST.
+
+13
+
+If the RT indicator is on (return code set to 0), the program
+returns to the caller.
+
+14
+
+If a primary file is present in the program, the program continues
+with step 15; otherwise, the program branches to step 29.
+
+15
+
+During the first program cycle, the first record from the primary
+file and from each secondary file in the program is read. File translation
+is done on the input records. In other program cycles, a record is
+read from the last file processed. If this file is processed by a
+record address file, the data in the record address file defines the
+record to be retrieved. If lookahead fields are specified in the
+last record processed, the record may already be in storage; therefore,
+no read may be done at this time.
+
+16
+
+If end of file has occurred on the file just read, the program
+branches to step 20. Otherwise, the program continues with step 17.
+
+17
+
+If a record has been read from the file, the record type and
+record sequence (positions 17 through 20 of the input specifications)
+are determined.
+
+18
+
+It is determined whether the record type is defined in the program,
+and if the record sequence is correct. If the record type is undefined
+or the record sequence is incorrect, the program continues with step
+19; otherwise, the program branches to step 20.
+
+19
+
+The RPG IV exception/error handling routine receives control.
+
+20
+
+It is determined whether a FORCE operation was processed on
+the previous cycle. If a FORCE operation was processed, the program
+selects that file for processing (step 21) and branches around the
+processing for match fields (steps 22 and 23). The branch is processed
+because all records processed with a FORCE operation are processed
+with the matching record (MR) indicator off.
+
+21
+
+If FORCE was issued on the previous cycle, the program selects
+the forced file for processing after saving any match fields from
+the file just read. If the file forced is at end of file, normal
+primary/secondary multifile logic selects the next record for processing
+and the program branches to step 24.
+
+22
+
+If match fields are specified, the program continues with step
+23; otherwise, the program branches to step 24.
+
+23
+
+The match fields routine receives control. (For detailed information
+on the match fields routine, see Match Fields Routine.)
+
+24
+
+The LR (last record) indicator is set on when all records are
+processed from the files that have an E specified in position 19 of
+the file description specifications and all matching secondary records
+have been processed. If the LR indicator is not set on, processing
+continues with step 26.
+
+25
+
+The LR (last record) indicator is set on and all control level
+(L1 through L9) indicators, and processing continues with step 29.
+
+26
+
+The record identifying indicator is set on for the record selected
+for processing.
+
+27
+
+It is determined whether the record selected for processing
+caused a control break. A control break occurs when the value in
+the control fields of the record being processed differs from the
+value of the control fields of the last record processed. If a control
+break has not occurred, the program branches to step 29.
+
+28
+
+When a control break occurs, the appropriate control level indicator
+(L1 through L9) is set on. All lower level control indicators are
+set on. The program saves the contents of the control fields for the
+next comparison.
+
+29
+
+It is determined whether the total-time calculations and total-time
+output should be done. Totals are always processed when the LR indicator
+is on. If no control level is specified on the input specifications,
+totals are bypassed on the first cycle and after the first cycle,
+totals are processed on every cycle. If control levels are specified
+on the input specifications, totals are bypassed until after the first
+record containing control fields has been processed.
+
+30
+
+All total calculations conditioned by a control level entry
+(positions 7 and 8 of the calculation specifications). are processed.
+This step is the return point in the program if factor 2 of an ENDSR
+operation contains the value *TOTC.
+
+31
+
+All total output is processed. If fetch overflow logic is specified
+and the overflow indicator (OA through OG, OV) associated with the
+file is on, the overflow lines are written. File translation, if
+specified, is done for all total output and overflow lines. This
+step is the return point in the program if factor 2 of an ENDSR operation
+contains the value *TOTL.
+
+32
+
+If LR is on, the program continues with step 33; otherwise,
+the program branches to step 41.
+
+33
+
+The halt indicators (H1 through H9) are tested. If any halt
+indicators are on, the program branches to step 36 (abnormal ending).
+If the halt indicators are off, the program continues with step 34.
+If the RETURN operation code is used in calculations, the program
+branches to step 33 after processing of that operation.
+
+34
+
+If LR is on, the program continues with step 35. If it is not
+on, the program branches to step 38.
+
+35
+
+RPG IV program writes all arrays or tables for which the TOFILE
+keyword has been specified on the definition specification and writes
+all locked data area data structures. Output arrays and tables are
+translated, if necessary.
+
+36
+
+All open global files are closed. The RPG IV program also
+unlocks all data areas that have been locked but not unlocked by the
+program. If factor 2 of an ENDSR operation contains the value *CANCL,
+this step is the return point.
+
+37
+
+The halt indicators (H1 through H9) are tested. If any halt
+indicators are on, the program branches to step 39 (abnormal ending).
+If the halt indicators are off, the program continues with step 38.
+
+38
+
+The factor 2 fields are moved to the result fields on the PARMs
+of the *ENTRY PLIST.
+
+39
+
+The return code is set. 1 = LR on, 2 = error, 3 = halt.
+
+40
+
+Control is returned to the caller.
+
+Note: Steps 32 through 40 constitute the normal ending
+routine. For an abnormal ending, steps 34 through 35 are bypassed.
+
+41
+
+It is determined whether any overflow indicators (OA through
+OG OV) are on. If an overflow indicator is on, the program continues
+with step 42; otherwise, the program branches to step 43.
+
+42
+
+The overflow routine receives control. (For detailed information
+on the overflow routine, see Overflow Routine.) This step is
+the return point in the program if factor 2 of an ENDSR operation
+contains the value *OFL.
+
+43
+
+The MR indicator is set on and remains on for the complete cycle
+that processes the matching record if this is a multifile program
+and if the record to be processed is a matching record. Otherwise,
+the MR indicator is set off.
+
+44
+
+Data from the last record read is made available for processing.
+Field indicators are set on, if specified.
+
+45
+
+If lookahead fields are specified, the program continues with
+step 46; otherwise, the program branches to step 47.
+
+46
+
+The lookahead routine receives control. (For detailed information
+on the lookahead routine, see Lookahead Routine.)
+
+47
+
+Detail calculations are processed. This step is the return
+point in the program if factor 2 of an ENDSR operation contains the
+value *DETC. The program branches to step 4.
+
+Parent topic: Detailed RPG IV Program Cycle

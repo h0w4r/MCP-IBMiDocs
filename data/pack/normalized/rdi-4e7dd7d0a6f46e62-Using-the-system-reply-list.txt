@@ -1,0 +1,307 @@
+Using the system reply list
+
+IBM i programming resources > Control language > Control language > Messages > Ways of handling replies to inquiry messages > Ways of handling replies to inquiry messages
+
+IBM i programming resources > Control language > Control language > Messages > Ways of handling replies to inquiry messages
+
+Using the system reply list
+By using the system reply list, you can specify that the system
+automatically issues the reply to specified predefined inquiry messages.
+Only inquiry messages can be automatically responded to with
+the system reply list.
+The system reply list contains message identifiers,
+optional compare data that must match the message data in the inquiry message,
+a reply value for each message, and a dump attribute that effectively does
+DSPJOB OUTPUT(*PRINT). The system reply list applies only to predefined inquiry
+messages that are sent by a job that uses the system reply list. You specify
+that a job is to use the system reply list for inquiry messages on the INQMSGRPY(*SYSRPYL)
+parameter on the following commands:
+Batch Job (BCHJOB)
+Submit Job (SBMJOB)
+Change Job (CHGJOB)
+Create Job Description (CRTJOBD)
+Change Job Description (CHGJOBD)
+
+When a predefined inquiry message is sent by a job that uses the system
+reply list, the system searches the reply list in ascending sequence number
+order for an entry that matches the message identifier and, optionally, the
+compare data of the inquiry message. If an entry is found, the reply specified
+is issued and the user is not required to enter a reply. If an entry is not
+found, the message is sent to the display station user for interactive jobs
+or system operator for batch jobs.
+The system reply list is shipped
+with the system with the following initial entries defined.
+Sequence number
+Message identifier
+Compare value
+Reply
+Dump
+
+10
+CPA0700
+*NONE
+D
+*YES
+
+20
+RPG0000
+*NONE
+D
+*YES
+
+30
+CBE0000
+*NONE
+D
+*YES
+
+40
+PLI0000
+*NONE
+D
+*YES
+
+These entries indicate that a reply of D is to be sent and a job
+dump is to be taken if the message CPA0700-CPA0799, RPG0000-RPG9999, CBE0000-CBE9999,
+or PLI0000-PLI9999 (which indicate a program failure) is sent by a job using
+the system reply list. For the system to use these entries, you must specify
+that the jobs are to use the system reply list by setting the inquiry message
+reply job attribute to *SYSRPYL.
+To add other inquiry messages to the
+system reply list, use the Add Reply List Entry (ADDRPYLE) command.
+On this command you can specify the sequence number, the message identifier,
+optional compare data, compare data CCSID, reply action, and the dump attribute.
+The ADDRPYLE command function can be easily accessed by using the Work
+with System Reply List Entries (WRKRPYLE) command.
+The following
+reply actions can be specified for the inquiry messages that are placed on
+the system reply list (the parameter value is given in parentheses):
+Send the default reply for the inquiry messages (*DFT). In this case,
+the default reply for the message is sent. If the message ID does not identify
+a default reply value the *N is sent as the reply.The message is not displayed,
+and no default handling program is called.
+Require the workstation user or system operator to respond to the message
+(*RQD). If the message queue to which the message is sent (workstation message
+queue for interactive jobs and QSYSOPR for batch jobs) is in break mode, the
+message is displayed, and the workstation user must respond to the message.
+This option operates as if the system reply list were not being used.
+Send the reply specified in the system reply list entry (message reply,
+32 characters maximum). In this case, the specified reply is sent as the
+response to the message. The message is not displayed, and no default handling
+program is called.
+
+The following commands add entries to the system reply list for messages
+RPG1241, RPG1200, CPA4002, CPA5316, and any other inquiry messages:
+ADDRPYLE SEQNBR(15) MSGID(RPG1241) RPY(C)
+ADDRPYLE SEQNBR(18) MSGID(RPG1200) RPY(*DFT) DUMP(*YES)
+ADDRPYLE SEQNBR(22) MSGID(CPA4002) RPY(*RQD) + CMPDTA('QSYSPRT')
+ADDRPYLE SEQNBR(25) MSGID(CPA4002) RPY(G)
+ADDRPYLE SEQNBR(27) MSGID(CPA5316) RPY(I) DUMP(*NO) +
+CMPDTA('QSYSPRT' 21)
+ADDRPYLE SEQNBR(9999) MSGID(*ANY) RPY(*DFT)
+
+The system reply list now appears as follows.
+Sequence number
+Message identifier
+Compare value (b is a blank)
+Compare start position
+Reply
+Dump
+
+10
+CPA0700
+ 
+1
+D
+*YES
+
+15
+RPG1241
+ 
+1
+C
+*NO
+
+18
+RPG1200
+ 
+1
+*DFT
+*YES
+
+20
+RPG0000
+ 
+1
+D
+*YES
+
+22
+CPA4002
+'QSYSPRT'
+1
+*RQD
+*NO
+
+25
+CPA4002
+ 
+1
+G
+*NO
+
+27
+CPA5316
+'QSYSPRT'
+21
+I
+*NO
+
+30
+CBE0000
+ 
+1
+D
+*YES
+
+40
+PLI0000
+ 
+1
+D
+*YES
+
+9999
+*ANY
+ 
+1
+*DFT
+*NO
+
+For a job that uses this system reply list, the following occurs
+when the messages that were added to the reply list are sent by the job:
+For sequence number 15, whenever an RPG1241 message is sent by a job that
+uses the system reply list, a reply of C is sent and the job is not dumped.
+For sequence number 18, a generic message identifier is used so whenever
+an RPG1200 inquiry message is sent by the job, the default reply is sent.
+The default reply can be the default reply specified in the message description
+or the system default reply. Before the default reply is sent, the job is
+dumped. The previous entry (sequence number 15) that was added overrides
+this entry for message RPG1241, so RPG1241 takes the action for sequence number
+15, not 18.
+For sequence number 22, if the inquiry message CPA4002 is sent with the
+compare data of QSYSPRT, the message is sent to the display station user,
+and the user must issue the reply. When a compare value is specified without
+a start position, the compare value is compared to the message data beginning
+in position 1 of the substitution data in the message.
+Sequence number
+22 tests for a printer device name of QSYSPRT. For an example of testing
+one substitution variable with a different start position, see sequence number
+27.
+
+For sequence number 25, if the inquiry message CPA4002 (verify alignment
+on printer &1) is sent with the compare not equal to QSYSPRT, a reply
+of G is sent. The job is not dumped. Sequence number 22 requires an operator
+response to the forms alignment message if the printer device is QSYSPRT.
+Sequence number 25 defines that if the forms alignment inquiry message occurs
+for any other device, to assume a default response of G=Go.
+For sequence number 27, if the inquiry message CPA5316 is sent with the
+compare data of TESTEDFILETSTLIBRARYQSYSPRT, a reply of I is
+sent. When a compare value and a start position are specified, the compare
+value is compared with the message data of the inquiry message beginning with
+the start position. In this case, position 21 is the beginning of the third
+substitution variable. For message CPA5316, the first four substitution variables
+are as follows.
+&1
+ODP file name
+*CHAR
+10
+
+&2
+ODP library name
+*CHAR
+10
+
+&3
+ODP device name
+*CHAR
+10
+
+&4
+Line number for first line
+*BIN
+2
+
+Therefore, sequence number 27 tests for an ODP device name of QSYSPRT
+before sending a reply.
+
+For sequence number 9999, the message identifier of *ANY
+applies to any predefined inquiry message that is not matched by an entry
+with a lower sequence number, and the default reply for these inquiry messages
+is sent. If this entry were not included in the system reply list, the display
+station user would have to respond to all predefined inquiry messages that
+were not included in the system reply list.
+
+When the compare value contains *CCHAR data, the message data that
+is from the sending function is converted to the CCSID of the message data
+that is stored in the system reply list before the compare is made. The system
+converts data that is of type *CCHAR only.
+CAUTION:The following
+restrictions apply when using *CCHAR data as compare data:
+
+You cannot mix *CCHAR data with other data when adding this type of reply
+list entry.
+You cannot include the length of the *CCHAR data in the compare data.
+
+If you mix *CCHAR data or include the length of the *CCHAR data, unpredictable
+results may occur.
+
+An entry remains on the system reply list
+until you use the Remove Reply List Entry (RMVRPYLE) command
+to remove it. You can use the Change Reply List Entry (CHGRPYLE) command
+to change the attributes of a reply list entry, and you can use the Work
+with System Reply List Entry (WRKRPYLE) command to display the reply
+entries currently in the reply list.
+The job log receives a completion
+message indicating a successful change when the system reply list is updated
+using ADDRPYLE, CHGRPYLE, or RMVRPYLE. The history log QHST also receives
+a completion message to record the change.
+If messages are added to
+the system reply list, it is helpful to have a CL program created to add the
+entries. For example, if the reply list is damaged and gets cleared after
+an IPL, the CL program can be called to re-add the entries, rather than having
+users re-add entries manually.
+If a program has not
+been created to update system reply list entries, there are some alternatives
+to re-establish the system reply list after it has been lost:After changes have been made to the system replay list, use the Retrieve
+System Information (RTVSYSINF) command to save data to a library.
+Note that this also saves other system information in addition to the system
+reply list. Then later, when the system reply list needs to be updated, the Update
+System Information (UPDSYSINF) command can be used. The
+UPDSYSINF command uses the data that was saved with the RTVSYSINF command.
+Another alternative is to restore the system reply list from a backup.
+This assumes that a save operation of the system has been done and all the
+necessary entries were added to the system reply list before the save operation.
+A slip installation of the base operating system needs to be done with the
+following steps:With the key in MANUAL mode, do an IPL.
+On the DST IPL/install screen, select option 2 to install.
+On the Install Operating System screen (that is the time/date screen),
+select option 2 to change install options.
+On the Specify Install Options screen, select option 1 to restore program
+and language options from media.
+On the Specify Restore Options screen, select option 1 to restore for
+MESSAGE REPLY LIST. It is about the third item on the screen.Note: Usually,
+the default value of this screen is 2 or 3 to indicate not to restore the
+item.
+
+Continue the installation and the command entry display should be shown.
+Take the key out of manual mode.
+
+Parent topic: Ways of handling replies to inquiry messages
+
+Related tasks
+Placing a message queue in break mode automatically
+Break-handling programs
+
+Related information
+Add Message Description (ADDMSG) command

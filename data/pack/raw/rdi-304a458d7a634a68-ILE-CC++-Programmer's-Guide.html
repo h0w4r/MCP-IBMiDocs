@@ -1,0 +1,454 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Using ILE Condition Handlers</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="condition handlers, Integrated Language Environment (ILE), registering, condition handling, Register ILE Condition Handler (CEEHDLR) bindable API, exception handling mechanism, description, lecond.h, header files, Unregister ILE Condition Handler (CEEHDLU) bindable API, ILE condition handlers, service programs, to promote an exception">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog423.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog406.htm">Chapter 21&#46; Handling Exceptions in a Program</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog420.htm">Using ILE Exception Handlers</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRHUSILECONDHANDL" HREF="cpprog02.htm#ToC_527">Using ILE Condition Handlers</A></H3>
+<P><VAR>ILE condition handlers</VAR> allow you to register one or more condition
+handlers at run time. To register an ILE condition handler, use the
+Register ILE Condition Handler (CEEHDLR) bindable API. Include the
+<TT>&lt;lecond.h></TT> header file in your source code when using
+these APIs. ILE condition handlers may be unregistered by calling the
+Unregister ILE Condition Handler (CEEHDLU) bindable API.
+<P>Condition handlers are exception handlers that are registered at run time
+by using the Register ILE Condition Handler (CEEHDLR) bindable API.
+They are used to handle, percolate or promote exceptions. The
+exceptions are presented to the condition handlers in the form of an ILE
+condition.
+<P><H4><A NAME="Header_528">When to Use an ILE Condition Handler</A></H4>
+<P>
+If you want to have a consistent mechanism of condition handling across
+several ILE languages (or for scoping exception handling to a call stack
+entry), use the ILE bindable API CEEHDLR. Unlike the signal handler
+,which is scoped to the activation group, CEEHDLR is scoped to the function
+that calls it.
+<P>The ILE condition handler uses ILE conditions to allow greater cross-system
+consistency. An ILE condition is a system-independent representation of
+an error condition in an HLL.
+<P><H4><A NAME="Header_529">Example of ILE Source that Uses Condition Handlers</A></H4>
+<P>The following example shows the source for a program MYPGM: 
+<P><B><A NAME="Figure_174" HREF="cpprog09.htm#FT_Figure_174">Figure 174. T1520XH5 -- ILE C Source to Use ILE Condition Handlers -- main()</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+#include &lt;lecond.h&gt;
+<BR>#include &lt;stdio.h&gt;
+<BR>void my_handler(_FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new );
+<BR>void main_handler(_FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new );
+<BR>void fred(void)
+<BR>{
+<BR>   _HDLR_ENTRY hdlr=my_handler;
+<BR>   char *p = NULL;
+<BR>   CEEHDLR(&amp;hdlr, NULL,NULL);
+<BR>   *p = 'x';     /* exception */
+<BR>   CEEHDLU(&amp;hdlr,NULL);
+<BR>}
+<BR>int main(void)
+<BR>{
+<BR>   _HDLR_ENTRY hdlr=main_handler;
+<BR>   CEEHDLR(&amp;hdlr,NULL,NULL);
+<BR>   fred();
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>In the example MYPGM:
+<UL>
+<LI>The procedure <TT>main()</TT> registers the condition <TT>handler
+main_handler</TT>.
+</LI><LI>The procedure <TT>main()</TT> calls the function <TT>fred()</TT> which
+registers the condition handler <TT>my_handler</TT>.
+</LI><LI>Function <TT>fred()</TT> gets an exception causing
+<TT>my_handler</TT> to get control, followed by
+<TT>main_handler</TT>.
+</LI></UL>
+<P>The <TT>main()</TT> function is a control boundary. The exception
+is considered unhandled, so a function check is sent to function
+<TT>fred()</TT>. Handlers <TT>my_handler</TT> and
+<TT>main_handler</TT> are called again, this time for the function
+check. Neither of them handle the function check, so the program ends
+abnormally and a CEE9901 message is sent to the caller of the
+<TT>main()</TT> function.
+<P><H4><A NAME="Header_530">Example of a Service Program that Provides ILE Condition Handlers</A></H4>
+<P>
+The following example shows the source for the service program HANDLERS:
+<P>
+<P><B><A NAME="Figure_175" HREF="cpprog09.htm#FT_Figure_175">Figure 175. T1520XH6 -- ILE C Source to Use ILE Condition Handlers -- Service Program</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+#include &lt;signal.h&gt;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;lecond.h&gt;
+<BR>/* HANDLERS *SRVPGM (*CALLER) */
+<BR>void my_handler(_FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new)
+<BR>{
+<BR> return;
+<BR>}
+<BR>void main_handler(_FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new)
+<BR>{
+<BR> printf("In main_handler\n");
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><H4><A NAME="Header_531">Examples of Handling an Exception</A></H4>
+<P>The following example shows how to use a condition handler to handle an
+exception. In the example:
+<UL>
+<LI>ILE condition handler <TT>cond_hdlr</TT> is registered in the
+<TT>main()</TT> function using CEEHDLR.
+</LI><LI>An MCH1211 (divide-by-zero) exception then occurs. Handler
+<TT>cond_hdlr</TT> is called and it indicates that the exception should
+be handled.
+</LI><LI>Control then resumes in the <TT>main()</TT> function.
+</LI></UL>
+<P>The following steps create and run the source in <A HREF="#FIGFIGT1520IC6">Figure 176</A>.
+<OL TYPE=1>
+<LI>To create the program T1520IC6, enter:
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520IC6) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+</LI><LI>To run the program T1520IC6, enter:
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520IC6)
+</PRE>
+<P>The output is: 
+<P>
+<PRE>
++--------------------------------------------------------------------------------+
+|  condition was raised: Facility_ID = MCH, MsgNo = 0x1211                       |
+|  The condition was handled.                                                    |
+|  Press ENTER to end terminal session.                                          |
++--------------------------------------------------------------------------------+</PRE>
+</LI></OL>
+<P>
+<P><B><A NAME="FIGFIGT1520IC6" HREF="cpprog09.htm#FT_FIGFIGT1520IC6">Figure 176. T1520IC6 -- ILE C Source to Use ILE Condition Handlers</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program uses the ILE bindable API CEEHDLR to handle a         */
+<BR>/* condition.                                                         */
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;leawi.h&gt;
+<BR>/* A condition handler registered by a call to CEEHDLR in main().     */
+<BR>void cond_hdlr( _FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new )
+<BR>{
+<BR>  *rc = CEE_HDLR_RESUME;  /* handle the condition */
+<BR>  printf("condition was raised: Facility_ID = %.3s, MsgNo = 0x%4.4x\n",
+<BR>         cond-&gt;Facility_ID, cond-&gt;MsgNo);
+<BR>}
+<BR>int main(void)
+<BR>{
+<BR>  _HDLR_ENTRY hdlr = cond_hdlr;
+<BR>  _FEEDBACK fc;
+<BR>  int x,y;
+<BR>  int zero = 0;
+<BR>/* Register the condition handler.                                    */
+<BR>  CEEHDLR(&amp;hdlr, NULL, &amp;fc);
+<BR>  if (fc.MsgNo != CEE0000)
+<BR>  {
+<BR>    printf("Failed to register the condition handler\n");
+<BR>    exit(88);
+<BR>  }
+<BR>/* Cause a divide by zero condition.                                  */
+<BR>  x = y / zero;
+<BR>/* The code resumes here after the condition has been handled.        */
+<BR>  printf("The condition was handled.\n");
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><H4><A NAME="Header_532">Example of Handling a Divide-By-Zero Exception</A></H4>
+<P>In this example: 
+<UL>
+<LI>The bindable API CEEHDLR registers the <TT>main_hdlr</TT> in function
+<TT>main()</TT>.
+</LI><LI>The bindable API CEEHDLR registers the <TT>fred_hdlr</TT> in function
+<TT>fred()</TT>.
+</LI><LI>An MCH1211 (divide-by-zero) exception occurs.
+</LI><LI>Handler <TT>fred_hdlr</TT> is called to test if the exception is an
+MCH1211.
+</LI><LI>The result code in the condition handler is set to percolate to the next
+condition handler.
+</LI><LI>Handler <TT>fred_hdlr</TT> returns without handling the exception,
+causing <TT>main_hdlr</TT> to be called.
+</LI><LI>The user-supplied token is updated to the value '1' and the
+result code is set to handle the exception.
+</LI><LI>Handler <TT>main_hdlr</TT> returns, and the exception is
+handled.
+</LI><LI>Control resumes in <TT>fred()</TT> following the statement that caused
+the divide-by-zero.
+</LI></UL>
+<P>This example uses the source shown in <A HREF="#FIGFIGT1520IC7">Figure 177</A>.
+<OL TYPE=1>
+<LI>To create the program T1520IC7, enter:
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520IC7) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+</LI><LI>To run the program T1520IC7, enter:
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520IC7)
+</PRE>
+<P>The output is: 
+<P>
+<PRE>
++--------------------------------------------------------------------------------+
+|in fred_hdlr, percolate exception.                                              |
+|in main hdlr: Facility_ID = MCH, MsgNo = 0x1211                                 |
+|Resume here because resume cursor not moved and main_hdlr handled the exception.|
+|A condition was percolated from fred() to main() and was then handled.          |
+|Press ENTER to end terminal session.                                            |
++--------------------------------------------------------------------------------+</PRE>
+</LI></OL>
+<P>
+<P><B><A NAME="FIGFIGT1520IC7" HREF="cpprog09.htm#FT_FIGFIGT1520IC7">Figure 177. T1520IC7 -- ILE C Source to Percolate a Message to Handle a Condition</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program uses the ILE bindable API CEEHDLR to enable handlers  */
+<BR>/* that percolate and handle a condition.                             */
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;string.h&gt;
+<BR>#include &lt;leawi.h&gt;
+<BR>/* A condition handler registered by a call to CEEHDLR in fred().     */
+<BR>void fred_hdlr( _FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new )
+<BR>{
+<BR>  if (!memcmp(cond-&gt;Facility_ID, "MCH", 3) &amp;&amp; cond-&gt;MsgNo == 0x1211)
+<BR>  {
+<BR>    *rc = CEE_HDLR_PERC;  /* ... let it percolate to main ...         */
+<BR>    printf("in fred_hdlr, percolate exception.\n");
+<BR>  }
+<BR>  else
+<BR>  {
+<BR>    *rc = CEE_HDLR_RESUME;  /* ... otherwise handle it.               */
+<BR>    printf("in fred_hdlr, handle exception.\n");
+<BR>  }
+<BR>}
+<BR>/* A condition handler registered by a call to CEEHDLR in main().     */
+<BR>void main_hdlr( _FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new )
+<BR>{
+<BR>  printf("in main hdlr: Facility_ID = %.3s, MsgNo = 0x%4.4x\n",
+<BR>         cond-&gt;Facility_ID, cond-&gt;MsgNo);
+<BR>  **(_INT4 **)token = 1;   /* Update the user's token.                */
+<BR>  *rc = CEE_HDLR_RESUME;    /* Handle the condition                   */
+<BR>}
+<BR>int fred(void)
+<BR>{
+<BR>  _HDLR_ENTRY hdlr = fred_hdlr;
+<BR>  _FEEDBACK fc;
+<BR>  int x,y, zero = 0;
+<BR>/* Register the handler without a token.                              */
+<BR>  CEEHDLR(&amp;hdlr, NULL, &amp;fc);
+<BR>  if (fc.MsgNo != CEE0000)
+<BR>  {
+<BR>    printf("Failed to register the condition handler\n");
+<BR>    exit(88);
+<BR>  }
+<BR>/* Cause a divide by zero condition.                                  */
+<BR>    x = y / zero;
+<BR>    printf("Resume here because resume cursor not moved and main_hdlr"
+<BR>           " handled the exception\n");
+<BR>}
+<BR>
+<BR>int main(void)
+<BR>{
+<BR>  _HDLR_ENTRY hdlr = main_hdlr;
+<BR>  _FEEDBACK fc;
+<BR>  volatile _INT4 token=0, *tokenp = &amp;token;
+<BR>/* Register the handler with a token of type _INT4.                   */
+<BR>  CEEHDLR(&amp;hdlr, (_POINTER *)&amp;tokenp, &amp;fc);
+<BR>
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+  if (fc.MsgNo != CEE0000)
+<BR>  {
+<BR>    printf("Failed to register the condition handler\n");
+<BR>    exit(99);
+<BR>  }
+<BR>  fred();
+<BR>/* See if the condition handler for main() updated the token.         */
+<BR>  if (*tokenp == 1)
+<BR>    printf("A condition was percolated from fred() to main() and"
+<BR>           " was then handled.\n");
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><H4><A NAME="Header_533">Example of Promoting an Exception</A></H4>
+<P>
+In the following example:
+<UL>
+<LI>In <TT>main()</TT>, the bindable API CEEHDLR registers the
+<TT>main_hdlr</TT>.
+</LI><LI>In <TT>fred()</TT>, the bindable API CEEHDLR registers the
+<TT>fred_hdlr</TT>.
+</LI><LI>An MCH1211 (divide-by-zero) exception occurs and the handler
+<TT>fred_hdlr</TT> is called.
+</LI><LI>The handler fred_hdlr moves the resume cursor to the resume point in
+the <TT>main()</TT> function using the bindable API CEEMRCR.
+</LI><LI>The handler <TT>fred_hdlr</TT> builds a condition token for CEE9902,
+and the result code is set to promote.
+</LI><LI>The handler <TT>fred_hdlr</TT> returns, and the original MCH1211 is
+promoted to a CEE9902.
+</LI><LI>The handler <TT>main_hdlr</TT> is called because of the CEE9902
+exception and the result code is set to handle the condition.
+</LI><LI>The handler <TT>main_hdlr</TT> returns, and the CEE9902 is
+handled.
+</LI><LI>Control resumes in the statement following the call to <TT>fred()</TT>
+in <TT>main()</TT>
+</LI></UL>
+<P>The source code in program T1520IC8 is shown in <A HREF="#FIGFIGT1520IC8">Figure 178</A>.
+<OL TYPE=1>
+<LI>To create the program T1520IC8, , enter:
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520IC8) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+</LI><LI>To run the program T1520IC8, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520IC8)
+</PRE>
+<P>The output is status information messages:
+<P>
+<PRE>
++--------------------------------------------------------------------------------+
+|in fred_hdlr: moving resumes. Facility_ID = MCH, MsgNo = 0x1211                 |
+|promoting condition....                                                         |
+|A condition was promoted from MCH1211 to CEE9902 by fred() and was handled by   |
+| the condition handler enabled in main().                                       |
+|Press ENTER to end terminal session.                                            |
++--------------------------------------------------------------------------------+</PRE>
+</LI></OL>
+<P>
+<P><B><A NAME="FIGFIGT1520IC8" HREF="cpprog09.htm#FT_FIGFIGT1520IC8">Figure 178. T1520IC8 -- ILE C Source to Promote a Message to Handle a Condition</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program uses the ILE bindable API CEEHDLR to promote a         */
+<BR>/* divide by zero condition to a CEE9902.                              */
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;string.h&gt;
+<BR>#include &lt;leawi.h&gt;
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* A condition handler registered by a call to CEEHDLR in fred().      */
+<BR>void fred_hdlr( _FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new )
+<BR>{
+<BR>  _INT4 type=1;
+<BR>  CEEMRCR(&amp;type,NULL); /* Move the resume cursor to the resume point  */
+<BR>                        /* in main().                                  */
+<BR>  /* If its a divide by zero error ...                                 */
+<BR>  printf("in fred_hdlr: moving resumes. ");
+<BR>  printf("Facility_ID = %.3s, MsgNo = 0x%4.4x\n",
+<BR>         cond-&gt;Facility_ID, cond-&gt;MsgNo);
+<BR>  if (!memcmp(cond-&gt;Facility_ID, "MCH", 3) &amp;&amp; cond-&gt;MsgNo == 0x1211)
+<BR>  {
+<BR>    *rc = CEE_HDLR_PROM; /*... Promote the condition to unexpected error.*/
+<BR>    *new = *cond;
+<BR>    memcpy(new-&gt;Facility_ID, "CEE", 3);
+<BR>    new-&gt;MsgNo = 9902;
+<BR>    printf("promoting condition....\n");
+<BR>  }
+<BR>  else
+<BR>  {
+<BR>    *rc = CEE_HDLR_PERC; /*...Otherwise,Percolate to the next handler. */
+<BR>    printf("percolating condition....\n");
+<BR>  }
+<BR>}
+<BR>/* A condition handler registered by a call to CEEHDLR in main().      */
+<BR>void main_hdlr( _FEEDBACK *cond, _POINTER *token, _INT4 *rc, _FEEDBACK *new )
+<BR>{
+<BR>  if (!memcmp(cond-&gt;Facility_ID,"CEE",3) &amp;&amp; cond-&gt;MsgNo == 9902;)
+<BR>    **(_INT4 **)token = 1;   /* Got the promoted CEE9902.              */
+<BR>  else
+<BR>    **(_INT4 **)token = 2;   /* It is not a CEE9902.                   */
+<BR>  *rc = CEE_HDLR_RESUME;                  /* Handle the condition.     */
+<BR>}
+<BR>int fred(void)
+<BR>{
+<BR>  _HDLR_ENTRY hdlr = fred_hdlr;
+<BR>  _FEEDBACK fc;
+<BR>  int x,y, zero = 0;
+<BR>/* Register the handler without a token.                               */
+<BR>  CEEHDLR(&amp;hdlr, NULL, &amp;fc);
+<BR>  if (fc.MsgNo != CEE0000)
+<BR>  {
+<BR>    printf("Failed to register the condition handler\n");
+<BR>    exit(88);
+<BR>  }
+<BR>
+<BR>/* Cause a divide by zero condition.                                   */
+<BR>  x = y / zero;
+<BR>/* This is not the resume point because of the call to CEEMRCR in      */
+<BR>/* fred_hdlr.                                                          */
+<BR>  {
+<BR>    printf("This is not the resume point: should not get here\n");
+<BR>  }
+<BR>}
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+int main(void)
+<BR>{
+<BR>  _HDLR_ENTRY hdlr = main_hdlr;
+<BR>  _FEEDBACK fc;
+<BR>  volatile _INT4 token=0, *tokenp = &amp;token;
+<BR>/* Register the handler with a token of type _INT4.                    */
+<BR>  CEEHDLR(&amp;hdlr, (_POINTER *)&amp;tokenp, &amp;fc);
+<BR>  if (fc.MsgNo != CEE0000)
+<BR>  {
+<BR>    printf("Failed to register the condition handler\n");
+<BR>    exit(99);
+<BR>  }
+<BR>  fred();
+<BR>/* See if the condition handler for main() received the promoted       */
+<BR>/* condition.                                                          */
+<BR>  if (*tokenp == 1)
+<BR>    printf("A condition was promoted from MCH1211 to CEE9902 by "
+<BR>           "fred() and was handled by the condition handler enabled "
+<BR>           "in main().\n");
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog422.htm">Previous Page</A> | <A HREF="cpprog424.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

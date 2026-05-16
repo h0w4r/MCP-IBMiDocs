@@ -1,0 +1,349 @@
+CREATE FUNCTION
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+CREATE FUNCTION
+The CREATE FUNCTION statement defines a user-defined function
+at the current server.
+The following types of functions can be defined:
+External Scalar The function is written in a
+programming language such as C or Java™ and
+returns a scalar value. The external program is referenced by a function
+defined at the current server along with various attributes of the
+function. See CREATE FUNCTION (external scalar).
+
+External Table The function is written in a programming
+language such as C or Java and
+returns a set of rows. The external program is referenced by a function
+defined at the current server along with various attributes of the
+function. See CREATE FUNCTION (external table).
+
+Sourced The function is implemented by invoking another
+function (built-in, external, sourced, or SQL) that already exists
+at the current server. A sourced function can return a scalar result,
+or the result of an aggregate function. See CREATE FUNCTION (sourced).
+The function inherits attributes of the underlying source function.
+
+SQL Scalar The function is written exclusively
+in SQL and returns a scalar value. The function body is defined at
+the current server along with various attributes of the function.
+See CREATE FUNCTION (SQL scalar).
+
+SQL Table The function is written exclusively
+in SQL and returns a set of rows. The function body is defined at
+the current server along with various attributes of the function.
+See CREATE FUNCTION (SQL table).
+
+NotesChoosing the
+schema and function name: If a qualified function name is specified,
+the schema-name cannot be one of the system
+schemas (see Schemas). If function-name is
+not qualified, it is implicitly qualified with the default schema
+name.
+The unqualified function name must not be one of the following
+names reserved for system use even if they are specified as delimited
+identifiers:
+=
+<
+>
+>=
+
+<=
+<>
+¬=
+¬<
+
+¬<
+!=
+!<
+!>
+
+ALL
+FALSE
+PERCENTILE_DISC
+XMLAGG
+
+AND
+FOR
+POSITION
+XMLATTRIBUTES
+
+ANY
+FROM
+RID
+XMLCOMMENT
+
+ARRAY_AGG
+HASHED_VALUE
+RRN
+XMLCONCAT
+
+BETWEEN
+IN
+SELECT
+XMLDOCUMENT
+
+BOOLEAN
+IS
+SIMILAR
+XMLELEMENT
+
+CASE
+LIKE
+SOME
+XMLFOREST
+
+CAST
+MATCH
+STRIP
+XMLGROUP
+
+CHECK
+NODENAME
+SUBSTRING
+XMLNAMESPACES
+
+DATAPARTITIONNAME
+NODENUMBER
+TABLE
+XMLPARSE
+
+DATAPARTITIONNUM
+NOT
+THEN
+XMLPI
+
+DBPARTITIONNAME
+NULL
+TRIM
+XMLROW
+
+DBPARTITIONNUM
+ONLY
+TRUE
+XMLSERIALIZE
+
+DISTINCT
+OR
+TYPE
+XMLTEXT
+
+EXCEPT
+OVERLAPS
+UNIQUE
+XMLVALIDATE
+
+EXISTS
+PARTITION
+UNKNOWN
+XSLTRANSFORM
+
+EXTRACT
+PERCENTILE_CONT
+WHEN
+ 
+
+Defining the parameters: The
+input parameters for the function are specified as a list within parenthesis.
+The maximum number of parameters allowed in CREATE FUNCTION
+is 2000.
+A function can have no input parameters. In this case,
+an empty set of parenthesis must be specified, for example:
+CREATE FUNCTION WOOFER()
+
+The data type of the result of the function is specified
+in the RETURNS clause for the function.
+Choosing data types for parameters: When choosing the data
+types of the input and result parameters for a function, the rules
+of promotion that can affect the values of the parameters need to
+be considered. See Promotion of data types. For example,
+a constant that is one of the input arguments to the function might
+have a built-in data type that is different from the data type that
+the function expects, and more significantly, might not be promotable
+to that expected data type. Based on the rules of promotion, using
+the following data types is recommended:INTEGER instead of SMALLINT
+DOUBLE instead of REAL
+VARCHAR instead of CHAR
+VARGRAPHIC instead of GRAPHIC
+
+For
+portability of functions across platforms that are not DB2® for
+i, do not use the following
+data type names, which might have different representations on different
+platforms:
+FLOAT. Use DOUBLE or REAL instead.
+NUMERIC. Use DECIMAL instead.
+
+Specifying AS LOCATOR for a parameter: Passing
+a locator instead of a value can result in fewer bytes being passed
+in or out of the function. This can be useful when the value of the
+parameter is very large. The AS LOCATOR clause specifies that a locator
+to the value of the parameter is passed instead of the actual value.
+Specify AS LOCATOR only for parameters that have a LOB
+or XML data type or a distinct type based on a LOB or XML data
+type and only when LANGUAGE JAVA is not in effect. The
+AS LOCATOR clause has no effect on determining whether data types
+can be promoted, nor does it affect the function signature, which
+is used in function resolution.
+AS LOCATOR cannot be specified
+for SQL functions.
+
+Determining the uniqueness of functions in a schema: The
+same name can be used for more than one function in a schema if the
+function signature of each function is unique. The function signature
+is the qualified function name combined with the number and data types
+of the input parameters. The combination of name, schema name, the
+number of parameters, and the data type each parameter (without regard
+for other attributes such as length, precision, scale, or CCSID) must
+not identify a user-defined function that exists at the current server.
+The return type has no impact on the determining uniqueness of a function.
+Two different schemas can each contain a function with the same name
+that have the same data types for all of their corresponding data
+types. However, a schema must not contain two functions with the same
+name that have the same data types for all of their corresponding
+data types.
+When determining whether corresponding data types match,
+the database manager does not consider any length, precision, or scale
+attributes in the comparison. The database manager considers the synonyms
+of data types a match. For example, REAL and FLOAT, and DOUBLE and
+FLOAT are considered a match. Therefore, CHAR(8) and CHAR(35) are
+considered to be the same, as are DECIMAL(11,2), and DECIMAL(4,3).
+Furthermore, the character and graphic types are considered to be
+the same. For example, the following are considered to be the same
+type: CHAR and GRAPHIC, VARCHAR and VARGRAPHIC, and CLOB and DBCLOB.
+CHAR(13) and GRAPHIC(8) are considered to be the same type. An error
+is returned if the signature of the function being created is a duplicate
+of a signature for an existing user-defined function with the same
+name and schema.
+Assume that the following statements are executed to create
+four functions in the same schema. The second and fourth statements
+fail because they create functions that are duplicates of the functions
+that the first and third statements created.
+CREATE FUNCTION PART (INT, CHAR(15) ...
+CREATE FUNCTION PART (INTEGER, CHAR(40) ...
+
+CREATE FUNCTION ANGLE (DECIMAL(12,2)) ...
+CREATE FUNCTION ANGLE (DEC(10,7)) ...
+
+Specifying a specific name
+for a function: When defining multiple functions with the same
+name and schema (with different parameter lists), it is recommended
+that a specific name also be specified. The specific name can be used
+to uniquely identify the function such as when sourcing on this function,
+dropping the function, or commenting on the function. However, the
+function cannot be invoked by its specific name.
+The specific name is implicitly or explicitly qualified
+with a schema name. If a schema name is not specified on CREATE FUNCTION,
+it is the same as the explicit or implicit schema name of the function
+name (function-name). If a schema name is specified, it must
+be the same as the explicit or implicit schema name of the function
+name. The name, including the schema name must not identify the specific
+name of another function or procedure that exists at the current server.
+If a specific name is not specified, it is set to the
+function name. If a function or procedure with that specific name
+already exists, a unique name is generated similar to the rules used
+to generate unique table names.
+Extending or overriding a built-in
+function:Giving a user-defined function the same name as
+a built-in function is not a recommended practice unless the functionality
+of the built-in function needs to be extended or overridden.
+Extending the functionality of existing built-in functions: Create
+the new user-defined function with the same name as the built-in function,
+and a unique function signature. For example, a user-defined function
+similar to the built-in function ROUND that accepts the distinct type
+MONEY as input rather than the built-in numeric types might be necessary.
+In this case, the signature for the new user-defined function named
+ROUND is different from all the function signatures supported by the
+built-in ROUND function.
+
+Overriding a built-in function: Create
+the new user-defined function with the same name and signature as
+an existing built-in function. The new function has the same name
+and data type as the corresponding parameters of the built-in function
+but implements different logic. For example, a user-defined function
+similar to the built-in function ROUND that uses different rules for
+rounding than the built-in ROUND function might be necessary. In this
+case, the signature for the new user-defined function named ROUND
+will be the same as a signature that is supported by the built-in
+ROUND function.
+Once a built-in function has been overridden,
+if the schema for the new function appears in the SQL path before
+the system schemas, the database manager may choose a user-defined
+function rather than the built-in function. An application that uses
+the unqualified function name and was previously successful using
+the built-in function of that name might fail, or perhaps even worse,
+appear to run successfully but provide a different result if the user-defined
+function is chosen by the database manager rather than the built-in
+function.
+The DISTINCT keyword can be passed on the invocation
+of a user-defined function that is sourced on one of the built-in
+aggregate functions. For example, assume that MY_AVG is a user-defined
+function that is sourced on the built-in AVG function. The user-defined
+function could be invoked with MY_AVG (DISTINCT expression).
+This results in the underlying built-in AVG function being invoked
+with the DISTINCT keyword.
+
+Special registers in functions: The settings of
+the special registers of the invoker are inherited by the function
+on invocation and restored upon return to the invoker. Special registers
+may be changed in a function that can execute SQL statements, but
+these changes do not affect the caller.
+Creating a secure function: DB2 treats the SECURED attribute
+as an assertion that declares that the user has established an audit
+procedure for all changes to the user-defined function. DB2 assume that such an audit control procedure
+is in place for all subsequent ALTER FUNCTION statements.
+Invoking other user-defined functions in
+a secure function: When a secure user-defined function is referenced
+in an SQL statement that references a table that is using row access
+control or column access control, and if the secure user-defined function
+invokes other user-defined functions, the nested user-defined functions
+are not validated as secure. If those nested functions
+can access sensitive data, a user authorized who has security administrator authority i
+needs to ensure that those functions are allowed to access that data
+and should ensure that a change control audit procedure has been established
+for all changes to those functions.
+MODIFIES SQL DATA and EXTERNAL ACTION
+functions: If a MODIFIES SQL DATA or EXTERNAL ACTION function
+is invoked in other than the outermost select list, the results are
+unpredictable since the number of times the function is invoked will
+vary depending on the access plan used.
+Functions and adopted authority: Fenced
+functions run in separate threads. If ALLOW PARALLEL is specified
+for a NOT FENCED function, that function may also run in a separate
+thread. Functions that run in separate threads will not run under
+any adopted authority that might be specified by the invoking application.
+Restore considerations: When a function's
+associated program or service program is saved and subsequently restored
+and the object was updated with the function attributes when the function
+was created, the saved attributes will be processed and possibly
+changed during the restore.
+If the 'Saved library'
+(SAVLIB) of the program or service program is different from the 'Restore
+to library' (RSTLIB), the function's schema name, specific schema
+name, and the external name may be changed as a result of the restore.If the saved function schema name and the library name of the
+saved object match, the function schema will be changed to the 'Restore
+to library' (RSTLIB). Otherwise, the function schema name is the saved
+function schema name.
+The specific schema name is always the same as function schema
+name.
+If the saved EXTERNAL NAME library and the library name of the
+saved object match, the EXTERNAL NAME library will be changed to the
+'Restore to library' (RSTLIB). Otherwise, the EXTERNAL NAME library
+is the saved library name. If the saved EXTERNAL NAME library is *LIBL,
+it will not change.
+
+If the same function signature already exists
+in the catalog:If the external program name or service program name is the same
+as the one that already exists in the catalog, the information in
+the catalog for that procedure will be replaced with the saved attributes
+(including the specific name).
+Otherwise, the saved attributes are not restored, and a warning
+(SQL9015) is issued.
+
+If the same specific name already exists
+in the catalog, a warning is issued and a new specific name is generated.
+Otherwise, the specific name of the function is preserved.
+
+Parent topic: Statements

@@ -1,0 +1,57 @@
+Examples of the allowmissing option with insufficient data for all subfields
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > allowmissing (default no) > allowmissing (default no)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > allowmissing (default no)
+
+Examples of the allowmissing option
+with insufficient data for all subfields
+
+The following definitions are used in the examples
+D qualName DS QUALIFIED
+D name 10A
+D lib 10A
+
+D copyInfo DS QUALIFIED
+D from LIKEDS(qualName)
+D to LIKEDS(qualName)
+
+Assume that file cpyA.xml contains the following lines:
+<?xml version='1.0' ?>
+<copyInfo>
+<to><name>MYFILE</name><lib>*LIBL</lib></to>
+<from name="MASTFILE" lib="CUSTLIB"></from>
+</copyInfo>
+
+Assume that file cpyB.xml contains the following lines:
+<copyInfo>
+<from><name>MASTER</name><lib>PRODLIB</lib></from>
+<to><name>MYCOPY</name></to>
+</copyInfo>
+
+Data structure copyInfo has two subfields, from and to.
+Each of these subfields has two subfields name and lib.
+File cpyA.xml exactly matches the copyInfo structure,
+so the allowmissing option is not needed.
+xml-into copyInfo %XML('cpyA.xml' : 'doc=file');
+// copyInfo.from .name = 'MASTFILE ' .lib = 'CUSTLIB '
+// copyInfo.to .name = 'MYFILE ' .lib = '*LIBL '
+
+File cpyB.xml is missing the lib subfield from
+the XML element copyinfo.to. Option allowmissing=yes must
+be specified to allow a subfield to be missing from the XML document.
+The copyInfo structure is cleared before the operation so
+the program can determine which subfields were not assigned any data.
+clear copyInfo;
+xml-into copyInfo %XML('cpyB.xml'
+: 'doc=file allowmissing=yes');
+// copyInfo.from .name = 'MASTER ' .lib = 'PRODLIB '
+// copyInfo.to .name = 'MYCOPY ' .lib = ' '
+if copyInfo.from.lib = *blanks;
+copyInfo.from.lib = '*LIBL';
+endif;
+if copyInfo.to.lib = *blanks;
+copyInfo.to.lib = '*LIBL';
+endif;
+
+Parent topic: allowmissing (default no)

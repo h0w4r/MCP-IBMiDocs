@@ -1,0 +1,84 @@
+Receiving request messages
+
+IBM i programming resources > Control language > Control language > Messages > Receiving messages into a CL procedure or program > Receiving messages into a CL procedure or program
+
+IBM i programming resources > Control language > Control language > Messages > Receiving messages into a CL procedure or program
+
+Receiving request messages
+Receiving request messages is a method for your CL procedure or
+program to process CL commands.
+For example, your procedure or program can obtain input (commands)
+from a display station and handle the messages that result from the analysis
+and processing of the input. The commands are sent as request messages so
+they can be processed. Typically, request messages are received from the external
+message queue (*EXT) of the job. For batch jobs, the requests received are
+those read from the input stream. For interactive jobs, the requests received
+are those the display station user enters one at a time on the Command Entry
+display. For example, CL commands are requests that are received by the IBM-supplied
+CL processor QCMD.
+Your procedure or program must define the syntax
+of the data in the request message, interpret the request, and diagnose any
+errors. While the request is being analyzed or the request function is being
+run, any number of errors can be detected. As a result of these errors, messages
+are sent to the call message queue for the procedure or program. The procedure
+or program handles these messages and then receives the next request message.
+Thus, a request processing cycle is defined; a request message is received,
+the request is analyzed and run by your procedure or program with resulting
+messages displayed, and the next request received. If there are no more request
+messages to be received in a batch job, an escape message is sent to your
+procedure or program to indicate this.
+More than one original program
+model (OPM) program or Integrated Language Environment® (ILE)
+procedure of a job can receive request messages for processing. The requests
+received by more recent program calls are considered to be nested within those
+received by higher level program calls. The request processing cycles at
+each nesting level are independent of each other. Within an ILE program, one
+or more procedures within that program can be receiving request messages.
+If more than one procedure is processing requests then the nesting occurs
+within the same ILE program and the nesting levels remain independent.
+The
+following figure shows how request messages are processed by QCMD.
+
+1
+The CL processor QCMD receives a request message from *EXT.
+2
+If there is no request message on *EXT, the Command Entry display is displayed.
+The display station user enters a command on the display. When the command
+is entered, it is placed on *EXT as a request message.
+3
+Since step 2 placed a request on *EXT, now the RCVMSG in step 1 can continue.
+The command is then moved to the QCMD call message queue and is passed from
+there to QCMD to complete step 1.
+4
+The command is analyzed and its command processing program (CPP) is called.
+5
+The command processing program sends diagnostic messages to the call message
+queue for QCMD.
+6
+Then the command processing program sends an escape message to the call
+message queue for QCMD. The escape message notifies QCMD that diagnostic
+messages are on the queue and that QCMD should end processing of the CPP.
+7
+QCMD is monitoring for the arrival of a request-check (CPF9901) or function-check
+(CPF9999) escape message. QCMD then tries to receive the next request message.
+Note: If a request processor receives message CPF9901 or CPF9999, it should
+run a Reclaim Resources (RCLRSC) command. The request processor should also
+monitor for messages CPF1907 (end request) and CPF2415 (which indicates that
+the user pressed F3 or F12 on the Command Entry display).
+
+8
+Because a request message was being processed, all the messages on the
+call message queue for QCMD are written to the Command Entry display, which
+then prompts the display station user for another command.
+9
+The previous request message (command) and its associated messages are
+contained in the job log according to the message logging level specified
+for the job.
+
+Parent topic: Receiving messages into a CL procedure or program
+
+Related concepts
+Log messages
+
+Related reference
+Commands used to send messages from a CL program

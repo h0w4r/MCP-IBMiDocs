@@ -1,0 +1,328 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Templates (C++ only) > Function templates (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Templates (C++ only) > Function templates (C++ only)
+
+ILE C/C++ Language Reference
+
+Template argument deduction (C++ only)
+When you call a template function, you may omit any template argument
+that the compiler can determine or deduce by
+the usage and context of that template function call.
+The compiler tries to deduce a template argument by comparing the
+type of the corresponding template parameter with the type of the
+argument used in the function call. The two types that the compiler
+compares (the template parameter and the argument used in the function
+call) must be of a certain structure in order for template argument
+deduction to work. The following lists these type structures:
+T
+const T
+volatile T
+T&
+T*
+T[10]
+A<T>
+C(*)(T)
+T(*)()
+T(*)(U)
+T C::*
+C T::*
+T U::*
+T (C::*)()
+C (T::*)()
+D (C::*)(T)
+C (T::*)(U)
+T (C::*)(U)
+T (U::*)()
+T (U::*)(V)
+E[10][i]
+B<i>
+TT<T>
+TT<i>
+TT<C>
+
+T, U, and V represent a template
+type argument
+10 represents any integer constant
+i represents a template non-type argument
+[i] represents an array bound of a reference or pointer
+type, or a non-major array bound of a normal array.
+TT represents a template template argument
+(T), (U), and (V) represents
+an argument list that has at least one template type argument
+() represents an argument list that has no template
+arguments
+<T> represents a template argument list that has
+at least one template type argument
+<i> represents a template argument list that has
+at least one template non-type argument
+<C> represents a template argument list that has
+no template arguments dependent on a template parameter
+The following example demonstrates the use of each of these type
+structures. The example declares a template function using each of
+the above structures as an argument. These functions are then called
+(without template arguments) in order of declaration. The example
+outputs the same list of type structures:
+#include <iostream>
+using namespace std;
+
+template<class T> class A { };
+template<int i> class B { };
+
+class C {
+public:
+int x;
+};
+
+class D {
+public:
+C y;
+int z;
+};
+
+template<class T> void f (T) { cout << "T" << endl; };
+template<class T> void f1(const T) { cout << "const T" << endl; };
+template<class T> void f2(volatile T) { cout << "volatile T" << endl; };
+template<class T> void g (T*) { cout << "T*" << endl; };
+template<class T> void g (T&) { cout << "T&" << endl; };
+template<class T> void g1(T[10]) { cout << "T[10]" << endl;};
+template<class T> void h1(A<T>) { cout << "A<T>" << endl; };
+
+void test_1() {
+A<char> a;
+C c;
+
+f(c); f1(c); f2(c);
+g(c); g(&c); g1(&c);
+h1(a);
+}
+
+template<class T> void j(C(*)(T)) { cout << "C(*) (T)" << endl; };
+template<class T> void j(T(*)()) { cout << "T(*) ()" << endl; }
+template<class T, class U> void j(T(*)(U)) { cout << "T(*) (U)" << endl; };
+
+void test_2() {
+C (*c_pfunct1)(int);
+C (*c_pfunct2)(void);
+int (*c_pfunct3)(int);
+j(c_pfunct1);
+j(c_pfunct2);
+j(c_pfunct3);
+}
+
+template<class T> void k(T C::*) { cout << "T C::*" << endl; };
+template<class T> void k(C T::*) { cout << "C T::*" << endl; };
+template<class T, class U> void k(T U::*) { cout << "T U::*" << endl; };
+
+void test_3() {
+k(&C::x);
+k(&D::y);
+k(&D::z);
+}
+
+template<class T> void m(T (C::*)() )
+{ cout << "T (C::*)()" << endl; };
+template<class T> void m(C (T::*)() )
+{ cout << "C (T::*)()" << endl; };
+template<class T> void m(D (C::*)(T))
+{ cout << "D (C::*)(T)" << endl; };
+template<class T, class U> void m(C (T::*)(U))
+{ cout << "C (T::*)(U)" << endl; };
+template<class T, class U> void m(T (C::*)(U))
+{ cout << "T (C::*)(U)" << endl; };
+template<class T, class U> void m(T (U::*)() )
+{ cout << "T (U::*)()" << endl; };
+template<class T, class U, class V> void m(T (U::*)(V))
+{ cout << "T (U::*)(V)" << endl; };
+
+void test_4() {
+int (C::*f_membp1)(void);
+C (D::*f_membp2)(void);
+D (C::*f_membp3)(int);
+m(f_membp1);
+m(f_membp2);
+m(f_membp3);
+
+C (D::*f_membp4)(int);
+int (C::*f_membp5)(int);
+int (D::*f_membp6)(void);
+m(f_membp4);
+m(f_membp5);
+m(f_membp6);
+
+int (D::*f_membp7)(int);
+m(f_membp7);
+}
+
+template<int i> void n(C[10][i]) { cout << "E[10][i]" << endl; };
+template<int i> void n(B<i>) { cout << "B<i>" << endl; };
+
+void test_5() {
+C array[10][20];
+n(array);
+B<20> b;
+n(b);
+}
+
+template<template<class> class TT, class T> void p1(TT<T>)
+{ cout << "TT<T>" << endl; };
+template<template<int> class TT, int i> void p2(TT<i>)
+{ cout << "TT<i>" << endl; };
+template<template<class> class TT> void p3(TT<C>)
+{ cout << "TT<C>" << endl; };
+
+void test_6() {
+A<char> a;
+B<20> b;
+A<C> c;
+p1(a);
+p2(b);
+p3(c);
+}
+
+int main() { test_1(); test_2(); test_3(); test_4(); test_5(); test_6(); }
+
+Deducing type template arguments
+The compiler can deduce template arguments from a type composed
+of several of the listed type structures. The following example demonstrates
+template argument deduction for a type composed of several type structures:
+template<class T> class Y { };
+
+template<class T, int i> class X {
+public:
+Y<T> f(char[20][i]) { return x; };
+Y<T> x;
+};
+
+template<template<class> class T, class U, class V, class W, int i>
+void g( T<U> (V::*)(W[20][i]) ) { };
+
+int main()
+{
+Y<int> (X<int, 20>::*p)(char[20][20]) = &X<int, 20>::f;
+g(p);
+}The type Y<int> (X<int, 20>::*p)(char[20][20])T<U>
+(V::*)(W[20][i]) is based on the type structure T (U::*)(V):
+
+T is Y<int>
+U is X<int, 20>
+V is char[20][20]
+If you qualify a type with the class to which that type belongs,
+and that class (a nested name specifier) depends
+on a template parameter, the compiler will not deduce a template argument
+for that parameter. If a type contains a template argument that cannot
+be deduced for this reason, all template arguments in that type will
+not be deduced. The following example demonstrates this:
+template<class T, class U, class V>
+void h(typename Y<T>::template Z<U>, Y<T>, Y<V>) { };
+
+int main() {
+Y<int>::Z<char> a;
+Y<int> b;
+Y<float> c;
+
+h<int, char, float>(a, b, c);
+h<int, char>(a, b, c);
+// h<int>(a, b, c);
+}The compiler will not deduce the template arguments T and U in typename
+Y<T>::template Z<U> (but it will deduce the T in Y<T>).
+The compiler would not allow the template function call h<int>(a,
+b, c) because U is not deduced by the compiler.
+The compiler can deduce a function template argument from a pointer
+to function or pointer to member function argument given several overloaded
+function names. However, none of the overloaded functions may be function
+templates, nor can more than one overloaded function match the required
+type. The following example demonstrates this:
+template<class T> void f(void(*) (T,int)) { };
+
+template<class T> void g1(T, int) { };
+
+void g2(int, int) { };
+void g2(char, int) { };
+
+void g3(int, int, int) { };
+void g3(float, int) { };
+
+int main() {
+// f(&g1);
+// f(&g2);
+f(&g3);
+}The compiler would not allow the call f(&g1) because g1() is
+a function template. The compiler would not allow the call f(&g2) because
+both functions named g2() match the type required by f().
+The compiler cannot deduce a template argument from the type of
+a default argument. The following example demonstrates this:
+template<class T> void f(T = 2, T = 3) { };
+
+int main() {
+f(6);
+// f();
+f<int>();
+}
+The compiler allows the call f(6) because the compiler
+deduces the template argument (int) by the value of the
+function call's argument. The compiler would not allow the call f() because
+the compiler cannot deduce template argument from the default arguments
+of f().
+The compiler cannot deduce a template type argument from the type
+of a non-type template argument. For example, the compiler will not
+allow the following:
+template<class T, T i> void f(int[20][i]) { };
+
+int main() {
+int a[20][30];
+f(a);
+}The compiler cannot deduce the type of template parameter T.
+
+Deducing non-type template arguments
+The compiler cannot deduce the value of a major array bound unless
+the bound refers to a reference or pointer type. Major array bounds
+are not part of function parameter types. The following code demonstrates
+this:
+template<int i> void f(int a[10][i]) { };
+template<int i> void g(int a[i]) { };
+template<int i> void h(int (&a)[i]) { };
+
+int main () {
+int b[10][20];
+int c[10];
+f(b);
+// g(c);
+h(c);
+}The compiler would not allow the call g(c); the
+compiler cannot deduce template argument i.
+The compiler cannot deduce the value of a non-type template argument
+used in an expression in the template function's parameter list. The
+following example demonstrates this:
+template<int i> class X { };
+
+template<int i> void f(X<i - 1>) { };
+
+int main () {
+X<0> a;
+f<1>(a);
+// f(a);
+}In order to call function f() with object a,
+the function must accept an argument of type X<0>. However,
+the compiler cannot deduce that the template argument i must
+be equal to 1 in order for the function template argument
+type X<i - 1> to be equivalent to X<0>.
+Therefore the compiler would not allow the function call f(a).
+
+If you want the compiler to deduce a non-type template argument,
+the type of the parameter must match exactly the type of value used
+in the function call. For example, the compiler will not allow the
+following:
+template<int i> class A { };
+template<short d> void f(A<d>) { };
+
+int main() {
+A<1> a;
+f(a);
+}The compiler will not convert int to short when
+the example calls f().
+However, deduced array bounds may be of any integral type.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

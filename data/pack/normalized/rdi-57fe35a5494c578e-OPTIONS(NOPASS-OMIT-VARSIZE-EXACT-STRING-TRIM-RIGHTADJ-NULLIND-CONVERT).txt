@@ -1,0 +1,1005 @@
+OPTIONS(*NOPASS *OMIT *VARSIZE *EXACT *STRING *TRIM *RIGHTADJ *NULLIND *CONVERT)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > Definition-Specification Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords
+
+OPTIONS(*NOPASS *OMIT *VARSIZE *EXACT *STRING *TRIM *RIGHTADJ *NULLIND *CONVERT)
+
+The OPTIONS keyword is used to specify one or more parameter passing options:
+
+Whether a parameter must be passed. See OPTIONS(*NOPASS).
+
+Whether the special value *OMIT can be passed for the parameter passed
+by reference. See OPTIONS(*OMIT).
+
+Whether a parameter that is passed by reference can be shorter in length
+than is specified in the prototype. See OPTIONS(*VARSIZE).
+
+Whether the compiler should apply strict rules for the parameters that may be passed.
+See OPTIONS(*EXACT).
+
+Whether the called program or procedure is expecting a pointer to a null-terminated
+string, allowing you to specify a character expression as the passed parameter.
+See OPTIONS(*STRING).
+
+Whether the parameter should be trimmed of blanks before being
+passed. See OPTIONS(*TRIM).
+
+Whether the parameter value should be right-adjusted in the passed parameter.
+See OPTIONS(*RIGHTADJ).
+
+Whether the null-byte-map should be passed with the parameter.
+See OPTIONS(*NULLIND).
+
+Whether the passed parameter should be converted to the type of the prototyped parameter.
+See OPTIONS(*CONVERT).
+
+You can specify more than one option. For example, to specify that an optional
+parameter can be shorter than the prototype indicates, you would code OPTIONS(*VARSIZE
+: *NOPASS).
+
+Options which require the procedure to ensure the parameter is handled correctly
+
+For the parameter passing options *NOPASS, *OMIT, and *VARSIZE,
+it is up to the programmer of the procedure to ensure that these options are
+handled. For example, if OPTIONS(*NOPASS) is coded and you choose to pass
+the parameter, the procedure must check that the parameter was passed before
+it accesses it. The compiler will not do any checking for this.
+If you call APIs such as CEEDOD or CEETSTA to get information about a parameter
+that uses these options, the RTNPARM keyword can affect the way you call the APIs.
+See RTNPARM and %PARMNUM (Return Parameter Number) for more information.
+
+OPTIONS(*NOPASS)
+
+When OPTIONS(*NOPASS) is specified on a definition specification, the parameter
+does not have to be passed on the call. Any parameters following that specification
+must also have *NOPASS specified. When the parameter is not passed to a program
+or procedure, the called program or procedure will simply function as if the
+parameter list did not include that parameter.
+
+You must verify that the parameter was passed before accessing the parameter
+using either %PASSED or %PARMS.
+
+Warning:
+
+For a procedure call, the caller must pass at least a minimal operational descriptor
+so that the procedure can verify the number of parameters that were passed
+See %PARMS (Return Number of Parameters).
+
+If the unpassed parameter is
+accessed in the called program or procedure, unpredictable results will occur.
+
+If the unpassed parameter is modified in the called program or procedure,
+unpredictable results may occur long after the program or procedure has
+returned, in areas that appear to be unrelated to the call.
+
+The following example shows how to code a prototype and procedure that
+use OPTIONS(*NOPASS) to indicate that a parameter is optional.
+
+Figure 1. Using OPTIONS(*NOPASS) to Indicate that a Parameter
+is Optional
+
+Following procedure uses the %PASSED built-in function
+to determine whether the parameter specified with OPTIONS(*NOPASS) can be used.
+
+* The following prototype describes a procedure that expects
+* either one or two parameters.
+D FormatAddress PR 45A
+D City 20A CONST
+D Province 20A CONST OPTIONS(*NOPASS)
+* The first call to FormatAddress only passes one parameter. The
+* second call passes both parameters.
+C EVAL A = FormatAddress('North York')
+C EVAL A = FormatAddress('Victoria' : 'B.C.')
+C RETURN
+*----------------------------------------------------------------
+* FormatAddress:
+* This procedure must check the number of parameters since the
+* second was defined with OPTIONS(*NOPASS).
+* It should only use the second parameter if it was passed.
+*----------------------------------------------------------------
+P FormatAddress B
+D FormatAddress PI 45A
+D City 20A CONST
+D ProvParm 20A CONST OPTIONS(*NOPASS)
+D Province S 20A INZ('Ontario')
+* Set the local variable Province to the value of the second
+* parameter if it was passed. Otherwise let it default to
+* 'Ontario' as it was initialized.
+C IF %PASSED(ProvParm)
+C EVAL Province = ProvParm
+C ENDIF
+* Return the city and province in the form City, Province
+* for example 'North York, Ontario'
+C RETURN %TRIMR(City) + ',' + Province
+P FormatAddress E
+
+OPTIONS(*OMIT)
+
+When OPTIONS(*OMIT) is specified, then the value *OMIT is allowed for that
+parameter. *OMIT is only allowed for CONST parameters and parameters which
+are passed by reference. For more information on omitted parameters, see the
+chapter on calling programs and procedures in Rational® Development Studio for i: ILE RPG Programmer's Guide.
+
+Warning:
+If the unpassed parameter is
+accessed in the called program or procedure, unpredictable results will occur.
+You can use the %PASSED
+built-in function to determine whether the parameter was passed and *OMIT was not passed
+for the parameter.
+You can use the %OMITTED
+built-in function to determine whether the *OMIT was passed for the parameter.
+
+The following example shows how to code a prototype and procedure using
+OPTIONS(*OMIT) to indicate that the special value *OMIT may be passed as a
+parameter.
+
+The procedure uses the %PASSED built-in function
+to determine whether the parameter can be used.
+
+Figure 2. Using OPTIONS(*OMIT)
+
+FQSYSPRT O F 10 PRINTER USROPN
+* The following prototype describes a procedure that allows
+* the special value *OMIT to be passed as a parameter.
+* If the parameter is passed, it is set to '1' if an error
+* occurred, and '0' otherwise.
+D OpenFile PR
+D Error 1A OPTIONS(*OMIT)
+C SETOFF 10
+* The first call to OpenFile assumes that no error will occur,
+* so it does not bother with the error code and passes *OMIT.
+C CALLP OpenFile(*OMIT)
+* The second call to OpenFile passes an indicator so that
+* it can check whether an error occurred.
+C CALLP OpenFile(*IN10)
+C IF *IN10
+C ... an error occurred
+C ENDIF
+C RETURN
+*----------------------------------------------------------------
+* OpenFile
+* This procedure must check the number of parameters since the
+* second was defined with OPTIONS(*OMIT).
+* It should only use the second parameter if it was passed.
+*----------------------------------------------------------------
+P OpenFile B
+D OpenFile PI
+D Error 1A OPTIONS(*OMIT)
+D SaveIn01 S 1A
+* Save the current value of indicator 01 in case it is being
+* used elsewhere.
+C EVAL SaveIn01 = *IN01
+* Open the file. *IN01 will indicate if an error occurs.
+C OPEN QSYSPRT 01
+* If the Error parameter was passed, update it with the indicator
+C IF %PASSED(Error)
+C EVAL Error = *IN01
+C ENDIF
+* Restore *IN01 to its original value.
+C EVAL *IN01 = SaveIn01
+P OpenFile E
+
+OPTIONS(*VARSIZE)
+
+OPTIONS(*VARSIZE) is valid only for parameters passed by reference that
+have a character, graphic, or UCS-2 data type, or that represent an array
+of any type.
+
+For parameters passed by reference, the address of the passed parameter
+is passed on the call except when a temporary is used
+for a read-only reference parameter; in that case,
+the address of the temporary is passed on the call.
+For more information about the use of a temporary with a
+read-only reference parameter,
+see CONST{(constant)}.
+
+When OPTIONS(*VARSIZE) is specified, the passed parameter may be shorter
+or longer in length than is defined in the prototype. It is then up to the
+called program or subprocedure to ensure that it accesses only as much data
+as was passed. To communicate the amount of data passed, you can either pass
+an extra parameter containing the length, or use operational descriptors for
+the subprocedure. For variable-length fields, you can use the %LEN built-in
+function to determine the current length of the passed parameter.
+
+When OPTIONS(*VARSIZE) is omitted for fixed-length fields, you must pass at least as much data as is required by the prototype;
+for variable-length fields, the parameter must have the same declared maximum
+length as indicated on the definition.
+
+Warning:
+If the passed parameter is shorter than the prototyped size of the parameter,
+and the called program or procedure modifies more of the parameter than was passed,
+data will be corrupted in the calling program or procedure.
+Unpredictable results may occur long after the program or procedure has
+returned, in areas that appear to be unrelated to the call.
+
+The following example shows how to code a prototype and procedure allowing
+variable-length parameters, using OPTIONS(*VARSIZE).
+
+Figure 3. Using OPTIONS(*VARSIZE)
+
+* The following prototype describes a procedure that allows
+* both a variable-length array and a variable-length character
+* field to be passed. Other parameters indicate the lengths.
+D Search PR 5U 0
+D SearchIn 50A OPTIONS(*VARSIZE)
+D DIM(100) CONST
+D ArrayLen 5U 0 VALUE
+D ArrayDim 5U 0 VALUE
+D SearchFor 50A OPTIONS(*VARSIZE) CONST
+D FieldLen 5U 0 VALUE
+D Arr1 S 1A DIM(7) CTDATA PERRCD(7)
+D Arr2 S 10A DIM(3) CTDATA
+D Elem S 5U 0
+* Call Search to search an array of 7 elements of length 1 with
+* a search argument of length 1. Since the '*' is in the 5th
+* element of the array, Elem will have the value 5.
+C EVAL Elem = Search(Arr1 :
+C %SIZE(Arr1) : %ELEM(Arr1) :
+C '*' : 1)
+* Call Search to search an array of 3 elements of length 10 with
+* a search argument of length 4. Since 'Pink' is not in the
+* array, Elem will have the value 0.
+C EVAL Elem = Search(Arr2 :
+C %SIZE(Arr2) : %ELEM(Arr2) :
+C 'Pink' : 4)
+C RETURN
+
+*------------------------------------------------------------
+* Search:
+* Searches for SearchFor in the array SearchIn. Returns
+* the element where the value is found, or 0 if not found.
+* The character parameters can be of any length or
+* dimension since OPTIONS(*VARSIZE) is specified for both.
+*------------------------------------------------------------
+P Search B
+D Search PI 5U 0
+D SearchIn 50A OPTIONS(*VARSIZE)
+D DIM(100) CONST
+D ArrayLen 5U 0 VALUE
+D ArrayDim 5U 0 VALUE
+D SearchFor 50A OPTIONS(*VARSIZE) CONST
+D FieldLen 5U 0 VALUE
+D I S 5U 0
+* Check each element of the array to see if it the same
+* as the SearchFor. Use the dimension that was passed as
+* a parameter rather than the declared dimension. Use
+* %SUBST with the length parameter since the parameters may
+* not have the declared length.
+C 1 DO ArrayDim I 5 0
+* If this element matches SearchFor, return the index.
+C IF %SUBST(SearchIn(I) : 1 : ArrayLen)
+C = %SUBST(SearchFor : 1 : FieldLen)
+C RETURN I
+C ENDIF
+C ENDDO
+* No matching element was found.
+C RETURN 0
+P Search E
+
+Compile-time data section:
+
+**CTDATA ARR1
+A2$@*jM
+**CTDATA ARR2
+Red
+Blue
+Yellow
+
+OPTIONS(*EXACT)
+
+When OPTIONS(*EXACT) is specified, the compiler is more strict about the parameters
+that may be passed.
+
+OPTIONS(*EXACT) for parameters passed by reference
+
+When OPTIONS(*EXACT) is specified for a parameter, additional rules apply to ensure that
+the called procedure receives the same value as the passed parameter.
+
+For parameters passed by reference, when OPTIONS(*EXACT) is specified, the following additional rules apply for the passed parameter:
+
+Alphanumeric, UCS-2 and graphic parameters must have the same defined length as the prototyped parameter.
+
+The CCSID for alphanumeric, UCS-2 and graphic parameters must match.
+
+The Java™ class for Object parameters must match.
+
+The ASCEND or DESCEND keyword must be specified the same for both the passed parameter and the prototyped parameter.
+
+Arrays must have the same dimension.
+
+If the prototyped parameter is a data structure, the passed parameter must be related by LIKEDS or LIKEREC to the prototyped parameter.
+
+If the prototyped parameter is defined with the LIKE keyword, the passed parameter must be related by the LIKE keyword to the prototyped parameter.
+Note: An additional rule applies if the prototyped parameter is defined like a typed enumeration.
+The passed parameter must be a variable defined like the typed enumeration.
+(This rule is also in effect when OPTIONS(*EXACT) is not specified.)
+See Typed Enumerations.
+
+The following example shows the effect of specifying OPTIONS(*EXACT) with parameters passed by reference.
+Prototype noOptionExact_ref does not specify OPTIONS(*EXACT) for any of its parameters.
+prototype optionExact_ref does specify OPTIONS(*EXACT) for its parameters.
+The call to noOptionExact_ref passes parameters which may cause unexpected results due to
+the called procedure receiving less information than the caller expects, or due to the called procedure
+receiving the incorrect type of information.
+
+The calls to both procedures are the same, but the call to the noOptionExact_ref allows
+parameters to be passed which might not be correct.
+In each case, the parameter is allowed for the call to noOptionExact_ref, and
+the parameter is not allowed for the call to optionExact_ref.
+
+The prototyped parameter has a length of 5 and the passed parameter has a length of 10.
+Procedure noOptionExact_ref only receives the first 5 characters.
+
+The prototyped parameter requires the array to be in descending order, but the passed parameter is
+in ascending order.
+
+The prototyped parameter is an array with 3 elements and the passed parameter has 4 elements.
+Procedure noOptionExact_ref only receives the first 3 elements.
+
+The prototyped parameter is defined with LIKEDS(orderInfo_t) and the passed parameter is
+defined with LiKEDS(customerInfo_t).
+
+The prototyped parameter is defined with LIKE(price_t), which should be the price of an item.
+The passed parameter refers to the balance of a customer account.
+The call to noOptionExact_ref is allowed because
+accountBalance happens to be defined the same as price_t.
+
+Figure 4. Using OPTIONS(*EXACT) with parameters passed by reference
+
+DCL-PR noOptionExact_ref;
+char5Parm CHAR(5);
+arrayDescendParm CHAR(5) DIM(3) DESCEND;
+arrayDim3Parm CHAR(5) DIM(3);
+orderInfoParm LIKEDS(orderInfo_t);
+itemPriceParm LIKE(price_t);
+END-PR;
+DCL-PR optionExact_ref;
+char5Parm CHAR(5) OPTIONS(*EXACT);
+arrayDescendParm CHAR(5) DIM(3) DESCEND OPTIONS(*EXACT);
+arrayDim3Parm CHAR(5) DIM(3) OPTIONS(*EXACT);
+orderInfoParm LIKEDS(orderInfo_t) OPTIONS(*EXACT);
+itemPriceParm LIKE(price_t) OPTIONS(*EXACT);
+END-PR;
+DCL-S char10 CHAR(10);
+DCL-S arrayAscend CHAR(5) DIM(3) ASCEND;
+DCL-S arrayDim4 CHAR(5) DIM(4);
+DCL-DS customerInfo LIKEDS(customerInfo_t);
+DCL-S accountBalance PACKED(7:2);
+
+noOptionExact_ref
+(char10 // char5Parm 1
+: arrayAscend // arrayDescendParm 2
+: arrayDim4 // arrayDim3Parm 3
+: customerInfo // orderInfoParm 4
+: accountBalance); // itemPriceParm 5
+optionExact_ref
+(char10 // Error: char5Parm 1
+: arrayAscend // Error: arrayDescendParm 2
+: arrayDim4 // Error: arrayDim3Parm 3
+: customerInfo // Error: orderInfoParm 4
+: accountBalance); // Error: itemPriceParm 5
+
+OPTIONS(*EXACT) with VALUE and CONST
+
+For parameters passed by value or by constant reference, when OPTIONS(*EXACT) is specified,
+the following additional rules apply for the passed parameter:
+Note:
+The examples use the CONST keyword, but the rules are exactly the same when the VALUE keyword is used.
+
+The data type must be the same.
+Without OPTIONS(*EXACT), parameters with type alphanumeric, UCS-2, or graphic can be passed to
+prototyped parameters with any of the types alphanumeric, UCS-2, or graphic,
+and the compiler performs implicit conversion to the data type of the prototyped parameter.
+In some cases, this may cause data to be lost when the parameter is passed, either
+due to the length of the converted parameter being longer than the prototyped parameter,
+or due to characters in the passed parameter which cannot be converted to the data type of
+the prototyped parameter.
+In the following example, field ucs2Fld can be passed to the parameter
+parmNoExact, but the data received by the procedure might not be
+the same as the data in ucs2Fld.
+Field ucs2Fld cannot be passed to parmExact defined with OPTIONS(*EXACT)
+because it has type UCS-2 and the parameter has type alphanumeric.
+
+DCL-PR pr1;
+parmNoExact CHAR(5) CONST;
+parmExact CHAR(5) CONST OPTIONS(*EXACT);
+END-PR;
+DCL-S ucs2Fld UCS2(5);
+
+The CCSID must be the same.
+Without OPTIONS(*EXACT), parameters with different CCSIDs can be passed to
+a prototyped parameter with a different CCSID,
+and the compiler performs implicit conversion to the CCSID of the prototyped parameter.
+In some cases, this may cause data to be lost when the parameter is passed, either
+due to the length of the converted parameter being longer than the prototyped parameter,
+or due to characters in the passed parameter which cannot be converted to the CCSID of
+the prototyped parameter.
+In the following example, field utf8Fld can be passed to the parameter
+parmNoExact, but the data received by the procedure might not be
+the same as the data in utf8Fld.
+Field utf8Fld cannot be passed to parmExact defined with OPTIONS(*EXACT)
+because it has a different CCSID.
+
+DCL-PR pr2;
+parmNoExact CHAR(5) CONST;
+parmExact CHAR(5) CONST OPTIONS(*EXACT);
+END-PR;
+DCL-S utf8Fld CHAR(5) CCSID(*UTF8);
+
+For alphanumeric, UCS-2 or graphic, the varying-length attribute of
+the passed parameter does not have to be the same as the prototyped parameter.
+However, the defined length of the passed parameter must be less than or equal to the prototyped parameter.
+If the passed parameter is a literal or expression,
+the length of the value must be less than or equal to the length specified for the prototyped parameter.
+In the following example, fields char4Fld, varchar4Fld,
+char5Fld, and varchar5Fld, can be passed to all the parameters of
+procedure pr3 because the defined length is less than or equal to the defined length
+of the prototyped parameters.
+
+Fields char6Fld and varchar6Fld can be passed to parmNoExact
+and parmVaryingNoExact, but the called procedure might not receive all the data in the passed parameter.
+Fields char6Fld and varchar6Fld cannot be passed to parmxact
+and parmVaryingExact defined with OPTIONS(*EXACT) because the defined length
+is greater than the defined length of the prototyped parameters.
+
+DCL-PR pr3;
+parmNoExact CHAR(5) CONST;
+parmVaryingNoExact VARCHAR(5) CONST;
+parmExact CHAR(5) CONST OPTIONS(*EXACT);
+parmVaryingExact VARCHAR(5) CONST OPTIONS(*EXACT);
+END-PR;
+DCL-S char4Fld CHAR(4);
+DCL-S varchar4Fld VARCHAR(4);
+DCL-S char5Fld CHAR(5);
+DCL-S varchar5Fld VARCHAR(5);
+DCL-S char6Fld CHAR(6);
+DCL-S varchar6Fld VARCHAR(6);
+
+The ASCEND or DESCEND keyword must be specified the same for both the passed parameter and the prototyped parameter.
+
+Arrays must have the same dimension.
+Varying-dimension arrays cannot be passed when OPTIONS(*EXACT) is specified on the prototype.
+
+The number of decimal positions must be less than
+or equal to the number of decimal positions for the prototyped parameter.
+In the following example, fields packed_5_2 and zoned_3_1
+can be passed to both of the parameters of
+procedure pr4 because the defined number of decimal positions is less than or equal
+to the defined number of decimal positions, 2, of the prototyped parameters.
+
+Field packed_5_3 can be passed to parameter parmNoExact,
+but the called procedure might not receive the same value as the parameter. If packed_5_3
+has the value 12.345, the called procedure would receive the value 12.34.
+
+Field packed_5_3 cannot be passed to parameter parmExact,
+because the defined number of decimal positions is greater than the defined number of decimal positions
+of the prototyped parameter.
+
+DCL-PR pr4;
+parmNoExact PACKED(5:2) CONST;
+parmExact PACKED(5:2) CONST OPTIONS(*EXACT);
+END-PR;
+DCL-S packed_5_2 PACKED(5:2);
+DCL-S zoned_3_1 ZONED(3:1);
+DCL-S packed_5_3 PACKED(5:3);
+
+The number of integer positions of the passed parameter must be less than or equal to the
+number of integer positions of the prototyped parameter.
+In the following example, field packed_4_2 has 2 integer positions,
+int_3 has 3 integer positions, and packed_7_3
+has 4 integer positions.
+
+Fields packed_4_2 and int_3
+can be passed to all the parameters of
+procedure pr4 because the defined number of integer positions is less than or equal
+to the defined number of integer positions of the prototyped parameters.
+
+Field packed_7_3 can be passed to parameter parmNoExact,
+but the call might fail with a numeric overflow exception if packed_7_3 has a value greater than
+999.99 or less than -999.99.
+
+Field packed_7_4 cannot be passed to parameter parmExact,
+because the defined number of integer positions is greater than the defined number of integer positions
+of the prototyped parameter.
+
+DCL-PR pr5;
+parmNoExact PACKED(5:2) CONST;
+parmExact PACKED(5:2) CONST OPTIONS(*EXACT);
+END-PR;
+DCL-S packed_4_2 PACKED(4:2);
+DCL-S int_3 INT(3);
+DCL-S packed_7_3 PACKED(7:3);
+
+The length of a timestamp parameter must be less than or equal to the length specified on the prototype.
+
+The length of a float parameter must be less than or equal to the length of the prototyped parameter.
+If the prototype is defined as float, the passed parameter must also be float.
+If the prototyped parameter is not defined as float, the passed parameter cannot be float.
+
+The year range of a date parameter must be within the year range of the date format specified on the prototype.
+For example, the year range of format *YMD is 1940 - 2039, which is smaller than the year range of format *ISO.
+
+A time parameter with format *USA is only valid when the format of the prototyped parameter is also *USA.
+
+The Java class for Object parameters must match.
+
+If the prototyped parameter is a data structure, the passed parameter must be related
+by LIKEDS or LIKEREC to the prototyped parameter.
+
+In the following example, data structure customerInfo
+can be passed to parameter orderInfoNoExact
+but it is unlikely that the data in customerInfo would be valid
+when the called procedure interprets it as a data structure defined with LIKEDS(orderInfo_t).
+
+Data structure customerInfo
+cannot be passed to parameter orderInfoExact
+because it is not related by the LIKEDS keyword to the prototyped parameter defined with OPTIONS(*EXACT).
+
+DCL-PR pr5;
+orderInfoNoExact LIKEDS(orderInfo_t) CONST;
+orderInfoExact LIKEDS(orderInfo_t) CONST OPTIONS(*EXACT);
+END-PR;
+DCL-DS customerInfo LIKEDS(customerInfo_t);
+
+If the prototyped parameter is defined with the LIKE keyword, the passed parameter
+must be related by the LIKE keyword to the prototyped parameter.
+
+In the following example, field accountBalance
+can be passed to parameter itemPriceNoExact
+but it is unlikely that the data in a variable holding the balance of an account
+is valid for a parameter which is expect to be the price of an item.
+
+Field accountBalance
+cannot be passed to parameter itemPriceExact
+because it is not related by the LIKE keyword to the prototyped parameter.
+
+DCL-S price_t PACKED(7:2) TEMPLATE;
+DCL-PR pr6;
+itemPriceNoExact LIKE(price_t);
+itemPriceExact LIKE(price_t) OPTIONS(*EXACT);
+END-PR;
+
+DCL-S accountBalance PACKED(7:2);
+
+If the prototyped parameter is defined like a typed enumeration,
+the rules are more strict.
+You can only pass the following items which are related to the enumeration:
+
+A constant from the enumeration.
+
+An item defined like the enumeration.
+
+*HIVAL, which represents the highest value in the enumeration.
+
+*LOVAL, which represents the lowest value in the enumeration.
+
+%HIVAL or %LOVAL
+where the parameter for the built-in function is the enumeration name or a variable
+defined like the enumeration.
+
+(These rules are also in effect when OPTIONS(*EXACT) is not specified.)
+
+See Typed Enumerations.
+
+In the following example,
+the parameter itemPriceCodeExact is defined like the
+typed enumeration PRICE_CODES.
+
+Variable code cannot be passed because it is not defined
+like the typed enumeration.
+
+Literal 3 cannot be passed even though it is the value of
+one of the constants in the enumeration.
+The constant name must be used when passing a constant value.
+
+Constant PRICE_CODES.employee can be passed because it is one of the
+named constants in the enumeration.
+
+Variables likePriceCodes and likeLikePriceCodes
+can be passed because they are defined like the enumeration.
+
+*HIVAL, *LOVAL,
+%HIVAL(PRICE_CODES), and %LOVAL(likePriceCodes)
+can be passed because they represent one of the
+named constants in the enumeration.
+
+DCL-ENUM PRICE_CODES UNS(3) QUALIFIED;
+standard 1;
+discount 2;
+employee 3;
+END-ENUM;
+DCL-PR pr7;
+itemPriceCodeExact LIKE(PRICE_CODES) CONST OPTIONS(*EXACT);
+END-PR;
+DCL-S code UNS(3);
+DCL-S likePriceCodes LIKE(PRICE_CODES);
+DCL-S likeLikePriceCodes LIKE(likePriceCode);
+
+// Invalid parameters
+pr7 (code);
+pr7 (3);
+
+// Valid parameters
+pr7 (PRICE_CODES.employee);
+pr7 (likePriceCodes);
+pr7 (likeLikePriceCodes);
+pr7 (*LOVAL);
+pr7 (%HIVAL(PRICE_CODES));
+pr7 (%LOVAL(likePriceCodes));
+
+OPTIONS(*STRING)
+
+When OPTIONS(*STRING) is specified for a basing pointer parameter passed
+by value or by constant-reference, you may either pass a pointer or a character
+expression. If you pass a character expression, a temporary value will be
+created containing the value of the character expression followed by a null-terminator
+(x'00'). The address of this temporary value will be passed to the called
+program or procedure.
+
+The following example shows how to use OPTIONS(*STRING) to code a prototype
+and procedure that use a null-terminated string parameter.
+
+Figure 5. Using OPTIONS(*STRING)
+
+* The following prototype describes a procedure that expects
+* a null-terminated string parameter. It returns the length
+* of the string.
+D StringLen PR 5U 0
+D Pointer * VALUE OPTIONS(*STRING)
+D P S *
+D Len S 5U 0
+* Call StringLen with a character literal. The result will be
+* 4 since the literal is 4 bytes long.
+C EVAL Len = StringLen('abcd')
+* Call StringLen with a pointer to a string. Use ALLOC to get
+* storage for the pointer, and use %STR to initialize the storage
+* to 'My stringÂ¬' where 'Â¬' represents the null-termination
+* character x'00'.
+* The result will be 9 which is the length of 'My string'.
+C ALLOC 25 P
+C EVAL %STR(P:25) = 'My string'
+C EVAL Len = StringLen(P)
+* Free the storage.
+C DEALLOC P
+C RETURN
+*------------------------------------------------------------
+* StringLen:
+* Returns the length of the string that the parameter is
+* pointing to.
+*------------------------------------------------------------
+P StringLen B
+D StringLen PI 5U 0
+D Pointer * VALUE OPTIONS(*STRING)
+C RETURN %LEN(%STR(Pointer))
+P StringLen E
+
+OPTIONS(*RIGHTADJ)
+
+When OPTIONS(*RIGHTADJ) is specified for a CONST or VALUE parameter in
+a prototype, the character, graphic, or UCS-2 parameter value is right adjusted.
+This keyword is not allowed for a varying length parameter within a procedure
+prototype. Varying length values may be passed as parameters on a procedure
+call where the corresponding parameter is defined with OPTIONS(*RIGHTADJ).
+
+OPTIONS(*TRIM)
+
+When OPTIONS(*TRIM) is specified for a CONST or VALUE
+parameter of type character, UCS-2 or graphic, the passed parameter is copied
+without leading and trailing blanks to a temporary. If the parameter is not
+a varying length parameter, the trimmed value is padded with blanks (on the
+left if OPTIONS(*RIGHTADJ) is specified, otherwise on the right). Then the
+temporary is passed instead of the original parameter. Specifying OPTIONS(*TRIM)
+causes the parameter to be passed exactly as though %TRIM were coded on every
+call to the procedure.
+
+When OPTIONS(*STRING : *TRIM) or OPTIONS(*CONVERT : *TRIM) is specified for a CONST or VALUE
+parameter of type pointer, the character parameter or %STR of the pointer
+parameter is copied without leading or trailing blanks to a temporary, a null-terminator
+is added to the temporary and the address of the temporary is passed.
+
+Figure 6. Using OPTIONS(*TRIM)
+
+* The following prototype describes a procedure that expects
+* these parameters:
+* 1. trimLeftAdj - a fixed length parameter with the
+* non-blank data left-adjusted
+* 2. leftAdj - a fixed length parameter with the
+* value left-adjusted (possibly with
+* leading blanks)
+* 3. trimRightAdj - a fixed length parameter with the
+* non-blank data right-adjusted
+* 4. rightAdj - a fixed length parameter with the
+* value right-adjusted (possibly with
+* trailing blanks)
+* 5. trimVar - a varying parameter with no leading
+* or trailing blanks
+* 6. var - a varying parameter, possibly with
+* leading or trailing blanks
+D trimProc PR
+D trimLeftAdj 10a const options(*trim)
+D leftAdj 10a const
+D trimRightAdj 10a value options(*rightadj : *trim)
+D rightAdj 10a value options(*rightadj)
+D trimVar 10a const varying options(*trim)
+D var 10a value varying
+* The following prototype describes a procedure that expects
+* these parameters:
+* 1. trimString - a pointer to a null-terminated string
+* with no leading or trailing blanks
+* 2. string - a pointer to a null-terminated string,
+* possibly with leading or trailing blanks
+
+D trimStringProc PR
+D trimString * value options(*string : *trim)
+D string * value options(*string)
+D ptr s *
+/free
+// trimProc is called with the same value passed
+// for every parameter
+//
+// The called procedure receives the following parameters
+// trimLeftAdj 'abc '
+// leftAdj ' abc '
+// trimRightAdj ' abc'
+// rightAdj ' abc '
+// trimVar 'abc'
+// var ' abc '
+
+callp trimProc (' abc ' : ' abc ' : ' abc ' :
+' abc ' : ' abc ' : ' abc ' );
+
+// trimStringProc is called with the same value passed
+// for both parameters
+//
+// The called procedure receives the following parameters,
+// where Â¬ represents x'00'
+// trimstring pointer to 'abcÂ¬'
+// string pointer to ' abc Â¬'
+
+callp trimStringProc (' abc ' : ' abc ');
+
+// trimStringProc is called with the same pointer passed
+// to both parameters
+//
+// The called procedure receives the following parameters,
+// where Â¬ represents x'00'
+// trimstring pointer to 'xyzÂ¬'
+// string
+
+pointer to ' xyz Â¬'
+ptr = %alloc (6);
+%str(ptr : 6) = ' xyz ';
+callp trimStringProc (ptr : ptr);
+
+OPTIONS(*NULLIND)
+
+When OPTIONS(*NULLIND) is specified for a parameter, the null-byte
+map is passed with the parameter, giving the called procedure direct access
+to the null-byte map of the caller's parameter. Note the following rules for
+OPTIONS(*NULLIND).
+
+ALWNULL(*USRCTL) must be in effect.
+
+OPTIONS(*NULLIND) is not valid for parameters passed by value.
+
+OPTIONS(*NULLIND) is not valid for parameters defined
+with the NULLIND keyword.
+
+The only other options that can be specified with OPTIONS(*NULLIND) are
+*NOPASS and *OMIT.
+
+Only variables may be passed as the parameter when OPTIONS(*NULLIND) is
+specified, and the variable must be an exact match even when CONST is specified.
+
+If the parameter is a data structure, the passed parameter must be defined
+with the same parent LIKEDS or LIKEREC as the prototyped parameter. Furthermore,
+the null-capability of the prototyped parameter and passed parameter must
+match exactly.
+
+A prototyped data structure parameter can have OPTIONS(*NULLIND) specified
+whether or not there are any null-capable subfields.
+
+If a non-data-structure prototyped parameter is defined with OPTIONS(*NULLIND),
+the parameter in the procedure interface is defined as null-capable.
+
+See Rational Development Studio for i: ILE RPG Programmer's Guide for information about using OPTIONS(*NULLIND)
+when the calling procedure or called procedure is not written using ILE RPG.
+
+Figure 7. Using OPTIONS(*NULLIND)
+
+*-----------------------------------
+* DDS for file NULLFILE
+*-----------------------------------
+
+A R TESTREC
+A NULL1 10A ALWNULL
+A NOTNULL2 10A
+A NULL3 10A ALWNULL
+
+*-----------------------------------
+* Calling procedure
+*-----------------------------------
+
+* The externally-described data structure DS, and the
+* data structure DS2 defined LIKEDS(ds) have
+* null-capable fields NULL1 and NULL3.
+
+D ds E DS EXTNAME(nullFile)
+D ds2 DS LIKEDS(ds)
+* Procedure PROC specifies OPTIONS(*NULLIND) for all its
+* parameters. When the procedure is called, the
+* null-byte maps of the calling procedure's parameters
+* will be passed to the called procedure allowing the
+* called procedure to use %NULLIND(parmname) to access the
+* null-byte map.
+
+D proc PR
+D parm LIKEDS(ds)
+D OPTIONS(*NULLIND)
+D parm2 10A OPTIONS(*NULLIND)
+D parm3 10A OPTIONS(*NULLIND) CONST
+
+/free
+// The calling procedure sets some values
+// in the parameters and their null indicators
+
+%nullind(ds.null1) = *on;
+ds.notnull2 = 'abcde';
+ds.null3 = 'fghij';
+%nullind(ds.null3) = *off;
+ds2.null1 = 'abcde';
+%nullind(ds2.null1) = *on;
+%nullind(ds3.null3) = *off;
+// The procedure is called (see the code for
+// the procedure below
+
+proc (ds : ds2.null1 : ds2.null3);
+
+// After "proc" returns, the calling procedure
+// displays some results showing that the
+// called procedure changed the values of
+// the calling procedure's parameters and
+// their null-indicators
+
+dsply (%nullind(ds.null1)); // displays '0'
+
+dsply ds2.null2; // displays 'newval'
+
+dsply (%nullind(ds2.null2)); // displays '0'
+
+/end-free
+
+*-----------------------------------
+* Called procedure PROC
+*-----------------------------------
+
+P B
+D proc PI
+D parm LIKEDS(ds)
+D OPTIONS(*NULLIND)
+D parm2 10A OPTIONS(*NULLIND)
+D parm3 10A OPTIONS(*NULLIND) CONST
+/free
+if %NULLIND(parm.null1);
+// This code will be executed because the
+// caller set on the null indicator for
+// subfield NULL1 of the parameter DS
+
+endif;
+
+if %NULLIND(parm3);
+// PARM3 is defined as null-capable since it was
+// defined with OPTIONS(*NULLIND).
+// This code will not be executed, because the
+// caller set off the null-indicator for the parameter
+
+endif;
+
+// Change some data values and null-indicator values
+// The calling procedure will see the updated values.
+
+parm2 = 'newvalue';
+%NULLIND(parm2) = *OFF;
+%NULLIND(parm.null1) = *OFF;
+parm.null1 = 'newval';
+return;
+/end-free
+P E
+
+OPTIONS(*CONVERT)
+
+When OPTIONS(*CONVERT) is specified for a parameter,
+the data type of the passed parameter can be different from the
+data type of the prototyped parameter.
+
+The CONST or VALUE keyword must be specified for the prototyped parameter.
+
+The data type of the prototyped parameter can be alphanumeric, UCS-2, or pointer.
+
+When the passed parameter has data type Numeric, Date, Time, or Timestamp, the value
+of the parameter is first converted to Alphanumeric using the same rules as the
+%CHAR built-in function.
+Then, if necessary, the Alphanumeric value is converted to the CCSID of the
+prototyped parameter.
+
+If the data type of the prototyped parameter is Alphanumeric or UCS-2, the
+passed parameter can be any data type except Object, Pointer, or Procedure Pointer.
+The parameter is converted to the data type of the prototyped parameter.
+
+If the prototyped parameter has data type Pointer, the passed parameter can
+be any data type except Object or Procedure Pointer.
+
+If the passed parameter has data type Pointer, the passed parameter should
+point to null-terminated data in the job CCSID, such as a parameter defined
+with OPTIONS(*STRING) or OPTIONS(*CONVERT).
+
+If the passed parameter has any other data type, it is converted to a
+null-terminated string in the job CCSID.
+
+Tip:
+
+To avoid losing data due to CCSID conversion, define the parameter as UTF-8 or UCS-2.
+The length should be long enough to handle any data you plan to pass to the procedure.
+
+DCL-PR myProc;
+parm1 VARCHAR(1000) CCSID(*UTF8) CONST;
+parm2 VARUCS2(1000) CCSID(*UTF16) CONST;
+END-PR;
+
+If you specify OPTIONS(*CONVERT) for an Alphanumeric parameter with a CCSID other
+than *UTF8 (or 1208), or for a Pointer parameter, specify Control keyword
+CCSIDCVT(*EXCP).
+This will cause an exception if data is lost due to CCSID conversion for the passed parameter.
+
+In the following example
+
+The data type of the prototyped parameter charParm is
+Alphanumeric with the job CCSID.
+The passed parameter has data type Date.
+The parameter received by the procedure is the Alphanumeric value '2022-12-25'.
+
+The data type of the prototyped parameter ucs2Parm is
+UCS-2.
+The passed parameter has data type Numeric.
+The parameter received by the procedure is the UCS-2 value '25.7'.
+
+The data type of the prototyped parameter pointerParm is
+Pointer.
+The passed parameter has data type UCS-2.
+The parameter received by the procedure is a null-terminated string
+"Sally" with the job CCSID.
+
+Figure 8. Using OPTIONS(*CONVERT)
+
+DCL-PR myProc;
+charParm CHAR(20) CONST OPTIONS(*CONVERT); // 1
+ucs2Parm VARUCS2(20) CONST OPTIONS(*CONVERT); // 2
+pointerParm POINTER VALUE OPTIONS(*CONVERT); // 3
+END-PR;
+DCL-S name VARUCS2(10) INZ('Sally');
+
+myProc (D'2022-12-25' // 1
+: 25.7 // 2
+: name); // 3
+
+DCL-PROC myProc;
+DCL-PI *N;
+charParm CHAR(20) CONST OPTIONS(*CONVERT); // 1
+ucs2Parm VARUCS2(20) CONST OPTIONS(*CONVERT); // 2
+pointerParm POINTER VALUE OPTIONS(*CONVERT); // 3
+END-PI;
+
+SND-MSG charParm;
+SND-MSG ucs2Parm;
+SND-MSG %STR(pointerParm);
+END-PROC;
+
+The SND-MSG operations within the procedure send the following messages to the joblog:
+
+2022-12-25
+25.7
+Sally
+
+Parent topic: Definition-Specification Keywords

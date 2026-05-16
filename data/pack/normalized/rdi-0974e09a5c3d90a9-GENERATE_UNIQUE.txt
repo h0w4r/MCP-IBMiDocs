@@ -1,0 +1,60 @@
+GENERATE_UNIQUE
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+GENERATE_UNIQUE
+The GENERATE_UNIQUE function returns a bit data character
+string 13 bytes long (CHAR(13) FOR BIT DATA) that is unique compared
+to any other execution of the same function. The function is defined
+as non-deterministic
+GENERATE_UNIQUE()
+The result of the function is a unique value that includes
+the internal form of the Universal Time, Coordinated (UTC) and the
+system serial number. The result cannot be null.
+The result of this function can be used to provide unique
+values in a table. Each successive value will be greater than the
+previous value, providing a sequence that can be used within a table.
+The sequence is based on the time when the function was executed.
+This
+function differs from using the special register CURRENT TIMESTAMP
+in that a unique value is generated for each instance of the function
+in an SQL statement and each row of a multiple row insert statement, an insert statement with a fullselect, or an insert
+statement in a MERGE statement.
+The timestamp value that is part of the result of this
+function can be determined using the TIMESTAMP function with the result
+of GENERATE_UNIQUE as an argument.
+ExamplesCreate a table that includes a column that is unique for each
+row. Populate this column using the GENERATE_UNIQUE function. Notice
+that the UNIQUE_ID column is defined as FOR BIT DATA to identify the
+column as a bit data character string.   CREATE TABLE EMP_UPDATE
+    (UNIQUE_ID CHAR(13) FOR BIT DATA,
+     EMPNO CHAR(6),
+     TEXT VARCHAR(1000))
+  INSERT INTO EMP_UPDATE VALUES (GENERATE_UNIQUE(),
+'000020',
+'Update entry 1...')
+  INSERT INTO EMP_UPDATE VALUES (GENERATE_UNIQUE(),
+'000050',
+'Update entry 2...')
+This table will have a unique identifier for each row
+provided that the UNIQUE_ID column is always set using GENERATE_UNIQUE.
+This can be done by introducing a trigger on the table.
+  CREATE TRIGGER EMP_UPDATE_UNIQUE
+    NO CASCADE BEFORE INSERT ON EMP_UPDATE
+    REFERENCING NEW AS NEW_UPD
+    FOR EACH ROW MODE DB2SQL
+    SET NEW_UPD.UNIQUE_ID = GENERATE_UNIQUE()
+With this trigger, the previous INSERT statements that
+were used to populate the table can be issued without specifying a
+value for the UNIQUE_ID column:
+  INSERT INTO EMP_UPDATE(EMPNO, TEXT) VALUES ('000020', 'Update entry 1...')
+  INSERT INTO EMP_UPDATE(EMPNO, TEXT) VALUES ('000050', 'Update entry 2...')
+The timestamp (in UTC) for when a
+row was added to EMP_UPDATE can be returned using:
+  SELECT TIMESTAMP(UNIQUE_ID), EMPNO, TEXT FROM EMP_UPDATE
+Therefore, the table does not need a timestamp column
+to record when a row is inserted.
+
+Parent topic: Scalar functions

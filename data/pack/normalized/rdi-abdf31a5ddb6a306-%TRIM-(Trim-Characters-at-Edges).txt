@@ -1,0 +1,111 @@
+%TRIM (Trim Characters at Edges)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%TRIM (Trim Characters at Edges)
+
+%TRIM(string {: characters to trim {: *NATURAL | *STDCHARSIZE}}})
+%TRIM with only one parameter returns the given string
+with any leading and trailing blanks removed.
+
+%TRIM with two parameters returns the given string with
+any leading and trailing characters that are in the characters
+to trim parameter removed.
+
+The string can be character, graphic, or UCS-2 data.
+
+If the characters to trim parameter
+is specified, and it does not have the same type and CCSID as the string parameter,
+it is converted to the type and CCSID of the string parameter.
+
+The second or third parameter can be *NATURAL or *STDCHARSIZE
+to override the current CHARCOUNT mode for the statement.
+If this parameter is specified, it must be the last parameter.
+
+Specify *NATURAL to indicate that %TRIM operates in CHARCOUNT NATURAL mode.
+The number of bytes in each character is considered when locating the
+characters to trim.
+
+For example, if the string parameter is a UTF-8 string with the value
+'áçabc', and the characters to trim parameter is a UTF-8 string with the value
+'á' only 'á' is considered to be a character to trim. The result is 'çabc'.
+
+If the string parameter is a
+mixed SBCS/DBCS EBCDIC string with the value x'8182830E4CB14DB10F' ('abcDDEE',
+where 'DD' and 'EE' represents DBCS characters), and the
+characters to trim parameter has the value x'0E4DB10F' ('EE'),
+only the last DBCS character is trimmed. The result is
+x'8182830E4CB10F' ('abcDD').
+
+Specify *STDCHARSIZE to indicate that %TRIM operates in CHARCOUNT STDCHARSIZE mode.
+
+In the first example of the previous paragraph, with CHARCOUNT STDCHARSIZE
+mode, each byte of the characters to trim parameter is considered to be a
+separate character. Characters 'á' and 'ç' are 2-byte characters,
+x'C3A1' and x'C3A7'. The first bytes of 'á' and
+'ç' are the same, x'C3', so the first byte of 'ç' is considered to be
+a character to trim. The bytes x'C3', x'A1' are
+trimmed from the result, so the result is invalid because it begins with the second
+byte of 'ç'.
+
+In the second example of the previous paragraph, with CHARCOUNT STDCHARSIZE
+mode, each byte of the characters to trim parameter is considered separately, so the
+x'B1' that ends the DBCS character x'4CB1' in the string parameter is
+trimmed.
+The result is invalid, since it ends with an incomplete DBCS sequence: x'8182830E4C' ('abc??').
+
+See Processing string data by the natural size of each character and Character Data Type.
+Note:
+%TRIM can also operate in CHARCOUNT NATURAL mode due to the
+/CHARCOUNT compiler directive or the CHARCOUNT Control keyword.
+
+When specified as a parameter for a definition specification keyword,
+the string parameter must be a constant.
+Note: Specifying
+%TRIM with two parameters is not supported for parameters of Definition
+keywords.
+
+For more information, see String Operations or Built-in Functions.
+
+Figure 1. %TRIM Example
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+D*Name++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D Location S 16A
+D FirstName S 10A inz (' Chris ')
+D LastName S 10A inz (' Smith ')
+
+D Name S 20A
+
+* LOCATION will have the value 'Toronto, Ontario'.
+/FREE
+Location = %trim (' Toronto, Ontario ');
+
+// Name will have the value 'Chris Smith! '.
+Name = %trim (FirstName) + ' ' + %trim (LastName) + '!';
+/END-FREE
+
+Figure 2. Trimming characters other than blank
+
+D edited S 20A INZ('$******5.27*** ')
+D trimmed S 20A varying
+D numeric S 15P 3
+/FREE
+
+// Trim '$' and '*' from the edited numeric value
+// Note: blanks will not be trimmed, since a blank
+// is not specified in the 'characters to trim' parameter
+
+trimmed = %trim(edited : '$*'); // trimmed is now '5.27*** '
+
+// Trim '$' and '*' and blank from the edited numeric value
+
+trimmed = %trim(edited : '$* '); // trimmed is now '5.27'
+
+// Get the numeric value from the edited value
+
+numeric = %dec(%trim(edited : '$* ') : 31 : 9); // numeric is now 5.27
+
+Parent topic: Built-in Functions

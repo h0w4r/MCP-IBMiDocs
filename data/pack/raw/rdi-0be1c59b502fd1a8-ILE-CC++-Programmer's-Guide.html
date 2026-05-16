@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Processing a Database Record File in Keyed Sequence</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="keyed sequence processing, database records">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog352.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog306.htm">Part 5&#46; Working with iSeries File Systems and Devices</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog331.htm">Chapter 19&#46; Using Database Files and Distributed Data Management Files in a Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<HR><H2><A NAME="Header_416" HREF="cpprog02.htm#ToC_416">Processing a Database Record File in Keyed Sequence</A></H2>
+<P>You can update a record file by using a keyed sequence access path.
+The records are arranged based on the contents of one or more key fields in
+the record.
+<P><B>Example:</B>
+<P>The following example updates data in the record file T1520DD3 by using the
+key field SERIALNUM. The <TT>_Rupdate()</TT> function is
+used. 
+<OL TYPE=1>
+<LI>On the command line, enter: 
+<PRE>
+<BR>
+CRTPF FILE(MYLIB/T1520DD3) SRCFILE(QCPPLE/QADDSSRC)
+</PRE>
+<P>
+<P>To create the physical file T1520DD3 that uses the following DDS
+source: 
+<P><B><A NAME="Figure_129" HREF="cpprog09.htm#FT_Figure_129">Figure 129. T1520DD3 -- DDS Source for Database Records</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+     A          R PURCHASE
+<BR>     A            ITEMNAME      10
+<BR>     A            SERIALNUM     10
+<BR>     A          K SERIALNUM
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI>Enter the following sample data into T1520DD3: 
+<PRE>
+<BR>
+orange    1000222200
+<BR>grape     1000222010
+<BR>apple     1000222030
+<BR>cherry    1000222020
+</PRE>
+<P>Although you enter the data as shown, the file T1520DD3 is accessed by the
+program T1520KSP in keyed sequence. Therefore the program T1520KSP
+reads the file T1520DD3 in the following sequence: 
+<PRE>
+<BR>
+grape     1000222010
+<BR>cherry    1000222020
+<BR>apple     1000222030
+<BR>orange    1000222200
+</PRE>
+</LI><LI>On the command line, enter: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520KSP) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+<P>
+<P>This creates the program T1520KSP, using the following source: 
+<P><B><A NAME="Figure_130" HREF="cpprog09.htm#FT_Figure_130">Figure 130. T1520KSP -- ILE C Source to Process a Database Record File in Keyed Sequence</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program illustrates how to update a record in a file using    */
+<BR>/* the _Rupdate() function.                                           */
+<BR>&nbsp;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>&nbsp;
+<BR>int main(void)
+<BR>{
+<BR>    _RFILE   *in;
+<BR>    char     new_purchase[21] = "PEAR      1002022244";
+<BR>&nbsp;
+<BR>/* Open the file for processing in keyed sequence. File is created    */
+<BR>/* with the default access path.                                      */
+<BR>&nbsp;
+<BR>    if ( (in = _Ropen("*LIBL/T1520DD3", "rr+")) == NULL )
+<BR>    {
+<BR>        printf("Open failed\n");
+<BR>        exit(1);
+<BR>    };
+<BR>/* Update the first record in the keyed sequence.  The function       */
+<BR>/* _Rlocate locks the record.                                         */
+<BR>&nbsp;
+<BR>    _Rlocate(in, NULL, 0, __FIRST);
+<BR>    _Rupdate(in, new_purchase, 20);
+<BR>/* Force the end of data.                                             */
+<BR>&nbsp;
+<BR>    _Rfeod(in);
+<BR>&nbsp;
+<BR>    _Rclose(in);
+<BR>}&nbsp;
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>This program uses the <TT>_Ropen()</TT> function to open the record
+file T1520DD3. The default access path which is the keyed sequence
+access path is used to create the file T1520DD3. The
+<TT>_Rlocate()</TT> function locks the first record in the keyed
+sequence. The <TT>_Rupdate()</TT> function updates the record that
+is locked by <TT>_Rlocate()</TT> to PEAR 1002022244. (The first
+record becomes the second record in the keyed sequence access path because the
+key has changed.)
+</LI><LI>To run the program T1520KSP, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520KSP)
+</PRE>
+<P>because <TT>grape</TT> is the first record in the keyed sequence, it is
+updated, and the data file T1520DD3 is as follows: 
+<PRE>
+<BR>
+orange    1000222200
+<BR>PEAR      1002022244
+<BR>apple     1000222030
+<BR>cherry    1000222020
+</PRE>
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog351.htm">Previous Page</A> | <A HREF="cpprog353.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

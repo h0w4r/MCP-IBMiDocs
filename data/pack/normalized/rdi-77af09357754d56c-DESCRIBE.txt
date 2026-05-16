@@ -1,0 +1,260 @@
+DESCRIBE
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+DESCRIBE
+The DESCRIBE statement obtains information about a prepared
+statement.
+For an explanation of prepared statements, see PREPARE.
+InvocationThis statement can only be embedded
+in an application program, SQL function, SQL procedure, or trigger.
+It is an executable statement that cannot be dynamically prepared.
+It must not be specified in Java™.
+AuthorizationNone required. See PREPARE for the authorization required to
+create a prepared statement.
+SyntaxDESCRIBEOUTPUTstatement-nameUSINGSQLDESCRIPTORLOCALGLOBALSQL-descriptor-nameINTOdescriptor-nameUSINGNAMESSYSTEM NAMESLABELSANYBOTHALL
+Descriptionstatement-name
+Identifies
+the prepared statement. When the DESCRIBE statement is executed, the
+name must identify a prepared statement at the application server. If
+the prepared statement is a fullselect or VALUES
+INTO statement, the information returned describes the columns in
+its result table. If the prepared statement is a CALL statement, the
+information returned describes the OUT and INOUT parameters of the
+procedure.
+
+USING
+Identifies
+an SQL descriptor. LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope. See GET DESCRIPTOR for an explanation of the information
+that is placed in the SQL descriptor.
+
+INTO descriptor-name
+Identifies an SQL descriptor
+area (SQLDA), which is described in SQLDA (SQL descriptor area).
+Before the DESCRIBE statement is executed, the following variable
+in the SQLDA must be set. SQLN
+Indicates the number of SQLVAR entries provided
+in the SQLDA. SQLN must be set to a value greater than or equal to
+zero before the DESCRIBE statement is executed. For information about
+techniques to determine the number of occurrences requires, see Determining how many SQLVAR occurrences are needed.
+
+The rules for REXX are different. For more information, see
+the Embedded
+SQL Programming topic collection.
+
+When the DESCRIBE statement is executed, the database
+manager assigns values to the variables of the SQLDA as follows:
+SQLDAID
+The first 6 bytes are set to 'SQLDA ' (that
+is, 5 letters followed by the space character). The seventh byte
+is set based on the result columns described:
+If the SQLDA contains two, three, or four SQLVAR entries for every
+select list item (or, column of the result table), the seventh byte
+is set to '2', '3', or '4'. This technique is used in order to accommodate
+LOB or distinct type result columns, labels, and system names.
+Otherwise, the seventh byte is set to the space character.
+
+The seventh byte is set to the space character if there is
+not enough room in the SQLDA to contain the description of all result
+columns.
+The eighth byte is set to the space character.
+
+SQLDABC
+Length of the SQLDA in bytes.
+SQLD
+If the prepared statement is a SELECT, SQLD
+is set to the number of columns in its result table plus the number
+of extended SQLVAR entries. For information about extended SQLVAR
+entries see, Field descriptions in an occurrence of SQLVAR. If the prepared
+statement is a CALL statement, SQLD is set to the number of OUT and
+INOUT parameters of the procedure. If the prepared
+statement is a VALUES INTO, SQLD is set to the number of expressions
+in the VALUES clause plus the number of extended SQLVAR entries. Otherwise,
+SQLD is set to 0.
+SQLVAR
+If the value of SQLD is 0, or greater than
+the value of SQLN, no values are assigned to occurrences of SQLVAR.
+If the value of SQLD is n, where n is greater than
+0 but less than or equal to the value of SQLN, values are assigned
+to the first n occurrences of SQLVAR so that the first occurrence
+of SQLVAR contains a description of the first column of the result
+table (or parameter or expression in the VALUES
+clause), the second occurrence of SQLVAR contains a description
+of the second column of the result table (or parameter or
+expression in the VALUES clause), and so on. For information
+about the values assigned to SQLVAR occurrences, see Field descriptions in an occurrence of SQLVAR.
+
+USING
+Specifies
+what value to assign to each SQLNAME variable in the SQLDA. If the
+requested value does not exist or if the length of a name is greater
+than 30, SQLNAME is set to a length of 0. NAMES
+Assigns the name of the
+column (or parameter). This is the default. For the DESCRIBE of a
+prepared statement where the name is explicitly listed in the select-list,
+the name specified is returned. The column name returned is case sensitive
+and without delimiters.
+SYSTEM NAMES
+Assigns the system column
+name of the column.
+LABELS
+Assigns the label of
+the column. (Column labels are defined by the LABEL statement.) Only
+the first 20 bytes of the label are returned.
+ANY
+Assigns the column label.
+If the column has no label, the column name is used instead.
+BOTH
+Assigns both the label
+and name of the column. In this case, two or three occurrences of
+SQLVAR per column, depending on whether the result set contains distinct
+types, are needed to accommodate the additional information. To specify
+this expansion of the SQLVAR array, set SQLN to 2*n or 3*n(where n is
+the number of columns in the table or view). The first n occurrences
+of SQLVAR contain the column names. Either the second or third n occurrences
+contain the column labels. If there are no distinct types, the labels
+are returned in the second set of SQLVAR entries. Otherwise, the labels
+are returned in the third set of SQLVAR entries.
+ALL
+Assigns the label, column name, and system column
+name. In this case three or four occurrences of SQLVAR per column,
+depending on whether the result set contains distinct types, are needed
+to accommodate the additional information. To specify this expansion
+of the SQLVAR array, set SQLN to 3*n or 4*n (where n is
+the number of columns in the result table). The first n occurrences
+of SQLVAR contain the system column names. The second or third n occurrences
+contain the column labels. The third or fourth n occurrences
+contain the column names if they are different from the system column
+name. Otherwise the SQLNAME field is set to a length of zero. If there
+are no distinct types, the labels are returned in the second set of
+SQLVAR entries and the column names are returned in the third set
+of SQLVAR entries. Otherwise, the labels are returned in the third
+set of SQLVAR entries and the column names are returned in the fourth
+set of SQLVAR entries.
+
+NotesPREPARE
+INTO: Information about a prepared statement can also be obtained
+by using the INTO clause of the PREPARE statement.
+Allocating the SQL descriptor: Before the DESCRIBE
+statement is executed, the SQL descriptor must be allocated using
+the ALLOCATE DESCRIPTOR statement. If the number of descriptor items
+allocated is less than the number of result columns, a warning (SQLSTATE
+01005) is returned.
+Allocating the SQLDA: In C, COBOL, PL/I, and RPG,
+before the DESCRIBE or PREPARE INTO statement is executed, enough storage must be
+allocated for some number of SQLVAR occurrences. SQLN must then be
+set to the number of SQLVAR occurrences that were allocated. To obtain
+the description of the columns of the result table of a prepared SELECT
+statement, the number of occurrences of SQLVAR entries must not be
+less than the number of columns. Furthermore, if the columns include
+LOBs or distinct types, the number of occurrences of SQLVAR entries
+should be two times the number of columns. See Determining how many SQLVAR occurrences are needed for
+more information. Among the possible ways to allocate the SQLDA are
+the three described below:
+First technique
+Allocate an SQLDA with enough occurrences of SQLVAR entries to
+accommodate any select list that the application will have to process.
+At the extreme, the number of SQLVARs could equal two times the maximum
+number of columns allowed in a result table. Having done the allocation,
+the application can use this SQLDA repeatedly. This technique uses
+a large amount of storage that is never deallocated, even when most
+of this storage is not used for a particular select list.
+
+Second technique
+Repeat the following three steps for every processed select list:
+Execute a DESCRIBE statement with an SQLDA that has no occurrences
+of SQLVAR entries; that is, an SQLDA for which SQLN is zero. The value
+returned for SQLD is either the required number of occurrences of
+SQLVAR entries or the number of result columns. Because there were
+no SQLVAR entries, a warning will be issued.1
+If the seventh byte of SQLDAID field is not a blank, then allocate
+an SQLDA with (the value in the seventh byte of SQLDAID) * SQLD occurrences
+and set SQLN in the new SQLDA to (the value in the seventh byte of
+SQLDAID) * SQLD. Otherwise, allocate an SQLDA with SQLD occurrences
+and set SQLN in the new SQLDA to the value of SQLD.
+Execute the DESCRIBE statement again, using this new SQLDA.
+
+This technique allows better storage management than the first
+technique, but it doubles the number of DESCRIBE statements.
+
+Third technique
+Allocate an SQLDA that is large enough to handle most, and perhaps
+all, select lists but is also reasonably small. If an execution of
+DESCRIBE fails because the SQLDA is too small, allocate a larger SQLDA
+and execute DESCRIBE again. For the new SQLDA, use the value of SQLD
+(or double the value of SQLD) returned from the first execution of
+DESCRIBE for the number of occurrences of SQLVAR entries. This
+technique is a compromise between the first two techniques. Its effectiveness
+depends on a good choice of size for the original SQLDA.
+
+Considerations for implicitly hidden
+columns: A DESCRIBE OUTPUT statement only returns information
+about implicitly hidden columns if the column (of a base table that
+is defined as implicitly hidden) is explicitly specified as part of
+the SELECT list of the final result table of the query described.
+If implicitly hidden columns are not part of the result table of a
+query, a DESCRIBE OUTPUT statement that returns information about
+that query will not contain information about any implicitly hidden
+columns.
+ExampleIn a C program, execute a DESCRIBE
+statement with an SQLDA that has no occurrences of SQLVAR entries.
+If SQLD is greater than zero, use the value to allocate an SQLDA with
+the necessary number of occurrences of SQLVAR entrires and then execute
+a DESCRIBE statement using that SQLDA.
+EXEC SQL BEGIN DECLARE SECTION;
+char stmt1_str [200];
+EXEC SQL END DECLARE SECTION;
+EXEC SQL INCLUDE SQLDA;
+struct sqlda initialsqlda;
+struct sqlda *sqldaPtr;
+
+EXEC SQL DECLARE DYN_CURSOR CURSOR FOR STMT1_NAME;
+
+… /* code to prompt user for a query, then to generate */
+/* a select-statement in the stmt1_str */
+EXEC SQL PREPARE STMT1_NAME FROM :stmt1_str;
+
+… /* code to set SQLN to zero and to allocate the SQLDA */
+EXEC SQL DESCRIBE STMT1_NAME INTO :initialsqlda;
+
+if (initialsqlda.sqld == 0); /* statement is a select-statement */
+{
+… /* Code to allocate correct size SQLDA (sets sqldaPtr) */
+
+if (strcmp(SQLSTATE,"01005") == 0)
+{
+sqldaPtr->sqln = 2*initialsqlda.sqld;
+SETSQLDOUBLED(sqldaPtr, SQLDOUBLED);
+}
+else
+{
+sqldaPtr->sqln = initialsqlda.sqld;
+SETSQLDOUBLED(sqldaPtr, SQLSINGLED);
+}
+EXEC SQL DESCRIBE STMT1_NAME INTO :*sqldaPtr;
+
+… /* code to prepare for the use of the SQLDA */
+EXEC SQL OPEN DYN_CURSOR;
+
+… /* loop to fetch rows from result table */
+EXEC SQL FETCH DYN_CURSOR USING DESCRIPTOR :*sqldaPtr;
+
+…
+}
+…
+
+Parent topic: Statements
+
+1 If LOBs or UDTs are
+not in the result set, the warning is only returned if the standards
+option is specified. For information about the standards option, see Standards compliance.

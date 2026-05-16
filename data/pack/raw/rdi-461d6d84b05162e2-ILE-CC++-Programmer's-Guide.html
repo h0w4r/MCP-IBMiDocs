@@ -1,0 +1,487 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - ILE CL Example: Calling OPM, COBOL, and RPG Programs from an ILE C Program</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="data type compatibility">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog526.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog504.htm">Chapter 25&#46; Working with Multi&#45;Language Applications</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog520.htm">Accessing ILE C Procedures from Any ILE Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRILEEXAMPLE" HREF="cpprog02.htm#ToC_682">ILE CL Example: Calling OPM, COBOL, and RPG Programs from an ILE C Program</A></H3>
+<P>This example is an ILE version of the small transaction processing program <A HREF="cpprog525.htm#HDROPMEXAMPLE">OPM CL Example: Calling OPM, COBOL, and RPG Programs from an ILE C Program</A>.
+<P><B><A NAME="FIGCALLO3" HREF="cpprog09.htm#FT_FIGCALLO3">Figure 261. Basic Object Structure</A></B><BR>
+<BR><IMG SRC="ilccall1.gif" ALT=""><BR>
+<P>This example consists of: 
+<UL>
+<LI>A CL command that accepts user's input and passes it to an ILE CL
+program.
+</LI><LI>A ILE CL program that processes the input and passes it to an ILE C
+program.
+</LI><LI>The ILE C program calls ILE procedures to process the input. Output
+is then written to the user's terminal.
+</LI><LI>An ILE COBOL procedure that completes the calculation and formats the
+cost.
+</LI><LI>An ILE RPG procedure that updates the audit file with each
+transaction.
+</LI></UL>
+<DL><DT><B>Note:</B></DT><DD>In addition to the source for CMD, ILE CL, ILE C, ILE RPG and ILE COBOL you
+need DDS source for the output file, which is the same as the previous
+example.
+</DD></DL>
+<P><H4><A NAME="Header_683">Program Modules and Activation Groups</A></H4>
+<P>As shown in <A HREF="#FIGCALST2">Figure 262</A>, the CL and C programs are activated within a new activation
+group. The ILE CL program is created with the CRTPGM default for the
+ACTGRP parameter, ACTGRP(*NEW). The ILE C program is created with
+ACTGRP(*CALLER). 
+<P><B><A NAME="FIGCALST2" HREF="cpprog09.htm#FT_FIGCALST2">Figure 262. Integrated Language Environment Structure</A></B><BR>
+<BR><IMG SRC="ilccal1.gif" ALT=""><BR>
+<P><H4><A NAME="Header_684">Programming Tasks</A></H4>
+<P>The following steps show you how to: 
+<UL>
+<LI>Create a physical file to contain an audit trail for the ILE C
+program.
+</LI><LI>Create an ILE CL program that passes the parameters item name, price,
+quantity, and user ID to an ILE C program.
+</LI><LI>Create a CL command prompt to enter data for item name, price, and
+quantity. The command passes the data to the ILE CL program which in
+turn calls an ILE C program.
+</LI><LI>Create an ILE COBOL module that completes the tax calculation and formats
+the total cost.
+</LI><LI>Create an ILE RPG module that writes the audit trail for the
+application.
+</LI><LI>Create a service program that exports a data item.
+</LI><LI>Create a service program that exports an RPG procedure.
+</LI><LI>Create one program with a <TT>main()</TT> function that receives
+incoming arguments from a CL program. The program calls an ILE COBOL
+procedure to complete the tax calculation and format the total cost, and calls
+an ILE RPG procedure to write audit records.
+</LI></UL>
+<OL TYPE=1>
+<LI>To create a physical file T1520DD2 using the source shown in <A HREF="#FIGT1520DD2FIG">Figure 263</A>, enter: 
+<PRE>
+<BR>
+CRTPF FILE(MYLIB/T1520DD2) SRCFILE(QCPPLE/QADDSSRC) MAXMBRS(*NOMAX)
+</PRE> 
+<P>
+<P><B><A NAME="FIGT1520DD2FIG" HREF="cpprog09.htm#FT_FIGT1520DD2FIG">Figure 263. T1520DD2 -- Source to Create Physical Files</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+R T1520DD2R
+<BR>                  USER          10          COLHDG('User')
+<BR>                  ITEM          20          COLHDG('Item name')
+<BR>                  PRICE         10S 2       COLHDG('Unit price')
+<BR>                  QTY            4S         COLHDG('Number of items')
+<BR>                  TXRATE         2S 2       COLHDG('Current tax rate')
+<BR>                  TOTAL         21          COLHDG('Total cost')
+<BR>                  DATE           6          COLHDG('Transaction date')
+<BR>                K USER
+</SPAN></PRE>
+</TD></TR></TABLE> 
+<P>This file contains the audit trail for the ILE C program T1520ICB.
+</LI><LI>To create a CL program T1520CL3 that the source shown in <A HREF="#FIGT1520CL3FIG">Figure 264</A>, enter: 
+<PRE>
+<BR>
+CRTCLMOD MODULE(MYLIB/T1520CL3) SRCFILE(QCPPLE/QACLSRC)
+<BR>CRTPGM PGM(MYLIB/T1520CL3) MODULE(MYLIB/T1520CL3) ACTGRP(*NEW)
+</PRE>
+<P><B><A NAME="FIGT1520CL3FIG" HREF="cpprog09.htm#FT_FIGT1520CL3FIG">Figure 264. T1520CL3 -- ILE CL Source to Pass Variables to an ILE C Program</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* ILE version of T1520CL2                                   */
+<BR>        PGM        PARM(&amp;ITEMIN &amp;PRICE &amp;QUANTITY)
+<BR>             DCL        VAR(&amp;USER) TYPE(*CHAR) LEN(10)
+<BR>             DCL        VAR(&amp;ITEMIN)    TYPE(*CHAR) LEN(20)
+<BR>             DCL        VAR(&amp;ITEMOUT)   TYPE(*CHAR) LEN(21)
+<BR>             DCL        VAR(&amp;PRICE)     TYPE(*DEC)  LEN(10 2)
+<BR>             DCL        VAR(&amp;QUANTITY)  TYPE(*DEC)  LEN(2 0)
+<BR>             DCL        VAR(&amp;NULL)      TYPE(*CHAR) LEN(1) VALUE(X'00')
+<BR>          /* ADD NULL TERMINATOR FOR THE ILE C PROGRAM             */
+<BR>             CHGVAR     VAR(&amp;ITEMOUT) VALUE(&amp;ITEMIN *TCAT &amp;NULL)
+<BR>          /* GET THE USERID FOR THE AUDIT FILE                         */
+<BR>             RTVJOBA    USER(&amp;USER)
+<BR>          /* ENSURE AUDIT RECORDS WRITTEN TO CORRECT AUDIT FILE MEMBER */
+<BR>             OVRDBF     FILE(T1520DD2) TOFILE(*LIBL/T1520DD2) +
+<BR>                          MBR(T1520DD2) OVRSCOPE(*CALLLVL) SHARE(*NO)
+<BR>             CALL       PGM(T1520ICB) PARM(&amp;ITEMOUT &amp;PRICE &amp;QUANTITY +
+<BR>                          &amp;USER)
+<BR>             DLTOVR     FILE(*ALL)
+<BR>        ENDPGM
+</SPAN></PRE>
+<DL><DT><B>Note:</B></DT><DD>To pass parameters to an ILE program when you run it, use the PARM option of<BR>
+the CL Call (CALL) command.<BR>
+</DD></DL><BR>
+</TD></TR></TABLE>
+<P>This program passes the CL variables item name, price, quantity, and user
+ID by reference to an ILE C program T1520ICB. The Retrieve Job
+Attributes (RTVJOBA) command obtains the user ID for the audit trail.
+Arguments are passed by reference. They can be changed by the receiving
+ILE C program. The variable item_name is null ended in the CL
+program.
+</LI><LI>To create a CL command prompt T1520CM2 using the source in <A HREF="#FIGT1520CM2FIG">Figure 265</A>, enter: 
+<PRE>
+<BR>
+CRTCMD CMD(MYLIB/T1520CM2) PGM(MYLIB/T1520CL3) SRCFILE(QCPPLE/QACMDSRC)
+</PRE> 
+<P>
+<P><B><A NAME="FIGT1520CM2FIG" HREF="cpprog09.htm#FT_FIGT1520CM2FIG">Figure 265. T1520CM2 -- Source to Create a CL Command Prompt</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+CMD        PROMPT('CALCULATE TOTAL COST')
+<BR>             PARM       KWD(ITEM) TYPE(*CHAR) LEN(20) RSTD(*NO) +
+<BR>                          MIN(1) ALWUNPRT(*NO) PROMPT('Item name' 1)
+<BR>             PARM       KWD(PRICE) TYPE(*DEC) LEN(10 2) RSTD(*NO) +
+<BR>                          RANGE(0.01 99999999.99) MIN(1) +
+<BR>                          ALWUNPRT(*YES) PROMPT('Unit price' 2)
+<BR>             PARM       KWD(QUANTITY) TYPE(*INT2) RSTD(*NO) RANGE(1 +
+<BR>                          9999) MIN(1) ALWUNPRT(*YES) +
+<BR>                          PROMPT('Number of items' 3)
+</SPAN></PRE>
+</TD></TR></TABLE> 
+<P>You use this CL command to enter the item name, price, and quantity for the
+ILE C program T1520ICB.
+</LI><LI>To create the module T1520ICB using the source shown in <A HREF="#FIGT1520ICBFIG">Figure 266</A>, enter: 
+<PRE>
+<BR>
+CRTCMOD MODULE(MYLIB/T1520ICB) SRCFILE(QCPPLE/QACSRC)
+</PRE> 
+<P>
+<P><B><A NAME="FIGT1520ICBFIG" HREF="cpprog09.htm#FT_FIGT1520ICBFIG">Figure 266. T1520ICB -- ILE C Source to Call COBOL and RPG Procedures</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program demonstrates the interlanguage call capability        */
+<BR>/* of an ILE C program. This program is called by a CL            */
+<BR>/* program that passes an item name, price, quantity and user ID.     */
+<BR>/* A COBOL procedure is called to calculate and format total cost.*/
+<BR>/* An RPG procedure is called to write an audit trail.            */
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;string.h&gt;
+<BR>#include &lt;decimal.h&gt;
+<BR>/* The #pragma map directive maps a function name to the bound        */
+<BR>/* procedure name so that the purpose of the procedure is clear.      */
+<BR>#pragma map(calc_and_format,"T1520CB2")
+<BR>#pragma map(write_audit_trail,"T1520RP2")
+<BR>/* Tell the compiler that there are bound procedure calls and         */
+<BR>/* arguments are to be passed by value-reference.                     */
+<BR>#pragma argument(calc_and_format, OS, nowiden)
+<BR>#pragma argument(write_audit_trail, OS)
+<BR>void calc_and_format(decimal (10,2),
+<BR>                     short int,
+<BR>                     char[],
+<BR>                     char *);
+<BR>void write_audit_trail(char[],
+<BR>                       char[],
+<BR>                       decimal(10,2),
+<BR>                       short int,
+<BR>                       char[]);
+<BR>extern decimal (2,2) TAXRATE;  /* TAXRATE is in *SRVPGM T1520SP3 */
+<BR>int main(int argc, char *argv[])
+<BR>{
+<BR>/* Incoming arguments from a CL program have been verified by         */
+<BR>/* the *CMD and null ended within the CL program.                */
+<BR>/* Incoming arguments are passed by reference from a CL program.      */
+<BR>  char             *user_id;
+<BR>  char             *item_name;
+<BR>  short int        quantity;
+<BR>  decimal (10, 2)  price;
+<BR>  char                 formatted_cost[22];
+<BR>/* Remove null terminator for RPG for iSeries 400 program. Item name is null      */
+<BR>/* ended for C.                                                  */
+<BR>  char             rpg_item_name[20];
+<BR>  char             null_formatted_cost[22];
+<BR>  char             success_flag = 'N';
+<BR>  int              i;
+<BR>/* Incoming arguments are all pointers.                               */
+<BR>  item_name =                        argv[1];
+<BR>  price     = *((decimal (10, 2) *)  argv[2]);
+<BR>  quantity  = *((short *)            argv[3]);
+<BR>  user_id   =                        argv[4];
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* Call the COBOL program to do the calculation, and return a     */
+<BR>/* Y/N flag, and a formatted result.                                  */
+<BR>  calc_and_format(price,
+<BR>                  quantity,
+<BR>                  formatted_cost,
+<BR>                  &amp;success_flag);
+<BR>
+<BR>  memcpy(null_formatted_cost,formatted_cost,sizeof(formatted_cost));
+<BR>
+<BR>/* Null end the result.                                         */
+<BR>
+<BR>  formatted_cost[21] = '\0';
+<BR>  if (success_flag == 'Y')
+<BR>  {
+<BR>    for (i=0; i&lt;20; i++)
+<BR>    {
+<BR>/* Remove the null end for the RPG for iSeries 400 program.                    */
+<BR>      if (*(item_name+i) == '\0')
+<BR>      {
+<BR>        rpg_item_name[i] = ' ';
+<BR>      }
+<BR>      else
+<BR>      {
+<BR>        rpg_item_name[i] = *(item_name+i);
+<BR>      }
+<BR>    }
+<BR>
+<BR>/* Call an RPG program to write audit records.                    */
+<BR>
+<BR>    write_audit_trail(user_id,
+<BR>              rpg_item_name,
+<BR>              price,
+<BR>              quantity,
+<BR>              formatted_cost);
+<BR>
+<BR>    printf("\n%d %s plus tax = %-s\n", quantity,
+<BR>                                       item_name,
+<BR>
+<BR>  }
+<BR>  else
+<BR>  {
+<BR>    printf("Calculation failed\n");
+<BR>  }
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><B>Notes: </B><OL TYPE=a>
+<P><LI>The <TT>main()</TT> function in this module receives the incoming
+arguments from the ILE CL program T1520CL3 that are verified by the CL command
+T1520CM2 and null ended within the CL program T1520CL3. All the
+incoming arguments are pointers.
+<P><LI>The <TT>main()</TT> function in this program calls
+<TT>calc_and_format()</TT> which is mapped to a ILE COBOL procedure
+name. It passes by OS-linkage convention the price, quantity, formatted
+cost, and a success flag. The ILE OPM COBOL procedure is not expecting
+widened parameters, the default for ILE C. This is why nowiden is used
+in the #pragma argument directive. The formatted cost and the success
+flag values are updated in the procedure T1520CB2.
+<P><LI>If <TT>calc_and_format()</TT> return successfully the
+<TT>main()</TT> function in this program (T1520ICB) calls
+<TT>write_audit_trail()</TT> which is mapped to an ILE RPG procedure
+name. It passes by OS-linkage convention (also called by
+value-reference) the user ID, item name, price, quantity, and formatted
+cost. The ILE C compiler by default converts a short integer to an
+integer unless the nowiden parameter is specified on the #pragma argument
+directive. For example, the short integer in the ILE C program is
+converted to an integer, and then passed to the ILE RPG procedure. The
+RPG procedure is expecting a 4 byte integer for the quantity variable.
+</OL>
+</LI><LI>To create module T1520ICC using the source shown in <A HREF="#FIGT1520ICCFIG">Figure 267</A>, enter: 
+<PRE>
+<BR>
+CRTCMOD MODULE(MYLIB/T1520ICC) SRCFILE(QCPPLE/QACSRC)
+</PRE> 
+<P>
+<P><B><A NAME="FIGT1520ICCFIG" HREF="cpprog09.htm#FT_FIGT1520ICCFIG">Figure 267. T1520ICC -- Source Code to Export Tax Rate Data</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>
+<BR>
+/* Export the tax rate data.                                          */
+<BR>#include &lt;decimal.h&gt;
+<BR>const decimal (2,2)   TAXRATE = .15D;
+</PRE>
+</TD></TR></TABLE>
+<P>TAXRATE is exported from this module to ILE C, COBOL, and RPG
+procedures. 
+<DL><DT><B>Note:</B></DT><DD><B><I>Weak definitions (EXTERNALs from COBOL) cannot be exported out of a
+service program to a strong definition language like C. </I></B>C can
+export to COBOL, hence the choice of language for TAXRATE.
+</DD></DL>
+</LI><LI>To create an ILE COBOL procedure using the source shown in <A HREF="#FIGT1520CB2FIG">Figure 268</A>, enter: 
+<PRE>
+<BR>
+CRTCBLMOD MODULE(MYLIB/T1520CB2) SRCFILE(QCPPLE/QALBLSRC)
+</PRE> 
+<P>
+<P><B><A NAME="FIGT1520CB2FIG" HREF="cpprog09.htm#FT_FIGT1520CB2FIG">Figure 268. T1520CB2 -- ILE COBOL Source to Calculate Tax and Format Cost</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+       IDENTIFICATION DIVISION.
+<BR>       PROGRAM-ID. T1520CB2 INITIAL.
+<BR>      ******************************************************
+<BR>      * parameters:                                        *
+<BR>      *   incoming:  PRICE, QUANTITY                       *
+<BR>      *   returns :  TOTAL-COST (PRICE*QUANTITY*1.TAXRATE) *
+<BR>      *              SUCCESS-FLAG.                         *
+<BR>      *   TAXRATE :  An imported value.                    *
+<BR>      ******************************************************
+<BR>       ENVIRONMENT DIVISION.
+<BR>        CONFIGURATION SECTION.
+<BR>         SOURCE-COMPUTER. IBM-ISERIES.
+<BR>         OBJECT-COMPUTER. IBM-ISERIES.
+<BR>       DATA DIVISION.
+<BR>        WORKING-STORAGE SECTION.
+<BR>         01  WS-TOTAL-COST             PIC S9(13)V99       COMP-3.
+<BR>         01  WS-TAXRATE                PIC S9V99           COMP-3
+<BR>                                                           VALUE 1.
+<BR>         01  TAXRATE       EXTERNAL    PIC SV99            COMP-3.
+<BR>        LINKAGE SECTION.
+<BR>         01  LS-PRICE                  PIC S9(8)V9(2)      COMP-3.
+<BR>         01  LS-QUANTITY               PIC S9(4)           COMP-4.
+<BR>         01  LS-TOTAL-COST             PIC $$,$$$,$$$,$$$,$$$.99
+<BR>                                                           DISPLAY.
+<BR>         01  LS-OPERATION-SUCCESSFUL   PIC X               DISPLAY.
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+       PROCEDURE DIVISION  USING  LS-PRICE
+<BR>                                  LS-QUANTITY
+<BR>                                  LS-TOTAL-COST
+<BR>                                  LS-OPERATION-SUCCESSFUL.
+<BR>        MAINLINE.
+<BR>           MOVE "Y" TO LS-OPERATION-SUCCESSFUL.
+<BR>           PERFORM CALCULATE-COST.
+<BR>           PERFORM FORMAT-COST.
+<BR>           EXIT PROGRAM.
+<BR>        CALCULATE-COST.
+<BR>           ADD TAXRATE TO WS-TAXRATE.
+<BR>           COMPUTE  WS-TOTAL-COST ROUNDED = LS-QUANTITY *
+<BR>                                            LS-PRICE *
+<BR>                                            WS-TAXRATE
+<BR>             ON SIZE ERROR
+<BR>               MOVE "N" TO LS-OPERATION-SUCCESSFUL
+<BR>           END-COMPUTE.
+<BR>        FORMAT-COST.
+<BR>           MOVE WS-TOTAL-COST TO LS-TOTAL-COST.
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><B>Notes: </B><OL TYPE=a>
+<P><LI>This program receives pointers to the values of the variables price and
+quantity, and pointers to formatted_cost and success_flag.
+<P><LI>The <TT>calc_and_format()</TT> function is procedure
+T1520CB2. It calculates and formats the total cost.
+<P><LI>The <CITE>WebSphere Development Studio: ILE COBOL
+Programmer's Guide</CITE> contains information on how compile an ILE COBOL
+source program.
+</OL>
+</LI><LI>To create an ILE RPG procedure using the source shown in <A HREF="#FIGT1520RP2FIG">Figure 269</A>, enter: 
+<PRE>
+<BR>
+CRTRPGMOD MODULE(MYLIB/T1520RP2) SRCFILE(QCPPLE/QARPGSRC)
+</PRE>
+<P>
+<P><B><A NAME="FIGT1520RP2FIG" HREF="cpprog09.htm#FT_FIGT1520RP2FIG">Figure 269. T1520RP2 -- ILE RPG Source to Write the Audit Trail</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+FT1520DD2  O  A E             DISK
+<BR>     D TAXRATE         S              3P 2 IMPORT
+<BR>     D QTYIN           DS
+<BR>     D  QTYBIN                 1      4B 0
+<BR>     C     *ENTRY        PLIST
+<BR>     C                   PARM                    USER             10
+<BR>     C                   PARM                    ITEM             20
+<BR>     C                   PARM                    PRICE            10 2
+<BR>     C                   PARM                    QTYIN
+<BR>     C                   PARM                    TOTAL            21
+<BR>     C                   EXSR      ADDREC
+<BR>     C                   SETON                                            LR
+<BR>     C     ADDREC        BEGSR
+<BR>     C                   MOVEL     UDATE         DATE
+<BR>     C                   MOVE      QTYBIN        QTY
+<BR>     C                   MOVE      TAXRATE       TXRATE
+<BR>     C                   WRITE     T1520DD2R
+<BR>     C                   ENDSR
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P><B>Notes: </B><OL TYPE=a>
+<P><LI>The <TT>write_audit_trail()</TT> function is the procedure
+T1520RP2. It writes the audit trail for the program.
+<P><LI>The <CITE>WebSphere Development Studio: ILE RPG
+Programmer's Guide</CITE> contains information on how to compile an ILE
+RPG source program.
+</OL>
+</LI><LI>To create the service program T1520SP3 from the module T1520ICC,
+enter: 
+<PRE>
+<BR>
+CRTSRVPGM SRVPGM(MYLIB/T1520SP3) MODULE(MYLIB/T1520ICC) +
+<BR>          EXPORT(*SRCFILE) SRCFILE(QCPPLE/QASRVSRC)
+</PRE>The T1520SP3 service program exports taxrate. The export list is
+specified in T1520SP3 in QASRVSRC.
+</LI><LI>To create the service program T1520SP4 from the module T1520RP2,
+enter: 
+<PRE>
+<BR>
+CRTSRVPGM SRVPGM(MYLIB/T1520SP4) MODULE(MYLIB/T1520RP2) +
+<BR>          EXPORT(*SRCFILE) SRCFILE(QCPPLE/QASRVSRC)
+</PRE>The T1520SP4 service program exports procedure T1520RP2. The
+export list is specified in T1520SP4 in QASRVSRC.
+</LI><LI>To create the program T1520ICB enter: 
+<PRE>
+<BR>
+CRTPGM PGM(MYLIB/T1520ICB) MODULE(MYLIB/T1520ICB MYLIB/T1520CB2) +
+<BR>       BNDSRVPGM(MYLIB/T1520SP3 MYLIB/T1520SP4) ACTGRP(*CALLER)
+</PRE>T1520ICB is considered the application's main program. It
+will run in the new activation group that was created when T1520CL3 was
+called.
+</LI><LI>To enter data for the program T1520ICB, type <TT>T1520CM2</TT>and press
+F4 (Prompt).: 
+<P>Type the following data into T1520CM2: 
+<P><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+Hammers
+<BR>1.98
+<BR>5000
+<BR>Nails
+<BR>0.25
+<BR>2000
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>The output is as follows: 
+<PRE>
++--------------------------------------------------------------------------------+
+|  5000 HAMMERS plus tax =            $11,385.00                                 |
+|  Press ENTER to end terminal session.                                          |
+|>                                                                               |
+|  2000 NAILS plus tax =               $575.00                                   |
+|  Press ENTER to end terminal session.                                          |
++--------------------------------------------------------------------------------+</PRE>
+<P>
+<P>The physical file T1520DD2 contains the following data: 
+<PRE>
+<BR>
+SMITHE  HAMMERS               0000000198500015          $11,385.00072893
+<BR>SMITHE  NAILS                 0000000025200015             $575.00072893
+</PRE>
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog525.htm">Previous Page</A> | <A HREF="cpprog527.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

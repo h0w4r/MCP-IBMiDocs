@@ -1,0 +1,118 @@
+VALUES INTO
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+VALUES INTO
+The VALUES INTO statement produces a result table consisting
+of at most one row and assigns the values in that row to variables.
+InvocationThis statement can
+be embedded in an application program. It is an executable statement
+that can be dynamically prepared, but cannot be issued interactively
+unless all variables being assigned are global variables. It must
+not be specified in REXX or Java™.
+AuthorizationIf a row-fullselect is
+specified, see Queries for an explanation
+of the authorization required for each subselect.
+If
+a global variable is specified on the right hand side of the assignment,
+the privileges held by the authorization ID of the statement must
+include at least one of the following:
+The WRITE privilege on the global variable.
+Database administrator authority
+
+SyntaxVALUESexpressionNULL(,expressionNULLrow-fullselect)INTO,variable
+DescriptionVALUES
+Introduces a single row consisting of one or more columns. expression
+Specifies
+the new value of the variable. The expression is
+any expression of the type described in Expressions.
+It must not include a column name. Host structures are not supported.
+NULL
+Specifies
+that the new value for the variable is the null value.
+row-fullselect
+A
+fullselect that returns a single result row. The result column values
+are assigned to each corresponding variable.
+If the result of the fullselect is no rows, then null values are assigned.
+An error is returned if there is more than one row in the result.
+
+INTO variable,…
+Identifies one or more
+host structures or variables that must be declared in the program
+in accordance with the rules for declaring host structures and variables.
+In the operational form of INTO, a reference to a host structure is
+replaced by a reference to each of its variables. The first value
+specified is assigned to the first variable, the second value to the
+second variable, and so on.
+
+NotesVariable
+assignment: Each assignment to a variable is performed according
+to the retrieval assignment rules described in Assignments and comparisons.1 If the number of variables
+is less than the number of values in the row, an SQL warning (SQLSTATE
+01503) is returned (and the SQLWARN3 field of the SQLCA is set to
+'W'). Note that there is no warning if there are more variables than
+the number of result columns. If a value is null, an indicator variable
+must be provided for that value.
+If the specified variable is character and is not large
+enough to contain the result, a warning (SQLSTATE 01004) is returned
+(and 'W' is assigned to SQLWARN1 in the SQLCA). The actual length
+of the result may be returned in the indicator variable associated
+with the variable, if an indicator variable is provided. For further
+information, see Variables.
+If an assignment error occurs, the value is not assigned
+to the variable, and no more values are assigned to variables. Any
+values that have already been assigned to variables remain assigned.
+If the specified variable is a C NUL-terminated host variable
+and is not large enough to contain the result and the NUL-terminator:
+If the *CNULRQD option is specified on the CRTSQLCI or CRTSQLCPPI
+command (or CNULRQD(*YES) on the SET OPTION statement), the following
+occurs: The result is truncated.
+The last character is the NUL-terminator.
+The value ‘W' is assigned to SQLWARN1 in the SQLCA.
+
+If the *NOCNULRQD option on the CRTSQLCI or CRTSQLCPPI command
+(or CNULRQD(*NO) on the SET OPTION statement) is specified, the following
+occurs: The NUL-terminator is not returned.
+The value ‘N' is assigned to SQLWARN1 in the SQLCA.
+
+Result column evaluation considerations: If an
+error occurs while evaluating a result column in the expression list
+of a VALUES INTO statement as the result of an arithmetic expression
+(such as division by zero, or overflow) or a numeric or character
+conversion error, the result is the null value. As in any other case
+of a null value, an indicator variable must be provided. The value
+of the variable is undefined. In this case, however, the indicator
+variable is set to the value of -2. Processing of the statement continues
+and a warning is returned. If an indicator variable is not provided,
+an error is returned and no more values are assigned to variables.
+It is possible that some values have already been assigned to variables
+and will remain assigned when the error is returned.
+When a datetime value is returned, the length of the variable
+must be large enough to store the complete value. Otherwise, depending
+on how much of the value would have to be truncated, a warning or
+error is returned. See Datetime assignments for details.
+Multiple assignments: If more than one variable
+is specified in the INTO clause, all expressions are evaluated
+before the assignments are performed. Thus, references to a variable in
+an expression are always the value of the variable prior
+to any assignment in the VALUES INTO statement.
+ExamplesExample 1: Assign the value
+of the CURRENT PATH special register to host variable HV1.
+EXEC SQL VALUES CURRENT PATH
+INTO :HV1;
+
+Example 2: Assume that LOB locator LOB1 is associated
+with a CLOB value. Assign a portion of the CLOB value to host variable
+DETAILS using the LOB locator, and assign CURRENT TIMESTAMP to the
+host variable TIMETRACK.
+EXEC SQL VALUES (SUBSTR(:LOB1,1,35), CURRENT TIMESTAMP)
+INTO :DETAILS, :TIMETRACK;
+
+Parent topic: Statements
+
+1 If assigning to an SQL-variable
+or SQL-parameter and the standards option is specified, storage assignment
+rules apply. For information about the standards option, see Standards compliance.

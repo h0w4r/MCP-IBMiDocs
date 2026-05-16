@@ -1,0 +1,104 @@
+Date arithmetic
+
+IBM i programming resources > SQL > SQL reference > Language elements > Expressions > Datetime arithmetic in SQL > Datetime arithmetic in SQL
+
+IBM i programming resources > SQL > SQL reference > Language elements > Expressions > Datetime arithmetic in SQL
+
+Date arithmetic
+Dates can be subtracted, incremented, or decremented.
+Subtracting datesThe result of subtracting
+one date (DATE2) from another (DATE1) is a date duration that specifies
+the number of years, months, and days between the two dates. The data
+type of the result is DECIMAL(8,0). If DATE1 is greater than or equal
+to DATE2, DATE2 is subtracted from DATE1. If DATE1 is less than DATE2,
+however, DATE1 is subtracted from DATE2, and the sign of the result
+is made negative. The following procedural description clarifies the
+steps involved in the operation RESULT = DATE1 - DATE2.
+If DAY(DATE2) <= DAY(DATE1)
+   then DAY(RESULT) = DAY(DATE1) - DAY(DATE2).
+
+If DAY(DATE2) > DAY(DATE1)
+   then DAY(RESULT) = N + DAY(DATE1) - DAY(DATE2)
+     where N = the last day of MONTH(DATE2).
+   MONTH(DATE2) is then incremented by 1.
+
+If MONTH(DATE2) <= MONTH(DATE1)
+   then MONTH(RESULT) = MONTH(DATE1) - MONTH(DATE2).
+
+If MONTH(DATE2) > MONTH(DATE1)
+   then MONTH(RESULT) = 12 + MONTH(DATE1) - MONTH(DATE2).
+   YEAR(DATE2) is then incremented by 1.
+
+YEAR(RESULT) = YEAR(DATE1) - YEAR(DATE2).
+
+For example, the result of DATE('3/15/2000') - '12/31/1999'
+is 215 (or, a duration of 0 years, 2 months, and 15 days).
+Incrementing and decrementing datesThe
+result of adding a duration to a date, or of subtracting a duration
+from a date, is itself a date. (For the purposes of this operation,
+a month denotes the equivalent of a calendar page. Adding months to
+a date, then, is like turning the pages of a calendar, starting with
+the page on which the date appears.) The result must fall between
+the dates January 1, 0001 and December 31, 9999 inclusive.
+If
+a duration of years is added or subtracted, only the year portion
+of the date is affected. The month is unchanged, as is the day unless
+the result would be February 29 of a non-leap-year. In this case,
+the day is changed to 28, an SQLSTATE of '01506' is assigned to the
+RETURNED_SQLSTATE condition area item in the SQL Diagnostics Area
+(or SQLWARN6 in the SQLCA is set to 'W') to indicate the end-of-month
+adjustment.
+Similarly, if a duration of months is added or subtracted,
+only months and, if necessary, years are affected. The day portion
+of the date is unchanged unless the result would be invalid (September
+31, for example). In this case, the day is set to the last day of
+the month, and SQLWARN6 in the SQLCA is set to 'W' to indicate the
+end-of-month adjustment.
+Adding or subtracting a duration of days will, of course,
+affect the day portion of the date, and potentially the month and
+year. Adding a labeled duration of DAYS will not cause an end-of-month
+adjustment.
+Date durations, whether positive or negative, may also
+be added to and subtracted from dates. As with labeled durations,
+the result is a valid date, and a warning indicator is set in the
+SQLCA whenever an end-of-month adjustment is necessary.
+When a positive date duration is added to a date, or a
+negative date duration is subtracted from a date, the date is incremented
+by the specified number of years, months, and days, in that order.
+Thus DATE1 + X, where X is a positive DECIMAL(8,0) number, is equivalent
+to the expression:
+DATE1 + YEAR(X) YEARS + MONTH(X) MONTHS + DAY(X) DAYS
+
+When a positive date duration is subtracted from a date,
+or a negative date duration is added to a date, the date is decremented
+by the specified number of days, months, and years, in that order.
+Thus, DATE1 - X, where X is a positive DECIMAL(8,0) number, is equivalent
+to the expression:
+DATE1 - DAY(X) DAYS - MONTH(X) MONTHS - YEAR(X) YEARS
+
+Note: If one or more months is added to a given date and
+then the same number of months is subtracted from the result, the
+final date is not necessarily the same as the original date. Also
+note that logically equivalent expressions may not produce the same
+result. For example:
+(DATE('2002–01–31') + 1 MONTH) + 1 MONTH will result in a date
+of 2002–03–28.
+
+does not produce the same result as
+DATE('2002–01–31') + 2 MONTHS will result in a date of 2002–03–31.
+
+The order in which labeled date durations are added to
+and subtracted from dates can affect the results. For compatibility
+with the results of adding or subtracting date durations, a specific
+order must be used. When labeled date durations are added to a date,
+specify them in the order of YEARS + MONTHS + DAYS. When labeled date
+durations are subtracted from a date, specify them in the order of
+DAYS - MONTHS - YEARS. For example, to add one year and one day to
+a date, specify:
+DATE1 + 1 YEAR + 1 DAY
+
+To subtract one year, one month, and one day from a date,
+specify:
+DATE1 - 1 DAY - 1 MONTH - 1 YEAR
+
+Parent topic: Datetime arithmetic in SQL

@@ -1,0 +1,148 @@
+OVERLOAD(prototype1 { : prototype2 ...})
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > Definition-Specification Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords
+
+OVERLOAD(prototype1 { : prototype2 ...})
+
+The OVERLOAD keyword defines a list of other prototypes that can be called
+using the name of the prototype with the OVERLOAD keyword.
+When the prototype with the OVERLOAD keyword is used in a call operation, the compiler uses
+the parameters specified for the call to determine which of the prototypes listed in the OVERLOAD keyword
+to call.
+
+In the following example, FORMAT is defined with the OVERLOAD keyword.
+
+For the first call to FORMAT, the parameter has type Date,
+so FORMAT_DATE is called.
+
+For the second call to FORMAT, both parameters have type Character,
+so RETRIEVE_MESSAGE is called.
+
+DCL-PR format_date VARCHAR(100);
+dateParm DATE(*ISO) CONST;
+END-PR;
+DCL-PR retrieve_message VARCHAR(100);
+msgid CHAR(7) CONST;
+replacement_text VARCHAR(100) CONST;
+END-PR;
+DCL-PR format VARCHAR(100) OVERLOAD(format_date : retrieve_message);
+DCL-S result VARCHAR(50);
+DCL-S filename CHAR(10);
+
+result = format(%date()); // 1
+result = format('MSG0100' : filename); // 2
+
+Terms used in this discussion
+
+The term "prototype" refers to both an explicit prototype
+and the implicit prototype for a procedure defined without a prototype in the same module.
+
+The term "overloaded prototype" refers to the prototype with the OVERLOAD keyword.
+
+The term "candidate prototype" refers to the prototype listed in the OVERLOAD keyword.
+
+In the example above, FORMAT is the "overloaded prototype" and
+FORMAT_TIME and FORMAT_DATE are the "candidate prototypes".
+
+Rules for the OVERLOAD keyword
+
+Parameters are not specified for a prototype with the OVERLOAD keyword.
+
+A prototype with the OVERLOAD keyword does not end with END-PR.
+
+All the candidate prototypes must have the same return value type
+(or no return value) as the overloaded prototype.
+
+The only other keywords allowed for the overloaded prototype are related to the
+data type of the return value.
+
+The candidate prototypes can be any type of prototype.
+They do not all have to be the same type.
+For example, the candidate prototypes for an overloaded prototype could include
+programs, procedures, and Java™ methods.
+
+How the RPG compiler determines which procedure or program to call
+
+For each parameter passed for a particular call operation, the compiler
+checks whether the passed parameter is valid for each of the candidate prototypes.
+If the passed parameter is not valid for a particular candidate prototype,
+the compiler no longer considers that prototype as a candidate for that particular call.
+When the compiler has checked all the parameters, there should be exactly one
+remaining prototype that is valid for all the parameters.
+
+No consideration is given to which prototype has the best match for a
+particular parameter.
+For example, assume that the passed parameter is defined with type PACKED(8),
+and one candidate prototype defines that parameter with keywords
+PACKED(5:2) and CONST, and another candidate prototype defines that parameter
+with keywords PACKED(15:5) and CONST.
+For this call, the compiler will consider the parameter to match both
+those candidate prototypes even though the PACKED(15:5) parameter is a
+better match for the PACKED(8) passed parameter.
+
+The "Overloaded Prototypes" section in the compiler listing
+
+You can find out which candidate prototype is called for each call to an
+overloaded prototype using the Overloaded Prototypes section of the listing.
+For each overloaded prototype, all the candidate prototypes are listed, with
+a list of the statements where the prototype is actually used in a call.
+
+You can obtain a detailed list of how the compiler determined which candidate
+prototype to use by specifying the /OVERLOAD directive.
+Any calls to overloaded prototypes specified while "/OVERLOAD DETAIL" is in effect
+will also have detailed information in the "Overloaded Prototypes"
+section of the listing.
+The detailed information will contain all the error messages issued internally
+by the compiler when the
+compiler was checking whether the prototyped parameter matched the passed parameters.
+
+DCL-PR format_date VARCHAR(100);
+dateParm DATE(*ISO) CONST;
+END-PR;
+DCL-PR format_time VARCHAR(100);
+timeParm TIME(*ISO) CONST;
+END-PR;
+DCL-PR format_message VARCHAR(100);
+msgid CHAR(7) CONST;
+replacement_text VARCHAR(100) CONST;
+END-PR;
+DCL-PR format VARCHAR(100)
+OVERLOAD(format_time : format_date : format_message);
+DCL-S result varchar(50);
+
+/OVERLOAD DETAIL
+result = format(%date());
+result = format('MSG0102');
+
+Here is the "Overloaded Prototypes" section in the listing for the example above:
+
+Calls to prototypes for FORMAT
+Called prototype References (D=Details below)
+FORMAT_TIME
+FORMAT_DATE 16D
+FORMAT_MESSAGE
+No prototype selected 17D
+Detailed determination for calls to FORMAT
+Call at statement 16 column 18
+Error messages issued for parameter 1 for FORMAT_TIME
+*RNF7536 30 16 001600 The type of parameter 1 specified for the call does
+match the prototype.
+Error messages issued for parameter 1 for FORMAT_MESSAGE
+*RNF7536 30 16 001600 The type of parameter 1 specified for the call does
+match the prototype.
+Selected prototype: FORMAT_DATE
+Call at statement 17 column 18
+Error messages issued for parameter 1 for FORMAT_TIME
+*RNF7536 30 17 001700 The type of parameter 1 specified for the call does not
+match the prototype.
+Error messages issued for parameter 1 for FORMAT_DATE
+*RNF7536 30 17 001700 The type of parameter 1 specified for the call does not
+The call had too few parameters for these prototypes:
+FORMAT_MESSAGE
+Selected prototype: *N
+
+For more information on the /OVERLOAD directive, see /OVERLOAD DETAIL | NODETAIL.
+
+Parent topic: Definition-Specification Keywords

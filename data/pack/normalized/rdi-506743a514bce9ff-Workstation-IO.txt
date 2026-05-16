@@ -1,0 +1,276 @@
+Workstation I/O
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > ACCEPT Statement > ACCEPT Statement
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > ACCEPT Statement
+
+IBM ExtensionIBM Extension
+Workstation I/O
+An ACCEPT statement is considered an extended ACCEPT
+statement if it:
+has an AT phrase, or
+has a FROM phrase with the CRT option, or
+has a MODE IS BLOCK phrase, or
+has a WITH phrase, or
+has an ON EXCEPTION phrase or a NOT ON EXCEPTION phrase, (and PIP-DATA
+is not specified for mnemonic-name), or
+does not have a FROM phrase, but CONSOLE IS CRT is specified in the SPECIAL-NAMES
+paragraph.
+
+An ACCEPT statement is considered a standard ACCEPT
+statement if it:
+has a FROM phrase (other than FROM CRT) and CONSOLE IS CRT is specified
+in the SPECIAL-NAMES paragraph, or
+does not have a FROM phrase and CONSOLE IS CRT is not specified.
+
+ACCEPT Statement - Format 7 - Workstation I/O
+
+    .----------------------------.   
+    V |   
+>>-ACCEPT--identifier-1----+------------------------+-+--------->
+    +-| line-column-phrase |-+    
+    +-FROM CRT---------------+    
+    +-MODE--+----+--BLOCK----+    
+    | '-IS-' |    
+    '-| with-phrase |--------'    
+
+>--+-------------------------------------------+---------------->
+   '-+----+--EXCEPTION--imperative-statement-1-'   
+    '-ON-'    
+
+>--+------------------------------------------------+----------->
+   '-NOT--+----+--EXCEPTION--imperative-statement-2-'   
+    '-ON-'    
+
+>--+------------+----------------------------------------------><
+   '-END-ACCEPT-'   
+
+line-column-phrase
+
+    .------------------------------------------.    
+    V |    
+|--+-+----+----+-LINE---+--+--------+--+-identifier-2-+-+-+-----|
+   | '-AT-' +-COLUMN-+ '-NUMBER-' '-integer-1----' |   
+   | '-COL----' |   
+   '-AT--+-identifier-3-+---------------------------------'   
+    '-integer-2----'    
+
+with-phrase
+
+|--WITH--------------------------------------------------------->
+
+   .----------------------------------------------------.   
+   V |   
+>----+-+-AUTO------+----------------------------------+-+-------|
+    | '-AUTO-SKIP-' |    
+    +-+-BELL-+---------------------------------------+    
+    | '-BEEP-' |    
+    +-BLINK------------------------------------------+    
+    +-+-FULL---------+-------------------------------+    
+    | '-LENGTH-CHECK-' |    
+    +-HIGHLIGHT--------------------------------------+    
+    +-+-REQUIRED----+--------------------------------+    
+    | '-EMPTY-CHECK-' |    
+    +-REVERSE-VIDEO----------------------------------+    
+    +-+-SECURE--+------------------------------------+    
+    | '-NO-ECHO-' |    
+    +-UNDERLINE--------------------------------------+    
+    +-RIGHT-JUSTIFY----------------------------------+    
+    +-SPACE-FILL-------------------------------------+    
+    +-TRAILING-SIGN----------------------------------+    
+    +-UPDATE-----------------------------------------+    
+    +-ZERO-FILL--------------------------------------+    
+    +-SIZE--+----+--+-identifier-4-+-----------------+    
+    | '-IS-' '-integer-3----' |    
+    | (1) |    
+    +-PROMPT------+--------------+--+-identifier-5-+-+    
+    | '-CHARACTER IS-' '-literal-1----' |    
+    | (1) |    
+    +-+-FOREGROUND-COLOR-----+--+----+--integer-4----+    
+    | '-FOREGROUND-COLOUR----' '-IS-' |    
+    | (1) |    
+    +-+-BACKGROUND-COLOR-----+--+----+--integer-5----+    
+    | '-BACKGROUND-COLOUR----' '-IS-' |    
+    | (1) |    
+    '-LEFT-JUSTIFY-----------------------------------'    
+
+Notes:Syntax-checked only.identifier-1
+A data item whose value can be updated.
+Identifier-1 can be an internal
+or external floating-point data item.
+
+Fields accepted or displayed
+require an attribute byte before and after the field. To accomplish this,
+space must be available on the screen for, at a minimum, the initial display
+attribute. For this reason, line 1 and column 1 cannot be used for data because
+that position is required for the first display attribute. The lowest position
+that can be used on the screen for data is line 1, column 2.
+
+For example:
+
+The AT phrase sets the starting line and column for the fields that
+will be accepted or displayed. It does not indicate the position of the initial
+display attribute.
+
+It is your responsibility to ensure that each field
+is positioned on the screen to prevent attribute bytes from overlaying data
+bytes, and to prevent data bytes from overlaying attribute bytes. You should
+also be aware that the ending attribute byte will be the normal attribute
+defined for the specific workstation. Therefore, you should ensure that the
+attributes are specified in the correct order to obtain the expected results.
+
+You should initially clear the screen by using a DISPLAY statement
+that contains the WITH BLANK SCREEN phrase.
+
+When identifier-1 does not
+fit within the screen, then alphanumeric data is truncated and numeric data
+is not put on the screen.
+
+If identifier-1 is a group item and there
+is no MODE IS BLOCK phrase, those elementary subordinate items that have names
+other than FILLER are displayed. They are displayed simultaneously and positioned
+on the screen in the order that their descriptions appear in the DATA DIVISION,
+separated by the lengths of the FILLER items in the group. For this purpose,
+the first position on a line is regarded as immediately following the last
+position on the previous line.
+
+When items are separated by FILLERs,
+the attribute bytes are included in the FILLER length, so a FILLER of one
+or two bytes would contain both the trailing and leading attributes of separate
+items. In the case of a one-byte FILLER, the trailing and leading attributes
+would occupy the same byte. Since data items are normally separated by one
+attribute byte, one-byte FILLER items are not necessary.
+
+REDEFINES,
+POINTER, PROCEDURE-POINTER, and INDEX-NAME data are ignored when found in
+the group item without the MODE IS BLOCK phrase.
+
+The extended ACCEPT
+statement predisplays the value of identifier-1, accepting only the changed
+value from the workstation after the ENTER key is pressed. Simply pressing
+the ENTER key does not cause an update of the predisplayed data item.
+
+The accepted value is the image of the characters taken from the screen positions
+designated to the data item, and delimited by the cursor position at the time
+the FIELD EXIT key is pressed.
+
+The FIELD EXIT key will convert all trailing
+spaces in the alphabetic and alphanumeric fields to hexadecimal zeroes when
+the default compiler option *UNDSPCHR is in effect. For example:
+DATA DIVISION.
+01 STRUC1.
+03 F11 PIC AA VALUE 'A'.
+03 F12 PIC 9(4) VALUE 123.
+03 F13 PIC XXX VALUE 'B'.
+PROCEDURE DIVISION.
+ACCEPT STRUC1 AT 2102.
+
+The ACCEPT statement in the example
+predisplays three fields:
+F11 starts at line 21, column 2. Its attribute byte occupies line 21,
+column 1.
+F12 starts at line 21, column 5. Its attribute byte occupies line 21,
+column 4.
+F13 starts at line 21, column 10. Its attribute byte occupies line 21,
+column 9.
+
+Here is the visual result at line 21:
+
+Note that numeric field F12 is right-justified, and its first position
+consists of a space.
+
+When you place the cursor at the end of field
+F13 and press the FIELD EXIT key in response to the values of the three fields,
+the values of the fields remain unchanged. Trailing spaces (X'40') in F11
+and F13 do, however, become hexadecimal zeroes, so the test IF F13='B␢␢'
+will fail after the ACCEPT operation.
+
+To avoid trailing hexadecimal
+zeroes, use the SPACE-FILL phrase. If existing programs already include extended
+ACCEPT statements without this phrase, and program changes are costly or not
+the desired solution, you can consider using the *NOUNDSPCHR compiler option.
+Use this option exclusively for programs in which the extended ACCEPT and
+extended DISPLAY statements handle displayable characters only.
+
+The
+displayable-only characters will be handled if:
+Extended DISPLAY statements do not use binary, internal floating-point,
+or packed data (directly or redefined).
+Extended ACCEPT statements do not use binary, internal floating-point,
+or packed data redefined as alphanumeric fields.
+
+Note: The MODE IS BLOCK phrase is an implied redefinition of
+a data group to an alphanumeric field.
+
+For example:
+01 STRUC2.
+03 F21 PIC 99.
+03 F22 PIC 9(10) USAGE COMP-3 VALUE 1111123.
+03 F23 PIC X(5).
+ACCEPT STRUC2 MODE IS BLOCK AT 0102 will
+contain nondisplayable characters because it will be handled as one alphanumeric
+field 13 bytes long.
+
+When the program runs on a workstation with a remote
+controller and with 5250 emulation, the ILE COBOL run time changes compiler option
+*UNDSPCHR, if it is in effect, to *NOUNDSDPCHR and sends an informational
+message to the user. When your system configuration encompasses a variety
+of workstation controllers, use of the *NOUNSDPCHR option is recommended to
+achieve consistency of results. To enforce this option effectively, specify
+NOUNDSPCHR on the PROCESS statement in the COBOL source program.
+
+Considerations for Floating-Point Data Items
+
+Data Categories
+
+AT Phrase
+
+FROM CRT Phrase
+
+MODE IS BLOCK Phrase
+
+ON EXCEPTION Phrases
+
+END-ACCEPT Phrase
+
+WITH Phrase
+
+AUTO (AUTO-SKIP) Phrase
+
+BELL (BEEP) Phrase
+
+BLINK Phrase
+
+FULL (LENGTH-CHECK) Phrase
+
+HIGHLIGHT Phrase
+
+REQUIRED (EMPTY-CHECK) Phrase
+
+REVERSE-VIDEO Phrase
+
+SECURE (NO-ECHO) Phrase
+
+UNDERLINE Phrase
+
+RIGHT-JUSTIFY Phrase
+
+SIZE Phrase
+
+SPACE-FILL Phrase
+
+TRAILING-SIGN Phrase
+
+UPDATE Phrase
+
+ZERO-FILL Phrase
+
+Phrases Syntax Checked Only
+
+Format 7 Considerations
+
+Extended ACCEPT and Extended DISPLAY Considerations
+
+Parent topic: ACCEPT Statement
+
+End of IBM Extension End of IBM Extension

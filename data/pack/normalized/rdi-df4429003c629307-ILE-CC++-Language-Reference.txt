@@ -1,0 +1,120 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only) > Special exception handling functions (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only) > Special exception handling functions (C++ only)
+
+ILE C/C++ Language Reference
+
+Example using the exception handling functions (C++
+only)
+The following example shows the flow of control and special functions
+used in exception handling:
+#include <iostream>
+#include <exception>
+using namespace std;
+
+class X { };
+class Y { };
+class A { };
+
+// pfv type is pointer to function returning void
+typedef void (*pfv)();
+
+void my_terminate() {
+cout << "Call to my terminate" << endl;
+abort();
+}
+
+void my_unexpected() {
+cout << "Call to my_unexpected()" << endl;
+throw;
+}
+
+void f() throw(X,Y, bad_exception) {
+throw A();
+}
+
+void g() throw(X,Y) {
+throw A();
+}
+
+int main()
+{
+pfv old_term = set_terminate(my_terminate);
+pfv old_unex = set_unexpected(my_unexpected);
+try {
+cout << "In first try block" << endl;
+f();
+}
+catch(X) {
+cout << "Caught X" << endl;
+}
+catch(Y) {
+cout << "Caught Y" << endl;
+}
+catch (bad_exception& e1) {
+cout << "Caught bad_exception" << endl;
+}
+catch (...) {
+cout << "Caught some exception" << endl;
+}
+
+cout << endl;
+
+try {
+cout << "In second try block" << endl;
+g();
+}
+catch(X) {
+cout << "Caught X" << endl;
+}
+catch(Y) {
+cout << "Caught Y" << endl;
+}
+catch (bad_exception& e2) {
+cout << "Caught bad_exception" << endl;
+}
+catch (...) {
+cout << "Caught some exception" << endl;
+}
+}The following is the output of the above example:
+In first try block
+Call to my_unexpected()
+Caught bad_exception
+
+In second try block
+Call to my_unexpected()
+Call to my terminate
+At run time, this program behaves as follows:
+
+The call to set_terminate() assigns to old_term the
+address of the function last passed to set_terminate() when set_terminate() was
+previously called.
+The call to set_unexpected() assigns to old_unex the
+address of the function last passed to set_unexpected() when set_unexpected() was
+previously called.
+Within the first try block, function f() is called.
+Because f() throws an unexpected exception, a call to unexpected() is
+made. unexpected() in turn calls my_unexpected(),
+which prints a message to standard output. The function my_unexpected() tries
+to rethrow the exception of type A. Because class A has
+not been specified in the exception specification of function f(), my_unexpected() throws
+an exception of type bad_exception.
+Because bad_exception has been specified in the exception
+specification of function f(), the handler catch (bad_exception&
+e1) is able to handle the exception.
+Within the second try block, function g() is called.
+Because g() throws an unexpected exception, a call to unexpected() is
+made. The unexpected() throws an exception of type bad_exception.
+Because bad_exception has not been specified in the exception
+specification of g(), unexpected() calls terminate(),
+which calls the function my_terminate().
+my_terminate() displays a message then calls abort(),
+which terminates the program.
+Note that the catch blocks following the second try block are not
+entered, because the exception was handled by my_unexpected() as
+an unexpected throw, not as a valid exception.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

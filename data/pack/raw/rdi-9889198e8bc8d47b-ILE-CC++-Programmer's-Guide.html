@@ -1,0 +1,238 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Changing the Default Program Device</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="changing, default program device, _Rpgmdev() function, _Rpgmdev(), functions">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog365.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog306.htm">Part 5&#46; Working with iSeries File Systems and Devices</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog356.htm">Chapter 20&#46; Using Device Files in a Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<HR><H2><A NAME="HDRCHNGDEFDEV" HREF="cpprog02.htm#ToC_433">Changing the Default Program Device</A></H2>
+<P>You can change the default device for a device file.
+<P><B>Example:</B>
+<P>The following example illustrates how to change the default program device
+using the <TT>_Rpgmdev()</TT> function. 
+<DL><DT><B>Note:</B></DT><DD>To run this example you must use two display devices that are defined on your
+system in place of DEVICE1 and DEVICE2.
+</DD></DL> 
+<OL TYPE=1>
+<LI>To create the display file T1520DDE using the DDS shown below,
+enter: 
+<PRE>
+<BR>
+CRTDSPF FILE(MYLIB/T1520DDE) SRCFILE(QCPPLE/QADDSSRC) MAXDEV(2)
+</PRE>
+<P><B><A NAME="Figure_143" HREF="cpprog09.htm#FT_Figure_143">Figure 143. T1520DDE -- DDS Source for Name and Password Display</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+     A                                      DSPSIZ(24 80 *DS3)
+<BR>     A                                      INVITE
+<BR>     A          R FORMAT1
+<BR>     A                                  9 13'Name:'
+<BR>     A            NAME          20A  I  9 20
+<BR>     A                                 11 10'Address:'
+<BR>     A            ADDRESS       25A  I 11 20
+<BR>     A          R FORMAT2
+<BR>     A                                  9 13'Name:'
+<BR>     A            NAME           8A  I  9 20
+<BR>     A                                 11 10'Password:'
+<BR>     A            PASSWORD      10A  I 11 20
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI>To override the file STDOUT with the printer file QPRINT, enter: 
+<PRE>
+<BR>
+OVRPRTF FILE(STDOUT) TOFILE(QPRINT)
+</PRE>
+</LI><LI>To create the program T1520CDV using the source shown below, enter: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520CDV) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+<P>
+<P><B><A NAME="Figure_144" HREF="cpprog09.htm#FT_Figure_144">Figure 144. T1520CDV -- ILE C Source to Change the Default Device</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program illustrates how to change a default program device.   */
+<BR>/* using the _Racquire(), _Rpgmdev(), _Rreadindv() and _Rrelease()    */
+<BR>/* functions.                                                         */
+<BR>&nbsp;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>#include &lt;string.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>&nbsp;
+<BR>typedef struct{
+<BR>    char name[20];
+<BR>    char address[25];
+<BR>}format1;
+<BR>typedef struct{
+<BR>    char name[8];
+<BR>    char password[10];
+<BR>}format2&nbsp;;
+<BR>&nbsp;
+<BR>typedef union{
+<BR>    format1 fmt1;
+<BR>    format2 fmt2;
+<BR>}formats&nbsp;;
+<BR>&nbsp;
+<BR>void io_error_check( _RIOFB_T *rfb )
+<BR>{
+<BR>    if ( memcmp(rfb-&gt;sysparm-&gt;_Maj_Min.major_rc,"00",2 ) ||
+<BR>         memcmp ( rfb-&gt;sysparm-&gt;_Maj_Min.minor_rc,"00",2 ))
+<BR>    {
+<BR>        printf ( "I/O error occurred, program ends.\n" );
+<BR>        exit ( 1 );
+<BR>    }
+<BR>}
+<BR>int main(void)
+<BR>{
+<BR>    _RFILE   *fp;
+<BR>    _RIOFB_T *rfb;
+<BR>    _XXIOFB_T *iofb;
+<BR>    int      size;
+<BR>    formats  buf;
+<BR>&nbsp;
+<BR>/* Open the device file.                                              */
+<BR>&nbsp;
+<BR>    if (( fp = _Ropen ( "*LIBL/T1520DDE", "ar+" )) == NULL )
+<BR>    {
+<BR>        printf ( "Could not open file\n" );
+<BR>        exit ( 1 );
+<BR>    }
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+    _Racquire ( fp,"DEVICE1" );    /* Acquire another device.         */
+<BR>                                   /* Replace with the actual         */
+<BR>                                   /* device name.                    */
+<BR>&nbsp;
+<BR>    _Rformat ( fp,"FORMAT1" );     /* Set the record format for the   */
+<BR>                                   /* display file.                   */
+<BR>&nbsp;
+<BR>    rfb = _Rwrite ( fp, "", 0 );   /* Set up the display.             */
+<BR>&nbsp;
+<BR>    io_error_check(rfb);
+<BR>&nbsp;
+<BR>    _Racquire ( fp,"DEVICE2" );    /* Acquire another device.         */
+<BR>&nbsp;
+<BR>    _Rpgmdev ( fp,"DEVICE2" );     /* Change the default program      */
+<BR>                                   /* device. Replace with the        */
+<BR>                                   /* actual device name.             */
+<BR>                                   /* Device2 implicitly acquired at  */
+<BR>                                   /* open.                           */
+<BR>&nbsp;
+<BR>    _Rformat ( fp,"FORMAT2" );     /* Set the record format for the   */
+<BR>                                   /* the display file.               */
+<BR>&nbsp;
+<BR>    rfb = _Rwrite ( fp, "", 0 );   /* Set up the display.             */
+<BR>    io_error_check ( rfb );
+<BR>&nbsp;
+<BR>    _Rreadindv ( fp, &amp;buf, sizeof(buf), __DFT );
+<BR>                                  /* Read from the first device that  */
+<BR>                                  /* enters data. The device becomes  */
+<BR>                                  /* the default program device.      */
+<BR>    io_error_check ( rfb );
+<BR>&nbsp;
+<BR>/* Determine which terminal responded first.                          */
+<BR>&nbsp;
+<BR>    iofb = _Riofbk ( fp );
+<BR>    if ( !strncmp ( "FORMAT1  ", iofb -&gt; rec_format, 10 ))
+<BR>    {
+<BR>        _Rrelease ( fp, "DEVICE1" );
+<BR>    }
+<BR>    else
+<BR>    {
+<BR>        _Rrelease(fp, "DEVICE2" );
+<BR>    }
+<BR>    return(0);
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>The ILE C program T1520CDV uses the <TT>_Racquire()</TT> function to
+explicitly acquire another device that is named DEVICE1. DEVICE1
+becomes the current program device. The <TT>_Rpgmdev()</TT>
+function changes the current device that is named DEVICE1 to DEVICE2.
+The <TT>_Rreadindv()</TT> function reads records from DEVICE1. The
+<TT>_Release()</TT> function releases DEVICE1 and DEVICE2.
+</LI><LI>To run the program T1520CDV, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520CDV)
+</PRE>
+<P>The output is as follows: 
+<PRE>
++--------------------------------------------------------------------------------+
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|         Name:                                                                  |
+|         Password:                                                              |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
++--------------------------------------------------------------------------------+</PRE>
+<P>
+<P>When the application is run, a different display appears on each
+device. Data may be entered on both displays, but the data that is
+first entered is returned to the program. The output from the program
+is in QPRINT. For example, if the name <TT>SMITH</TT> and the address
+<TT>10 MAIN ST</TT> is entered on DEVICE1 before any data is entered on
+DEVICE2, then the file QPRINT contains: 
+<PRE>
+<BR>
+Data displayed on DEVICE1 is SMITH   10 MAIN ST
+</PRE>
+</LI></OL>
+<P>
+<DL><DT><B>Note:</B></DT><DD>There are two record formats that are created in the above example.
+One has a size of 45 characters (fmt1), and the other a size of
+18 characters (fmt2). The union buf contains two record
+format declarations.
+</DD></DL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog364.htm">Previous Page</A> | <A HREF="cpprog366.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

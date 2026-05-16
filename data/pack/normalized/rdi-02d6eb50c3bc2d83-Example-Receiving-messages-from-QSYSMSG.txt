@@ -1,0 +1,126 @@
+Example: Receiving messages from QSYSMSG
+
+IBM i programming resources > Control language > Control language > Messages > QSYSMSG message queue > QSYSMSG message queue
+
+IBM i programming resources > Control language > Control language > Messages > QSYSMSG message queue
+
+Example: Receiving messages from QSYSMSG
+This example program receives messages from the
+QSYSMSG message queue.
+The program consists of a single procedure which is receiving
+messages and handling message CPF1269. The reason code in the CPF1269 message
+is in binary format. This must be converted to a decimal value for the comparisons
+to the 704 and 705 reason codes. The procedure issues the End Mode
+(ENDMOD) command to prevent new jobs from being started until the
+situation is understood. It then sends the same message to a user-defined
+message queue to be reviewed by the security officer. It also sends a message
+to the system operator to indicate what occurred. If a different message
+is received, it is sent to the system operator.
+A separate job would
+be started to call this sample program. The job would remain active, waiting
+for a message to arrive. The job could be ended using the End Job
+(ENDJOB) command.
+Note: By using the code examples, you agree
+to the terms of the Code license and disclaimer information.
+/********************************************************************/
+/* */
+/* Example program to receive messages from QSYSMSG */
+/* */
+/********************************************************************/
+/* */
+/* Program looks for message CPF1269 with a reason code of 704 */
+/* or 705. If found then notify QSECOFR of the security failure. */
+/* Otherwise resend the message to QSYSOPR. */
+/* */
+/* The following describes message CPF1269 */
+/* */
+/* CPF1269: Program start request received on communications */
+/* device &1 was rejected with reason codes &6,; &7; */
+/* */
+/* Message data from DSPMSGD CPF1269 */
+/* */
+/* Data type offset length Description */
+/* */
+/* &1 *CHAR 1 10 Device */
+/* &2 *CHAR 11 8 Mode */
+/* &3 *CHAR 19 10 Job - number */
+/* &4 *CHAR 29 10 Job - user */
+/* &5 *CHAR 39 6 Job - name */
+/* &6 *BIN 45 2 Reason code - major */
+/* &7 *BIN 47 2 Reason code - minor */
+/* &8 *CHAR 49 8 Remote location name */
+/* &9 *CHAR 57 *VARY Unit of work identifier */
+/* */
+/********************************************************************/
+
+PGM
+
+DCL &MSGID *CHAR LEN( 7)
+DCL &MSGDTA *CHAR LEN(100)
+DCL &MSG *CHAR LEN(132)
+
+DCL &DEVICE *CHAR LEN( 10)
+DCL &MODE *CHAR LEN( 8)
+DCL &RMTLOC *CHAR LEN( 8)
+
+MONMSG CPF0000 EXEC(GOTO PROBLEM)
+/**********************************************************/
+/* Fetch messages from QSYSMSG message queue */
+/**********************************************************/
+LOOP: RCVMSG MSGQ(QSYS/QSYSMSG) WAIT(*MAX) MSGID(&MSGID) +
+MSG(&MSG) MSGDTA(&MSGDTA)
+
+IF ((&MSGID *EQ 'CPF1269') /* Start failed msg */ +
+*AND ((%BIN(&MSGDTA 45 2) *EQ 704) +
+*OR (%BIN(&MSGDTA 45 2) *EQ 705)) ) +
+THEN(DO)
+/********************************************************/
+/* Report security failure to QSECOFR */
+/********************************************************/
+
+CHGVAR &DEVICE %SST(&MSGDTA 1 10) /* Extract device */
+CHGVAR &MODE %SST(&MSGDTA 11 8) /* Extract mode */
+CHGVAR &RMTLOC %SST(&MSGDTA 49 8) /* Get loc name */
+
+ENDMOD RMTLOCNAME(&RMTLOC) MODE(&MODE)
+
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGDTA(&MSGDTA) +
+TOMSGQ(QSECOFR)
+
+SNDPGMMSG MSG('Device ' *CAT &DEVICE *TCAT ' Mode ' +
+*CAT &MODE *TCAT ' had security failure, +
+session max changed to zero') +
+TOMSGQ(QSYSOPR)
+ENDDO
+ELSE DO
+/********************************************************/
+/* Other message - Resend to QSYSOPR */
+/********************************************************/
+
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGDTA(&MSGDTA) +
+TOMSGQ(QSYSOPR)
+
+/* SNDPGMMSG would fail if the message does */
+/* not have a MSGID or is not in QCPFMSG */
+
+MONMSG MSGID(CPF0000) +
+EXEC(SNDPGMMSG MSG(&MSG) TOMSGQ(QSYSOPR))
+ENDDO
+
+GOTO LOOP /* Go fetch next message */
+
+/**********************************************************/
+/* Notify QSYSOPR of abnormal end */
+/**********************************************************/
+
+PROBLEM: SNDPGMMSG MSG('QSYSMSG job has abnormally ended') +
+TOMSGQ(QSYSOPR)
+MONMSG CPF0000
+
+SNDPGMMSG MSGID(CPF9898) MSGF(QCPFMSG) MSGTYPE(*ESCAPE) +
+MSGDTA('Unexpected error occurred')
+MONMSG CPF0000
+
+ENDPGM
+
+Parent topic: QSYSMSG message queue

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Scope of Definitions" name="DC.title" />
+<meta content="scope, of definitions, global variables, variable, local variable, subprocedures, scope of parameters" name="DC.subject" />
+<meta content="scope, of definitions, global variables, variable, local variable, subprocedures, scope of parameters" name="keywords" />
+<meta content="subpdef.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="hsbscp" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Scope of Definitions</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Fhsbscp.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="hsbscp">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/concepts.htm" shape="rect">RPG IV Concepts</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/proccyc.htm" shape="rect">Procedures and the Program Logic Cycle</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/subpdef.htm" shape="rect">Subprocedure Definition</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">Scope of Definitions</h1>
+
+
+<div class="body">
+<p class="p">Any items defined within a subprocedure are local to
+the subprocedure. If a local item is defined with the same name as
+a global data item, then any references to that name inside the subprocedure
+use the local definition.</p>
+
+<div class="p">However, keep in mind the following:
+<ul class="ul">
+<li class="li">Subroutine names and tag names are known only to the
+procedure in which they are defined, even those defined in the cycle-main
+procedure.</li>
+
+<li class="li">All fields specified on input and output specifications are global.
+When a subprocedure uses input or output specifications (for example,
+while processing a read operation), the global name is used even if
+there is a local variable of the same name.</li>
+
+</ul>
+</div>
+
+<p class="p">When using a global KLIST
+or PLIST in a subprocedure some of the fields may have the same names
+as local fields. If this occurs, the global field is used. This may
+cause problems when setting up a KLIST or PLIST prior to using it.</p>
+
+<p class="p">For example, consider the following source.</p>
+
+<div class="fig figborder" id="hsbscp__klstscp"><span class="figcap"><span class="fig--title-label">Figure 1. </span>Scope of Key Fields Inside a Module</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code>      * Main procedure definitions
+     D Fld1            S              1A
+     D Fld2            S              1A
+
+      * Define a global key field list with 2 fields, Fld1 and Fld2
+     C     global_kl     KLIST
+     C                   KFLD                    Fld1
+     C                   KFLD                    Fld2
+
+      * Subprocedure Section
+     P Subproc         B
+     D Fld2            S              1A
+
+      * local_kl has one global kfld (fld1) and one local (fld2)
+     C     local_kl      KLIST
+     C                   KFLD                    Fld1
+     C                   KFLD                    Fld2
+
+      * Even though Fld2 is defined locally in the subprocedure,
+      * the global Fld2 is used by the global_kl, since global KLISTs
+      * always use global fields.  As a result, the assignment to the
+      * local Fld2 will NOT affect the CHAIN operation.
+
+     C                   EVAL      Fld1 = 'A'
+     C                   EVAL      Fld2 = 'B'
+     C     global_kl     SETLL     file
+
+      * Local KLISTs use global fields only when there is no local
+      * field of that name.  local_kl uses the local Fld2 and so the
+      * assignment to the local Fld2 WILL affect the CHAIN operation.
+     C                   EVAL      Fld1 = 'A'
+     C                   EVAL      Fld2 = 'B'
+     C     local_kl      SETLL     file
+      ...
+     P                 E</code></pre></div>
+
+<p class="p">For more information on scope, see <a class="xref" href="hscope.htm#hscope" shape="rect">Scope of Definitions</a>.</p>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="subpdef.htm" shape="rect">Subprocedure Definition</a></div>
+</div>
+</div></body>
+</html>

@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-us">
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+<meta content="en-us" name="dc.language" scheme="rfc1766" />
+<!-- Licensed Materials Property of IBM                      -->
+<!-- US Government Users Restricted Rights                   -->
+<!-- Use, duplication or disclosure restricted by            -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                -->
+<meta content="2010-02-09" name="dc.date" scheme="iso8601" />
+<meta content="© Copyright IBM Corporation 1999, 2010" name="copyright" />
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="(PICS-1.1 &quot;http://www.icra.org/ratingsv02.html&quot; l gen true r (cz 1 lz 1 nz 1 oz 1 vz 1) &quot;http://www.rsac.org/ratingsv01.html&quot; l gen true r (n 0 s 0 v 0 l 0) &quot;http://www.classify.org/safesurf/&quot; l gen true r (SS~~000 1))" http-equiv="PICS-Label" />
+<meta content="RCHCLERK@us.ibm.com" name="owner" />
+<meta content="quick pool memory manager, pragma preprocessor directives, preprocessor directives" name="keywords" />
+<title>ILE C/C++ Runtime Library Functions</title>
+<link href="ibmidwb.css" rel="stylesheet" type="text/css" />
+<link href="help.css" rel="stylesheet" type="text/css" />
+
+<script src="../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.langref.doc%2Frzan5mst398.htm" + anchorParam);
+}
+</script>
+</head>
+<body>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../nav/2_5" shape="rect">ILE C/C++</a> &gt; <a href="../../nav/2_5_3" shape="rect">Runtime Library functions</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref.doc/rzan5mst10.htm" shape="rect">Runtime Library Functions</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref.doc/rzan5mst371.htm" shape="rect">Runtime Considerations</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref.doc/rzan5mst394.htm" shape="rect">Heap Memory</a></div>
+
+<a id="Top_Of_Page" name="Top_Of_Page" shape="rect"><!-- --></a><!-- header --> 
+<H1>ILE C/C++ Runtime Library Functions</H1>
+<!-- end header -->
+
+
+<a name="quick_pool_memory_manager" shape="rect"><!-- --></a>
+<h3 id="quick_pool_memory_manager"><a href="rzan5mst02.htm#ToC_408" shape="rect">Quick Pool Memory Manager</a></h3><a id="idx1482" name="idx1482" shape="rect"><!-- --></a>
+<p>The Quick Pool memory manager breaks memory up into a series of
+pools. It is intended to improve heap performance for applications
+that issue large numbers of small allocation requests. When the Quick
+Pool memory manager is enabled, allocation requests that fall within
+a given range of block sizes are assigned a cell within a pool. These
+requests can be handled more quickly than requests outside of this
+range. Allocation requests outside this range are handled in the same
+manner as the default memory manager.</p>
+<p>A pool consists of a block of memory (called an extent) that is
+subdivided into a predetermined number of smaller blocks (called cells)
+of uniform size. Each cell can be allocated as a block of memory.
+Each pool is identified using a pool number. The first pool is pool
+1, the second pool is pool 2, the third pool is pool 3, and so on.
+The first pool is the smallest and each succeeding pool is equal to
+or larger in size than the preceding pool.</p>
+<p>The number of pools and cell sizes for each of the pools is determined
+at the time the Quick Pool memory manager is initialized.</p>
+<p><strong>Allocation</strong></p>
+<p>A cell is allocated from one of the pools when an allocation request
+falls within the range of cell sizes defined by the pools. Each allocation
+request is serviced from the smallest possible pool to conserve space.</p>
+<p>When the first request comes in for a pool, an extent is allocated
+for the pool and the request is satisfied from that extent. Later
+requests for that pool are also satisfied by the extent until the
+extent is exhausted. When an extent is exhausted, a new extent is
+allocated for the pool.</p>
+<p><strong>Deallocation</strong></p>
+<p>Memory blocks (cells) deallocated with the <tt class="xph">free</tt> operation
+are added to a free queue associated with the pool that contains the
+cell. Each pool has a free queue that contains cells that have been
+freed and have not yet been reallocated. Additional allocation requests
+from that pool use cells from the free queue.</p>
+<p><strong>Reallocation</strong></p>
+<p>If the size of the reallocated block falls within the same pool
+as the original block, the original block is returned without any
+data movement. Otherwise, a new block of the requested size is allocated,
+the data is moved from the original block to the new block, the original
+block is returned to the free queue with the <tt class="xph">free</tt> operation,
+and the new block is returned to the caller.</p>
+<p><strong>Enabling the Quick Pool Memory Manager</strong></p>
+<p>The Quick Pool memory manager is not enabled by default. It is
+enabled and configured either by calling the <tt class="xph">_C_Quickpool_Init() </tt> and <tt class="xph">_C_Quickpool_Debug()</tt> functions
+or by setting the following environment variables:</p>
+<pre class="xmp" xml:space="preserve">QIBM_MALLOC_TYPE=QUICKPOOL
+QIBM_MALLOC_QUICKPOOL_OPTIONS=<em>options</em></pre>
+<p>To enable the Quick Pool memory manager with the default settings,
+the QIBM_MALLOC_QUICKPOOL_OPTIONS environment variable does not need
+to be specified, only QIBM_MALLOC_TYPE=QUICKPOOL needs to be specified.
+To enable the Quick Pool memory manager with user-specified
+configuration options, set QIBM_MALLOC_QUICKPOOL_OPTIONS=<em>options</em>, where <em>options</em> is
+a blank delimited list of one or more configuration options.</p>
+<p>If the QIBM_MALLOC_TYPE=QUICKPOOL environment variable is specified
+and the<tt class="xph">_C_Quickpool_Init()</tt> function is called, the environment
+variable settings take precedence over the <tt class="xph">_C_Quickpool_Init()</tt> function
+and the <tt class="xph">_C_Quickpool_Init() </tt> function returns a -1
+value indicating that an alternate heap manager has already been enabled.</p>
+<p>If the QIBM_MALLOC_TYPE=QUICKPOOL environment variable is specified
+and the <tt class="xph">_C_Quickpool_Debug()</tt> function is called to change
+the Quick Pool memory manager characteristics, the settings specified
+on the parameter to the <tt class="xph">_C_Quickpool_Debug()</tt> function override
+the environment variable settings.</p>
+<p><strong>Configuration Options</strong></p>
+<p><!-- --></p>
+<p>The following configuration options are available:</p>
+<p>POOLS:(C<sub>1</sub> E<sub>1</sub>)(C<sub>2</sub> E<sub>2</sub>)...(C<sub>n</sub> E<sub>n</sub>)</p>
+<p>This option can be used to specify the number of pools to be used,
+along with the cell size and extent cell count for each pool. The
+subscript value <em>n </em> indicates the number of
+pools. The minimum valid value of <em>n</em> is 1.
+The maximum valid value of <em>n</em> is 64.</p>
+<p>The value C<sub>1</sub> indicates the cell size
+for pool 1, C<sub>2</sub> indicates the cell size
+for pool 2, C<sub>n</sub> indicates the cell size
+for pool <em>n</em>, and so on. This value must be
+a multiple of 16 bytes. If a value is specified that is not a multiple
+of 16 bytes, the cell size is rounded up to the next larger multiple
+of 16 bytes. The minimum valid value is 16 and the maximum valid value
+is 4096.</p>
+<p>The value E<sub>1</sub> indicates the extent cell
+count for pool 1, E<sub>2</sub> indicates the extent
+cell count for pool 2, E<sub>n</sub> indicates the
+extent cell count for pool <em>n</em>, and so on. The
+value specifies the number of cells in a single extent. The value
+can be any non-negative number, but the total size of the extent
+might be limited due to architecture constraints. A value of zero
+indicates that the implementation can choose a large value.</p>
+<p>The default value for this option is "POOLS:(16 4096) (32 4096)
+(64 1024) (128 1024) (256 512) (512 512) (1024 256) (2048 256) (4096
+256)". The defaults represent 9 pools with cells of sizes 16,
+32, 64, 128, 256, 512, 1024, 2048, and 4096 bytes. The number of cells
+in each extent is 4096, 4096, 1024, 1024, 512, 512, 256, 256, and
+256.</p>
+<p>MALLOC_INIT:N</p>
+<p>This option can be used to specify that each byte of allocated
+memory is initialized to the given value. The value <em>N</em> represents
+an integer in the range of 0 to 255.</p>
+<p>This option is not enabled by default.</p>
+<p>FREE_INIT:N</p>
+<p>This option can be used to specify that each byte of freed memory
+is initialized to the given value. The value <em>N</em> represents
+an integer in the range of 0 to 255.</p>
+<p>This option is not enabled by default.</p>
+<p>COLLECT_STATS</p>
+<p>This option can be used to specify that the Quick Pool memory manager
+collect statistics and report those statistics upon termination of
+the application. The Quick Pool memory manager collects statistics
+by calling <tt class="xph">atexit(_C_Quickpool_Report)</tt> when this option
+is specified. Details about the information contained within that
+report are documented in the description for <tt class="xph">_C_Quickpool_Report().</tt></p>
+<p>This option is not enabled by default.</p>
+<p>Any number of options can be specified and they can be specified
+in any order. Blanks are the only valid delimiters for separating
+configuration options. Each configuration option should only be specified
+once. If a configuration option is specified more than once, only
+the final instance applies. If a configuration option is specified
+with an invalid value, the configuration option is ignored.</p>
+<p><strong>Examples</strong></p>
+<pre class="xmp" xml:space="preserve">ADDENVVAR ENVVAR(QIBM_MALLOC_QUICKPOOL_OPTIONS) LEVEL(*JOB) REPLACE(*YES) 
+VALUE('POOLS:(16 4096) (32 4096) (64 1024) (128 1024) (256 512) (512 512) (1024 256) 
+(2048 256) (4096 256)')
+
+ADDENVVAR ENVVAR(QIBM_MALLOC_QUICKPOOL_OPTIONS) LEVEL(*JOB) REPLACE(*YES)
+VALUE('POOLS:(16 1000) MALLOC_INIT:255 FREE_INIT:0 COLLECT_STATS')</pre>
+<p>The first example represents the default configuration values.
+The second example illustrates all options being specified.</p>
+<p><strong>Related Functions</strong></p>
+<p>The <tt class="xph">_C_Quickpool_Init()</tt> function allows enablement of
+the Quick Pool memory manager. The <tt class="xph">_C_Quickpool_Init()</tt> function
+also specifies the number of pools to be used, the cell size, and
+the extent cell count for each pool.</p>
+<p>The <tt class="xph">_C_Quickpool_Debug() </tt> function allows enablement
+of the other configuration options.</p>
+<p>The <tt class="xph">_C_Quickpool_Report()</tt> function is used to report
+memory statistics.</p>
+<a name="wq754" shape="rect"><!-- --></a>
+<div class="notelisttitle" id="wq754">Notes:</div>
+<ol type="1">
+<li>The default configuration for the Quick Pool memory manager provides
+a performance improvement for many applications that issue large numbers
+of small allocation requests. However, it might be possible to achieve
+additional gains by modifying the default configuration. Before modifying
+the default configuration, become familiar with the memory requirements
+and usage of the application. The Quick Pool memory manager can be
+enabled with the COLLECT_STATS option to fine-tune the Quick
+Pool memory manager configuration.</li>
+<li>Because of variations in memory requirements and usage, some applications
+might not benefit from the memory allocation scheme used by the Quick
+Pool memory manager. Therefore, it is not advisable to enable the
+Quick Pool memory manager for system-wide use. For optimal
+performance, enable and configure the Quick Pool memory manager on
+a per-application basis.</li>
+<li>It is allowable to create more than one pool with the same size
+cells. This can be useful for multi-threaded applications which
+perform many similar sized allocations. When there is no contention,
+the first pool of the requested size is used. When contention occurs
+on the first pool, the Quick Pool memory manager allocates cells from
+any other equal sized pools to minimize contention.</li>
+</ol>
+<p><strong>Related Information</strong></p>
+<p><!-- --></p>
+<ul>
+<li><a href="rzan5mst95.htm#quickpinit" shape="rect">_C_Quickpool_Init() — Initialize
+Quick Pool Memory Manager</a></li>
+<li><a href="rzan5mst94.htm#quickpdebug" shape="rect">_C_Quickpool_Debug() — Modify
+Quick Pool Memory Manager Characteristics</a></li>
+<li><a href="rzan5mst96.htm#quickpreport" shape="rect">_C_Quickpool_Report() — Generate
+Quick Pool Memory Manager Report</a></li></ul>
+<hr /><br clear="none" />
+[ <a href="#Top_Of_Page" shape="rect">Top of Page</a> | <a href="rzan5mst397.htm" shape="rect">Previous Page</a> | <a href="rzan5mst399.htm" shape="rect">Next Page</a> | <a href="rzan5mst02.htm#wq2" shape="rect">Contents</a> |
+<a href="rzan5mst410.htm#wq795" shape="rect">Index</a> ]<br clear="none" />
+<div id="relatedLinks" style="display: none;"><!-- --></div>
+
+
+<a id="Bot_Of_Page" name="Bot_Of_Page" shape="rect"><!-- --></a>
+</body>
+</html>

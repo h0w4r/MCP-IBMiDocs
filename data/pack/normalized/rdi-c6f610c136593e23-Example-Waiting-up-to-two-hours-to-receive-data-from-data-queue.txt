@@ -1,0 +1,58 @@
+Example: Waiting up to two hours to receive data from data queue
+
+IBM i programming resources > Control language > Control language > CL programming > Communicating between programs and procedures > Using data queues > Examples: Using a data queue > Examples: Using a data queue
+
+IBM i programming resources > Control language > Control language > CL programming > Communicating between programs and procedures > Using data queues > Examples: Using a data queue
+
+Example: Waiting up to two hours to receive data from data queue
+This example shows a program waiting up to two hours to receive
+an entry from a data queue.
+In the following example, program B specifies to wait up to two
+hours (7200 seconds) to receive an entry from the data queue. Program A sends
+an entry to data queue DTAQ1 in library QGPL. If program A sends an entry
+within two hours, program B receives the entries from this data queue. Processing
+begins immediately. If two hours elapse without procedure A sending an entry,
+program B processes the time-out condition because the field length returned
+is 0. Program B continues receiving entries until this time-out condition
+occurs. The programs are written in CL; however, either program could be written
+in any high-level language.
+
+The data queue is created with the following command:
+CRTDTAQ DTAQ(QGPL/DTAQ1) MAXLEN(80)
+
+In this example, all data queue entries are 80 bytes long.
+
+In program A, the following statements relate to the data queue:
+
+PGM
+DCL &FLDLEN *DEC LEN(5 0) VALUE(80)
+DCL &FIELD *CHAR LEN(80)
+.
+.(determine data to be sent to the queue)
+.
+CALL QSNDDTAQ PARM(DTAQ1 QGPL &FLDLEN &FIELD)
+.
+.
+.
+
+In program B, the following statements relate to the data queue:
+
+PGM
+DCL &FLDLEN *DEC LEN(5 0) VALUE(80)
+DCL &FIELD *CHAR LEN(80)
+DCL &WAIT *DEC LEN(5 0) VALUE(7200) /* 2 hours */
+.
+.
+.
+LOOP: CALL QRCVDTAQ PARM(DTAQ1 QGPL &FLDLEN &FIELD &WAIT)
+IF (&FLDLEN *NE 0) DO /* Entry received */
+.
+. (process data from data queue)
+.
+GOTO LOOP /* Get next entry from data queue */
+ENDDO
+.
+. (no entries received for 2 hours; process time-out condition)
+.
+
+Parent topic: Examples: Using a data queue

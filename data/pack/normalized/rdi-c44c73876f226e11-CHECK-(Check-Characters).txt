@@ -1,0 +1,176 @@
+CHECK (Check Characters)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+CHECK (Check Characters)
+
+Free-Form Syntax
+
+(not allowed - use the %CHECK built-in function)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+CHECK (E)
+
+Comparator
+string
+
+Base string:start
+
+Left-
+position
+
+_
+
+ER
+
+FD
+
+The CHECK operation verifies that each character in the base string
+(factor 2) is among the characters indicated in the comparator string
+(factor 1). The base string and comparator string must be of the same
+type, either both character, both graphic, or both UCS-2. (Graphic
+and UCS-2 types must have the same CCSID value.) Verifying begins
+at the leftmost character of factor 2 and continues character by character,
+from left to right. Each character of the base string is compared
+with the characters of factor 1. If a match for a character in factor
+2 exists in factor 1, the next base string character is verified.
+If a match is not found, an integer value is placed in the result
+field to indicate the position of the incorrect character.
+
+You can specify a start position in factor 2, separating it from
+the base string by a colon. The start position is optional and defaults
+to 1. If the start position is greater than 1, the value in the result
+field is relative to the leftmost position in the base string, regardless
+of the start position.
+
+The operation stops checking when it finds the first incorrect
+character or when the end of the base string is encountered. If no
+incorrect characters are found, the result field is set to zero.
+
+If the result field is an array, the operation continues checking
+after the first incorrect character is found for as many occurrences
+as there are elements in the array. If there are more array elements
+than incorrect characters, all of the remaining elements are set to
+zeros.
+
+Factor 1 must be a string, and can contain one of: a field name,
+array element, named constant, data structure name, data structure
+subfield, literal, or table name.
+
+Factor 2 must contain either the base string or the base string,
+followed by a colon, followed by the start location. The base string
+portion of factor 2 can contain: a field name, array element, named
+constant, data-structure name, literal, or table name. The start location
+portion of factor 2 must be numeric with no decimal positions, and
+can be a named constant, array element, field name, literal, or table
+name. If no start location is specified, a value of 1 is used.
+
+The result field can be a numeric variable, numeric array element,
+numeric table name, or numeric array. Define the field or array specified
+with no decimal positions. If graphic or UCS-2 data is used, the result
+field will contain double-byte character positions (that is, position
+3, the 3rd double-byte character, will be character position 5).
+Note: Figurative constants cannot be used in the factor 1, factor
+2, or result fields. No overlapping is allowed in a data structure
+for factor 1 and the result field or for factor 2 and the result field.
+
+Any valid indicator can be specified in positions 7 to 11.
+
+To handle CHECK exceptions (program status
+code 100), either the operation code extender 'E' or an error
+indicator ER can be specified, but not both. For more information
+on error handling, see Program Exception/Errors.
+
+You can specify an indicator in positions 75-76 that is set on
+if any incorrect characters are found. This information can also be
+obtained from the %FOUND built-in function, which returns '1' if any
+incorrect characters are found.
+
+For more information, see String Operations.
+
+Figure 1. CHECK Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+* In this example, the result will be N=6, because the start
+* position is 2 and the first nonnumeric character found is the '.'.
+* The %FOUND built-in function is set to return '1', because some
+* nonnumeric characters were found.
+*
+D
+D Digits C '0123456789'
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+C
+C MOVE '$2000.' Salary
+C Digits CHECK Salary:2 N
+C IF %FOUND
+C EXSR NonNumeric
+C ENDIF
+*
+* Because factor 1 is a blank, CHECK indicates the position
+* of the first nonblank character. If STRING contains '␢␢␢th
+* NUM will contain the value 4.
+*
+C
+C ' ' CHECK String Num 2 0
+
+Figure 2. CHECK Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+* The following example checks that FIELD contains only the letters
+* A to J. As a result, ARRAY=(136000) after the CHECK operation.
+* Indicator 90 turns on.
+*
+D
+D Letter C 'ABCDEFGHIJ'
+D
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+C
+C MOVE '1A=BC*' Field 6
+C Letter CHECK Field Array 90
+C
+*
+* In the following example, because FIELD contains only the
+* letters A to J, ARRAY=(000000). Indicator 90 turns off.
+*
+C
+C MOVE 'FGFGFG' Field 6
+C Letter CHECK Field Array 90
+C
+C
+
+Figure 3. CHECK Operation with graphic data
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+D
+* The following example checks a DBCS field for valid graphic
+* characters starting at graphic position 2 in the field.
+D
+* Value of Graffld is 'DDBBCCDD'.
+* The value of num after the CHECK is 4, since this is the
+* first character 'DD' which is not contained in the string.
+D
+D Graffld 4G INZ(G'oDDBBCCDDi')
+D Num 5 0
+D
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq.
+C
+C
+C G'oAABBCCi' check Graffld:2 Num
+
+Parent topic: Operation Codes

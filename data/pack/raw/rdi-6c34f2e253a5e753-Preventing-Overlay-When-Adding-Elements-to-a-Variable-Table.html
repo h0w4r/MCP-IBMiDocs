@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="© Copyright IBM Corporation 2016" name="copyright" />
+<meta content="© Copyright IBM Corporation 2016" name="DC.Rights.Owner" />
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="topic" name="DC.Type" />
+<meta content="Preventing Overlay When Adding Elements to a Variable Table" name="DC.Title" />
+<meta content="compodo.htm" name="DC.Relation" scheme="URI" />
+<meta content="ILE COBOL" name="prodname" />
+<meta content="7.3" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.Date" scheme="iso8601" />
+<meta content="June 2012" name="DC.Date.Created" />
+<meta content="XHTML" name="DC.Format" />
+<meta content="odooverlay" name="DC.Identifier" />
+<meta content="en-us" name="DC.Language" />
+<meta content="ZZ" name="IBM.Country" />
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link href="./ibmdita.css" rel="stylesheet" type="text/css" />
+<link href="./ic.css" rel="stylesheet" type="text/css" />
+<link href="compodo.htm" rel="Start" />
+<title>Preventing Overlay When Adding Elements to a Variable Table</title>
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilecbl.ref.doc%2Ftopics%2Fodooverlay.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="odooverlay">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_1" shape="rect">ILE COBOL</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/rzasbmain.htm" shape="rect">ILE COBOL Language Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/cobolrefappendixes.htm" shape="rect">Appendixes</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/compodo.htm" shape="rect">Appendix H. Complex OCCURS DEPENDING ON</a></div>
+<div role="main">
+<!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+<h1 class="title topictitle1">Preventing Overlay When Adding Elements to a Variable Table</h1>
+<div class="body"><p class="p">Be careful if you increase the number of elements in a variable-occurrence
+table that is followed by one or more nonsubordinate data items in the same
+group. When you increment the value of the ODO object and add an element to
+a table, you can inadvertently overlay the variably located data items that
+follow the table. </p>
+<p class="p">To avoid this type of error, do the following:</p>
+<ol class="ol"><li class="li">Save the variably located data items that follow the table in another
+data area. </li>
+<li class="li">Increment the value of the ODO object.</li>
+<li class="li">Move data into the new table element (if needed).</li>
+<li class="li">Restore the variably located data items from the data area where you saved
+them. </li>
+</ol>
+<p class="p">In the following example, suppose you want to add an element to the table
+VARY-FIELD-1, whose number of elements depends on the ODO object CONTROL-1.
+VARY-FIELD-1 is followed by the nonsubordinate variably located data item
+GROUP-ITEM-1, whose elements could potentially be overlaid.</p>
+<pre class="pre codeblock" xml:space="preserve"><code>WORKING-STORAGE SECTION.
+01  VARIABLE-REC.
+    05  FIELD-1                              PIC X(10).
+    05  CONTROL-1                            PIC S99.
+    05  CONTROL-2                            PIC S99.
+    05  VARY-FIELD-1 OCCURS 1 TO 10 TIMES
+          DEPENDING ON CONTROL-1             PIC X(5).
+    05  GROUP-ITEM-1.
+        10  VARY-FIELD-2
+              OCCURS 1 TO 10 TIMES
+              DEPENDING ON CONTROL-2         PIC X(9).
+01  STORE-VARY-FIELD-2.
+    05  GROUP-ITEM-2.
+        10  VARY-FLD-2
+              OCCURS 1 TO 10 TIMES
+              DEPENDING ON CONTROL-2         PIC X(9).</code></pre>
+<p class="p">Each element of VARY-FIELD-1 has 5 bytes, and each element of VARY-FIELD-2
+has 9 bytes. If CONTROL-1 and CONTROL-2 both contain the value 3, you can
+picture storage for VARY-FIELD-1 and VARY-FIELD-2 as follows:</p>
+<div class="fig fignone"><div class="image"><img alt="This figure illustrates storage for the VARY-FIELDs one and two when the CONTROL one and two fields have a value of three" class="image" src="npodo01.gif" /></div></div>
+<p class="p">To add a fourth element to VARY-FIELD-1, code as follows to prevent overlaying
+the first 5 bytes of VARY-FIELD-2. (GROUP-ITEM-2 serves as temporary storage
+for the variably located GROUP-ITEM-1.)</p>
+<pre class="pre codeblock" xml:space="preserve"><code>MOVE GROUP-ITEM-1 TO GROUP-ITEM-2.
+ADD 1 TO CONTROL-1.
+MOVE <span class="ph synph"><span class="ph var">five-byte-field</span></span> TO
+  VARY-FIELD-1 (CONTROL-1).
+MOVE GROUP-ITEM-2 TO GROUP-ITEM-1.</code></pre>
+<p class="p">You can picture the updated storage for VARY-FIELD-1 and VARY-FIELD-2 as
+follows:</p>
+<div class="fig fignone"><div class="image"><img alt="This figure illustrates storage for the VARY-FIELDs one and two when the CONTROL one and two fields have a value of three" class="image" src="npodo02.gif" /></div></div>
+<p class="p">Note that the fourth element of VARY-FIELD-1 did not overlay the first
+element of VARY-FIELD-2.</p>
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="compodo.htm" shape="rect">Appendix H. Complex OCCURS DEPENDING ON</a></div>
+</div>
+</div></div></body>
+</html>

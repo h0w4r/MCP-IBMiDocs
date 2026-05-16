@@ -1,0 +1,315 @@
+Key field name
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Define physical and logical files using DDS > Positional entries for physical and logical files (positions 1 through 44) > Name for physical and logical files (positions 19 through 28)
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Define physical and logical files using DDS > Positional entries for physical and logical files (positions 1 through 44) > Name for physical and logical files (positions 19 through 28)
+
+Key field name
+
+When you specify K in position 17, the name specified
+in positions 19 through 28 is a key field name.
+
+It must be one of the field names within the physical file record format.
+The contents of this field are used to sequence the records for retrieval
+from the database. Specifying a key is optional. If no key field is specified,
+the default sequence is arrival sequence (the order that the records were
+put into the file).
+
+Use key fields (and optionally, select/omit fields) to define a keyed sequence
+access path for record formats in the logical file member. The logical file
+member includes the physical file members specified on the DTAMBRS parameter
+on the Create Logical File (CRTLF) or Add Logical File Member (ADDLFM) command.
+
+You can change the sequence of records as they are read from the file by
+specifying a sequencing keyword. The sequencing keywords are ALTSEQ, NOALTSEQ,
+SIGNED, UNSIGNED, ABSVAL, ZONE, DIGIT, DESCEND, FCFO, FIFO, and LIFO.
+
+When you do not specify any sequencing keyword for a key field, the default
+sequence for that key field is ascending order. The default for character,
+hexadecimal, date, time, and timestamp fields is the UNSIGNED attribute. The
+default for numeric fields is the SIGNED attribute, except for zoned decimal
+fields (S specified in position 35) in the following cases:
+When you specify ALTSEQ at the file level, all zoned decimal key fields
+in the file are set to UNSIGNED as default.
+
+When you specify DIGIT or ZONE for a zoned decimal key field, the field
+is set to UNSIGNED as default.
+
+If you specify more than one record format for a logical file or more than
+one physical file for the PFILE keyword, you must specify at least one key
+field for all record formats of that logical file.
+
+A key can have more than one key field. This is called a composite
+key. In a composite key, specify the key field names in the order of
+importance (major to minor), and specify each key field name on a separate
+line.
+
+Figure 1 shows a multiple format logical file
+with two record formats, one of which uses a composite key. In this example,
+RECORD1 has a single key field, FIELD1. RECORD2 has a composite key that includes
+FIELD4 and FIELD5.
+
+Figure 1. Specifying a multiple-format logical file with two
+record formats
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD1 PFILE(PF1)
+00020A FIELD1
+00030A FIELD2
+00040A FIELD3
+00050A K FIELD1
+00060A*
+00070A R RECORD2 PFILE(PF2)
+00080A FIELD4
+00090A FIELD5
+00100A K FIELD4
+00110A K FIELD5
+A
+
+If you do not specify a key field for a logical file, the file you are
+defining has an arrival sequence access path.
+
+The number of fields that make up a key is restricted to 120.
+The total key length cannot exceed 32 768 bytes. (If the FCFO keyword is specified,
+the total key length cannot exceed 32 763 bytes. In a DDM environment, the
+key length is limited to 12 000.) The total key length includes the length
+of each key field. If any of the key fields allow the null value, add 1 byte
+for each key field that allows the null value. The operating system uses the
+extra byte to determine whether the key contains the null value. If any of
+the key fields is variable length, add 2 bytes for each variable-length key
+field. The operating system uses the extra 2 bytes to store the allocated
+length of the field.
+
+When you specify more than one record format
+in a logical file, an additional byte for the first *NONE key field position
+is required. An additional byte might also be required for each additional
+key field position. The operating system uses the extra bytes when records
+from different physical files have duplicate key values.
+
+For example, suppose a key consists of fields named FIELDA, FIELDB, and
+FIELDC (in that order). The DDS appears as shown in Figure 2.
+
+Figure 2. Composite key
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A* SAMPLE COMPOSITE KEY (PHYSICAL FILE)
+00020A R RECORD
+00030A FIELDA 3 0
+00040A FIELDB 3 0
+00050A FIELDC 3 0
+00060A FIELDD 3 0
+00070A K FIELDA
+00080A K FIELDB
+00090A K FIELDC
+A
+
+Note: Lines 00070 to 00090 make up the composite key.
+
+The records are sequenced in the following order:
+They are sequenced according to the contents of FIELDA.
+
+If two or more records with the same value in FIELDA exist, the operating
+system sequences those records according to the values in FIELDB.
+
+If two or more of those records have the same value in both FIELDA and
+FIELDB, they are sequenced according to the values in FIELDC.
+
+Consider the following file:
+
+Record
+
+FIELDA
+
+FIELDB
+
+FIELDC
+
+1
+
+333
+
+99
+
+67
+
+2
+
+444
+
+10
+
+45
+
+3
+
+222
+
+34
+
+23
+
+4
+
+222
+
+12
+
+01
+
+5
+
+222
+
+23
+
+45
+
+6
+
+111
+
+06
+
+89
+
+7
+
+222
+
+23
+
+67
+
+Assuming ascending sequencing for all fields, the records are retrieved
+in this order:
+
+Record
+
+FIELDA
+
+FIELDB
+
+FIELDC
+
+6
+
+111
+
+06
+
+89
+
+4
+
+222
+
+12
+
+01
+
+5
+
+222
+
+23
+
+45
+
+7
+
+222
+
+23
+
+67
+
+3
+
+222
+
+34
+
+23
+
+1
+
+333
+
+99
+
+67
+
+2
+
+444
+
+10
+
+45
+
+The following information applies:
+Because records 3, 4, 5, and 7 have the same contents in FIELDA, FIELDB
+becomes the determining field.
+
+Within those four records, 5 and 7 have the same values in FIELDB. For
+these two records, FIELDC becomes the determining field.
+
+If FIELDC also contains duplicate values, the records are retrieved in
+first-in first-out (FIFO), last-in first-out (LIFO), or first-changed first-out
+(FCFO) order. To guarantee the order, specify the FIFO keyword, the LIFO keyword,
+or the FCFO keyword. Specify the UNIQUE keyword to prevent duplicate key values.
+
+See SIGNED (Signed) keyword for physical and logical files
+for an example that includes a key field with negative (-) contents.
+
+Special restrictions apply to key field specifications when either FILETYPE(*SRC)
+is used on the Create Physical File (CRTPF) command or for the Create Source
+Physical File (CRTSRCPF) command.
+
+For logical files, the following rules apply to fields that you specify
+as key fields:
+For simple and multiple format logical files, the following search order
+is used to match key field names with defined fields:
+Fields specified in DDS positions 19 through 28
+
+Fields specified as parameters on the CONCAT or RENAME keyword
+
+If the field name is specified more than once, the first occurrence
+is used.
+The field name on a CONCAT or RENAME keyword and the associated
+field name in positions 19 through 28 cannot both be specified as key fields.
+The
+parameter name on the SST keyword is not valid as a key field unless it is
+defined elsewhere in the logical file format.
+
+For join logical files, the key field name you specify must be specified
+at the field level in positions 19 through 28 and must be a field described
+in the primary file (the first physical file specified on the JFILE keyword).
+Note: If you specify a field as a parameter value on the CONCAT, RENAME,
+or SST keyword, but do not specify the field in positions 19 through 28 of
+the join logical file, you cannot specify the field as a key field.
+
+If you are concatenating numeric with either character or hexadecimal,
+you cannot specify the numeric fields as key fields. If you are concatenating
+zoned decimal and fields of any other numeric data type, you cannot specify
+the fields of the other data types as key fields.
+
+Figure 3 illustrates which concatenated fields
+can and cannot be used as key fields.
+
+Figure 3. Correct and incorrect concatenated fields
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RECORD1 PFILE(PF1)
+00020A FLD1
+00030A FLD2
+00040A Z CONCAT(ZFLD PFLD)
+00050A A CONCAT(AFLD NFLD)
+00060A K ZFLD
+00070A K AFLD
+A
+
+In physical file PF1, ZFLD is zoned decimal and PFLD is packed decimal.
+Therefore Z is zoned decimal, and PFLD cannot be used as a key field. ZFLD
+and Z can be used as key fields but not in the same record format.
+
+In physical file PF1, AFLD is a character field and NFLD is a numeric field.
+Therefore A is character, and NFLD cannot be used as a key field. AFLD and
+A can be used as key fields but not in the same record format.

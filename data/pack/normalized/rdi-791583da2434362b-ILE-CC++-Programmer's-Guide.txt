@@ -1,0 +1,178 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 3. Debugging Programs > Chapter 10. Working with Source Debug Sessions
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 3. Debugging Programs > Chapter 10. Working with Source Debug Sessions
+
+ILE C/C++ Programmer's Guide
+Starting a Source Debug Session
+
+You use the Start Debug (STRDBG) command to start the ILE source
+debugger. Once the debugger is started, it remains active until you
+enter the End Debug (ENDDBG) command.
+Note:You must have *USE object authority to use the STRDBG command and *CHANGE
+authority for the objects that are to be debugged.
+
+Initially you can add as many as 20 programs to a debug session by using the Program (PGM) parameter on the
+STRDBG command. You can add any combination of OPM or ILE
+programs. Whether you can use the ILE source debugger to debug all of
+them depends on
+
+how the OPM programs were compiled
+the debug environment settings
+
+You can also add as many as 20 service programs to a debug session
+by using the Service Program (SRVPGM) parameter on the STRDBG
+command.
+Before you can use the ILE source debugger to debug an ILE C/C++
+program or service program, a valid debug view must be specified when the
+module or program is created. Valid debug views include: *SOURCE,
+*LIST, *STMT, or *ALL.
+
+You can create several views for each module that you want to debug.
+They are:
+
+Root source view
+
+A root source view contains text from the root source
+file. This view does not contain any include file
+expansions.
+You can create a root source view by using the *SOURCE or *ALL options on
+the DBGVIEW parameter for either the CRTCMOD/CRTCPPMOD or CRTBNDC/CRTBNDCPP
+command when you create the module or the program, respectively.
+The ILE C/C++ compiler creates the root source view while the module object
+(*MODULE) is being compiled. The root source view is created using
+references to locations of text in the root source file rather than copying
+the text of the file into the view. For this reason, do not modify,
+rename, or move root source files between the module creation of these files
+and the debugging of the module created from these files.
+Statement view. This is the view obtained when the source is
+compiled with *STMF option on the DBGVIEW parameter on either C or C++
+comand. This will allow to debug programs with statement numbers and
+symbolic identifiers which can be referenced in the listing.
+You can create a statement view by using the *STMF option on the DBGVIEW
+parameter on either the CRTCMOD/CRTCPPMOD or CRTBNDC/CRTBNDCPP command when
+you create the module or the program, respectively.
+Include source view
+
+An include source view contains text from the root source
+file, as well as the text of all included files that are expanded into the
+text of the source. This view does not contain any macro
+expansion. When you use this view, you can debug the root source file
+and all included files.
+You can create an include source view to debug a module by using the
+*SOURCE or *ALL option on the DBGVIEW parameter, and *SHOWINC on the OPTION
+parameter.
+Listing view
+A listing view contains text similar to the compiler listing
+produced by the ILE C/C++ compiler specified in the OUTPUT() command
+parameter.
+You can create a listing view to debug a module by using the *LIST
+or *ALL options when you compile the module. You can also specify at
+least one of *SHOWINC, *SHOWUSR, *SHOWSYS, and *SHOWSKP on the OPTION
+parameter, depending on the listing view that you want to see.
+Note:
+*SHOWSKP is valid for ILE C only.
+
+The first program specified on the STRDBG command is shown when it
+has debug data. In the case of ILE program, the entry module is shown
+when it has debug data; otherwise, the first module bound to the ILE
+program with debug data is shown. To debug an OPM program with ILE
+source debugger, the following conditions must be met:
+
+If the program is an OPM RPG or COBOL program, it was compiled with
+OPTION(*LSTDBG).
+If the program is an OPM CL program, it was compiled with
+OPTION(*SRCDBG).
+The ILE debug environment is set to accept OPM programs. You can do
+this by specifying OPMSRC(*YES) on the STRDBG command. (The system
+default is OPMSRC(*NO).)
+
+If these two conditions are not met, then debug the OPM program with the
+OPM system debugger.
+To start a debug session for the sample debug program DEBUGEX which calls
+the OPM program RPGPGM, enter:
+
+STRDBG PGM(MYLIB/DEBUGEX MYLIB/RPGPGM) OPMSRC(*YES)
+
+DBGVIEW(*NONE) is the default DBGVIEW option. No debug data is
+created when the module is created.
+Once you have created a module with debug data or debug views, and bound it
+into a program object (*PGM), you can start to debug your program.
+Example:
+This example shows you how to create three modules with debug views and
+start a debug session.
+
+To create module T1520IC1 with a root source view, enter:
+
+CRTCMOD MODULE(MYLIB/T1520IC1) SRCFILE(QCPPLE/QACSRC) DBGVIEW(*SOURCE)
+
+A root source view and debug data is created to debug module
+T1520IC1.
+To create module T1520IC2 with all three views, enter:
+
+CRTCMOD MODULE(MYLIB/T1520IC2) SRCFILE(QCPPLE/QACSRC) DBGVIEW(*ALL)
+OPTION(*SHOWINC)
+
+All views and debug data are created to debug module T1520IC2.
+To create module T1520IC3 with both root source and include view,
+enter:
+
+CRTCMOD MODULE(MYLIB/T1520IC3) SRCFILE(QCPPLE/QACSRC) DBGVIEW(*SOURCE)
+OPTION(*SHOWINC)
+
+An include view containing the root source file, user include files, and
+debug data is created to debug module T1520IC3.
+To create program T1520PG1, enter:
+
+CRTPGM PGM(MYLIB/T1520PG1) MODULE(MYLIB/T1520IC1 MYLIB/T1520IC2) ENTMOD(*ONLY)
+BNDDIR(MYLIB/T1520BD1) DETAIL(*FULL)
+
+Note:The creation of this program requires modules, service programs, and a
+binding directory. See Creating a Program in Two Steps.
+
+To start a debug session for program T1520PG1, enter:
+
+STRDBG PGM(MYLIB/T1520PG1)
+
+The Display Module Source display appears as shown:
++--------------------------------------------------------------------------------+
+| Display Module Source  |
+| Program: T1520PG1 Library: MYLIB Module: T1520IC1 |
+| 1 /* This program demonstrates how to use multiple modules, service */ |
+| 2 /* programs and a binding directory. This program accepts user ID, */ |
+| 3 /* item name, quantity and price, calculates the total cost and */ |
+| 4 /* writes an audit trail of the transaction. */ |
+| 5 |
+| 6 #include <stdio.h> |
+| 7 #include <stdlib.h> |
+| 8 #include <string.h> |
+| 9 #include <decimal.h> |
+| 10 11 int calc_and_format (decimal(10,2), |
+| 12 short int, |
+| 13 char[]; |
+| 14 |
+| 15 void write_audit_trail (char[], |
+| |
+| Debug . . . ___________________________________________________________ |
+| ________________________________________________________________________ |
+| F3=End program F6=Add/Clear breakpoint F10=Step F11=Display variable |
+| F12=Resume F17=Watch variable F18=Work with watch F24=More keys |
++--------------------------------------------------------------------------------+
+The module T1520IC1 is shown. It is the module with the
+main() function.
+
+You can start a debug session for OPM programs or a combination of ILE and OPM
+programs by typing:
+
+STRDBG PGM(MYLIB/T1520RP1 MYLIB/T1520CB1 MYLIB/T1520IC5) DSPMODSRC(*YES)
+
+The parameter DSPMODSRC(*YES) specifies that you want the ILE source debug
+program display panel to be shown at start debug time. The DSPMODSRC
+parameter accepts the *PGMDEP value as a default. This value indicates
+that if any program in the STRDBG PGM list is an ILE program, the source
+display panel is shown.
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

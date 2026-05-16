@@ -1,0 +1,176 @@
+SCAN (Scan String)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+SCAN (Scan String)
+
+Free-Form Syntax
+
+(not allowed - use the %SCAN built-in function)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+SCAN (E)
+
+Compare string:length
+
+Base string:start
+
+Left-most position
+
+_
+
+ER
+
+FD
+
+The SCAN operation scans a string (base string) contained in factor
+2 for a substring (compare string) contained in factor 1. The scan
+begins at a specified location contained in factor 2 and continues
+for the length of the compare string which is specified in factor
+1. The compare string and base string must both be of the same type,
+either both character, both graphic, or both UCS-2.
+
+Factor 1 must contain either the compare string or the compare
+string, followed by a colon, followed by the length. The compare string
+portion of factor 1 can contain one of: a field name, array element,
+named constant, data structure name, literal, or table name. The length
+portion must be numeric with no decimal positions and can contain
+one of: a named constant, array element, field name, literal, or table
+name. If no length is specified, it is that of the compare string.
+
+Factor 2 must contain either the base string or the base string,
+followed by a colon, followed by the start location of the SCAN. The
+base string portion of factor 2 can contain one of: a field name,
+array element, named constant, data structure name, literal, or table
+name. The start location portion of factor 2 must be numeric with
+no decimal positions and can be a named constant, array element, field
+name, literal, or table name. If graphic or UCS-2 strings are used,
+the start position and length are measured in double bytes. If no
+start location is specified, a value of 1 is used.
+
+The result field contains the numeric value of the leftmost position
+of the compare string in the base string, if found. It must be numeric
+with no decimal positions and can contain one of: a field name, array
+element, array name, or table name. The result field is set to 0 if
+the string is not found. If the result field contains an array, each
+occurrence of the compare string is placed in the array with the leftmost
+occurrence in element 1. The array elements following the element
+containing the rightmost occurrence are all zero. The result array
+should be as large as the field length of the base string specified
+in factor 2.
+Note:
+The strings are indexed from position 1.
+
+If the start position is greater than 1, the result field contains
+the position of the compare string relative to the beginning of the
+source string, not relative to the start position.
+
+Figurative constants cannot be used in the factor 1, factor 2,
+or result fields.
+
+No overlapping within data structures is allowed for factor 1
+and the result field or factor 2 and the result field.
+
+To handle SCAN exceptions (program status
+code 100), either the operation code extender 'E' or an error
+indicator ER can be specified, but not both. An error occurs if the
+start position is greater than the length of factor 2 or if the value
+of factor 1 is too large. For more information on error handling,
+see Program Exception/Errors.
+
+You can specify an indicator in positions 75-76 that is set on
+if the string being scanned for is found. This information can also
+be obtained from the %FOUND built-in function, which returns '1' if
+a match is found.
+
+The SCAN begins at the leftmost character of factor 2 (as specified
+by the start location) and continues character by character, from
+left to right, comparing the characters in factor 2 to those in factor
+1. If the result field is not an array, the SCAN operation will locate
+only the first occurrence of the compare string. To continue scanning
+beyond the first occurrence, use the result field from the previous
+SCAN operation to calculate the starting position of the next SCAN.
+If the result field is a numeric array, as many occurrences as there
+are elements in the array are noted. If no occurrences are found,
+the result field is set to zero; if the result field is an array,
+all its elements are set to zero.
+
+Leading, trailing, or embedded blanks specified in the compare
+string are included in the SCAN operation.
+
+The SCAN operation is case-sensitive. A compare string specified
+in lowercase will not be found in a base string specified in uppercase.
+
+For more information, see String Operations.
+
+Figure 1. SCAN Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* The SCAN operation finds the substring 'ABC' starting in
+* position 3 in factor 2; 3 is placed in the result field.
+* Indicator 90 is set on because the string is found. Because
+* no starting position is specified, the default of 1 is used.
+C 'ABC' SCAN 'XCABCD' RESULT 90
+*
+* This SCAN operation scans the string in factor 2 for an
+* occurrence of the string in factor 1 starting at position 3.
+* The 'Y' in position 1 of the base string is ignored because
+* the scan operation starts from position 3.
+* The operation places the values 5 and 6 in the first and
+* second elements of the array. Indicator 90 is set on.
+C
+C MOVE 'YARRYY' FIELD1 6
+C MOVE 'Y' FIELD2 1
+C FIELD2 SCAN FIELD1:3 ARRAY 90
+*
+* This SCAN operation scans the string in factor 2, starting
+* at position 2, for an occurrence of the string in factor 1
+* for a length of 4. Because 'TOOL' is not found in FIELD1,
+* INT is set to zero and indicator 90 is set off.
+C
+C MOVE 'TESTING' FIELD1 7
+C Z-ADD 2 X 1 0
+C MOVEL 'TOOL' FIELD2 5
+C FIELD2:4 SCAN FIELD1:X INT90 20
+C
+*
+* The SCAN operation is searching for a name. When the name
+* is found, %FOUND returns '1' so HandleLine is called.
+C SrchName SCAN Line
+C IF %FOUND
+C EXSR HandleLine
+C ENDIF
+
+Figure 2. SCAN Operation using graphic
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Functions+++++++++++++++++++++++++
+*
+* A Graphic SCAN example
+*
+* Value of Graffld is graphic 'AACCBBGG'.
+* Value of Number after the scan is 3 as the 3rd graphic
+* character matches the value in factor 1
+D Graffld S 4G inz(G'oAACCBBGGi')
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+* The SCAN operation scans the graphic string in factor 2 for
+* an occurrence of the graphic literal in factor 1. As this is a
+* graphic operation, the SCAN will operate on 2 bytes at a time
+C
+C G'oBBi' SCAN Graffld:2 Number 5 0 90
+C
+
+Parent topic: Operation Codes

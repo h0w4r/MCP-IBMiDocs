@@ -1,0 +1,241 @@
+DATA-GEN (Generate a Document from a Variable)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+DATA-GEN (Generate a Document from a Variable)
+
+Free-Form Syntax
+
+DATA-GEN{(E)}
+source
+%DATA(document {: options1 })
+%GEN(generator {: options2 });
+
+DATA-GEN{(E)}
+*START
+%DATA(document : options1)
+%GEN(generator {: options2 });
+
+DATA-GEN{(E)}
+*END
+%DATA(document : options1)
+%GEN(generator {: options2 });
+
+Code
+
+Factor 1
+
+Extended Factor 2
+
+DATA-GEN
+
+ 
+
+source
+%DATA(document {: options1 })
+%GEN(generator {: options2 })
+
+DATA-GEN
+
+ 
+
+*START
+%DATA(document : options1)
+%GEN(generator {: options2 })
+
+DATA-GEN
+
+ 
+
+*END
+%DATA(document : options1)
+%GEN(generator {: options2 })
+
+The DATA-GEN operation generates a structured document from an
+RPG variable.
+DATA-GEN requires a generator program or procedure to generate the text for the document.
+
+The DATA-GEN operation passes the names and values of the source variable to the generator, which uses
+callback functions to gradually pass text for the document
+to the DATA-GEN operation.
+The DATA-GEN operation places the information into the target RPG variable or the target Integrated File System file
+specified by the %DATA built-in function.
+
+For information on writing a generator for the DATA-GEN operation,
+see the Rational® Open Access: RPG Edition
+topic.
+See Examples of DATA-GEN generators for information about
+where you can find examples of generators for the DATA-GEN operation.
+
+The first operand specifies the source variable for the document.
+If the first operand is an array, you can use %SUBARR to limit the number of elements used for DATA-GEN.
+The first operand can also be *START or *END if several DATA-GEN operations
+are needed to generate a document.
+
+The second operand must be the %DATA built-in function, identifying
+the output location for the document and the options that control the way
+the information from the RPG variable is to be generated.
+Several options are available for the %DATA built-in function.
+See %DATA options for the DATA-GEN operation code.
+
+See %DATA (document {:options}) for more information
+on %DATA.
+
+The third operand must be the %GEN built-in function, identifying
+the program or procedure to generate the document, and the generator-specific options.
+See %GEN (generator {: options}) for more information on %GEN.
+
+If the first operand is a variable name:
+
+The document will be generated from the names and values of the variable.
+The case of the names passed to the generator will be the same as the
+case used for the definition of the variable or subfield.
+If the variable is an externally-described data structure, the
+name will be in uppercase unless the subfield is specified on an
+EXTFLD statement. See EXTFLD{(field_name)}.
+
+The top-level name of the variable that is passed to the generator
+can be changed by using the name option.
+For example, if the variable name is myDs,
+and option "name=info" is specified, then the name passed to the
+generator for the top-level of the document will be "info".
+
+If the variable is a data structure, the information
+for some subfields might be output to the document
+if the operation ends in error.
+Information is added to the document as soon as it is reported to
+DATA-GEN by the generator.
+
+The names and values of the subfields of a data structure will be
+passed to the generator in the order they appear
+in the data structure definition.
+
+If the first operand is *START, the DATA-GEN operation begins
+a sequence of DATA-GEN operations that output to the same file
+in the Integrated File System.
+If the first operand is *END, the DATA-GEN operation ends the
+sequence of DATA-GEN operations.
+See Using several DATA-GEN operations to generate a single document.
+
+Operation extender E can be specified to
+handle the following status codes:
+
+00352
+
+Invalid DATA-GEN option.
+
+00355
+
+The generator program or procedure is not available.
+
+00359
+
+An error occurred while running the generator program or procedure.
+
+00361
+
+An error occurred while preparing the data from the RPG variable.
+
+00362
+
+The information supplied by the generator was in error.
+
+00363
+
+The generator detected an error.
+
+00364
+
+An error occurred while handling the output file.
+
+00365
+
+An error occurred with the sequence of DATA-GEN operations.
+
+Note: Operation extenders can be specified only when Free-form
+syntax is used.
+
+For status 00363, the error code from the generator will be placed
+in the subfield "External return code" in positions 368-371 of the
+PSDS. This subfield will be set to zero at the beginning of the operation
+and set to the value returned by the generator at the end of the operation.
+The meaning of the error code is determined by the generator.
+
+If an unknown, invalid or unrelated option is found in the options
+parameter of the %DATA built-in function, the operation will fail with
+status code 00352 (Error in DATA-GEN options).
+The External return code
+subfield in the PSDS will not be updated from the initial value of
+zero, set when the operation begins.
+
+Using several DATA-GEN operations to generate a single document
+
+A sequence of DATA-GEN operations can be used to generate a single document into
+an Integrated File System file.
+The file will remain open until the end of the sequence is encountered.
+
+DATA-GEN *START
+
+You begin the sequence with a DATA-GEN *START operation.
+Option "doc=file" must be specified in the second operand of the %DATA built-in function.
+
+DATA-GEN variable
+
+Between the *START and *END operations, you specify DATA-GEN operations with
+variable names as the first operand, and with the same file that was specified as the
+first operand of the %DATA built-in function for the DATA-GEN *START operation.
+You must specify "output=continue" in the second parameter for the %DATA built-in function
+for the DATA-GEN operations between the *START and *END operations.
+
+DATA-GEN *END
+
+You end the sequence
+with a DATA-GEN *END operation with the same file that was specified as the first operand
+of the %DATA built-in function for the DATA-GEN *START operation.
+
+The DATA-GEN operations in the sequence can be done in different procedures.
+However, they must all be running in the same activation group and the same thread.
+
+If the invocation of the procedure with the DATA-GEN *START operation ends without
+a DATA-GEN *END for the same output file, the output file will be closed.
+
+Obtaining a trace for DATA-GEN
+
+To obtain a trace of the information passed to and from
+the generator, set the QIBM_RPG_DATA_GEN_TRACE
+environment variable with a value of "*STDOUT".
+
+ADDENVVAR QIBM_RPG_DATA_GEN_TRACE VALUE('*STDOUT')
+
+Note:
+If the trace output does not show up immediately, or if it flashes too quickly to see, you can view the
+standard output by calling the following ILE RPG program.
+Compile the program with CRTBNDRPG.
+
+**FREE
+CTL-OPT ACTGRP(*NEW);
+DCL-PR printf EXTPROC(*DCLCASE);
+p POINTER VALUE OPTIONS(*STRING : *NOPASS);
+END-PR;
+DCL-PR getchar INT(10) EXTPROC(*DCLCASE) END-PR;
+DCL-C EOL x'15';
+
+printf (EOL);
+getchar ();
+return;
+
+The following C® program will accomplish the same thing. Compile the program with CRTBNDC.
+#include <stdio.h>
+main()
+{
+printf("\n");
+getchar();
+}
+
+%DATA options for the DATA-GEN operation code
+
+Examples of DATA-GEN generators
+
+Parent topic: Operation Codes

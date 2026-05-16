@@ -1,0 +1,162 @@
+Examples of the countprefix option
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > countprefix > countprefix
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > countprefix
+
+Examples of the countprefix option
+
+The following definitions are used in the examples
+D attendee_type...
+D DS qualified template
+D name 20a varying
+D phone 4s 0
+
+D meeting DS qualified
+D location 20a varying
+D attendee likeds(attendee_type)
+D dim(100)
+D numAttendee...
+D 10i 0
+
+D email DS qualified
+D to 40a varying
+D cc 40a varying
+D from 40a varying
+D countCc 5i 0
+D subject 100a varying
+D countSubject 5i 0
+D body 1000a varying
+
+D order1 DS qualified
+D numpart 10i 0
+D part 20a varying dim(100)
+
+D order2 DS qualified
+D numpart 10i 0
+D part 20a varying dim(100)
+D countpart 10i 0
+
+Assume that file meeting123.xml contains the following:
+<meeting>
+<location>Room 7a</location>
+<attendee name="Jim" phone="1234"/>
+<attendee name="Mary" phone="2345"/>
+<attendee name="Abel" phone="6213"/>
+</meeting>
+
+The countprefix option specifies the num prefix.
+The
+XML-INTO operation sets countprefix subfield numAttendee to
+3, the number of attendee subfields set by the operation.
+It is not necessary to specify option allowmissing=yes, because
+the presence of the countprefix subfield for array attendee implicitly
+allows missing XML data for that particular array.
+
+xml-into meeting %xml('meeting123.xml'
+: 'doc=file countprefix=num');
+// meeting.attendee(1): name='Jim' phone=1234
+// meeting.attendee(2): name='Mary' phone=2345
+// meeting.attendee(3): name='Abel' phone=6213
+// meeting.numAttendee = 3 for i = 1 to meeting.numAttendee;
+if meeting.attendee(i) ...
+endfor;
+
+The countprefix subfield is not specified.
+The XML-INTO operation
+fails because there is insufficient XML data for array attendee,
+and there is no XML data at all for numAttendee.
+
+xml-into(e) meeting %xml('meeting123.xml'
+: 'doc=file');
+// %error = *on
+
+Assume that file email456.txt contains the following:
+<email to="jack@anywhere.com" from="jill@anywhere.com">
+<subject>The hill</subject>
+<body>How are you feeling after your fall?</body>
+</email>
+The countprefix=count option is specified,
+indicating that the prefix for the countprefix subfields
+is count.
+
+The XML-INTO operation is successful even
+though there is no XML data for the cc subfield, because the countprefix
+subfield countCc is available to receive the information
+that the cc subfield did not get set from the XML.
+
+xml-into email %xml('email456.xml'
+: 'doc=file countprefix=count');
+// email.to = 'jack@anywhere.com'
+// email.from = 'jill@anywhere.com'
+// email.cc = ?? (not set by XML-INTO)
+// email.countCc = 0
+// email.subject = 'The hill'
+// email.countSubject = 1
+// email.body = 'How are you feeling after your fall?'
+The
+program uses the value of the countCc and countSubject subfields
+to determine whether the cc and subject subfields
+were set by the XML-INTO operation.
+if email.countCc = 1;
+cc = email.cc;
+else;
+cc = '';
+endif;
+if email.countSubject = 1;
+subj = email.subject;
+else;
+subj = "NO SUBJECT";
+endif;
+
+Assume that file File order789.txt contains the following:
+<order numpart="2">
+<part>hammer</part>
+<part>saw</part>
+</order>
+The XML document contains an attribute numpart that
+indicates how many part elements there are in the document.
+
+Option countprefix=num is specified, attempting to identify numpart as
+the countprefix subfield for array part.
+The
+XML-INTO operation fails. Subfield numpart is a countprefix
+subfield, so it cannot be explicitly set by the XML-INTO operation.
+
+xml-into(e) order1 %xml('order789.xml'
+: 'doc=file countprefix=num path=order');
+// %error is set on
+
+Option countprefix=count is specified, identifying countpart as
+the countprefix subfield for array part.
+The
+XML-INTO operation succeeds. Subfield numpart is set to 2
+from the XML document, and subfield countpart is set to 2
+by the countprefix processing. The part array is counted
+by the countprefix option, so it is not an error that there
+is insufficient XML data to set the entire array.
+
+xml-into order2 %xml('order789.xml'
+: 'doc=file countprefix=count path=order');
+// order2.numpart = 2
+// order2.part(1) = 'hammer'
+// order2.part(2) = 'saw'
+// order2.countpart = 2
+
+In the following example, meeting.numAttendee is set to 27,
+and option "countprefix=num" is specified for the DATA-GEN operation.
+Only 27 elements will be generated for meeting.attendee, since
+meeting.numAttendee is its countprefix subfield.
+
+meeting.numAttendee = 27;
+DATA-GEN meeting %DATA('output.txt' : 'doc=file countprefix=num') %GEN('MYGENPGM');
+
+In the following example, email.countcc is set to zero,
+and option "countprefix=count" is specified for the DATA-GEN operation.
+Subfield email.cc will not be generated, since its countprefix
+subfield email.countcc is zero.
+
+email.cc = 0;
+DATA-GEN email %DATA('output.txt' : 'doc=file countprefix=count') %GEN('MYGENPGM');
+
+Parent topic: countprefix

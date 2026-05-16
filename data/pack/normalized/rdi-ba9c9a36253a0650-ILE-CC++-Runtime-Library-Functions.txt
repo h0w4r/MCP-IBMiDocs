@@ -1,0 +1,96 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+_Rindara() — Set Separate Indicator Area
+Format
+#include <recio.h>
+
+void _Rindara(_RFILE *fp, char *indic_buf);
+Language Level: ILE C Extension
+Threadsafe: No.
+Job CCSID Interface: All character
+data sent to this function is expected to be in the CCSID of the job.
+All character data returned by this function is in the CCSID of the
+job. See Understanding CCSIDs and Locales for more information.
+Description
+The _Rindara() function registers indic_buf as
+the separate indicator area to be used by the file specified by fp.
+The file must be opened with the keyword indicators=Y on the _Ropen() function.
+The DDS for the file should specify also that a separate indicator
+area is to be used. It is generally best to initialize a separate
+indicator area explicitly with '0' (character) in each byte.
+The _Rindara() function is valid for display, ICF,
+and printer files.
+Return Value
+The _Rindara() function returns void. See Table 12 and Table 14 for errno settings.
+Example that uses _Rindara()
+
+#include <stdio.h>
+#include <recio.h>
+#include <stdlib.h>
+#include <string.h>
+#define PF03 2
+#define IND_OFF '0'
+#define IND_ON '1'
+
+int main(void)
+{
+char buf[40];
+int rc = 1;
+_SYSindara ind_area;
+_RFILE *purf;
+_RFILE *dailyf;
+/* Open purchase display file and daily transaction file */
+if ( ( purf = _Ropen ( "MYLIB/T1677RD3", "ar+,indicators=y" )) == NULL )
+{
+printf ( "Display file did not open.\n" );
+exit ( 1 );
+}
+if ( ( dailyf = _Ropen ( "MYLIB/T1677RDA", "wr,commit=y") ) == NULL )
+{
+printf ( "Daily transaction file did not open.\n" );
+exit ( 2 );
+}
+/* Associate separate indicator area with purchase file */
+_Rindara ( purf, ind_area );
+/* Select purchase record format */
+_Rformat ( purf, "PURCHASE" );
+/* Invite user to enter a purchase transaction. */
+/* The _Rwrite function writes the purchase display. */
+_Rwrite ( purf, "", 0 );
+_Rreadn ( purf, buf, sizeof(buf), __DFT );
+/* While user is entering transactions, update daily and */
+/* monthly transaction files. */
+while ( rc && ind_area[PF03] == IND_OFF )
+{
+rc = (( _Rwrite ( dailyf, buf, sizeof(buf) ))->num_bytes );
+/* If the databases were updated, then commit transaction */
+/* otherwise, rollback the transaction and indicate to the */
+/* user that an error has occurred and end the application. */
+if ( rc )
+{
+_Rcommit ( "Transaction complete" );
+}
+else
+{
+_Rrollbck ( );
+_Rformat ( purf, "ERROR" );
+}
+_Rwrite ( purf, "", 0 );
+_Rreadn ( purf, buf, sizeof(buf), __DFT );
+}
+
+_Rclose ( purf );
+_Rclose ( dailyf );
+}
+Related Information
+
+_Ropen() — Open a Record File for I/O Operations
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

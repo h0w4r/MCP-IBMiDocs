@@ -1,0 +1,183 @@
+ILE C/C++ Compiler Reference
+
+IBM i programming resources > ILE C/C++ > Compiler Reference > ILE C/C++ Pragmas > Individual Pragma Descriptions > pack
+
+IBM i programming resources > ILE C/C++ > Compiler Reference > ILE C/C++ Pragmas > Individual Pragma Descriptions > pack
+
+ILE C/C++ Compiler Reference
+
+Examples
+In the examples that follow, the words union and
+class might be used in place of the word struct.
+
+Popping the #pragma pack Stack
+Specifying
+#pragma pack (pop), #pragma pack (reset), or #pragma pack() pops the
+stack by one and resets the alignment requirements to the state that
+was active before the previous #pragma pack was seen. For example,
+// Default alignment requirements used
+.
+.
+#pragma pack (4)
+struct A { };
+#pragma pack (2)
+struct B { };
+struct C { };
+#pragma pack (reset)
+struct D { };
+#pragma pack ()
+struct E { };
+#pragma pack (pop)
+struct F { };When struct A is mapped, its members
+are aligned according to #pragma pack(4). When struct B and struct
+C are mapped, their members are aligned according to pragma
+pack(2).
+The #pragma pack (reset) pops the alignment requirements
+specified by #pragma pack(2) and resets the alignment requirements
+as specified by #pragma pack(4).
+When struct D is
+mapped, its members are aligned according to pragma pack(4). The #pragma
+pack () pops the alignment requirements specified by #pragma pack(4)
+and resets the alignment requirements to the default values used at
+the beginning of the file.
+When struct E is mapped,
+its members are aligned as specified by the default alignment requirements
+(specified on the command line) active at the beginning of the file.
+The
+#pragma pack (pop) has the same affect as the previous #pragma pack
+directives in that it pops the top value from the pack stack. However,
+the default pack value, as specified in the PACKSTRUCT compiler option,
+cannot be removed from the pack stack. That default value is used
+to align struct F.
+__align & #pragma pack
+__align(16) struct S {int i;}; /* sizeof(struct S) == 16 */
+struct S1 {struct S s; int a;}; /* sizeof(struct S1) == 32 */
+#pragma pack(2)
+struct S2 {struct S s; int a;} s2; /* sizeof(struct S2) == 32 */
+/* offsetof(S2, s1) == 0 */
+/* offsetof(S2, a) == 16 */
+#pragma pack
+In this example, since the
+data types are by default packed along boundaries smaller than those
+specified by #pragma pack (8), they are still aligned along the smaller
+boundary (alignof(S2) = 4).
+#pragma pack(2)
+struct S { /* sizeof(struct S) == 48 */
+char a; /* offsetof(S, a) == 0 */
+int* b; /* offsetof(S, b) == 16 */
+char c; /* offsetof(S, c) == 32 */
+short d; /* offsetof(S, d) == 34 */
+}S; /* alignof(S) == 16 */
+
+struct S1 { /* sizeof(struct S1) == 10 */
+char a; /* offsetof(S1, a) == 0 */
+int b; /* offsetof(S1, b) == 2 */
+char c; /* offsetof(S1, c) == 6 */
+short d; /* offsetof(S1, d) == 8 */
+}S1; /* alignof(S1) == 2 */
+
+#pragma pack(8)
+struct S2 { /* sizeof(struct S2) == 12 */
+char a; /* offsetof(S2, a) == 0 */
+int b; /* offsetof(S2, b) == 4 */
+char c; /* offsetof(S2, c) == 8 */
+short d; /* offsetof(S2, d) == 10 */
+}S2; /* alignof(S2) == 4 */
+PACKSTRUCT Compiler Option
+If the following
+is compiled with PACK STRUCTURE set to 2:
+struct S1 { /* sizeof(struct S1) == 10 */
+char a; /* offsetof(S1, a) == 0 */
+int b; /* offsetof(S1, b) == 2 */
+char c; /* offsetof(S1, c) == 6 */
+short d; /* offsetof(S1, d) == 8 */
+}S1; /* alignof(S1) == 2 */
+#pragma pack
+If the following is compiled
+with PACK STRUCTURE set to 4:
+#pragma pack(1)
+struct A { // this structure is packed along 1-byte boundaries
+char a1;
+int a2;
+}
+
+#pragma pack(2)
+struct B { // this class is packed along 2-byte boundaries
+int b1;
+float b2;
+float b3;
+};
+
+#pragma pack(pop) // this brings pack back to 1-byte boundaries
+struct C {
+int c1;
+char c2;
+short c3;
+};
+
+#pragma pack(pop) // this brings pack back to the compile option,
+struct D { // 4-byte boundaries
+int d1;
+char d2;
+};
+__align
+int __align(16) varA; /* varA is aligned on a 16-byte boundary */
+_Packed
+struct A { /* sizeof(A) == 24 */
+int a; /* offsetof(A, a) == 0 */
+long long b; /* offsetof(A, b) == 8 */
+short c; /* offsetof(A, c) == 16 */
+char d; /* offsetof(A, d) == 18 */
+};
+
+_Packed struct B { /* sizeof(B) == 15 */
+int a; /* offsetof(B, a) == 0 */
+long long b; /* offsetof(B, b) == 4 */
+short c; /* offsetof(B, c) == 12 */
+char d; /* offsetof(B, d) == 14 */
+};Layout of struct A, where * = padding:
+|a|a|a|a|*|*|*|*|b|b|b|b|b|b|b|b|c|c|d|*|*|*|*|*|Layout
+of struct B, where * = padding:
+|a|a|a|a|b|b|b|b|b|b|b|b|c|c|d|
+__alignof
+struct A {
+char a;
+short b;
+};
+
+struct B {
+char a;
+long b;
+} varb;
+
+int var;In the code sample above:
+
+__alignof(struct A) = 2
+__alignof(struct B) = 4
+__alignof(var) = 4
+__alignof(varb.a) = 1
+__align(16) struct A {
+int a;
+int b;
+};
+
+#pragma pack(1)
+struct B {
+long a;
+long b;
+};
+
+struct C {
+struct {
+short a;
+int b;
+} varb;
+} var;In the code sample above:
+
+__alignof(struct A) = 16
+__alignof(struct B) = 4
+__alignof(var) = 4
+__alignof(var.varb.a) = 4
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

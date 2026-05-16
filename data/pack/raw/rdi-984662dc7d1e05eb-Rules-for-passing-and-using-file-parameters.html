@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Rules for passing and using file parameters" name="DC.title" />
+<meta content="dkwlikef.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="fileparmrules" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Rules for passing and using file parameters</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Ffileparmrules.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="fileparmrules">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/specsgen.htm" shape="rect">Specifications</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dspec9.htm" shape="rect">Definition Specifications</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dskwd.htm" shape="rect">Definition-Specification Keywords</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dlikefile.htm" shape="rect">LIKEFILE(filename)</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dkwlikef.htm" shape="rect">Rules for the LIKEFILE keyword for prototyped parameters: </a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">Rules for passing and using file parameters</h1>
+
+
+<div class="body">
+<div class="p">
+<ul class="ul">
+<li class="li">The passed file must be defined with the same parent file as the prototyped
+parameter.   </li>
+
+<li class="li">The file parameter is qualified. If the record formats of the parent file
+FILE1 are REC1 and REC2, then the record formats of the file parameter PARM
+must be referred to in the called procedure by PARM.REC1 and PARM.REC2.</li>
+
+<li class="li">Any settings for the passed file that are defined using File specification
+keywords are in effect for all procedures that access the file, either directly
+or through parameter passing. For example, if the EXTFILE keyword is specified
+with a variable holding the external file name, and a called procedure opens
+the file, then the value of the caller's variable will be used to set the
+name of the file to be opened. If the called procedure needs to change or
+access those variables associated with the file through keywords, the calling
+procedure must pass the variables as separate parameters.   </li>
+
+<li class="li">The file-feedback built-in functions %EOF(filename), %EQUAL(filename),
+%FOUND(filename), %OPEN(filename), and %STATUS(filename) can be used in the
+called procedure to determine the current state of the file parameter by specifying
+the name of the file parameter as the operand to the built-in function.
+<p class="p">For more information on passing a file parameter between modules, see <a class="xref" href="varassoc.htm#varassoc" shape="rect">Variables Associated with Files</a>
+and <a class="xref" href="fileparmassoc.htm#fileparmassoc" shape="rect">Example of passing a file and passing a data structure with the associated variables.</a>.</p>
+</li>
+
+</ul>
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 1. </span>Passing a file as a parameter to a procedure</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> * Define a file template to be used for defining actual files
+ * and the file parameter
+Finfile_t  IF   E             DISK    TEMPLATE BLOCK(*YES)
+F                                     EXTDESC('MYLIB/MYFILE')
+F                                     RENAME(R01M2:inRec)
+
+ * Define two actual files that can be passed to the file parameter
+Ffile1                                LIKEFILE(infile_t)
+F                                     EXTFILE('MYLIB/FILE1')
+Ffile2                                LIKEFILE(infile_t)
+F                                     EXTFILE('MYLIB/FILE2')
+
+ * Define a data structure type for the file data
+D inData_t        DS                  LIKEREC(infile_t.inRec:*INPUT)
+D                                     TEMPLATE
+
+ * Define the prototype for a procedure to handle the files
+D nextValidRec    PR              N
+D   infile                            LIKEFILE(infile_t)
+D   data                              LIKEDS(inData_t)
+
+ * Define variables to hold the record data
+D f1Data          DS                  LIKEDS(inData_t)
+D f2Data          DS                  LIKEDS(inData_t)
+
+ /FREE
+        // Process valid records from each file until one
+        // of the files has no more valid records
+        DOW nextValidRec(file1 : f1Data)
+        AND nextValidRec(file2 : f2Data);
+           // ... process the data from the files
+        ENDDO;
+        *INLR = '1';
+ /END-FREE
+
+ * The procedure that will process the file parameter
+P nextValidRec    B
+D nextValidRec    PI              N
+D   infile                            LIKEFILE(infile_t)
+D   data                              LIKEDS(inData_t)
+ /FREE
+    // Search for a valid record in the file parameter
+    READ infile data;
+    DOW NOT %EOF(infile);
+       IF data.active = 'Y';
+          RETURN *ON;            // This is a valid record
+       ENDIF;
+       READ infile data;
+    ENDDO;
+    RETURN *OFF;                 // No valid record was found
+ /END-FREE
+P nextValidRec    E
+
+
+</code></pre></div>
+</div>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="dkwlikef.htm" shape="rect">Rules for the LIKEFILE keyword for prototyped parameters:</a></div>
+</div>
+</div></body>
+</html>

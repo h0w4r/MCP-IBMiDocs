@@ -1,0 +1,121 @@
+IN (Retrieve a Data Area)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+IN (Retrieve a Data Area)
+
+Free-Form Syntax
+
+IN{(E)} {*LOCK} data-area-name
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+IN (E)
+
+*LOCK
+
+data-area-name
+
+ 
+
+_
+
+ER
+
+_
+
+The IN operation retrieves a data area and optionally allows you
+to specify whether the data area is to be locked from update by another
+program. For a data area to be retrieved by the IN operation, it must
+be specified in the result field of an *DTAARA
+DEFINE statement or using the DTAARA keyword on
+the Definition specification. (See DEFINE (Field Definition) for information
+on *DTAARA DEFINE operation and the Definition Specification for information
+on the DTAARA keyword).
+
+If name of the data area is determined at runtime because
+DTAARA(*VAR) was specified on the definition of the field, then the
+variable containing the name of the data area must be set before the
+IN operation. However, if the data area is already locked due to a
+prior *LOCK IN operation, the variable containing the name will not
+be consulted; instead, the previously locked data area will be used.
+
+The reserved word *LOCK can be specified in Factor 1 to indicate
+that the data area cannot be updated or locked by another program
+until (1) an UNLOCK operation is processed,
+(2) an OUT operation with no data-area-name operand
+specified, or (3) the RPG IV program implicitly unlocks the data area
+when the program ends
+
+*LOCK cannot be specified when the data-area-name operand
+is the name of the local data area or the Program Initialization Parameters
+(PIP) data area.
+
+You can specify a *LOCK IN statement for a data area that the program
+has locked. When data-area-name is not specified,
+the lock status is the same as it was before the data area was retrieved:
+If it was locked, it remains locked; if unlocked, it remains unlocked.
+
+data-area-name must be the
+name of a definition defined with the DTAARA keyword, the result field
+of a *DTAARA DEFINE operation, or the reserved word *DTAARA..
+When *DTAARA is specified, all data areas defined in the program are
+retrieved. If an error occurs on the retrieval of a data area (for
+example, a data area can be retrieved but cannot be locked), an error
+occurs on the IN operation and the RPG IV exception/error handling
+routine receives control. If a message is issued to the requester,
+the message identifies the data area in error.
+
+To handle IN exceptions (program status codes 401-421,
+431, or 432), either the operation code extender 'E' or an error indicator
+ER can be specified, but not both. For more information on error handling,
+see Program Exception/Errors.
+
+On a fixed-form calculation, positions 71-72
+and 75-76 must be blank.
+
+For further rules for the IN operation, see Data-Area Operations.
+
+Figure 1. IN and OUT Operations
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+* Define Data areas
+D TotAmt s 8p 2 dtaara
+D TotGrs s 10p 2 dtaara
+D TotNet s 10p 2 dtaara
+
+* TOTAMT, TOTGRS, and TOTNET are defined as data areas. The IN
+* operation retrieves all the data areas defined in the program
+* and locks them. The program processes calculations, and at
+* LR time it writes and unlocks all the data areas.
+* The data areas can then be used by other programs.
+
+/free
+
+in *lock *dtaara;
+TotAmt = TotAmt + Amount;
+TotGrs = TotGrs + Gross;
+TotNet = TotNet + Net;
+
+/end-free
+* To start total calcs, code a fixed format calc statement with a
+* level entry specified.
+CL0 total_calcs tag
+/free
+
+if *inlr
+out *dtaara
+endif
+/end-free
+
+Parent topic: Operation Codes

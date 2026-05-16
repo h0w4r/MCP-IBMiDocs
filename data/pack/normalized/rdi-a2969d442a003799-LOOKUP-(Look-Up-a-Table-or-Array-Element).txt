@@ -1,0 +1,229 @@
+LOOKUP (Look Up a Table or Array Element)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+LOOKUP (Look Up a Table or Array Element)
+
+Free-Form Syntax
+
+(not allowed - use the %LOOKUP or %TLOOKUP built-in
+function)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+LOOKUP
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+(array)
+
+Search argument
+
+Array name
+
+ 
+
+HI
+
+LO
+
+EQ
+
+(table)
+
+Search argument
+
+Table name
+
+Table name
+
+HI
+
+LO
+
+EQ
+
+The LOOKUP operation causes a search to be made for a particular
+element in an array or table. Factor 1 is the search argument (data
+for which you want to find a match in the array or table named). It
+can be: a literal, a field name, an array element, a table name, a
+named constant, or a figurative constant. The nature of the comparison
+depends on the data type:
+
+Character data
+
+If ALTSEQ(*EXT) is specified on the control specification,
+the alternate collating sequence is used for character LOOKUP, unless
+either factor 1 or factor 2 was defined with ALTSEQ(*NONE) on the
+definition specification. If ALTSEQ(*SRC) or no alternate sequence
+is specified, character LOOKUP does not use the alternate sequence.
+
+Graphic and UCS-2 data
+
+The comparison is hexadecimal; the alternate collating sequence
+is not used in any circumstance.
+
+Numeric data
+
+The decimal point is ignored in numeric data, except when the
+array or table in Factor 2 is of type float.
+
+Other data types
+
+The considerations for comparison described in Compare Operations apply to other types.
+
+If a table is named in factor 1, the search argument used is the
+element of the table last selected in a LOOKUP operation, or it is
+the first element of the table if a previous LOOKUP has not been processed.
+The array or table to be searched is specified in factor 2.
+
+For a table LOOKUP, the result field can contain the name of a
+second table from which an element (corresponding positionally with
+that of the first table) can be retrieved. The name of the second
+table can be used to reference the element retrieved. The result
+field must be blank if factor 2 contains an array name.
+
+Resulting indicators specify the search condition for LOOKUP. One
+must be specified in positions 71 through 76 first
+to determine the search to be done and then to reflect the result
+of the search. Any specified indicator is set on only if the search
+is successful. No more than two indicators can be used. Resulting
+indicators can be assigned to equal and high or to equal and low.
+The program searches for an entry that satisfies either condition
+with equal given precedence; that is, if no equal entry is found,
+the nearest lower or nearest higher entry is selected.
+
+If an indicator is specified in positions 75-76, the %EQUAL built-in
+function returns '1' if an element is found that exactly matches the
+search argument. The %FOUND built-in function returns '1' if any specified
+search is successful.
+
+Resulting indicators can be assigned to equal and low, or equal
+and high. High and low cannot be specified on the same LOOKUP operation.
+The compiler assumes a sorted, sequenced array or table when a high
+or low indicator is specified for the LOOKUP operation. The LOOKUP
+operation searches for an entry that satisfies the low/equal or high/equal
+condition with equal given priority.
+
+High (71-72): Instructs the program to find the entry that is nearest to, yet higher in sequence than, the search argument. If such a higher entry is found, the high indicator is set on. For example, if an ascending array contains the values A B C® C C D E, and the search argument is B, then the first C will satisfy the search. If a descending array contains E D C C C B A, and the search argument is B, then the last C will satisfy the search. If an entry higher than the search argument is not found in the array or table, then the search is unsuccessful.
+
+Low (73-74): Instructs the program to find the entry that is nearest to, yet lower in sequence than, the search argument. If such a lower entry is found, the low indicator is set on. For example, if an ascending array contains the values A B C C C D E, and the search argument is D, then the last C will satisfy the search. If a descending array contains E D C C C B A, and the search argument is D, then the first C will satisfy the search. If an entry lower than the search argument is not found in the array or table, then the search is unsuccessful.
+
+Equal (75-76): Instructs the program
+to find the entry equal to the search argument. The first equal entry
+found sets the equal indicator on. If an entry equal to the search
+argument is not found, then the search is unsuccessful.
+
+When you use the LOOKUP operation, remember:
+
+The search argument and array or table must have the same type
+and length (except Time and Date fields which can have a different
+length). If the array or table is fixed-length character, graphic,
+or UCS-2, the search argument must also be fixed-length. For variable
+length, the length of the search argument can have a different length
+from the array or table.
+
+When LOOKUP is processed on an array and an index is used, the
+LOOKUP begins with the element specified by the index. The index
+value is set to the position number of the element located. An error
+occurs if the index is equal to zero or is higher than the number
+of elements in the array when the search begins. The index is set
+equal to one if the search is unsuccessful. If the index is a named
+constant, the index value will not change.
+
+A search can be made for high, low, high and equal, or low and
+equal only if a sequence is specified for the array or table on the
+definition specifications with the ASCEND or DESCEND keywords.
+
+No resulting indicator is set on if the search is not successful.
+
+If only an equal indicator (positions 75-76) is used, the LOOKUP
+operation will search the entire array or table. If your array or
+table is in ascending sequence and you want only an equal comparison,
+you can avoid searching the entire array or table by specifying a
+high indicator.
+
+The LOOKUP operation can produce unexpected results when the array
+is not in ascending or descending sequence.
+
+A LOOKUP operation to a dynamically allocated array without all
+defined elements allocated may cause errors to occur.
+
+For more information, see Array Operations.
+
+Figure 1. LOOKUP Operation with Arrays
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* In this example, the programmer wants to know which element in
+* ARY the LOOKUP operation locates. The Z-ADD operation sets the
+* field X to 1. The LOOKUP starts at the element ARY that is
+* indicated by field X and continues running until it finds the
+* first element equal to SRCHWD. The index value, X, is set to
+* the position number of the element located.
+C
+C Z-ADD 1 X 3 0
+C SRCHWD LOOKUP ARY(X) 26
+C
+* In this example, the programmer wants to know if an element
+* is found that is equal to SRCHWD. LOOKUP searches ARY until it
+* finds the first element equal to SRCHWD. When this occurs,
+* indicator 26 is set on and %EQUAL is set to return '1'.
+C
+C SRCHWD LOOKUP ARY 26
+C
+* The LOOKUP starts at a variable index number specified by
+* field X. Field X does not have to be set to 1 before the
+* LOOKUP operation. When LOOKUP locates the first element in
+* ARY equal to SRCHWD, indicator 26 is set on and %EQUAL is set
+* to return '1'. The index value, X, is set to the position
+* number of the element located.
+*
+C
+C SRCHWD LOOKUP ARY(X) 26
+
+Figure 2. LOOKUP Operation with Subarrays
+
+* In this example, an array of customer information actually consists
+* of several subarrays. You can search either the main array or the
+* subarrays overlaying the main array.
+D custInfo DS
+D cust DIM(100)
+D name 30A OVERLAY(cust : *NEXT)
+D id_number 10I 0 OVERLAY(cust : *NEXT)
+D amount 15P 3 OVERLAY(cust : *NEXT)
+
+* You can search for a particular set of customer information
+* by doing a search on the "cust" array
+C custData LOOKUP cust(i) 10
+
+* You can search on a particular field of the customer information
+* by doing a search on one of the overlay arrays
+C custName LOOKUP name(i) 11
+* After the search, the array index can be used with any of the
+* overlaying arrays. If the search on name(i) is successful,
+* the id_number and amount for that customer are available
+* in id_number(i) and amount(i).
+
+Parent topic: Operation Codes

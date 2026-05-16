@@ -1,0 +1,187 @@
+ROLLBACK
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+ROLLBACK
+The ROLLBACK statement is used to back out changes.
+The ROLLBACK statement can be used to either:
+End a unit of work and back out all the relational database changes
+that were made by that unit of work. If relational databases are the
+only recoverable resources used by the application process, ROLLBACK
+also ends the unit of work.
+Back out only the changes made after a savepoint was set within
+the unit of work without ending the unit of work. Rolling back to
+a savepoint enables selected changes to be undone.
+
+InvocationThis statement can be embedded
+in an application program or issued interactively. It is an executable
+statement that can be dynamically prepared.
+ROLLBACK
+is not allowed in a trigger if the trigger program and the triggering
+program run under the same commitment definition. ROLLBACK is not
+allowed in a procedure if the procedure is called on a Distributed
+Unit of Work connection to a remote application server or if the procedure
+is defined as ATOMIC. ROLLBACK is not allowed in a function.
+AuthorizationNone required.
+SyntaxROLLBACKWORKHOLDTO SAVEPOINTsavepoint-name
+DescriptionWhen ROLLBACK is used without
+the TO SAVEPOINT clause, the unit of work in which it is executed
+is ended. All changes made by SQL schema statements and SQL data change
+statements during the unit of work are backed out. For more information
+see Statements.
+The generation of identity values is not under transaction
+control. Values generated and consumed by inserting rows into a table
+that has an identity column are independent of executing the ROLLBACK
+statement. Also, executing the ROLLBACK statement does not affect
+the IDENTITY_VAL_LOCAL function.
+Special registers are not under transaction control. Executing
+a ROLLBACK statement does not affect special registers.
+Sequences are not under transaction control. Executing
+a ROLLBACK statement does not affect the current value generated and
+consumed by executing a NEXT VALUE expression.
+Global variables are not under transaction
+control. Executing a ROLLBACK statement does not affect the value
+of any instantiated global variable.
+The impact of ROLLBACK or ROLLBACK TO SAVEPOINT on the
+contents of a declared temporary table is determined by the setting
+of the ON ROLLBACK clause of the DECLARE GLOBAL TEMPORARY TABLE statement.
+WORK
+ROLLBACK
+WORK has the same effect as ROLLBACK.
+HOLD
+Specifies
+a hold on resources. If specified, currently open cursors are not
+closed cursors whether they are declared with a HOLD option or not.
+All resources acquired during the unit of work, except locks on the
+rows of tables, are held. Locks on specific rows implicitly acquired
+during the unit of work, however, are released. At the end of a
+ROLLBACK HOLD, the cursor position is the same as it was at the start
+of the unit of work, unless
+ALWBLK(*ALLREAD) was specified when the program or routine that
+contains the cursor was created
+ALWBLK(*READ) and ALWCPYDTA(*OPTIMIZE) were specified when the
+program or routine that contains the cursor was created
+
+TO SAVEPOINT
+Specifies that the unit of work is not to be ended and that only
+a partial rollback (to a savepoint) is to be performed. If a savepoint
+name is not specified, rollback is to the last active savepoint. For
+example, if in a unit of work, savepoints A, B, and C are set in that
+order and then C is released, ROLLBACK TO SAVEPOINT causes a rollback
+to savepoint B. If no savepoint is active, an error is returned. savepoint-name
+Identifies the savepoint to which to roll back. The name must
+identify a savepoint that exists at the current server.
+
+After a successful ROLLBACK TO SAVEPOINT, the
+savepoint continues to exist.
+All database changes (including
+changes made to declared temporary tables that were declared with
+the ON ROLLBACK PRESERVE ROWS clause) that were made after the savepoint
+was set are backed out. All locks and LOB locators are retained.
+The
+impact on cursors resulting from a ROLLBACK TO SAVEPOINT depends on
+the statements within the savepoint:
+If the savepoint contains SQL schema statements on which a cursor
+is dependent, the cursor is closed. Attempts to use such a cursor
+after a ROLLBACK TO SAVEPOINT results in an error.
+Otherwise, the cursor is not affected by the ROLLBACK TO SAVEPOINT
+(it remains open and positioned).
+
+Any savepoints at the current server that are set after the
+one to which rollback is performed are released. The savepoint to
+which rollback is performed is not released.
+
+NotesRecommended
+coding practices: Code an explicit COMMIT or ROLLBACK statement
+at the end of an application process. Either an implicit commit or
+rollback operation will be performed at the end of an application
+process depending on the application environment. Thus, a portable
+application should explicitly execute a COMMIT or ROLLBACK before
+execution ends in those environments where explicit COMMIT or ROLLBACK
+is permitted.
+Other effects of rollback: Rollback without the
+TO SAVEPOINT clause and HOLD clause causes the following to occur:
+All cursors that were opened during the unit of work are closed
+whether they are declared with a HOLD option or not.
+All LOB locators, including those that are held, are freed.
+All locks acquired under this unit of work's commitment definition
+are released.
+
+ROLLBACK has no effect on the state of connections.
+Implicit ROLLBACK: The ending of the default activation
+group causes an implicit rollback. Thus, an explicit COMMIT or ROLLBACK
+statement should be issued before the end of the default activation
+group.
+A ROLLBACK is automatically performed when:
+The default activation group ends without a final COMMIT being
+issued.
+A failure occurs that prevents the activation group from completing
+its work (for example, a power failure). If the unit of work is
+in the prepared state because a COMMIT was in progress when the failure
+occurred, a rollback is not performed. Instead, resynchronization
+of all the connections involved in the unit of work will occur. For
+more information, see the Commitment control topic
+collection.
+
+A failure occurs that causes a loss of the connection to an application
+server (for example, a communications line failure). If the unit
+of work is in the prepared state because a COMMIT was in progress
+when the failure occurred, a rollback is not performed. Instead, resynchronization
+of all the connections involved in the unit of work will occur. For
+more information, see the Commitment control topic
+collection.
+
+An activation group other than the default activation group ends
+abnormally.
+
+Row lock limit: A unit of work may include the
+processing of up to and including 4 million rows, including rows retrieved
+during a SELECT INTO or FETCH statement, and rows inserted, deleted, or updated as part
+of INSERT, DELETE, and UPDATE operations.2
+Unaffected statements: The commit and rollback
+operations do not affect the DROP SCHEMA statement, and this statement
+is not, therefore, allowed if the current isolation level is anything
+other than No Commit (NC).
+ROLLBACK restrictions: A ROLLBACK statement is
+not allowed if commitment control is not active for the activation
+group. For information about determining which commitment definition
+is used, see the commitment
+definition discussion in the COMMIT statement.
+A commit
+or rollback in a user-defined function in a secondary thread is not
+allowed.
+ROLLBACK has no effect on the state of connections.
+If, within a unit of work, a CLOSE is followed by a ROLLBACK,
+all changes made within the unit of work are backed out. The CLOSE
+itself is not backed out and the file is not reopened.
+ExamplesExample 1: See the Example under
+COMMIT for examples using the ROLLBACK statement.
+Example 2: After a unit of recovery started, assume
+that three savepoints A, B, and C were set and that C was released:
+SAVEPOINT A ON ROLLBACK RETAIN CURSORS;
+...
+SAVEPOINT B ON ROLLBACK RETAIN CURSORS;
+....
+SAVEPOINT C ON ROLLBACK RETAIN CURSORS;
+...
+RELEASE SAVEPOINT C
+
+Roll back all database changes only to savepoint A:
+ROLLBACK WORK TO SAVEPOINT A
+
+If a savepoint name was not specified (that is, ROLLBACK
+WORK TO SAVEPOINT), the rollback would be to the last active savepoint
+that was set, which is B.
+
+Parent topic: Statements
+
+1 Unless you specified
+COMMIT(*CHG) or COMMIT(*CS), in which case these rows are not included
+in this total.2 This limit also includes:
+Any rows accessed or changed through files opened under commitment
+control through high-level language file processing
+Any rows deleted, updated, or inserted as a result of a trigger
+or CASCADE, SET NULL, or SET DEFAULT referential integrity delete
+rule.

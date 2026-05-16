@@ -1,0 +1,71 @@
+Decimal length and precision errors
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures > Passing parameters > Common errors when calling programs and procedures > Common errors when calling programs and procedures
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures > Passing parameters > Common errors when calling programs and procedures
+
+Decimal length and precision errors
+When a decimal value is passed with incorrect decimal length and
+precision, errors might occur.
+If a decimal value is passed with an incorrect
+decimal length and precision (either too long or too short), a decimal data
+error (MCH1202) occurs when the variable is referred to. In the following
+examples, the numeric constant is passed as LEN(15 5), but
+is declared in the called procedure or program as LEN(5 2).
+Numeric constants are always passed as packed decimal (15 5).
+
+CALL PGMA PARM(123) /* CALLING PROG */
+
+PGM PARM(&A) /* PGMA */
+DCL &A *DEC (5 2)
+.
+.
+.
+IF (&A *GT 0) THEN(...) /* MCH1202 OCCURS HERE */
+If a decimal variable had been declared with LEN(5
+2) in the calling program or procedure and the value had been passed
+as a variable instead of as a constant, no error would occur.
+If you
+need to pass a numeric constant to a procedure or program and the procedure
+or program is expecting a value with a length and precision other than 15
+5, the constant can be coded in hexadecimal format. The following
+CALL command shows how to pass the value 25.5 to a program
+variable that is declared as LEN(5 2):
+CALL PGMA PARM(X'02550F')
+If a decimal value is passed with the correct length but with
+the wrong precision (number of decimal positions), the receiving procedure
+or program interprets the value incorrectly. In the following example, the
+numeric constant value (with length (15 5)) passed to the procedure is handled
+as 25124.00.
+CALL PGMA PARM(25.124) /* CALLING PGM */
+
+PGM PARM(&A) /* PGMA */
+DCL &A *DEC (15 2) /* LEN SHOULD BE 15 5*/
+.
+.
+.
+ENDPGM
+These errors occur when the variable is first referred to,
+not when it is passed or declared. In the next example, the called program
+does not refer to the variable, but instead places a value (of the detected
+wrong length) in the variable returned to the calling program. The error is
+not detected until the variable is returned to the calling program and first
+referred to. This kind of error can be especially difficult to detect.
+PGM /* PGMA */
+DCL &A *DEC (7 2)
+CALL PGMB PARM(&A) /* (7 2) PASSED TO PGMB */
+IF (&A *NE 0) THEN(...) /* *MCH1202 OCCURS HERE */
+.
+.
+.
+ENDPGM
+PGM PARM(&A) /* PGMB */
+DCL &A *DEC (5 2) /* WRONG LENGTH */
+.
+.
+.
+CHGVAR &A (&B-&C) /* VALUE PLACED in &A */
+RETURN
+When control returns to program PGMA and &A is referred to, the error occurs.
+
+Parent topic: Common errors when calling programs and procedures

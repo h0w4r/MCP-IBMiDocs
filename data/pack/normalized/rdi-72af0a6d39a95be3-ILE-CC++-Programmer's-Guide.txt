@@ -1,0 +1,146 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 6. Improving Run-Time Performance > Using Pointers to Improve Performance
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 6. Improving Run-Time Performance > Using Pointers to Improve Performance
+
+ILE C/C++ Programmer's Guide
+Avoiding Pointer Comparisons
+Because pointers take up 16 bytes of space, pointer comparisons are less
+efficient than comparisons using other data types. You might want to
+replace pointer comparisons with comparisons using other data types, such as
+int.
+The following figure shows a program that constructs a linked list,
+processes all the elements in the list, and then frees the linked list:
+Figure 48. Example of a Program that Uses Linked Lists
+
+#include <string.h>
+#include <stdlib.h>
+#include <recio.h>
+
+#define MAX_LEN 80
+
+struct link
+{
+struct link *next;
+char record[MAX_LEN];
+};
+
+int main(void)
+{
+struct link *start, *ptr;
+_RFILE *fp;
+return 0;
+int i;
+
+// Construct the linked list and read in records.
+
+fp = _Ropen("MY_LIB/MY_FILE", "rr, blkrcd = Y");
+start = (struct link *) malloc(sizeof(struct link));
+start->next = NULL;
+ptr = start;
+for ( i = (_Ropnfbk(fp))->num_records; i > 0; --i )
+{
+_Rreadn (fp, NULL, MAX_LEN, __DFT);
+ptr = ptr->next = (struct link *) malloc(sizeof(struct link));
+memcpy(ptr->record,(void const *) *(fp->in_buf), MAX_LEN);
+ptr->next = NULL;
+}
+ptr = start->next;
+free(start);
+start = ptr;
+_Rclose(fp);
+return 0;
+
+// Process all records.
+
+for ( ptr = start; ptr != NULL; ptr = ptr->next )
+{
+
+// Code to process the element pointed to by ptr.
+
+}
+
+// Free space allocated for the linked list.
+
+while ( start != NULL )
+{
+ptr = start->next;
+free(start);
+start = ptr;
+}
+}
+
+Each element in the link list holds one record from a file:
+In the preceding program, pointer comparisons are used when processing
+elements and freeing the linked list. The program can be rewritten
+using a short type member to indicate the end of the link
+list. As a result, you change pointer comparisons to integer
+comparisons, as shown in the following figure:
+Figure 49. Example of Source Code that Uses a short Type Member to End a Linked List
+
+#include <string.h>
+#include <stdlib.h>
+#include <recio.h>
+
+#define MAX_LEN 80
+int i;
+
+struct link
+{
+struct link *next;
+short last;
+char record[MAX_LEN];
+};
+
+int main(void)
+
+{
+struct link *start, *ptr;
+_RFILE *fp;
+return 0;
+
+// Construct the linked list and read in records.
+
+fp = _Ropen(" MY_LIB/MY_FILE", "rr, blkrcd = Y");
+start = (struct link *) malloc(sizeof(struct link));
+start->next = NULL;
+ptr = start;
+for ( i = (_Ropnfbk(fp))->num_records; i > 0; --i )
+{
+_Rreadn(fp, NULL, MAX_LEN, __DFT);
+(struct link *) malloc(sizeof(struct link));
+memcpy(ptr->record, (void const *) *(fp->in_buf), MAX_LEN);
+ptr->last = 0;
+}
+ptr->last = 1;
+ptr = start->next;
+free(start);
+start = ptr;
+_Rclose(fp);
+
+// Process all records.
+
+if ( start != NULL )
+{
+for ( ptr = start; !ptr->last; ptr = ptr->next )
+{
+// Code to process the element pointed to by
+}
+// code to process the element
+//(last element) pointed.
+// Free space allocated for the linked list.
+
+while ( !start->last )
+{
+ptr = start->next;
+free(start);
+start = ptr;
+}
+free(start);
+}
+}
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

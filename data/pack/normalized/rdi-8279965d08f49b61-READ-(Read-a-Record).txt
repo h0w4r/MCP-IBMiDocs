@@ -1,0 +1,158 @@
+READ (Read a Record)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+READ (Read a Record)
+
+Free-Form Syntax
+
+READ{(EN)} name {data-structure}
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+READ (E N)
+
+ 
+
+name (file or record format)
+
+data-structure
+
+_
+
+ER
+
+EOF
+
+The READ operation reads the record, currently pointed to, from
+a full procedural file.
+
+The name operand is required
+and must be the name of a file or record format. A record format name
+is allowed only with an externally described file.
+It may be the case that a READ-by-format-name operation will receive
+a different format from the one you specified in the name operand.
+If so, your READ operation ends in error.
+
+If the data-structure operand
+is specified, the record is read directly into the data structure.
+If name refers to a program-described file,
+the data structure can be any data structure of the same length as
+the file's declared record length. If name refers
+to an externally-described file or a record format from an externally
+described file, the data structure must be a data structure defined
+with EXTNAME(...:*INPUT or
+*ALL) or LIKEREC(...:*INPUT
+or *ALL). See File Operations for information
+on how to define the data structure and how data is transferred between
+the file and the data structure.
+
+If a READ operation is successful, the file is positioned
+at the next record that satisfies the read. If there is a record-lock
+error (status 1218), the file is still positioned at the locked record
+and the next read operation will attempt to read that record again.
+Otherwise, if there is any other error or an end of file condition,
+you must reposition the file (using a CHAIN, SETLL, or SETGT operation).
+
+If the file from which you are reading is an update disk file,
+you can specify an N operation extender to indicate that no lock should
+be placed on the record when it is read. See the Rational® Development Studio for i: ILE RPG Programmer's Guide for more
+information.
+
+To handle READ exceptions (file
+status codes greater than 1000), either the operation code
+extender 'E' or an error indicator ER can be specified, but not both.
+For more information on error handling, see File Exception/Errors.
+
+You can specify an indicator in positions 75-76 to signal whether
+an end of file occurred on the READ operation. The indicator is either
+set on (an EOF condition) or off every time the READ operation is
+performed. This information can also be obtained from the %EOF built-in
+function, which returns '1' if an EOF condition occurs and '0' otherwise.
+The file must be repositioned after an EOF condition, in order to
+process any further successful sequential operations (for example,
+READ or READP) to the file.
+
+Figure 1 illustrates the READ operation.
+
+When name specifies a multiple
+device file, the READ operation does one of the following:
+Reads data from the device specified in the most recent NEXT operation
+(if such a NEXT operation has been processed).
+
+Accepts the first response from any device that has been acquired for the file, and that was
+specified for “invite status” with the DDS keyword INVITE. If there are no invited devices, the operation receives an end of file.
+The input is processed according to the corresponding format. If the device is a workstation,
+the last format written to it is used. If the device is a communications device, you can select
+the format. Refer to ICF Programming, SC41-5442 for more information
+on format selection processing for an ICF file.
+
+The READ operation will stop waiting after a period of time in which no input is provided,
+or when one of the following CL commands has been entered with the controlled option
+specified:
+ENDJOB (End Job)
+
+ENDSBS (End Subsystem)
+
+PWRDWNSYS (Power® Down
+System)
+
+ENDSYS (End System).
+
+This results in a file exception/error that is handled by the method specified in your
+program (see File Exception/Errors). See ICF Programming,
+SC41-5442 for a discussion of the WAITRCD parameter on the commands to
+create or modify a file. This parameter controls the length of time the READ operation waits
+for input.
+
+When name specifies a format
+name and the format name is associated with a multiple device file,
+data is read from the device identified by the field specified in
+the DEVID keyword in file specifications. If there is no such entry,
+data is read from the device used in the last successful input operation.
+
+See Database Null Value Support for information on reading
+records with null-capable fields.
+
+For more information, see File Operations.
+
+Figure 1. READ Operation
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* READ retrieves the next record from the file FILEA, which must
+* be a full procedural file.
+* %EOF is set to return '1' if an end of file occurs on READ,
+* or if an end of file has occurred previously and the file
+* has not been repositioned. When %EOF returns '1',
+* the program will leave the loop.
+*
+C DOW '1'
+C READ FILEA
+C IF %EOF
+C LEAVE
+C ENDIF
+*
+* READ retrieves the next record of the type REC1 (factor 2)
+* from an externally described file. (REC1 is a record format
+* name.) Indicator 64 is set on if an end of file occurs on READ,
+* or if it has occurred previously and the file has not been
+* repositioned. When indicator 64 is set on, the program
+* will leave the loop. The N operation code extender
+* indicates that the record is not locked.
+*
+C READ(N) REC1 64
+C 64 LEAVE
+C ENDDO
+
+Parent topic: Operation Codes

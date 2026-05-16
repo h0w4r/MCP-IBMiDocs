@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Examples of the EVAL-CORR operation" name="DC.title" />
+<meta content="zzevalco.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="evalcxmp" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Examples of the EVAL-CORR operation</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Fevalcxmp.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="evalcxmp">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rpgops.htm" shape="rect">Operations, Expressions, and Functions</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/operxcl.htm" shape="rect">Operation Codes</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/zzevalco.htm" shape="rect">EVAL-CORR (Assign corresponding subfields)</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">Examples of the EVAL-CORR operation </h1>
+
+
+<div class="body">
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 1. </span>EVAL-CORR with externally-described data structure
+I/O</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> * Physical file EVALCORRPF
+<span class="ph synph"><span class="keyword kwd">A          R PFREC
+A            NAME          25A
+A            IDNO          10P 0
+A            CITY          20A</span></span>
+ * Display file EVALCORRDF
+<span class="ph synph"><span class="keyword kwd">A          R DSPFREC
+A                                  3  2'Name'
+A            NAME          25A  O  3 15
+A                                  4  2'City'
+A            CITY          20A  B  4 15CHECK(LC)</span></span>
+ * RPG program
+<span class="ph synph"><span class="keyword kwd">Fevalcorrpfuf   e             disk
+Fevalcorrdfcf   e             workstn
+
+D pf_ds         e ds                  extname(evalcorrpf : *input)
+D                                     qualified
+D pf_save_ds      ds                  likeds(pf_ds)
+D dspf_ds       e ds                  extname(evalcorrdf : *all)
+D                                     qualified
+ /free
+       read pfrec pf_ds;
+       dow not %eof;</span></span>
+          // Assign all subfields with the same name and type
+          // to the data structure for the EXFMT operation
+          // to the display file (NAME and CITY)
+<span class="ph synph"><span class="keyword kwd">          eval-corr dspf_ds = pf_ds;
+         </span></span>
+          // Show the screen to the user
+          <span class="ph synph"><span class="keyword kwd">exfmt dspfrec dspf_ds;</span></span>
+          // Save the original physical file record
+          // and assign the display file subfields to the
+          // physical file data structure.  Then compare
+          // the physical file data structure to the saved
+          // version to see if any fields have changed.
+<span class="ph synph"><span class="keyword kwd">          eval pf_save_ds = pf_ds;
+          eval-corr pf_ds = dspf_ds;
+          if pf_ds &lt;&gt; pf_save_ds;</span></span>
+             // Some of the fields have changed
+<span class="ph synph"><span class="keyword kwd">             update pfrec pf_ds;
+          endif;
+          read pfrec pf_ds;
+       enddo;
+       *inlr = '1';</span></span></code></pre></div>
+
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 2. </span>EVAL-CORR between program-described data structures</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> * The two data structures ds1 and ds2 have several
+ * subfields, some having the same names and
+ * compatible types:
+ *    num     - appears in both, has compatible type
+ *    extra   - appears only in ds1
+ *    char    - appears in both, has identical type
+ *    other   - appears only in ds1
+ *    diff    - appears in both, types are not compatible
+ *    another - appears only in ds2
+<span class="ph synph"><span class="keyword kwd">D ds1             ds                  qualified
+D   num                         10i 0
+D   extra                         d
+D   char                        20a
+D   otherfld                     1a
+D   diff                         5p 0
+D ds2             ds                  qualified
+D   char                        20a
+D   diff                         5a
+D   another                      5a
+D   num                         15p 5
+
+ /free</span></span>
+       // assign corresponding fields from DS1 to DS2
+<span class="ph synph"><span class="keyword kwd">       EVAL-CORR ds2 = ds1;</span></span>
+       // this EVAL-CORR is equivalent to these EVAL operations
+       // between all the subfields which have the same name
+       // in both data structures and which have a compatible
+       // data type
+       //   EVAL ds2.num = ds1.num;
+       //   EVAL ds2.char = ds1.char;
+       // - Subfields "extra" and "another" are not affected
+       //   because there is no subfield of the same name in
+       //   the other data structure.
+       // - Subfield "diff" is not selected because the
+       //   subfields do not a compatible type</code></pre></div>
+
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 3. </span>EVAL-CORR with null-capable subfields </span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> * DDS for file EVALCORRN1
+<span class="ph synph"><span class="keyword kwd">A          R REC1
+A            FLD1          10A         ALWNULL
+A            FLD2          10A         ALWNULL
+A            FLD3          10A
+A            FLD4          10A
+A            FLD5           5P 0       ALWNULL</span></span>
+ * DDS for file EVALCORRN2
+<span class="ph synph"><span class="keyword kwd">A          R REC2
+A            FLD1          10A         ALWNULL
+A            FLD2          10A
+A            FLD3          10A         ALWNULL
+A            FLD4          10A
+A            FLD5           5A         ALWNULL</span></span>
+ * In the following example, data structure "ds1"
+ * is defined from REC1 in file EVALCORRN1 and
+ * data structure "ds2" is defined from REC2 in
+ * file EVALCORRN2 above.  The EVAL-CORR operation
+ * does the following:
+ * 1. DS2.FLD1 is assigned the value of DS1.FLD1
+ *    and %NULLIND(DS2.FLD1) is assigned the value of
+ *    %NULLIND(DS1.FLD1)
+ * 2. DS2.FLD2 is assigned the value of DS1.FLD2
+ * 3. DS2.FLD3 is assigned the value of DS1.FLD3
+ *    and %NULLIND(DS2.FLD3) is assigned *OFF
+ * 4. DS2.FLD4 is assigned the value of DS1.FLD4
+ * The null-indicator for DS1.FLD2 is ignored because
+ * the target subfield DS2.FLD2 is not null-capable.
+ * DS2.FLD5 is ignored because DS1.FLD5 has a different
+ * data type, so the subfields do not correspond.
+<span class="ph synph"><span class="keyword kwd">H ALWNULL(*USRCTL)
+FEVALCORRN1IF   E             DISK
+FEVALCORRN2O    E             DISK
+D ds1             DS                  LIKEREC(REC1:*INPUT)
+D ds2             DS                  LIKEREC(REC2:*OUTPUT)
+C                   READ      REC1          ds1
+C                   EVAL-CORR ds2 = ds1
+C                   WRITE     REC2          ds2</span></span></code></pre></div>
+
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 4. </span>EVAL-CORR with nested subfield data structures </span>
+
+<pre class="pre codeblock" xml:space="preserve"><code><span class="ph synph"><span class="keyword kwd">D ds0             ds                  qualified
+D   num                         10i 0
+D   char                        20a   varying</span></span>
+ * A data structure with a nested subfield data structure
+<span class="ph synph"><span class="keyword kwd">D ds1             ds                  qualified
+D   a                                 likeds(ds0)
+D   b                                 likeds(ds0)
+D   char                        20a   varying
+D   otherfld                     1a</span></span>
+ * A data structure with a nested subfield data structure
+<span class="ph synph"><span class="keyword kwd">D ds2             ds                  qualified
+D   char                        20a
+D   another                      5a
+D   b                                 likeds(ds0)
+
+ /free</span></span>
+       // assign corresponding fields from DS1 to DS2
+<span class="ph synph"><span class="keyword kwd">       EVAL-CORR ds2 = ds1;</span></span>
+       // this EVAL-CORR is equivalent to these EVAL operations
+       //   EVAL ds2.b.num = ds1.b.num;
+       //   EVAL ds2.b.char = ds1.b.char;
+       //   EVAL ds2.char = ds1.char;
+       // assign corresponding fields from DS1.A to DS0
+<span class="ph synph"><span class="keyword kwd">       EVAL-CORR(H) ds0 = ds1.a;</span></span>
+       // this EVAL-CORR is equivalent to these EVAL operations
+       //   EVAL(H) ds0.num = ds1.a.num;
+       //   EVAL ds0.char = ds1.a.char;
+       // assign corresponding fields from DS1.A to DS2.B
+<span class="ph synph"><span class="keyword kwd">       EVAL-CORR ds2.b = ds1.a;</span></span>
+       // this EVAL-CORR is equivalent to these EVAL operations
+       //   EVAL ds2.b.num = ds1.a.num;
+       //   EVAL ds2.b.char = ds1.a.char;<span class="ph synph"><span class="keyword kwd" /></span></code></pre></div>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="zzevalco.htm" shape="rect">EVAL-CORR (Assign corresponding subfields)</a></div>
+</div>
+</div></body>
+</html>

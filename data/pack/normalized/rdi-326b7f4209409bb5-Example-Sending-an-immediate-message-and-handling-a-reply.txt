@@ -1,0 +1,85 @@
+Example: Sending an immediate message and handling a reply
+
+IBM i programming resources > Control language > Control language > Messages > Defining message descriptions > Adding messages to a file > Adding messages to a file
+
+IBM i programming resources > Control language > Control language > Messages > Defining message descriptions > Adding messages to a file
+
+Example: Sending an immediate message and handling a reply
+This example shows how a program or procedure sends
+an inquiry message and handles the reply.
+In this example, the procedure completes the following tasks:
+Sending an immediate inquiry message to QSYSOPR
+Requesting a reply of yes or no (Y or N)
+Ensuring that a valid reply has been entered
+Doing a timeout if the operator does not reply within 120 seconds
+
+PGM
+DCL &MSGKEY *CHAR LEN(4)
+DCL &MSGRPY *CHAR LEN(1)
+SNDMSG: SNDPGMMSG MSG('.... Reply Y or N') TOMSGQ(QSYSOPR) +
+MSGTYPE(*INQ) KEYVAR(&MSGKEY)
+RCVMSG MSGTYPE(*RPY) MSGKEY(&MSGKEY) WAIT(120) +
+MSG(&MSGRPY)
+IF ((&MSGRPY *EQ 'Y') *OR (&MSGRPY *EQ 'y')) DO
+.
+.
+GOTO END
+ENDDO /* Reply of Y */
+IF ((&MSGRPY *EQ 'N') *OR (&MSGRPY *EQ 'n')) DO
+.
+.
+GOTO END
+ENDDO /* Reply of N */
+IF (&MSGRPY *NE ' ') DO
+SNDPGMMSG MSG('Reply was not Y or N, try again') +
+TOMSGQ(QSYSOPR)
+GOTO SNDMSG
+ENDDO /* Reply not valid */
+/* Timeout occurred */
+SNDPGMMSG MSG('No reply from the previous message +
+was received in 120 seconds and a 'Y'' +
+value was assumed') TOMSGQ(QSYSOPR)
+.
+.
+END: ENDPGM
+The SNDUSRMSG command cannot be used instead in this procedure
+because it does not support a timeout option (SNDUSRMSG waits until it receives
+a reply or until the job is canceled).
+The SNDPGMMSG command sends the
+message and specifies the KEYVAR parameter. This returns a message reference
+key, which uniquely identifies this message so that the reply can be properly
+matched with the RCVMSG command. The KEYVAR value must be defined as a character
+field length of 4.
+The RCVMSG command specifies the message reference
+key value from the SNDPGMMSG command for the MSGKEY parameter to receive the
+specific message. The reply is passed back into the MSG parameter. The WAIT
+parameter specifies how long to wait for a reply before timing out.
+When the reply is received, the program or procedure logic
+checks for an uppercase or lowercase value of Y or N. Normally, the value
+is entered by the operator as a lowercase value. If the operator enters a
+nonblank value other than Y or N, the program or procedure sends a different
+message and then repeats the inquiry message.
+If the
+operator enters a blank, no reply is sent to the program or procedure. If
+a blank is returned to the program or procedure, a timeout occurs (the operator
+does not reply). The program or procedure sends a message to the system operator,
+stating that a reply was not received and the default is assumed (the Y value
+is shown as Y in the message queue). Because the assumed value of Y is not
+displayed as the reply, you cannot determine when looking at a message queue
+whether the message can be answered or has already timed out. The program
+or procedure does not remove a message from the message queue after it has
+been sent. The second message minimizes this concern and provides an audit
+trail for what has occurred.
+If the timeout has already occurred and
+the operator replies to the message, the reply is ignored. The operator receives
+no indication that the reply has been ignored.
+
+Sending immediate messages with double-byte characters
+To send an immediate message with double-byte text,
+limit the text to 37 double-byte characters plus the shift control characters.
+The limited size of the message ensures it is properly displayed.
+
+Parent topic: Adding messages to a file
+
+Related tasks
+Using a sender copy message to obtain a reply

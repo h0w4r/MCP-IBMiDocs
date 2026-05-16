@@ -1,0 +1,75 @@
+Example: Deleting program objects
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Examples: Defining and creating commands > Examples: Defining and creating commands
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Examples: Defining and creating commands
+
+Example: Deleting program objects
+This example shows how to define and create a command that deletes
+program objects and source members.
+You can create a command to delete high-level language (HLL)
+programs and their corresponding source members.
+The command definition
+statements for the command named DPS are:
+CMD PROMPT ('Delete Program and Source')
+PARM KWD(PGM) TYPE(*NAME) LEN(10) PROMPT('Program Name')
+The command processing program is written assuming that the
+name of the program and the source file member are the same. Additionally,
+you have to use the IBM-supplied source files of QCLSRC, QRPGSRC, and QCBLSRC.
+The program also assumes that both the program and the source file are on
+the library list. If you cannot open the program, the system sends an information
+message, and the command attempts to remove the source member. If the source
+member does not exist, the system sends an escape message. Here is the command
+processing program.
+Note: By using the code example, you agree
+to the terms of the Code license and disclaimer information.
+PGM PARM(&PGM)
+DCL &PGM TYPE(*CHAR) LEN(10)
+DCL &MSGID TYPE(*CHAR) LEN(7)
+DCL &MSGDTA TYPE(*CHAR) LEN(80)
+DCL &SRCFILE TYPE(*CHAR) LEN(10)
+MONMSG MSGID(CPF0000) EXEC(GOTO ERROR) /* CATCH ALL */
+DLTPGM &PGM
+MONMSG MSGID(CPF2105) EXEC(DO) /* NOT FOUND*/
+RCVMSG MSGTYPE(*EXCP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*INFO) +
+MSGDTA(&MSGDTA)
+GOTO TRYCL /* TRY TO DELETE SOURCE MEMBER */
+ENDDO
+RCVMSG MSGTYPE(*COMP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+/* DELETE PROGRAM COMPLETED */
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*COMP) +
+MSGDTA(&MSGDTA) /* TRY IN QCLSRC */
+TRYCL: CHKOBJ QCLSRC OBJTYPE(*FILE) MBR(&PGM)
+MONMSG MSGID(CPF9815) EXEC(GOTO TRYRPG) /* NO CL MEMBER */
+RMVM QCLSRC MBR(&PGM)
+CHGVAR &SRCFILE 'QCLSRC'
+GOTO END
+TRYRPG: /* TRY IN QRPGSRC FILE */
+CHKOBJ QRPGSRC OBJTYPE(*FILE) MBR(&PGM)
+MONMSG MSGID(CPF9815) EXEC(GOTO TRYCBL) /* NO RPG MEMBER */
+RMVM QRPGSRC MBR(&PGM)
+CHGVAR &SRCFILE 'QRPGSRC'
+GOTO END
+TRYCBL: /* TRY IN QCBLSRC FILE */
+CHKOBJ QCBLSRC OBJTYPE(*FILE) MBR(&PGM)
+/* ON LAST SOURCE FILE LET CPF0000 OCCUR FOR A NOT FOUND +
+CONDITION */
+RMVM QCBLSRC MBR(&PGM)
+CHGVAR &SRCFILE 'QCBLSRC'
+GOTO END
+TRYNXT: /* INSERT ANY ADDITIONAL SOURCE FILES */
+/* ADD MONMSG AFTER CHKOBJ IN TRYCBL AS WAS +
+DONE IN TRYCL AND TRYRPG */
+END: RCVMSG MSGTYPE(*COMP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+/*REMOVE MEMBER COMPLETED */
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*COMP) +
+MSGDTA(&MSGDTA)
+RETURN
+ERROR: RCVMSG MSGTYPE(*EXCP) MSGID(&MSGID) MSGDTA(&MSGDTA)
+/* ESCAPE MESSAGE */
+SNDPGMMSG MSGID(&MSGID) MSGF(QCPFMSG) MSGTYPE(*ESCAPE) +
+MSGDTA(&MSGDTA)
+ENDPGM
+
+Parent topic: Examples: Defining and creating commands

@@ -1,0 +1,141 @@
+PUTOVR (Put with Explicit Override) keyword for display files
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+PUTOVR (Put with Explicit Override) keyword for display files
+
+You use this record-level keyword to enable
+the override of either display attributes or data contents (or both)
+of specific fields within a record that is displayed on a workstation
+device. By using the PUTOVR keyword, you can reduce the amount of
+data sent to the display device.
+
+This keyword has no parameters.
+If you use the PUTOVR
+keyword and subfiles, certain restrictions apply. See the Application
+Display Programming book for more information about these restrictions
+and how to use PUTOVR in files that are used in the System/36 environment..
+When
+selected fields in a record that has already been displayed are to
+be changed, an output or an input/output operation sent to the record
+with the PUTOVR, OVRDTA, and OVRATR keywords in effect changes only
+the fields for which the OVRDTA or OVRATR keyword is in effect. The
+OVRDTA keyword permits a change in the data contents of the field
+and the OVRATR keyword permits a change in the display attributes
+of the field. The way in which fields are to be changed is controlled
+by setting option indicators.
+The following conditions cause
+the Put-Override keywords to be ignored and no error to occur:
+PUTOVR is not in effect at the time of the output operation.
+
+Neither the OVRDTA nor OVRATR keyword is in effect at the time
+of the output operation.
+
+The record format is not already on the display.
+
+The PUTOVR and OVRDTA keywords must be specified when
+DFT is specified for a named output-capable field. When the PUTOVR
+and OVRDTA keywords are both in effect for a field, the default value
+specified with the DFT keyword is displayed only on the first display
+of the field. On subsequent displays with the PUTOVR and OVRDTA keywords
+in effect, the program value is displayed.
+If a field is not
+displayed on the first output operation to a record format, certain
+restrictions apply. These restrictions apply when, on a subsequent
+output operation, the field is selected for display and the put-override
+keywords are also in effect:
+For output-only fields for which the OVRDTA or OVRATR keyword
+is selected, the IBM® i operating
+system does not send an ending attribute character. Any display attributes
+(such as reverse image) are continued across the display until the
+beginning attribute character of the next field on the display. You
+should display output-only fields on the first output operation (perhaps
+with the DSPATR(ND) keyword so they cannot be seen) in order to provide
+an ending attribute character for later overrides.
+
+For input-capable or message fields for which the OVRDTA or OVRATR
+keyword is selected, the IBM i operating
+system sends an ending attribute character. This field must be displayed
+on the initial output operation.
+
+The PUTRETAIN keyword and the PUTOVR keyword cannot be
+specified on the same record format.
+The OVRDTA keyword is permitted
+only with output-only (usage O), input/output (usage B), program-to-system
+(usage P), or message (usage M) fields.
+The OVRATR keyword is
+permitted only with output-only (usage O), input-only (usage I), or
+input/output (usage B) fields.
+If you specify PUTOVR, you should
+also specify RSTDSP(*YES) on the Create Display File (CRTDSPF) or
+Change Display File (CHGDSPF) command. Otherwise, data on the display
+can be lost if the file is suspended.
+A warning message is sent
+at file creation time if the PUTOVR keyword is specified on a record
+with the DSPMOD keyword. At run time, the PUTOVR keyword is ignored
+when the display mode changes.
+The OVRATR keyword can be used
+only to override the following display attributes: CHECK(ER)
+CHECK(ME)
+DUP
+DSPATR (all except OID and SP)
+
+An output operation with
+the OVRDTA keyword in effect does not need to have the OVRATR keyword
+in effect to override display attributes, as well as data contents,
+of the field or fields being overridden.
+Option indicators are
+valid for the PUTOVR, OVRATR, and OVRDTA keywords.
+
+ExampleThe following example shows how
+to specify the PUTOVR, OVRATR, and OVRDTA keywords.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R INVRCD PUTOVR
+00020A FLD1 1 26'INVENTORY REMAINING IN WAREHOUSE 1'
+00030A*
+00040A 3 2'Remaining on hand:'
+00050A OVRATR
+00060A 11 DSPATR(HI)
+00070A*
+00080A INVBAL 5Y 0 +2
+00090A 12 OVRDTA
+00100A*
+00110A +2'Low on stock' OVRATR
+00120A N70 DSPATR(ND)
+00130A 70 DSPATR(HI)
+00140A*
+00150A SUPPPL 20 B 5 2DFT('INTERNAL')
+00160A 13 OVRDTA
+00170A*
+00180A ACCT 20 6 2OVRDTA
+00190A DSPATR(HI)
+00200A 14 DSPATR(RI)
+AAn initial output operation generates a full
+display of information; on a second output operation, PUTOVR is in
+effect and the program can set option indicators to make the following
+changes to the display:
+If option indicator 11 is set on, the Remaining on hand: constant
+field will be changed to a highlighted field. To reset the display
+attribute to normal, display the record format again with option indicator
+11 off.
+
+If option indicator 12 is set on, the program can change the displayed
+value of the field INVBAL.
+
+If option indicator 70 is set off, the Low on stock constant
+field is a nondisplay field. If option indicator 70 is set on, the
+field is changed to a highlighted field.
+
+If option indicator 13 is set on, the program can set the value
+of the field SUPPL to override the default value (INTERNAL). The first
+displayed value is always INTERNAL; to display the value INTERNAL
+again after changing it to something else, the program must set the
+value of the field to INTERNAL before displaying it again.
+
+If option indicator 14 is set on, the display attribute of the
+field ACCT is changed from highlight to highlight and reverse image
+at the same time that new data is sent to the field. If option indicator
+14 is set off, the display attribute is changed back to highlight.
+New data is sent to the display on each output operation.

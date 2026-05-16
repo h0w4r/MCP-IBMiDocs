@@ -1,0 +1,168 @@
+GRDBOX (Grid Box) keyword
+
+IBM i programming resources > DDS > DDS for Display Files > Double-byte character set considerations for DDS > Keyword considerations for display files that use DBCS
+
+IBM i programming resources > DDS > DDS for Display Files > Double-byte character set considerations for DDS > Keyword considerations for display files that use DBCS
+
+GRDBOX (Grid Box) keyword
+
+You use this record-level keyword to define the shape,
+positioning, and attributes for the box structure. This keyword defines whether
+the box is erased, displayed, or not processed.
+
+The format of the keyword is:
+GRDBOX((*POS ([*DS3] [*DS4]
+start-row | &start-row-field
+start-column | &start-column-field
+depth | &depth-field
+width | &width-field));
+[(*TYPE type of box
+[horizontal rule | &hrule-field]
+[vertical rule | &vrule-field])]
+[(*COLOR color of box | &color-field)]
+[(*LINTYP line type of box | &lintyp-field)]
+[(*CONTROL | &control-field)]The *POS parameter is a required
+parameter. This parameter describes the position and size of the box. When
+coding *DS3 or *DS4 within the *POS parameter, you can have 2 different start
+row, start column, and length values depending on the display size being used.
+DSPSIZ keyword must be coded on the file level.
+The *TYPE parameter
+is a required parameter. The horizontal and vertical rule values define the
+number of character spaces between each rule. For example, if a *TYPE VRT
+box is defined with a width of 21 columns and a rule value of 3 columns, there
+will be 6 vertical lines within the box. If the rule value is not an even
+multiple of the width or depth, the odd space rule will occur at the right
+side or the bottom of the box. The default for this parameter is PLAIN.
+The
+horizontal or vertical rule values can be defined using program-to-system
+fields. If a field name is specified, the field must exist in the record format.
+The field is defined as a data type S, usage P, field length of 3, and zero
+decimal positions.
+The *COLOR and *LINTYP parameters define the color
+and attributes of the box. P-fields can be used to define or change the attributes
+at run time.
+For more information about the *COLOR and
+*LINTYP parameters, see GRDATR (Grid Attribute) keyword.
+If
+*NONE is defined by the GRDBOX keyword, the color set by the GRDATR keyword
+will be used.
+If a p-field is specified for either the COLOR or LINTYP
+parameter, the field must exist in the record format. The field is defined
+as data type A, usage P, and length of 1.
+The *CONTROL parameter specifies
+whether this GRDBOX is to be displayed, erased from the screen, or ignored
+(similar to optioning off the keyword). The field must exist in the record
+format and must be defined as data type S, usage P, and length of 1. If the
+p-field is set to 0, the grid line will be displayed. If the p-field is set
+to 1, the GRDBOX keyword will not be processed. If the p-field is set to -1,
+the grid line record currently shown will be cleared. If the p-field is set
+to something other than the defined values, then the default 0 will be used.
+Grid
+line support requires DBCS equipment. This equipment should have the capability
+of calling Japanese DOS.
+Option indicators are valid for this keyword.
+
+ExampleThe following example shows how to specify
+the GRDBOX keyword.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A DSPSIZ(*DS3 *DS4)
+A GDRATR((*COLOR WHT) (*LINTYP SLD))
+A R GRDREC1 GRDRCD
+A GRDATR((*COLOR BLU) (LINTYP DSH))
+A GRDBOX(*POS (2 5 10 70 ) (*TYPE PLAIN))
+A
+A R GRDREC2 GRDRCD
+A 90 DSPMOD(*DS4)
+A GRDBOX((*POS (*DS3 5 5 18 70) +
+A (*DS4 5 5 19 120)) (*TYPE PLAIN))
+A GRDBOX((*POS (*DS3 5 5 18 70) +
+A (*DS4 7 7 3 103)) (*TYPE VTR 10) +
+A (*CONTROL &CNTL1));
+A
+A GRDBOX((*POS (*DS3 12 7 6 53) +
+A (*DS4 127 6 103)) +
+A (*TYPE HRZ 2) +
+A (*COLOR RED) (*LINTYP &LNTP1); +
+A (*CONTROL &CNTL2));
+A
+A
+A 95 GRDBOX((*POS (&SCROW1 &SCOL1 &DPTH1 +
+A &WDTH1)); +
+A (*TYPE HRZVRT &HRUL1 &VRUL1); +
+A (*COLOR &CLR1); +
+A (*CONTROL &CNTL3));
+A CNTL1 1S 0P
+A CNTL2 1S 0P
+A CNTL3 1S 0P
+A LNTP1 1A P
+A CLR1 1A P
+A SROW1 3S 0P
+A SCOL1 3S 0P
+A DPTH1 3S 0P
+A WDTH1 3S 0P
+A HRUL1 3S 0P
+A VRUL1 3S 0P
+AWhen the GRDREC1 record is written, the plain box defined
+at position row 2, column 4, depth of 10 rows, and width of 70 columns will
+be displayed. The box will have a color of blue with dash lines.
+When
+the GRDREC2 record is written, the following output appears:
+If the record is written to a 24-by-80 display or DSPMOD is turned off,
+then:
+A plain box displays starting at row 5, column 5, depth of 18 rows, and
+width of 70 columns. The lines of the grid are white in color and have a solid
+line type defined by the file-level GRDATR keyword.
+
+If the value in the p-field CNTL1 equals 0, a vertical ruled box is drawn
+starting at row 7, column 7, depth of 3 rows, and width of 70 columns. The
+box has a vertical line every 10 character spaces. The lines of the grid are
+white and have a solid line type defined by the file-level GRDATR keyword.
+If the p-field CNTL1 value is -1, the box is erased. If the p-field CNTL1
+value is 1, no action is taken by the GRDBOX keyword.
+
+If the value in the p-field CNTL2 equals 0, a horizontal ruled box displays.
+The box starts at row 12, column 7, depth of 6 rows, and width of 60 columns.
+The box has a horizontal line every 2 character spaces. The lines are red
+and the line type depends on the value in the p-field LNTP1. If the value
+in LNTP1 is not valid or is NONE (X'FF'), the line type is set to the line
+type from the file-level GDRATR keyword (solid) as default. If the p-field
+CNTL2 value is a -1, the box is erased. If the p-field CNTL2 value is 1, no
+action is taken by the GRDBOX keyword.
+
+If the option indicator 95 is turned on and the value in p-field CNTL3
+equals 0, the horizontal and vertical ruled box is processed. The row, column,
+width, and depth are determined at run time from the appropriate p-fields.
+The color is determined from the p-field value in CLR1. The line type is set
+to the GRDATR keyword at the file-level as default. If option indicator 95
+is turned off, the box is not be processed. If the p-field CNTL3 value is
+a -1, no action is taken by the GRDBOX keyword.
+
+If record is written to a 27-by-132 display and DSPMOD is turned on, then:
+
+A plain box displays starting at row 5, column 5, depth of 19 rows, and
+width of 120 columns. The lines of the grid are white in color and have a
+solid line type defined by the file-level GRDATR keyword.
+
+If the value in the p-field CNTL1 equals 0, a vertical ruled box is drawn
+starting at row 7, column 7, depth of 3 rows, and width of 110 columns. The
+box has a vertical line every 10 character spaces. The lines of the grid are
+white and have a solid line If the p-field CNTL1 value is a -1, the box is
+erased. If the p-field CNTL1 value is a 1, no action is taken by the GRDBOX
+keyword.
+
+If the value in the p-field CNTL2 equals 0, a horizontal ruled box displays.
+The box starts at row 12, column 7, depth of 6 rows, and width of 110 columns.
+The box has a horizontal line every 2 character spaces. The lines are red
+and the line type depends on the value in the p-field LNTP1. If the value
+in LNTP1 is not valid or is NONE (X'FF'), the line type is set to the line
+type from the file-level GDRATR keyword (solid) as default. If the p-field
+CNTL2 value is a -1, the box is erased. If the p-field CNTL2 value is 1, no
+action is taken by the GRDBOX keyword.
+
+If the option indicator 95 is turned on and the value in p-field CNTL3
+equals 0, the horizontal and vertical ruled box is processed. The row, column,
+width, and depth are determined at run time from the appropriate p-fields.
+The color is determined from the p-field value in CLR1. The line type is set
+to the GRDATR keyword at the file-level as default. If option indicator 95
+is turned off, the box is not processed. If the p-field CNTL3 value is a -1,
+no action is taken by the GRDBOX keyword.

@@ -1,0 +1,205 @@
+Monitoring for messages in a CL program or procedure
+
+IBM i programming resources > Control language > Control language > Messages > Messages
+
+IBM i programming resources > Control language > Control language > Messages
+
+Monitoring for messages in a CL program or procedure
+Messages that can be monitored are *ESCAPE, *STATUS, and *NOTIFY
+messages that are issued by each CL command used in the program or procedure.
+Note: By using the code examples, you agree to the terms of the Code license and disclaimer information.
+Each IBM-supplied command identifies
+in its help documentation which exception messages it generates. You can use
+this information to determine which messages you want to monitor in your program
+or procedure.
+Exception messages include escape, notify, and status
+messages that are sent to the call message queue of your CL procedure or program
+by the commands in your procedure or program or by commands in another procedure
+or program. Diagnostic messages cannot be monitored.
+Using the Monitor
+Message (MONMSG) command, you can monitor for one or more messages
+sent to the call message queue for the conditions specified in the command.
+You can then use the MONMSG command to specify that if
+the condition exists, the CL command specified on the MONMSG command is run.
+The logic involved with the MONMSG command is as follows:
+Escape
+Messages: Escape messages are sent to tell your procedure or program of
+an error condition that forced the sender to end. By monitoring for escape
+messages, you can take corrective actions or clean up and end your procedure
+or program.
+Status or Notify Messages: Status and notify messages
+are sent to tell your procedure or program of an abnormal condition that is
+not serious enough for the sender to end. By monitoring for status or notify
+messages, your procedure or program can detect this condition and not allow
+the function to continue.
+You can monitor for messages using two levels
+of MONMSG commands:
+Procedure level: You can monitor for an escape, notify, or status message
+sent by any command in your program or procedure by specifying the MONMSG command
+immediately following the last declare command in your CL procedure or program.
+This is called a procedure-level MONMSG command. You can
+use as many as 100 procedure-level MONMSG commands in a procedure or original
+program model (OPM) program. (A CL procedure or OPM program can contain a
+total of 1000 MONMSG commands.) This lets you handle the same escape message
+in the same way for all commands. The EXEC parameter is optional, and only
+the GOTO command can be specified on this EXEC parameter.
+Specific command level: You can monitor for an escape, notify, or status
+message sent by a specific command in your procedure or program by specifying
+the MONMSG command immediately following the command. This is called a command
+level MONMSG command. You can use as many as 100 command-level MONMSG commands
+for a single command. This lets you handle different escape messages in different
+ways.
+
+To monitor for escape, status, or notify messages, you must specify,
+on the MONMSG command, generic message identifiers for the messages in one
+of the following ways:
+pppmmnn Monitors for a specific message. For example,
+MCH1211 is the message identifier of the zero divide escape message.
+
+pppmm00 Monitors for any message with a generic message
+identifier that begins with a specific licensed program (ppp)
+and the digits specified by mm. For example, CPF5100 indicates that all notify,
+status, and escape messages beginning with CPF51 are monitored.
+
+ppp0000 Monitors for every message with a generic
+message identifier that begins with a specific licensed program (ppp).
+For example, CPF0000 indicates that all notify, status, and
+escape messages beginning with CPF are monitored. Note: Do
+not use MONMSG CPF0000 when doing system function, such as
+install or saving or restoring your entire system, since you may lose important
+information.
+
+CPF9999 Monitors for function check messages. If an error message
+is not monitored, it becomes a CPF9999 (function check).
+
+Note: Generally, when monitoring, your monitor also gets control when
+notify and status messages are sent.
+In addition to monitoring for
+escape messages by message identifier, you can compare a character string,
+which you specify on the MONMSG command, to message data
+sent in the message. For example, the following command monitors for an escape
+message (CPF5101) for the file MYFILE. The name of the file is specified as
+message data when the CPF5101 message is sent by a program.
+MONMSG MSGID(CPF5101) CMPDTA(MYFILE) EXEC(GOTO EOJ)
+The compare data can be as long as 28 characters, and the comparison
+starts with the first character of the first field of the message data. If
+the compare data matches the message data, the action specified on the EXEC
+parameter is run.
+The EXEC parameter on the MONMSG command
+specifies how an escape message is to be handled. Any command except PGM,
+ENDPGM, IF, ELSE, DCL, DCLF, ENDDO, and MONMSG can be specified on the EXEC
+parameter. You can specify a DO command on the EXEC parameter, and the commands
+in the do group are run. When the command or do group (on the EXEC parameter)
+has been run, control returns to the command in your procedure or program
+that is after the command that sent the escape message. However, if you specify
+a GOTO or RETURN command, control does not return. If you do not specify
+the EXEC parameter, the escape message is ignored and your program or procedure
+continues.
+The following shows an example of a Change Variable
+(CHGVAR) command being monitored for a zero divide escape message,
+message identifier MCH1211:
+CHGVAR VAR(&A) VALUE(&A / &B)
+MONMSG MSGID(MCH1211) EXEC(CHGVAR VAR(&A) VALUE(1))
+The value of the variable &A is changed to the value of &A
+divided by &B. If &B equals 0, the divide operation cannot be done
+and the zero divide escape message is sent to the procedure. When this happens,
+the value of &A is changed to 1 (as specified on the EXEC parameter).
+You may also test &B for zero, and only perform the division if it is
+not zero. This is more efficient than attempting the operation and monitoring
+for the escape message.
+In the following example, the procedure monitors
+for the escape message CPF9801 (object not found message) on the Check
+Object (CHKOBJ) command:
+PGM
+CHKOBJ LIB1/PGMA *PGM
+MONMSG MSGID(CPF9801) EXEC(GOTO NOTFOUND)
+CALL LIB1/PGMA
+RETURN
+NOTFOUND: CALL FIX001 /* PGMA Not Found Routine */
+ENDPGM
+The following CL procedure contains two Call (CALL) commands
+and a procedure-level MONMSG command for CPF0001. This escape message occurs
+if a Call (CALL) command cannot be completed successfully.
+If either CALL command fails, the procedure sends the completion message
+and ends.
+PGM
+MONMSG MSGID(CPF0001) EXEC(GOTO ERROR)
+CALL PROGA
+CALL PROGB
+RETURN
+ERROR: SNDPGMMSG MSG('A CALL command failed') MSGTYPE(*COMP)
+ENDPGM
+If the EXEC parameter is not coded on a procedure-level
+MONMSG command, any escape message that is handled by the MONMSG command is
+ignored. If the escape message occurs on any command except the condition
+of an IF command, the procedure continues processing with the command that
+would have been run next if the escape message had not occurred. If the escape
+message occurs on the condition of an IF command, the procedure continues
+processing as if the condition on the IF command were false. The following
+example illustrates what happens if an escape message occurs at different
+points in the procedure:
+PGM
+DCL &A TYPE(*DEC) LEN(5 0)
+DCL &B TYPE(*DEC) LEN(5 0)
+MONMSG MSGID(CPF0001 MCH1211)
+CALL PGMA PARM(&A &B)
+IF (&A/&B *EQ 5) THEN(CALL PGMB)
+ELSE CALL PGMC
+CALL PGMD
+ENDPGM
+Depending on where an escape message occurs, the following
+situations happen:
+If CPF0001 occurs on the call to PGMA, the procedure resumes processing
+on the IF command.
+If MCH1211 (divide by 0) occurs on the IF command, the IF condition is
+considered false, and the procedure resumes processing with the call to PGMC.
+If CPF0001 occurs on the call to PGMB or PGMC, the procedure resumes processing
+with the call to PGMD.
+If CPF0001 occurs on the call to PGMD, the procedure resumes processing
+with the ENDPGM command, which causes a return to the calling procedure.
+
+You can also monitor for the same escape message to be sent by a specific
+command in your procedure or program and by another command. This requires
+two MONMSG commands. One MONMSG command
+follows the command that needs special handling for the escape message; for
+that command, this MONMSG command is used when the escape
+message is sent. The other MONMSG command follows the
+last declare command so that for all other commands, this MONMSG command
+is used.
+MONMSG commands apply only to the CL procedure
+or OPM program in which they are coded. MONMSG commands from one procedure
+do not apply to another procedure even though both are part of the same program.
+Online help and documentation for each command contains a list of the escape,
+notify, and status messages that are issued for the command. You should also
+keep a list of all messages that you have defined.
+Note: The previous paragraph
+is not true for ILE procedures because of the way messages percolate. The
+system requires MONMSG to handle any escape message that is sent to a procedure.
+Otherwise, the message percolates up the call stack until it finds a procedure
+that has a MONMSG to handle it or hits a control boundary.
+
+Watching for messages
+The system provides a watch-for-event function that allows
+you to watch for messages.
+CL handling for unmonitored messages
+The system provides default monitoring and handling of any messages
+you do not monitor.
+Monitoring for notify messages
+You can monitor for notify messages that are sent
+to the call message queue of your CL procedure or program by the commands
+in your procedure or program or by the programs and procedures it calls.
+Monitoring for status messages
+You can monitor for status messages that are sent by the commands
+in your CL procedure or by the programs and procedures it calls.
+Preventing the display of status messages
+You cannot prevent commands from sending status messages, but you
+can prevent the status messages from being displayed at the bottom of the
+screen.
+
+Parent topic: Messages
+
+Related concepts
+Escape and notify messages
+
+Related tasks
+Assigning a message identifier

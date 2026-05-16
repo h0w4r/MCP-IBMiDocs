@@ -1,0 +1,99 @@
+Example of passing a file and passing a data structure with the associated variables.
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Variables Associated with Files > Variables Associated with Files
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Variables Associated with Files
+
+Example of passing a file and passing a data
+structure with the associated variables.
+
+The following example shows you how to define a data structure
+to hold the associated variables for a file, how to pass the file
+and the data structure as parameters to a procedure, and how to use
+the parameters within the procedure.
+
+Figure 1. /COPY file INFILE_DEFS
+
+* The /COPY file has template definitions for the File and Associated Variables
+
+/if defined(FILE_DEFINITIONS)
+// Template for the "INFILE" file type
+Finfile_t if e disk template block(*yes)
+F extdesc('MYLIB/MYFILE')
+/eof
+/endif
+/if defined(DATA_DEFINITIONS)
+// Template for the associated variables for an INFILE file
+D infileVars_t ds qualified template
+D filename 21a
+D mbrname 10a
+// Prototype for a procedure to open an INFILE file
+D open_infile pr
+D theFile likefile(infile_t)
+D kwVars likeds(infileVars)
+D options(*nullind)
+/eof
+/endif
+
+Figure 2. The calling procedure that passes
+the file parameter
+
+P myproc b // Copy in the template and prototype definitions
+/define FILE_DEFINITIONS
+/COPY INFILE_DEFS
+/undefine FILE_DEFINITIONS
+
+/define DATA_DEFINITIONS
+/COPY INFILE_DEFS
+/undefine DATA_DEFINITIONS
+// Define the file using LIKEFILE, to enable it to be passed as
+// a parameter to the "open_infile" procedure.
+
+// Define all the associated variables as subfields of a data
+// structure, so that all the associated variables can be
+// passed to the procedure as a single parameter
+Ffile1 likefile(infile_t)
+F extfile(file1Vars.filename)
+F extmbr(file1Vars.mbrname)
+F usropn
+
+D file1Vars ds likeds(infileVars_t)
+
+/free
+open_infile (file1 : file1Vars);
+
+. . .
+
+Figure 3. The called procedure that uses the
+file parameter
+
+// Copy in the template and prototype definitions
+/define FILE_DEFINITIONS
+/COPY INFILE_DEFS
+/undefine FILE_DEFINITIONS
+
+/define DATA_DEFINITIONS
+/COPY INFILE_DEFS
+/undefine DATA_DEFINITIONS
+P open_infile b
+// The open_infile procedure has two parameters
+// - a file
+// - a data structure containing all the associated variables for the file
+D open_infile pi
+D theFile likefile(infile_t)
+D kwVars likeds(infileVars)
+/free
+// The %OPEN(filename) built-in function reflects the
+// current state of the file
+if not %open(theFile);
+// The called procedure modifies the calling procedure's "file1Vars"
+// variables directly, through the passed parameter
+kwVars.extfile = 'LIB1/FILE1';
+kwVars.extmbr = 'MBR1';
+// The OPEN operation uses the file1Vars subfields in the
+// calling procedure to open the file, opening file LIB1/FILE1(MBR1)
+open theFile;
+endif;
+. . .
+
+Parent topic: Variables Associated with Files

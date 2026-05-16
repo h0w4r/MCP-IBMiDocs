@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="© Copyright IBM Corporation 2016" name="copyright" />
+<meta content="© Copyright IBM Corporation 2016" name="DC.Rights.Owner" />
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="topic" name="DC.Type" />
+<meta content="UNSTRING Statement Example" name="DC.Title" />
+<meta content="unstri.htm" name="DC.Relation" scheme="URI" />
+<meta content="ILE COBOL" name="prodname" />
+<meta content="7.3" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.Date" scheme="iso8601" />
+<meta content="June 2012" name="DC.Date.Created" />
+<meta content="XHTML" name="DC.Format" />
+<meta content="unstrex" name="DC.Identifier" />
+<meta content="en-us" name="DC.Language" />
+<meta content="ZZ" name="IBM.Country" />
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link href="./ibmdita.css" rel="stylesheet" type="text/css" />
+<link href="./ic.css" rel="stylesheet" type="text/css" />
+<link href="unstri.htm" rel="Start" />
+<title>UNSTRING Statement Example</title>
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilecbl.ref.doc%2Ftopics%2Funstrex.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="unstrex">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_1" shape="rect">ILE COBOL</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/rzasbmain.htm" shape="rect">ILE COBOL Language Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/procdiv.htm" shape="rect">Procedure Division</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/prodivs.htm" shape="rect">Procedure Division Statements</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/unstri.htm" shape="rect">UNSTRING Statement</a></div>
+<div role="main">
+<!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+<h1 class="title topictitle1">UNSTRING Statement Example</h1>
+<div class="body"><p class="p">The following example illustrates some of the considerations that apply
+to the UNSTRING statement.</p>
+<div class="p">In the Data Division, the user has defined the following input record to
+be acted upon by the UNSTRING statement: 
+<pre class="pre codeblock" xml:space="preserve"><code>01 INV-RCD.
+   05 CONTROL-CHARS   PIC XX.
+   05 ITEM-INDENT     PIC X(20).
+   05 FILLER          PIC X.
+   05 INV-CODE        PIC X(10).
+   05 FILLER          PIC X.
+   05 NO-UNITS        PIC 9(6).
+   05 FILLER          PIC X.
+   05 PRICE-PER-M     PIC 99999.
+   05 FILLER          PIC X.
+   05 RTL-AMT         PIC 9(6).99.</code></pre>
+</div>
+<div class="p">The next two records are defined as receiving fields for the UNSTRING statement.
+ DISPLAY-REC is to be used for printed output. WORK-REC is to be used for
+further internal processing. 
+<pre class="pre codeblock" xml:space="preserve"><code>01 DISPLAY-REC
+   05 INV-NO       PIC X(6).
+   05 FILLER       PIC X VALUE SPACE
+   05 ITEM-NAME    PIC X(20).
+   05 FILLER       PIC X VALUE SPACE
+   05 DISPLAY-DOLS PIC 9(6).
+
+01 WORK-REC
+   05 M-UNITS      PIC 9(6).
+   05 FIELD-A      PIC 9(6).
+   05 WK-PRICE
+      REDEFINES
+      FIELD-A      PIC 9999V99.
+   05 INV-CLASS    PIC X(3).</code></pre>
+</div>
+<div class="p">The user has also defined the following fields for use as control fields
+in the UNSTRING statement. 
+<pre class="pre codeblock" xml:space="preserve"><code>01 DBY-1            PIC X, VALUE IS ".".
+01 CTR-1            PIC 99, VALUE IS ZERO.
+01 CTR-2            PIC 99, VALUE IS ZERO.
+01 CTR-3            PIC 99, VALUE IS ZERO.
+01 CTR-4            PIC 99, VALUE IS ZERO.
+01 DLTR-1           PIC X.
+01 DLTR-2           PIC X.
+01 CHAR-CT          PIC 99, VALUE IS 3.
+01 FLDS-FILLED      PIC 99, VALUE IS ZERO.</code></pre>
+</div>
+<div class="p">In the Procedure Division, the user writes the following UNSTRING statement
+to move subfields of INV-RCD to the subfields of DISPLAY-REC and WORK-REC: 
+<pre class="pre codeblock" xml:space="preserve"><code>UNSTRING INV-RCD
+ DELIMITED BY ALL SPACES
+   OR "⁄"
+   OR DBY-1
+ INTO ITEM-NAME COUNT IN CTR-1,
+ INV-NO DELIMITER IN DLTR-1
+   COUNT IN CTR-2,
+ INV-CLASS,
+ M-UNITS COUNT IN CTR-3,
+ DISPLAY-DOLS DELIMITER IN DLTR-2
+   COUNT IN CTR-4
+ WITH POINTER CHAR-CT
+ TALLYING IN FLDS-FILLED
+ ON OVERFLOW
+   GO TO UNSTRING-COMPLETE.</code></pre>
+</div>
+<p class="p">Before the UNSTRING statement is issued, the user places the value 3 in
+the CHAR-CT (the pointer item), so as not to work with the two control characters
+at the beginning of INV-RCD. In DBY-1, a period is placed for use as a delimiter,
+and in FLDS-FILLED (the tallying item) the value 0 is placed. <span class="ph">The following
+data is then read into INV-RCD as shown in <a class="xref" href="#unstrex__unstinp" shape="rect">Figure 1</a>.</span></p>
+<div class="fig fignone" id="unstrex__unstinp"><span class="figcap">Figure 1. UNSTRING Statement Example–Input Data</span><div class="image"><img alt="This figure shows an example of the input data required for an UNSTRING Statement" class="image" src="cbl496.gif" /></div></div>
+<div class="p">When the UNSTRING statement is executed, the following actions take place: 
+<ol class="ol"><li class="li">Positions 3 through 18 (FOUR-PENNY-NAILS) of INV-RCD are placed in ITEM-NAME,
+left-justified within the area, and the unused character positions are padded
+with spaces.  The value 16 is placed in CTR-1.</li>
+<li class="li">Because ALL SPACES is specified as a delimiter, the five contiguous SPACE
+characters are considered to be one occurrence of the delimiter.</li>
+<li class="li">Positions 24 through 29 (707890) are placed in INV-NO.  The delimiter
+character ⁄ is placed in DLTR-1, and the value 6 is placed in CTR-2.</li>
+<li class="li">Positions 31 through 33 are placed in INV-CLASS. The delimiter is a SPACE,
+but because no field has been defined as a receiving area for delimiters,
+the SPACE is merely bypassed.</li>
+<li class="li">Positions 35 through 40 (475120) are examined and are placed in M-UNITS.
+ The delimiter is a SPACE, but because no receiving field has been defined
+as a receiving area for delimiters, the SPACE is bypassed.  The value 6 is
+placed in CTR-3.</li>
+<li class="li">Positions 42 through 46 (00122) are placed in FIELD-A and right-justified
+within the area. The high-order digit position is filled with a 0 (zero).
+The delimiter is a SPACE, but because no field has been defined as a receiving
+area for delimiters, the SPACE is bypassed.</li>
+<li class="li">Positions 48 through 53 (000379) are placed in DISPLAY-DOLS.  The period
+delimiter character is placed in DLTR-2, and the value 6 is placed in CTR-4.</li>
+<li class="li">Because all receiving fields have been acted upon and two characters of
+data in INV-RCD have not been examined, the ON OVERFLOW exit is taken, and
+execution of the UNSTRING statement is completed.</li>
+</ol>
+</div>
+<div class="p">At the end of execution of the UNSTRING statement, DISPLAY-REC contains
+the following data: 
+<pre class="pre codeblock" xml:space="preserve"><code>   707890 FOUR-PENNY-NAILS     000379</code></pre>
+</div>
+<div class="p">WORK-REC contains the following data: 
+<pre class="pre codeblock" xml:space="preserve"><code>   475120000122BBA</code></pre>
+</div>
+<div class="p">CHAR-CT (the pointer field) contains the value 55, and FLD-FILLED (the
+tallying field) contains the value 6. 
+<div class="note note"><span class="notetitle">Note:</span> One UNSTRING statement
+can be written instead of a series of MOVE statements.</div>
+</div>
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="unstri.htm" shape="rect">UNSTRING Statement</a></div>
+</div>
+</div></div></body>
+</html>

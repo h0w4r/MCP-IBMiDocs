@@ -1,0 +1,541 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 21. Handling Exceptions in a Program > Using ILE Exception Handlers
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 21. Handling Exceptions in a Program > Using ILE Exception Handlers
+
+ILE C/C++ Programmer's Guide
+Using ILE Direct Monitor Handlers
+Direct monitor handlers monitor for exceptions that are
+based on exception classes and message identifiers. They let you
+directly register an exception monitor for a limited number of C/C++ source
+statements. Direct monitors are usually the fastest
+handlers.
+Using the pragma Directives
+In ILE C/C++, the #pragma exception_handler and #pragma
+disable_handler directives enable direct monitor handlers.
+
+The #pragma exception_handler enables a direct monitor handler
+from #pragma exception_handler to #pragma
+disable_handler without considering program logic in between.
+When using these directives, you must include the
+<except.h> header file in your source code .
+Note:The #pragma exception_handler directive can monitor only those
+exception message types listed in the exception messages list.
+
+A direct monitor handler may be either of the following:
+
+Code following a label defined within the function containing the
+#pragma exception_handler
+A function defined in the <except.h> file.
+
+Using Communications Area Variables
+A communications area variable may be specified on the #pragma
+exception_handler. The use of this variable depends on whether
+the handler is a label or a function. If the handler is a label then
+the communications area is used as storage for the standard exception handler
+parameter block of type _INTRPT_Hndlr_Parms_T (defined
+in <except.h>).
+The definition of the structure
+_INTRPT_Hndlr_Parms_T is:
+Figure 166. Definition of Structure _INTRPT_Hndlr_Parms_T
+
+typedef _Packed struct {
+unsigned int Block_Size; /* Size of the parameter block */
+_INVFLAGS_T Tgt_Flags; /* Target invocation flags */
+char reserved[8]; /* reserved */
+_INVPTR Target; /* Current target invocation */
+_INVPTR Source; /* Source invocation */
+_SPCPTR Com_Area; /* Communications area */
+char Compare_Data[32]; /* Compare Data */
+char Msg_Id[7]; /* Message ID */
+char reserved1; /* 1 byte pad */
+_INTRPT_Mask_T Mask; /* Interrupt class mask */
+unsigned int Msg_Ref_Key; /* Message reference key */
+unsigned short Exception_Id; /* Exception ID */
+unsigned short Compare_Data_Len; /* Length of Compare Data */
+char Signal_Class; /* Internal signal class */
+char Priority; /* Handler priority */
+short Severity; /* Message severity */
+char reserved3[4];
+int Msg_Data_Len; /* Length of available message data */
+char Mch_Dep_Data[10]; /* Machine dependent data */
+char Tgt_Inv_Type; /*Invocation type (in MIMCHOBS.H)*/
+_SUSPENDPTR Tgt_Suspend; /* Suspend pointer of target */
+char Ex_Data[48]; /* First 48 bytes of exception data */
+} _INTRPT_Hndlr_Parms_T;
+
+The system fills in the structure prior to giving control to the
+label. If the storage that is required for the exception handler
+parameter block exceeds the storage that is defined by com_area,
+the remaining bytes are truncated. If the handler is a function, the
+system passes a pointer to a structure of type
+_INTRPT_Hndlr_Parms_T to the function. A pointer
+to the communications area is available inside the structure.
+Scoping Direct Monitor Handles
+
+The direct monitor handlers are scoped at compile time to the code between the
+#pragma exception_handler directive and the #pragma
+disable_handler directive. For example, the #pragma
+exception_handler directive is scoped to a block of code independent
+of the program logic.
+The following figure provides an example.
+
+Figure 167. ILE C Source to Scope Direct Monitor Handlers
+
+volatile int ca=0;
+if (ca != 0){
+#pragma exception_handler(my_handler, ca,0,_C2_MH_ESCAPE)
+}
+else {
+raise(SIGINT);/* Signal will be caught by my_handler */
+}
+#pragma disable_handler
+
+In Figure 167:
+
+The #pragma exception_handler directive is enabled around the
+call to the raise() function.
+The conditional expression if (ca != 0) has no effect on
+enabling the direct monitor handler. The logic path for the conditional
+expression if (ca != 0) is never taken. Instead,
+my_handler is enabled.
+
+Using Exception Classes
+Note:The #pragma exception_handler directive can monitor only those
+exception message types listed in the exception messages list.
+
+Exception classes indicate the type of exception (for example,
+*ESCAPE, *NOTIFY, *STATUS, function check) and, for machine exceptions, the
+low level type (for example, pointer-not-valid or divide-by-zero).
+The handler gains control if the exception falls into one or more of the
+exception classes that are specified on the #pragma exception_handler
+directive.
+Note:
+The Run-Time Considerations section of the ILE C/C++
+Run-Time Library Functions contains a table of exception classes.
+
+The following figure provides an example.
+Figure 168. ILE C Source to Use Exception Classes
+
+#include <except.h>(1)
+/* Just monitor for pointer not valid exceptions */
+#pragma exception_handler(eh, 0, _C1_POINTER_NOT_VALID, 0)
+/* Monitor for all *ESCAPE messages */
+#pragma exception_handler(eh, 0, 0, _C2_MH_ESCAPE)(2)
+/* Although the following is valid, there is no need to specify */
+/* _C1_POINTER_NOT_VALID because it is covered by _C2_MH_ESCAPE */
+#pragma exception_handler(eh, 0, _C1_POINTER_NOT_VALID, _C2_MH_ESCAPE)(2)
+/* To monitor for only specific messages, use the extended form of */
+/* pragma exception_handler. */
+/* The following #pragma will only monitor for MCH3601 *ESCAPE msg. */
+#pragma exception_handler (eh, 0, 0, _C2_MH_ESCAPE, _CTLA_HANDLE, "MCH3601")(2)
+
+Notes:
+Macros for the iSeries machine exception classes are defined in the ILE
+C/C++ include file <except.h>.
+To monitor for machine exceptions, you can specify the machine exception
+class or you can specify all *ESCAPE exceptions. In Figure 168, all machine exceptions are mapped to the *ESCAPE type
+exception. If the message type is *ESCAPE, a function check is sent to
+the call stack entry that is pointed to by the resume cursor.
+You can monitor for the exception class values for class1 and
+class2. The value of class2 must be only one of the following exception
+classes:
+
+_C2_MH_ESCAPE
+_C2_MH_STATUS
+_C2_MH_NOTIFY
+_C2_MH_FUNCTION_CHECK
+
+Specifying Control Actions
+
+The #pragma exception_handler directive allows you to specify a
+control action that is to be taken during exception processing.
+The five control actions that can be specified, as defined in the
+<except.h> header file, are:
+
+_CTLA_INVOKE
+This control action will cause the function that is named on the directive
+to be called and will not handle the exception. The exception will
+remain active and must be handled by using QMHCHGEM or one of the ILE
+condition-handling APIs.
+_CTLA_HANDLE
+This control action will cause the function or label that is named on the
+directive to get control and it will handle and log the exception
+implicitly. The exception will no longer be active when the handler
+gets control.
+_CTLA_HANDLE_NO_MSG
+This control action is the same as _CTLA_HANDLE except that the
+exception is NOT logged. The message reference key in the parameter
+block that is passed to the handler will be zero.
+_CTLA_IGNORE
+This control action will handle and log the exception implicitly and will
+not pass control to the handler function named on the directive; that is,
+the function named will be ignored. The exception will no longer be
+active, and processing will resume at the instruction immediately following
+the instruction that caused the exception.
+_CTLA_IGNORE_NO_MSG
+This control action is the same as _CTLA_IGNORE except that *NOTIFY
+messages will be logged.
+
+Example:
+The following figure shows how the control action parameter can be
+specified on the #pragma exception_handler directive.
+Figure 169. ILE C Source to Handle Exceptions
+
+#include <except.h>
+#include <stdio.h>
+void myhandler(void) {
+printf("In handler - something's wrong!\n");
+return;
+}
+int main(void) {
+int *ip;
+volatile int com_area;
+#pragma exception_handler(myhandler, com_area, 0, _C2_ALL, \
+_CTLA_IGNORE)(1)
+*ip = 5;
+printf("Passed the exception.\n");(2)
+}
+
+Notes:
+The control action _CTLA_IGNORE will cause the exception to be
+handled without calling the handler function.
+The output of this code is the message Passed the
+exception., followed by the exception message. This code
+will generate the exception message MCH3601 (Pointer not
+set).
+
+Specifying Message Identifiers
+
+The #pragma exception_handler directive can specify one or more
+specific or generic message identifiers on the directive. When one or
+more identifiers are specified on the directive, the direct monitor handler
+will take effect only when an exception occurs whose identifier matches one of
+the identifiers on the directive.
+To specify message identifiers on the directive, you must specify a control
+action to be taken. The class of the exception must be in one of the
+classes specified on the directive.
+Example:
+The following example shows a #pragma exception_handler directive
+that enables a monitor for a single specific message, MCH3601:
+
+#pragma exception_handler (myhandler, com_area, 0, _C2_ALL, \
+_CTLA_HANDLE, "MCH3601")
+
+Example:
+The following is an example of a #pragma exception_handler
+directive that enables a monitor for several floating-point exceptions:
+
+#pragma exception_handler (myhandler, com_area, _C1_ALL, _C2_ALL, \
+_CTLA_IGNORE, "MCH1206 MCH1207 MCH1209 MCH1213")
+
+Note:The ability to specify generic message identifiers can be used to simplify
+the directive.
+
+Example:
+In the following example, a monitor is enabled for any exception whose
+identifier begins with MCH12:
+
+#pragma exception_handler (myhandler, com_area, _C1_ALL, _C2_ALL, \
+_CTLA_IGNORE, "MCH1200")
+
+Example of Source Code that Uses a Direct Monitor Handler
+The following figure shows the source for a program MYPGM:
+Figure 170. T1520XH1 -- ILE C Source to Use Direct Monitor Handlers -- main()
+
+/* MYPGM *PGM */
+#include <except.h>
+#include <stdio.h>
+void my_handler(_INTRPT_Hndlr_Parms_T * __ptr128 parms);
+void main_handler(_INTRPT_Hndlr_Parms_T * __ptr128 parms);
+void fred(void)
+{
+char *p = NULL;
+#pragma exception_handler(my_handler, 0,0,_C2_MH_ESCAPE)
+*p = 'x'; /* exception */
+#pragma disable_handler
+}
+int main(void)
+{
+#pragma exception_handler(main_handler, 0,0,_C2_MH_ESCAPE)
+fred();
+}
+
+In Figure 170:
+
+The procedure main() registers the direct monitor handler
+main_handler
+The procedure main() calls fred(), which registers
+the direct monitor handler my_handler.
+The fred() function gets an exception which causes
+my_handler to get control, followed by
+main_handler. The main() function is a control
+boundary.
+The exception is considered unhandled so a function check is sent to
+fred().
+The handlers my_handler and main_handler
+handle *ESCAPE messages only, so neither is called again.
+The function check goes unhandled at main() so the program ends
+abnormally and CEE9901 is sent to the caller of main().
+
+Example of Source that Illustrates How to Use Direct Monitor Handlers
+
+Figure 171. T1520ICA -- ILE C Source that Uses Direct Monitor Handlers
+
+/* This program illustrates how to use direct monitor handlers. */
+#include <stdio.h>
+#include <signal.h>
+#include <recio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <except.h> /* Include except.h even though it is included */
+/* in the signal.h header file. */
+#define FILE_NAME "QTEMP/MY_FILE"
+#define RCD_LEN 80
+#define NUM_RCD 5
+#pragma datamodel(p128)
+typedef struct error_code{
+int byte_provided;
+int byte_available;
+char exception_id[7];
+char reserve;
+char exception_data[1];
+}error_code_t;
+static int handle_flag;
+#pragma linkage(QMHCHGEM, OS)
+void QMHCHGEM(_INVPTR *, int, unsigned int, char *,
+char *, int, error_code_t *);
+/* The signal handler. */
+pragma datamodel(pop)
+static void sig_handler(int sig)
+{
+printf("In signal handler\n");
+printf("Exception message ID is %7.7s\n", _EXCP_MSGID);
+}
+/* The direct monitor handler. */
+static void exp_handler(_INTRPT_Hndlr_Parms_T * __ptr128 exp_info)
+{
+error_code_t error_code;
+printf("In direct monitor handler\n");
+printf("Exception message ID is %3.3s%04x\n",
+exp_info->Compare_Data,
+(unsigned) exp_info->Exception_Id);
+/* Call QMHCHGEM API to handle the exception. */
+if ( handle_flag )
+{
+error_code.byte_provided = 8;
+QMHCHGEM(&(exp_info->Target),; 0, exp_info->Msg_Ref_Key,
+"*HANDLE ", "", 0, &error_code);
+}
+}
+/* The function to read a file. */
+static void read_file(_RFILE *fp)
+{
+int i = 1;
+while ( _Rreadn(fp, NULL, RCD_LEN, __DFT)->num_bytes != EOF )
+{
+printf("Read record %d\n", i++);
+}
+}
+
+int main(void)
+{
+_RFILE *fp;
+int i;
+volatile int com;
+char buf[RCD_LEN];
+char cmd[100];
+/* Create a file. */
+sprintf(cmd, "CRTPF FILE(%s) RCDLEN(%d)", FILE_NAME, RCD_LEN);
+system(cmd);
+/* Open the file for write. */
+if ( (fp = _Ropen(FILE_NAME, "wr")) == NULL )
+{
+printf("Open for write fails\n");
+exit(1);
+}
+/* Write some data into the file. */
+memset(buf, '1', RCD_LEN);
+for ( i = 0; i < NUM_RCD; i++ )
+{
+_Rwrite(fp, buf, RCD_LEN);
+}
+_Rclose(fp);
+/* Open the file for the first read. */
+if ( (fp = _Ropen(FILE_NAME, "rr")) == NULL )
+{
+printf("Open for the first read fails\n");
+exit(2);
+}
+/* Read until end-of-file. */
+/* Since no signal handler or direct monitor handler is set up, */
+/* the EOF exception is ignored. The default value for SIGIO is */
+/* SIG_IGN. */
+i = 1;
+printf("The first read starts\n");
+while ( _Rreadn(fp, buf, RCD_LEN, __DFT)->num_bytes != EOF )
+{
+printf("Read record %d\n", i++);
+}
+_Rclose(fp);
+printf("The first read finishes\n");
+
+/* Set up a direct monitor handler and a signal handler. */
+/* Tell the direct monitor handler to handle the exception. */
+/* The direct monitor handler (exp_handler) calls the message */
+/* handler API QMHCHGEM with the parameter *HANDLE. This marks the */
+/* exception as handled. */
+/* Use exception classes to handle machine exceptions. */
+handle_flag = 1;
+#pragma exception_handler(exp_handler, com, 0, \
+_C2_MH_ESCAPE | _C2_MH_NOTIFY | _C2_MH_STATUS)
+signal(SIGIO, sig_handler);
+/* Open the file for the second read. */
+if ( (fp = _Ropen(FILE_NAME, "rr")) == NULL )
+{
+printf("Open for the second read fails\n");
+exit(3);
+}
+
+/* Read until end of file. */
+/* When the EOF exception is generated, the direct monitor handler */
+/* is called first. Since it marks the exception as handled, */
+/* the signal handler is not called. */
+i = 1;
+printf("The second read starts\n");
+while ( _Rreadn(fp, buf, RCD_LEN, __DFT)->num_bytes != EOF )
+{
+printf("Read record %d\n", i++);
+}
+_Rclose(fp);
+printf("The second read finishes\n");
+/* Disable the direct monitor handler. */
+#pragma disable_handler
+/* Set up a direct monitor handler and a signal handler. */
+/* Set the global variable handle_flag to zero so that the */
+/* direct monitor will not handle the exception. */
+handle_flag = 0;
+#pragma exception_handler(exp_handler, com, 0, \
+_C2_MH_ESCAPE | _C2_MH_NOTIFY | _C2_MH_STATUS)
+signal(SIGALL, sig_handler);
+/* Open the file for the third read. */
+if ( (fp = _Ropen(FILE_NAME, "rr")) == NULL )
+{
+printf("Open for the third read fails\n");
+exit(4);
+}
+/* Read until end-of-file. */
+/* When the EOF exception is generated, the direct monitor handler */
+/* is called first. Since the exception is not marked as */
+/* handled, the signal handler is then called. */
+i = 1;
+printf("The third read starts\n");
+while ( _Rreadn(fp, buf, RCD_LEN, __DFT)->num_bytes != EOF )
+{
+printf("Read record %d\n", i++);
+}
+_Rclose(fp);
+printf("The third read finishes\n");
+
+/* Disable the direct monitor handler. */
+#pragma disable_handler
+/* Set up a direct monitor handler and a signal handler. */
+#pragma exception_handler(exp_handler, com, 0, \
+_C2_MH_ESCAPE | _C2_MH_NOTIFY | _C2_MH_STATUS)
+signal(SIGIO, sig_handler);
+/* Open the file for the fourth read. */
+if ( (fp = _Ropen(FILE_NAME, "rr")) == NULL )
+{
+printf("Open for the fourth read fails\n");
+exit(5);
+}
+/* Read until end-of-file. */
+/* The EOF exception is generated in function read_file. Since */
+/* there is no direct monitor handler for the read_file function, */
+/* the signal handler is called. */
+
+/* The direct monitor handler in main() is not called because the */
+/* exception was mapped to SIGIO and the signal handler gets called */
+/* at function read_file. */
+printf("The fourth read starts\n");
+read_file(fp);
+_Rclose(fp);
+printf("The fourth read finishes\n");
+/* Disable the direct monitor handler. */
+#pragma disable_handler
+}
+
+Example of a Service Program that Provides Direct Monitor Handle
+The following figure shows the source for the service program
+HANDLERS:
+Figure 172. T1520XH2 -- ILE C Source to Use Direct Monitor Handlers -- Service Program
+
+#include <signal.h>
+#include <stdio.h>
+/* HANDLERS *SRVPGM (created with activation group *CALLER) */
+void my_handler(_INTRPT_Hndlr_Parms_T * __ptr128 parms)
+{
+return;
+}
+void main_handler(_INTRPT_Hndlr_Parms_T * __ptr128 parms)
+{
+printf("In main_handler\n");
+}
+
+Example that Uses Labels instead of Functions as Handlers
+The following example illustrates direct monitor handlers using labels
+instead of functions as the handlers:
+Figure 173. T1520XH3 -- ILE C Source to Use Direct Monitors with Labels as Handlers
+
+#include <except.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+void sig_hndlr(int);
+void sig_hndlr(int sig){
+printf("Signal handler should not have been called\n");
+}
+int main(void)
+{
+int a=0;
+char *p=NULL;
+volatile _INTRPT_Hndlr_Parms_T ca;
+/* Set up signal handler for SIGFPE. The signal handler function */
+/* should never be invoked, since the exception will be handled */
+/* by the direct monitor handlers. */
+if( signal(SIGFPE,sig_hndlr) == SIG_ERR )
+{
+printf("Could not set up signal handler for SIGFPE\n");
+}
+/* The following direct monitor will */
+/* trap and handle any *ESCAPE exceptions. */
+#pragma exception_handler(LABEL_1, ca, 0, _C2_MH_ESCAPE, \
+_CTLA_HANDLE)
+/* Generate exception(divide by zero). The CTL_ACTION specified */
+/* should take effect (exception handled and logged), execution */
+/* resumes at LABEL_1. */
+a/=a;
+printf ("We should never reach this point\n");
+LABEL_1: printf("The MCH1211 exception was handled\n");
+#pragma disable_handler
+/* The following direct monitor will */
+/* only trap and handle MCH3601 exceptions */
+#pragma exception_handler(LABEL_2, ca, 0, _C2_MH_ESCAPE, \
+_CTLA_HANDLE, "MCH3601")
+/* Generate MCH3601(*ESCAPE message). The CTL_ACTION specified */
+/* should take effect (exception handled and logged), execution */
+/* resumes at LABEL_2. */
+*p='X';
+printf ("We should never reach this point\n");
+LABEL_2: printf("The MCH3601 exception was handled\n");
+}
+
+The output is:
++--------------------------------------------------------------------------------+
+|The MCH1211 exception was handled |
+|The MCH3601 exception was handled |
++--------------------------------------------------------------------------------+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

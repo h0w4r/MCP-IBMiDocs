@@ -1,0 +1,734 @@
+What's New in 7.2?
+
+What's New in 7.2?Last Updated: 2025-10-07
+
+This section describes the enhancements made to ILE RPG in 7.2.
+
+Free-form Control, File, Definition, and Procedure statements
+
+Free-form Control statements begin with CTL-OPT and
+end with a semicolon. See Free-Form Control Statement. CTL-OPT OPTION(*SRCSTMT : *NODEBUGIO)
+ALWNULL(*USRCTL);
+
+Free-form File definition statements begin with DCL-F and
+end with a semicolon. See Free-Form File Definition Statement. The following statements
+define three files
+An externally-described DISK file opened for
+input and update.
+
+An externally-described WORKSTN file opened
+for input and output.
+
+A program-described PRINTER file with record-length
+132.
+
+DCL-F custFile usage(*update) extfile(custFilename);
+DCL-F screen workstn;
+DCL-F qprint printer(132) oflind(qprintOflow);
+
+Free-form data definition statements begin with DCL-C, DCL-DS, DCL-PI, DCL-PR,
+or DCL-S, and end with a semicolon. See Free-Form Definition Statement. The
+following statements define several items
+A named constant MAX_ELEMS.
+
+A standalone varying length character field fullName.
+
+A qualified data structure with an integer subfield num and
+a UCS-2 subfield address.
+
+A prototype for the procedure 'Qp0lRenameUnlink'.
+
+DCL-C MAX_ELEMS 1000;
+DCL-S fullName VARCHAR(50)
+INZ('Unknown name');
+DCL-DS ds1 QUALIFIED;
+num INT(10);
+address UCS2(100);
+END-DS;
+DCL-PR Qp0lRenameUnlink INT(10) EXTPROC(*DCLCASE);
+oldName POINTER VALUE OPTIONS(*STRING);
+newName POINTER VALUE OPTIONS(*STRING);
+END-PR;
+
+Free-form Procedure definition statements begin with DCL-PROC and
+end with a semicolon. The END-PROC statement is
+used to end a procedure. See Free-Form Procedure Statement. The following example shows
+a free-form subprocedure definition.
+DCL-PROC getCurrentUserName EXPORT;
+DCL-PI *n CHAR(10) END-PI;
+DCL-S curUser CHAR(10) INZ(*USER);
+
+RETURN curUser;
+END-PROC;
+
+The /FREE and /END-FREE directives are no longer required. The
+compiler will ignore them.
+
+Free-form statements and fixed-form statements may be intermixed. IF endDate < beginDate;
+C GOTO internalError
+ENDIF;
+duration = %DIFF(endDate : beginDate : *days);
+. . .
+C internalError TAG
+
+Tip: See Differences between fixed-form and free-form to be aware of.
+
+CCSID support for alphanumeric data
+
+The default alphanumeric CCSID for the module can be set to many
+more CCSIDs including UTF-8 and hexadecimal.
+
+Alphanumeric data can be defined with a CCSID. Supported CCSIDs
+include
+Single-byte and mixed-byte EBCDIC CCSIDs
+
+Single-byte and mixed-byte ASCII CCSIDs
+
+UTF-8
+
+Hexadecimal
+
+See CCSID definition keyword.
+
+CCSID of external alphanumeric subfields
+
+Use CCSID(*EXACT) for an externally-described
+data structure to indicate that the
+alphanumeric subfields should have the same CCSID
+as the fields in the file.
+
+CCSID conversion is not performed for hexadecimal data
+
+CCSID conversion is not allowed for implicit or explicit conversion
+of hexadecimal data. Hexadecimal data includes
+Hexadecimal literals
+
+Alphanumeric and graphic data defined with CCSID(*HEX)
+
+Alphanumeric and graphic data in buffers for externally-described
+files when the DATA keyword is in effect for the file and the CCSID
+of the field in the file is 65535
+
+Alphanumeric and graphic data in externally-described data structures
+defined with CCSID(*EXACT) when the CCSID of the field in the file
+is 65535
+
+Implicit conversion for concatenation
+
+The compiler will perform implicit conversion between alphanumeric,
+graphic, and UCS-2 data for concatenation expressions. See Conversions.
+
+Open database files without conversion to the job CCSID
+
+Use Control keyword OPENOPT(*NOCVTDATA) or File keyword DATA(*NOCVT)
+to specify that a database file will be opened so that alphanumeric
+and graphic data will not be converted to and from the job CCSID for
+input and output operations.
+See OPENOPT (*{NO}INZOFL *{NO}CVTDATA).
+
+Temporarily change the default CCSIDs, date format, or time format
+
+Use the /SET and /RESTORE directives to set default values for
+date formats, time formats, and CCSIDs.
+See /SET.
+
+Control the length returned by %SUBDT
+
+An optional third parameter for %SUBDT allows
+you to specify the number of digits in the result.
+For example, you can return the value of the
+years as a four-digit value: %SUBDT(MyDate:*YEARS:4).
+See %SUBDT (Extract a Portion of a Date, Time, or Timestamp).
+
+Increased precision for timestamp data
+
+Timestamp data can have between 0 and 12 fractional seconds.
+See Timestamp Data Type.
+
+Open Access files
+
+An Open Access file is a file which has all its operations handled
+by a user-written program or procedure, rather than by the operating
+system. This program or procedure is called an "Open Access Handler"
+or simply a "handler". The HANDLER keyword specifies the handler. See Open Access Files.
+
+New XML-INTO options
+
+XML namespaces are supported by the "ns" and "nsprefix" options. See ns option and nsprefix option.
+
+XML names with characters that are not supported by RPG for subfield
+names are supported by the "case=convert" option. See case option.
+
+Support for CCSID conversions that cause a loss of data when a
+source character does not exist in the target character set
+
+Control-specification keyword CCSIDCVT(*EXCP : *LIST). See CCSIDCVT(*EXCP | *LIST).
+Use CCSIDCVT(*EXCP) to get an exception if a CCSID conversion
+loses data due to the source character not having a match in the target
+character set.
+
+Use CCSIDCVT(*LIST) to get a listing of every CCSID conversion
+in the module, with a diagnostic message indicating whether the conversion
+has the potential of losing data.
+
+VALIDATE(*NODATETIME) to allow the RPG compiler to skip the validation
+step when working with date, time and timestamp data
+
+Use Control-specification keyword VALIDATE(*NODATETIME) to
+allow the RPG compiler to treat date, time, and timestamp data as
+character data, without performing the checks for validity. See VALIDATE(*NODATETIME).
+This
+may improve the performance of some date, time, and timestamp operations.
+
+Warning: Skipping the validation step can lead to serious data
+corruption problems. You should only use this feature when you are
+certain that your date, time, and timestamp data is always valid.
+
+Table 1. Changed Language Elements In 7.2: Control
+specification keywords
+
+Element
+
+Description
+
+CCSID keyword
+
+CCSID(*EXACT) instructs the compiler to be aware of the CCSID
+of all alphanumeric data in the module.
+Alphanumeric and graphic literals have the CCSID of the source
+file
+
+Alphanumeric data is always considered to have a CCSID
+
+When CCSID(*EXACT) is not specified, the RPG compiler may
+make incorrect assumptions about CCSIDs of data in literals, variables,
+or the input and output buffers of database files.
+See CCSID(*EXACT).
+
+CCSID(*CHAR:ccsid) supports *HEX, *JOBRUNMIX,
+*UTF8, ASCII CCSIDs, and EBCDIC
+CCSIDs.
+
+CCSID(*GRAPH:ccsid) supports *HEX, *JOBRUN.
+
+CCSID(*UCS2:ccsid) supports *UTF16.
+
+DFTACTGRP keyword
+
+DFTACTGRP(*NO) is assumed if there are any free-form
+Control specifications, and at least one of the ACTGRP, BNDDIR,
+or STGMDL keywords is used. See DFTACTGRP(*YES | *NO).
+
+OPENOPT keyword
+
+OPENOPT(*{NO}CVT) controls the default for
+the DATA keyword for database files.
+OPENOPT(*CVTDATA) indicates that DATA(*CVT) should be assumed for
+DISK and SEQ files if the DATA keyword is not specified for the file.
+
+OPENOPT(*NOCVTDATA) indicates that DATA(*NOCVT) should be assumed
+for DISK and SEQ files if the DATA keyword is not specified for the
+file.
+
+See OPENOPT (*{NO}INZOFL *{NO}CVTDATA).
+
+Table 2. Changed Language Elements In 7.2: Directives
+
+Element
+
+Description
+
+/FREE and /END-FREE directives
+
+These directives are no longer necessary to
+indicate the beginning and ending of free-form code. They are ignored
+by the compiler. See /FREE... /END-FREE.
+
+Table 3. Changed Language Elements In 7.2: Definition-specification
+keywords
+
+Element
+
+Description
+
+CCSID keyword
+
+Supported for alphanumeric data
+
+Supported for externally-described data structures to control
+the CCSID of alphanumeric subfields
+
+The parameter can be *HEX and *JOBRUN for graphic data
+
+The parameter can be *UTF16 for UCS-2 data.
+
+DTAARA keyword
+
+In a free-form definition:
+*VAR is not used. If the name is specified without quotes, it
+is assumed to be the name of a variable or named constant.
+
+For a data structure, *AUTO is used to specify that it is a Data
+Area Data Structure. *USRCTL is used to specify that the data area
+can be manipulated using IN, OUT and UNLOCK operations.
+
+See DTAARA keyword.
+
+EXTFLD keyword
+
+In a free-form subfield definition
+The parameter is optional
+
+If the parameter is specified without quotes, it is assumed to
+be the name of a previously-defined named constant.
+
+See EXTFLD{(field_name)}.
+
+EXTNAME keyword
+
+In a free-form data structure definition
+If the file-name or format-name parameter is specified without
+quotes, it is assumed to be the name of a previously-defined named
+constant.
+
+See EXTNAME(file-name{:format-name}{:*ALL| *INPUT|*OUTPUT|*KEY|*NULL}).
+
+EXPORT and IMPORT keywords
+
+In a free-form definition
+*DCLCASE may be specified for the external name indicating that
+the external name is identical to the way the stand-alone field or
+data structure is specified, with the same mixed case letters.
+
+See EXPORT{(external_name)} and IMPORT{(external_name)}.
+
+EXTPROC keyword
+
+In a free-form prototype definition or a procedure-interface
+definition
+*DCLCASE may be specified for the external procedure or method
+name indicating that the external name is identical to the way the
+prototype or procedure interface is specified, with the same mixed
+case letters.
+
+If the procedure interface name is specified as *N, the external
+name is taken from the DCL-PROC statement.
+
+See EXTPROC({*CL|*CWIDEN|*CNOWIDEN| {*JAVA:class-name:}}name).
+
+LIKE keyword
+
+In a free-form definition, the LIKE keyword
+has an optional second parameter
+specifying the length adjustment.
+See LIKE(name {: length-adjustment}).
+
+LEN keyword
+
+In a free-form definition, the LEN keyword
+is allowed only for a data structure definition.
+For other free-form definitions, the length is specified
+as part of the data-type keyword.
+See LEN(length).
+
+CLASS, DATFMT, PROCPTR, TIMFMT, and VARYING
+keywords
+
+These keywords are not used in a free-form definition.
+The information specified by these keywords is specified as part of
+the related data-type keywords.
+
+FROMFILE, PACKEVEN, and TOFILE keywords
+
+These keywords are not allowed in a free-form
+definition.
+
+OVERLAY keyword
+
+The parameter cannot be the name of the data
+structure for a free-form subfield definition. The POS keyword is
+used instead. See POS(starting-position).
+
+Table 4. Changed Language Elements In 7.2: Literals
+
+Element
+
+Description
+
+Timestamp literals
+
+Timestamp literals can
+have between 0 and 12 fractional seconds. See Literals.
+
+Table 5. Changed Language Elements In 7.2: Order
+of statements
+
+Element
+
+Description
+
+File and Definition statements
+
+File and Definition statements can be intermixed. See RPG IV Specification Types.
+
+Table 6. Changed Language Elements In 7.2: Built-in functions
+
+Element
+
+Description
+
+%CHAR
+
+When the operand is a timestamp,
+the length of the returned value depends on the
+number of bytes in the timestamp.
+If the format is *ISO0, the number of bytes can be between 14 and 26.
+If the format is *ISO, the number of bytes can be 19, or between
+21 and 32.
+See %CHAR(date|time|timestamp {: format}).
+
+%DEC
+
+When the operand is a timestamp,
+the number of digits can be between 14 and 26, depending
+on the number of fractional seconds in the timestamp.
+See Date, time or timestamp expression.
+
+%DIFF
+
+When the operand is a timestamp,
+an optional fourth parameter specifies the number
+of fractional seconds to return.
+See %DIFF (Difference Between Two Date, Time, or Timestamp Values).
+
+%SECONDS
+
+When %SECONDS is used to add seconds
+to a timestamp, the parameter can have decimal positions
+specifying the number of fractional seconds.
+See %SECONDS (Number of Seconds).
+
+%SUBDT
+
+An optional third parameter
+specifies the number of digits in the result.
+
+If the first operand is a timestamp, and the second operand
+is *SECONDS, an optional fourth operand indicates the number
+of fractional seconds in the result.
+
+See %SUBDT (Extract a Portion of a Date, Time, or Timestamp).
+
+%TIMESTAMP
+
+The first parameter can be a timestamp.
+
+The first parameter can be *SYS.
+
+If the first parameter is date, timestamp, or *SYS,
+a second optional parameter can be a value between
+0 and 12 indicating the number of fractional seconds.
+
+If the first parameter is character or numeric,
+a third optional parameter can be a value between
+0 and 12 indicating the number of fractional seconds.
+
+See %TIMESTAMP (Convert to Timestamp).
+
+Table 7. Changed Language Elements In 7.2: Fixed
+form Definition Specification
+
+Element
+
+Description
+
+Length entry
+
+The length entry for a
+timestamp can be 19, or a value between 21 and 32. See Positions 33-39 (To Position / Length).
+
+Decimal-positions entry
+
+The decimal-positions entry for a
+timestamp can be a value between 0 and 12. See Positions 41-42 (Decimal Positions).
+
+Table 8. New Language Elements In 7.2: Directives
+
+Element
+
+Description
+
+/SET directive
+
+Temporarily set a new value for the following
+Control statement keywords:
+CCSID(*CHAR:ccsid)
+
+CCSID(*GRAPH:ccsid)
+
+CCSID(*UCS2:ccsid)
+
+DATFMT(format)
+
+TIMFMT(format)
+
+These values are used to supply a default value for definition
+statements when the value is not explicitly provided on the definition.
+See /SET.
+
+/RESTORE directive
+
+Restore the previous setting to the value it
+had before the most recent /SET directive that set the value.:
+CCSID(*CHAR)
+
+CCSID(*GRAPH)
+
+CCSID(*UCS2)
+
+DATFMT
+
+TIMFMT
+
+See /RESTORE.
+
+Table 9. New Language Elements In 7.2: Free-form
+statements
+
+Element
+
+Description
+
+CTL-OPT
+
+Begins a free-form Control statement See Free-Form Control Statement.
+
+DCL-F
+
+Begins a free-form File definition See Free-Form File Definition Statement.
+
+DCL-C
+
+Begins a free-form Named Constant definition See Free-Form Named Constant Definition.
+
+DCL-DS
+
+Begins a free-form Data Structure definition See Free-Form Data Structure Definition.
+
+DCL-SUBF
+
+Begins a free-form Subfield definition. Specifying
+"DCL-SUBF" is optional unless the subfield name is the same as an
+operation code allowed in free-form calculations. See Free-Form Subfield Definition.
+
+END-DS
+
+Ends a free-form Data Structure definition.
+If there are no subfields, it can be specified after the last keyword
+of the DCL-DS statement. See Free-Form Data Structure Definition.
+
+DCL-PI
+
+Begins a free-form Procedure Interface definition See Free-Form Procedure Interface Definition.
+
+DCL-PR
+
+Begins a free-form Prototype definition See Free-Form Prototype Definition.
+
+DCL-PARM
+
+Begins a free-form Parameter definition. Specifying
+"DCL-PARM" is optional unless the parameter name is the same as an
+operation code allowed in free-form calculations See Free-Form Parameter Definition.
+.
+
+END-PI
+
+Ends a free-form Procedure Interface definition.
+If there are no parameters, it can be specified after the last keyword
+of the DCL-PI statement. See Free-Form Procedure Interface Definition.
+
+END-PR
+
+Ends a free-form Prototype definition. If there
+are no parameters, it can be specified after the last keyword of the
+DCL-PR statement. See Free-Form Prototype Definition.
+
+DCL-S
+
+Begins a free-form Standalone Field definition See Free-Form Standalone Field Definition.
+
+DCL-PROC
+
+Begins a free-form Procedure definition See Free-Form Procedure Statement.
+
+END-PROC
+
+Ends a free-form Procedure definition See Free-Form Procedure Statement.
+
+Table 10. New Language Elements in 7.2: Control specification
+keywords
+
+Element
+
+Description
+
+CCSIDCVT(*EXCP | *LIST)
+
+Allows you to control how the compiler handles
+conversions between data with different CCSIDs.See CCSIDCVT(*EXCP | *LIST).
+
+VALIDATE (*NODATETIME)
+
+Specifies whether Date, Time and Timestamp data
+must be validated before it is used.See VALIDATE(*NODATETIME).
+
+Table 11. New Language Elements In 7.2: File definition
+keywords
+
+Element
+
+Description
+
+DATA(*{NO}CVT)
+
+Controls whether a file is opened so that database
+performs CCSID conversion to and from the job CCSID for alphanumeric
+and graphic fields.See DATA(*CVT | *NOCVT).
+
+HANDLER(handler {:communication-area})
+
+Specifies that the file is an Open Access file. See HANDLER(program-or-procedure { : communication-area)}).
+
+DISK{(*EXT | record-length)}
+
+Device keywords to specify the
+device type of a free-form File definition.
+The default device type is DISK.
+
+The default parameter for each device-type keyword is *EXT, indicating
+that it is an externally-described file.
+
+See File devices.
+
+PRINTER{(*EXT | record-length)}
+
+SEQ{(*EXT | record-length)}
+
+SPECIAL{(*EXT | record-length)}
+
+WORKSTN{(*EXT | record-length)}
+
+USAGE(*INPUT *OUTPUT *UPDATE *DELETE)
+
+Specifies the usage of the file in a free-form
+file definition. See USAGE(*INPUT *OUTPUT *UPDATE *DELETE).
+
+KEYED{(*CHAR : key-length)}
+
+Indicates that the file is keyed in a free-form
+file definition. See KEYED{(*CHAR : key-length)}.
+
+Table 12. New Language Elements In 7.2: Free-form
+data-type keywords
+
+Element
+
+Description
+
+CHAR(length)
+
+Fixed-length alphanumeric data type See CHAR(length).
+
+VARCHAR(length {:prefix-size})
+
+Varying-length alphanumeric data type See VARCHAR(length {:2 | 4}).
+
+GRAPH(length)
+
+Fixed-length Graphic data type See GRAPH(length).
+
+VARGRAPH(length {:prefix-size})
+
+Varying-length Graphic data type See VARGRAPH(length {:2 | 4}).
+
+UCS2(length)
+
+Fixed-length UCS-2 data type See UCS2(length).
+
+VARUCS2(length {:prefix-size})
+
+Varying-length UCS-2 data type See VARUCS2(length {:2 | 4}).
+
+IND
+
+Indicator data type See IND.
+
+INT(digits)
+
+Integer data type See INT(digits).
+
+UNS(digits)
+
+Unsigned integer data type See UNS(digits).
+
+PACKED(digits {:decimals})
+
+Packed decimal data type See PACKED(digits {: decimal-positions}).
+
+ZONED(digits {:decimals})
+
+Zoned decimal data type See ZONED(digits {: decimal-positions}).
+
+BINDEC(digits {:decimals})
+
+Binary decimal data type See BINDEC(digits {: decimal-positions}).
+
+FLOAT(size)
+
+Float data type See FLOAT(bytes).
+
+DATE{(format)}
+
+Date data type See DATE{(format{separator})}.
+
+TIME{(format)}
+
+Time data type See TIME{(format{separator})}.
+
+TIMESTAMP {(fractional seconds)}
+
+Timestamp data type See TIMESTAMP{(fractional-seconds)}.
+
+POINTER{(*PROC)}
+
+Pointer data type. The optional parameter *PROC
+indicates that it is a procedure pointer. See POINTER{(*PROC)}.
+
+OBJECT{(*JAVA : class-name)}
+
+Object data type. The parameters are optional
+if it is defining the return type of a Java™ constructor. See OBJECT{(*JAVA:class-name)}.
+
+Table 13. New Language Elements In 7.2: Free-form
+data definition keywords
+
+Element
+
+Description
+
+EXT
+
+Indicates that a data structure is externally
+described. This keyword is optional if the EXTNAME keyword is specified
+as the first keyword for a data structure definition. See EXT.
+
+POS(subfield-start-position)
+
+Specifies the starting position of a subfield
+in the data structure. See POS(starting-position).
+
+PSDS
+
+Specifies that the data structure is a Program
+Status Data Structure. See PSDS.

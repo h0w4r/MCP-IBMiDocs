@@ -1,0 +1,162 @@
+Keyed Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Data Types and Data Formats > Database Null Value Support > User Controlled Support for Null-Capable Fields and Key Fields > User Controlled Support for Null-Capable Fields and Key Fields
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Data Types and Data Formats > Database Null Value Support > User Controlled Support for Null-Capable Fields and Key Fields
+
+Keyed Operations
+
+If you have a null-capable keyfield,
+you can position to the beginning or end of the file using
+the SETLL operation with *START or *END.
+
+If you have a null-capable key field, you can search for records containing
+null values by specifying an indicator in factor 2 of the KFLD operation and
+setting that indicator on before the keyed input operation. If you do not
+want a null key to be selected, you set the indicator off.
+
+If factor 2 of a KFLD operation is not specified,
+then the null-key-byte-map information will be set to zero for that key.
+
+When a record format with null-capable key fields is used on
+a CHAIN, SETLL, READE, or READPE operation, and a %KDS data structure is used
+to specify the keys, then the null-key-byte-map information will be taken
+from the null attributes of the subfields in the data structure specified
+as the argument of %KDS.
+
+When a record format with null-capable key fields is used on
+a CHAIN, SETLL, READE, or READPE operation, and a list of keyfields is used,
+then the null-key-byte-map information will be taken from the null attributes
+of the specified keys.
+
+Note: When a file without a null-capable key field is processed with a
+keyed I/O operation, the %NULLIND value for the search argument must
+be zero; otherwise a data mapping error will occur.
+
+Figure 1 and Figure 2 illustrate how keyed operations
+are used to position and retrieve records with null keys.
+
+Figure 1. Example of handling null-capable key fields
+
+// Assume File1 below contains a record Rec1 with a composite key
+// made up of three key fields: Key1, Key2, and Key3. Key2 and Key3
+// are null-capable. Key1 is not null-capable.
+// Each key field is two characters long.
+*..1....+....2....+....3....+....4....+....5....+....6....+....7....+..
+FFilename++IPEASFRlen+LKlen+AIDevice+.Keywords++++++++++++++++++++++++++
+FFile1 IF E DISK
+// Define two data structures with the keys for the file
+// Subfields Key2 and Key3 of both data structures will be
+// null-capable.
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D Keys DS LIKEREC(Rec1 : *KEY)
+D OtherKeys DS LIKEDS(keys)
+// Define a data structure with the input fields of the file
+// Subfields Key2 and Key3 of the data structures will be
+// null-capable.
+D File1Flds DS LIKEREC(Rec1 : *INPUT)
+/free
+// The null indicator for Keys.Key2 is ON and the
+// null indicator for Keys.Key3 is OFF, for the
+// SETLL operation below. File1 will be positioned
+// at the next record that has a key that is equal
+// to or greater than 'AA??CC' (where ?? is used
+// in this example to indicate NULL)
+
+// Because %NULLIND(Keys.Key2) is ON, the actual content
+// in the search argument Keys.Key2 will be ignored.
+
+// If a record exists in File1 with 'AA' in Key1, a null
+// Key2, and 'CC' in Key3, %EQUAL(File1) will be true.
+
+Keys.Key1 = 'AA';
+Keys.Key3 = 'CC';
+%NULLIND(Keys.Key2) = *ON;
+%NULLIND(Keys.Key3) = *OFF;
+SETLL %KDS(Keys) Rec1;
+// The CHAIN operation below will retrieve a record
+// with 'JJ' in Key1, 'KK' in Key2, and a null Key3.
+// Since %NULLIND(OtherKeys.Key3) is ON, the value of
+// 'XX' in OtherKeys.Key3 will not be used. This means
+// that if File1 actually has a record with a key
+// 'JJKKXX', that record will not be retrieved.
+
+OtherKeys.Key3 = 'XX';
+%NULLIND(Keys.Key3) = *ON;
+CHAIN ('JJ' : 'KK' : OtherKeys.Key3) Rec1;
+// The CHAIN operation below uses a partial key as the
+// search argument. It will retrieve a record with 'NN'
+// in Key1, a null key2, and any value including a null
+// value in Key3. The record is retrieved into the
+// File1Flds data structure, which will cause the
+// null flags for File1Flds.Key2 and File1Flds.Key3
+// to be changed by the operation (if the CHAIN
+// finds a record).
+
+Keys.Key1 = 'NN';
+%NULLIND(Keys.Key2) = *ON;
+CHAIN %KDS(Keys : 2) Rec1 File1Flds;
+
+Figure 2. Example of handling null key fields with
+KLIST
+
+* Using the same file as the previous example, define two
+* key lists, one containing three keys and one containing
+* two keys.
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq.
+C Full_Kl KLIST
+C KFLD Key1
+C KFLD *IN02 Key2
+C KFLD *IN03 Key3
+C Partial_Kl KLIST
+C KFLD Key1
+C KFLD *IN05 Key2
+*
+* *IN02 is ON and *IN03 is OFF for the SETLL operation below.
+* File1 will be positioned at the next record that has a key
+* that is equal to or greater than 'AA??CC' (where ?? is used
+* in this example to indicate NULL)
+*
+* Because *IN02 is ON, the actual content in the search argument
+* for Key2 will be ignored.
+*
+* If a record exists in File1 with 'AA' in Key1, a null Key2, and
+* 'CC' in Key3, indicator 90 (the Eq indicator) will be set ON.
+*
+C MOVE 'AA' Key1
+C MOVE 'CC' Key3
+C EVAL *IN02 = '1'
+C EVAL *IN03 = '0'
+C Full_Kl SETLL Rec1 90
+*
+* The CHAIN operation below will retrieve a record with 'JJ' in Key1,
+* 'KK' in Key2, and a null Key3. Again, because *IN03 is ON, even
+* if the programmer had moved some value (say 'XX') into the search
+* argument for Key3, 'XX' will not be used. This means if File1
+* actually has a record with a key 'JJKKXX', that record will not
+* be retrieved.
+*
+C MOVE 'JJ' Key1
+C MOVE 'KK' Key2
+C EVAL *IN02 = '0'
+C EVAL *IN03 = '1'
+C Full_Kl CHAIN Rec1 80
+*
+* The CHAIN operation below uses a partial key as the search argument.
+* It will retrieve a record with 'NN' in Key1, a null key2, and any
+* value including a null value in Key3.
+*
+* In the database, the NULL value occupies the highest position in
+* the collating sequence. Assume the keys in File1 are in ascending
+* sequence. If File1 has a record with 'NN??xx' as key (where ??
+* means NULL and xx means any value other than NULL), that record
+* will be retrieved. If such a record does not exist in File1, but
+* File1 has a record with 'NN????' as key, the 'NN????' record will
+* be retrieved. The null flags for Key2 and Key3 will be set ON
+* as a result.
+*
+C MOVE 'NN' Key1
+C SETON 05
+C Partial_Kl CHAIN Rec1 70
+
+Parent topic: User Controlled Support for Null-Capable Fields and Key Fields

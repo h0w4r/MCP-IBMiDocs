@@ -1,0 +1,195 @@
+Recursion example: bill of materials
+
+IBM i programming resources > SQL > SQL reference > Queries > select-statement > common-table-expression > common-table-expression
+
+IBM i programming resources > SQL > SQL reference > Queries > select-statement > common-table-expression
+
+Recursion example: bill of materials
+Bill of materials (BOM) applications are a common requirement
+in many business environments. To illustrate the capability of a recursive
+common table expression for BOM applications, consider a table of
+parts with associated subparts and the quantity of subparts required
+by the part.
+For this example, create the table as follows:
+CREATE TABLE PARTLIST
+( PART VARCHAR(8),
+SUBPART VARCHAR(8),
+QUANTITY INTEGER )
+
+To give query results for this example, assume that the
+PARTLIST table is populated with the following values:
+PART SUBPART QUANTITY
+-------- -------- -----------
+00 01 5
+00 05 3
+01 02 2
+01 03 3
+01 04 4
+01 06 3
+02 05 7
+02 06 6
+03 07 6
+04 08 10
+04 09 11
+05 10 10
+05 11 10
+06 12 10
+06 13 10
+07 14 8
+07 12 8
+
+Example 1: Single level explosionThe
+first example is called single level explosion. It answers the question,
+"What parts are needed to build the part identified by '01'?". The
+list will include the direct subparts, subparts of the subparts and
+so on. However, if a part is used multiple times, its subparts are
+only listed once.
+WITH RPL (PART, SUBPART, QUANTITY) AS
+( SELECT ROOT.PART, ROOT.SUBPART, ROOT.QUANTITY
+FROM PARTLIST ROOT
+WHERE ROOT.PART = '01'
+UNION ALL
+SELECT CHILD.PART, CHILD.SUBPART, CHILD.QUANTITY
+FROM RPL PARENT, PARTLIST CHILD
+WHERE PARENT.SUBPART = CHILD.PART
+)
+SELECT DISTINCT PART, SUBPART, QUANTITY
+FROM RPL
+ORDER BY PART, SUBPART, QUANTITY
+
+The above query includes a common table expression, identified
+by the name RPL, that expresses the recursive part of this query.
+It illustrates the basic elements of a recursive common table expression.
+The first operand (fullselect) of the UNION, referred
+to as the initialization fullselect, gets the direct children of part
+'01'. The FROM clause of this fullselect refers to the source table
+and will never refer to itself (RPL in this case). The result of this
+first fullselect goes into the common table expression RPL (Recursive
+PARTLIST). As in this example, the UNION must always be a UNION ALL.
+The second operand (fullselect) of the UNION uses RPL
+to compute subparts of subparts by having the FROM clause refer to
+the common table expression RPL and the source table with a join of
+a part from the source table (child) to a subpart of the current result
+contained in RPL (parent). The result goes back to RPL again. The
+second operand of UNION is then used repeatedly until no more children
+exist.
+The SELECT DISTINCT in the main fullselect of this query
+ensures the same part/subpart is not listed more than once.
+The result of the query is as follows:
+PART SUBPART QUANTITY
+-------- -------- -----------
+01 02 2
+01 03 3
+01 04 4
+01 06 3
+02 05 7
+02 06 6
+03 07 6
+04 08 10
+04 09 11
+05 10 10
+05 11 10
+06 12 10
+06 13 10
+07 12 8
+07 14 8
+
+Observe in the result that part '01' goes to '02' which
+goes to '06' and so on. Further, notice that part '06' is reached
+twice, once through '01' directly and another time through '02'. In
+the output, however, its subcomponents are listed only once (this
+is the result of using a SELECT DISTINCT) as required.
+Example 2: Summarized explosionThe second
+example is a summarized explosion. The question posed here is, what
+is the total quantity of each part required to build part '01'. The
+main difference from the single level explosion is the need to aggregate
+the quantities. The first example indicates the quantity of subparts
+required for the part whenever it is required. It does not indicate
+how many of the subparts are needed to build part '01'.
+WITH RPL (PART, SUBPART, QUANTITY) AS
+( SELECT ROOT.PART, ROOT.SUBPART, ROOT.QUANTITY
+FROM PARTLIST ROOT
+WHERE ROOT.PART = '01'
+UNION ALL
+SELECT PARENT.PART, CHILD.SUBPART, PARENT.QUANTITY*CHILD.QUANTITY
+FROM RPL PARENT, PARTLIST CHILD
+WHERE PARENT.SUBPART = CHILD.PART
+)
+SELECT PART, SUBPART, SUM(QUANTITY) AS "Total QTY Used"
+FROM RPL
+GROUP BY PART, SUBPART
+ORDER BY PART, SUBPART
+
+In the above query, the select list of the second operand
+of the UNION in the recursive common table expression, identified
+by the name RPL, shows the aggregation of the quantity. To find out
+how much of a subpart is used, the quantity of the parent is multiplied
+by the quantity per parent of a child. If a part is used multiple
+times in different places, it requires another final aggregation.
+This is done by the grouping over the common table expression RPL
+and using the SUM aggregate function in the select list of the main
+fullselect.
+The result of the query is as follows:
+PART SUBPART Total Qty Used
+-------- -------- --------------
+01 02 2
+01 03 3
+01 04 4
+01 05 14
+01 06 15
+01 07 18
+01 08 40
+01 09 44
+01 10 140
+01 11 140
+01 12 294
+01 13 150
+01 14 144
+
+Looking at the output, consider the line for subpart '06'.
+The total quantity used value of 15 is derived from a quantity of
+3 directly for part '01' and a quantity of 6 for part '02' which is
+needed 2 times by part '01'.
+Example 3: Controlling depthThe question
+may come to mind, what happens when there are more levels of parts
+in the table than you are interested in for your query? That is, how
+is a query written to answer the question, "What are the first two
+levels of parts needed to build the part identified by '01'?" For
+the sake of clarity in the example, the level is included in the result.
+WITH RPL ( LEVEL, PART, SUBPART, QUANTITY)
+AS ( SELECT 1, ROOT.PART, ROOT.SUBPART, ROOT.QUANTITY
+FROM PARTLIST ROOT
+WHERE ROOT.PART = '01'
+UNION ALL
+SELECT PARENT.LEVEL+1, CHILD.PART, CHILD.SUBPART, CHILD.QUANTITY
+FROM RPL PARENT, PARTLIST CHILD
+WHERE PARENT.SUBPART = CHILD.PART
+AND PARENT.LEVEL < 2
+)
+SELECT PART, LEVEL, SUBPART, QUANTITY
+FROM RPL
+
+This query is similar to example 1. The column LEVEL was
+introduced to count the levels from the original part. In the initialization
+fullselect, the value for the LEVEL column is initialized to 1. In
+the subsequent fullselect, the level from the parent is incremented
+by 1. Then to control the number of levels in the result, the second
+fullselect includes the condition that the parent level must be less
+than 2. This ensures that the second fullselect only processes children
+to the second level.
+The result of the query is:
+PART LEVEL SUBPART QUANTITY
+-------- ----------- -------- -----------
+01 1 02 2
+01 1 03 3
+01 1 04 4
+01 1 06 3
+02 2 05 7
+02 2 06 6
+03 2 07 6
+04 2 08 10
+04 2 09 11
+06 2 12 10
+06 2 13 10
+
+Parent topic: common-table-expression

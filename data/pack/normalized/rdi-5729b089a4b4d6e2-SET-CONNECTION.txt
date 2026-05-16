@@ -1,0 +1,154 @@
+SET CONNECTION
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+SET CONNECTION
+The SET CONNECTION statement establishes the current server
+of the activation group by identifying one of its existing connections.
+InvocationThis statement can only be embedded
+within an application program or issued interactively. It is an executable
+statement that cannot be dynamically prepared. It must not be specified
+in Java™ or REXX.
+SET CONNECTION is not allowed in a trigger or function.
+Authorization If a global variable
+is referenced in a statement, the privileges held by the authorization
+ID of the statement must include at least one of the following:
+For the global variable identified in the statement, The READ privilege on the global variable, and
+The system authority *EXECUTE on the library containing the global
+variable
+
+Database administrator authority
+
+SyntaxSET CONNECTIONserver-namevariable
+Descriptionserver-name or variable
+Identifies the connection
+by the specified server name or the server name contained in the variable. It can be a global variable if it is qualified with schema
+name. If a variable is specified: It must be a character-string variable with a length attribute
+that is not greater than 18.
+It must not be followed by an indicator variable.
+The server name must be left-justified within the variable and
+must conform to the rules for forming an ordinary identifier.
+If the length of the server name is less than the length of the
+variable, it must be padded on the right with blanks.
+
+Let S denote the specified server name or the server name
+contained in the variable. S must identify an existing connection
+of the application process. If S identifies the current connection,
+the state of S and all other connections of the application process
+are unchanged, but information about S is placed in the SQLERRP field
+of the SQLCA. The following rules apply when S identifies a dormant
+connection.
+If the SET CONNECTION statement is successful:
+Connection S is placed in the current state.
+S is placed in the CURRENT SERVER special register.
+Information about the application server is placed in the connection-information-items in
+the SQL Diagnostics Area.
+Information about application server S is also placed in the SQLERRP
+field of the SQLCA. If the application server is an IBM® relational database product, the information
+has the form pppvvrrm, where: ppp identifies the product as follows:
+ARI for DB2® for VSE and
+VM
+DSN for DB2 for z/OS®
+QSQ for DB2 for
+i
+SQL for all other DB2 products
+
+vv is a two-digit version identifier
+such as '04'
+rr is a two-digit release identifier
+such as '01'
+m is a one-digit modification level
+such as '0'
+
+For example, if the application server is Version 4 of DB2 for z/OS, the value of SQLERRP is 'DSN04010'.
+
+Additional information about the connection is available from
+the DB2_CONNECTION_STATUS and DB2_CONNECTION_TYPE connection information
+items in the SQL Diagnostics Area. The DB2_CONNECTION_STATUS connection
+information item indicates the status of connection for this unit
+of work. It will have one of the following values:
+1 - Committable updates can be performed on the connection for
+this unit of work.
+2 - No committable updates can be performed on the connection
+for this unit of work.
+
+The DB2_CONNECTION_TYPE connection information item indicates
+the type of connection. It will have one of the following values:
+
+1 - Connection is to a local relational database.
+2 - Connection is to a remote relational database with the conversation
+unprotected.
+3 - Connection is to a remote relational database with the conversation
+protected.
+4 - Connection is to an application requester driver program.
+
+Additional information about the connection is also placed in
+the SQLERRD(4) field of the SQLCA. SQLERRD(4) will contain a value
+indicating whether the application server allows committable updates
+to be performed. Following is a list of values and their meanings
+for the SQLERRD(4) field of the SQLCA on the CONNECT : 1 - Committable updates can be performed and either the connection
+uses an unprotected conversation, is a connection established to an
+application requester driver program using a CONNECT (Type 1) statement,
+or is a local connection established using a CONNECT (Type 1) statement.
+2 - No committable updates can be performed; conversation is
+unprotected.
+3 - It is unknown if committable updates can be performed; conversation
+is protected.
+4 - It is unknown if committable updates can be performed; conversation
+is unprotected.
+5 - It is unknown if committable updates can be performed and
+the connection is either a local connection established using a CONNECT
+(Type 2) statement or a connection to an application requester driver
+program established using a CONNECT (Type 2) statement.
+
+Additional information about the connection is placed in the SQLERRMC
+field of the SQLCA. Refer to Appendix B, "SQL Communication Area"
+for a description of the information in the SQLERRMC field.
+Any previously current connection is placed in the dormant state.
+
+If the SET CONNECTION statement is unsuccessful, the connection
+state of the activation group and the states of its connections are
+unchanged.
+NotesSET
+CONNECTION for CONNECT (Type 1): The use of CONNECT (Type 1) statements
+does not prevent the use of SET CONNECTION, but the statement either
+fails or does nothing because dormant connections do not exist.
+Status after connection is restored: When a connection
+is used, made dormant, and then restored to the current state in the
+same unit of work, the status of locks, cursors, and prepared statements
+for that connection reflects its last use by the activation group.
+Local connections: A SET CONNECTION to a local
+connection will fail if the current independent auxiliary Storage
+pool (IASP) name space does not match the local connection's relational
+database.
+ExampleExecute SQL statements at TOROLAB1,
+execute SQL statements at TOROLAB2, and then execute more SQL statements
+at TOROLAB1.
+  
+EXEC SQL
+CONNECT TO
+TOROLAB1;
+
+   (Execute statements referencing objects at TOROLAB1)
+
+  
+EXEC SQL
+CONNECT TO
+TOROLAB2;  
+
+   (Execute statements referencing objects at TOROLAB2)
+
+  
+EXEC SQL
+SET CONNECTION
+TOROLAB1;
+
+   (Execute statements referencing objects at TOROLAB1)
+
+The first CONNECT statement creates the TOROLAB1 connection,
+the second CONNECT statement places it in the dormant state, and the
+SET CONNECTION statement returns it to the current state.
+
+Parent topic: Statements

@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Keyed Operations" name="DC.title" />
+<meta content="null value support, user controlled, keyed operations" name="DC.subject" />
+<meta content="null value support, user controlled, keyed operations" name="keywords" />
+<meta content="usrnvs.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="nvskeys" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Keyed Operations</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Fnvskeys.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="nvskeys">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dataprt.htm" shape="rect">Definitions</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dtdf.htm" shape="rect">Data Types and Data Formats</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dbnvs.htm" shape="rect">Database Null Value Support</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/usrnvs.htm" shape="rect">User Controlled Support for Null-Capable Fields and Key Fields</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">Keyed Operations</h1>
+
+
+<div class="body">
+<p class="p">If you have a null-capable keyfield,
+you can position to the beginning or end of the file using
+the <a class="xref" href="zzsetll.htm" shape="rect">SETLL</a> operation with *START or *END.</p>
+
+<p class="p">If you have a null-capable key field, you can search for records containing
+null values by specifying an indicator in factor 2 of the KFLD operation and
+setting that indicator on before the keyed input operation.  If you do not
+want a null key to be selected, you set the indicator off.</p>
+
+<p class="p">If factor 2 of a KFLD operation is not specified,
+then the null-key-byte-map information will be set to zero for that key.</p>
+
+<p class="p">When a record format with null-capable key fields is used on
+a CHAIN, SETLL, READE, or READPE operation, and a %KDS data structure is used
+to specify the keys, then the null-key-byte-map information will be taken
+from the null attributes of the subfields in the data structure specified
+as the argument of %KDS.  </p>
+
+<p class="p">When a record format with null-capable key fields is used on
+a CHAIN, SETLL, READE, or READPE operation, and a list of keyfields is used,
+then the null-key-byte-map information will be taken from the null attributes
+of the specified keys.</p>
+
+<div class="note note"><span class="notetitle">Note:</span> When a file without a null-capable key field is processed with a
+keyed I/O operation, the %NULLIND value for the search argument must
+be zero; otherwise a data mapping error will occur.
+</div>
+
+
+<p class="p"><a class="xref" href="#nvskeys__nulkey1" shape="rect">Figure 1</a> and <a class="xref" href="#nvskeys__nulkey" shape="rect">Figure 2</a> illustrate how keyed operations
+are used to position and retrieve records with null keys.</p>
+
+<div class="fig fignone" id="nvskeys__nulkey1"><span class="figcap"><span class="fig--title-label">Figure 1. </span>Example of handling null-capable key fields</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code>  // Assume File1 below contains a record Rec1 with a composite key
+  // made up of three key fields: Key1, Key2, and Key3.  Key2 and Key3
+  // are null-capable.  Key1 is not null-capable.
+  // Each key field is two characters long.
+*..1....+....2....+....3....+....4....+....5....+....6....+....7....+..
+FFilename++IPEASFRlen+LKlen+AIDevice+.Keywords++++++++++++++++++++++++++
+FFile1     IF   E             DISK
+  // Define two data structures with the keys for the file
+  // Subfields Key2 and Key3 of both data structures will be
+  // null-capable.
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D Keys            DS                  LIKEREC(Rec1 : *KEY)
+D OtherKeys       DS                  LIKEDS(keys)
+  // Define a data structure with the input fields of the file
+  // Subfields Key2 and Key3 of the data structures will be
+  // null-capable.
+D File1Flds       DS                  LIKEREC(Rec1 : *INPUT)
+ /free
+     // The null indicator for Keys.Key2 is ON and the
+     // null indicator for Keys.Key3 is OFF, for the
+     // SETLL operation below.  File1 will be positioned
+     // at the next record that has a key that is equal
+     // to or greater than 'AA??CC' (where ?? is used
+     // in this example to indicate NULL)
+
+     // Because %NULLIND(Keys.Key2) is ON, the actual content
+     // in the search argument Keys.Key2 will be ignored.
+
+     // If a record exists in File1 with 'AA' in Key1, a null
+     // Key2, and 'CC' in Key3, %EQUAL(File1) will be true.
+
+     Keys.Key1 = 'AA';
+     Keys.Key3 = 'CC';
+     %NULLIND(Keys.Key2) = *ON;
+     %NULLIND(Keys.Key3) = *OFF;
+     SETLL %KDS(Keys) Rec1;
+     // The CHAIN operation below will retrieve a record
+     // with 'JJ' in Key1, 'KK' in Key2, and a null Key3.
+     // Since %NULLIND(OtherKeys.Key3) is ON, the value of
+     // 'XX' in OtherKeys.Key3 will not be used.  This means
+     // that if File1 actually has a record with a key
+     // 'JJKKXX', that record will not be retrieved.
+
+     OtherKeys.Key3 = 'XX';
+     %NULLIND(Keys.Key3) = *ON;
+     CHAIN ('JJ' : 'KK' : OtherKeys.Key3) Rec1;
+     // The CHAIN operation below uses a partial key as the
+     // search argument.  It will retrieve a record with 'NN'
+     // in Key1, a null key2, and any value including a null
+     // value in Key3.  The record is retrieved into the
+     // File1Flds data structure, which will cause the
+     // null flags for File1Flds.Key2 and File1Flds.Key3
+     // to be changed by the operation (if the CHAIN
+     // finds a record).
+
+     Keys.Key1 = 'NN';
+     %NULLIND(Keys.Key2) = *ON;
+     CHAIN %KDS(Keys : 2) Rec1 File1Flds;
+
+</code></pre></div>
+
+<div class="fig figborder" id="nvskeys__nulkey"><span class="figcap"><span class="fig--title-label">Figure 2. </span>Example of handling null key fields with
+KLIST</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> * Using the same file as the previous example, define two
+ * key lists, one containing three keys and one containing
+ * two keys.
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq.
+ C     Full_Kl       KLIST
+ C                   KFLD                    Key1
+ C                   KFLD      *IN02         Key2
+ C                   KFLD      *IN03         Key3
+ C     Partial_Kl    KLIST
+ C                   KFLD                    Key1
+ C                   KFLD      *IN05         Key2
+  *
+  * *IN02 is ON and *IN03 is OFF for the SETLL operation below.
+  * File1 will be positioned at the next record that has a key
+  * that is equal to or greater than 'AA??CC' (where ?? is used
+  * in this example to indicate NULL)
+  *
+  * Because *IN02 is ON, the actual content in the search argument
+  * for Key2 will be ignored.
+  *
+  * If a record exists in File1 with 'AA' in Key1, a null Key2, and
+  * 'CC' in Key3, indicator 90 (the Eq indicator) will be set ON.
+  *
+ C                   MOVE      'AA'          Key1
+ C                   MOVE      'CC'          Key3
+ C                   EVAL      *IN02 = '1'
+ C                   EVAL      *IN03 = '0'
+ C     Full_Kl       SETLL     Rec1                                   90</code></pre>
+<pre class="pre codeblock" xml:space="preserve"><code>  *
+  * The CHAIN operation below will retrieve a record with 'JJ' in Key1,
+  * 'KK' in Key2, and a null Key3.  Again, because *IN03 is ON, even
+  * if the programmer had moved some value (say 'XX') into the search
+  * argument for Key3, 'XX' will not be used.  This means if File1
+  * actually has a record with a key 'JJKKXX', that record will not
+  * be retrieved.
+  *
+ C                   MOVE      'JJ'          Key1
+ C                   MOVE      'KK'          Key2
+ C                   EVAL      *IN02 = '0'
+ C                   EVAL      *IN03 = '1'
+ C     Full_Kl       CHAIN     Rec1                               80
+  *
+  * The CHAIN operation below uses a partial key as the search argument.
+  * It will retrieve a record with 'NN' in Key1, a null key2, and any
+  * value including a null value in Key3.
+  *
+  * In the database, the NULL value occupies the highest position in
+  * the collating sequence.  Assume the keys in File1 are in ascending
+  * sequence.  If File1 has a record with 'NN??xx' as key (where ??
+  * means NULL and xx means any value other than NULL), that record
+  * will be retrieved.  If such a record does not exist in File1, but
+  * File1 has a record with 'NN????' as key, the 'NN????' record will
+  * be retrieved.  The null flags for Key2 and Key3 will be set ON
+  * as a result.
+  *
+ C                   MOVE      'NN'          Key1
+ C                   SETON                                        05
+ C     Partial_Kl    CHAIN     Rec1                               70</code></pre></div>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="usrnvs.htm" shape="rect">User Controlled Support for Null-Capable Fields and Key Fields</a></div>
+</div>
+</div></body>
+</html>

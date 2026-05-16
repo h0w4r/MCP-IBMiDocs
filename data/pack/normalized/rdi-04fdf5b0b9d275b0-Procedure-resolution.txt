@@ -1,0 +1,97 @@
+Procedure resolution
+
+IBM i programming resources > SQL > SQL reference > Language elements > Language elements
+
+IBM i programming resources > SQL > SQL reference > Language elements
+
+Procedure resolution
+Given a procedure invocation, DB2® must
+decide which of the possible procedures with the same name to execute.
+Let A be the number of arguments in a procedure invocation.
+Let P be the number of parameters in a procedure signature.
+Let N be the number of parameters without a default.
+
+Candidate procedures for resolution of a procedure invocation
+are selected based on the following criteria:Each candidate procedure has a matching name and an applicable
+number of parameters. An applicable number of parameters satisfies
+the condition N ≤ A ≤ P.
+Each candidate procedure has parameters such that for each named
+argument in the CALL statement there exists a parameter with a matching
+name that does not already correspond to a positional (or unnamed)
+argument.
+Each parameter of a candidate procedure that does not have a corresponding
+argument in the CALL statement, specified by either position or name,
+is defined with a default.
+Each candidate procedure from a set of one or more schemas has
+the EXECUTE privilege associated with the authorization ID of the
+CALL statement. The authorities of any objects referenced in a default
+expression are not considered.
+
+In addition, the set of candidate procedures depends on
+how the procedure name is qualified.If the procedure name is unqualified, procedure resolution is
+done as follows:Search all procedures with a schema in the SQL
+path for candidate procedures. If one or more candidate procedures
+are found in the schemas of the SQL path, then these candidate procedures
+are included in the candidate list. If there is a single candidate
+procedure in the list, resolution is complete. If there are multiple
+candidate procedures, choose the procedure whose schema is earliest
+in the SQL path. If there are still multiple candidate procedures,
+select the candidate procedure with the lowest number of parameters.
+If
+there are no candidate procedures, an error is returned.
+
+If the procedure name is qualified, procedure resolution is done
+as follows:Search within the schema specified by the qualifier
+for candidate procedures. If a single candidate procedure exists,
+resolution is complete. If there are multiple candidate procedures,
+choose the candidate procedure with the lowest number of parameters
+and resolution is complete. If the schema does not exist or there
+are no authorized candidate procedures, an error is returned.
+
+Example 1: There are six FOO procedures,
+in four different schemas, registered as follows (note that not all
+required keywords appear): CREATE PROCEDURE AUGUSTUS.FOO (INT) SPECIFIC FOO_1 ...
+CREATE PROCEDURE AUGUSTUS.FOO (DOUBLE, DECIMAL(15, 3)) SPECIFIC FOO_2 ...
+CREATE PROCEDURE JULIUS.FOO (INT) SPECIFIC FOO_3 ...
+CREATE PROCEDURE JULIUS.FOO (INT, INT, INT) SPECIFIC FOO_4 ...
+CREATE PROCEDURE CAESAR.FOO (INT, INT) SPECIFIC FOO_5 ...
+CREATE PROCEDURE NERO.FOO (INT,INT) SPECIFIC FOO_6 ...
+The
+procedure reference is as follows (where I1 and I2 are INTEGER values):
+CALL FOO(I1, I2)
+Assume that the application making this reference has
+an SQL path established as: "JULIUS", "AUGUSTUS", "CAESAR"
+Following through the algorithm, the procedure with specific
+name FOO_6 is eliminated as a candidate, because the schema "NERO"
+is not included in the SQL path. FOO_1, FOO_3, and FOO_4 are eliminated
+as candidates, because they have the wrong number of parameters. The
+remaining candidates are considered in order, as determined by the
+SQL path. Note that the types of the arguments and parameters are
+ignored. The parameters of FOO_5 exactly match the arguments in the
+CALL, but FOO_2 is chosen because "AUGUSTUS" appears before "CAESAR"
+in the SQL path.
+
+Example 2: The following examples
+illustrate procedure resolution using named parameters in the CALL
+statement: CREATE PROCEDURE p1(i1 INT)...
+CREATE PROCEDURE p1(i1 INT DEFAULT 0, i2 INT DEFAULT 0)...
+
+CALL p1(i2=>1)
+Since the argument names are taken
+into consideration during the candidate selection process, only the
+second version of p1 will be considered a candidate. Furthermore,
+it can be successfully called because i1 in this version of p1 is
+defined with a default, so only specifying i2 on the call to p1 is valid. The
+procedure will be passed a value of 0 for parameter i1. CREATE PROCEDURE p2(i1 INT, i2 INT DEFAULT 0)...
+CREATE PROCEDURE p2(i1 INT DEFAULT 0, i2 INT DEFAULT 0, i3 INT DEFAULT 0)...
+
+CALL p2(i2=>1)
+One of the criteria for a procedure
+parameter which does not have a corresponding argument in the CALL
+statement (specified by either position or name) is that the parameter
+is defined with a default value. Therefore, the first version of p2
+is not considered a candidate since parameter i1 does not have a default
+defined. The second version of p2 will be selected and the default
+values for the first and third parameters will be passed.
+
+Parent topic: Language elements

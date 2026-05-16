@@ -1,0 +1,228 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Example: An ILE C Program that Uses C++ Objects</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="using in a C program, C++ objects">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog460.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog452.htm">Chapter 23&#46; Using ILE C&#47;C++ Call Conventions</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog458.htm">Calling C++ Programs and Procedures from ILE C</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRXPCLS" HREF="cpprog02.htm#ToC_572">Example: An ILE C Program that Uses C++ Objects</A></H3>
+<P>
+This program shows how you can access the data members in C++ classes from
+source code written in C.
+<P><H4><A NAME="Header_573">Program Structure</A></H4>
+<P>The program consists of these files: 
+<UL>
+<LI>A C++ source file <TT>hourclas.cpp</TT> which contains: 
+<UL>
+<LI>Definitions of one base class, <TT>HourMin</TT>, and two derived
+classes, <TT>HourMinSec1</TT> and <TT>HourMinSec2</TT>
+</LI><LI>Three function prototypes with <TT>extern "C"</TT> linkage: 
+<UL>
+<LI><TT>extern "C" void CSetHour(HourMin *)</TT>
+</LI><LI><TT>extern "C" void CSetSec(HourMin *)</TT>
+</LI><LI><TT>extern "C" void CSafeSetHour(HourMin *)</TT>
+</LI></UL>
+</LI><LI>The definition of a function with <TT>extern "C"</TT> linkage,
+<TT>extern "C" void CXXSetHour(HourMin * x)</TT>
+</LI><LI>A <TT>main()</TT> function containing the program logic
+</LI></UL>
+<P>See <A HREF="#FIGFIGHOURCLASCPP">Figure 199</A>.
+</LI><LI>A C source file <TT>hour.c</TT> which contains: 
+<UL>
+<LI>A structure <TT>CHourMin</TT> that maps to the C++ class
+<TT>HourMin</TT> in file <TT>hourclas.cpp</TT>
+</LI><LI>Definitions of the three functions with <TT>extern "C"</TT> linkage
+declared in <TT>hourclas.cpp</TT>
+</LI><LI>The definition of a function <TT>CSafeSetHour()</TT>
+</LI></UL>
+</LI></UL>
+<P>
+<P><B><A NAME="FIGFIGHOURCLASCPP" HREF="cpprog09.htm#FT_FIGFIGHOURCLASCPP">Figure 199. C++ Source File hourclas.cpp Definitions Used by C Source File hour.c</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>#include &lt;iostream.h>
+ 
+class HourMin {        // base class
+  protected:
+    int h;
+    int m;
+ 
+  public:
+    void set_hour(int hour) { h = hour % 24; }  // keep it in range
+    int  get_hour()         { return h; }
+    void set_min(int min)   { m =  min % 60; } // keep it in range
+    int  get_min()          { return m; }
+    HourMin(): h(0), m(0) {}
+    void display() { cout &lt;&lt; h &lt;&lt; ':' &lt;&lt; m &lt;&lt; endl; }
+};
+ 
+// derived from class HourMin
+class HourMinSec1 : public HourMin {
+  public:
+    int s;
+    void set_sec(int sec) { s = sec % 60; }  // keep it in range
+    int  get_sec()        { return s; }
+    HourMinSec1() { s = 0; }
+    void display() { cout &lt;&lt; h &lt;&lt; ':' &lt;&lt; m &lt;&lt; ':' &lt;&lt; s &lt;&lt; endl; }
+};
+ 
+// has an HourMin contained inside
+class HourMinSec2 {
+  private:
+    HourMin a;
+    int s;
+ 
+  public:
+    void set_sec(int sec) { s = sec % 60; }  // keep it in range
+    int  get_sec()        { return s; }
+    HourMinSec2()         { s = 0; }
+    void display() {
+       cout &lt;&lt; a.get_hour() &lt;&lt; ':' &lt;&lt; a.get_min() &lt;&lt; ':' &lt;&lt; s &lt;&lt; endl; }
+};
+ 
+extern "C" void CSetHour(HourMin *);     // defined in C
+extern "C" void CSetSec(HourMin *);      // defined in C
+extern "C" void CSafeSetHour(HourMin *); // defined in C
+ 
+// wrapper function to be called from C code */
+extern "C" void CXXSetHour(HourMin * x) {
+  x->set_hour(99);  // much like the C version but the C++
+                    // member functions provide some protection
+                    // expect 99 % 24, or 3 to be the result
+}
+ 
+ 
+</PRE>
+<PRE>// other wrappers may be written to access other member functions
+// or operators ...
+ 
+main() {
+ 
+  HourMin hm;
+  hm.set_hour(18);  // supper time;
+  CSetHour(&amp;hm);    // pass address of object to C function
+  hm.display();     // hour is out of range
+ 
+  HourMinSec1 hms1;
+  CSetSec((HourMin *) &amp;hms1)
+  hms1.display();
+ 
+  HourMinSec2 hms2;
+  CSetSec(&amp;hms2);
+  hms2.display();
+ 
+  CSafeSetHour(&amp;hm); // pass address to a safer C function
+  hm.display();     // hour is not out of range
+}
+</PRE>
+</TD></TR></TABLE>
+<P>
+<P><B><A NAME="FIGFIGHOURC" HREF="cpprog09.htm#FT_FIGFIGHOURC">Figure 200. C Source file hour.c that Uses Definitions from C++ Source File hourclas.cpp</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>
+<BR>
+/* C code  hour.c */
+<BR>
+<BR>struct CHourMin {
+<BR>  int hour;
+<BR>  int min;
+<BR>};
+<BR>
+<BR>void CSetHour(void * v) {
+<BR>  struct CHourMin * p;
+<BR>  p = (struct CHourMin *) v; // force it to the type we want
+<BR>  p-&gt;hour = 99;             // with power comes responsibility (oops!)
+<BR>}
+<BR>
+<BR>struct CHourMinSec {
+<BR>  struct CHourMin hourMin;
+<BR>  int sec;
+<BR>};
+<BR>
+<BR>// handles both HourMinSec1, and HourMinSec2 classes
+<BR>
+<BR>void CSetSec(void *v) {
+<BR>  struct CHourMinSec * p;
+<BR>  p = (struct CHourMinSec *) v; // force it to the type we want
+<BR>  p-&gt;sec = 45;
+<BR>}
+<BR>
+<BR>void CSafeSetHour(void *v) {
+<BR>  struct CHourMin * p;
+<BR>  p = (struct CHourMin *) v; // force it to the type we want
+<BR>
+<BR>  // ...  do things with p, but be careful
+<BR>  // ...
+<BR>  // use a C++ wrapper function to access C++ function members
+<BR>
+<BR>  CXXSetHour(p);    // almost the same as p-&gt;hour = 99
+<BR>}
+</PRE>
+</TD></TR></TABLE>
+<P><H4><A NAME="Header_574">Program Flow</A></H4>
+<P>As shown in <A HREF="#FIGFIGHOURCLASCPP">Figure 199</A>, the <TT>main()</TT> C++ function: 
+<OL TYPE=1>
+<LI>Instantiates an object <TT>hm</TT> of the base class <TT>HourMin</TT>
+</LI><LI>Assigns a value to the <TT>h</TT> variable (hour) in the base class
+</LI><LI>Passes the address of the base class to the function <TT>CSetHour()</TT>
+defined in the C source file <TT>hour.c</TT> (see <A HREF="#FIGFIGHOURC">Figure 200</A>), which assigns a new value to <TT>h</TT> in the base
+class
+</LI><LI>Displays the value of <TT>h</TT> in the base class
+</LI><LI>Instantiates an object <TT>hms1</TT> of the derived class
+<TT>HourMinSec1</TT>
+</LI><LI>Passes the address of this object class to the function
+<TT>CSetSec()</TT> defined in the C source file <TT>hour.c</TT>
+(see <A HREF="#FIGFIGHOURC">Figure 200</A>), which assigns a value to <TT>s</TT> in the object
+</LI><LI>Displays the value of <TT>s</TT> in the object
+</LI><LI>Instantiates an object <TT>hms2</TT> of the class <TT>HourMinSec2</TT>
+which contains the class <TT>HourMin</TT>
+</LI><LI>Passes the address of this new object to the function <TT>CSetSec()</TT>
+defined in the C source file <TT>hour.c</TT> (see <A HREF="#FIGFIGHOURC">Figure 200</A>), which assigns a value to <TT>s</TT> in the object
+</LI><LI>Displays the value of <TT>s</TT> in the object
+</LI><LI>Passes the address of the base class object to function
+<TT>SafeSetHour()</TT> defined in the C source file <TT>hour()</TT> which
+passes the address back to a function <TT>CXXSetHour()</TT> defined in the
+C++ source file <TT>hourclas.cpp</TT> (see <A HREF="#FIGFIGHOURCLASCPP">Figure 199</A>)
+</LI></OL>
+<P><H4><A NAME="Header_575">Program Output</A></H4>
+<P>The program output is: 
+<PRE>
++--------------------------------------------------------------------------------+
+|99:0                                                                            |
+|0 -:0 :45                                                                       |
+|0 -:0 :45                                                                       |
+|3 -:0                                                                           |
+|Press ENTER to end terminal session.                                            |
++--------------------------------------------------------------------------------+</PRE>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog459.htm">Previous Page</A> | <A HREF="cpprog461.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

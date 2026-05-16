@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="(PICS-1.1 &quot;http://www.icra.org/ratingsv02.html&quot; l gen true r (cz 1 lz 1 nz 1 oz 1 vz 1) &quot;http://www.rsac.org/ratingsv01.html&quot; l gen true r (n 0 s 0 v 0 l 0) &quot;http://www.classify.org/safesurf/&quot; l gen true r (SS~~000 1))" http-equiv="PICS-Label" />
+<meta content="task" name="DC.Type" />
+<meta content="Example: Sending an immediate message and handling a reply" name="DC.Title" />
+<meta content="This example shows how a program or procedure sends an inquiry message and handles the reply." name="abstract" />
+<meta content="This example shows how a program or procedure sends an inquiry message and handles the reply." name="description" />
+<meta content="amsgf.htm" name="DC.Relation" scheme="URI" />
+<meta content="immsgdbcs.htm" name="DC.Relation" scheme="URI" />
+<meta content="sndrcpy.htm" name="DC.Relation" scheme="URI" />
+<meta content="© Copyright IBM Corporation 1998, 2010" name="copyright" />
+<meta content="© Copyright IBM Corporation 1998, 2010" name="DC.Rights.Owner" />
+<meta content="XHTML" name="DC.Format" />
+<meta content="immmsg" name="DC.Identifier" />
+<meta content="en-us" name="DC.Language" />
+<!-- Licensed Materials Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link href="./ibmdita.css" rel="stylesheet" type="text/css" />
+<link href="./help.css" rel="stylesheet" type="text/css" />
+<link href="amsgf.htm" rel="Start" />
+<title>Example: Sending an immediate message and handling a reply in
+i5/OS</title>
+
+<script src="../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.langref2.doc%2Fimmmsg.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="immmsg">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../nav/2_3" shape="rect">Control language</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/rbam6clmain.htm" shape="rect">Control language</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/wmsgs.htm" shape="rect">Messages</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/msghd.htm" shape="rect">Defining message descriptions</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref2.doc/amsgf.htm" shape="rect">Adding messages to a file</a></div>
+<a name="immmsg" shape="rect"><!-- --></a>
+<h1 class="title topictitle1">Example: Sending an immediate message and handling a reply</h1>
+<div class="body taskbody"><p class="shortdesc">This example shows how a program or procedure sends
+an inquiry message and handles the reply.</p>
+<div class="section context"> <p class="p">In this example, the procedure completes the following tasks:</p>
+<ul class="ul"><li class="li">Sending an immediate inquiry message to QSYSOPR</li>
+<li class="li">Requesting a reply of yes or no (Y or N)</li>
+<li class="li">Ensuring that a valid reply has been entered</li>
+<li class="li">Doing a timeout if the operator does not reply within 120 seconds</li>
+</ul>
+<pre class="pre codeblock" xml:space="preserve">           PGM
+           DCL        &amp;MSGKEY *CHAR LEN(4)
+           DCL        &amp;MSGRPY *CHAR LEN(1)
+SNDMSG:    SNDPGMMSG  MSG('.... Reply Y or N') TOMSGQ(QSYSOPR) +
+                        MSGTYPE(*INQ) KEYVAR(&amp;MSGKEY)
+           RCVMSG     MSGTYPE(*RPY) MSGKEY(&amp;MSGKEY) WAIT(120) +
+                        MSG(&amp;MSGRPY)
+           IF         ((&amp;MSGRPY *EQ 'Y') *OR (&amp;MSGRPY *EQ 'y')) DO
+           .
+           .
+           GOTO       END
+           ENDDO      /* Reply of Y */
+           IF         ((&amp;MSGRPY *EQ 'N') *OR (&amp;MSGRPY *EQ 'n')) DO
+           .
+           .
+           GOTO       END
+           ENDDO      /* Reply of N */
+           IF         (&amp;MSGRPY *NE ' ') DO
+           SNDPGMMSG  MSG('Reply was not Y or N, try again') +
+                        TOMSGQ(QSYSOPR)
+           GOTO       SNDMSG
+           ENDDO      /* Reply not valid */
+    /* Timeout occurred */
+           SNDPGMMSG  MSG('No reply from the previous message +
+                        was received in 120 seconds and a 'Y'' +
+                        value was assumed') TOMSGQ(QSYSOPR)
+           .
+           .
+END:       ENDPGM</pre>
+<p class="p">The SNDUSRMSG command cannot be used instead in this procedure
+because it does not support a timeout option (SNDUSRMSG waits until it receives
+a reply or until the job is canceled).</p>
+<p class="p">The SNDPGMMSG command sends the
+message and specifies the KEYVAR parameter. This returns a message reference
+key, which uniquely identifies this message so that the reply can be properly
+matched with the RCVMSG command. The KEYVAR value must be defined as a character
+field length of 4.</p>
+<p class="p">The RCVMSG command specifies the message reference
+key value from the SNDPGMMSG command for the MSGKEY parameter to receive the
+specific message. The reply is passed back into the MSG parameter. The WAIT
+parameter specifies how long to wait for a reply before timing out.</p>
+<p class="p">When the reply is received, the program or procedure logic
+checks for an uppercase or lowercase value of Y or N.  Normally, the value
+is entered by the operator as a lowercase value.  If the operator enters a
+nonblank value other than Y or N, the program or procedure sends a different
+message and then repeats the inquiry message.</p>
+<p class="p">If the
+operator enters a blank, no reply is sent to the program or procedure. If
+a blank is returned to the program or procedure, a timeout occurs (the operator
+does not reply).  The program or procedure sends a message to the system operator,
+stating that a reply was not received and the default is assumed (the Y value
+is shown as Y in the message queue). Because the assumed value of Y is not
+displayed as the reply, you cannot determine when looking at a message queue
+whether the message can be answered or has already timed out. The program
+or procedure does not remove a message from the message queue after it has
+been sent.  The second message minimizes this concern and provides an audit
+trail for what has occurred.</p>
+<p class="p">If the timeout has already occurred and
+the operator replies to the message, the reply is ignored.  The operator receives
+no indication that the reply has been ignored.</p>
+</div>
+</div>
+<div class="related-links">
+<ul class="ullinks">
+<li class="link ulchildlink"><strong><a href="immsgdbcs.htm" shape="rect">Sending immediate messages with double-byte characters</a></strong><br clear="none" />
+To send an immediate message with double-byte text,
+limit the text to 37 double-byte characters plus the shift control characters.
+The limited size of the message ensures it is properly displayed.</li>
+</ul>
+
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="amsgf.htm" shape="rect" title="The Add Message Description (ADDMSGD) command describes your predefined messages and adds them to the message file that you created.">Adding messages to a file</a></div>
+</div>
+<div class="reltasks"><strong>Related tasks</strong><br clear="none" />
+<div><a class="link" href="sndrcpy.htm" shape="rect" title="When an inquiry message is sent, it expects a reply. To allow the sender of an inquiry message to obtain a reply, a sender copy message is issued and associated internally with the inquiry message.">Using a sender copy message to obtain a reply</a></div>
+</div>
+</div></body>
+</html>

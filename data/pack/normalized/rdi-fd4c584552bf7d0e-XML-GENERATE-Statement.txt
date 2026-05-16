@@ -1,0 +1,268 @@
+XML GENERATE Statement
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > Procedure Division Statements
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements
+
+IBM ExtensionIBM Extension
+XML GENERATE Statement
+The XML GENERATE statement converts data to XML format.
+
+Format 1
+
+>>-XML GENERATE--identifier-1--FROM--identifier-2--------------->
+
+>--+-----------------------------+------------------------------>
+   '-COUNT--+----+--identifier-3-'   
+    '-IN-'    
+
+>--+-------------------------------------------+---------------->
+   '-+----+--EXCEPTION--imperative-statement-1-'   
+    '-ON-'    
+
+>--+------------------------------------------------+----------->
+   '-NOT--+----+--EXCEPTION--imperative-statement-2-'   
+    '-ON-'    
+
+>--+---------+-------------------------------------------------><
+   '-END-XML-'   
+
+Format 2
+
+>>-XML GENERATE--FILE-STREAM--+-----------+--identifier-4------->
+    +-APPEND----+    
+    '-OVERWRITE-'    
+
+>--FROM--identifier-2--+-----------------------------+---------->
+    '-COUNT--+----+--identifier-3-'   
+    '-IN-'    
+
+>--+-------------------------------------------+---------------->
+   '-+----+--EXCEPTION--imperative-statement-1-'   
+    '-ON-'    
+
+>--+------------------------------------------------+----------->
+   '-NOT--+----+--EXCEPTION--imperative-statement-2-'   
+    '-ON-'    
+
+>--+---------+-------------------------------------------------><
+   '-END-XML-'   
+
+identifier-1
+The receiving area for a generated XML document. identifier-1 must
+reference one of the following: An elementary data item of category alphanumeric
+An alphanumeric group item
+An elementary data item of category national
+
+When identifier-1 references an alphanumeric
+group item, identifier-1 is treated as though it were an elementary
+data item of category alphanumeric.
+identifier-1 must
+not be described with the JUSTIFIED clause, and cannot be a function
+identifier. identifier-1 can be subscripted or reference modified.
+identifier-1 must
+not overlap identifier-2 or identifier-3.
+If identifier-1 references a data item of category
+alphanumeric, the generated XML document is encoded with the
+CCSID specified by the PROCESS statement CCSID option d - XML GENERATE
+single-byte data CCSID in effect when the source code was compiled.
+If the CCSID in effect is 65535, the job default CCSID at run time
+will be used.
+If identifier-1 references
+a data item of category national, the generated XML document is encoded
+in UCS-2. If PROCESS statement CCSID option d specifies a National
+CCSID, that CCSID is used. Otherwise, the CCSID specified by the NTLCCSID
+PROCESS option is used. A byte order mark is not generated.
+identifier-1 must reference a data item of category
+national if the generated XML includes data from identifier-2 for:
+Any data item of class national or class DBCS
+Any data item with a DBCS name (that is, a data item whose name
+contains DBCS characters)
+
+identifier-1 must be large enough to contain the generated
+XML document. Typically, it should be from five to eight times the
+size of identifier-2, depending on the length of the data-name
+or data-names within identifier-2. If identifier-1 is
+not large enough, an error condition exists at the end of the XML
+GENERATE statement.
+
+identifier-2
+The group or elementary data item to be converted to XML format.
+ 
+identifier-2 cannot be a function identifier or be reference
+modified, but it can be subscripted. identifier-2 must not
+overlap with identifier-1 or identifier-3.
+identifier-2 must
+not specify the RENAMES clause.
+The following data items specified
+by identifier-2 are ignored by the XML GENERATE statement:
+Any unnamed elementary data items or elementary FILLER data items
+Any slack bytes inserted for SYNCHRONIZED items
+Any data item subordinate to identifier-2 that is described
+with the REDEFINES clause or that is subordinate to such a redefining
+item
+Any data item subordinate to identifier-2 that is described
+with the RENAMES clause
+Any group data item all of whose subordinate data items are ignored
+
+All data items specified by identifier-2 that are
+not ignored according to the rules above must satisfy the following
+conditions:
+Each elementary data item must either have class alphabetic, alphanumeric,
+numeric, or national, or be an index data item. (That is, no elementary
+data item can be described with the USAGE POINTER or USAGE PROCEDURE-POINTER
+phrase.)
+There must be at least one such elementary data item.
+Each non-FILLER data-name must be unique within any immediately
+superordinate group data item.
+Any DBCS data-names, when converted to Unicode, must be legal
+as names in the XML specification, version 1.0.
+
+For example, given the following data declaration:
+01 STRUCT.
+02 STAT PIC X(4).
+02 IN-AREA PIC X(100).
+02 OK-AREA REDEFINES IN-AREA.
+03 FLAGS PIC X.
+03 PIC X(3).
+03 COUNTER USAGE COMP PIC S9(9).
+03 ASFNPTR REDEFINES COUNTER USAGE PROCEDURE-POINTER.
+03 UNREFERENCED PIC X(92).
+02 NG-AREA1 REDEFINES IN-AREA.
+03 FLAGS PIC X.
+03 PIC X(3).
+03 PTR USAGE POINTER.
+03 ASNUM REDEFINES PTR USAGE COMP PIC S9(9).
+03 PIC X(92).
+02 NG-AREA2 REDEFINES IN-AREA.
+03 FN-CODE PIC X.
+03 UNREFERENCED PIC X(3).
+03 QTYONHAND USAGE BINARY PIC 9(5).
+03 DESC USAGE NATIONAL PIC N(40).
+03 UNREFERENCED PIC X(12).
+
+The following data
+items can be specified as identifier-2:
+STRUCT, of which subordinate data items STAT and IN-AREA would
+be converted to XML format. (OK-AREA, NG-AREA1,
+and NG-AREA2 are ignored because they specify the REDEFINES
+clause.)
+OK-AREA, of which subordinate data items FLAGS, COUNTER,
+and UNREFERENCED would be converted. (The item whose data
+description entry specifies 03 PIC X(3) is ignored because
+it is an elementary FILLER data item. ASFNPTR is ignored
+because it specifies the REDEFINES clause.)
+Any of the elementary data items that are subordinate to STRUCT except: ASFNPTR or PTR (disallowed usage)
+UNREFERENCED OF NG-AREA2 (nonunique names for data items
+that are otherwise eligible)
+Any FILLER data items
+
+The following data items cannot be specified as identifier-2:
+NG-AREA1, because subordinate data item PTR specifies
+USAGE POINTER but does not specify the REDEFINES clause. (PTR would
+be ignored if it specified the REDEFINES clause.)
+NG-AREA2, because subordinate elementary data items have
+the nonunique name UNREFERENCED.
+
+COUNT IN
+If
+the COUNT IN phrase is specified, identifier-3 contains (after
+execution of the XML GENERATE statement) the count of generated XML
+character positions. If identifier-1 (the receiver) has category national, the count is in national character
+positions (UCS-2 character encoding units). Otherwise, the count is
+in bytes. identifier-3
+The data count field. Must be an integer data item defined without
+the symbol P in its picture string. identifier-3 must not
+overlap identifier-1 or identifier-2.
+ 
+
+FILE-STREAM phrase
+When
+the FILE-STREAM phrase is specified, the converted XML data will be
+saved to an IFS file that is specified by identifier-4. The XML file
+is encoded using the CCSID: Unicode UCS-2, if the generated XML includes (as described under
+"identifier-1") data from identifier-2 for: Any national data item or DBCS data item
+Any data item with an DBCS name
+
+Otherwise, the CCSID specified in the PROCESS statement CCSID
+option d (XML GENERATE single-byte data output CCSID, default is JOBRUN).
+The CCSID used must be one of the single-byte character set CCSIDs
+listed in Coded character sets for XML documents.
+
+When no APPEND or OVERWRITE phrase is used, a new file will
+be created with the XML file encoding CCSID and the converted XML
+data will be saved into it. If a file with the same name exists when
+running a program, XML generation stops and the special register XML-CODE
+contains an exception code representing this error.
+If APPEND
+phrase is used, the converted XML data will be appended to the existing
+file when the file has the XML file encoding CCSID; otherwise XML
+generation stops and the special register XML-CODE contains an exception
+code representing this error.
+However, if PROCESS
+option XMLGEN(KEEPFILEOPEN) has been specified and the IFS file is
+currently open, then specifying XML GENERATE without the APPEND or
+OVERWRITE phrase can be used to close the IFS file, and no error or
+exception code will be issued
+If OVERWRITE phrase is used,
+the existing file will be replaced by a new file with the XML file
+encoding CCSID; the converted XML data will be saved into the new
+file.
+Any other file operation errors except those mentioned
+above will trigger a runtime inquiry message including file operation
+error message. If "G" is answered to continue the operation, an exception
+code will be set in special register XML-CODE.
+identifier-4
+Is the IFS file name field, and must be an alphabetic or alphanumeric
+data item. It contains the path name of the IFS file which will hold
+the converted XML contents.
+
+ON EXCEPTION
+An
+exception condition exists when an error occurs during generation
+of the XML document, for example if identifier-1 is not large
+enough to contain the generated XML document. In this case, XML generation
+stops and the content of the receiver, identifier-1, is undefined.
+If the COUNT IN phrase is specified, identifier-3 contains
+the number of character positions that were generated, which can range
+from 0 to the length of identifier-1. If the ON EXCEPTION
+phrase is specified, control is transferred to imperative-statement-1.
+If the ON EXCEPTION phrase is not specified, the NOT ON EXCEPTION
+phrase, if any, is ignored, and control is transferred to the end
+of the XML GENERATE statement. Special register XML-CODE contains
+an exception code, as detailed in the IBM® Rational® Development Studio for i: ILE COBOL
+Programmer's Guide.
+ 
+
+NOT ON EXCEPTION
+If
+an exception condition does not occur during generation of the XML
+document, control is passed to imperative-statement-2, if specified,
+otherwise to the end of the XML GENERATE statement. The ON EXCEPTION
+phrase, if specified, is ignored. Special register XML-CODE contains
+zero after execution of the XML GENERATE statement.  
+
+END-XML phrase
+This
+explicit scope terminator delimits the scope of XML GENERATE or XML
+PARSE statements. END-XML permits a conditional XML GENERATE or XML
+PARSE statement (that is, an XML GENERATE or XML PARSE statement that
+specifies the ON EXCEPTION or NOT ON EXCEPTION phrase) to be nested
+in another conditional statement. The scope of a conditional XML
+GENERATE or XML PARSE statement can be terminated by:
+An END-XML phrase at the same level of nesting
+A separator period
+
+END-XML can also be used with an XML GENERATE or XML PARSE
+statement that does not specify either the ON EXCEPTION or the NOT
+ON EXCEPTION phrase.
+
+Nested XML GENERATE or XML PARSE statements
+
+Operation of XML GENERATE
+
+XML element name formation
+
+Parent topic: Procedure Division Statements
+
+End of IBM Extension End of IBM Extension

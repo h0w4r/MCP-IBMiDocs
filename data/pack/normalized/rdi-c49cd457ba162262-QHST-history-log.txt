@@ -1,0 +1,140 @@
+QHST history log
+
+IBM i programming resources > Control language > Control language > Messages > Log messages > Log messages
+
+IBM i programming resources > Control language > Control language > Messages > Log messages
+
+QHST history log
+The history log (QHST) consists of a message queue and a physical
+file known as a log version.
+Messages sent to the history log message queue (QHST) are written by the
+system to the current log version physical file. The history log contains
+a high-level trace of system activities such as system, subsystem, and job
+information, device status, and system operator messages.
+When a log version is full, a new version of the log is automatically created.
+Each version is a physical file that is named in the following way:
+Qxxxyydddn
+where the following is true:
+xxx
+Is a 3-character description of the log type (HST)
+yyddd
+Is the Julian date of the first message in the log version
+n
+Is a sequence number within the Julian date (A through Z and 0 through
+9)
+
+Note: The number of records in each version of the history log is specified
+in the system value QHSTLOGSIZ. There is also a value of *DAILY to allow a
+new log version to be created each day instead of creating a new file based
+only on size.
+The text of the log version file contains the date and time of the first
+message and last message in the log version. The date and time of the first
+message are in positions 1-13 of the text; the date and time of the last message
+are in positions 14-26. The date and time are in the format cyymmddhhmmss,
+where:
+c
+Is the century guard digit
+yymmdd
+Is the date the message was sent
+hhmmss
+Is the time the message was sent
+
+You can create a maximum of 36 log versions with the same Julian date.
+If more than 36 log versions are created on the same day, the next available
+Julian day is used for subsequent log versions. If some of the older log
+versions are then deleted, it is possible to use the names again. Log versions
+are out of order when sequenced by name if log versions are deleted and names
+used again.
+You can write a program to process the history log files
+or use IBM-supplied functions to process the files. IBM provides the Display
+Log (DSPLOG) CL command and the Open List of History Log
+Messages (QMHOLHST) API. Because several versions of each log might
+be available, you must select the log version to be processed. To determine
+the available log versions, use the Display Object Description (DSPOBJD) command.
+For example, the following DSPOBJD command displays what
+versions of the history log are available:
+DSPOBJD OBJ(QSYS/QHST*) OBJTYPE(*FILE)
+You can delete logs on your system by using the delete option from the
+display that is presented on the Work with Objects (WRKOBJ) command.
+You can display or print the information in a log using the Display
+Log (DSPLOG) command. You can select the information you want displayed
+or printed by specifying any combination of the following:
+Period of time
+Name of job that sent the log entry
+Message identifiers of entries
+
+The following Display Log (DSPLOG) command displays
+all the available entries for the job OEDAILY in the current day:
+DSPLOG JOB(OEDAILY)
+The resulting display is:
+Display History Log Contents
+
+Job OEDAILY started
+Database file OEMSTR in library OELIB expired
+Job OEDAILY abnormally ended
+Job OEDAILY started
+Job OEDAILY ended
+
+Bottom
+Press Enter to continue.
+
+F3=Exit F10=Display all F12=Cancel
+
+If you reset the system date or time to an earlier setting, or if you advanced
+the system date and time by more than 48 hours, a new log version is started.
+This ensures that all messages in a single log version are in chronological
+order.
+Log versions created on a release before V3R6M0 may contain entries that
+are not in chronological order if the system date and time was reset to an
+earlier setting. Therefore, when you try to display the log version, some
+entries may be missed. For example, if the log version contains entries dated
+1988 followed by entries dated 1987, and you want to display those 1987 entries,
+you specify the 1987 dates on the PERIOD parameter on the Display
+Log (DSPLOG) command but the expected entries are not displayed.
+You should always use the system date (QDATE) and the system time (QTIME),
+or you should specify the PERIOD parameter as follows:
+PERIOD((start-time start-date) (*AVAIL *END))
+The system writes the messages sent to a log message queue to the current
+log version physical file when the message queue reaches a certain size or
+when the Display Log (DSPLOG) command was used. If you
+want to ensure the current log version is up-to-date, specify a fictitious
+message identifier, such as ###0000, on the DSPLOG command.
+No messages are displayed, but the messages in the message queue are copied
+to the log version physical file to make it current.
+Note: If a message is sent to QHST and the Display Log (DSPLOG) command
+is done immediately, the DSPLOG command will show messages from the log version
+physical file. Depending on the number of messages being copied to the log
+version, your message may not be shown until a second Display Log
+(DSPLOG) command is run later.
+If you print the information in a log using the Display Log (DSPLOG) command
+and output parameter *PRINT, (DSPLOG OUTPUT(*PRINT)), only one line from each
+message is printed, using the first 105 characters of each message.
+If you print the information in a log using the Display Log (DSPLOG) command
+and output parameter *PRTWRAP, (DSPLOG OUTPUT(*PRTWRAP)), messages longer
+than 105 characters are wrapped to include additional lines to a limit of
+2000 characters.
+If you print the information in a log using the Display Log (DSPLOG) command
+and output parameter *PRTSECLVL, messages longer than 105 characters are wrapped
+to include additional lines to a limit of 2000 characters. The second-level
+message text is also printed if available, up to a maximum of 6000 characters.
+If you display the information in a log using the Display Log
+(DSPLOG) command, only 105 characters of message text are shown.
+Any characters after 105 characters are truncated at the right.
+
+Format of the history log
+A database file is used to store the messages sent to a log message
+queue on the system. Because all records in a physical file have the same
+length and messages sent to a log have different lengths, the messages can
+span more than one record.
+QHST file processing
+If you use a high-level language (HLL) program to process the QHST
+file, keep in mind that the length of the message can vary with each occurrence
+of a message.
+QHST job start and completion messages
+The system performs special formatting of the job start
+and job completion messages.
+QHST files deletion
+Log version physical files accumulate on a system and you should
+periodically delete old logs that are not needed.
+
+Parent topic: Log messages

@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Minimizing Percolation of Exceptions</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="percolating exceptions, exception percolaton, examples, example, percolation">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog119.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog24.htm">Part 2&#46; Creating and Compiling Programs</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog106.htm">Chapter 6&#46; Improving Run&#45;Time Performance</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog115.htm">Minimizing Exception Handling</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P>
+<P><H3><A NAME="HDRPERCEX" HREF="cpprog02.htm#ToC_140">Minimizing Percolation of Exceptions</A></H3>
+<P>
+Try to handle an exception in the place it occurs. There is some
+processing overhead incurred with exception percolation.
+<P><H4><A NAME="Header_141">Example of Exception Percolation for a Sample ILE C Source Code</A></H4>
+<P>
+The following figure shows an example of ILE C source code for handling
+exceptions. Below the figure is an example of an exception that can
+occur and the steps the code takes to handle the exception.
+<P><B><A NAME="FIGFIGSRCEXCPERC" HREF="cpprog09.htm#FT_FIGFIGSRCEXCPERC">Figure 39. T1520XH7 -- ILE C Source for Exception Handling</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">#include &lt;stdio.h>
+#include &lt;except.h>
+#include &lt;signal.h>
+#include &lt;lecond.h>
+void handler1(_INTRPT_Hndlr_Parms_T * __ptr128 parms)
+{
+  printf("In handler1: will not handle the exception\n");
+}
+void handler2(_INTRPT_Hndlr_Parms_T * __ptr128 parms)
+{
+  printf("In handler2: will not handle the exception\n");
+}
+void handler3(_FEEDBACK *condition, _POINTER *token, _INT4 *result_code,
+              _FEEDBACK *new_condition)
+{
+  printf("In handler3: will not handle the exception\n");
+}
+void handler4(_INTRPT_Hndlr_Parms_T * __ptr 128 parms)
+{
+  printf("In handler4: will not handle the exception\n");
+}
+void fred(void)
+{
+  _HDLR_ENTRY  hdlr = handler3;
+  char        *p    = NULL;
+  #pragma exception_handler(handler2, 0, 0,                        \
+                            _C2_MH_ESCAPE | _C2_MH_FUNCTION_CHECK)
+  CEEHDLR(&amp;hdlr, NULL, NULL);
+  #pragma exception_handler(handler1, 0, 0, _C2_MH_ESCAPE)
+  *p = 'x';     /* exception */
+}
+int main(void)
+{
+  signal(SIGSEGV, SIG_DFL);
+  #pragma exception_handler(handler4, 0, 0,                        \
+                            _C2_MH_ESCAPE | _C2_MH_FUNCTION_CHECK)
+  fred();
+}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>The sequence of exceptions and handling actions that occur when the source
+code in <A HREF="#FIGFIGSRCEXCPERC">Figure 39</A> is run is: 
+<OL TYPE=1>
+<LI>An escape exception occurs in function <TT>fred()</TT>.
+</LI><LI><TT>handler1</TT> gets control because it is monitoring for an escape
+message, it is the closest nested monitor to the exception, and it has highest
+priority because it is a direct handler.
+</LI><LI><TT>handler2</TT> gets control because it is monitoring for an escape
+message, and has a higher priority than a CEEHDLR.
+</LI><LI><TT>handler3</TT> gets control (from CEEHDLR).
+</LI><LI><TT>signal</TT> handler gets control. Even though it is
+registered in main, <TT>signal</TT> is scoped to the activation group and
+therefore will get control. It gets control after <TT>handler1</TT>,
+<TT>handler2</TT>, and <TT>handler3</TT> because it has a lower priority
+than either direct handlers or CEEHDLRs. Because the action is SIG_DFL,
+the exception is not handled.
+</LI><LI>The exception is percolated to <TT>main()</TT>.
+</LI><LI><TT>handler4</TT> gets control.
+</LI><LI>The exception is still not handled. Thus, when it hits the control
+boundary (the PEP for <TT>main()</TT>), it is turned into a function check
+and is re-driven.
+</LI><LI><TT>handler1</TT> does NOT get control, because it is not monitoring for
+a function check.
+</LI><LI><TT>handler2</TT> gets control because it is monitoring for function
+check.
+</LI><LI><TT>handler3</TT> gets control because CEEHDLRs get control for all
+*ESCAPE, *STATUS, *NOTIFY, and Function Check messages.
+</LI><LI><TT>signal</TT> handler does NOT get control because <TT>signal</TT>
+does not recognize function checks.
+</LI><LI>The function check is percolated to <TT>main()</TT>.
+</LI><LI><TT>handler4</TT> gets control because it is monitoring for function
+check.
+</LI><LI>The function check percolates to the control boundary and causes the
+ending.
+</LI><LI>(CEE9901) *ESCAPE is sent to the caller of <TT>main()</TT>.
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog118.htm">Previous Page</A> | <A HREF="cpprog120.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

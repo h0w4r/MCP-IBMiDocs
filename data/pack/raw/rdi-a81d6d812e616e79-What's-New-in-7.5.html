@@ -1,0 +1,1461 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="What's New in 7.5?" name="DC.title" />
+<meta content="rpgrnewrel.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="rpgrelv7r5" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>What's New in 7.5?</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Frpgrelv7r5.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rpgrelv7r5">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rpgrnewrel.htm" shape="rect">What's New</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">What's New in 7.5?</h1>
+
+
+<div class="body">
+<p class="p">This section describes the enhancements made to ILE RPG in 7.5.</p>
+
+<div class="note note"><span class="notetitle">Note:</span> Many of these enhancements are also available through PTFs for 7.3 and 7.4.
+See <a class="xref" href="https://www.ibm.com/support/pages/rpg-cafe" shape="rect" target="_blank">https://www.ibm.com/support/pages/rpg-cafe</a>
+to determine the 7.3 and 7.4 PTFs you need on the systems where you are compiling and running your programs.
+<p class="p">
+Some enhancements provided through PTFs require both a compile-time PTF and a runtime PTF.
+If a program uses an enhancement that requires a runtime PTF,
+you must ensure that the runtime PTF is applied on any system where the program is restored.
+</p>
+
+</div>
+
+<dl class="dl">
+
+<dt class="dt dlterm">New operation code SND-MSG</dt>
+
+<dd class="dd">
+With SND-MSG, you can send an informational message or an escape message to a program or procedure
+on the call stack.
+<ul class="ul">
+<li class="li">In the following example, "Hello from RPG" is sent to the joblog as an informational message.
+<p class="p">The two SND-MSG operations are equivalent. The first SND-MSG defaults to having <span class="keyword">*INFO</span> as
+the message type. The second SND-MSG explicitly specifies <span class="keyword">*INFO</span>.
+</p>
+
+<p class="p">When <span class="keyword">*INFO</span> is specified as the message-type, or the message-type operand is not specified,
+the message is sent by default to the current procedure.
+</p>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-S name VARCHAR(20) inz('RPG');
+
+SND-MSG 'Hello from ' + name;
+
+SND-MSG *INFO 'Hello from ' + name;
+</code></pre></div>
+
+</li>
+
+<li class="li">In the following example, message <span class="keyword">ACT1234</span> from message file <span class="ph filepath">*LIBL/MYMSGF</span>
+is sent as an escape message to the caller of the current procedure.
+When <span class="keyword">*ESCAPE</span> is specified, the message is sent by default to the caller of the current procedure.
+<p class="p">
+Assume that the message has two replacement values.
+</p>
+
+<ol class="ol">
+<li class="li"><span class="keyword">TYPE(*CHAR) LEN(25)</span></li>
+
+<li class="li"><span class="keyword">TYPE(*DEC) LEN(10)</span></li>
+
+</ol>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-DS ACT1234_text qualified;
+   account_name char(25);
+   account_number packed(10);
+END-DS;
+
+CHAIN (acct_num) FILE;
+IF NOT %FOUND();
+   ACT1234_text.account_name = name;
+   ACT1234_text.account_number = acct_num;
+   SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text);
+ENDIF;
+</code></pre></div>
+
+</li>
+
+<li class="li">The SND-MSG operation in the following example is similar to the previous example, but the message
+is explicitly sent to the call-stack entry 'MYCLPGM'.
+The RPG programmer expects that a program called <span class="keyword apiname">MYCLPGM</span> has been called before the current procedure,
+and that <span class="keyword apiname">MYCLPGM</span> has not returned yet.
+If the RPG programmer is debugging the program, and uses the <span class="keyword apiname">DSPJOB</span> command with parameter
+<span class="keyword">OPTION(*PGMSTK)</span>, the program stack must show that <span class="keyword apiname">MYCLPGM</span> is an active caller
+of the current procedure.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+   SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text)
+                   %TARGET('MYCLPGM');
+</code></pre></div>
+
+</li>
+
+<li class="li">The SND-MSG operation in the following example is similar to the previous example, but the message
+is explicitly sent to the caller of <span class="keyword apiname">MYCLPGM</span>, by specifying the value 1
+for the <span class="keyword">offset</span> operand of <span class="keyword">%TARGET</span>.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+   SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text)
+                   %TARGET('MYCLPGM' : 1);
+</code></pre></div>
+
+</li>
+
+<li class="li">If an error occurs while sending the message, the SND-MSG operation fails with new status
+code 126.
+If you send an escape message to the current procedure, the RPG procedure fails with status code 9999.
+</li>
+
+</ul>
+
+<span class="ph">See <a class="xref" href="zzsndmsg.htm" shape="rect">SND-MSG (Send a Message to the Joblog)</a>.</span>
+<p class="p">This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2022.
+</p>
+
+<p class="p">This enhancement is also available in 7.3 with a compile-time PTF and a runtime PTF.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New operation code ON-EXCP</dt>
+
+<dd class="dd">
+You can monitor for specific message IDs in a MONITOR group by listing
+the message IDs in an ON-EXCP operation code.
+ON-EXCP is similar to ON-ERROR, but with ON-EXCP, you list the message IDs to be monitored.
+<p class="p">The ON-EXCP operations must precede any ON-ERROR operations in the MONITOR group.
+</p>
+
+<p class="p">Specify the (C®) extender to limit ON-EXCP to escape messages sent to the procedure containing the ON-EXCP statement. </p>
+
+<p class="p">In the following example, the MONITOR group has two ON-EXCP blocks
+and one ON-ERROR block.
+</p>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+MONITOR;
+ON-EXCP 'ABC1234' : 'ABC2345';
+   // handle exception messages
+ON-EXCP 'DEF1234';
+   // handle another exception message
+ON-ERROR 222;
+   // handle pointer-not-set
+ENDMON;
+</code></pre></div>
+
+<span class="ph">See <a class="xref" href="zzonexcp.htm" shape="rect">ON-EXCP (On Exception)</a>.</span>
+<p class="p">This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2022.
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New operation code DATA-GEN</dt>
+
+<dd class="dd">DATA-GEN generates a structured document, such as JSON or CSV, from
+an RPG variable.
+It requires a generator to generate the document.
+The DATA-GEN operation calls the generator, passing it the names and values of the
+RPG variables, and the generator passes the text for the structured document
+back to the DATA-GEN operation, which places the
+information into the output file or the output RPG variable.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-DS product QUALIFIED;
+   name VARCHAR(25);
+   id CHAR(10);
+   price PACKED(9 : 2);
+END-DS product;
+
+DATA-GEN product %DATA('ProductInfo.JSON' : 'doc=file')
+                  %GEN('MYLIB/MYJSONGEN');
+</code></pre></div>
+
+<span class="ph">See <a class="xref" href="zzdatagen.htm" shape="rect">DATA-GEN (Generate a Document from a Variable)</a>,
+<a class="xref" href="bbdata.htm" shape="rect">%DATA (document {:options})</a>,
+<a class="xref" href="bbgen.htm" shape="rect">%GEN (generator {: options})</a>.</span>
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New operation code FOR-EACH</dt>
+
+<dd class="dd">The FOR-EACH operation code begins a group of operations that iterates through the elements
+of an array, %LIST, or %SUBARR.
+<p class="p">The first operand of FOR-EACH is a variable that receives the value of the
+current element in the array or %LIST.
+</p>
+
+<p class="p">The loop ends with the ENDFOR operation code.
+</p>
+
+<div class="p">In the following example, each element of the
+<var class="keyword varname">filenames</var> array is processed in the
+FOR-EACH group.
+Within the group of operation codes between the FOR-EACH operation and
+the ENDFOR operation, the <var class="keyword varname">file</var>
+variable has the value of the current element of the <var class="keyword varname">filenames</var> array.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-S filenames CHAR(10) DIM(10);
+DCL-S file CHAR(10);
+DCL-S numFilenames INT(10);
+...
+FOR-EACH file in %SUBARR(filenames : 1 : numFilenames);
+   process (file);
+ENDFOR;
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="zzforeach.htm" shape="rect">FOR-EACH (For Each)</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">Sort an array data structure by more than one subfield</dt>
+
+<dd class="dd">
+Use %FIELDS to list the subfields for sorting an array data structure.
+<p class="p">In the following example, data structure array <var class="keyword varname">info</var>
+is sorted by subfields <var class="keyword varname">dueDate</var> and <var class="keyword varname">orderId</var>.
+To determine the required order of two elements of <var class="keyword varname">info</var>,
+subfield <var class="keyword varname">dueDate</var> is compared first.
+If the value of <var class="keyword varname">dueDate</var> is equal in the two elements,
+then subfield <var class="keyword varname">orderId</var> is used to determine the
+order of the two elements of <var class="keyword varname">info</var>.
+</p>
+
+<p class="p"><var class="keyword varname">info(2).dueDate</var> is greater than <var class="keyword varname">info(3).dueDate</var>
+so it is not necessary to compare the second subfield <var class="keyword varname">orderId</var>
+to determine the relative order of elements 2 and 3.
+</p>
+
+<p class="p"><var class="keyword varname">info(1).dueDate</var> is equal to <var class="keyword varname">info(3).dueDate</var>
+so <var class="keyword varname">info(1).orderId</var> is compared to <var class="keyword varname">info(3).orderId</var>
+to determine the relative order of elements 1 and 3.
+</p>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-DS info QUALIFIED DIM(3);
+   orderId packed(5);
+   dueDate DATE(*ISO);
+   quantity int(10);
+END-DS;
+
+info(1).orderId = 23456;
+info(1).dueDate = D'2021-09-08';
+info(1).quantity = 5;
+
+info(2).orderId = 12345;
+info(2).dueDate = D'2021-10-08';
+info(2).quantity = 3;
+
+info(3).orderId = 12345;
+info(3).dueDate = D'2021-09-08';
+info(3).quantity = 25;
+
+SORTA info %FIELDS(dueDate : orderId);
+
+// info(1).orderId = 12345
+// info(1).dueDate = D'2021-09-08'
+// info(1).quantity = 25
+//
+// info(2).orderId = 23456
+// info(2).dueDate = D'2021-09-08'
+// info(2).quantity = 5
+//
+// info(3).orderId = 12345
+// info(3).dueDate = D'2021-10-08'
+// info(3).quantity = 3
+
+</code></pre></div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="bbfieldssorta.htm" shape="rect">%FIELDS (Subfields for sorting)</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New IN operator</dt>
+
+<dd class="dd">
+The IN operator is used to determine whether an item
+is in an array or %LIST, or in a range.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+IF item IN %RANGE(lower_limit : upper_limit);
+   ...
+ENDIF;
+IF item IN myArray;
+   ...
+ENDIF;
+
+IF item IN %LIST(item1 : item2 : ...);
+ENDIF;
+</code></pre></div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="operin.htm" shape="rect">IN operator</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New built-in function %RANGE</dt>
+
+<dd class="dd">
+You can check whether a value is in the range of two other
+values by using the %RANGE built-in function.
+<div class="p">In the following example, the IF statement is true if
+<var class="keyword varname">num</var> is greater than or equal to 1 and
+less than or equal to 10.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-S num PACKED(15:5);
+
+IF num IN %RANGE(1 : 10);
+   ...
+ENDIF;
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="bbrange.htm" shape="rect">%RANGE (lower-limit : upper-limit)</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New built-in function %LIST</dt>
+
+<dd class="dd">
+You can define a temporary array by using built-in function %LIST.
+%LIST is allowed in calculations anywhere an array is allowed
+except SORTA, %LOOKUPxx, or %SUBARR.
+<div class="p">In the following example, the first four elements of
+the <var class="keyword varname">libraries</var>
+array are assigned from the values in the %LIST built-in function.
+The first element of <var class="keyword varname">libraries</var> is assigned
+the value 'QGPL', the second element is assigned the value of
+variable <var class="keyword varname">currentUserProfile</var> and so on.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-S libraries CHAR(10) DIM(10);
+
+libraries = %LIST ('QGPL'
+                 : currentUserProfile
+                 : 'QTEMP'
+                 : getDevLib ());
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="bblist.htm" shape="rect">%LIST (item { : item { : item ... } } )</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New built-in functions %LOWER and %UPPER</dt>
+
+<dd class="dd">
+You can convert the case of a character or UCS-2 string
+to lower case by using the %LOWER built-in function
+or to upper case by using the built-in function %UPPER.
+<p class="p">You can limit the conversion to only part of the
+string by specifying the start and length for
+the conversion.
+</p>
+
+<div class="p">In the following example, the characters
+following the first character are converted to lower case.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-S string VARCHAR(20);
+
+string = %LOWER('GÖTEBORG' : 2);
+// string = "Göteborg"
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="bblowerupper.htm" shape="rect">%LOWER and %UPPER (Convert to Lower or Upper Case)</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New built-in function %SPLIT</dt>
+
+<dd class="dd">
+You can split a string into a temporary array of substrings
+by using %SPLIT.
+<p class="p">By default, the string is split at blanks.
+You can specify a second parameter with the characters you want to
+split at.
+</p>
+
+<p class="p">In the following examples, the result of %SPLIT is
+assigned to an array.
+</p>
+
+<ol class="ol">
+<li class="li">In the first assignment, the string is split at blanks.
+</li>
+
+<li class="li">In the second assignment, the string is split at either
+asterisks or blanks.
+</li>
+
+</ol>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-S array VARCHAR(20) DIM(10);
+
+array = %SPLIT(' **One** **Two** **Three** '); // <span class="keyword calloutlabel">1</span>
+// array(1) = '**One**'
+// array(2) = '**Two**'
+// array(3) = '**Three**'
+
+array = %SPLIT(' **One** **Two** **Three** ' : ' *');  // <span class="keyword calloutlabel">2</span>
+// array(1) = 'One'
+// array(2) = 'Two'
+// array(3) = 'Three'
+</code></pre></div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="bbsplit.htm" shape="rect">%SPLIT (Split String into Substrings)</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2021.</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">New built-in functions %MAXARR and %MINARR</dt>
+
+<dd class="dd">
+You can find the index of the maximum value or minimum value in an array using %MAXARR
+or %MINARR.
+<div class="p">In the following example
+<ol class="ol">
+<li class="li">
+After the assignment from %LIST,
+the maximum value in the array is 'Yellow' (<var class="keyword varname">array1(2)</var>).
+The minimum value is 'Blue' (<var class="keyword varname">array1(3)</var>).
+</li>
+
+<li class="li">
+%MAXARR(array1) returns 2.
+</li>
+
+<li class="li">
+%MINARR(array1) returns 3. When %MINARR(array1) is used as an index
+for <var class="keyword varname">array1</var>, the value assigned to <var class="keyword varname">minVal</var> is
+'Blue'.
+</li>
+
+</ol>
+
+</div>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-S array1 VARCHAR(10) DIM(3);
+DCL-S i INT(10);
+DCL-S minVal LIKE(array1);
+
+array1 = %LIST('Red' : 'Yellow' : 'Blue'); // <span class="keyword calloutlabel">1</span>
+
+i = %MAXARR(array1); // <span class="keyword calloutlabel">2</span>
+// i = 2
+
+minVal = array1(%MINARR(array1)); // <span class="keyword calloutlabel">3</span>
+// minVal = 'Blue'
+</code></pre></div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="bbmaxminarr.htm" shape="rect">%MAXARR and %MINARR (Maximum or Minimum Element in an Array)</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.4 and 7.4 with a compile-time PTF in the last half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">A new option *STRICTKEYS is added to the EXPROPTS Control keyword.</dt>
+
+<dd class="dd">
+When EXPROPTS(*STRICTKEYS) is specified, the rules are more strict for
+specifying the search argument for keyed file operations by using
+a list of keys or %KDS.
+<p class="p">
+<span class="ph">See <a class="xref" href="hexprop.htm#hexprop__strictkeys" shape="rect">*STRICTKEYS</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the first half of the year 2021.</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">Allow blanks for built-in functions that convert character to numeric</dt>
+
+<dd class="dd">
+A new option *ALWBLANKNUM is added to the EXPROPTS Control keyword.
+<p class="p">
+When EXPROPTS(*ALWBLANKNUM) is specified, the numeric conversion built-in functions
+%DEC, %DECH, %FLOAT, %INT, %INTH, %UNS, and %UNSH, a blank character value is allowed.
+These built-in functions return zero if the character
+operand is blank or it has a length of zero.
+For DATA-INTO and XML-INTO, if the value for a numeric field is blank or empty, a value of zero
+is placed in the value.
+</p>
+
+<div class="p">In the following example, the %DEC operation does not fail due to
+a blank value because EXPROPTS(*ALWBLANKNUM) is specified.
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+CTL-OPT EXPROPTS(*ALWBLANKNUM);
+
+DCL-S num PACKED(15:5);
+DCL-S string CHAR(10) INZ(*BLANKS);
+
+num = %DEC(string : 63 : 15);
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="hexprop.htm" shape="rect">EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)</a>
+and <a class="xref" href="chartonumbifs.htm" shape="rect">Rules for converting character values to numeric values using built-in functions</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">Allow thousands separators for built-in functions that convert character to numeric</dt>
+
+<dd class="dd">
+A new option *USEDECEDIT is added to the EXPROPTS Control keyword.
+<p class="p">
+When EXPROPTS(*USEDECEDIT) is specified, the numeric conversion built-in functions
+%DEC, %DECH, %FLOAT, %INT, %INTH, %UNS, and %UNSH interpret the period and comma
+characters according to the setting defined by the Control keyword DECEDIT.
+This keyword also affects the way the data for a numeric field is processed by
+DATA-INTO and XML-INTO.
+</p>
+
+<p class="p">By default, and with DECEDIT('.') or DECEDIT('0.'), or with
+DECEDIT(*JOBRUN) when the job DECFMT value is not J, the period is the decimal-point character
+and the comma is the digit-separator (thousands separator) character.
+</p>
+
+<p class="p">
+With DECEDIT(',') or DECEDIT('0,'),  or with
+DECEDIT(*JOBRUN) when the job DECFMT value is J, the comma is the decimal-point character
+and the period is the digit-separator.
+</p>
+
+<div class="p">In the following example
+<ul class="ul">
+<li class="li">Keyword EXPROPTS(*USEDECEDIT) is specified.
+</li>
+
+<li class="li">Keyword DECEDIT keyword is not specified, so the decimal-point character
+defaults to the period and the digit-separator character defaults to the comma.
+</li>
+
+<li class="li">The string '1,234,567.89' is allowed for %DEC. The commas are
+ignored because the comma is the digit-separator character.
+</li>
+
+<li class="li">The %DEC built-in function returns 1234567.89.
+</li>
+
+</ul>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+CTL-OPT EXPROPTS(*USEDECEDIT);
+
+DCL-S num PACKED(15:5);
+
+num = %DEC('1,234,567.89' : 15 : 5);
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="hexprop.htm" shape="rect">EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)</a>
+and <a class="xref" href="chartonumbifs.htm" shape="rect">Rules for converting character values to numeric values using built-in functions</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">Overloaded prototypes</dt>
+
+<dd class="dd">
+The OVERLOAD keyword defines a list of other prototypes that can be called
+by using the name of the prototype with the OVERLOAD keyword.
+When the prototype with the OVERLOAD keyword is used in a call operation, the compiler uses
+the parameters that are specified for the call to determine which of the candidate prototypes
+that are listed in the OVERLOAD keyword to call.
+<p class="p">The /OVERLOAD directive can be used to request more information in the compile
+listing about how the compiler determines which procedure to call.
+</p>
+
+<div class="p">In the following example, <var class="keyword varname">FORMAT</var> is defined with the OVERLOAD keyword.
+<ol class="ol">
+<li class="li">For the first call to <var class="keyword varname">FORMAT</var>, the parameter has type Date,
+so <var class="keyword varname">FORMAT_DATE</var> is called.
+</li>
+
+<li class="li">For the second call to <var class="keyword varname">FORMAT</var>, the parameter has type Time,
+so <var class="keyword varname">FORMAT_TIME</var> is called.
+</li>
+
+<li class="li">For the second call to <var class="keyword varname">FORMAT</var>, the parameters have type Character,
+so <var class="keyword varname">FORMAT_MESSAGE</var> is called.
+</li>
+
+</ol>
+
+</div>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+DCL-PR format_date VARCHAR(100);
+   dateParm DATE(*ISO) CONST;
+END-PR;
+DCL-PR format_time VARCHAR(100);
+   timeParm TIME(*ISO) CONST;
+END-PR;
+DCL-PR format_message VARCHAR(100);
+   msgid CHAR(7) CONST;
+   replacement_text VARCHAR(100) CONST OPTIONS(*NOPASS);
+END-PR;
+DCL-PR format VARCHAR(100) OVERLOAD(format_time : format_date : format_message);
+DCL-S result varchar(50);
+
+result = format(%date());              // <span class="keyword calloutlabel">1</span>
+result = format(%time());              // <span class="keyword calloutlabel">2</span>
+result = format('MSG0100' : filename); // <span class="keyword calloutlabel">3</span>
+</code></pre></div>
+
+<span class="ph">See <a class="xref" href="dkwoverload.htm" shape="rect">OVERLOAD(prototype1 { : prototype2 ...})</a> and <a class="xref" href="cdoverload.htm" shape="rect">/OVERLOAD DETAIL | NODETAIL</a>.</span>
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">OPTIONS(*EXACT) for prototyped parameters</dt>
+
+<dd class="dd">
+When OPTIONS(*EXACT) is specified for a prototyped parameter, additional rules apply to ensure that
+the called procedure receives the same value as the passed parameter.
+For example, without OPTIONS(*EXACT), the compiler allows the passed parameter to be longer than the prototyped parameter,
+and it allows a data structure to be passed that is related by LIKEDS to a different data structure from the passed parameter.
+With OPTIONS(*EXACT), the passed parameter cannot be longer than the prototyped parameter, and if the prototyped
+parameter is defined with LIKEDS keyword, the passed parameter must be related by LIKEDS to the same data structure.
+<p class="p">
+In the following example, field <var class="keyword varname">fld10</var> can be passed to parameter <var class="keyword varname">parm5</var>
+of prototype <span class="keyword apiname">p1</span>, but the called procedure receives the value "abcde" instead of the full value
+'abcdefghij' of <var class="keyword varname">fld10</var>.
+</p>
+
+<p class="p">Field <var class="keyword varname">fld10</var> cannot be passed to parameter <var class="keyword varname">parm5Exact</var>
+of prototype <span class="keyword apiname">p2</span> because the length, 10, of <var class="keyword varname">fld10</var> is greater than
+the length, 5, of the prototyped parameter <var class="keyword varname">parm5Exact</var>.
+</p>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+dcl-pr p1;
+   parm5 char(5);
+end-pr;
+dcl-pr p2;
+   parm5Exact char(5) OPTIONS(*EXACT);
+end-pr;
+dcl-s fld10 char(10) inz('abcdefghij');
+
+p1 (fld10);
+p2 (fld10);  // Error
+</code></pre></div>
+
+<span class="ph">See <a class="xref" href="doptns.htm#doptns__exact" shape="rect">OPTIONS(*EXACT)</a>.</span>
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">See the value of named constants in the debugger</dt>
+
+<dd class="dd">
+Specify Control keyword DEBUG(*CONSTANTS) to enable viewing the value
+of named constants in the debugger.
+<div class="p"><div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+CTL-OPT DEBUG(*CONSTANTS);
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="hdebug.htm" shape="rect">DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}</a>.</span>
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">See or change the return value from a procedure while debugging</dt>
+
+<dd class="dd">If Control keyword DEBUG(*RETVAL) is specified,
+you can evaluate special variable <var class="keyword varname">_QRNU_RETVAL</var>
+to see or change the value that the procedure will return.
+<div class="p">
+Set a breakpoint on the last statement of the procedure to view or change the value of this variable.
+<ul class="ul">
+<li class="li">In free-form code, set the breakpoint on the END-PROC statement.</li>
+
+<li class="li">In fixed-form code, set the breakpoint on the Procedure-End specification.</li>
+
+</ul>
+
+</div>
+
+<div class="p">For example, a programmer is debugging the following procedure.
+<ol class="ol">
+
+<li class="li">The procedure returns the value 'abcde'.</li>
+
+
+<li class="li">The programmer sets a breakpoint on the END-PROC statement.</li>
+
+
+<li class="li">In the debug session, the programmer displays the return value.</li>
+
+</ol>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+CTL-OPT DEBUG(*RETVAL);
+...
+DCL-PROC myProc;
+   DCL-PI *n CHAR(10) END-PI;
+
+   RETURN 'abcde'; <span class="keyword calloutlabel">1</span>
+END-PROC;          <span class="keyword calloutlabel">2</span>
+</code></pre></div>
+
+</div>
+
+<div class="p">
+<ol class="ol">
+
+<li class="li">In the debug session at the END-PROC statement, the programmer displays the return value.</li>
+
+
+<li class="li">The programmer changes the return value to '12345'.</li>
+
+<li class="li">The value '12345' is returned from the procedure.</li>
+
+</ol>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+&gt; EVAL _qrnu_retval                    <span class="keyword calloutlabel">1</span>
+  _QRNU_RETVAL = 'abcde     '
+&gt; EVAL _qrnu_retval = '12345'          <span class="keyword calloutlabel">2</span>
+  _QRNU_RETVAL = '12345' = '12345     '
+</code></pre></div>
+
+</div>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="hdebug.htm" shape="rect">DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}</a>.</span>
+
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">Optionally require prototypes for the main procedure and exported procedures</dt>
+
+<dd class="dd">
+Parameter REQPREXP is added to the CRTBNDRPG and CRTRPGMOD commands to control
+how the compiler responds when no prototype is specified for an exported procedure.
+Additionally, the keyword REQPREXP can be specified as a Control Specification keyword.
+<p class="p">The default for the parameter is *NO.</p>
+
+<p class="p">With the *WARN level,
+the compiler issues a warning diagnostic message.</p>
+
+<p class="p">With the *REQUIRE level, the compiler issues a severe diagnostic message,
+which causes the compile to fail.</p>
+
+<p class="p">You can specify keyword REQPROTO(*NO) for an exported procedure
+or for the procedure interface of the
+cycle-main procedure to indicate that
+a prototype is never required for the procedure.
+</p>
+
+<p class="p">
+<span class="ph">See <a class="xref" href="hreqprexp.htm" shape="rect">REQPREXP(*NO | *WARN | *REQUIRE)</a>,
+<a class="xref" href="preqprotokw.htm" shape="rect">REQPROTO(*NO)</a> for exported procedures, and
+<a class="xref" href="dkwreqproto.htm" shape="rect">REQPROTO(*NO)</a> for the procedure interface of the cycle-main procedure.</span>
+
+</p>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with compile-time PTFs in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">%TIMESTAMP to return microsecond precision</dt>
+
+<dd class="dd">%TIMESTAMP() now returns a timestamp with microsecond precision.
+<p class="p">If you specify %TIMESTAMP(*UNIQUE), the returned timestamp
+has a nonzero value for all 12 fractional digits.
+The first 6 fractional seconds provide microsecond precision.
+The final 6 digits are used to create a unique timestamp.
+</p>
+
+<span class="ph">See <a class="xref" href="bbtmst.htm" shape="rect">%TIMESTAMP (Convert to Timestamp)</a>.</span>
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">A variable or expression is allowed for the second parameter of %KDS</dt>
+
+<dd class="dd">The second parameter of %KDS is the number of keys to use for
+the keyed operation.
+You can now specify a variable or expression for the second parameter.
+<div class="fig figborder">
+<pre class="pre codeblock" xml:space="preserve"><code>
+DCL-F myfile KEYED;
+DCL-DS keys LIKEREC(myRec : *KEY);
+DCL-S numKeys INT(10);
+
+numKeys = 3;
+CHAIN %KDS(keys : numKeys) myRec;
+READE %KDS(keys : numKeys - 1) myRec;
+</code></pre>
+</div>
+
+<span class="ph">See <a class="xref" href="bbkds.htm" shape="rect">%KDS (Search Arguments in Data Structure)</a>.</span>
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">Qualified name for the LIKEDS keyword</dt>
+
+<dd class="dd">You can now specify a qualified name for the LIKEDS keyword.
+In the following example
+<ol class="ol">
+<li class="li">Data structure subfield <var class="keyword varname">employees</var>
+is defined directly in data structure <var class="keyword varname">employee_info</var>.
+</li>
+
+<li class="li">The LIKEDS keyword for the parameter for procedure
+<span class="keyword apiname">check_employee</span> is defined by using the LIKEDS
+keyword to define the parameter the same as the qualified subfield
+<var class="keyword varname">employee_info.employeeds</var>.
+</li>
+
+</ol>
+
+<div class="fig figborder">
+<pre class="pre codeblock" xml:space="preserve"><code>
+DCL-DS employee_info QUALIFIED;
+   num_employees INT(10);
+   DCL-DS employees DIM(20);  // <span class="keyword calloutlabel">1</span>
+      name VARCHAR(25);
+      salary PACKED(7:2);
+   END-DS;
+END-DS;
+DCL-PR check_employee IND;
+   employee LIKEDS(employee_info.employees);  // <span class="keyword calloutlabel">2</span>
+END-PI;
+</code></pre>
+</div>
+
+<span class="ph">See <a class="xref" href="dlikeds.htm#dlikeds__likedsqual" shape="rect">Specifying LIKEDS with a qualified data structure name</a>.</span>
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">*ON and *OFF can be logical expressions</dt>
+
+<dd class="dd">You can now use *ON and *OFF directly in conditional statements.
+For example, if you want an infinitely DOW loop, you can code "DOW *ON".
+<div class="p">
+<div class="fig fignone"><pre class="pre codeblock" xml:space="preserve"><code>
+   DOW *ON;
+    ...
+   ENDDO;
+</code></pre></div>
+
+</div>
+
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">Qualified name for the LIKEDS keyword</dt>
+
+<dd class="dd">You can now specify a qualified name for the LIKEDS keyword.
+In the following example
+<ol class="ol">
+<li class="li">Data structure subfield <var class="keyword varname">employees</var>
+is defined directly in data structure <var class="keyword varname">employee_info</var>.
+</li>
+
+<li class="li">The LIKEDS keyword for the parameter for procedure
+<span class="keyword apiname">check_employee</span> is defined by using the LIKEDS
+keyword to define the parameter the same as the qualified subfield
+<var class="keyword varname">employee_info.employeeds</var>.
+</li>
+
+</ol>
+
+<div class="fig figborder">
+<pre class="pre codeblock" xml:space="preserve"><code>
+DCL-DS employee_info QUALIFIED;
+   num_employees INT(10);
+   DCL-DS employees DIM(20);  // <span class="keyword calloutlabel">1</span>
+      name VARCHAR(25);
+      salary PACKED(7:2);
+   END-DS;
+END-DS;
+DCL-PR check_employee IND;
+   employee LIKEDS(employee_info.employees);  // <span class="keyword calloutlabel">2</span>
+END-PI;
+</code></pre>
+</div>
+
+<span class="ph">See <a class="xref" href="dlikeds.htm#dlikeds__likedsqual" shape="rect">Specifying LIKEDS with a qualified data structure name</a>.</span>
+<p class="p">This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dt dlterm">The BOOLEAN data type is supported for ILE RPG</dt>
+
+<dd class="dd">When a field in a database file is defined with type BOOLEAN,
+the field is considered to have Indicator type in RPG.
+</dd>
+
+
+</dl>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 1. </span>Changed Language Elements Since 7.4: Built-in functions</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1208" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1211" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1208" rowspan="1" style="vertical-align:top;">%KDS</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1211" rowspan="1" style="vertical-align:top;">A variable can now be specified as the second parameter of %KDS
+<span class="ph">See <a class="xref" href="bbkds.htm" shape="rect">%KDS (Search Arguments in Data Structure)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1208" rowspan="1" style="vertical-align:top;">%TIMESTAMP</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1211" rowspan="1" style="vertical-align:top;">%TIMESTAMP() returns a value with microsecond precision.
+%TIMESTAMP(*UNIQUE) returns a unique timestamp.
+<span class="ph">See <a class="xref" href="bbtmst.htm" shape="rect">%TIMESTAMP (Convert to Timestamp)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 2. </span>Changed Language Elements Since 7.4: Control specification keywords</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1263" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1266" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1263" rowspan="1" style="vertical-align:top;">DEBUG keyword</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1266" rowspan="1" style="vertical-align:top;">
+<ul class="ul">
+<li class="li">Specify parameter *RETVAL if you want to
+debug the return value from a procedure.</li>
+
+<li class="li">Specify parameter *CONSTANTS if you want to view the
+value of named constants in the debugger.</li>
+
+</ul>
+
+<span class="ph">See <a class="xref" href="hdebug.htm" shape="rect">DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}</a>.</span>
+
+</td>
+
+</tr>
+
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1263" rowspan="1" style="vertical-align:top;">EXPROPTS keyword</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1266" rowspan="1" style="vertical-align:top;">Parameters *ALWBLANKNUM, *USEDECEDIT, and *STRICTKEYS can now be specified for the
+EXPROPTS keyword.
+<span class="ph">See <a class="xref" href="hexprop.htm" shape="rect">EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 3. </span>Changed Language Elements Since 7.4: Definitions</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1329" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1332" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1329" rowspan="1" style="vertical-align:top;">LIKEDS</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1332" rowspan="1" style="vertical-align:top;">Allows a qualified name
+<span class="ph">See <a class="xref" href="dlikeds.htm#dlikeds__likedsqual" shape="rect">Specifying LIKEDS with a qualified data structure name</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1329" rowspan="1" style="vertical-align:top;">OPTIONS(*EXACT)</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1332" rowspan="1" style="vertical-align:top;">The OPTIONS keyword for a prototyped parameter can have
+value *EXACT, indicating that additional rules should be applied by the compiler when checking
+the validity of the passed parameter.
+<span class="ph">See <a class="xref" href="doptns.htm#doptns__exact" shape="rect">OPTIONS(*EXACT)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 4. </span>Changed Language Elements Since 7.4: Operation codes</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1384" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1387" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1384" rowspan="1" style="vertical-align:top;">SORTA operation code</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1387" rowspan="1" style="vertical-align:top;">%FIELDS can be specified with SORTA to list the subfields for sorting.
+<span class="ph">See <a class="xref" href="bbfieldssorta.htm" shape="rect">%FIELDS (Subfields for sorting)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 5. </span>New Language Elements Since 7.4: Directives</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1424" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1427" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1424" rowspan="1" style="vertical-align:top;">/OVERLOAD</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1427" rowspan="1" style="vertical-align:top;">Specify /OVERLOAD DETAIL to obtain detailed information
+about calls to
+overloaded prototypes in the statements following the directive.
+Specify /OVERLOAD NODETAIL to stop obtaining the detailed information.
+<span class="ph">See <a class="xref" href="cdoverload.htm" shape="rect">/OVERLOAD DETAIL | NODETAIL</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 6. </span>New Language Elements Since 7.4: Definition specification keywords</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1464" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1467" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1464" rowspan="1" style="vertical-align:top;">OVERLOAD</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1467" rowspan="1" style="vertical-align:top;">Defines candidate prototypes that can be called by the name of the overloaded prototype
+(the prototype with the OVERLOAD keyword)
+<span class="ph">See <a class="xref" href="dkwoverload.htm" shape="rect">OVERLOAD(prototype1 { : prototype2 ...})</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1464" rowspan="1" style="vertical-align:top;">REQPROTO</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1467" rowspan="1" style="vertical-align:top;">REQPROTO(*NO) can be specified on the procedure interface
+for the cycle-main procedure to indicate that a prototype is never required.
+<span class="ph">See <a class="xref" href="dkwreqproto.htm" shape="rect">REQPROTO(*NO)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 7. </span>New Language Elements Since 7.4: Control specification keywords</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1519" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1522" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1519" rowspan="1" style="vertical-align:top;">REQPREXP</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1522" rowspan="1" style="vertical-align:top;">Controls whether prototypes are required for the main procedure
+and exported subprocedures.
+<span class="ph">See <a class="xref" href="hreqprexp.htm" shape="rect">REQPREXP(*NO | *WARN | *REQUIRE)</a>.</span>
+
+</td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 8. </span>New Language Elements Since 7.4: Expression Operators</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1560" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1563" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1560" rowspan="1" style="vertical-align:top;">IN</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1563" rowspan="1" style="vertical-align:top;">Used in a binary conditional statement that tests whether
+the first operand is in the second operand.
+<span class="ph">See <a class="xref" href="operin.htm" shape="rect">IN operator</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 9. </span>New Language Elements Since 7.4: Built-in functions</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1601" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1604" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%GEN</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Specifies the generator for the DATA-GEN operation code
+<span class="ph">See <a class="xref" href="bbgen.htm" shape="rect">%GEN (generator {: options})</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%LIST</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Returns a temporary array
+<span class="ph">See <a class="xref" href="bblist.htm" shape="rect">%LIST (item { : item { : item ... } } )</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%LOWER</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Returns the input string converted to lower case.
+<span class="ph">See <a class="xref" href="bblower.htm" shape="rect">%LOWER (Convert to Lower Case)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%MAXARR</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Returns the index of the maximum value in the array
+<span class="ph">See <a class="xref" href="bbmaxminarr.htm" shape="rect">%MAXARR and %MINARR (Maximum or Minimum Element in an Array)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%MINARR</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Returns the index of the minimum value in the array
+<span class="ph">See <a class="xref" href="bbmaxminarr.htm" shape="rect">%MAXARR and %MINARR (Maximum or Minimum Element in an Array)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%MSG</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Specifies the message ID for SND-MSG
+<span class="ph">See <a class="xref" href="bbmsg.htm" shape="rect">%MSG (message-id : message-file { : replacement-text } )</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%RANGE</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Specifies the range to check with the <span class="keyword">IN</span> operator
+<span class="ph">See <a class="xref" href="bbrange.htm" shape="rect">%RANGE (lower-limit : upper-limit)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%SPLIT</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Returns an array of substrings
+<span class="ph">See <a class="xref" href="bbsplit.htm" shape="rect">%SPLIT (Split String into Substrings)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%TARGET</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Specifies the target program or procedure for SND-MSG
+<span class="ph">See <a class="xref" href="bbtarget.htm" shape="rect">%TARGET (program-or-procedure { : offset } )</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1601" rowspan="1" style="vertical-align:top;">%UPPER</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1604" rowspan="1" style="vertical-align:top;">Returns the input string converted to upper case.
+<span class="ph">See <a class="xref" href="bbupper.htm" shape="rect">%UPPER (Convert to Upper Case)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 10. </span>New Language Elements Since 7.4: Operation codes</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1780" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1783" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1780" rowspan="1" style="vertical-align:top;">DATA-GEN</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1783" rowspan="1" style="vertical-align:top;">Generate a structured document from
+an RPG variable.
+<span class="ph">See <a class="xref" href="zzdatagen.htm" shape="rect">DATA-GEN (Generate a Document from a Variable)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1780" rowspan="1" style="vertical-align:top;">FOR-EACH</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1783" rowspan="1" style="vertical-align:top;">Iterate through the items in an array, %LIST, or sub-array
+<span class="ph">See <a class="xref" href="zzforeach.htm" shape="rect">FOR-EACH (For Each)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry nocellnorowborder" colspan="1" headers="d146720e1780" rowspan="1" style="vertical-align:top;">ON-EXCP</td>
+
+<td class="entry cell-norowborder" colspan="1" headers="d146720e1783" rowspan="1" style="vertical-align:top;">Monitor for a specific escape message ID
+<span class="ph">See <a class="xref" href="zzonexcp.htm" shape="rect">ON-EXCP (On Exception)</a>.</span></td>
+
+</tr>
+
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1780" rowspan="1" style="vertical-align:top;">SND-MSG</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1783" rowspan="1" style="vertical-align:top;">Send a message to the joblog
+<span class="ph">See <a class="xref" href="zzsndmsg.htm" shape="rect">SND-MSG (Send a Message to the Joblog)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><caption><span class="tablecap"><span class="table--title-label">Table 11. </span>New Language Elements Since 7.4: Procedure
+specification keywords</span></caption><colgroup span="1"><col span="1" style="width:18.75%" /><col span="1" style="width:81.25%" /></colgroup><thead class="thead" style="text-align:left;">
+<tr class="row" style="vertical-align:bottom;">
+<th class="entry nocellnorowborder" colspan="1" id="d146720e1865" rowspan="1" style="vertical-align:bottom;">Element</th>
+
+<th class="entry cell-norowborder" colspan="1" id="d146720e1868" rowspan="1" style="vertical-align:bottom;">Description</th>
+
+</tr>
+
+</thead>
+<tbody class="tbody">
+<tr class="row">
+<td class="entry row-nocellborder" colspan="1" headers="d146720e1865" rowspan="1" style="vertical-align:top;">REQPROTO</td>
+
+<td class="entry cellrowborder" colspan="1" headers="d146720e1868" rowspan="1" style="vertical-align:top;">REQPROTO(*NO) indicates that a
+prototype is never required for the exported procedure.
+<span class="ph">See <a class="xref" href="preqprotokw.htm" shape="rect">REQPROTO(*NO)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table>
+</div>
+
+</div>
+
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="rpgrnewrel.htm" shape="rect" title="New and changed features in each release of the ILE RPG compiler since V3R1">What's New</a></div>
+</div>
+</div></body>
+</html>

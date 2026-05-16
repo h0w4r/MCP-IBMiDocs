@@ -1,0 +1,193 @@
+OVERLAY(name{:start_pos | *NEXT})
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > Definition-Specification Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords
+
+OVERLAY(name{:start_pos | *NEXT})
+
+The OVERLAY keyword is allowed in fixed-form and free-form.
+It is only allowed for data structure subfields.
+
+The OVERLAY keyword overlays the storage of one subfield with that
+of another subfield, or in a fixed-form definition, with that of the data structure itself.
+
+The Name-entry subfield overlays the storage specified by the name
+parameter at the position specified by the start_pos parameter. If start_pos is
+not specified, it defaults to 1. Note: The start_pos parameter is in units
+of bytes, regardless of the types of the subfields.
+
+Specifying OVERLAY(name:*NEXT) positions the subfield at the next
+available position within the overlaid field. (This will be the first
+byte past all other subfields prior to this subfield that overlay
+the same subfield.)
+
+The following rules apply to keyword OVERLAY:
+The name parameter must be the name of a subfield defined previously
+in the current data structure.
+
+In a fixed-form definition, the name can also be name of the current data structure.
+However, in a free-form definition, the OVERLAY keyword can only be used to position a subfield within another subfield;
+use the POS keyword to position a subfield within the data structure.
+
+If the data structure is qualified, the first parameter
+to the OVERLAY keyword must be specified without the qualifying data
+structure name. In the following example, subfield MsgInfo.MsgPrefix
+overlays subfield MsgInfo.MsgId.
+D MsgInfo DS QUALIFIED
+D MsgId 7
+D MsgPrefix 3 OVERLAY(MsgId)
+
+The start_pos parameter (if specified) must be a value greater than
+0 with no decimal positions. It can be a numeric literal, a built-in
+function returning a numeric value, or a numeric constant. If start_pos
+is a named constant, it must be defined prior to this specification.
+
+The OVERLAY keyword is not allowed when the From-Position entry
+is not blank.
+
+If the name parameter is a subfield, the subfield being defined
+must be contained completely within the subfield specified by the
+name parameter.
+To position a subfield at the same starting position as another subfield,
+without associating the two subfields in any other way, use the
+SAMEPOS keyword.
+
+Alignment of subfields defined using the OVERLAY keyword must
+be done manually. If they are not correctly aligned, a warning message
+is issued.
+
+If the subfield specified as the first parameter for the OVERLAY
+keyword is an array, the OVERLAY keyword applies to each element of
+the array. That is, the field being defined is defined as an array
+with the same number of elements. The first element of this array
+overlays the first element of the overlaid array, the second element
+of this array overlays the second element of the overlaid array, and
+so on. No array keywords may be specified for the subfield with the
+OVERLAY keyword in this situation. (Refer to Figure 1) See also SORTA (Sort an Array). If the subfield name, specified
+as the first parameter for the OVERLAY keyword, is an array and its
+element length is longer than the length of the subfield being defined,
+the array elements of the subfield being defined are not stored contiguously.
+Such an array is not allowed as the Result Field of a PARM operation
+or in Factor 2 or the Result Field of a MOVEA operation.
+
+If the ALIGN keyword is specified for the data structure, subfields
+defined with OVERLAY(name:*NEXT) are aligned to their preferred alignment.
+Pointer subfields are always aligned on a 16-byte boundary.
+
+If a subfield with overlaying subfields is not otherwise defined,
+the subfield is implicitly defined as follows:
+The start position is the first available position in the data
+structure.
+
+The length is the minimum length that can contain all overlaying
+subfields. If the subfield is defined as an array, the length will
+be increased to ensure proper alignment of all overlaying subfields.
+
+Examples
+
+Figure 1. Storage Allocation of Subfields
+with Keywords DIM and OVERLAY
+*.. 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+... 6 ...+... 7 ...+... *
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords++++++++++++++++++++++++++++
+D DataStruct DS
+D A 10 DIM(5)
+D B 5 OVERLAY(A)
+D C 5 OVERLAY(A:6)
+
+Allocation of fields in storage:
+
+A(1)
+
+A(2)
+
+A(3)
+
+A(4)
+
+A(5)
+
+B(1)
+
+C(1)
+
+B(2)
+
+C(2)
+
+B(3)
+
+C(3)
+
+B(4)
+
+C(4)
+
+B(5)
+
+C(5)
+
+Figure 2. Storage Allocation of Subfields
+with Keywords DIM and OVERLAY
+*.. 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+... 6 ...+... 7 ...+... *
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+D DataStruct DS
+D A 5
+D B 1 OVERLAY(A) DIM(4)
+
+Allocation of fields in storage:
+
+A
+
+B(1)
+
+B(2)
+
+B(3)
+
+B(4)
+
+ 
+
+The following example shows two equivalent ways of defining subfield
+overlay positions: explicitly with (name:start_pos) and implicitly with
+(name:*NEXT). Figure 3. Defining Subfield
+Overlay Positions with *NEXT
+*.. 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+... 6 ...+... 7 ...+... *
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+* Define subfield overlay positions explicitly
+D DataStruct DS
+D PartNumber 10A
+D Family 3A OVERLAY(PartNumber)
+D Sequence 6A OVERLAY(PartNumber:4)
+D Language 1A OVERLAY(PartNumber:10)
+*.. 1 ...+... 2 ...+... 3 ...+... 4 ...+... 5 ...+... 6 ...+... 7 ...+... *
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+* Define subfield overlay positions with *NEXT
+D DataStruct DS
+D PartNumber
+D Family 3A OVERLAY(PartNumber)
+D Sequence 6A OVERLAY(PartNumber:*NEXT)
+D Language 1A OVERLAY(PartNumber:*NEXT)
+
+The following example shows the same data structures defined in free form.
+Figure 4. Defining Subfield
+Overlay Positions in Free Form
+
+// Define subfield overlay positions explicitly
+DCL-DS DataStruct;
+PartNumber CHAR(10);
+Family CHAR(3) OVERLAY(PartNumber);
+Sequence CHAR(6) OVERLAY(PartNumber:4);
+Language CHAR(1) OVERLAY(PartNumber:10);
+END-DS;
+
+// Define subfield overlay positions with *NEXT
+DCL-DS DataStruct;
+PartNumber CHAR(10);
+Family CHAR(3) OVERLAY(PartNumber);
+Sequence CHAR(6) OVERLAY(PartNumber:*NEXT);
+Language CHAR(1) OVERLAY(PartNumber:*NEXT);
+END-DS;
+
+Parent topic: Definition-Specification Keywords

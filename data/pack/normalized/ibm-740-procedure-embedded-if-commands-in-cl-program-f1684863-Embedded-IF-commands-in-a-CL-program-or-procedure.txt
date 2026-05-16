@@ -1,0 +1,102 @@
+Embedded IF commands in a CL program or procedure
+
+Embedded IF commands in a CL program or procedureLast Updated: 2025-10-07
+
+An If (IF) command can be embedded in
+another IF command.
+
+Note: By using the code examples, you agree to the terms
+of the Code license and disclaimer information.
+
+Embedding
+an IF command can occur when the command to be processed under a true
+evaluation (the CL command placed on the THEN parameter) is itself
+another IF command:
+
+IF (&A=&B) THEN(IF (&C=&D) THEN(GOTO END))
+GOTO START
+This can be useful when several conditions must be
+satisfied before a certain command or group of commands is run. In
+the preceding example, if the first expression is true, the system
+then reads the first THEN parameter; within that, if the &C=&D expression
+is evaluated as true, the system processes the command in the second
+THEN parameter, GOTO END. Both expressions must be true to process
+the GOTO END command. If one or the other is false,
+the GOTO START command is run. Note the use of parentheses to organize
+expressions and commands.
+Up to 25 levels of such embedding
+are permitted in CL programming.
+As the levels of embedding
+increase and logic grows more complex, you might want to enter the
+code in free-form design to clarify relationships:
+
+PGM
+DCL &A *DEC 1
+DCL &B *CHAR 2
+DCL &RESP *DEC 1
+IF (&RESP=1) +
+IF (&A=5) +
+IF (&B=NO) THEN(DO)
+.
+.
+.
+ENDDO
+CHGVAR &A VALUE(8)
+CALL PGM(DAILY)
+ENDPGM
+The preceding IF series is handled as one embedded
+command. Whenever any one of the IF conditions fails, processing
+branches to the remainder of the code (Change Variable (CHGVAR) and
+subsequent commands). If the purpose of this code is to accumulate
+a series of conditions, all of which must be true for the Do group
+to process, it could be more easily coded using *AND with several
+expressions in one command.
+In some cases, however, the branch
+must be different depending on which condition fails. You can accomplish
+this by adding an ELSE command for each embedded IF command:
+
+PGM
+DCL &A ...
+DCL &B ...
+DCL &RESP ...
+IF (&RESP=1) +
+IF (&A=5) +
+IF (&B=NO) THEN(DO)
+.
+.
+.
+SNDPGMMSG ...
+.
+.
+.
+ENDDO
+ELSE CALLPRC PROCA
+ELSE CALLPRC PROCB
+CHGVAR &A 8
+CALLPRC PROC(DAILY)
+ENDPGM
+Here, if all conditions are true, the Send
+Program Message (SNDPGMMSG) command is processed, followed
+by the Change Variable (CHGVAR) command. If the
+first and second conditions (&RESP=1 and &A=5)
+are true, but the third (&B=NO) is false, PROCA
+is called; when PROCA returns, the CHGVAR command is processed. If
+the second conditions fails, PROCB is called (&B=NO is
+not tested), followed by the CHGVAR command. Finally, if &RESP
+does not equal 1, the CHGVAR command is immediately processed. The
+ELSE command has been used to provide a different branch for each
+test.
+
+Note: The following three examples are correct syntactical
+equivalents to the embedded IF command in the preceding
+example:
+
+IF (&RESP=1) THEN(IF (&A=5) THEN(IF (&B=NO) THEN(DO)))
+
+IF (&RESP=1) THEN +
+(IF (&A=5) THEN +
+(IF (&B=NO) THEN(DO)))
+
+IF (&RESP=1) +
+(IF (&A=5) +
+(IF (&B=NO) THEN(DO)))

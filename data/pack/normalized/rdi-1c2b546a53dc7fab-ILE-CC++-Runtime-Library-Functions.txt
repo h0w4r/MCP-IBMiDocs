@@ -1,0 +1,89 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+_Rupfb() — Provide Information on Last I/O Operation
+Format
+#include <recio.h>
+
+_RIOFB_T *_Rupfb(_RFILE *fp);
+Language Level: ILE C Extension
+Threadsafe: Yes. However, if the file pointer is passed among threads, the
+I/O feedback area is shared among those threads.
+Description
+The _Rupfb() function updates the feedback structure associated
+with the file specified by fp with information about the
+last I/O operation. The _RIOFB_T structure will be updated even
+if riofb=N was specified when the file was opened. The num_bytes
+field of the _RIOFB_T structure will not be updated. See <recio.h> for a description of the _RIOFB_T structure.
+The _Rupfb() function is valid for all types of files.
+Return Value
+The _Rupfb() function returns a pointer to the _RIOFB_T structure
+specified by fp. See Table 12 and Table 14 for errno settings.
+Example that uses _Rupfb()
+#include <stdio.h>
+#include <recio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+_RFILE *fp;
+_RIOFB_T *fb;
+/* Create a physical file */
+system("CRTPF FILE(QTEMP/MY_FILE) RCDLEN(80)");
+/* Open the file for write */
+if ( (fp = _Ropen("QTEMP/MY_FILE", "wr")) == NULL )
+{
+printf("open for write fails\n");
+exit(1);
+}
+/* Write some records into the file */
+_Rwrite(fp, "This is record 1", 16);
+_Rwrite(fp, "This is record 2", 16);
+_Rwrite(fp, "This is record 3", 16);
+_Rwrite(fp, "This is record 4", 16);
+_Rwrite(fp, "This is record 5", 16);
+_Rwrite(fp, "This is record 6", 16);
+_Rwrite(fp, "This is record 7", 16);
+_Rwrite(fp, "This is record 8", 16);
+_Rwrite(fp, "This is record 9", 16);
+/* Close the file */
+_Rclose(fp);
+/* Open the file for read */
+if ( (fp = _Ropen("QTEMP/MY_FILE", "rr, blkrcd = y")) == NULL )
+{
+printf("open for read fails\n");
+exit(2);
+}
+/* Read some records */
+_Rreadn(fp, NULL, 80, __DFT);
+_Rreadn(fp, NULL, 80, __DFT);
+/* Call _Rupfb and print feed back information */
+fb = _Rupfb(fp);
+printf("record number -------------------------- %d\n",
+fb->rrn);
+printf("number of bytes read ------------------- %d\n",
+fb->num_bytes);
+printf("number of records remaining in block --- %hd\n",
+fb->blk_count);
+if ( fb->blk_filled_by == __READ_NEXT )
+{
+printf("block filled by ------------------------ __READ_NEXT\n");
+}
+else
+{
+printf("block filled by ------------------------ __READ_PREV\n");
+}
+/* Close the file */
+_Rclose(fp);
+}
+Related Information
+
+_Ropnfbk() — Obtain Open Feedback Information
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

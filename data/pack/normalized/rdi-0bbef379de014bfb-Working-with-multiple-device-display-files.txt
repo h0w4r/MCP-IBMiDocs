@@ -1,0 +1,143 @@
+Working with multiple device display files
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Working with files in CL programs or procedures > Working with files in CL programs or procedures
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Working with files in CL programs or procedures
+
+Working with multiple device display files
+A multiple device display configuration occurs when a single job
+called by one requester communicates with multiple display stations through
+one display file. While only one display file can be handled by a CL program
+or procedure, the display file, or different record formats within it, can
+be sent to several device displays.
+The normal mode of operation on a system is for the workstation
+user to sign on and become the requester for an interactive job. Many users
+can do this at the same time, because each will use a logical copy of the
+program or procedure, including the display file in the program or procedure.
+Each requester calls a separate job in this kind of use. This is not considered
+to be multiple device display use.
+Commands used primarily with multiple
+device display files are as follows:
+End Receive (ENDRCV)
+This command cancels requests for input that have not been satisfied.
+Wait (WAIT)
+Accepts input from any device display from which user data was requested
+by one or more previous Receive File (RCVF) or SNDRCVF
+commands when WAIT(*NO) was specified on the command, or by one or more previous Send
+File (SNDF) commands to a record format containing the INVITE DDS
+keyword.
+
+If you use a multiple device display file, the device names
+must be specified on the DEV parameter on the CRTDSPF command when the display
+file is created, on the CHGDSPF command when the display file is changed,
+or on an override command, and the number of devices must be less than or
+equal to the number specified on the MAXDEV parameter on the CRTDSPF command.
+Multiple
+device display configurations affect the Send/Receive File (SNDRCVF) and
+the RCVF commands and you may need to use the Wait (WAIT) or End
+Receive (ENDRCV) commands. When an Receive File (RCVF) or Send/Receive
+File (SNDRCVF) command is used with multiple display devices, the
+default value WAIT(*YES) prevents further processing until an input-capable
+field is returned to the program from the device named on the DEV parameter.
+Because the response may be delayed, it is sometimes useful to specify WAIT(*NO),
+thus letting your procedure or program continue running other commands before
+the receive operation is satisfied.
+If you use an RCVF or Send/Receive
+File (SNDRCVF) command and specify WAIT(*NO), the CL procedure or
+program continues running until a Wait (WAIT) command is
+processed.
+Using a Send File (SNDF) command with
+a record format which has the DDS INVITE keyword is equivalent to using a Send/Receive
+File (SNDRCVF) command with WAIT(*NO) specified. The DDS INVITE
+keyword is ignored for Send/Receive File (SNDRCVF) and Receive
+File (RCVF) commands.
+The Wait (WAIT) command
+must be issued to access a data record. If no data is available, processing
+is suspended until data is received from a device display or until the time
+limit specified in the WAITRCD parameter for the display file on the CRTDSPF,
+CHGDSPF, or OVRDSPF commands has passed. If the time limit passes, message
+CPF0889 is issued.
+The Wait (WAIT) will also be satisfied
+by the job being canceled with the controlled option on the ENDJOB, ENDSYS,
+PWRDWNSYS, and ENDSBS commands. In this case, message CPF0888 is issued and
+no data is returned. If a WAIT command is issued without a preceding receive
+request (such as RCVF . . . WAIT(*NO)), a processing error occurs.
+A
+typical multiple device display configuration (with code) might look like
+this.
+In the previous example,
+the first two commands show a typical sequence in which the default is taken;
+processing waits for the receive operation from WS2 to complete. Because
+WS2 is specified on the DEV parameter, the RCVF command does not run until
+WS2 responds, even if prior outstanding requests (not shown) from other stations
+are satisfied.
+The SNDRCVF command, however, has WAIT(*NO) specified
+and so does not wait for a response from WS1. Instead, processing continues
+and PROGA is called. Processing then stops at the WAIT command until an outstanding
+request is satisfied by a workstation, or until the function reaches time-out.
+The
+WAIT command has the following format:
+WAIT DEV(CL-variable-name)
+If the DEV parameter is specified, the CL variable name is
+the name of the device that responded. (The default is *NONE.) If there are
+several receive requests (such as RCVF. . . WAIT(*NO)), this variable takes
+the name of the first device to respond after the Wait (WAIT) command
+is encountered and processing continues. The data received is placed in the
+variable associated with the field in the device display.
+A RCVF command
+with WAIT(*YES) specified can be used to wait for data from a specific device.
+The same record format name must be specified for both the operation that
+started the receive request and the RCVF command.
+In some cases, several
+receive requests are outstanding, but processing cannot proceed further without
+a reply from a specific device display. In the following example, three commands
+specify WAIT(*NO), but processing cannot continue at label LOOP until WS3
+replies.
+PGM
+.
+.
+.
+SNDF DEV(WS1) RCDFMT(ONE)
+SNDF DEV(WS2) RCDFMT(TWO)
+SNDRCVF DEV(WS3) RCDFMT(THREE) WAIT(*NO)
+RCVF DEV(WS2) RCDFMT(TWO) WAIT(*NO)
+RCVF DEV(WS1) RCDFMT(ONE) WAIT(*NO)
+CALL...
+CALL...
+.
+.
+RCVF DEV(WS3) RCDFMT(THREE) WAIT(*YES)
+LOOP: WAIT DEV(&WSNAME)
+MONMSG CPF0882 EXEC(GOTO REPLY)
+.
+.
+.
+GOTO LOOP
+REPLY: CALL...
+.
+.
+.
+ENDPGM
+CL procedures and programs also support the End Receive
+(ENDRCV) command, which lets you cancel a request for input that
+has not yet been satisfied. A Send File (SNDF) or Send/Receive
+File (SNDRCVF) command will also cancel a request for input that
+has not yet been satisfied. However, if the data was available at the time
+the Send File (SNDF) or Send/Receive File (SNDRCVF) command
+was processed, message CPF0887 is sent. In this case the data must be received
+with the WAIT command or Receive File (RCVF) command, or
+the request must be explicitly canceled with a End Receive (ENDRCV) command
+before the Send File (SNDF) or Send/Receive File
+(SNDRCVF) command can be processed.
+
+Parent topic: Working with files in CL programs or procedures
+
+Related concepts
+Variables in CL commands
+
+Related information
+Wait (WAIT) command
+End Receive (ENDRCV) command
+Send File (SNDF) command
+Receive File (RCVF) command
+Send/Receive File (SNDRCVF) command

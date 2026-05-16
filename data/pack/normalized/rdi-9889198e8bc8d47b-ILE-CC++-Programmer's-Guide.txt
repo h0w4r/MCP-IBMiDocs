@@ -1,0 +1,190 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 20. Using Device Files in a Program
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 20. Using Device Files in a Program
+
+ILE C/C++ Programmer's Guide
+Changing the Default Program Device
+You can change the default device for a device file.
+Example:
+The following example illustrates how to change the default program device
+using the _Rpgmdev() function.
+Note:To run this example you must use two display devices that are defined on your
+system in place of DEVICE1 and DEVICE2.
+
+To create the display file T1520DDE using the DDS shown below,
+enter:
+
+CRTDSPF FILE(MYLIB/T1520DDE) SRCFILE(QCPPLE/QADDSSRC) MAXDEV(2)
+
+Figure 143. T1520DDE -- DDS Source for Name and Password Display
+
+A DSPSIZ(24 80 *DS3)
+A INVITE
+A R FORMAT1
+A 9 13'Name:'
+A NAME 20A I 9 20
+A 11 10'Address:'
+A ADDRESS 25A I 11 20
+A R FORMAT2
+A 9 13'Name:'
+A NAME 8A I 9 20
+A 11 10'Password:'
+A PASSWORD 10A I 11 20
+
+To override the file STDOUT with the printer file QPRINT, enter:
+
+OVRPRTF FILE(STDOUT) TOFILE(QPRINT)
+
+To create the program T1520CDV using the source shown below, enter:
+
+CRTBNDC PGM(MYLIB/T1520CDV) SRCFILE(QCPPLE/QACSRC)
+
+Figure 144. T1520CDV -- ILE C Source to Change the Default Device
+
+/* This program illustrates how to change a default program device. */
+/* using the _Racquire(), _Rpgmdev(), _Rreadindv() and _Rrelease() */
+/* functions. */
+ 
+#include <stdio.h>
+#include <recio.h>
+#include <string.h>
+#include <stdlib.h>
+ 
+typedef struct{
+char name[20];
+char address[25];
+}format1;
+typedef struct{
+char name[8];
+char password[10];
+}format2 ;
+ 
+typedef union{
+format1 fmt1;
+format2 fmt2;
+}formats ;
+ 
+void io_error_check( _RIOFB_T *rfb )
+{
+if ( memcmp(rfb->sysparm->_Maj_Min.major_rc,"00",2 ) ||
+memcmp ( rfb->sysparm->_Maj_Min.minor_rc,"00",2 ))
+{
+printf ( "I/O error occurred, program ends.\n" );
+exit ( 1 );
+}
+}
+int main(void)
+{
+_RFILE *fp;
+_RIOFB_T *rfb;
+_XXIOFB_T *iofb;
+int size;
+formats buf;
+ 
+/* Open the device file. */
+ 
+if (( fp = _Ropen ( "*LIBL/T1520DDE", "ar+" )) == NULL )
+{
+printf ( "Could not open file\n" );
+exit ( 1 );
+}
+
+_Racquire ( fp,"DEVICE1" ); /* Acquire another device. */
+/* Replace with the actual */
+/* device name. */
+ 
+_Rformat ( fp,"FORMAT1" ); /* Set the record format for the */
+/* display file. */
+ 
+rfb = _Rwrite ( fp, "", 0 ); /* Set up the display. */
+ 
+io_error_check(rfb);
+ 
+_Racquire ( fp,"DEVICE2" ); /* Acquire another device. */
+ 
+_Rpgmdev ( fp,"DEVICE2" ); /* Change the default program */
+/* device. Replace with the */
+/* actual device name. */
+/* Device2 implicitly acquired at */
+/* open. */
+ 
+_Rformat ( fp,"FORMAT2" ); /* Set the record format for the */
+/* the display file. */
+ 
+rfb = _Rwrite ( fp, "", 0 ); /* Set up the display. */
+io_error_check ( rfb );
+ 
+_Rreadindv ( fp, &buf, sizeof(buf), __DFT );
+/* Read from the first device that */
+/* enters data. The device becomes */
+/* the default program device. */
+io_error_check ( rfb );
+ 
+/* Determine which terminal responded first. */
+ 
+iofb = _Riofbk ( fp );
+if ( !strncmp ( "FORMAT1 ", iofb -> rec_format, 10 ))
+{
+_Rrelease ( fp, "DEVICE1" );
+}
+else
+{
+_Rrelease(fp, "DEVICE2" );
+}
+return(0);
+}
+
+The ILE C program T1520CDV uses the _Racquire() function to
+explicitly acquire another device that is named DEVICE1. DEVICE1
+becomes the current program device. The _Rpgmdev()
+function changes the current device that is named DEVICE1 to DEVICE2.
+The _Rreadindv() function reads records from DEVICE1. The
+_Release() function releases DEVICE1 and DEVICE2.
+To run the program T1520CDV, enter:
+
+CALL PGM(MYLIB/T1520CDV)
+
+The output is as follows:
++--------------------------------------------------------------------------------+
+| |
+| |
+| |
+| |
+| |
+| |
+| Name: |
+| Password: |
+| |
+| |
+| |
+| |
+| |
+| |
+| |
+| |
+| |
+| |
+| |
+| |
+| |
++--------------------------------------------------------------------------------+
+
+When the application is run, a different display appears on each
+device. Data may be entered on both displays, but the data that is
+first entered is returned to the program. The output from the program
+is in QPRINT. For example, if the name SMITH and the address
+10 MAIN ST is entered on DEVICE1 before any data is entered on
+DEVICE2, then the file QPRINT contains:
+
+Data displayed on DEVICE1 is SMITH 10 MAIN ST
+
+Note:There are two record formats that are created in the above example.
+One has a size of 45 characters (fmt1), and the other a size of
+18 characters (fmt2). The union buf contains two record
+format declarations.
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

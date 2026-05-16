@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="© Copyright IBM Corporation 2016" name="copyright" />
+<meta content="© Copyright IBM Corporation 2016" name="DC.Rights.Owner" />
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="topic" name="DC.Type" />
+<meta content="Calculating Precision of Intermediate Results" name="DC.Title" />
+<meta content="intprec.htm" name="DC.Relation" scheme="URI" />
+<meta content="ILE COBOL" name="prodname" />
+<meta content="7.3" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.Date" scheme="iso8601" />
+<meta content="June 2012" name="DC.Date.Created" />
+<meta content="XHTML" name="DC.Format" />
+<meta content="calprc" name="DC.Identifier" />
+<meta content="en-us" name="DC.Language" />
+<meta content="ZZ" name="IBM.Country" />
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link href="./ibmdita.css" rel="stylesheet" type="text/css" />
+<link href="./ic.css" rel="stylesheet" type="text/css" />
+<link href="intprec.htm" rel="Start" />
+<title>Calculating Precision of Intermediate Results</title>
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilecbl.ref.doc%2Ftopics%2Fcalprc.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="calprc">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_1" shape="rect">ILE COBOL</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/rzasbmain.htm" shape="rect">ILE COBOL Language Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/cobolrefappendixes.htm" shape="rect">Appendixes</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilecbl.ref.doc/topics/intprec.htm" shape="rect">Appendix B. Intermediate Results and Arithmetic Precision</a></div>
+<div role="main">
+<!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+<h1 class="title topictitle1">Calculating Precision of Intermediate Results</h1>
+<div class="body"><p class="p">The compiler uses algorithms to determine the number of integer and decimal
+places reserved for intermediate results.</p>
+<div class="p">In the following discussion of how the compiler determines the number of
+integer and decimal places reserved for intermediate results, these abbreviations
+are used: 
+<dl class="dl"><dt class="dt dlterm">i</dt>
+<dd class="dd">The number of integer places carried for an intermediate result.</dd>
+<dt class="dt dlterm">d</dt>
+<dd class="dd">The number of decimal places carried for an intermediate result.</dd>
+<dt class="dt dlterm">ROUNDED</dt>
+<dd class="dd">If the ROUNDED option is used, one more integer or decimal place might
+be added for accuracy, if necessary. Only the final results are rounded; the
+intermediate results are not rounded. 62 digits is the maximum number of digits
+that can be accurately rounded.</dd>
+<dt class="dt dlterm">dmax</dt>
+<dd class="dd">In a particular statement, the largest of: 
+<ul class="ul"><li class="li">The number of decimal places needed for the final result field(s).</li>
+<li class="li">The maximum number of decimal places defined for any operand.</li>
+<li class="li">The outer-dmax for any function operand.</li>
+</ul>
+</dd>
+<dt class="dt dlterm">inner-dmax</dt>
+<dd class="dd">The inner-dmax for a function is the largest of: 
+<ul class="ul"><li class="li">The number of decimal places defined for any of its elementary arguments.</li>
+<li class="li">The dmax for any of its arithmetic expression arguments.</li>
+<li class="li">The outer-dmax for any of its embedded functions.</li>
+</ul>
+</dd>
+<dt class="dt dlterm">outer-dmax</dt>
+<dd class="dd">The number that determines how a function result contributes to operations
+outside of its own evaluation (for example if the function is an operand in
+an arithmetic expression or an argument to another function).</dd>
+<dt class="dt dlterm">op1</dt>
+<dd class="dd">The first operand in a generated arithmetic statement. For division,
+op1 is the divisor.</dd>
+<dt class="dt dlterm">op2</dt>
+<dd class="dd">The second operand in a generated arithmetic statement. For division,
+op2 is the dividend.</dd>
+<dt class="dt dlterm">i1,i2</dt>
+<dd class="dd">The number of integer places in op1 and op2, respectively.</dd>
+<dt class="dt dlterm">d1,d2</dt>
+<dd class="dd">The number of decimal places defined for op1 and op2, respectively.</dd>
+<dt class="dt dlterm">ir</dt>
+<dd class="dd">Intermediate result field obtained from the processing of a generated
+arithmetic statement or operation. Intermediate results are represented by
+ir1, ir2, and so on. Successive intermediate results may share the same memory
+location.</dd>
+</dl>
+</div>
+<div class="p">Below we use a COMPUTE statement to demonstrate the use of intermediate
+results in an arithmetic expression. In this case, the following statement: 
+<pre class="pre codeblock" xml:space="preserve"><code>  COMPUTE Y = A + B * C - D / E + F ** G</code></pre>
+</div>
+<p class="p">is replaced by</p>
+<div class="tablenoborder"><table border="1" cellpadding="4" cellspacing="0" class="table" frame="border" rules="all" summary=""><tbody class="tbody"><tr class="row"><td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">F ** G</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%"> </td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="44.44444444444444%">yielding ir1</td>
+</tr>
+<tr class="row"><td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">MULTIPLY B</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">BY C</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="44.44444444444444%">yielding ir2</td>
+</tr>
+<tr class="row"><td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">DIVIDE E</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">INTO D</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="44.44444444444444%">yielding ir3</td>
+</tr>
+<tr class="row"><td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">ADD A</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">TO ir2</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="44.44444444444444%">yielding ir4</td>
+</tr>
+<tr class="row"><td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">SUBTRACT ir3</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">FROM ir4</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="44.44444444444444%">yielding ir5</td>
+</tr>
+<tr class="row"><td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">ADD ir5</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="27.77777777777778%">TO ir1</td>
+<td align="left" class="entry tdleft" colspan="1" rowspan="1" valign="top" width="44.44444444444444%">yielding Y</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="intprec.htm" shape="rect">Appendix B. Intermediate Results and Arithmetic Precision</a></div>
+</div>
+</div></div></body>
+</html>

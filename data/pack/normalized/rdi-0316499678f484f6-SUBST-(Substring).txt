@@ -1,0 +1,159 @@
+SUBST (Substring)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+SUBST (Substring)
+
+Free-Form Syntax
+
+(not allowed - use %SUBST)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+SUBST (E P)
+
+Length to extract
+
+Base string:start
+
+Target string
+
+_
+
+ER
+
+_
+
+The SUBST operation returns a substring from factor 2, starting
+at the location specified in factor 2 for the length specified in
+factor 1, and places this substring in the result field. If factor
+1 is not specified, the length of the string from the start position
+is used. For graphic or UCS-2 strings, the start position is measured
+in double bytes. The base and target strings must both be of the same
+type, either both character, both graphic, or both UCS-2.
+
+Factor 1 can contain the length value of the string to be extracted
+from the string specified in factor 2. It must be numeric with no
+decimal positions and can contain one of: a field name, array element,
+table name, literal, or named constant.
+
+Factor 2 must contain either the base string, or the base string
+followed by ':', followed by the start location. The base
+string portion can contain one of: a field name, array element, named
+constant, data structure name, table name, or literal. The start position
+must be numeric with zero decimal positions, and can contain one of
+the following: a field name, array element, table name, literal or
+named constant. If it is not specified, SUBST starts in position 1
+of the base string. For graphic or UCS-2 strings, the start position
+is measured in double bytes.
+
+The start location and the length of the substring to be extracted
+must be positive integers. The start location must not be greater
+than the length of the base string, and the length must not be greater
+than the length of the base string from the start location. If either
+or both of these conditions is not satisfied, the operation will not
+be performed.
+
+To handle SUBST exceptions (program status
+code 100), either the operation code extender 'E' or an error
+indicator ER can be specified, but not both. For more information
+on error handling, see Program Exception/Errors.
+
+The result field must be character, graphic, or UCS-2 and can contain
+one of the following: a field name, array element, data structure,
+or table name. The result is left-justified. The result field's length
+should be at least as large as the length specified in factor 1. If
+the substring is longer than the field specified in the result field,
+the substring will be truncated from the right. If
+the result field is variable-length, its length does not change.
+
+For more information, see String Operations.
+
+Note: You cannot use figurative constants in the factor
+1, factor 2, or result fields. Overlapping is allowed for factor 1
+and the result field or factor 2 and the result field. If factor 1
+is shorter than the length of the result field, a P specified in the
+operation extender position indicates that the result field should
+be padded on the right with blanks after the substring occurs.
+
+Figure 1. SUBST Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* The SUBST operation extracts the substring from factor 2 starting
+* at position 3 for a length of 2. The value 'CD' is placed in the
+* result field TARGET. Indicator 90 is not set on because no error
+* occurred.
+C
+C Z-ADD 3 T 2 0
+C MOVEL 'ABCDEF' String 10
+C 2 SUBST String:T Target 90
+*
+* In this SUBST operation, the length is greater than the length
+* of the string minus the start position plus 1. As a result,
+* indicator 90 is set on and the result field is not changed.
+C
+C MOVE 'ABCDEF' String 6
+C Z-ADD 4 T 1 0
+C 5 SUBST String:T Result 90
+C
+* In this SUBST operation, 3 characters are substringed starting
+* at the fifth position of the base string. Because P is not
+* specified, only the first 3 characters of TARGET are
+* changed. TARGET contains '123XXXXX'.
+C
+C Z-ADD 3 Length 2 0
+C Z-ADD 5 T 2 0
+C MOVE 'TEST123' String 8
+C MOVE *ALL'X' Target
+C Length SUBST String:T Target 8
+
+*
+* This example is the same as the previous one except P
+* specified, and the result is padded with blanks.
+* TARGET equals '123␢␢␢␢␢'.
+C
+C Z-ADD 3 Length 2 0
+C Z-ADD5 T 2 0
+C MOVE 'TEST123' String 8
+C MOVE *ALL'X' Target
+C Length SUBST(P) String:T Target 8
+C
+C
+*
+* In the following example, CITY contains the string
+* 'Toronto, Ontario'. The SCAN operation is used to locate the
+* separating blank, position 9 in this illustration. SUBST
+* without factor 1 places the string starting at position 10 and
+* continuing for the length of the string in field TCNTRE.
+* TCNTRE contains 'Ontario'.
+C ' ' SCAN City C
+C ADD 1 C
+C SUBST City:C TCntre
+*
+* Before the operations STRING='␢␢␢John␢␢␢&
+* RESULT is a 10 character field which contains 'ABCDEFGHIJ'.
+* The CHECK operation locates the first nonblank character
+* and sets on indicator 10 if such a character exists. If *IN10
+* is on, the SUBST operation substrings STRING starting from the
+* first non-blank to the end of STRING. Padding is used to ensure
+* that nothing is left from the previous contents of the result
+* field. If STRING contains the value ' HELLO ' then RESULT
+* will contain the value 'HELLO ' after the SUBST(P) operation.
+* After the operations RESULT='John␢␢␢␢␢␢'.
+C
+C ' ' CHECK STRING ST 10
+C 10 SUBST(P) STRING:ST RESULT
+
+Parent topic: Operation Codes

@@ -1,0 +1,117 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+_Rreadl() — Read the Last Record
+Format
+#include <recio.h>
+
+_RIOFB_T *_Rreadl(_RFILE *fp, void *buf, size_t size, int opts);
+Language Level: ILE C Extension
+Threadsafe: Yes. However, if the file pointer is passed among threads, the
+I/O feedback area is shared among those threads.
+Description
+The _Rreadl() function reads the last record in the
+access path currently being used for the file specified by fp.
+The access path may be keyed sequence or arrival sequence. Up to size number
+of bytes are copied from the record into buf (move mode only).
+If the file is opened for updating, the _Rreadl() function locks the
+last record unless __NO_LOCK is specified.
+The following parameters are valid for the _Rreadl() function.
+
+buf
+Points to the buffer where the data that is read is to be stored.
+If locate mode is used, this parameter must be set to NULL.
+
+size
+Specifies the number of bytes that are to be read and stored
+in buf. If locate mode is used, this parameter is ignored.
+
+opts
+Specifies the processing options for the file. Possible values
+are:
+
+__DFT
+If the file is opened for updating, then the record being read
+or positioned to is locked. The previously locked record will no longer
+be locked.
+
+__NO_LOCK
+Do not lock the record being positioned to.
+
+The _Rreadl() function is valid for database and DDM files.
+Return Value
+The _Rreadl() function returns a pointer to the _RIOFB_T structure
+that is associated with fp. If the _Rreadl() operation is
+successful the num_bytes field is set to the number of
+bytes transferred from the system buffer to the user's buffer (move
+mode) or the record length of the file (locate mode). The key and rrn fields
+will be updated. If record blocking is taking place, the blk_count
+and blk_filled_by fields will be updated. If the file is empty,
+the num_bytes field is set to EOF. If it is unsuccessful,
+the num_bytes field is set to a value less than size and
+errno will be changed.
+The value of errno may be set to:
+
+Value
+Meaning
+ENOTREAD
+The file is not open for read operations.
+
+ETRUNC
+Truncation occurred on an I/O operation.
+
+EIOERROR
+A non-recoverable I/O error occurred.
+
+EIORECERR
+A recoverable I/O error occurred.
+
+See Table 12 and Table 14 for errno settings.
+Example that uses _Rreadl()
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <recio.h>
+
+int main(void)
+{
+_RFILE *fp;
+_XXOPFB_T *opfb;
+
+/* Open the file for processing in arrival sequence. */
+if (( fp = _Ropen ( "MYLIB/T1677RD1", "rr+, arrseq=Y" )) == NULL )
+{
+printf ( "Open failed\n" );
+exit ( 1 );
+}
+
+/* Get the library and file names of the file opened. */
+opfb = _Ropnfbk ( fp );
+printf ( "Library: %10.10s\nFile: %10.10s\n",
+opfb->library_name,
+opfb->file_name);
+
+/* Get the last record. */
+_Rreadl ( fp, NULL, 20, __DFT );
+printf ( "Last record: %10.10s\n", *(fp->in_buf) );
+
+_Rclose ( fp );
+}
+Related Information
+
+_Rreadd() — Read a Record by Relative Record Number
+_Rreadf() — Read the First Record
+_Rreadindv() — Read from an Invited Device
+_Rreadk() — Read a Record by Key
+_Rreadn() — Read the Next Record
+_Rreadnc() — Read the Next Changed Record in a Subfile
+_Rreadp() — Read the Previous Record
+_Rreads() — Read the Same Record
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

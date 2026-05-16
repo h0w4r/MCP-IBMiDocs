@@ -1,0 +1,81 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations > Unicode Support
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations > Unicode Support
+
+ILE C/C++ Runtime Library Functions
+
+Considerations
+Because the default environment for i5/OS® is primarily an EBCDIC environment, you must
+be aware of the situations described in this topic when you use UTF
+support in an application.
+If a program or service program has some modules compiled with
+the UTF support and some modules compiled without the UTF support,
+care must be taken to ensure that unexpected mismatches do not occur.
+The wide characters and wide character strings are two bytes in size
+for a non-UTF module and four bytes in size for a UTF module, so sharing
+wide characters between the modules may not work correctly. The narrow
+(non-wide) characters and character strings are in job CCSID for a
+non-UTF module and in CCSID 1208 for a UTF module, so sharing narrow
+characters between the modules may not work correctly either.
+Whenever a setlocale() is performed to set the locale to a different
+CCSID, the standard output files should be flushed to avoid buffering
+problems with character data containing multiple CCSIDs. Since stdout is
+line buffered by default, if each output line ends in a newline character,
+the problem will not occur. However, if this is not done, the output
+may not be shown as intended. The following example illustrates the
+problem.
+#include <stdio>
+#include <locale.h>
+
+int main() {
+/* This string is in CCSID 1208 */
+printf("Hello World");
+
+/* Change locale to a CCSID 37 locale */
+setlocale(LC_ALL, "/QSYS.LIB/EN_US.LOCALE");
+#pragma convert(37)
+
+/* This string is in CCSID 37 */
+printf("Hello World\n");
+
+return 0;
+}
+In this case, the first printf() causes the CCSID 1208 string "Hello
+World" to be copied to the stdout buffer. Before the setlocale() is
+done, stdout should be flushed to copy that string to the screen.
+The second printf() causes the CCSID 37 string "Hello World\n" to
+be copied to the stdout buffer. Because of the trailing newline
+character, the buffer is flushed at that point and the whole buffer
+is copied to the screen. Because the CCSID of the current locale
+is 37 and the screen can handle CCSID 37 without problems, the whole
+buffer is copied without conversion. The CCSID 1208 characters are
+displayed as unreadable characters. If a flush had been done, the
+CCSID 1208 characters would have been converted to CCSID 37 and would
+have been displayed correctly.
+Nearly all of the runtime routines have been modified to support
+UTF, but there are a handful of them that have not. Routines and
+structures that deal with exception handling, such as the _GetExcData() function,
+the _EXCP_MSGID variable, and the exception handler structure _INTRPT_Hndlr_Parms_T
+are provided by the operating system, not the run time. They are strictly
+EBCDIC. The getenv() and putenv() functions handle only EBCDIC. The QXXCHGDA() and QXXRTVDA() functions
+handle only EBCDIC. The argv and envp parameters
+are also EBCDIC only.
+Some of the record I/O routines (that is, functions beginning with
+_R) do not completely support UTF. The routines that do not support
+UTF are _Rformat(), _Rcommit(), _Racquire(), _Rrelease(), _Rpgmdev(), _Rindara(),
+and _Rdevatr(). They are available when compiling with the UTF option,
+but they accept and generate only EBCDIC. In addition, any character
+data within the structures returned by the _R functions will be in
+EBCDIC rather than UTF.
+Other operating system routines have not been modified
+to support UTF. For example, the integrated file system routines,
+such as open(), still accept the job CCSID. Other operating system
+APIs still accept the job CCSID. For UTF applications, the characters
+and character strings provided to these routines need to be converted
+to the job CCSID using QTQCVRT, iconv(), #pragma convert,
+or some other method.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

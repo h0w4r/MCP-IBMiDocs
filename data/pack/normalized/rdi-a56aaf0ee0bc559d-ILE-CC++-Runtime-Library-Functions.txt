@@ -1,0 +1,94 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations
+
+ILE C/C++ Runtime Library Functions
+
+Asynchronous Signal Model
+The Asynchronous Signal Model (ASM) is used when the
+SYSIFCOPT(*ASYNCSIGNAL) option is specified on the Create C Module
+(CRTCMOD) or Create Bound C Program (CRTBNDC) compilation command.
+The ASM is also used when the RTBND(*LLP64) option is specified on
+the Create C++ Module (CRTCPPMOD) or Create Bound C++ Program (CRTBNDCPP)
+compilation command. It is intended for compatibility with applications
+ported from the UNIX® operating
+system. For modules that use the ASM, the signal() and raise() functions
+are implemented using the i5/OS® Signal
+APIs described in the Application programming interfaces topic under
+the Programming heading in the i5/OS Information
+Center.
+i5/OS exceptions
+sent to an ASM module or program are converted to asynchronous signals.
+The exceptions are processed by an asynchronous signal handler.
+Modules compiled to use the ASM can be intermixed with
+modules using the Original Signal Model (OSM) in the same processes,
+programs, and service programs. There are several differences between
+the two signal models:
+
+The OSM is based on exceptions, while the ASM is based on asynchronous
+signals.
+Under the OSM, the signal vector and signal mask are
+scoped to the activation group. Under the ASM, there is one signal
+vector per process and one signal mask per thread. Both types of signal
+vectors and signal masks are maintained at run time.
+The same asynchronous signal vector and signal masks are operated
+on by all ASM modules in a thread, regardless of the activation group
+the signal vector and signal masks belong to. You must save and restore
+the state of the signal vector and signal masks to ensure that they
+are not changed by any ASM modules. The OSM does not use the asynchronous
+signal vector and signal masks.
+Signals that are raised by OSM modules are sent as
+exceptions. Under the OSM, the exceptions are received and handled
+by the _C_exception_router function, which directly calls
+the OSM signal handler of the user.
+Asynchronous signals
+are not mapped to exceptions, and are not handled by signal handlers
+that are registered under the OSM. Under the ASM, the exceptions are
+received and handled by the _C_async_exception_router function,
+which maps the exception to an asynchronous signal. An ASM signal
+handler receives control from the i5/OS asynchronous
+signal component.
+When an OSM module raises a signal,
+the generated exception percolates up the call stack until it finds
+an exception monitor. If the previous call is an OSM function, the _C_exception_router catches
+the exception and performs the OSM signal action. The ASM signal handler
+does not receive the signal.
+If the previous call
+is an ASM function, the _C_async_exception_router handles
+the exception and maps it to an asynchronous signal. The handling
+of the asynchronous signal then depends on the asynchronous signal
+vector and mask state of the thread, as defined in the i5/OS Signal management topic.
+If the previous call is an ASM function within a different
+program or service program, one of two actions occurs. If the OSM
+program that raises the signal is running in the same activation group
+with the ASM program, the exception is mapped to an asynchronous signal
+using the mapping described previously. The signal ID is preserved
+when the exception is mapped to a signal. So, signal handlers that
+are registered with the asynchronous signal model are able to receive
+signals generated under the original signal model. This approach can
+be used to integrate two programs with different signal models.
+If the OSM program that raises the signal is running in
+a different activation group than the ASM program, any signal that
+is unmonitored in that activation group causes the termination of
+that program and activation group. The unmonitored signal is then
+percolated to the calling program as a CEE9901 exception. The CEE9901
+exception is mapped to a SIGSEGV asynchronous signal.
+Under the ASM, the C functions raise() and signal() are
+integrated with the system signal functions, such as kill() and sigaction().
+These two sets of APIs can be used interchangeably. This cannot be
+done under the OSM.
+A user-specified exception monitor established with #pragma
+exception_handler has precedence over the compiler-generated
+monitor, which calls _C_async_exception_router. In some
+situations, this precedence enables you to bypass the compiler-generated
+monitor, which invokes _C_async_exception_router.
+The _GetExcData() function is not available
+under the ASM to retrieve the exception ID associated with the signal.
+However, if an extended signal handler is established using the sigaction()
+function, it can access the exception information from the signal-specific
+data structure. For more information, see _GetExcData() — Get Exception Data.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

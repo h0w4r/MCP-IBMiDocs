@@ -1,0 +1,86 @@
+GOTO statement
+
+IBM i programming resources > SQL > SQL reference > SQL control statements > SQL control statements
+
+IBM i programming resources > SQL > SQL reference > SQL control statements
+
+GOTO statement
+The GOTO statement branches to a user-defined label within
+an SQL function, SQL procedure, or SQL trigger.
+Syntaxlabel1:GOTOlabel2
+Descriptionlabel1
+Specifies the label for the GOTO statement. The label name cannot
+be the same as the routine name or another label within the same scope.
+For more information, see References to SQL labels.
+label2
+Specifies the labelled statement where processing is to continue.
+The labelled statement and the GOTO statement must both be in the
+same scope: If the GOTO statement is defined in a FOR statement, label2 must
+be defined inside the same FOR statement, excluding a nested FOR statement
+or nested compound statement.
+If the GOTO statement is defined outside a FOR statement, label2 must
+not be defined within a FOR statement or nested compound statement.
+If the GOTO statement is defined in a condition handler, label2 must
+be defined inside the same handler.
+If the GOTO statement is defined outside a condition handler, label2 must
+not be defined within a condition handler.
+
+If label2 is not defined within a scope that the GOTO
+statement can reach, an error is returned.
+
+NotesUsing
+a GOTO statement: It is recommended that the GOTO statement be
+used sparingly. This statement interferes with normal sequence of
+processing SQL statements, thus making a routine more difficult to
+read and maintain. Before using a GOTO statement, determine whether
+another statement, such as IF or LEAVE, can be used in place, to eliminate
+the need for a GOTO statement.
+Effect on open cursors:
+When a GOTO statement transfers control out of a compound statement,
+all open cursors that are declared in the compound statement that
+contains the GOTO statement are closed, unless they are declared to
+return result sets or unless *ENDACTGRP is specified.
+Effect on ATOMIC compound statements: When a GOTO
+statement transfers control out of an ATOMIC compound statement, the
+savepoint that was implicitly started when the ATOMIC compound statement
+was entered is released.
+Considerations for SQLSTATE and SQLCODE variables: The
+GOTO statement does not affect the SQLSTATE and SQLCODE SQL variables.
+At the end of the GOTO statement the SQLSTATE and SQLCODE SQL variables
+reflect the result of the last statement executed before that GOTO
+statement.
+ExampleIn the following statement, the
+parameters rating and v_empno are passed in to the procedure.
+The time in service is returned as a date duration in output parameter return_parm.
+If the time in service with the company is less then 6 months, the
+GOTO statement transfers control to the end of the procedure and new_salary is
+left unchanged.
+CREATE PROCEDURE adjust_salary
+(IN v_empno CHAR(6),
+IN rating INTEGER,
+OUT return_parm DECIMAL(8,2))
+LANGUAGE SQL
+MODIFIES SQL DATA
+BEGIN
+DECLARE new_salary DECIMAL(9,2);
+DECLARE service DECIMAL(8,2);
+SELECT salary, CURRENT_DATE - hiredate
+INTO new_salary, service
+FROM employee
+WHERE empno = v_empno;
+IF service < 600
+THEN GOTO exit1;
+END IF;
+IF rating = 1
+THEN SET new_salary = new_salary + (new_salary * .10);
+ELSEIF rating = 2
+THEN SET new_salary = new_salary + (new_salary * .05);
+END IF;
+UPDATE employee
+SET salary = new_salary
+WHERE empno = v_empno;
+
+EXIT1: SET return_parm = service;
+END
+
+Parent topic: SQL control statements

@@ -1,0 +1,521 @@
+XML events
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-SAX (Parse an XML Document) > XML-SAX (Parse an XML Document)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-SAX (Parse an XML Document)
+
+XML events
+
+During the SAX parse of your XML document, several XML events will
+be passed to your XML-SAX handling procedure. To identify the events
+within your procedure, use the special names starting with *XML, for
+example *XML_START_ELEMENT.
+
+For most events, the handling procedure will be passed a value
+associated with the event. For example, for the *XML_START_ELEMENT
+event, the value is the name of the XML element.
+
+Table 1. XML events.
+
+Event
+
+Value
+
+1. Events discovered before the
+first XML element
+
+*XML_START_DOCUMENT
+
+Indicates that parsing has begun
+
+*XML_VERSION_INFO
+
+The "version" value from the XML declaration
+
+*XML_ENCODING_DECL
+
+The "encoding" value from the XML declaration
+
+*XML_STANDALONE_DECL
+
+The "standalone" value from the XML declaration
+
+*XML_DOCTYPE_DECL
+
+The value of the Document Type Declaration
+
+2. Events related to XML elements
+
+*XML_START_ELEMENT
+
+The name of the XML element that is starting
+
+*XML_CHARS
+
+The value of the XML element
+
+*XML_PREDEF_REF
+
+The value of a predefined reference
+
+*XML_UCS2_REF
+
+The value of a UCS-2 reference
+
+*XML_UNKNOWN_REF
+
+The name of an unknown entity reference
+
+*XML_END_ELEMENT
+
+The name of the XML element that is ending
+
+3. Events related to XML attributes
+
+*XML_ATTR_NAME
+
+The name of the attribute
+
+*XML_ATTR_CHARS
+
+The value of the attribute
+
+*XML_ATTR_PREDEF_REF
+
+The value of a predefined reference
+
+*XML_ATTR_UCS2_REF
+
+The value of a UCS-2 reference
+
+*XML_UNKNOWN_ATTR_REF
+
+The name of an unknown entity reference
+
+*XML_END_ATTR
+
+Indicates the end of the attribute
+
+4. Events related to XML processing
+instructions
+
+*XML_PI_TARGET
+
+The name of the target
+
+*XML_PI_DATA
+
+The value of the data
+
+5. Events related to XML CDATA
+sections
+
+*XML_START_CDATA
+
+The beginning of the CDATA section
+
+*XML_CHARS
+
+The value of the CDATA section
+
+*XML_END_CDATA
+
+The end of the CDATA section
+
+6. Other events
+
+*XML_COMMENT
+
+The value of the XML comment
+
+*XML_EXCEPTION
+
+Indicates that the parser discovered an error
+
+*XML_END_DOCUMENT
+
+Indicates that parsing has ended
+
+This sample XML document is referred to in the descriptions of
+the XML events.
+
+Figure 1. Sample XML document referred to in the descriptions
+of the XML events
+<?xml version="1.0" encoding="ibm-1140" standalone="yes" ?>
+<!DOCTYPE page [
+<!ENTITY abc "ABC Inc">
+]>
+<!-- This document is just an example -->
+<sandwich>
+<bread type="baker's best" supplier="&abc;" />
+<?spread please use real mayonnaise ?>
+<spices attr="&#x2B;">Salt &amp; pepper</spices>
+<filling>Cheese, lettuce,
+tomato, &#0061; &xyz;
+</filling>
+<![CDATA[We should add a <relish> element in future!]]>
+</sandwich>junk
+
+*XML_START_DOCUMENT
+
+This event occurs once, at the beginning of parsing the document.
+Only the first two parameters are relevant for this event. Accessing
+the String parameter will cause a pointer-not-set error to occur.
+
+*XML_VERSION_INFO
+
+This event occurs if the XML declaration contains version information.
+The value of the string parameter is the version value from the XML
+declaration.
+From the example:
+
+'1.0'
+
+*XML_ENCODING_DECL
+
+This event occurs if the XML declaration contains encoding information.
+The value of the string parameter is the encoding value from the XML
+declaration.
+From the example:
+
+'ibm-1140'
+
+*XML_STANDALONE_DECL
+
+This event occurs if the XML declaration contains standalone information.
+The value of the string parameter is the standalone value from the
+XML declaration.
+From the example:
+
+'yes'
+
+*XML_DOCTYPE_DECL
+
+This event occurs if the XML declaration contains a DTD (Document
+Type Declaration). Document type declarations begin with the character
+sequence '<!DOCTYPE' and end with a '>' character. Note: This
+is the only event where the XML text includes the delimiters.
+The
+value of the string parameter is the entire DOCTYPE value, including
+the opening and closing character sequences.
+From the example
+
+'<!DOCTYPE page [LF <!ENTITY abc "ABC Inc">LF]>' (LF represents
+the LINE FEED character.)
+
+*XML_START_ELEMENT
+
+This event occurs once for each element tag or empty element tag.
+The value of the string parameter is the element name.
+From the example, in the order they appear:
+
+'sandwich'
+
+'bread'
+
+'spices'
+
+'filling'
+
+*XML_CHARS
+
+This event occurs for each fragment of content. Content normally
+consists of a single string, even if the text is on multiple lines.
+It is split into multiple events if it contains references. The value
+of the string parameter is the fragment of the content.
+
+From the example:
+
+'Salt '
+
+' pepper'
+
+'Cheese, lettuce,WWWtomato, ', where WWW represents several "whitespace"
+characters. See the Notes® section.
+
+'We should add a <relish> element in future!'
+
+Note:
+The content fragment '&amp;' causes a *XML_PREDEF_REF event,
+and the fragment '&#0061;' causes a *XML_UCS2_REF event.
+
+If the value spans multiple lines of the XML document, it will
+contain end-of-line characters and it will possibly contain unwanted
+series of blanks. In the example, "lettuce," and "tomato" are separated
+by a line-feed character and several blanks. These characters are
+called whitespace; whitespace is ignored
+if it appears between XML elements, but it is considered to be data
+if it appears within an element. If it is possible that the XML data
+may contain unwanted whitespace, the data may need to be trimmed before
+use. To trim unwanted leading and trailing whitespace, use the following
+coding. See example Figure 4. * x'15'=newline x'05'=tab x'0D'=carriage-return
+* x'25'=linefeed x'40'=blank
+D whitespaceChr C x'15050D2540'
+/free
+temp = %trim(value : whitespaceChr);
+
+*XML_PREDEF_REF
+
+This event occurs when content has one of the predefined single-character
+references '&amp;', '&apos;', '&gt;', '&lt;', and '&quot;'.
+The value of the string parameter is the single-byte character:
+
+&amp;
+
+&
+
+&apos;
+
+'
+
+&gt;
+
+<
+
+&lt;
+
+>
+
+&quot;
+
+"
+
+Note: The string is a UCS-2 character if the parsing is being
+done in UCS-2.
+
+From the example:
+
+'&', from the content for the "spices" element.
+
+*XML_UCS2_REF
+
+This event occurs when content has a reference of the form ''
+or '', where 'd' and 'h' represent decimal and hexadecimal digits,
+respectively. The value of the string parameter is the UCS-2 value
+of reference. Note: This parameter is a UCS-2 character (type C®) even
+if the parsing is being done in single-byte character.
+
+From the example:
+
+The UCS-2 value '=', appearing as "&#0061;", from the fragment
+at the end of the "filling" element,
+
+*XML_UNKNOWN_REF
+
+This event occurs for an entity reference appearing in content,
+other than the five predefined entity references as shown for *XML_PREDEF_REF
+above. The value of the string parameter is the name of the reference;
+the data that appears between the opening '&' and the closing
+';'.
+From the example:
+
+'xyz'
+
+*XML_END_ELEMENT
+
+This event occurs when the parser finds an element end tag or
+the closing angle bracket of an empty element. The value of the string
+parameter is the element name.
+From the example, in the order they occur:
+
+'bread'
+
+'spices'
+
+'filling'
+
+'sandwich'
+
+*XML_ATTR_NAME
+
+This event occurs once for each attribute in an element tag or
+empty element tag, after recognizing a valid name. The value of the
+string parameter is the attribute name.
+From the example, in the order they appear:
+
+'type'
+
+'supplier'
+
+'attr'
+
+*XML_ATTR_CHARS
+
+This event occurs for each fragment of an attribute value. An
+attribute value normally consists of a single string, even if the
+text is on multiple lines. It is split into multiple events if it
+contains references. The value of the string parameter is the fragment
+of the attribute value.
+From the example, in the order they appear:
+
+'baker'
+
+'s best'
+
+Note:
+The fragment '&apos;' causes a *XML_ATTR_PREDEF_REF event
+
+See the discussion on *XML_CHARS for
+recommendations for handling unwanted end-of-line characters and unwanted
+blanks.
+
+*XML_ATTR_PREDEF_REF
+
+This event occurs when an attribute value has one of the predefined
+single-character references '&amp;', '&apos;', '&gt;',
+'&lt;', and '&quot;'. The value of the string parameter
+is the single-byte character:
+
+&amp;
+
+&
+
+&apos;
+
+'
+
+&gt;
+
+>
+
+&lt;
+
+<
+
+&quot;
+
+"
+
+Note: The string is a UCS-2 character if the parsing
+is being done in UCS-2.
+From the example, the value for the "type" attribute:
+
+' (The apostrophe character, "&apos")
+
+*XML_ATTR_UCS2_REF
+
+This event occurs when an attribute value has a reference of the
+form '&#dd..;' or '&#xhh..;', where 'd' and 'h' represent
+decimal and hexadecimal digits, respectively. The value of the string
+parameter is the UCS-2 value of the reference. Note: This
+parameter is a UCS-2 character (type C) even
+if the parsing is being
+done in single-byte character.
+From the example, from the value of the "attr" attribute:
+
+The UCS-2 value '+', appearing as "&#x2B;" in the document.
+
+*XML_UNKNOWN_ATTR_REF
+
+This event occurs for an entity reference appearing in an attribute,
+other than the five predefined entity references as shown for *XML_ATTR_PREDEF_REF
+above. The value of the string parameter is the name of the reference;
+the data that appears between the opening '&' and the closing
+';'.
+From the example:
+
+'abc'
+
+Note: The parser does not parse the DOCTYPE declaration,
+so even though entity "abc" is defined in the DOCTYPE declaration,
+it is considered undefined by the parser.
+
+*XML_END_ATTR
+
+This event occurs when the parser reaches the end of an attribute
+value. The string parameter is not relevant for this event. Accessing
+the string parameter will cause a pointer-not-set error to occur.
+
+From the example:
+
+For the attribute type="baker&apos;s best", the *XML_END_ATTR
+event occurs after all three parts of the attribute value ("baker", &apos;
+and "s best") have been handled.
+
+*XML_PI_TARGET
+
+This event occurs when the parser recognizes the name following
+the processing instruction (PI) opening character sequence '<?'.
+Processing instructions allow XML documents to contain special instructions
+for applications. The value of the string parameter is the processing
+instruction name.
+From the example:
+
+'spread'
+
+*XML_PI_DATA
+
+This event occurs for the data part of a processing instruction,
+up to but not including the PI closing character sequence '?>'.
+The value of the string parameter is the processing instruction data,
+including trailing but not leading white space.
+From the example:
+
+'please use real mayonnaise '
+
+Note: See the discussion for *XML_CHARS for recommendations for
+handling unwanted end-of-line characters and unwanted blanks.
+
+*XML_START_CDATA
+
+This event occurs when a CDATA section begins. CDATA sections
+begin with the string '<![CDATA[' and end with the string ']]>'.
+Such sections are used to "escape" blocks of text containing characters
+that would otherwise be recognized as XML markup. The parser passes
+the content of a CDATA section between these delimiters as a single
+*XML_CHARS event. The value of the string parameter is always the
+opening character sequence '<![CDATA['.
+From the example:
+
+'<![CDATA['
+
+*XML_END_CDATA
+
+This event occurs when a CDATA section ends. The value of the
+string parameter is always the closing character sequence ']]>'.
+
+From the example:
+
+']]>'
+
+*XML_COMMENT
+
+This event occurs for any comments in the XML document. The value
+of the string parameter is the data between the opening delimiter
+'<!--' and the closing delimiter '-->' , including leading and
+trailing white space.
+From the example:
+
+' This document is just an example '
+
+*XML_EXCEPTION
+
+This event occurs when the parser detects an error. The value
+of the string parameter is the "String" parameter is not relevant
+for this event. Accessing the String parameter will cause a pointer-not-set
+error to occur. The value of the string-length parameter is the length
+of the document that was parsed up to and including the point where
+the exception occurred. The value of the Exception-Id parameter is
+the exception ID as assigned by the parser. The meaning of these exceptions
+is documented in the section on XML return codes in the Rational® Development Studio for i: ILE RPG Programmer's Guide.
+From the example:
+
+An exception event would occur when the parser encountered the
+word "junk", which is non-whitespace data appearing after the end
+of the XML document. (The XML document ends with the end-element
+tag for the "sandwich" element.)
+
+*XML_END_DOCUMENT
+
+This event occurs when parsing has completed. Only the first two
+parameters are relevant for this event. Accessing the String parameter
+will cause a pointer-not-set error to occur.
+
+Note: To aid in debugging an XML-SAX handling procedure, the Control
+specification keyword DEBUG(*XMLSAX) can be specified. For more details
+on this keyword, see DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)} and the
+Debugging chapter in the Rational Development Studio for i: ILE RPG Programmer's Guide. For more
+information about XML parsing, including limitations of the XML parser
+used by RPG, see the XML chapter in the Rational Development Studio for i: ILE RPG Programmer's Guide.
+
+Parent topic: XML-SAX (Parse an XML Document)

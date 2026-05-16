@@ -1,0 +1,148 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+signal() — Handle Interrupt Signals
+Format
+#include <signal.h>
+void ( *signal (int sig, void(*func)(int)) )(int);
+Language Level: ANSI
+Threadsafe: Yes.
+Description
+The signal() function allows a program to choose one of several
+ways to handle an interrupt signal from the operating system or from
+the raise() function. If compiled with the SYSIFCOPT(*ASYNCSIGNAL)
+option, this function uses asynchronous signals. The asynchronous
+version of this function behaves like sigaction() with
+SA_NODEFER and SA_RESETHAND options. Asynchronous signal handlers
+may not call abort() or exit(). The remainder
+of this function description will describe synchronous signals.
+The sig argument must be one of the macros SIGABRT, SIGALL, SIGILL, SIGINT, SIGFPE, SIGIO, SIGOTHER, SIGSEGV, SIGTERM, SIGUSR1,
+or SIGUSR2, defined in the signal.h include file. SIGALL, SIGIO,
+and SIGOTHER are only supported by the ILE C/C++ runtime
+library. The func argument must be one of the macros SIG_DFL or SIG_IGN,
+defined in the <signal.h> include file, or a function
+address.
+The meaning of the values of sig is as follows:
+
+Value
+Meaning
+SIGABRT
+Abnormal termination
+
+SIGALL
+Catch-all for signals whose current handling action is SIG_DFL.
+When
+SYSIFCOPT(*ASYNCSIGNAL) is specified, SIGALL is not a catch-all signal.
+A signal handler for SIGALL is only invoked for a user-raised SIGALL
+signal.
+
+SIGILL
+Detection of a function image that was not valid
+
+SIGFPE
+Arithmetic exceptions that are not masked, such as overflow,
+division by zero, and operations that are not valid
+
+SIGINT
+Interactive attention
+
+SIGIO
+Record file I/O error
+
+SIGOTHER
+ILE C signal
+
+SIGSEGV
+Access to memory that was not valid
+
+SIGTERM
+End request sent to the program
+
+SIGUSR1
+Intended for use by user applications. (extension to ANSI)
+
+SIGUSR2
+Intended for use by user applications. (extension to ANSI)
+
+The action that is taken when the interrupt signal is received
+depends on the value of func.
+
+Value
+Meaning
+SIG_DFL
+Default handling for the signal will occur.
+
+SIG_IGN
+The signal is to be ignored.
+
+Return Value
+A return value of SIG_ERR indicates an error in the
+call to signal(). If successful, the call to signal() returns the
+most recent value of func. The value of errno may be set
+to EINVAL (the signal is not valid).
+Example that uses signal()
+This example shows you how to establish a signal handler.
+
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#define ONE_K 1024
+#define OUT_OF_STORAGE (SIGUSR1)
+/* The SIGNAL macro does a signal() checking the return code */
+#define SIGNAL(SIG, StrCln) { \
+if (signal((SIG), (StrCln)) == SIG_ERR) { \
+perror("Could not signal user signal"); \
+abort(); \
+} \
+}
+
+void StrCln(int);
+void DoWork(char **, int);
+
+int main(int argc, char *argv[]) {
+int size;
+char *buffer;
+SIGNAL(OUT_OF_STORAGE, StrCln);
+if (argc != 2) {
+printf("Syntax: %s size \n", argv[0]);
+return(-1);
+}
+size = atoi(argv[1]);
+DoWork(&buffer, size);
+return(0);
+}
+
+void StrCln(int SIG_TYPE) {
+printf("Failed trying to malloc storage\n");
+SIGNAL(SIG_TYPE, SIG_DFL);
+exit(0);
+}
+
+void DoWork(char **buffer, int size) {
+int rc;
+*buffer = malloc(size*ONE_K); /* get the size in number of K */
+if (*buffer == NULL) {
+if (raise(OUT_OF_STORAGE)) {
+perror("Could not raise user signal");
+abort();
+}
+}
+return;
+}
+/* This is a program fragment and not a complete function example */
+Related Information
+
+abort() — Stop a Program
+atexit() — Record Program Ending Function
+exit() — End Program
+raise() — Send Signal
+<signal.h>
+signal() API in the APIs topic in the i5/OS® Information Center.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

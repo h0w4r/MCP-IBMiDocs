@@ -1,0 +1,208 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Class members and friends (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Class members and friends (C++ only)
+
+ILE C/C++ Language Reference
+
+The this pointer (C++ only)
+The keyword this identifies a special type of pointer.
+Suppose that you create an object named x of class A,
+and class A has a nonstatic member function f().
+If you call the function x.f(), the keyword this in
+the body of f() stores the address of x. You
+cannot declare the this pointer or make assignments to
+it.
+A static member function does not have a this pointer.
+
+The type of the this pointer for a member function of
+a class type X, is X* const. If the member function
+is declared with the const qualifier, the type
+of the this pointer for that member function for class X,
+is const X* const.
+A const this pointer can by used only with const member
+functions. Data members of the class will be constant within that
+function. The function is still able to change the value, but requires
+a const_cast to do so:
+void foo::p() const{
+member = 1; // illegal
+const_cast <int&> (member) = 1; // a bad practice but legal
+} A better technique would be to declare member mutable.
+If the member function is declared with the volatile qualifier,
+the type of the this pointer for that member function for
+class X is volatile X* const. For example, the
+compiler will not allow the following:
+struct A {
+int a;
+int f() const { return a++; }
+};The compiler will not allow the statement a++ in
+the body of function f(). In the function f(),
+the this pointer is of type A* const. The function f() is
+trying to modify part of the object to which this points.
+The this pointer is passed as a hidden argument to all
+nonstatic member function calls and is available as a local variable
+within the body of all nonstatic functions.
+For example, you can refer to the particular class object that
+a member function is called for by using the this pointer
+in the body of the member function. The following code example produces
+the output a = 5:
+#include <iostream>
+using namespace std;
+
+struct X {
+private:
+int a;
+public:
+void Set_a(int a) {
+
+// The 'this' pointer is used to retrieve 'xobj.a'
+// hidden by the automatic variable 'a'
+this->a = a;
+}
+void Print_a() { cout << "a = " << a << endl; }
+};
+
+int main() {
+X xobj;
+int a = 5;
+xobj.Set_a(a);
+xobj.Print_a();
+}
+In the member function Set_a(), the statement this->a
+= a uses the this pointer to retrieve xobj.a hidden
+by the automatic variable a.
+Unless a class member name is hidden, using the class member name
+is equivalent to using the class member name with the this pointer
+and the class member access operator (->).
+The example in the first column of the following table shows code
+that uses class members without the this pointer. The code
+in the second column uses the variable THIS to simulate
+the first column's hidden use of the this pointer:
+
+Code without using this pointer
+Equivalent code, the THIS variable simulating the
+hidden use of the this pointer
+
+#include <string>
+#include <iostream>
+using namespace std;
+
+struct X {
+private:
+int len;
+char *ptr;
+public:
+int GetLen() {
+return len;
+}
+char * GetPtr() {
+return ptr;
+}
+X& Set(char *);
+X& Cat(char *);
+X& Copy(X&);
+void Print();
+};
+
+X& X::Set(char *pc) {
+len = strlen(pc);
+ptr = new char[len];
+strcpy(ptr, pc);
+return *this;
+}
+
+X& X::Cat(char *pc) {
+len += strlen(pc);
+strcat(ptr,pc);
+return *this;
+}
+
+X& X::Copy(X& x) {
+Set(x.GetPtr());
+return *this;
+}
+
+void X::Print() {
+cout << ptr << endl;
+}
+
+int main() {
+X xobj1;
+xobj1.Set("abcd")
+.Cat("efgh");
+
+xobj1.Print();
+X xobj2;
+xobj2.Copy(xobj1)
+.Cat("ijkl");
+
+xobj2.Print();
+}
+
+#include <string>
+#include <iostream>
+using namespace std;
+
+struct X {
+private:
+int len;
+char *ptr;
+public:
+int GetLen (X* const THIS) {
+return THIS->len;
+}
+char * GetPtr (X* const THIS) {
+return THIS->ptr;
+}
+X& Set(X* const, char *);
+X& Cat(X* const, char *);
+X& Copy(X* const, X&);
+void Print(X* const);
+};
+
+X& X::Set(X* const THIS, char *pc) {
+THIS->len = strlen(pc);
+THIS->ptr = new char[THIS->len];
+strcpy(THIS->ptr, pc);
+return *THIS;
+}
+
+X& X::Cat(X* const THIS, char *pc) {
+THIS->len += strlen(pc);
+strcat(THIS->ptr, pc);
+return *THIS;
+}
+
+X& X::Copy(X* const THIS, X& x) {
+THIS->Set(THIS, x.GetPtr(&x));
+return *THIS;
+}
+
+void X::Print(X* const THIS) {
+cout << THIS->ptr << endl;
+}
+
+int main() {
+X xobj1;
+xobj1.Set(&xobj1 , "abcd")
+.Cat(&xobj1 , "efgh");
+
+xobj1.Print(&xobj1);
+X xobj2;
+xobj2.Copy(&xobj2 , xobj1)
+.Cat(&xobj2 , "ijkl");
+
+xobj2.Print(&xobj2);
+}
+
+Both examples produce the following output:
+abcdefgh
+abcdefghijkl
+Related information
+
+Overloading assignments (C++ only)
+Copy constructors (C++ only)
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

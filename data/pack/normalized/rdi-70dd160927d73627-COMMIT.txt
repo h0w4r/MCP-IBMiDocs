@@ -1,0 +1,157 @@
+COMMIT
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+COMMIT
+The COMMIT statement ends a unit of work and commits the
+database changes that were made by that unit of work.
+InvocationThis statement can be embedded
+in an application program or issued interactively. It is an executable
+statement that can be dynamically prepared.
+COMMIT is not allowed
+in a trigger if the trigger program and the triggering program run
+under the same commitment definition. COMMIT is not allowed in a procedure
+if the procedure is called on a Distributed Unit of Work connection
+to a remote application server or if the procedure is defined as ATOMIC.
+COMMIT is not allowed in a function.
+AuthorizationNone required.
+SyntaxCOMMITWORKHOLD
+DescriptionThe COMMIT statement ends the
+unit of work in which it is executed and starts a new unit of work.
+It commits all changes made by SQL schema statements (except DROP
+SCHEMA) and SQL data change statements during the unit of work. For
+information about SQL schema statements and SQL data change statements
+see Statements.
+Connections in the release-pending state are ended.
+WORK
+COMMIT
+WORK has the same effect as COMMIT.
+HOLD
+Specifies a hold on resources. If
+specified, currently open cursors are not closed whether they are
+declared with a HOLD option or not. All resources acquired during
+the unit of work are held. Locks on specific rows and objects implicitly
+acquired during the unit of work are released.
+
+All implicitly acquired locks are released; except for
+object level locks required for the cursors that are not closed.
+All locators that are not held are released. For more
+information about held locators, see HOLD LOCATOR.
+NotesRecommended coding practices: An
+explicit COMMIT or ROLLBACK statement should be coded at the end of
+an application process. Either an implicit commit or rollback operation
+will be performed at the end of an application process depending on
+the application environment. Thus, a portable application should explicitly
+execute a COMMIT or ROLLBACK before execution ends in those environments
+where explicit COMMIT or ROLLBACK is permitted.
+An implicit COMMIT or ROLLBACK may be performed under
+the following circumstances.
+For the default activation group: An implicit COMMIT is not performed when applications that run
+in the default activation group end. Interactive SQL, Query Manager,
+and non-ILE programs are examples of programs that run in the default
+activation group.
+In order to commit work, you must issue a COMMIT.
+
+For non-default activation groups when the scope of the commitment
+definition is to the activation group: If the activation group ends normally, the commitment definition
+is implicitly committed.
+If the activation group ends abnormally, the commitment definition
+is implicitly rolled back.
+
+Regardless of the type of activation group, if the scope of the
+commitment definition is the job, an implicit commit is never performed.
+
+Effect of commit: Commit without HOLD causes the
+following to occur:
+Connections in the release-pending state are ended. For existing
+connections:
+all open cursors that were declared with the WITH HOLD clause
+are preserved and their current position is maintained, although a
+FETCH statement is required before a Positioned UPDATE or Positioned
+DELETE statement can be executed.
+all open cursors that were declared without the WITH HOLD clause including any opened under isolation level NC are
+closed.
+
+All LOB locators that are not held are freed. Note that this
+is true even when the locators are associated with LOB values retrieved
+via a cursor that has the WITH HOLD property.
+All locks acquired by the LOCK TABLE statement are released. All
+implicitly acquired locks are released, except for those required
+for the cursors that were not closed.
+
+Row lock limit: A unit of work can include the
+processing of up to 4 million rows, including rows retrieved during
+a SELECT or FETCH statement1,
+and rows inserted, deleted, or updated as part of INSERT, DELETE,
+and UPDATE statements.2
+Unaffected statements: The commit and rollback
+operations do not affect the DROP SCHEMA statement, and this statement
+is not, therefore, allowed in an application program that also specifies
+COMMIT(*CHG), COMMIT(*CS), COMMIT(*ALL), or COMMIT(*RR).
+COMMIT Restrictions: A commit or rollback in a
+user-defined function in a secondary thread is not allowed.
+Commitment definition use: The commitment
+definition used by SQL is determined as follows:
+If the activation group of the program calling SQL is already
+using an activation group level commitment definition, then SQL uses
+that commitment definition.
+If the activation group of the program calling SQL is using the
+job level commitment definition, then SQL uses the job level commitment
+definition.
+If the activation group of the program calling SQL is not currently
+using a commitment definition but the job commitment definition is
+started, then SQL uses the job commitment definition.
+If the activation group of the program calling SQL is not currently
+using a commitment definition and the job commitment definition is
+not started, then SQL implicitly starts a commitment definition. SQL
+uses the Start Commitment Control (STRCMTCTL) command with: A CMTSCOPE(*ACTGRP) parameter
+A LCKLVL parameter based on the COMMIT option specified on either
+the CRTSQLxxx, STRSQL, or RUNSQLSTM commands. In REXX, the LCKLVL parameter is based
+on the commit option in the SET OPTION statement.
+
+ExampleIn a C program,
+transfer a certain amount of commission (COMM) from one employee (EMPNO)
+to another in the EMPLOYEE table. Subtract the amount from one row
+and add it to the other. Use the COMMIT statement to ensure that no
+permanent changes are made to the database until both operations are
+completed successfully.
+void main ()
+{
+
+EXEC SQL BEGIN DECLARE SECTION;
+decimal(5,2) AMOUNT;
+char FROM_EMPNO[7];
+char TO_EMPNO[7];
+EXEC SQL END DECLARE SECTION;
+EXEC SQL INCLUDE SQLCA;
+EXEC SQL WHENEVER SQLERROR GOTO SQLERR;
+...
+EXEC SQL UPDATE EMPLOYEE
+SET COMM = COMM - :AMOUNT
+WHERE EMPNO = :FROM_EMPNO;
+EXEC SQL UPDATE EMPLOYEE
+SET COMM = COMM + :AMOUNT
+WHERE EMPNO = :TO_EMPNO;
+FINISHED:
+EXEC SQL COMMIT WORK;
+return;
+
+SQLERR:
+...
+EXEC SQL WHENEVER SQLERROR CONTINUE; /* continue if error on rollback */
+EXEC SQL ROLLBACK WORK;
+return;
+}
+
+Parent topic: Statements
+
+1 This limit also includes: Any rows accessed or changed through files opened under commitment
+control through high-level language file processing
+Any rows deleted, updated, or inserted as a result of a trigger
+or CASCADE, SET NULL, or SET DEFAULT referential integrity delete
+rule.
+
+2 Unless you specified COMMIT(*CHG) or COMMIT(*CS),
+in which case these rows are not included in this total.

@@ -1,0 +1,491 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+fopen() — Open Files
+Format
+#include <stdio.h>
+FILE *fopen(const char *filename, const char *mode);
+Language Level: ANSI
+Threadsafe: Yes.
+Description
+The fopen() function opens the file that is specified by filename.
+The mode parameter is a character string specifying the type
+of access that is requested for the file. The mode variable
+contains one positional parameter followed by optional keyword parameters.
+
+Note:
+When the program is compiled with SYSIFCOPT(*IFSIO)
+or SYSIFCOPT(*IFS64IO), and fopen() creates a file in the integrated
+file system, the owner of the file, the owner's group, and public
+is given read, write, and execute authority to the file.
+The possible values for the positional parameters are:
+
+Mode
+Description
+r
+Open a text file for reading. The file must exist.
+
+w
+Create a text file for writing. If the given file exists, its
+contents are destroyed unless it is a logical file.
+
+a
+Open a text file in append mode for writing at the end of the
+file. The fopen() function creates the file if it does not exist and
+is not a logical file.
+
+r+
+Open a text file for both reading and writing. The file must
+exist.
+
+w+
+Create a text file for both reading and writing. If the given
+file exists, its contents are cleared unless it is a logical file.
+
+a+
+Open a text file in append mode for reading or updating at the
+end of the file. The fopen() function creates the file if it does
+not exist.
+
+rb
+Open a binary file for reading. The file must exist.
+
+wb
+Create an empty binary file for writing. If the file exists,
+its contents are cleared unless it is a logical file.
+
+ab
+Open a binary file in append mode for writing at the end of
+the file. The fopen function creates the file if it does
+not exist.
+
+r+b or rb+
+Open a binary file for both reading and writing. The file must
+exist.
+
+w+b or wb+
+Create an empty binary file for both reading and writing. If
+the file exists, its contents will be cleared unless it is a logical
+file.
+
+a+b or ab+
+Open a binary file in append mode for writing at the end of
+the file. The fopen() function creates the file if it does not exist.
+
+Notes:
+
+The fopen() function is not supported for files that are opened
+with the attributes type=record and ab+, rb+, or wb+
+Use the w, w+, wb, w+b, and wb+ parameters
+with care; data in existing files of the same name will be lost.
+Text files contain printable characters
+and control characters that are organized into lines. Each line ends
+with a new-line character, except possibly the last line, depending
+on the compiler. The system can insert or convert control characters
+in an output text stream. The fopen() function mode "a" and "a+" can
+not be used for the QSYS.LIB file system. There are implementation
+restrictions when using the QSYS.LIB file system for text files in
+all modes. Seeking beyond the start of files cannot be relied on to
+work with streams opened in text mode.
+
+Note:
+When you use fopen() to create a file in the QSYS.LIB
+file system, specifying a library name of *LIBL or blank causes the
+file to be created in QTEMP library.
+If a text file does not exist, you can create one using the following
+command:
+CRTSRCPF FILE(MYLIB/MYFILE) RCDLEN(LRECL) MBR(MYMBR)
+SYSTEM(*FILETYPE)
+
+Note:
+Data output to a text stream might not compare
+as equal to the same data on input. The QSYS.LIB file system treats
+database files as a directory of members. The database file must exist
+before a member can be dynamically created when using the fopen() function.
+See Large file support in
+the Integrated file system topic in the i5/OS® Information Center for the current file system
+limit of the integrated file system. For files in the integrated file
+system that are larger than 2 GB, you need to allow your application
+programs access to 64-bit C runtime functions. You can use the following
+methods to allow your program access:
+
+Specify SYSIFCOPT(*IFS64IO) on a compilation command, which causes
+the native C compiler to define _IFS64_IO_. This causes the macros
+_LARGE_FILES and _LARGE_FILE_API to be defined.
+Define the macro _LARGE_FILES, either in the program source or
+by specifying DEFINE('_LARGE_FILES') on a compilation command. The
+existing C runtime functions and the relevant data types in the code
+will all be automatically mapped or redefined to their 64-bit versions.
+Define the macro _LARGE_FILE_API, either in the program source
+or by specifying DEFINE('_LARGE_FILE_API') on a compilation command.
+This makes visible the set of of new 64-bit C runtime functions and
+data types. The application must explicitly specify the name of the
+C runtime functions, both existing version and 64-bit version, to
+use.
+The 64-bit C runtime functions include the following: int
+fgetpos64(), FILE *fopen64(), FILE *freopen64(), FILE
+*wfopen64(), int fsetpos64(FILE *, const fpost64_t *), FILE
+*tmpfile64(), int fseeko(FILE *, off_t, int), int
+fseeko64(FILE *, off64_t, int), off_t ftello(FILE *),
+and off64_t ftello64().
+Binary files contain a series of characters.
+For binary files, the system
+does not translate control characters on input or output.
+If a binary file does not exist, you can create one using the following
+command:
+CRTPF FILE(MYLIB/MYFILE) RCDLEN(LRECL) MBR(MYMBR)
+MAXMBRS(*NOMAX) SYSTEM(*FILETYPE)
+When you open a file with a, a+, ab, a+b or ab+ mode,
+all write operations take place at the end of the file. Although
+you can reposition the file pointer using the fseek() function or
+the rewind() function, the write functions move the file pointer back
+to the end of the file before they carry out any operation. This action
+prevents you from overwriting existing data.
+When you specify the update mode (using + in the second
+or third position), you can both read from and write to the file.
+However, when switching between reading and writing, you must include
+an intervening positioning function such as the fseek(), fsetpos(), rewind(),
+or fflush(). Output can immediately follow input if the end-of-file
+was detected.
+Keyword parameters for non-Integrated File System
+
+blksize=value
+Specifies the maximum length, in bytes, of a physical block
+of records.
+
+lrecl=value
+Specifies the length, in bytes, for fixed-length records and
+the maximum length for variable-length records.
+
+recfm=value
+value can be:
+
+F
+fixed-length, deblocked records
+
+FB
+fixed-length, blocked records
+
+V
+variable-length, deblocked records
+
+VB
+variable-length, blocked records
+
+VBS
+variable-length, blocked, spanned records for tape files
+
+VS
+variable-length, deblocked, spanned records for tape files
+
+D
+variable-length, deblocked, unspanned records for ASCII D format
+for tape files
+
+DB
+variable-length, blocked, unspanned records for ASCII D format
+for tape files
+
+U
+undefined format for tape files
+
+FA
+fixed-length that uses first character forms control data for
+printer files
+
+Note:
+If the file is created using CTLCHAR(*FCFC),
+the first character form control will be used. If it is created using
+CTLCHAR(*NONE), the first character form control will not be used.
+
+commit=value
+value can be:
+N This parameter
+identifies that this file is not opened under commitment control.
+This is the default.
+Y This parameter
+identifies that this file is opened under commitment control.
+
+ccsid=value
+If a CCSID that is not supported by the i5/OS operating system is specified, it is ignored
+by data management.
+When LOCALETYPE(*LOCALEUTF) is
+specified on the compilation command, the default value is the LC_CTYPE
+CCSID value, which is determined by your current locale setting. See setlocale() — Set Locale for further information about locale settings.
+When LOCALETYPE(*LOCALEUTF) is not specified on the compilation command,
+the default value is the job CCSID value. See File CCSID for further information about file CCSID values.
+
+arrseq=value
+value can be:
+N
+This parameter identifies that this file is processed in the way it
+was created. This is the default.
+Y This
+parameter identifies that this file is processed in arrival sequence.
+
+indicators=value
+value can be:
+N This parameter
+identifies that indicators in display, ICF, or printer files are stored
+in the file buffer. This is the default.
+Y
+This parameter identifies that indicators in display, ICF, or printer
+files are stored in a separate indicator area, not in the file buffer.
+A file buffer is the area the system uses to transfer data to and
+from the user program and the operating system when writing and reading.
+You must store indicators in a separate indicator area when processing
+ICF files.
+
+type=value
+value can be:
+memory This
+parameter identifies this file as a memory file that is available
+only from C programs. This is the default.
+record
+This parameter specifies that the file is to be opened for sequential
+record I/O. The file must be opened as a binary file; otherwise,
+the fopen() function fails. Read and write operations are done with
+the fread() function and the fwrite() functions.
+
+Keyword parameters for Integrated File System
+only
+
+type=value
+value can be:
+record The file
+is opened for sequential record I/O. (File has to be opened as binary
+stream.)
+
+ccsid=value
+
+ccsid is converted to a code page
+value. The default is to use the job CCSID value as the code page.
+The CCSID and codepage option cannot both be specified. The CCSID
+option provides compatibility with i5/OS and
+Data management based stream I/O.
+
+Note:
+Mixed data (the data
+contains both single and double-byte characters) is not supported
+for a file data processing mode of text. Mixed data is supported for
+a file processing mode of binary.
+If you specify
+the ccsid keyword, you cannot specify the o_ccsid keyword or the codepage
+keyword.
+Because of the possible expansion or
+contraction of converted data, making assumptions about data size
+and the current file offset is dangerous. For example, a file might
+have a physical size of 100 bytes, but after an application has read
+100 bytes from the file, the current file offset might be only 50.
+In order to read the whole file, the application might have to read
+200 bytes or more, depending on the CCSIDs involved. Therefore, file
+positioning functions, such as ftell(), fseek(), fgetpos(), and fsetpos(),
+might not work. These functions might fail with error ENOTSUP. Read
+functions also will not work if buffering is on, as it is by default.
+To turn buffering off, use the setvbuf function with the _IONBF keyword.
+The fopen() function might fail with the ECONVERT error
+when all of the following three conditions occur:
+
+The file data processing mode is text.
+The code page is not specified.
+The CCSID of the job is 'mixed-data' (the data contains both single-byte
+and double-byte characters).
+
+o_ccsid=value
+
+When LOCALETYPE(*LOCALEUTF) is specified on the
+compilation command, the default value is the LC_CTYPE CCSID value,
+which is determined by your current locale setting. See setlocale() — Set Locale for further information about locale settings.
+When LOCALETYPE(*LOCALEUTF) is not specified on the compilation command,
+the default value is the job CCSID value. See File CCSID for further information about file CCSID values.
+This
+parameter is similar to the ccsid parameter,
+except that the value specified is not converted to a code page. Also,
+mixed data is supported. If the file is created, it is tagged with
+the specified CCSID. If the file already exists, data will be converted
+from the CCSID of the file to the specified CCSID on read operations.
+On write operations, the data is assumed to be in the specified CCSID,
+and is converted to the CCSID of the file.
+Because of the possible
+expansion or contraction of converted data, making assumptions about
+data size and the current file offset is dangerous. For example, a
+file might have a physical size of 100 bytes, but after an application
+has read 100 bytes from the file, the current file offset might be
+only 50. In order to read the whole file, the application might have
+to read 200 bytes or more, depending on the CCSIDs involved. Therefore,
+file positioning functions such as ftell(), fseek(), fgetpos(), and fsetpos() will
+not work. These functions will fail with ENOTSUP. Read functions also
+will not work if buffering is on, as it is by default. To turn buffering
+off, use the setvbuf function with the _IONBF keyword.
+Example
+that uses o_ccsid
+
+/* Create a file that is tagged with CCSID 37 */
+if ((fp = fopen("/MYFILE" , "w, o_ccsid=37")) == NULL) {
+printf("Failed to open file with o_ccsid=37\n");
+}
+
+fclose(fp);
+
+/* Now reopen the file with CCSID 13488, because your application
+wants to deal with the data in UNICODE */
+
+if ((fp = fopen("/MYFILE" , "r+, o_ccsid=13488")) == NULL) {
+printf("Failed to open file with o_ccsid=13488\n");
+}
+/* Turn buffering off because read functions do not work when
+buffering is on */
+
+if (setbuf(fp, NULL, _IONBF, 0) != 0){
+printf("Unable to turn buffering off\n");
+}
+/* Because you opened with o_ccsid = 13488, you must provide
+all input data as unicode.
+If this program is compiled with LOCALETYPE(*LOCALEUCS2),
+L constrants will be unicode. */
+
+funcreturn = fputws(L"ABC", fp); /* Write a unicode ABC to the file. */
+
+if (funcreturn < 0) {
+printf("Error with 'fputws' on line %d\n", __LINE__);
+}
+/* Because the file was tagged with CCSID 37, the unicode ABC was
+converted to EBCDIC ABC when it was written to the file. */
+
+codepage=value
+The code page that is specified by value is used.
+If
+you specify the codepage keyword, you cannot specify the ccsid keyword
+or the o_ccsid keyword.
+If the file to be opened does not exist,
+and the open mode specifies that the file should be created, the file
+is created and tagged with the calculated code page. If the file already
+exists, the data read from the file is converted from the file’s
+code page to the calculated code page during the read operation. Data
+written to the file is assumed to be in the calculated code page and
+is converted to the code page of the file during the write operation.
+
+crln=value
+value can be:
+Y The line terminator
+to be used is carriage return [CR], new line [NL] combination. When
+data is read, all carriage returns [CR] are stripped for string functions.
+When data is written to a file, carriage returns [CR] are added before
+each new line [NL] character. Line terminator processing only occurs
+when a file is open with text mode. This is the default.
+N The line terminator to be used is new line [NL]
+only.
+
+The keyword parameters are not case sensitive and should be separated
+by a comma.
+The fopen() function generally fails if parameters are mismatched.
+Return Value
+The fopen() function returns a pointer to a FILE structure
+type that can be used to access the open file.
+
+Note:
+To
+use stream files (type = record) with record I/O functions, you must
+cast the FILE pointer to an RFILE pointer.
+A NULL pointer return value indicates an error.
+The value of errno can be set to:
+
+Value
+Meaning
+EBADMODE
+The file mode that is specified is not valid.
+
+EBADNAME
+The file name that is specified is not valid.
+
+ECONEVRT
+Conversion error.
+
+ENOENT
+No file or library.
+
+ENOMEM
+Storage allocation request failed.
+
+ENOTOPEN
+The file is not open.
+
+EIOERROR
+A non-recoverable I/O error occurred.
+
+EIORECERR
+A recoverable I/O error occurred.
+
+ESCANFAILURE
+The file was marked with a scan failure.
+
+If the mode string passed to fopen() is correct, fopen() will
+not set errno to EBADMODE, regardless of the file type.
+If the mode string that is passed to fopen() is not valid, fopen() will
+set errno to EBADMODE, regardless of the file type.
+If the mode string passed to fopen() is correct, but is invalid
+to that specific type of file, fopen() will set errno to ENOTOPEN,
+EIOERROR, or EIORECERR, regardless of the file type.
+Example that uses fopen()
+This example attempts to open a file for reading.
+
+#include <stdio.h>
+#define MAX_LEN 60
+
+int main(void)
+{
+FILE *stream;
+fpos_t pos;
+char line1[MAX_LEN];
+char line2[MAX_LEN];
+char *result;
+char ch;
+int num;
+
+/* The following call opens a text file for reading. */
+if ((stream = fopen("mylib/myfile", "r")) == NULL)
+printf("Could not open data file\n");
+else if ((result = fgets(line1,MAX_LEN,stream)) != NULL)
+{
+printf("The string read from myfile: %s\n", result);
+fclose(stream);
+}
+
+/* The following call opens a fixed record length file */
+/* for reading and writing. */
+if ((stream = fopen("mylib/myfile2", "rb+, lrecl=80, \
+blksize=240, recfm=f")) == NULL)
+printf("Could not open data file\n");
+else {
+fgetpos(stream, Point-of-Sale);
+if (!fread(line2,sizeof(line2),1,stream))
+perror("fread error");
+else printf("1st record read from myfile2: %s\n", line2);
+
+fsetpos(stream, Point-of-Sale); /* Reset pointer to start of file */
+fputs(result, stream); /* The line read from myfile is */
+/* written to myfile2. */
+fclose(stream);
+}
+}
+Related Information
+
+fclose() — Close Stream
+fflush() — Write Buffer to File
+fread() — Read Items
+freopen() — Redirect Open Files
+fseek() — fseeko() — Reposition File Position
+fsetpos() — Set File Position
+fwrite() — Write Items
+rewind() — Adjust Current File Position
+wfopen() —Open Files
+<stdio.h>
+open() API in the APIs in the i5/OS Information Center.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

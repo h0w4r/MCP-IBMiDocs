@@ -1,0 +1,211 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations > Heap Memory
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations > Heap Memory
+
+ILE C/C++ Runtime Library Functions
+
+Diagnosing C2M1211/C2M1212 Message Problems
+This section provides information that might help to diagnose problems
+which are indicated with a C2M1211 message or C2M1212 message in the
+job log.
+
+C2M1211 Message
+A C2M1211 message indicates that a teraspace version of the heap
+memory manager has detected that the heap control structure has been
+corrupted.
+The C2M1211 message can be caused by many things. The most common
+causes include:
+
+Freeing a space twice.
+Writing outside the bounds of allocated storage.
+Writing to storage that has been freed.
+The CM1211 message often indicates an application heap problem.
+Unfortunately, these problems are often difficult to track down. The
+best approach to debug this type of problem is to enable the debug
+memory manager.
+
+C2M1212 Message
+A C2M1212 message indicates some type of memory problem which can
+lead to memory corruption and other issues. The memory corruption
+could occur within application code or operating system code. The
+message is only a diagnostic message, but can be an indicator of a
+real problem. The C2M1212 message might or might not be the source
+of other problems. Clean up the memory problem if possible.
+When a C2M1212 message is generated, the hexadecimal value of the
+pointer passed to the free() function is included as part
+of the message description. This hexadecimal value can provide clues
+as to the origin of the problem. The malloc() function
+returns only pointers that end in hexadecimal 0. Any pointer that
+does not end in hexadecimal 0 was either never set to point to storage
+reserved by the malloc() function or was modified since
+it was set to point to storage reserved by the malloc() function.
+If the pointer ends in hexadecimal 0, then the cause of the C2M1212
+message is uncertain, and the program code that calls free() should
+be examined.
+In most cases, a C2M1212 message from a single-level store
+heap memory manager is preceded by an MCH6902 message. The MCH6902
+message has an error code indicating what the problem is. The most
+common error code is 2, which indicates that memory is being freed
+which is not currently allocated. This error code could mean one of
+the following:
+
+Memory is being freed which has not been allocated.
+Memory is being freed for a second time.
+In some cases, a memory leak can cause the single-level
+store heap to become fragmented to the point that the heap control
+segment is full and deallocates fail. This problem is indicated by
+an MCH6906 message. In this case, the only solution is to debug the
+application and fix the memory leak.
+Stack tracebacks (See Stack Tracebacks.) can be used
+to find the code which is causing the problem. Once the code has been
+found, the difficult part is to determine what the problem is with
+the pointer to the heap storage. There are several potential causes:
+
+The pointer was never initialized and contains an unexpected value.
+The C2M1212 message dumps the hex value of the pointer.
+The pointer was not obtained from malloc(). Perhaps
+the pointer is a pointer to an automatic (local) variable or a static
+(global) variable and not a pointer to heap storage from malloc().
+The pointer was modified after it was returned from malloc().
+For example, if the pointer returned from malloc() was
+incremented by some amount and then passed to free(), it
+would be invalid and a C2M1212 message is issued.
+The pointer is being passed a second time to free().
+Once free() has been called with the pointer, the space
+pointed to by that pointer is deallocated and if free() is
+called again, a C2M1212 message is issued.
+The heap structure maintained by the heap manager to track heap
+allocations has been corrupted. In this case, the pointer is a valid
+pointer but the heap manager cannot determine that and a C2M1212 message
+results. When the heap structure is corrupted, there is typically
+at least one C2M1211 message in the job log to indicate that heap
+corruption has occurred.
+If the debug memory manager is in use and the reason code on the
+C2M1212 message is X’8000000000’, padding bytes were overwritten
+for the given allocation. Refer to Debug Memory Manager for
+more information.
+
+Stack Tracebacks
+Enablement for single-level store heap
+memory managers
+When a C2M1211 or C2M1212 message is generated from a single-level
+store heap routine, the code checks for a *DTAARA named QGPL/QC2M1211
+or QGPL/QC2M1212. If the data area exists, the program stack is dumped.
+If the data area does not exist, no dump is performed.
+Enablement for teraspace heap memory managers
+When a C2M1211 message or C2M1212 message is generated from a teraspace
+heap routine, the code checks for a *DTAARA named QGPL/QC2M1211 or
+QGPL/QC2M1212. If the data area exists and contains at least 50 characters
+of data, a 50 character string is retrieved from the data area. If
+the string within the data area matches one of the following strings,
+special behavior is triggered.
+
+_C_TS_dump_stack
+_C_TS_dump_stack_vfy_heap
+_C_TS_dump_stack_vfy_heap_wabort
+_C_TS_dump_stack_vry_heap_wsleep
+If the data area does not exist, no dump or heap verification
+is performed.
+The behavior defaults to the _C_TS_dump_stack behavior
+in the following cases:
+
+The data area exists but does not contain character data.
+The data area is less than 50 characters in length.
+The data area does not contain any of the listed strings.
+The strings in the data area have the following meaning:
+
+_C_TS_dump_stack
+
+The default behavior of dumping the stack is to be performed.
+No heap verification is done.
+
+_C_TS_dump_stack_vfy_heap
+
+After the stack is dumped, the _C_TS_malloc_debug() function
+is called to verify the heap control structures. If any corruption
+is detected within the heap control structures, the heap errors and
+all heap control information are dumped. Any heap information which
+is dumped is contained within the same file as the stack dump. If
+no heap corruption is detected, no heap information is dumped.
+After
+the verification is performed, control returns to the original program
+generating the C2M1211 or C2M1212 message and execution continues.
+
+_C_TS_dump_stack_vfy_heap_wabort
+
+_C_TS_dump_stack_vfy_heap_wabort has the same
+verification behavior as _C_TS_dump_stack_vfy_heap.
+Instead
+of returning control to the original program if heap corruption is
+detected, the abort() function is called to halt execution.
+
+_C_TS_dump_stack_vfy_heap_wsleep
+
+_C_TS_dump_stack_vfy_heap_wsleep has the same
+verification behavior as _C_TS_dump_stack_vfy_heap.
+Instead
+of returning control to the original program if heap corruption is
+detected, the sleep() function is called to sleep indefinitely,
+and pause execution to allow debug of the application. The application
+needs to be ended manually.
+
+Here is an example of how to create a data area to indicate to
+call _C_TS_malloc_debug to verify the heap whenever a C2M1212
+message is generated:
+CRTDTAARA DTAARA(QGPL/QC2M1212) TYPE(*CHAR) LEN(50)
+VALUE('_C_TS_dump_stack_vfy_heap')
+Analysis
+Once the data area is in place, a spool file named QPRINT is created
+with dump information for every C2M1211 message or C2M1212 message.
+The spool file is created for the user running the job which gets
+the message. For example, if the job getting the C2M1211 message or
+C2M1212 message is a server job or batch job running under userid
+ABC123 then the spool file is created in the output queue for userid
+ABC123. Once the spool files containing stack tracebacks are obtained,
+the data area can be removed, and the tracebacks analyzed.
+The stack tracebacks can be used to find the code which is causing
+the problem. Here is an example stack traceback:
+PROGRAM NAME PROGRAM LIB MODULE NAME MODULE LIB INST# PROCEDURE STATEMENT#
+QC2UTIL1 QSYS QC2ALLOC QBUILDSS1 000000 dump_stack__Fv 0000001019
+QC2UTIL1 QSYS QC2ALLOC QBUILDSS1 000000 free 0000001128
+QYPPRT370 QSYS DLSCTODF37 QBUILDSS1 000000 __dl__FPv 0000000007
+FSOSA ABCSYS OSAACTS FSTESTOSA 000000 FS_FinalizeDoc 0000000110
+ABCKRNL ABCSYS A2PDFUTILS ABMOD_8 000000 PRT_EndDoc_Adb 0000000625
+ABCKRNL ABCSYS A2PDFUTILS ABMOD_8 000000 PRT_EndDoc 0000000003
+ABCKRNL ABCSYS A2ENGINE ABMOD_8 000000 ABCReport_Start 0000000087
+ABCKRNL ABCSYS A2ENTRYPNT ABMOD_8 000000 ABCReport_Run 0000000056
+ABCKRNL ABCSYS A2ENTRYPNT ABMOD_8 000000 ABCReport_Entry 0000000155
+PRINTABC ABCSYS RUNBATCH ABMOD_6 000000 main 0000000040
+PRINTABC ABCSYS RUNBATCH ABMOD_6 000000 _C_pep
+QCMD QSYS 000422
+The first line is the header line, which shows the program name,
+program library, module name, module library, instruction number,
+procedure name, and statement number.
+The first line under the header is always a dump_stack procedure
+- this procedure is generating the C2M1211 message or C2M1212 message.
+The next line is the procedure which is calling the dump_stack procedure
+- that is almost always the free procedure, but it could
+be realloc or something else. The next line is the __dl__FPv procedure,
+which is the procedure which handles the C++ delete operator. For
+C++ code, this procedure is often in the stack - for C code, it is
+not.
+The free and delete functions are library
+routines which are freeing memory on behalf of the caller. They are
+not important in determining the source of the memory problem.
+The line after the __dl__FPv procedure is the one where
+things get interesting. In this example, the procedure is called FS_FinalizeDoc and
+this code contains the incorrect call to delete (it is deleting an
+object which has been previously deleted/freed). The owner of that
+application needs to look at the source code for that procedure at
+the given statement number to determine what is being deleted/freed.
+In some cases, this object is a local object of some type and it
+is easy to determine the problem. In other cases, the object can
+be passed to the procedure as a parameter and the caller of that procedure
+needs to be examined. In this case, the PRT_EndDoc_Adb procedure
+is the caller of FS_FinalizeDoc.
+For this example, the problem is in code within the ABCSYS library.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

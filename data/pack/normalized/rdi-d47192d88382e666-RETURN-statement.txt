@@ -1,0 +1,113 @@
+RETURN statement
+
+IBM i programming resources > SQL > SQL reference > SQL control statements > SQL control statements
+
+IBM i programming resources > SQL > SQL reference > SQL control statements
+
+RETURN statement
+The RETURN statement returns from a routine. For SQL scalar
+functions, it returns the result of the function. For
+SQL non-pipelined table functions, it returns a table as the result
+of the function. For SQL pipelined table functions, it indicates the
+end of the result table has been reached. For an SQL procedure,
+it optionally returns an integer status value.
+Syntaxlabel:RETURNexpressionNULLWITHRECURSIVE,common-table-expressionfullselect
+Descriptionlabel
+Specifies the label for the RETURN statement. The label name cannot
+be the same as the routine name or another label within the same scope.
+For more information, see References to SQL labels.
+expression
+Specifies a value that is returned from the routine: If the routine is a scalar function, the data type of the result
+must be assignable to the data type defined for the function result,
+using the storage assignment rules as described in Assignments and comparisons. An aggregate function, or user-defined
+function that is sourced on an aggregate function must not be specified
+for a RETURN statement in an SQL scalar function.
+If the routine is a table function, a scalar expression (other
+than a scalar fullselect) cannot be specified.
+If the routine is a procedure, the data type of expression must
+be INTEGER. If the expression evaluates to the null value,
+a value of zero is returned.
+
+NULL
+Specifies that the null value is returned from the routine.If the routine is a scalar function, the null value is returned.
+If the routine is a table function, NULL must not be specified.
+If the routine is a procedure, NULL must not be specified.
+
+WITH common-table-expression
+Specifies one or more common table expressions to be used
+in the fullselect.
+fullselect
+Specifies the row or rows to be returned for the routine.If the routine is a scalar function, the fullselect must return
+one column and, at most, one row. The data type of the result column
+must be assignable to the data type defined for the function result,
+using the storage assignment rules as described in Assignments and comparisons.
+If the routine is a table function, the fullselect can return
+zero or more rows with one or more columns. The number of columns
+in the fullselect must match the number of columns in the function
+result. In addition, the data types of the result table columns of
+the fullselect must be assignable to the data types of the columns
+defined for the function result, using the storage assignment rules
+as described in Assignments and comparisons.
+If the routine is a procedure, fullselect must not be specified.
+
+NotesReturning from a table function:
+The last statement executed in the SQL-routine-body must
+be a RETURN statement.
+For a non-pipelined table function, the RETURN statement indicates
+the rows to be returned. Exactly one RETURN statement must be specified
+and it must contain a fullselect.
+For a pipelined table function, one or more RETURN statements
+must be specified and they must contain no return values.
+
+Returning from a procedure:
+If a RETURN statement with a specified return value is used to
+return from a procedure then the SQLCODE, SQLSTATE, and message length
+in the SQLCA or diagnostics area are initialized to zeros, and message
+text is set to blanks. An error is not returned to the caller.
+If a RETURN statement is not used to return from a procedure or
+if a value is not specified on the RETURN statement, if the procedure returns with an SQLCODE that is greater than
+or equal to zero, the specified target for DB2_RETURN_STATUS in a
+GET DIAGNOSTICS statement will be set to a value of 0
+if the procedure returns with an SQLCODE that is less than zero,
+the specified target for DB2_RETURN_STATUS in a GET DIAGNOSTICS statement
+will be set to a value of -1.
+
+When a value is returned from a procedure, the caller may access
+the value using: the GET DIAGNOSTICS statement to retrieve the DB2_RETURN_STATUS
+when the SQL procedure was called from another SQL procedure
+the parameter bound for the return value parameter marker in the
+escape clause CALL syntax (?=CALL...) in a ODBC or JDBC application
+directly from the SQLCA returned from processing the CALL of an
+SQL procedure by retrieving the value of sqlerrd[0] when the SQLCODE
+is not less than zero. When the SQLCODE is less than zero, the sqlerrd[0]
+value is not set and the application should assume a return status
+value of -1.
+
+RETURN restrictions:
+RETURN is not allowed in SQL triggers.
+In a compound(dynamic) statement, RETURN cannot specify
+a return value.
+
+ExampleExample 1: Use a RETURN statement
+to return from an SQL procedure with a status value of zero if successful,
+and –200 if not.
+BEGIN
+...
+GOTO fail;
+...
+success: RETURN 0
+failure: RETURN -200
+...
+END
+
+Example 2: Define a scalar function that returns
+the tangent of a value using the existing sine and cosine functions.
+CREATE FUNCTION mytan (x DOUBLE)
+RETURNS DOUBLE
+LANGUAGE SQL
+CONTAINS SQL
+NO EXTERNAL ACTION
+DETERMINISTIC
+RETURN SIN(x)/COS(x)
+
+Parent topic: SQL control statements

@@ -1,0 +1,159 @@
+XML PARSE Statement
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > Procedure Division Statements
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements
+
+IBM ExtensionIBM Extension
+XML PARSE Statement
+The XML PARSE statement is the ILE COBOL language interface
+to the high-speed XML parser that is part of the COBOL run time. The XML PARSE
+statement parses an XML document into its individual pieces and passes each
+piece, one at a time, to a user-written processing procedure.
+
+XML Parse Statement – Format 1
+
+>>-XML--PARSE--identifier-1--PROCESSING--PROCEDURE--+----+------>
+    '-IS-'   
+
+>--procedure-name-1--+-------------------------------+---------->
+    '-+-THROUGH-+--procedure-name-2-'   
+    '-THRU----'    
+
+>--+-------------------------------------------+---------------->
+   '-+----+--EXCEPTION--imperative-statement-1-'   
+    '-ON-'    
+
+>--+------------------------------------------------+----------->
+   '-NOT--+----+--EXCEPTION--imperative-statement-2-'   
+    '-ON-'    
+
+>--+---------+-------------------------------------------------><
+   '-END-XML-'   
+
+XML Parse Statement – Format 2
+
+>>-XML--PARSE--FILE-STREAM--identifier-2--PROCESSING--PROCEDURE-->
+
+>--+----+--procedure-name-1------------------------------------->
+   '-IS-'    
+
+>--+-------------------------------+---------------------------->
+   '-+-THROUGH-+--procedure-name-2-'   
+    '-THRU----'    
+
+>--+-------------------------------------------+---------------->
+   '-+----+--EXCEPTION--imperative-statement-1-'   
+    '-ON-'    
+
+>--+------------------------------------------------+----------->
+   '-NOT--+----+--EXCEPTION--imperative-statement-2-'   
+    '-ON-'    
+
+>--+---------+-------------------------------------------------><
+   '-END-XML-'   
+
+identifier-1
+Must be an alphanumeric or national data item that contains the XML
+document character stream. Identifier-1 cannot be a function-identifier.
+If identifier-1 is alphanumeric, its contents must be encoded using one of
+the single-byte character sets listed under Coded character sets for XML documents. EBCDIC
+XML documents that do not contain an encoding declaration are parsed with
+the coded character set of the source member.
+
+If identifier-1
+is national, its contents must be encoded using the UCS-2 CCSID specified
+on the National CCSID compiler option or the NTLCCSID PROCESS option.
+
+identifier-2
+Identifier-2 must be an alphanumeric data item containing the absolute
+or relative path name of the stream file that contains the XML document. An
+absolute name starts with "/", for example "/u/user1/myxml". A relative path
+name does not start with "/", so this will be concatenated with the current
+directory. XML documents, including ASCII XML documents, located in the specified
+stream file that do not contain an encoding declaration are parsed with the
+coded character set of the stream file.
+PROCESSING PROCEDURE phrase
+Specifies the name of a procedure to handle the various events that
+the XML parser generates.
+procedure-name-1
+Specifies the first or only section or paragraph in the processing procedure.
+procedure-name-2
+Specifies the last section or paragraph in the processing procedure.
+The processing procedure consists of the statements at which XML events are
+handled. The range of the processing procedure also includes all statements
+executed by CALL, EXIT, GO TO, GOBACK, and PERFORM statements in the range
+of the processing procedure.
+
+The processing procedure must not directly execute an XML PARSE statement. However, if the
+processing procedure passes control to an outermost program by using a CALL
+statement, the target program can execute the same or a different XML PARSE
+statement. A program executing on multiple threads can execute the same XML
+statement or different XML statements simultaneously.
+
+The compiler
+inserts a return mechanism after the last statement in the processing procedure.
+The processing procedure can terminate the run unit with a STOP RUN statement.
+It must not attempt to return to the parser with a GOBACK or EXIT PROGRAM
+statement.
+
+For more details about the processing procedure, see Control flow and Processing procedures.
+
+ON EXCEPTION
+The ON EXCEPTION phrase specifies imperative statements that are executed
+when the XML PARSE statement raises an exception condition.
+An exception
+condition occurs when the XML parser detects an error in processing the XML
+document. The parser first signals an exception XML event by passing control
+to the processing procedure with special register XML-EVENT set to contain
+'EXCEPTION'. The parser provides a numeric error code in special register
+XML-CODE, as detailed in the ILE COBOL Programmer's Guide.
+
+An exception condition also occurs if the processing procedure deliberately
+terminates parsing by setting XML-CODE to -1 before returning to the parser
+from any normal XML event. In this case, the parser does not signal an EXCEPTION
+XML event.
+
+If the ON EXCEPTION phrase is specified, the parser then
+transfers control to imperative-statement-1. If the ON EXCEPTION phrase is
+not specified, the NOT ON EXCEPTION phrase, if any, is ignored, and control
+is transferred to the end of the XML PARSE statement.
+
+If the XML processing
+procedure handles the exception XML event and sets XML-CODE to zero before
+returning control to the parser, the exception condition no longer exists.
+If no other unhandled exceptions occur prior to the termination of the parser,
+control is transferred to imperative-statement-2 of the NOT ON EXCEPTION phrase,
+if specified.
+
+NOT ON EXCEPTION
+The NOT ON EXCEPTION phrase specifies imperative statements that are
+executed when no exception condition exists at the termination of XML PARSE
+processing.
+If an exception condition does not exist at termination of
+XML PARSE processing, control is transferred to imperative-statement-2 of
+the NOT ON EXCEPTION phrase, if specified. If the NOT ON EXCEPTION phrase
+is not specified, control is transferred to the end of the XML PARSE statement.
+The ON EXCEPTION phrase, if specified, is ignored.
+
+Special register
+XML-CODE contains zero after execution of the XML PARSE statement.
+
+END-XML phrase
+This explicit scope terminator serves to delimit the scope of the XML
+PARSE statement. END-XML permits a conditional XML PARSE statement to be nested
+in another conditional statement. END-XML can also be used with an XML PARSE
+statement that does not specify either the ON EXCEPTION or the NOT ON EXCEPTION
+phrase.
+
+Control flow
+
+Processing procedures
+
+Coded character sets for XML documents
+
+Special Registers
+
+Parent topic: Procedure Division Statements
+
+End of IBM Extension End of IBM Extension

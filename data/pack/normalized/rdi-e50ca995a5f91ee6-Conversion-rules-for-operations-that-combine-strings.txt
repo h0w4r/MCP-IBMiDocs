@@ -1,0 +1,172 @@
+Conversion rules for operations that combine strings
+
+IBM i programming resources > SQL > SQL reference > Language elements > Language elements
+
+IBM i programming resources > SQL > SQL reference > Language elements
+
+Conversion rules for operations that combine strings
+The operations that combine strings are concatenation,
+UNION, UNION ALL, EXCEPT, and INTERSECT. (These rules also apply to
+the MAX, MIN, VALUE, COALESCE, IFNULL, and CONCAT scalar functions
+and CASE expressions.) In each case, the CCSID of the result is determined
+at bind time, and the execution of the operation may involve conversion
+of strings to the coded character set identified by that CCSID.
+The CCSID of the result is determined by the CCSIDs of
+the operands. The CCSIDs of the first two operands determine an intermediate
+result CCSID, this CCSID and the CCSID of the next operand determine
+a new intermediate result CCSID, and so on. The last intermediate
+result CCSID and the CCSID of the last operand determine the CCSID
+of the result string or column. For each pair of CCSIDs, the result
+CCSID is determined by the sequential application of the following
+rules:
+If the CCSIDs are equal, the result is that CCSID.
+If either CCSID is 65535, the result is 65535.1
+If one CCSID denotes data in an encoding scheme different from
+the other CCSID, the result is determined by the following table:
+
+Table 1. Selecting the Encoding Scheme of the Intermediate
+ResultFirst Operand
+Second
+Operand
+
+SBCS Data
+DBCS Data
+Mixed Data
+Unicode Graphic Data
+
+SBCS Data
+see below
+second
+second
+second
+
+DBCS Data
+first
+see below
+second
+second
+
+Mixed Data
+first
+first
+see below
+second
+
+Unicode Graphic Data
+first
+first
+first
+see below
+
+Otherwise, the resulting CCSID is determined by the following
+tables:
+
+Table 2. Selecting the CCSID of the Intermediate ResultFirst Operand
+Second
+Operand
+
+Column Value
+Derived Value
+Constant
+Special Register
+Variable
+
+Column Value
+
+first
+
+first
+
+first
+
+first
+
+first
+
+Derived Value
+
+second
+
+first
+
+first
+
+first
+
+first
+
+Constant
+
+second
+
+second
+
+first
+
+first
+
+first
+
+Special Register
+
+second
+
+second
+
+first
+
+first
+
+first
+
+Variable
+
+second
+
+second
+
+second
+
+second
+
+first
+
+A variable containing data in a foreign encoding scheme
+is effectively converted to the native encoding scheme before it is
+used in any operation. The above rules are based on the assumption
+that this conversion has already occurred.
+Note that an intermediate result is considered to be a
+derived value operand. For example, assume COLA, COLB, and COLC are
+columns with CCSIDs 37, 278, and 500, respectively. The result CCSID
+of COLA CONCAT COLB CONCAT COLC is determined as follows:
+The result CCSID of COLA CONCAT COLB is first determined
+to be 37 because both operands are columns, so the CCSID of the first
+operand is chosen.
+The result CCSID of “intermediate result” CONCAT COLC is determined
+to be 500, because the first operand is a derived value and the second
+operand is a column, so the CCSID of the second operand is chosen.
+
+An operand of concatenation, or the result expression
+of the CASE expression, or the operands of the IN predicate, or the
+selected argument of the MAX, MIN, VALUE, COALESCE, IFNULL, or CONCAT
+scalar function is converted, if necessary, to the coded character
+set of the result string. Each string of an operand of UNION, UNION
+ALL, EXCEPT, or INTERSECT is converted, if necessary, to the coded
+character set of the result column. Character conversion is necessary
+only if all of the following are true:
+The CCSIDs are different.
+Neither CCSID is 65535.
+The string is neither null nor empty.
+Conversion between the two CCSIDs is required. For more information,
+see Coded character sets and CCSIDs.
+
+An error is returned if a character of the string cannot
+be converted or if the conversion between the pair of CCSIDs is not
+defined. For more information, see Coded character sets and CCSIDs.
+A warning occurs if a character of a string is converted to the substitution
+character.
+
+Parent topic: Language elements
+
+1 If either operand
+is a CLOB or DBCLOB, the resulting CCSID is the job default CCSID.

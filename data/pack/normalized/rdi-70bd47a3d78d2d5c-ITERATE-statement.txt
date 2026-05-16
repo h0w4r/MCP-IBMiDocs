@@ -1,0 +1,70 @@
+ITERATE statement
+
+IBM i programming resources > SQL > SQL reference > SQL control statements > SQL control statements
+
+IBM i programming resources > SQL > SQL reference > SQL control statements
+
+ITERATE statement
+The ITERATE statement causes the flow of control to return
+to the beginning of a labelled loop.
+Syntaxlabel:ITERATEtarget-label
+Descriptionlabel
+Specifies the label for the ITERATE statement. The label name
+cannot be the same as the routine name or another label within the
+same scope. For more information, see References to SQL labels.
+target-label
+Specifies the label of the FOR, LOOP, REPEAT, or WHILE statement
+to which the flow of control is passed. target-label must be
+defined as a label for a FOR, LOOP, REPEAT, or WHILE statement. The
+ITERATE statement must be in that FOR, LOOP, REPEAT, or WHILE statement,
+or in the block of code that is directly or indirectly nested within
+that statement, subject to the following restrictions:If the ITERATE statement is in a condition handler, target-label must
+be defined in that condition handler.
+If the ITERATE statement is not in a condition handler, target-label must
+not be defined in a condition handler.
+If the ITERATE statement is in a FOR statement, target-label must
+be that label on that FOR statement, or the label must be defined
+inside that FOR statement.
+
+NotesConsiderations
+for SQLSTATE and SQLCODE variables: The ITERATE statement does
+not affect the SQLSTATE and SQLCODE SQL variables. At the end of the
+ITERATE statement the SQLSTATE and SQLCODE SQL variables reflect the
+result of the last statement executed before that ITERATE statement.
+ExampleThis example uses a cursor to return
+information for a new department. If the not_found condition
+handler was invoked, the flow of control passes out of the loop. If
+the value of v_dept is 'D11', an ITERATE statement passes the
+flow of control back to the top of the LOOP statement. Otherwise,
+a new row is inserted into the DEPARTMENT table.
+CREATE PROCEDURE ITERATOR ()
+LANGUAGE SQL
+MODIFIES SQL DATA
+BEGIN
+DECLARE v_dept CHAR(3);
+DECLARE v_deptname VARCHAR(29);
+DECLARE v_admdept CHAR(3);
+DECLARE at_end INTEGER DEFAULT 0;
+DECLARE not_found CONDITION FOR SQLSTATE '02000';
+DECLARE c1 CURSOR FOR
+SELECT deptno,deptname,admrdept
+FROM department
+ORDER BY deptno;
+DECLARE CONTINUE HANDLER FOR not_found
+SET at_end = 1;
+OPEN c1;
+ins_loop:
+LOOP
+FETCH c1 INTO v_dept, v_deptname, v_admdept;
+IF at_end = 1 THEN
+LEAVE ins_loop;
+ELSEIF v_dept ='D11' THEN
+ITERATE ins_loop;
+END IF;
+INSERT INTO department (deptno,deptname,admrdept)
+VALUES('NEW', v_deptname, v_admdept);
+END LOOP;
+CLOSE c1;
+END
+
+Parent topic: SQL control statements

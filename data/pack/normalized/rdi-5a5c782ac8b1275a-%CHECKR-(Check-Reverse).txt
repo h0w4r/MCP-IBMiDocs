@@ -1,0 +1,107 @@
+%CHECKR (Check Reverse)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%CHECKR (Check Reverse)
+
+%CHECKR(comparator : base {: start {: *NATURAL | *STDCHARSIZE}})
+%CHECKR returns the last position of the string base that
+contains a character that does not appear in string comparator.
+If all of the characters in base also appear in comparator,
+the function returns 0.
+
+The check begins at the starting position and continues to the
+left until a character that is not contained in the comparator string
+is found. The starting position defaults to the end of the string.
+
+The first and second parameters must be of type character, graphic, or UCS-2,
+fixed or varying length. If the first parameter does not have the same type and CCSID as the
+second parameter, the first parameter is converted to the type and CCSID of the second parameter.
+
+The third parameter, if specified, must be
+a non-float numeric with zero decimal positions.
+
+The third or fourth parameter can be *NATURAL or *STDCHARSIZE
+to override the current CHARCOUNT mode for the statement.
+If this parameter is specified, it must be the last parameter.
+
+Specify *NATURAL to indicate that %CHECKR operates in CHARCOUNT NATURAL mode.
+The start position and return value are measured in characters rather than bytes or double
+bytes. For example, if the base string is a UTF-8 string with the value 'áxç', and the
+comparator string is 'çbá', the 'x' character is the first character found in the base string
+that does not appear in the comparator string. With CHARCOUNT NATURAL mode,
+%CHECKR returns 2, because the character 'x' is the second character in the base string.
+
+Specify *STDCHARSIZE to indicate that %CHECKR operates in CHARCOUNT
+STDCHARSIZE mode. In the previous example, with CHARCOUNT
+STDCHARSIZE mode, %CHECKR returns 3 because 'x' is the third byte in the string.
+Characters 'á' and 'ç' are 2-byte characters.
+
+See Processing string data by the natural size of each character.
+Note:
+%CHECKR can also operate in CHARCOUNT NATURAL mode due to the
+/CHARCOUNT compiler directive or the CHARCOUNT Control keyword.
+
+For more information, see String Operations or Built-in Functions.
+
+Figure 1. %CHECKR Example
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+*---------------------------------------------
+* If a string is padded at the end with some
+* character other than blanks, the characters
+* cannot be removed using %TRIM.
+* %CHECKR can be used for this by searching
+* for the last character in the string that
+* is not in the list of "pad characters".
+*---------------------------------------------
+D string1 s 50a varying
+D inz('My *dog* Spot.* @ * @ *')
+D string2 s 50a varying
+D inz('someone@somewhere.com')
+D padChars C ' *@'
+
+/free
+
+%len(string1) = %checkr(padChars:string1);
+// %len(string1) is set to 14 (the position of the last character
+// that is not in "padChars").
+
+// string1 = 'My *dog* Spot.'
+
+%len(string2) = %checkr(padChars:string2);
+// %len(string2) is set to 21 (the position of the last character
+// that is not in "padChars").
+
+// string2 = 'someone@somewhere.com' (the string is not changed)
+
+/end-free
+
+Figure 2. %CHECK and %CHECKR Example
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+*------------------------------------------------------
+* A string contains a numeric value, but it might
+* be surrounded by blanks and asterisks and might be
+* preceded by a currency symbol.
+*------------------------------------------------------
+D string s 50a varying inz('$****12.345*** ')
+
+/free
+// Find the position of the first character that is not one of ' $*'
+numStart = %CHECK (' $*' : string);
+// = 6
+
+// Find the position of the last character that is not one of ' *'
+numEnd = %CHECKR (' *' : string);
+// = 11
+
+// Extract the numeric string
+string = %SUBST(string : numStart : numEnd - numStart + 1);
+// = '12.345'
+
+/end-free
+
+Parent topic: Built-in Functions

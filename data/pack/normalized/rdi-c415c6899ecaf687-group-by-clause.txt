@@ -1,0 +1,712 @@
+group-by-clause
+
+IBM i programming resources > SQL > SQL reference > Queries > subselect > subselect
+
+IBM i programming resources > SQL > SQL reference > Queries > subselect
+
+group-by-clause
+The GROUP BY clause specifies an intermediate result table
+that consists of a grouping of the rows of R. R is the result of the
+previous clause of the subselect.
+GROUP BY,grouping-expressiongrouping-setssuper-groups
+In its simplest form, a GROUP BY clause contains a grouping-expression.
+A grouping-expression is an expression that
+defines the grouping of R. The following restrictions apply to grouping-expression.
+Each column name included in grouping-expression must
+unambiguously identify a column of R.
+The result of grouping-expression cannot
+be a DataLink or XML data type or a distinct type that is based on
+a DataLink or XML.
+grouping-expression cannot include any
+of the following items: A correlated column
+A variable
+An aggregate function
+Any function that is non-deterministic
+
+More complex forms of the GROUP BY clause include grouping-sets and super-groups.
+For a description of these forms, see grouping-sets and super-groups, respectively.
+The
+result of the GROUP BY clause is a set of groups of rows. In each
+group of more than one row, all values of each grouping-expression are
+equal, and all rows with the same set of values of the grouping-expressions are
+in the same group. For grouping, all null values for a grouping-expression are
+considered equal.
+Because
+every row of a group contains the same value of any grouping-expression, grouping-expressions can
+be used in a search condition in a HAVING clause, in the SELECT clause,
+or in a sort-key-expression of an ORDER BY clause (see order-by-clause for details). In each case, the reference
+specifies only one value for each group. The grouping-expression specified
+in these clauses must exactly match the grouping-expression in
+the GROUP BY clause, except that blanks are not significant. For example,
+a grouping-expression of
+SALARY*.10
+
+will match the expression in a having-clause of
+HAVING SALARY*.10
+
+but will not match
+HAVING .10 *SALARY
+or
+HAVING (SALARY*.10)+100
+
+If the grouping-expression contains
+varying-length strings with trailing blanks, the values in the group
+can differ in the number of trailing blanks and may not all have the
+same length. In that case, a reference to the grouping-expression still
+specifies only one value for each group, but the value for a group
+is chosen arbitrarily from the available set of values. Thus, the
+actual length of the result value is unpredictable.
+Column access controls do not affect the operation
+of the GROUP BY clause. The grouping is performed using the original
+column values.
+If a collating sequence other than *HEX is in effect when
+the statement that contains the GROUP BY clause is executed, and the grouping-expressions are
+SBCS data, mixed data, or Unicode data, then the rows are placed into
+groups using the weighted values. The weighted values are derived
+by applying the collating sequence to the grouping-expressions.
+In that case, a reference to the grouping-expression still
+specifies only one value for each group, but the value for a group
+is chosen arbitrarily from the available set of values. Thus, the
+actual value of the result is unpredictable.
+grouping-setsGROUPING SETS(,grouping-expressionsuper-groups(,grouping-expressionsuper-groups))
+A grouping-sets specification
+allows multiple grouping clauses to be specified in a single statement.
+This can be thought of as the union of two or more groups of rows
+into a single result set. It is logically equivalent to the union
+of multiple subselects with the group by clause in each subselect
+corresponding to one grouping set. A grouping set can be a single
+element or can be a list of elements delimited by parentheses, where
+an element is either a grouping-expression or
+a super-group. Using grouping sets allows
+the groups to be computed with a single pass over the base table.
+The grouping-sets specification
+allows either a simple grouping-expression to
+be used, or the more complex forms of super-groups.
+For a description of super-groups, see super-groups.
+Note that grouping
+sets are the fundamental building blocks for GROUP BY operations.
+A simple GROUP BY with a single column can be considered a grouping
+set with one element. For example:
+GROUP BY a
+
+is the same as
+GROUP BY GROUPING SETS( (a) )
+
+and
+GROUP BY a, b, c
+
+is the same as
+GROUP BY GROUPING SETS( (a,b,c) )
+
+Non-aggregation columns from the select list of the subselect
+that are excluded from a grouping set will return a null for such
+columns for each row generated for that grouping set. This reflects
+the fact that aggregation was done without considering the values
+for those columns.
+If a table-reference in the previous
+clauses of the query identifies a distributed table or a
+table that has a read trigger; a grouping-sets specification
+is not allowed.
+Example C2 through Example C7 illustrate the
+use of grouping sets.
+super-groupsROLLUP(grouping-expression-list)1CUBE(grouping-expression-list)2grand-total
+grouping-expression-list,grouping-expression(,grouping-expression)grand-total()
+ROLLUP ( grouping-expression-list )
+A ROLLUP grouping is an extension to
+the GROUP BY clause that produces a result set containing sub-total rows
+in addition to the "regular" grouped rows. Sub-total rows are
+"super-aggregate" rows that contain further aggregates whose values
+are derived by applying the same aggregate functions that were used
+to obtain the grouped rows. These rows are called sub-total rows because
+that is their most common use; however, any aggregate function can
+be used for the aggregation. For instance, MAX and AVG are used in
+example C8.
+A ROLLUP grouping is a series of grouping-sets.
+The general specification of a ROLLUP with n elements GROUP BY ROLLUP( C1,C2,...,Cn-1,Cn)
+is
+equivalent to GROUP BY GROUPING SETS( (C1,C2,...,Cn-1,Cn),
+(C1,C2,...,Cn-1),
+...
+(C1,C2),
+(C1),
+() )
+Note that the n elements
+of the ROLLUP translate to n+1 grouping sets. Note also that
+the order in which the grouping-expressions are
+specified is significant for ROLLUP. For example: GROUP BY ROLLUP (a,b)
+is
+equivalent to GROUP BY GROUPING SETS ( (a,b),
+(a),
+() )
+while GROUP BY ROLLUP (b,a)
+is
+equivalent to GROUP BY GROUPING SETS ( (b,a),
+(b),
+() )
+The ORDER BY clause is the only way to guarantee the order of the rows in the result set. Example C3 illustrates the use of ROLLUP.
+CUBE ( grouping-expression-list )
+A CUBE grouping is an
+extension to the GROUP BY clause that produces a result set that contains
+all the rows of a ROLLUP aggregation and, in addition, contains "cross-tabulation"
+rows. Cross-tabulation rows are additional "super-aggregate"
+rows that are not part of an aggregation with sub-totals. Only 10
+expressions are allowed in the grouping-expression-list.
+Like a ROLLUP, a CUBE grouping can also be thought of as a series
+of grouping-sets. In the case of a CUBE,
+all permutations of the cubed grouping-expression-list are
+computed along with the grand total. Therefore, the n elements
+of a CUBE translate to 2 ** n (2 to the power n) grouping-sets.
+For instance, a specification of GROUP BY CUBE (a,b,c)
+is
+equivalent to GROUP BY GROUPING SETS ( (a,b,c),
+(a,b),
+(a,c),
+(b,c),
+(a),
+(b),
+(c),
+() )
+Notice
+that the 3 elements of the CUBE translate to 8 grouping sets.
+The order of specification of elements does not matter for CUBE.
+'CUBE(DayOfYear, Sales_Person)' and 'CUBE(Sales_Person, DayOfYear)
+yield the same result sets. The use of the word 'same' applies to
+content of the result set, not to its order. The ORDER BY clause is
+the only way to guarantee the order of the rows in the result set.
+Example C4 illustrates the use of CUBE.
+grouping-expression-list
+A grouping-expression-list is used within
+a CUBE or ROLLUP grouping to define the number of elements in the
+CUBE or ROLLUP operation. This is controlled by using parentheses
+to delimit elements with multiple grouping-expressions.
+The rules for a grouping-expression are
+described in group-by-clause. For example,
+suppose that a query is to return the total expenses for the ROLLUP
+of City within a Province but not within a County. However, the clause GROUP BY ROLLUP (Province, County, City)
+results
+in unwanted sub-total rows for the County. In the clause GROUP BY ROLLUP (Province, (County, City))
+the
+composite (County, City) forms one element in the ROLLUP and, therefore,
+a query that uses this clause will yield the wanted result. In other
+words, the two element ROLLUP GROUP BY ROLLUP (Province, (County, City))
+generates GROUP BY GROUPING SETS ( (Province, County, City)
+(Province)
+() )
+while the three
+element ROLLUP generates GROUP BY GROUPING SETS ( (Province, County, City),
+(Province, County),
+(Province),
+() )
+Example C2 also
+uses composite column values.
+grand-total
+Both CUBE and ROLLUP return a row which is the overall (grand
+total) aggregation. This may be separately specified with empty parentheses
+within the GROUPING SETS clause. It may also be specified directly
+in the GROUP BY clause, although there is no effect on the result
+of the query. Example C4 uses the grand-total syntax.
+
+Combining grouping setsThis can be used
+to combine any of the types of GROUP BY clauses. When simple grouping-expressions are
+combined with other groups, they are "appended" to the beginning of
+the resulting grouping sets. When ROLLUP
+and CUBE expressions are combined, they operate like "multipliers"
+on the remaining expression, forming additional grouping set entries
+according to the definition of either ROLLUP or CUBE.
+For instance,
+combining grouping-expression elements acts
+as follows
+GROUP BY a, ROLLUP (b,c)
+is
+equivalent to
+GROUP BY GROUPING SETS( (a,b,c),
+(a,b),
+(a) )
+Or similarly
+GROUP BY a,b, ROLLUP (c,d)
+is
+equivalent to
+GROUP BY GROUPING SETS( (a,b,c,d),
+(a,b,c),
+(a,b) )
+Combining of ROLLUP
+elements acts as follows:
+GROUP BY ROLLUP(a), ROLLUP (b,c)
+is
+equivalent to
+GROUP BY GROUPING SETS( (a,b,c),
+(a,b),
+(a),
+(b,c),
+(b),
+() )
+Similarly,
+GROUP BY ROLLUP(a), CUBE (b,c)
+is
+equivalent to
+GROUP BY GROUPING SETS( (a,b,c),
+(a,b),
+(a,c),
+(a),
+(b,c),
+(b),
+(c),
+() )
+Combining of CUBE
+and ROLLUP elements acts as follows:
+GROUP BY CUBE(a,b), ROLLUP (c,d)
+is
+equivalent to
+GROUP BY GROUPING SETS( (a,b,c,d),
+(a,b,c),
+(a,b),
+(a,c,d),
+(a,c),
+(a),
+(b,c,d),
+(b,c),
+(b),
+(c,d),
+(c),
+() )
+Like a simple grouping-expression,
+combining grouping sets also eliminates duplicates within each grouping
+set. For instance,
+GROUP BY a, ROLLUP (a,b)
+is
+equivalent to
+GROUP BY GROUPING SETS( (a,b),
+(a) )
+A more complete example
+of combining grouping sets is to construct a result set that eliminates
+certain rows that would be returned for a full CUBE aggregation.
+For
+example, consider the following GROUP BY clause:
+GROUP BY Region,
+ROLLUP (Sales_Person, WEEK(Sales_Date)),
+CUBE (YEAR(Sales_Date), MONTH(Sales_Date))
+The
+column listed immediately to the right of GROUP BY is grouped, those
+within the parentheses following ROLLUP are rolled up, and those within
+the parentheses following CUBE are cubed. Thus, the above clause results
+in a cube of MONTH within YEAR which is then rolled up within WEEK
+within Sales_Person within the Region aggregation. It does not result
+in any grand total row or any cross-tabulation rows on Region, Sales_Person,
+or WEEK(Sales_Date) so produces fewer rows than the clause:
+GROUP BY ROLLUP (Region, Sales_Person, WEEK(Sales_Date),
+YEAR(Sales_Date), MONTH(Sales_Date))
+Examples of grouping sets, cube, and rollupThe
+queries in Example C1 through C4 use a subset of the rows in the SALES
+table based on the predicate 'WEEK(SALES_DATE) = 13'.
+SELECT WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+SALES_PERSON,
+SALES AS UNITS_SOLD
+FROM SALES
+WHERE WEEK(SALES_DATE) = 13
+which results
+in:
+WEEK DAY_WEEK SALES_PERSON UNITS_SOLD
+------- ---------- ------------- ------------
+13 6 LUCCHESSI 3
+13 6 LUCCHESSI 1
+13 6 LEE 2
+13 6 LEE 2
+13 6 LEE 3
+13 6 LEE 5
+13 6 GOUNOT 3
+13 6 GOUNOT 1
+13 6 GOUNOT 7
+13 7 LUCCHESSI 1
+13 7 LUCCHESSI 2
+13 7 LUCCHESSI 1
+13 7 LEE 7
+13 7 LEE 3
+13 7 LEE 7
+13 7 LEE 4
+13 7 GOUNOT 2
+13 7 GOUNOT 18
+13 7 GOUNOT 1
+Example C1: Here is a query with a basic
+GROUP BY over 3 columns:
+SELECT WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+SALES_PERSON,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+WHERE WEEK(SALES_DATE) = 13
+GROUP BY WEEK(SALES_DATE), DAYOFWEEK(SALES_DATE), SALES_PERSON
+ORDER BY WEEK, DAY_WEEK, SALES_PERSON
+This
+results in:
+WEEK DAY_WEEK SALES_PERSON UNITS_SOLD
+------- ---------- ------------- ------------
+13 6 GOUNOT 11
+13 6 LEE 12
+13 6 LUCCHESSI 4
+13 7 GOUNOT 21
+13 7 LEE 21
+13 7 LUCCHESSI 4
+Example C2: Produce the result based on
+two different grouping sets of rows from the SALES table.
+SELECT WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+SALES_PERSON,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+WHERE WEEK(SALES_DATE) = 13
+GROUP BY GROUPING SETS( (WEEK(SALES_DATE), SALES_PERSON),
+(DAYOFWEEK(SALES_DATE), SALES_PERSON) )
+ORDER BY WEEK, DAY_WEEK, SALES_PERSON
+This
+results in:
+WEEK DAY_WEEK SALES_PERSON UNITS_SOLD
+------- ---------- ------------- ------------
+13 - GOUNOT 32
+13 - LEE 33
+13 - LUCCHESSI 8
+- 6 GOUNOT 11
+- 6 LEE 12
+- 6 LUCCHESSI 4
+- 7 GOUNOT 21
+- 7 LEE 21
+- 7 LUCCHESSI 4
+The rows with WEEK 13 are from the first grouping set
+and the other rows are from the second grouping set.
+Example C3:If you use 3 distinct columns
+involved in the grouping sets of Example C2 and perform a ROLLUP,
+you can see grouping sets for (WEEK, DAY_WEEK, SALES_PERSON), (WEEK,
+DAY_WEEK), (WEEK), and grand total.
+SELECT WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+SALES_PERSON,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+WHERE WEEK(SALES_DATE) = 13
+GROUP BY ROLLUP( WEEK(SALES_DATE), DAYOFWEEK(SALES_DATE), SALES_PERSON )
+ORDER BY WEEK, DAY_WEEK, SALES_PERSON
+This
+results in:
+WEEK DAY_WEEK SALES_PERSON UNITS_SOLD
+------- ---------- ------------- ------------
+13 6 GOUNOT 11
+13 6 LEE 12
+13 6 LUCCHESSI 4
+13 6 - 27
+13 7 GOUNOT 21
+13 7 LEE 21
+13 7 LUCCHESSI 4
+13 7 - 46
+13 - - 73
+- - - 73
+Example C4:If you run the same query as Example C3 only replace ROLLUP with CUBE, you can see additional grouping sets for (WEEK, SALES_PERSON), (DAY_WEEK, SALES_PERSON), (DAY_WEEK), and (SALES_PERSON) in the result.
+SELECT WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+SALES_PERSON,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+WHERE WEEK(SALES_DATE) = 13
+GROUP BY CUBE( WEEK(SALES_DATE), DAYOFWEEK(SALES_DATE), SALES_PERSON )
+ORDER BY WEEK, DAY_WEEK, SALES_PERSON
+This
+results in:
+WEEK DAY_WEEK SALES_PERSON UNITS_SOLD
+------- ---------- ------------- ------------
+13 6 GOUNOT 11
+13 6 LEE 12
+13 6 LUCCHESSI 4
+13 6 - 27
+13 7 GOUNOT 21
+13 7 LEE 21
+13 7 LUCCHESSI 4
+13 7 - 46
+13 - GOUNOT 32
+13 - LEE 33
+13 - LUCCHESSI 8
+13 - - 73
+- 6 GOUNOT 11
+- 6 LEE 12
+- 6 LUCCHESSI 4
+- 6 - 27
+- 7 GOUNOT 21
+- 7 LEE 21
+- 7 LUCCHESSI 4
+- 7 - 46
+- - GOUNOT 32
+- - LEE 33
+- - LUCCHESSI 8
+- - - 73
+Example C5: Obtain a result set which includes
+a grand total of selected rows from the SALES table together with
+a group of rows aggregated by SALES_PERSON and MONTH.
+SELECT SALES_PERSON,
+MONTH(SALES_DATE) AS MONTH,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+GROUP BY GROUPING SETS( (SALES_PERSON, MONTH(SALES_DATE)),
+() )
+ORDER BY SALES_PERSON, MONTH
+This results
+in:
+SALES_PERSON MONTH UNITS_SOLD
+------------- ------- ------------
+GOUNOT 3 35
+GOUNOT 4 14
+GOUNOT 12 1
+LEE 3 60
+LEE 4 25
+LEE 12 6
+LUCCHESSI 3 9
+LUCCHESSI 4 4
+LUCCHESSI 12 1
+- - 155
+Example C6: This example shows two simple
+ROLLUP queries followed by a query which treats the two ROLLUPs as
+grouping sets in a single result set and specifies row ordering for
+each column involved in the grouping sets.
+Example C6-1:
+SELECT WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+GROUP BY ROLLUP( WEEK(SALES_DATE), DAYOFWEEK(SALES_DATE) )
+ORDER BY WEEK, DAY_WEEK
+This results in:
+WEEK DAY_WEEK UNITS_SOLD
+-------- ---------- ------------
+13 6 27
+13 7 46
+13 - 73
+14 1 31
+14 2 43
+14 - 74
+53 1 8
+53 - 8
+- - 155
+Example C6-2:
+SELECT MONTH(SALES_DATE) AS MONTH,
+REGION,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+GROUP BY ROLLUP( MONTH(SALES_DATE), REGION )
+ORDER BY MONTH, REGION
+This results in:
+MONTH REGION UNITS_SOLD
+-------- -------------- ------------
+3 Manitoba 22
+3 Ontario-North 8
+3 Ontario-South 34
+3 Quebec 40
+3 - 104
+4 Manitoba 17
+4 Ontario-North 1
+4 Ontario-South 14
+4 Quebec 11
+4 - 43
+12 Manitoba 2
+12 Ontario-South 4
+12 Quebec 2
+12 - 8
+- - 155
+Example C6-3:
+SELECT WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+MONTH(SALES_DATE) AS MONTH,
+REGION,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES
+GROUP BY GROUPING SETS(ROLLUP(WEEK(SALES_DATE), DAYOFWEEK(SALES_DATE) ),
+ROLLUP( MONTH(SALES_DATE), REGION ) )
+ORDER BY WEEK, DAY_WEEK, MONTH, REGION
+This
+results in:
+WEEK DAY_WEEK MONTH REGION UNITS_SOLD
+-------- ---------- ------- ------------- -----------
+13 6 - - 27
+13 7 - - 46
+13 - - - 73
+14 1 - - 31
+14 2 - - 43
+14 - - - 74
+53 1 - - 8
+53 - - - 8
+- - 3 Manitoba 22
+- - 3 Ontario-North 8
+- - 3 Ontario-South 34
+- - 3 Quebec 40
+- - 3 - 104
+- - 4 Manitoba 17
+- - 4 Ontario-North 1
+- - 4 Ontario-South 14
+- - 4 Quebec 11
+- - 4 - 43
+- - 12 Manitoba 2
+- - 12 Ontario-South 4
+- - 12 Quebec 2
+- - 12 - 8
+- - - - 155
+- - - - 155
+Using
+the two ROLLUPs as grouping sets causes the result to include duplicate
+rows. There are even two grand total rows.
+Observe how the use
+of ORDER BY has affected the results:
+In the first grouped set, week 53 has been repositioned to the
+end
+In the second grouped set, month 12 has now been positioned to
+the end and the regions now appear in alphabetic order.
+Null values are sorted high.
+
+Example C7:In queries that perform multiple
+ROLLUPs in a single pass (such as Example C6-3) you may want to be
+able to indicate which grouping set produced each row. The following
+steps demonstrate how to provide a column (called GROUP) which indicates
+the origin of each row in the result set. By origin means which one
+of the two grouping sets produced the row in the result set.
+Step
+1: Introduce a way of generating new data values using a query
+which selects from a VALUES clause (which is an alternate form of
+a fullselect). This query shows how a table called X can be derived
+that has 2 columns, R1 and R2, and one row of data.
+SELECT R1, R2
+FROM (VALUES ('GROUP 1', 'GROUP 2')) AS X(R1, R2)
+Results
+in:
+R1 R2
+-------- -------
+GROUP 1 GROUP 2
+Step 2: Form the cross product of this table X
+with the SALES table. This adds columns R1 and R2 to every row.
+SELECT R1, R2,
+WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+MONTH(SALES_DATE) AS MONTH,
+REGION,
+SALES AS UNITS_SOLD
+FROM SALES,
+(VALUES ('GROUP 1', 'GROUP 2')) AS X(R1, R2)
+Step
+3: Now these columns are combined with the grouping sets to include
+these columns in the rollup analysis.
+SELECT R1, R2,
+WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+MONTH(SALES_DATE) AS MONTH,
+REGION,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES,
+(VALUES ('GROUP 1', 'GROUP 2')) AS X(R1, R2)
+GROUP BY GROUPING SETS((R1, ROLLUP(WEEK(SALES_DATE), DAYOFWEEK(SALES_DATE)) ),
+(R2, ROLLUP(MONTH(SALES_DATE), REGION)) )
+ORDER BY WEEK, DAY_WEEK, MONTH, REGION
+This
+results in:
+R1 R2 WEEK DAY_WEEK MONTH REGION UNITS_SOLD
+-------- ------- -------- ---------- ------- ------------- -----------
+GROUP 1 - 13 6 - - 27
+GROUP 1 - 13 7 - - 46
+GROUP 1 - 13 - - - 73
+GROUP 1 - 14 1 - - 31
+GROUP 1 - 14 2 - - 43
+GROUP 1 - 14 - - - 74
+GROUP 1 - 53 1 - - 8
+GROUP 1 - 53 - - - 8
+- GROUP 2 - - 3 Manitoba 22
+- GROUP 2 - - 3 Ontario-North 8
+- GROUP 2 - - 3 Ontario-South 34
+- GROUP 2 - - 3 Quebec 40
+- GROUP 2 - - 3 - 104
+- GROUP 2 - - 4 Manitoba 17
+- GROUP 2 - - 4 Ontario-North 1
+- GROUP 2 - - 4 Ontario-South 14
+- GROUP 2 - - 4 Quebec 11
+- GROUP 2 - - 4 - 43
+- GROUP 2 - - 12 Manitoba 2
+- GROUP 2 - - 12 Ontario-South 4
+- GROUP 2 - - 12 Quebec 2
+- GROUP 2 - - 12 - 8
+- GROUP 2 - - - - 155
+GROUP 1 - - - - - 155
+Step
+4: Notice that because R1 and R2 are used in different grouping
+sets, whenever R1 is non-null in the result, R2 is null and whenever
+R2 is non-null in the result, R1 is null. That means you can consolidate
+these columns into a single column using the COALESCE function. You
+can also use this column in the ORDER BY clause to keep the results
+of the two grouping sets together.
+SELECT COALESCE(R1, R2) AS GROUP,
+WEEK(SALES_DATE) AS WEEK,
+DAYOFWEEK(SALES_DATE) AS DAY_WEEK,
+MONTH(SALES_DATE) AS MONTH,
+REGION,
+SUM(SALES) AS UNITS_SOLD
+FROM SALES,
+(VALUES ('GROUP 1', 'GROUP 2')) AS X(R1, R2)
+GROUP BY GROUPING SETS((R1, ROLLUP(WEEK(SALES_DATE), DAYOFWEEK(SALES_DATE)) ),
+(R2, ROLLUP(MONTH(SALES_DATE), REGION)) )
+ORDER BY GROUP, WEEK, DAY_WEEK, MONTH, REGION
+This
+results in:
+GROUP WEEK DAY_WEEK MONTH REGION UNITS_SOLD
+-------- -------- ---------- ------- ------------- -----------
+GROUP 1 13 6 - - 27
+GROUP 1 13 7 - - 46
+GROUP 1 13 - - - 73
+GROUP 1 14 1 - - 31
+GROUP 1 14 2 - - 43
+GROUP 1 14 - - - 74
+GROUP 1 53 1 - - 8
+GROUP 1 53 - - - 8
+GROUP 1 - - - - 155
+GROUP 2 - - 3 Manitoba 22
+GROUP 2 - - 3 Ontario-North 8
+GROUP 2 - - 3 Ontario-South 34
+GROUP 2 - - 3 Quebec 40
+GROUP 2 - - 3 - 104
+GROUP 2 - - 4 Manitoba 17
+GROUP 2 - - 4 Ontario-North 1
+GROUP 2 - - 4 Ontario-South 14
+GROUP 2 - - 4 Quebec 11
+GROUP 2 - - 4 - 43
+GROUP 2 - - 12 Manitoba 2
+GROUP 2 - - 12 Ontario-South 4
+GROUP 2 - - 12 Quebec 2
+GROUP 2 - - 12 - 8
+GROUP 2 - - - - 155
+
+Example C8The following example illustrates
+the use of various aggregate functions when performing a CUBE. The
+example also makes use of cast functions and rounding to produce a
+decimal result with reasonable precision and scale.
+SELECT MONTH(SALES_DATE) AS MONTH,
+REGION,
+SUM(SALES) AS SALES,
+MAX(SALES) AS BEST_SALE,
+CAST(ROUND(AVG(DECIMAL(SALES)),2) AS DECIMAL(5,2)) AS AVG_UNITS_SOLD
+FROM SALES
+GROUP BY CUBE (MONTH(SALES_DATE), REGION)
+ORDER BY MONTH, REGION
+This results in:
+MONTH REGION UNITS_SOLD BEST_SALE AVG_UNITS_SOLD
+------- ------------- ------------ ---------- ---------------
+3 Manitoba 22 7 3.14
+3 Ontario-North 8 3 2.67
+3 Ontario-South 34 14 4.25
+3 Quebec 40 18 5.00
+3 - 104 18 4.00
+4 Manitoba 17 9 5.67
+4 Ontario-North 1 1 1.00
+4 Ontario-South 14 8 4.67
+4 Quebec 11 8 5.50
+4 - 43 9 4.78
+12 Manitoba 2 2 2.00
+12 Ontario-South 4 3 2.00
+12 Quebec 2 1 1.00
+12 - 8 3 1.60
+- Manitoba 41 9 3.73
+- Ontario-North 9 3 2.25
+- Ontario-South 52 14 4.00
+- Quebec 53 18 4.42
+- - 155 18 3.87
+
+Parent topic: subselect

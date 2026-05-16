@@ -1,0 +1,348 @@
+FETCH
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+FETCH
+The FETCH statement positions a cursor on a row of the
+result table. It can return zero, one, or multiple rows, and it assigns
+the values of the rows returned to variables.
+InvocationThis statement
+can only be embedded in an application program. It is an executable
+statement that cannot be dynamically prepared. Multiple row fetch
+is not allowed in a REXX procedure.
+AuthorizationSee DECLARE CURSOR for an explanation of the authorization
+required to use a cursor.
+If a global variable is
+specified in the INTO variable list, the privileges held by the authorization
+ID of the statement must include at least one of the following:
+The WRITE privilege on the global variable.
+Database administrator authority
+
+Syntax FETCHNEXTPRIORFIRSTLASTBEFORE1AFTER2CURRENTRELATIVEvariableintegerFROMcursor-namesingle-fetchmultiple-row-fetchsingle-fetchINTO,variableINTOSQLDESCRIPTORLOCALGLOBALSQL-descriptor-nameINTO DESCRIPTORdescriptor-namemultiple-row-fetchFORvariableintegerROWSINTOhost-structure-arrayUSINGSQLDESCRIPTORLOCALGLOBALSQL-descriptor-nameUSING DESCRIPTORdescriptor-nameINTOrow-storage-arearow-storage-area:host-identifier-1INDICATOR:host-identifier-2
+DescriptionThe following keywords specify
+a new position for the cursor: NEXT, PRIOR, FIRST, LAST, BEFORE, AFTER,
+CURRENT, and RELATIVE. Of those keywords, only NEXT may be used for
+cursors that have not been declared SCROLL. NEXT
+Positions
+the cursor on the next row of the result table relative to the current
+cursor position. NEXT is the default if no other cursor orientation
+is specified.
+PRIOR
+Positions
+the cursor on the previous row of the result table relative to the
+current cursor position.
+FIRST
+Positions
+the cursor on the first row of the result table.
+LAST
+Positions
+the cursor on the last row of the result table.
+BEFORE
+Positions
+the cursor before the first row of the result table.
+AFTER
+Positions
+the cursor after the last row of the result table.
+CURRENT
+Does
+not reposition the cursor, but maintains the current cursor position.
+If the cursor has been declared as DYNAMIC SCROLL and the current
+row has been updated so its place within the sort order of the result
+table is changed, an error is returned.
+RELATIVE
+Variable or integer is
+assigned to an integer value k. RELATIVE positions the cursor
+to the row in the result table that is either k rows after
+the current row if k>0, or k rows before the current
+row if k<0. If a variable is specified, it must be
+a numeric variable with zero scale and it must not include an indicator
+variable. Table 1. Synonymous Scroll
+SpecificationsSpecification
+Alternative
+
+RELATIVE +1
+NEXT
+
+RELATIVE -1
+PRIOR
+
+RELATIVE 0
+CURRENT
+
+FROM
+This keyword is provided for clarity only. If a scroll position
+option is specified, then this keyword is required. If no scrolling
+option is specified, then the FROM keyword is optional.
+cursor-name
+Identifies
+the cursor to be used in the fetch operation. The cursor-name must
+identify a declared cursor as explained in Description for the
+DECLARE CURSOR statement or when used in Java™,
+an instance of an SQLJ iterator. When the FETCH statement is executed,
+the cursor must be in the open state. If a single-fetch or multiple-row-fetch clause
+is not specified, no data is returned to the user. However, the cursor
+is positioned and a row lock may be acquired. For more information
+about locking, see Isolation level.
+
+single-fetchINTO variable,...
+Identifies one or more host
+structures or variables that must be declared in accordance with the
+rules for declaring host structures and variables. In the operational
+form of INTO, a host structure is replaced by a reference to each
+of its variables. The first value in the result row is assigned to
+the first variable in the list, the second value to the second variable,
+and so on.A global variable may only be used if the
+current connection is a local connection (not a DRDA® connection).
+
+INTO SQL DESCRIPTOR SQL-descriptor-name
+Identifies
+an SQL descriptor which contains valid descriptions of the output
+variables to be used with the FETCH statement. Before the FETCH statement
+is executed, a descriptor must be allocated using the ALLOCATE DESCRIPTOR
+statement. LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope. See SET DESCRIPTOR for an explanation of the information
+in the SQL descriptor.
+
+INTO DESCRIPTOR descriptor-name
+Identifies an SQLDA that must
+contain a valid description of zero or more variables. Before the
+FETCH statement is processed, the user must set the following fields
+in the SQLDA. (The rules for REXX are different. For more information see
+the Embedded
+SQL Programming topic collection.)
+SQLN to indicate the number of SQLVAR occurrences provided in
+the SQLDA
+SQLDABC to indicate the number of bytes of storage allocated for
+the SQLDA
+SQLD to indicate the number of variables used in the SQLDA when
+processing the statement
+SQLVAR occurrences to indicate the attributes of the variables
+
+The SQLDA must have enough storage to contain all SQLVAR occurrences.
+Therefore, the value in SQLDABC must be greater than or equal to 16
++ SQLN*(80), where 80 is the length of an SQLVAR occurrence. If LOBs
+are specified, there must be two SQLVAR entries for each parameter
+marker and SQLN must be set to two times the number of parameter markers.
+SQLD
+must be set to a value greater than or equal to zero and less than
+or equal to SQLN. For more information, see SQLDA (SQL descriptor area).
+The
+USING DESCRIPTOR clause is not supported for a FETCH statement within
+a Java program.
+
+multiple-row-fetchFOR variable or integer ROWS
+Evaluates variable or integer to
+an integral value that represents the number of rows to fetch. If
+a variable is specified, it must be a numeric variable with
+zero scale and it must not include an indicator variable. It
+must not be a global variable. The value must be in the range
+of 1 to 32767 and the total size of the rows, excluding
+LOBs, must be less than 16M. The cursor is positioned on the
+row specified by the orientation keyword (for example, NEXT), and
+that row is fetched. Then the next rows are fetched (moving forward
+in the table), until either the specified number of rows have been
+fetched or the end of the cursor is reached. After the fetch operation,
+the cursor is positioned on the last row fetched. For example,
+FETCH PRIOR FROM C1 FOR 3 ROWS causes the previous row, the current
+row, and the next row to be returned, in that order. The cursor is
+positioned on the next row. FETCH RELATIVE -1 FROM C1 FOR 3 ROWS returns
+the same result. FETCH FIRST FROM C1 FOR :x ROWS returns the first x rows,
+and leaves the cursor positioned on row number x.
+When
+a multiple-row-fetch is successfully executed, three statement
+information items are available in the SQL Diagnostics Area (or the
+SQLCA):
+ROW_COUNT (or SQLERRD(3) of the SQLCA) shows the number of rows
+retrieved.
+DB2_ROW_LENGTH (or SQLERRD(4) of the SQLCA) contains the length
+of the row retrieved.
+DB2_LAST_ROW (or SQLERRD(5) of the SQLCA) contains +100 if the
+last row was fetched. 1
+
+INTO host-structure-array
+host-structure-array identifies
+an array of host structures defined in accordance with the rules for
+declaring host structures. The first structure in the array corresponds
+to the first row, the second structure in the array corresponds to
+the second row, and so on. In addition, the first value in the row
+corresponds to the first item in the structure, the second value in
+the row corresponds to the second item in the structure, and so on.
+The number of rows to be fetched must be less than or equal to the
+dimension of the host structure array.
+
+USING SQL DESCRIPTOR SQL-descriptor-name
+Identifies an SQL descriptor. LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope. The COUNT field in
+the descriptor header must be set to reflect the number of columns
+in the result set. The TYPE and DATETIME_INTERVAL_CODE (if applicable)
+must be set for each column in the result set.
+
+USING DESCRIPTOR descriptor-name
+Identifies an SQLDA that must contain a valid description of zero
+or more variables that describe the format of a row in the row-storage-area.
+Before the FETCH statement is processed, the user must set the
+following fields in the SQLDA:
+SQLN to indicate the number of SQLVAR occurrences provided in
+the SQLDA.
+SQLDABC to indicate the number of bytes of storage allocated for
+the SQLDA.
+SQLD to indicate the number of variables used in the SQLDA when
+processing the statement.
+SQLVAR occurrences to indicate the attributes of the variables.
+
+The values of the other fields of the SQLDA (such as SQLNAME)
+may not be defined after the FETCH statement is executed and should
+not be used.
+The SQLDA must have enough storage to contain all
+SQLVAR occurrences. Therefore, the value in SQLDABC must be greater
+than or equal to 16 + SQLN*(80), where 80 is the length of an SQLVAR
+occurrence. If LOBs or distinct types are specified, there must be
+two SQLVAR entries for each parameter marker and SQLN must be set
+to two times the number of parameter markers.
+SQLD must be set
+to a value greater than or equal to zero and less than or equal to
+SQLN. For more information, see SQLDA (SQL descriptor area).
+On
+completion of the FETCH, the SQLDATA pointer in the first SQLVAR entry
+addresses the returned value for the first column in the allocated
+storage in the first row, the SQLDATA pointer in the second SQLVAR
+entry addresses the returned value for the second column in the allocated
+storage in the first row, and so on. The SQLIND pointer in the first
+nullable SQLVAR entry addresses the first indicator value, the SQLIND
+pointer in the second nullable SQLVAR entry addresses the second indicator
+value, and so on. The SQLDA must be allocated on a 16-byte boundary.
+
+INTO row-storage-area
+host-identifier-1 specified
+with a variable identifies an allocation of storage in which to return
+the rows. The rows are returned into the storage area in the format
+described by the SQLDA or SQL descriptor. host-identifier-1 must
+be large enough to hold all the rows requested. host-identifier-2 identifies
+the optional indicator area. It should be specified if any of the
+data types returned are nullable. The indicators are returned as small
+integers. host-identifier-2 must be large enough to contain
+an indicator for each nullable value for each row to be returned.
+The
+GET DIAGNOSTICS statement can be used to return the DB2_ROW_LENGTH
+which indicates the length of each row returned into the row-storage-area.
+
+The nth variable identified by the INTO clause
+or described in the SQLDA corresponds to the nth column of
+the result table of the cursor. The data type of each variable must
+be compatible with its corresponding column.
+Each assignment to a variable is made according to the
+retrieval assignment rules described in Retrieval assignment.2 If the number
+of variables is less than the number of values in the row, the SQLSTATE
+is set to '01503' (or the SQLWARN3 field of the SQLCA is set to 'W').
+Note that there is no warning if there are more variables than the
+number of result columns. If the value is null, an indicator variable
+must be provided. If an assignment error occurs, the value is not
+assigned to the variable, and no more values are assigned to variables.
+Any values that have already been assigned to variables remain assigned.
+If an error occurs as the result of an arithmetic expression
+in the SELECT list of an outer SELECT statement (division by zero,
+overflow, etc.) or a character conversion error occurs, the result
+is the null value. As in any other case of a null value, an indicator
+variable must be provided. The value of the variable is undefined.
+In this case, however, the indicator variable is set to -2. Processing
+of the statement continues as if the error had not occurred. (However,
+a warning is returned.) If you do not provide an indicator variable,
+an error is returned. It is possible that some values have already
+been assigned to variables and will remain assigned when the error
+occurs.
+multiple-row-fetch is not allowed if any of the
+result columns are LOBs or if the current connection is to a remote
+server.
+NotesCursor
+position: An open cursor has three possible positions:
+Before a row
+On a row
+After the last row
+
+If a cursor is positioned on a row, that row is called
+the current row of the cursor. A cursor referenced in an UPDATE or
+DELETE statement must be positioned on a row. A cursor can only be
+positioned on a row as a result of a FETCH statement.
+It is possible for an error to occur that makes the state
+of the cursor unpredictable.
+Variable assignment: The nth
+variable identified by the INTO clause or described in the SQLDA corresponds
+to the nth column of the result table of the cursor. The data
+type of each variable must be compatible with its corresponding column.
+Each
+assignment to a variable is made according to the Retrieval Assignment
+rules described in Assignments and comparisons. If the number
+of variables is less than the number of values in the row, the SQLWARN3
+field of the SQLCA is set to 'W'. Note that there is no warning if
+there are more variables than the number of result columns. If the
+value is null, an indicator variable must be provided. If an assignment
+error occurs, the values in the variables are unpredictable.
+If
+the specified variable is a string and is not large enough to contain
+the result, a warning (SQLSTATE 01004) is returned (and 'W' is assigned
+to SQLWARN1 in the SQLCA). The actual length of the result is returned
+in the indicator variable associated with the variable, if
+an indicator variable is provided.
+If the specified variable is a C NUL-terminated variable
+and is not large enough to contain the result and the NUL-terminator:
+If the *CNULRQD option is specified on the CRTSQLCI or CRTSQLCPPI
+command (or CNULRQD(*YES) on the SET OPTION statement), the following
+occurs: The result is truncated.
+The last character is the NUL-terminator.
+A warning (SQLSTATE 01004) is returned (and 'W' is assigned to
+SQLWARN1 in the SQLCA).
+
+If the *NOCNULRQD option on the CRTSQLCI or CRTSQLCPPI command
+(or CNULRQD(*NO) on the SET OPTION statement) is specified, the following
+occurs: The NUL-terminator is not returned.
+A warning (SQLSTATE 01004) is returned (and 'N' is assigned to
+SQLWARN1 in the SQLCA).
+
+Syntax alternatives: The following keywords are
+synonyms supported for compatibility to prior releases. These keywords
+are non-standard and should not be used:
+USING DESCRIPTOR may be used as a synonym for INTO DESCRIPTOR
+in the single-fetch-clause.
+
+ExampleExample 1:  In this C example,
+the FETCH statement fetches the results of the SELECT statement into
+the program variables dnum, dname,
+and mnum. When no more rows remain to be fetched,
+the not found condition is returned.
+EXEC SQL DECLARE C1 CURSOR FOR
+SELECT DEPTNO, DEPTNAME, MGRNO FROM TDEPT
+WHERE ADMRDEPT = 'A00';
+EXEC SQL OPEN C1;
+while (SQLCODE==0) {
+EXEC SQL FETCH C1 INTO :dnum, :dname, :mnum;
+}
+EXEC SQL CLOSE C1;
+
+Example 2:  This FETCH statement uses an SQLDA.
+FETCH CURS USING DESCRIPTOR :sqlda3
+
+Parent topic: Statements
+
+1 If the number of rows returned is equal
+to the number of rows requested, then an end of data warning may not
+occur and DB2_LAST_ROW (or SQLERRD(5) of the SQLCA) may not contain
++100.2 If assigning
+to an SQL-variable or SQL-parameter and the standards option is specified,
+storage assignment rules apply. For information on the standards option,
+see Standards compliance.

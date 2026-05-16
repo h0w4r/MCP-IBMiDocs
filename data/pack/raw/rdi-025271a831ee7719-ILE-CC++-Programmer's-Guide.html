@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Porting Conditional Operators to ILE C or C++</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog485.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog464.htm">Chapter 24&#46; Porting Programs from Another Platform to ILE</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog478.htm">Using BCD Macros to Port Coded Decimal Objects to ILE C++</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRCONDEXP" HREF="cpprog02.htm#ToC_607">Porting Conditional Operators to ILE C or C++</A></H3>
+<P>
+<IMG SRC="ngclng.gif" ALT="">In ILE C, if both the second and third operands have an arithmetic type, the
+usual arithmetic conversions are performed to bring them to a common
+type.
+<P>
+<IMG SRC="ngcpplng.gif" ALT="">In C++, both the second and third expressions must be of the same
+class. If either expression has a different class, then you must cast
+the second or third expression so that it has the same class.
+<P>The following figure illustrates an example where the conditional
+expression fails because the second and third expressions are not of the same
+class. 
+<P><B><A NAME="Figure_221" HREF="cpprog09.htm#FT_Figure_221">Figure 221. Example of a Conditional Expression that Fails because of Class Differences</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>#include &lt;bcd.h>
+ 
+main()
+{
+int var_1;
+decimal(4,2)  op_1_1 = __D("12.34");
+decimal(10,2) op_1_2 = __D("123.45");
+var_1 = (op_1_1 &lt; op_1_2) ? (op_1_1 + 3) : op_1_2;
+}
+</PRE>
+</TD></TR></TABLE>
+<P>To use the conditional operator with the <TT>_DecimalT</TT> class
+template you can do either of the following: 
+<UL>
+<LI>Use an explicit cast on the second expression so that it has the same type
+as the third expression
+</LI><LI>Use the same type of variables
+</LI></UL>
+<P><H4><A NAME="Header_608">Example of an Explicit Cast that Resolves Class Differences between Expression</A></H4>
+<P>The following figure shows an explicit cast on the second expression so
+that it has the same class as the third expression:
+<P><B><A NAME="Figure_222" HREF="cpprog09.htm#FT_Figure_222">Figure 222. Example of an Explicit Cast that Resolves Class Differences between Expressions</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>#include &lt;bcd.h>
+ 
+main()
+{
+int           var_1;
+decimal(4,2)  op_1_1 = __D("12.34");
+decimal(10,2) op_1_2 = __D("123.45");
+var_1 = (op_1_1 &lt; op_1_2) ? (_DecimalT&lt;10,2>)__D(op_1_1 + 3) : op_1_2;
+}
+</PRE>
+</TD></TR></TABLE>
+<P><H4><A NAME="Header_609">Example of Use of a Consistent Variable Type</A></H4>
+<P>The following figure shows how to use the same type of variables: 
+<P><B><A NAME="Figure_223" HREF="cpprog09.htm#FT_Figure_223">Figure 223. Example of Use of a Consistent Variable Type</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>#include &lt;bcd.h>
+ 
+main()
+{
+int var_1;
+decimal(10,2)  op_1_1 = __D("12.34");
+decimal(10,2) op_1_2 = __D("123.45");
+var_1 = (op_1_1 &lt; op_1_2) ? op_1_1 : op_1_2;
+}
+</PRE>
+</TD></TR></TABLE>
+<DL><DT><B>Note:</B></DT><DD>The <TT>+ 3</TT> was removed from the second expression because
+<TT>(op_1_1 + 3)</TT> results in <TT>_Decimal&lt;13,2></TT>.
+</DD></DL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog484.htm">Previous Page</A> | <A HREF="cpprog486.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

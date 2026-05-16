@@ -1,0 +1,157 @@
+BLANKS (Blanks) keyword for display files
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+BLANKS (Blanks) keyword for display files
+
+This field-level keyword, when specified for a numeric,
+input-capable field, enables your program to distinguish when the
+field is blank and when the field is zero on the display. In either
+case, your program recognizes zeros.
+
+The BLANKS keyword sets on the specified response indicator
+when the field is blank on the display. After an input operation,
+your program can test this indicator to determine that the field (whose
+program value is zero) is actually blank on the display. The field
+can contain all blanks (hex 40) or all nulls (hex 00). It still appears
+blank to the display station user. If the indicator is off, the field
+is zero on the display.
+This keyword is also valid for character
+fields, but there is generally no need to specify it for them. Your
+program can test character fields directly to determine what is on
+the display.
+See System/36 environment considerations for display files for
+special considerations when you specify the BLANKS keyword in files
+that are used in the System/36 environment.
+The
+format of the keyword is: BLANKS(response-indicator ['text'])
+The
+response indicator associated with the BLANKS keyword should be unique
+within the record. That is, the same response indicator should not
+be used with other keywords, such as CHANGE, DUP, or VLDCMDKEY; with
+any of the keywords for function keys; or with the BLANKS keyword
+on other fields in the same record. This is because the IBM® i operating system always
+turns the response indicator off if the field contains non-blank characters
+on an input operation. The IBM i operating
+system does this to make sure that when the field appears as all blanks,
+the response indicator is set on, and that when it does not appear
+as all blanks, the response indicator is set off.
+The optional
+text is included on the list generated at program compilation time
+to explain the intended use of the indicator. This text has no function
+in the file or the program other than as a comment. The single quotation
+marks are required. If you specify more than 50 characters between
+the single quotation marks, the text is truncated to 50 characters
+on the program list.
+Option indicators are not valid for this
+keyword.
+
+Example 1: Specifying the BLANKS keywordThe
+following example shows how to specify the BLANKS keyword.
+Note: Examples
+2, 3, and 4 in this topic, show some cases that restrict the BLANKS
+keyword.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00030A QTY1 5Y 0B 5 2BLANKS(01 'ON=QTY1 IS ALL BLANKS')
+00040A QTY2 5Y 0B 6 2BLANKS(02 'ON=QTY2 IS ALL BLANKS')
+00050A QTY3 5Y 0B 7 2BLANKS(03 'ON=QTY3 IS ALL BLANKS')
+AThree numeric fields (QTY1, QTY2, and QTY3) are
+displayed. If the display station user types values into the fields
+and presses the Enter key, the following situation occurs:
+
+Value as typed into fields
+
+Value as passed to program
+
+Condition of response indicator
+
+100
+
+00100
+
+Off
+
+0
+
+00000
+
+Off
+
+Blanks
+
+00000
+
+On
+
+Note: If the display station user presses a Field Exit key
+or the Erase Input key, the field appears blank because it contains
+nulls.
+
+Restricting the BLANKS keywordIn
+some cases, the BLANKS keyword does not set the specified response
+indicator on, but rather restricts its function. The following three
+examples illustrate these cases.
+Note: Other cases occur when the
+field is a character field, but then it is unnecessary to use the
+BLANKS keyword.
+
+Example 2 In the following example, when
+an input/output field contains all blanks (hex 40) or all nulls (hex
+00) when displayed, and certain keywords affecting the display of
+the field are also specified, the response indicator is not set on.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A* When OVRATR is specified
+00020A R REC1 PUTOVR
+00030A FLD1 10 0B 2 2BLANKS(50) OVRATR
+00040A 78 DSPATR(HI)
+00050A* When PUTRETAIN is specified
+00060A R REC2 PUTRETAIN OVERLAY
+00070A FLD2 10 0B 2 2BLANKS(50)
+00080A R REC3 OVERLAY
+00090A FLD3 10 0B 2 2BLANKS(50)
+A PUTRETAIN
+AFor all record formats in this example, response
+indicator 50 is set on as expected the first time the field is read
+by the program (if the field appears blank on the display). However,
+after a subsequent display, response indicator 50 is set on again only
+if the display station user again blanks the field. If the workstation
+user does not again blank the field, response indicator 50 is off.
+
+Example 3Examples 2 and 4 concern cases
+when the field is first displayed, then deleted.
+In the following
+example, when an input-capable field is overlapped by another field,
+causing the first field to be deleted, the response indicator is not
+set on (even though the field in the input buffer still contains all
+blanks or all nulls).
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R REC4 OVERLAY
+00020A 15 FLDA 10 0B 2 2
+00030A FLD4 10 0B 2 5BLANKS(50)
+AIn this example, if option indicator 15 is off
+when REC4 is first displayed, FLD4 is displayed and FLDA is not. When
+REC4 is read, response indicator 50 is set on if FLD4 is blank. If
+option indicator 15 is then set on when REC4 is displayed again, FLDA
+overlaps FLD4 and deletes it. Response indicator 50 is then off when
+REC4 is read. (This occurs because the IBM i operating system turns
+it off when displaying the record format and does not turn it back
+on for a field that is not on the display, even if the field contains
+blanks or nulls from a previous I/O operation.)
+
+Example 4In the following example, after
+initial display, an input/output field is not displayed again on a
+subsequent input/output operation (even though the field in the input
+buffer still contains all blanks or all nulls).
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R REC5 ERASEINP OVERLAY
+00020A 20 FLD5 10 0B 2 2BLANKS(50)
+00030A*
+00040A R REC6 ERASEINP OVERLAY MDTOFF
+00050A 20 FLD6 10 0B 2 2BLANKS(50) DSPATR(MDT)
+AIn this example, if option indicator 20 is on
+when REC5 or REC6 is first displayed, FLD5 or FLD6 is displayed. When
+REC5 or REC6 is read, response indicator 50 is set on if FLD5 or FLD6
+is blank. However, if option indicator 20 is set off on a second display,
+FLD5 or FLD6 is not displayed.

@@ -1,0 +1,164 @@
+CHECKR (Check Reverse)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+CHECKR (Check Reverse)
+
+Free-Form Syntax
+
+(not allowed - use the %CHECKR built-in function)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+CHECKR (E)
+
+Comparator
+string
+
+Base string:start
+
+Right-
+position
+
+_
+
+ER
+
+FD
+
+The CHECKR operation verifies that each character in the base string
+(factor 2) is among the characters indicated in the comparator string
+(factor 1). The base string and comparator string must be of the same
+type, either both character, both graphic, or both UCS-2. (Graphic
+and UCS-2 types must have the same CCSID value.) Verifying begins
+at the rightmost character of factor 2 and continues character by
+character, from right to left. Each character of the base string is
+compared with the characters of factor 1. If a match for a character
+in factor 2 exists in factor 1, the next source character is verified.
+If a match is not found, an integer value is placed in the result
+field to indicate the position of the incorrect character. Although
+checking is done from the right, the position placed in the result
+field will be relative to the left.
+
+You can specify a start position in factor 2, separating it from
+the base string by a colon. The start position is optional and defaults
+to the length of the string. The value in the result field is relative
+to the leftmost position in the source string, regardless of the start
+position.
+
+If the result field is not an array, the operation stops checking
+when it finds the first incorrect character or when the end of the
+base string is encountered. If no incorrect characters are found,
+the result field is set to zero.
+
+If the result field is an array, the operation continues checking
+after the first incorrect character is found for as many occurrences
+as there are elements in the array. If there are more array elements
+than incorrect characters, all of the remaining elements are set to
+zeros.
+
+Factor 1 must be a string and can contain one of: a field name,
+array element, named constant, data structure name, data structure
+subfield, literal, or table name.
+
+Factor 2 must contain either the base string or the base string,
+followed by a colon, followed by the start location. The base string
+portion of factor 2 can contain: a field name, array element, named
+constant, data structure name, data structure subfield name, literal,
+or table name. The start location portion of factor 2 must be numeric
+with no decimal positions, and can be a named constant, array element,
+field name, literal, or table name. If no start location is specified,
+the length of the string is used.
+
+The result field can be a numeric variable, numeric array element,
+numeric table name, or numeric array. Define the field or array specified
+with no decimal positions. If graphic or UCS-2 data is used, the result
+field will contain double-byte character positions (that is, position
+3, the 3rd double-byte character, will be character position 5).
+Note: Figurative constants cannot be used in the factor 1, factor
+2, or result fields. No overlapping is allowed in a data structure
+for factor 1 and the result field, or for factor 2 and the result
+field.
+
+Any valid indicator can be specified in positions 7 to 11.
+
+To handle CHECKR exceptions (program status
+code 100), either the operation code extender 'E' or an error
+indicator ER can be specified, but not both. For more information
+on error handling, see Program Exception/Errors.
+
+You can specify an indicator in positions 75-76 that is set on
+if any incorrect characters are found. This information can also be
+obtained from the %FOUND built-in function, which returns '1' if any
+incorrect characters are found.
+
+For more information, see String Operations.
+
+Figure 1. CHECKR Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* Because factor 1 is a blank character, CHECKR indicates the
+* position of the first nonblank character. This use of CHECKR
+* allows you to determine the length of a string. If STRING
+* contains 'ABCDEF ', NUM will contain the value 6.
+* If an error occurs, %ERROR is set to return '1' and
+* %STATUS is set to return status code 00100.
+*
+C
+C ' ' CHECKR(E) String Num
+C
+C SELECT
+C WHEN %ERROR
+C ... an error occurred
+C WHEN %FOUND
+C ... NUM is less than the full length of the string
+C ENDIF
+
+Figure 2. CHECKR Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+*
+* After the following example, N=1 and the found indicator 90
+* is on. Because the start position is 5, the operation begins
+* with the rightmost 0 and the first nonnumeric found is the '$'.
+*
+D Digits C '0123456789'
+D
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+C
+C MOVE '$2000.' Salary 6
+C Digits CHECKR Salary:5 N 90
+C
+
+Figure 3. CHECKR Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+*
+* The following example checks that FIELD contains only the letters
+* A to J. As a result, ARRAY=(876310) after the CHECKR operation.
+* Indicator 90 turns on. %FOUND would return '1'.
+D
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+D Array S 1 DIM(6)
+D Letter C 'ABCDEFGHIJ'
+D
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+C
+C MOVE '1A=BC***' Field 8
+C Letter CHECKR Field Array 90
+C
+
+Parent topic: Operation Codes

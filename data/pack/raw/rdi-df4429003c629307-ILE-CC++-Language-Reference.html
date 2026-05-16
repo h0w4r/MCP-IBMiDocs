@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-us">
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+<meta content="en-us" name="dc.language" scheme="rfc1766" />
+<!-- Licensed Materials Property of IBM                      -->
+<!-- US Government Users Restricted Rights                   -->
+<!-- Use, duplication or disclosure restricted by            -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                -->
+<meta content="2010-02-09" name="dc.date" scheme="iso8601" />
+<meta content="© Copyright IBM Corporation 1998, 2010" name="copyright" />
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="(PICS-1.1 &quot;http://www.icra.org/ratingsv02.html&quot; l gen true r (cz 1 lz 1 nz 1 oz 1 vz 1) &quot;http://www.rsac.org/ratingsv01.html&quot; l gen true r (n 0 s 0 v 0 l 0) &quot;http://www.classify.org/safesurf/&quot; l gen true r (SS~~000 1))" http-equiv="PICS-Label" />
+<meta content="RCHCLERK@us.ibm.com" name="owner" />
+<meta content="example, C++, exception handling" name="keywords" />
+<title>ILE C/C++ Language Reference</title>
+<link href="ibmidwb.css" rel="stylesheet" type="text/css" />
+<link href="help.css" rel="stylesheet" type="text/css" />
+
+<script src="../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.langref.doc%2Fas400clr349.htm" + anchorParam);
+}
+</script>
+</head>
+<body>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../nav/2_5" shape="rect">ILE C/C++</a> &gt; <a href="../../nav/2_5_0" shape="rect">Language Reference</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref.doc/as400clr333.htm" shape="rect">Exception handling (C++ only)</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref.doc/as400clr345.htm" shape="rect">Special exception handling functions (C++ only)</a></div>
+
+<a id="Top_Of_Page" name="Top_Of_Page" shape="rect"><!-- --></a><!-- header --> 
+<H1>ILE C/C++ Language Reference</H1>
+<!-- end header -->
+
+
+<a name="xhnsfnx" shape="rect"><!-- --></a>
+<h3 id="xhnsfnx"><a href="as400clr02.htm#ToC_429" shape="rect">Example using the exception handling functions (C++
+only)</a></h3><a id="idx1297" name="idx1297" shape="rect"><!-- --></a>
+<p>The following example shows the flow of control and special functions
+used in exception handling: </p>
+<pre class="xmp" xml:space="preserve">#include &lt;iostream&gt;
+#include &lt;exception&gt;
+using namespace std;
+
+class X { };
+class Y { };
+class A { };
+
+// pfv type is pointer to function returning void
+typedef void (*pfv)();
+
+void my_terminate() {
+  cout &lt;&lt; "Call to my terminate" &lt;&lt; endl;
+  abort();
+}
+
+void my_unexpected() {
+  cout &lt;&lt; "Call to my_unexpected()" &lt;&lt; endl;
+  throw;
+}
+
+void f() throw(X,Y, bad_exception) {
+  throw A();
+}
+
+void g() throw(X,Y) {
+  throw A();
+}
+
+int main()
+{
+  pfv old_term = set_terminate(my_terminate);
+  pfv old_unex = set_unexpected(my_unexpected);
+  try {
+    cout &lt;&lt; "In first try block" &lt;&lt; endl;
+    f();
+  }
+  catch(X) {
+    cout &lt;&lt; "Caught X" &lt;&lt; endl;
+  }
+  catch(Y) {
+    cout &lt;&lt; "Caught Y" &lt;&lt; endl;
+  }
+  catch (bad_exception&amp; e1) {
+    cout &lt;&lt; "Caught bad_exception" &lt;&lt; endl;
+  }
+  catch (...) {
+    cout &lt;&lt; "Caught some exception" &lt;&lt; endl;
+  }
+
+  cout &lt;&lt; endl;
+
+  try {
+    cout &lt;&lt; "In second try block" &lt;&lt; endl;
+    g();
+  }
+  catch(X) {
+    cout &lt;&lt; "Caught X" &lt;&lt; endl;
+  }
+  catch(Y) {
+    cout &lt;&lt; "Caught Y" &lt;&lt; endl;
+  }
+  catch (bad_exception&amp; e2) {
+    cout &lt;&lt; "Caught bad_exception" &lt;&lt; endl;
+  }
+  catch (...) {
+    cout &lt;&lt; "Caught some exception" &lt;&lt; endl;
+  }
+}</pre><p class="indatacontent">The following is the output of the above example:</p>
+<pre class="xmp" xml:space="preserve">In first try block
+Call to my_unexpected()
+Caught bad_exception
+
+In second try block
+Call to my_unexpected()
+Call to my terminate</pre>
+<p>At run time, this program behaves as follows: </p>
+<ol type="1">
+<li>The call to <tt class="xph">set_terminate()</tt> assigns to <tt class="xph">old_term</tt> the
+address of the function last passed to <tt class="xph">set_terminate()</tt> when <tt class="xph">set_terminate()</tt> was
+previously called.</li>
+<li>The call to <tt class="xph">set_unexpected()</tt> assigns to <tt class="xph">old_unex</tt> the
+address of the function last passed to <tt class="xph">set_unexpected()</tt> when <tt class="xph">set_unexpected()</tt> was
+previously called.</li>
+<li>Within the first try block, function <tt class="xph">f()</tt> is called.
+Because <tt class="xph">f()</tt> throws an unexpected exception, a call to <tt class="xph">unexpected()</tt> is
+made. <tt class="xph">unexpected()</tt> in turn calls <tt class="xph">my_unexpected()</tt>,
+which prints a message to standard output. The function <tt class="xph">my_unexpected()</tt> tries
+to rethrow the exception of type <tt class="xph">A</tt>. Because class <tt class="xph">A</tt> has
+not been specified in the exception specification of function <tt class="xph">f()</tt>, <tt class="xph">my_unexpected()</tt> throws
+an exception of type <tt class="xph">bad_exception</tt>.</li>
+<li>Because <tt class="xph">bad_exception</tt> has been specified in the exception
+specification of function <tt class="xph">f()</tt>, the handler <tt class="xph">catch (bad_exception&amp;
+e1)</tt> is able to handle the exception.</li>
+<li>Within the second try block, function <tt class="xph">g()</tt> is called.
+Because <tt class="xph">g()</tt> throws an unexpected exception, a call to <tt class="xph">unexpected()</tt> is
+made. The <tt class="xph">unexpected()</tt> throws an exception of type <tt class="xph">bad_exception</tt>.
+Because <tt class="xph">bad_exception</tt> has not been specified in the exception
+specification of <tt class="xph">g()</tt>, <tt class="xph">unexpected()</tt> calls <tt class="xph">terminate()</tt>,
+which calls the function <tt class="xph">my_terminate()</tt>.</li>
+<li><tt class="xph">my_terminate()</tt> displays a message then calls <tt class="xph">abort()</tt>,
+which terminates the program.</li></ol>
+<p>Note that the catch blocks following the second try block are not
+entered, because the exception was handled by <tt class="xph">my_unexpected()</tt> as
+an unexpected throw, not as a valid exception.</p>
+<hr /><br clear="none" />
+[ <a href="#Top_Of_Page" shape="rect">Top of Page</a> | <a href="as400clr348.htm" shape="rect">Previous Page</a> | <a href="as400clr350.htm" shape="rect">Next Page</a> | <a href="as400clr02.htm#wq1" shape="rect">Contents</a> |
+<a href="as400clr388.htm#wq350" shape="rect">Index</a> ]<br clear="none" />
+<div id="relatedLinks" style="display: none;"><!-- --></div>
+
+
+<a id="Bot_Of_Page" name="Bot_Of_Page" shape="rect"><!-- --></a>
+</body>
+</html>

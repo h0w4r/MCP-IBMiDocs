@@ -1,0 +1,92 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Overloading (C++ only) > Overloading operators (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Overloading (C++ only) > Overloading operators (C++ only)
+
+ILE C/C++ Language Reference
+
+Overloading assignments (C++ only)
+You overload the assignment operator, operator=, with
+a nonstatic member function that has only one parameter. You cannot
+declare an overloaded assignment operator that is a nonmember function.
+The following example shows how you can overload the assignment operator
+for a particular class:
+struct X {
+int data;
+X& operator=(X& a) { return a; }
+X& operator=(int a) {
+data = a;
+return *this;
+}
+};
+
+int main() {
+X x1, x2;
+x1 = x2; // call x1.operator=(x2)
+x1 = 5; // call x1.operator=(5)
+}The assignment x1 = x2 calls the copy assignment
+operator X& X::operator=(X&). The assignment x1
+= 5 calls the copy assignment operator X& X::operator=(int).
+The compiler implicitly declares a copy assignment operator for a
+class if you do not define one yourself. Consequently, the copy assignment
+operator (operator=) of a derived class hides the copy
+assignment operator of its base class.
+However, you can declare any copy assignment operator as virtual.
+The following example demonstrates this:
+#include <iostream>
+using namespace std;
+
+struct A {
+A& operator=(char) {
+cout << "A& A::operator=(char)" << endl;
+return *this;
+}
+virtual A& operator=(const A&) {
+cout << "A& A::operator=(const A&)" << endl;
+return *this;
+}
+};
+
+struct B : A {
+B& operator=(char) {
+cout << "B& B::operator=(char)" << endl;
+return *this;
+}
+virtual B& operator=(const A&) {
+cout << "B& B::operator=(const A&)" << endl;
+return *this;
+}
+};
+
+struct C : B { };
+
+int main() {
+B b1;
+B b2;
+A* ap1 = &b1;
+A* ap2 = &b1;
+*ap1 = 'z';
+*ap2 = b2;
+
+C c1;
+// c1 = 'z';
+}The following is the output of the above example:
+A& A::operator=(char)
+B& B::operator=(const A&)The assignment *ap1 =
+'z' calls A& A::operator=(char). Because this
+operator has not been declared virtual, the compiler chooses
+the function based on the type of the pointer ap1. The
+assignment *ap2 = b2 calls B& B::operator=(const &A).
+Because this operator has been declared virtual, the compiler
+chooses the function based on the type of the object that the pointer ap1 points
+to. The compiler would not allow the assignment c1 = 'z' because
+the implicitly declared copy assignment operator declared in class C hides B&
+B::operator=(char).
+Related information
+
+Copy assignment operators (C++ only)
+Assignment operators
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

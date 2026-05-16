@@ -1,0 +1,210 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+_Rlocate() — Position a Record
+Format
+#include <recio.h>
+
+_RIOFB_T *_Rlocate(_RFILE *fp, void *key, int klen_rrn, int opts);
+Language Level: ILE C Extension
+Threadsafe: Yes. However, if the file pointer is passed among threads, the
+I/O feedback area is shared among those threads.
+Job CCSID Interface: All character
+data sent to this function is expected to be in the CCSID of the job.
+All character data returned by this function is in the CCSID of the
+job. See Understanding CCSIDs and Locales for more information.
+Description
+The _Rlocate() function positions to the record in the file associated
+with fp and specified by the key, klen_rrn and opts parameters.
+The _Rlocate() function locks the record specified by the key, klen_rrn and opts parameters
+unless __NO_LOCK is specified.
+The _Rlocate() function is valid for database and DDM files that
+are opened with the _Ropen() function. The following are valid parameters
+of the _Rlocate()function.
+
+key
+Points to a string containing the key fields to be used for
+positioning.
+
+klen_rrn
+Specifies the length of the key that is used if positioning
+by key or the relative record number if positioning by relative record
+number.
+
+opts
+Specifies positioning options to be used for the locate operation.
+The possible macros are:
+
+__DFT
+Default to __KEY_EQ and lock the record for update
+if the file is open for updating.
+
+__END
+Positions to just after the last record in a file. There is
+no record that is associated with this position.
+
+__END_FRC
+Positions to just after the last record in a file. All buffered
+changes are made permanent. There is no record that is associated
+with this position.
+
+__FIRST
+Positions to the first record in the access path that is currently
+being used by fp. The key parameter is ignored.
+
+__KEY_EQ
+Positions to the first record with the specified key.
+
+__KEY_GE
+Positions to the first record that has a key greater than or
+equal to the specified key.
+
+__KEY_GT
+Positions to the first record that has a key greater than the
+specified key.
+
+__KEY_LE
+Positions to the first record that has a key less than or equal
+to the specified key.
+
+__KEY_LT
+Positions to the first record that has a key less than the specified
+key.
+
+__KEY_NEXTEQ
+Positions to the next record that has a key equal to the key
+value with a length of klen_rrn, at the current position.
+The key parameter is ignored.
+
+__KEY_NEXTUNQ
+Positions to the next record with a unique key from the current
+position in the access path. The key parameter is ignored.
+
+__KEY_PREVEQ
+Positions to the previous record with a key equal to the key
+value with a length of klen_rrn, at the current position.
+The key parameter is ignored.
+
+__KEY_PREVUNQ
+Positions to the previous record with a unique key from the
+current position in the access path. The key parameter is
+ignored.
+
+__LAST
+Positions to the last record in the access path that is currently
+being used by fp. The key parameter is ignored.
+
+__NEXT
+Positions to the next record in the access path that is currently
+being used by fp. The key parameter is ignored.
+
+__PREVIOUS
+Positions to the previous record in the access path that is
+currently being used by fp. The key parameter is
+ignored.
+
+__RRN_EQ
+Positions to the record that has the relative record number
+specified on the klen_rrn parameter.
+
+__START
+Positions to just before the first record in the file. There
+is no record that is associated with this position.
+
+__START_FRC
+Positions to just before the first record in a file. There is
+no record that is associated with this position. All buffered changes
+are made permanent.
+
+__DATA_ONLY
+Positions to data records only. Deleted records will be ignored.
+
+__KEY_NULL_MAP
+The NULL key map is to be considered when locating to a record
+by key.
+
+__NO_LOCK
+The record that is positioned will not be locked.
+
+__NO_POSITION
+The position of the file is not changed, but the located record
+will be locked if the file is open for update.
+
+__PRIOR
+Positions to just before the requested record.
+
+If you specify a start or end option (__START, __START_FRC, __END
+or __END_FRC) with any other options, the start or end option
+takes precedence and the other options might be ignored.
+If you are positioned to __START or __END and perform
+a _Rreads operation, errno is set to EIOERROR.
+Return Value
+The _Rlocate() function returns a pointer to the _RIOFB_T
+structure associated with fp. If the _Rlocate() operation
+is successful, the num_bytes field contains 1. If __START, __START_FRC, _END
+or __END_FRC are specified, the num_bytes field is set
+to EOF. If the _Rlocate() operation is unsuccessful,
+the num_bytes field contains zero. The key and rrn fields
+are updated, and the key field will contain the complete
+key even if a partial key is specified.
+The value of errno may be set to:
+
+Table 5. Errno Values
+
+Value
+Meaning
+
+EBADKEYLN
+The key length that is specified is not valid.
+
+ENOTREAD
+The file is not open for read operations
+
+EIOERROR
+A non-recoverable I/O error occurred.
+
+EIORECERR
+A recoverable I/O error occurred.
+
+See Table 12 and Table 14 for errno settings.
+Example that uses _Rlocate()
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <recio.h>
+
+int main(void)
+{
+_RFILE *in;
+char new_purchase[21] = "PEAR 1002022244";
+
+/* Open the file for processing in keyed sequence. */
+
+if ( (in = _Ropen("MYLIB/T1677RD4", "rr+, arrseq=N")) == NULL )
+{
+printf("Open failed\n");
+exit(1);
+};
+
+/* Update the first record in the keyed sequence. */
+
+_Rlocate(in, NULL, 0, __FIRST);
+_Rupdate(in, new_purchase, 20);
+
+/* Force the end of data. */
+
+_Rfeod(in);
+
+_Rclose(in);
+}
+Related Information
+
+_Ropen() — Open a Record File for I/O Operations
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

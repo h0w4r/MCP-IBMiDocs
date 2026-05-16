@@ -1,0 +1,66 @@
+Example: Sending the last diagnostic message as an escape message
+
+IBM i programming resources > Control language > Control language > Messages > Defining message descriptions > Adding messages to a file > Specifying default message handling for escape messages > Specifying default message handling for escape messages
+
+IBM i programming resources > Control language > Control language > Messages > Defining message descriptions > Adding messages to a file > Specifying default message handling for escape messages
+
+Example: Sending the last diagnostic message as an escape message
+This example is a program that sends the last diagnostic message
+as an escape message.
+The following program is an example default program that could
+be used when a diagnostic message is sent followed by an escape message. This
+program could be an original program model (OPM) CL program or an Integrated Language Environment® (ILE) program that has this single CL procedure.
+Note: By
+using the code example, you agree to the terms of the Code license and disclaimer information.
+PGM PARM(&MSGQ &MRK)
+DCL VAR(&MRK) TYPE(*CHAR) LEN(4)
+DCL VAR(&MSGQ) TYPE(*CHAR) LEN(6381)
+DCL VAR(&QNAME) TYPE(*CHAR) LEN(4096)
+DCL VAR(&MODNAME) TYPE(*CHAR) LEN(10)
+DCL VAR(&BPGMNAME) TYPE(*CHAR) LEN(10)
+DCL VAR(&BLANKMRK) TYPE(*CHAR) LEN(4) VALUE(' ')
+DCL VAR(&DIAGMRK) TYPE(*CHAR) LEN(4) VALUE(' ')
+DCL VAR(&SAVEMRK) TYPE(*CHAR) LEN(4)
+DCL VAR(&MSGID) TYPE(*CHAR) LEN(7)
+DCL VAR(&MSGDTA) TYPE(*CHAR) LEN(100)
+DCL VAR(&MSGF) TYPE(*CHAR) LEN(10)
+DCL VAR(&MSGLIB) TYPE(*CHAR) LEN(10)
+DCL VAR(&OFFSET) TYPE(*DEC)
+DCL VAR(&LENGTH) TYPE(*DEC)
+
+/* Check for OPM program type */
+
+IF (%SST(&MSGQ 277 1) *EQ '0') THEN(DO)
+CHGVAR VAR(&QNAME) VALUE(%SST(&MSGQ 1 10))
+CHGVAR VAR(&MODNAME) VALUE('*NONE')
+CHGVAR VAR(&BPGMNAME) VALUE('*NONE')
+ENDDO
+ELSE DO
+/* Not an OPM program; always use the long procedure name */
+CHGVAR VAR(&OFFSET) VALUE(%BIN(&MSGQ 281 4))
+CHGVAR VAR(&LENGTH) VALUE(%BIN(&MSGQ 285 4))
+CHGVAR VAR(&QNAME) VALUE(%SST(&MSGQ &OFFSET &LENGTH))
+CHGVAR VAR(&MODNAME) VALUE(%SST(&MSGQ 11 10))
+CHGVAR VAR(&BPGMNAME) VALUE(%SST(&MSGQ 1 10))
+ENDDO
+GETNEXTMSG: CHGVAR VAR(&SAVEMRK) VALUE(&DIAGMRK)
+RCVMSG PGMQ(*SAME (&QNAME &MODNAME &BPGMNAME)) +
+MSGTYPE(*DIAG) RMV(*NO) KEYVAR(&DIAGMRK)
+IF (&DIAGMRK *NE &BLANKMRK) THEN(GOTO GETNEXTMSG)
+ELSE IF (&SAVEMRK *NE ' ') THEN(DO)
+/* If no diag message is sent, no message is sent to the previous program */
+RCVMSG PGMQ(*SAME (&QNAME &MODNAME &BPGMNAME)) +
+MSGKEY(&SAVEMRK) RMV(*NO) MSGDTA(&MSGDTA) +
+MSGID(&MSGID) MSGF(&MSGF) MSGFLIB(&MSGLIB)
+SNDPGMMSG MSGID(&MSGID) MSGF(&MSGLIB/&MSGF) +
+MSGDTA(&MSGDTA) TOPGMQ(*PRV (&QNAME +
+&MODNAME &BPGMNAME))
+MSGTYPE(*ESCAPE)
+ENDDO
+ENDPGM
+
+The program receives all the diagnostic messages in FIFO order.
+Then it sends the last diagnostic message as an escape message to allow the
+previous program to monitor for it.
+
+Parent topic: Specifying default message handling for escape messages

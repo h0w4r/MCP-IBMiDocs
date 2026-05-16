@@ -1,0 +1,272 @@
+Examples of the XML-SAX operation
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-SAX (Parse an XML Document) > XML-SAX (Parse an XML Document)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-SAX (Parse an XML Document)
+
+Examples of the XML-SAX operation
+
+Figure 1. XML-SAX operations in Free-form calculations
+
+D xmlString S C '<?xml version="1.0"> +
+D <elem>data</elem>'
+D psds DS
+D xmlRc 10I 0 OVERLAY(psds:368)
+/free
+// The XML is in an IFS file. The "option" operand of %XML specifies
+// that the document operand is the name of an IFS file.
+XML-SAX %HANDLER(mySaxHandler : myHandlerInfo)
+%XML('/home/myuserid/myxml.xml' : 'doc=file');
+
+// The XML is in a string. The "option" operand of %XML is not specified.
+XML-SAX %HANDLER(mySaxHandler : myHandlerInfo) %XML(xmlString);
+
+Figure 2. XML-SAX operations in Fixed-form calculations
+
+CL0N01Factor1+++++++Opcode&ExtExtended-Factor2+++++++++++++++++++++++++
+C XML-SAX %HANDLER(mySaxHandler : myHandlerInfo)
+C %XML('/home/myuserid/myxml.xml' : 'doc=file')
+
+C XML-SAX %HANDLER(mySaxHandler : myHandlerInfo)
+C %XML(xmlString)
+
+Figure 3. A complete working program, illustrating an
+XML-SAX handling procedure
+
+H DEBUG(*XMLSAX)
+Fqsysprt o f 132 printer
+
+* The xmlRc subfield will be set to a non-zero value
+* if the XML-SAX operation fails because of an error
+* discovered by the parser
+
+D psds SDS
+D xmlRc 10I 0 OVERLAY(psds:368)[1]
+
+D qsysprtDs DS 132
+
+* This data structure defines the type for the parameter
+* passed to the SAX handling procedure.
+[2]
+D value_t S 50A VARYING
+D handlerInfo_t DS QUALIFIED
+D BASED(dummy)
+D pValue *
+D numAttendees 5P 0
+D name LIKE(value_t)
+D company LIKE(value_t)
+D alwExtraAttr 1N
+D handlingAttrs...
+D N
+
+* Define a specific instance of the handlerInfo_t data
+* structure and the prototype for the handler
+D myHandlerInfo DS LIKEDS(handlerInfo_t)
+D mySaxHandler PR 10I 0
+D info LIKEDS(handlerInfo_t)
+D event 10I 0 VALUE
+D stringPtr * VALUE
+D stringLen 20I 0 VALUE
+D exceptionId 10I 0 VALUE
+
+/free
+monitor;
+// Start XML parsing
+// Indicate that the handler should not allow
+// any unexpected attributes in the XML elements.
+myHandlerInfo.alwExtraAttr = *OFF;[3]
+XML-SAX %HANDLER(mySaxHandler : myHandlerInfo)
+%XML('/home/myuserid/myxml.xml' : 'doc=file');
+// The XML parse completed normally
+// Results are passed back in the communication
+// area specified by the %HANDLER built-in function
+qsysprtDs = 'There are '
++ %CHAR(myHandlerInfo.numAttendees)
++ ' attendees.';
+on-error 00351;
+// The XML parse failed with a parser error.
+// The return code from the parser is in the PSDS.
+
+qsysprtDs = 'XML parser error: rc='
++ %CHAR(xmlRc)
++ '.';
+endmon;
+
+write qsysprt qsysprtDs;
+*inlr = '1';
+/end-free
+
+P mySaxHandler B
+D PI 10I 0
+D info LIKEDS(handlerInfo_t)
+D event 10I 0 VALUE
+D stringPtr * VALUE
+D stringLen 20I 0 VALUE
+D exceptionId 10I 0 VALUE
+
+D value S LIKE(value_t)
+D BASED(info.pValue)
+
+D chars S 65535A BASED(stringPtr)
+D ucs2 S 16383C BASED(stringPtr)
+D ucs2Len S 10I 0
+
+/free
+
+select;
+
+// start parsing
+when event = *XML_START_DOCUMENT;[4]
+clear info;
+
+// start processing an attendee, by indicating
+// that subsequent calls to this procedure should
+// handle XML-attribute events.
+when event = *XML_START_ELEMENT;
+if %subst(chars : 1 : stringLen) = 'attendee';
+info.handlingAttrs = *ON;[5]
+info.name = '';
+info.company = '';
+info.numAttendees += 1;
+endif;
+
+// display information about the attendee
+when event = *XML_END_ELEMENT;
+if %subst(chars : 1 : stringLen) = 'attendee';
+info.handlingAttrs = *OFF;
+qsysprtDs = 'Attendee '
++ info.name
++ ' is from company '
++ info.company;
+write qsysprt qsysprtDs;
+endif;
+
+// prepare to get an attribute value by setting
+// a basing pointer to the address of the correct
+// variable to receive the value
+when event = *XML_ATTR_NAME;
+if info.handlingAttrs;
+if %subst(chars : 1 : stringLen) = 'name';
+info.pValue = %addr(info.name);
+elseif %subst(chars : 1 : stringLen) = 'company';
+info.pValue = %addr(info.company);
+else;
+// If the XML element is not expected to have
+// extra attributes, halt the parsing by
+// returning -1.
+if not info.alwExtraAttr;
+qsysprtDs = 'Unexpected attribute '
++ %subst(chars : 1 : stringLen)
++ ' found.';
+write qsysprt qsysprtDs;
+return -1;[6]
+endif;
+info.pValue = *NULL;
+endif;
+endif;
+
+// handle an exception
+when event = *XML_EXCEPTION;
+qsysprtDs = 'Exception '
++ %char(exceptionId)
++ ' occurred.';
+write qsysprt qsysprtDs;
+return exceptionId;
+
+other;
+
+// If this is an attribute we are interested
+// in, the basing pointer for "value" has been
+// set to point to either "name" or "company"
+
+// Append each fragment of the value to the
+// current data
+if info.handlingAttrs
+and info.pValue <> *NULL;
+if event = *XML_ATTR_CHARS
+or event = *XML_ATTR_PREDEF_REF;
+value += %subst(chars : 1 : stringLen);
+elseif event = *XML_ATTR_UCS2_REF;
+ucs2Len = stringLen / 2;[7]
+value += %char(%subst(ucs2 : 1 : ucs2Len));
+endif;
+endif;
+endsl;
+
+return 0;[8]
+/end-free
+P mySaxHandler E
+
+This example illustrates several features of SAX parsing.
+
+The "External Return Code" subfield of the PSDS, named xmlRc here.
+
+The communication area data structure, used to communicate between
+the XML-SAX operation and the SAX event-handling procedure.
+
+The XML-SAX operation initiates the parsing of the XML document.
+
+The SAX event-handling procedure compares the event parameter
+to the special names *XML_START_DOCUMENT etc.
+
+The communication area is also used for the event-handling procedure
+to communicate with itself between calls.
+
+The event-handling procedure discovers an error and halts the
+parsing by returning -1.
+
+The *XML_ATTR_UCS2_REF event has UCS-2 data, independent of the
+CCSID that is normally used to return data for this XML-SAX operation.
+The length represents the number of bytes in the data, so it must
+be divided by two to obtain the number of UCS-2 characters.
+
+If the event-handling procedure does not discover any errors,
+it returns 0, indicating that parsing should continue.
+
+The following sample XML document could be used with this example.
+
+<meeting>
+<attendee name="Jack" company="A&amp;B Electronics"/>
+<attendee company="City&#x2B; Waterworks" name="Jill"/>
+<attendee name="Bill" company="Ace Movers" extra="yes"/>
+</meeting>
+Figure 4. Removing internal whitespace from
+XML data
+
+// The following procedure returns a string that is the same
+// as the input string except that strings of whitespace are
+// converted to a single blank.
+P rmvWhiteSpace b
+D rmvWhiteSpace pi 65535a varying
+D input 65535a varying const
+D output s like(input) inz('')
+
+* x'15'=newline x'05'=tab x'0D'=carriage-return
+* x'25'=linefeed x'40'=blank
+D whitespaceChr C x'15050D2540'
+D c s 1A
+D i s 10I 0
+D inWhitespace s N INZ(*OFF)
+/free
+// copy all non-whitespace characters to the return value
+for i = 1 to %len(input);
+c = %subst(input : i : 1);
+if %scan(c : whitespaceChr) > 0;
+// If this is a new set of whitespace, add one blank
+if inWhitespace = *OFF;
+inWhitespace = *ON;
+output += ' ';
+endif;
+else;
+// Not handling whitespace now. Add character to output
+inWhitespace = *OFF;
+output += c;
+endif;
+endfor;
+return output;
+/end-free
+P rmvWhiteSpace e
+
+For more information about XML operations, see XML Operations.
+
+Parent topic: XML-SAX (Parse an XML Document)

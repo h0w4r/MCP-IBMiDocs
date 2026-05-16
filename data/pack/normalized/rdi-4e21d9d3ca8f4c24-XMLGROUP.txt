@@ -1,0 +1,119 @@
+XMLGROUP
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Aggregate functions > Aggregate functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Aggregate functions
+
+XMLGROUP
+The XMLGROUP function returns an XML value that is a well-formed XML
+document.
+XMLGROUP(,expression ASqname-identifierORDER BY,sort-key-expressionASCDESCOPTION1ROW"row"ROWrow-nameROOT"rowset"ROOTroot-nameAS ATTRIBUTES)
+expression
+The content of each XML element is specified by an expression. The data type of
+expression must not be ROWID or DATALINK or a distinct type that is based on ROWID or
+DATALINK. The expression can be any SQL expression. If the expression is not a simple column
+reference, an element name must be specified. When AS ATTRIBUTES is specified, the data type of
+expression must not be XML or a distinct type that is based on XML.
+AS
+qname-identifier
+Specifies the XML element name or attribute name as an SQL identifier. The
+qname-identifier must be of the form of an XML qualified name, or QName. See the W3C XML
+namespace specifications for more details on valid names. If the name is qualified, the namespace
+prefix must be declared within the scope. If qname-identifier is not specified,
+expression must be a column name. The element name or attribute name is created from the
+column name using the fully escaped mapping from a column name to a QName.
+ORDER BY
+Specifies the order of the rows from the same grouping set that are processed in the
+aggregation. If the ORDER BY clause is not specified, or if the ORDER BY clause cannot differentiate
+the order of the sort key value, the rows in the same grouping set are arbitrarily ordered.sort-key-expression
+Specifies a sort key value that is either a column name or an expression. The data type of the
+column or expression must not be a DATALINK or XML value.
+The ordering is based on the values of the sort keys, which might or might not be used in
+XML-expression.
+
+OPTION
+Specifies additional options for constructing the XML value. If no OPTION clause is specified,
+the default behavior applies.ROW
+row-name
+Specifies the name of the element to which each row is mapped. If this option is not specified,
+the default element name is "row".
+ROOT
+root-name
+Specifies the name of the root element. If this option is not specified, the default root
+element name is "rowset".
+AS ATTRIBUTES
+Specifies that each expression is mapped to an attribute value with column name or
+qname-identifier serving as the attribute name.
+
+If a collating sequence other than *HEX is in effect when the statement that contains the
+XMLGROUP function is executed and the sort-key-expressions are SBCS data, mixed data, or
+Unicode data, then the result is obtained by comparing weighted values. The weighted values are
+derived by applying the collating sequence to the sort-key-expressions.
+
+The result of the function is XML. The result can be null. If the set of values is empty, the
+result is the null value. Otherwise, the result is an XML sequence containing an item for each value
+in the set.
+Notes
+The default behavior defines a simple mapping between a result set and an XML value Some
+additional notes about function behavior apply:By default, each row is transformed into an XML element named "row" and each expression
+is transformed into a nested element with the column name or qname-identifier as the element
+name.
+The null handling behavior is NULL ON NULL. A null value for an expression maps to the absence
+of the subelement. If all expression values are null, no row element is generated. If no row
+elements are generated, the function returns the null value.
+The binary encoding scheme for binary and FOR BIT DATA data types is base64Binary encoding.
+The order of the row subelements in the root element will be the same as the order in which the
+rows are returned in the query result set.
+
+Examples
+Note: XMLGROUP does not insert blank spaces or new line characters in the output. All example
+output has been formatted to enhance readability.
+
+Assume the following table T1 with columns C1 and C2:
+
+C1 C2
+---- ----
+1 2
+- 2
+1 -
+- -
+
+The following example shows an XMLGROUP query and output fragment with default behavior, using a
+single top-level element to represent the table:
+SELECT XMLGROUP(C1, C2) FROM T1  
+Returns
+the following value for the single result
+row:<rowset>
+<row><C1>1</C1><C2>2</C2></row>
+<row><C2>2</C2></row>
+<row><C1>1</C1></row>
+</rowset>
+
+The following example shows an XMLGROUP query and output fragment with attribute centric
+mapping. Instead of appearing as nested elements as in the previous example, the data is mapped to
+element attributes:
+SELECT XMLGROUP(C1, C2 OPTION AS ATTRIBUTES) FROM T1  
+Returns
+the following value for the single result
+row:<rowset>
+<row C1="1" C2="2"/>
+<row C2="2"/>
+<row C1="1"/>
+</rowset>
+
+The following example shows an XMLGROUP query and output fragment with the default <rowset>
+root element replaced by <document> and the default <row> element replaced by <entry>.
+Columns C1 and C2 are returned as <column1> and <column2> elements, and the return set is
+ordered by column
+C1:SELECT XMLGROUP(C1 AS "column1", C2 AS "column2"
+ORDER BY C1 OPTION ROW "entry" ROOT "document")
+FROM T1
+Returns
+the following value for the single result
+row:<document>
+<entry> <column1>1</column1><column2>2</column2></entry>
+<entry> <column1>1</column1></entry>
+<entry> <column2>2</column2></entry>
+</document>
+
+Parent topic: Aggregate functions

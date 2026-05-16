@@ -1,0 +1,191 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+mbrlen() — Determine Length of a Multibyte Character
+(Restartable)
+Format
+#include <wchar.h>
+size_t mbrlen (const char *s, size_t n, mbstate_t *ps);
+Language Level: ANSI
+Threadsafe: Yes, if ps is not
+NULL.
+Locale Sensitive: The behavior
+of this function might be affected by the LC_CTYPE category of the
+current locale. This function might also be affected by the LC_UNI_CTYPE
+category of the current locale if LOCALETYPE(*LOCALEUCS2) or LOCALETYPE(*LOCALEUTF)
+is specified on the compilation command. This function is not available
+when LOCALETYPE(*CLD) is specified on the compilation command. For
+more information, see Understanding CCSIDs and Locales.
+Description
+This function is the restartable version of mblen().
+The mbrlen() function determines the length of a multibyte character.
+n is the number of bytes (at most) of the multibyte string
+to examine.
+This function differs from its corresponding internal-state multibyte
+character function in that it has an extra parameter, ps of
+type pointer to mbstate_t that points to an object that can completely
+describe the current conversion state of the associated multibyte
+character sequence. If ps is a NULL pointer, mbrlen() behaves
+like mblen().
+mbrlen() is a restartable version of mblen(). In other words, shift-state
+information is passed as one of the arguments (ps represents
+the initial shift) and is updated on exit. With mbrlen(), you can
+switch from one multibyte string to another, provided that you have
+kept the shift-state information.
+Return Value
+If s is a null pointer and
+if the active locale allows mixed-byte strings, the mbrlen() function
+returns nonzero. If s is a null pointer and
+if the active locale does not allow mixed-byte strings, zero will
+be returned.
+If s is not a null pointer, the mbrlen() function
+returns one of the following:
+
+0
+If s is a NULL string (s points
+to the NULL character).
+
+positive
+If the next n or fewer bytes comprise
+a valid multibyte character. The value returned is the number of bytes
+that comprise the multibyte character.
+
+(size_t)-1
+If s does not point to a valid multibyte
+character.
+
+(size_t)-2
+If the next n or fewer bytes contribute
+to an incomplete but potentially valid character and all n bytes have been processed
+
+Example that uses mbrlen()
+/* This program is compiled with LOCALETYPE(*LOCALE) and */
+/* SYSIFCOPT(*IFSIO) */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <wchar.h>
+#include <errno.h>
+
+#define LOCNAME "qsys.lib/JA_JP.locale"
+#define LOCNAME_EN "qsys.lib/EN_US.locale"
+
+int main(void)
+{
+int length, sl = 0;
+char string[10];
+mbstate_t ps = 0;
+memset(string, '\0', 10);
+string[0] = 0xC1;
+string[1] = 0x0E;
+string[2] = 0x41;
+string[3] = 0x71;
+string[4] = 0x41;
+string[5] = 0x72;
+string[6] = 0x0F;
+string[7] = 0xC2;
+/* In this first example we will find the length of */
+/* of a multibyte character when the CCSID of locale */
+/* associated with LC_CTYPE is 37. */
+/* For single byte cases the state will always */
+/* remain in the initial state 0 */
+
+if (setlocale(LC_ALL, LOCNAME_EN) == NULL)
+printf("setlocale failed.\n");
+
+length = mbrlen(string, MB_CUR_MAX, &ps);
+
+/* In this case length is 1, which is always the case for */
+/* single byte CCSID */
+
+printf("length = %d, state = %d\n\n", length, ps);
+printf("MB_CUR_MAX: %d\n\n", MB_CUR_MAX);
+
+/* Now let's try a multibyte example. We first must set the */
+/* locale to a multibyte locale. We choose a locale with */
+/* CCSID 5026 */
+
+if (setlocale(LC_ALL, LOCNAME) == NULL)
+printf("setlocale failed.\n");
+
+length = mbrlen(string, MB_CUR_MAX, &ps);
+
+/* The first is single byte so length is 1 and */
+/* the state is still the initial state 0 */
+
+printf("length = %d, state = %d\n\n", length, ps);
+printf("MB_CUR_MAX: %d\n\n", MB_CUR_MAX);
+
+sl += length;
+
+length = mbrlen(&string[sl], MB_CUR_MAX, &ps);
+
+/* The next character is a mixed byte. Length is 3 to */
+/* account for the shiftout 0x0e. State is */
+/* changed to double byte state. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = mbrlen(&string[sl], MB_CUR_MAX, &ps);
+
+/* The next character is also a double byte character. */
+/* The state is changed to initial state since this was */
+/* the last double byte character. Length is 3 to */
+/* account for the ending 0x0f shiftin. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = mbrlen(&string[sl], MB_CUR_MAX, &ps);
+
+/* The next character is single byte so length is 1 and */
+/* state remains in initial state. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+}
+/* The output should look like this:
+
+length = 1, state = 0
+
+MB_CUR_MAX: 1
+
+length = 1, state = 0
+
+MB_CUR_MAX: 4
+
+length = 3, state = 2
+
+length = 3, state = 0
+
+length = 1, state = 0
+*/
+* * * End of File * * *
+Related Information
+
+mblen() — Determine Length of a Multibyte Character
+mbtowc() — Convert Multibyte Character to a
+Wide Character
+mbrtowc() — Convert a Multibyte Character to
+a Wide Character (Restartable)
+mbsrtowcs() — Convert a Multibyte String to
+a Wide Character String (Restartable)
+setlocale() — Set Locale
+wcrtomb() — Convert a Wide Character to a Multibyte
+Character (Restartable)
+wcsrtombs() — Convert Wide Character String
+to Multibyte String (Restartable)
+<locale.h>
+<wchar.h>
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

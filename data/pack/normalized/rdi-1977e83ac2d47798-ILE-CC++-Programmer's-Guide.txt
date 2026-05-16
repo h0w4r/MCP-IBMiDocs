@@ -1,0 +1,215 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 27. Using Packed Decimal Data in a C++ Program
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 27. Using Packed Decimal Data in a C++ Program
+
+ILE C/C++ Programmer's Guide
+
+Validating _DecimalT Class Template Constants to a File
+When you write _DecimalT template-class constants to a
+file, scan them back into a _DecimalT template-class, and then pass
+the _DecimalT template-class array to a function with
+printf(). If the file cannot be opened, or if the contents
+of the array are not valid, an error message is generated.
+The following figure provides an example.
+
+Figure 315. Example of Writing _DecimalT Class Template Constants to a File
+
+// This program shows how to write _DecimalT class template
+// constants to a file
+// and scan them back again. Shows how to pass a _DecimalT
+// class template array to a function.
+
+#include <bcd.h>
+#include <iostream.h>
+#include <stdlib.h>
+
+#define N 3 // Array size for decimal declaration.
+
+FILE *stream; // File pointer declaration.
+
+// Declare valid array.
+
+_DecimalT<4,2> arr_1[] = {__D("12.35"), __D("25.00"),
+__D("-19.58")};
+_DecimalT<4,2> arr_2[N];
+
+void write_num(_DecimalT<4,2> a[N]); //Declare function to
+// write to a file.
+
+void read_num(_DecimalT<4,2> b[N]); //Declare function to
+//read from a file.
+
+int main(void)
+{
+int reposition=0;
+// Open the file. Must use fopen()
+// to access a physical file.
+if ((stream = fopen("*CURLIB/OUTFILE","w+")) == NULL)
+{
+cout <<"Can not open file";
+exit(EXIT_FAILURE);
+}
+write_num(arr_1); // Call function to write values of the
+// array to outfile with fprintf().
+
+reposition=fseek(stream, 0L, SEEK_SET);
+
+if (reposition!=0)
+{
+cout <<"FSEEK failed to position file pointer" <<endl;
+exit(EXIT_FAILURE);
+
+}
+read_num(arr_2); // Call function to read values of the
+// array from file using fscanf().
+
+fclose(stream); // Close the file.
+}
+
+// write_num is passed a the array. These values are written to a
+// text file with fprintf(). If the function is successful a 0 is
+// returned, otherwise a negative value is returned (indicating an
+// error.
+
+void write_num(_DecimalT<4,2> a[N])
+
+{
+
+int i, j;
+
+for (i=0;i < N;i++)
+{
+j = fprintf(stream,"%D(4,2)\n",a[i]);
+if (j < 0)
+cout <<"Number not written to file" <<[a] <<endl;
+}
+}
+// read_num is passed a the array. The values are
+// read from a text file with fscanf().
+// If the function is successful a 0 is returned, otherwise a
+// negative value is returned (indicating an error).
+
+void read_num(_DecimalT<4,2> b[N])
+{
+int i, j;
+
+for (i=0;i < sizeof(b)/sizeof(b[0]);i++)
+{
+j = fscanf(stream,"%D(4,2)\n",&b[i]);
+if (j < 0)
+cout <<"Error when reading from file" <<endl;
+}
+cout <<"b[0]=" <<endl;
+cout <<"b[1]=" <<endl;
+cout <<"b[2]=" <<endl;
+}
+
+The output is:
++--------------------------------------------------------------------------------+
+|b[0]=12.35 |
+|b[1]=25.00 |
+|b[2]=-19.58 |
++--------------------------------------------------------------------------------+
+You can rewrite this program to use the ofstream class, as shown
+in the following figure:
+Figure 316. Example of Writing _DecimalT Class Template Constants to a File Using the ofstream Class
+
+// This program shows how to write _DecimalT template
+// constants to a file
+// and scan them back again. Shows how to pass a _DecimalT
+// class template array to a function.
+
+#include <bcd.h>
+#include <iostream.h>
+#include <stdlib.h>
+#include <fstream.h>
+
+#define N 3 // Array size
+// for decimal declaration.
+
+// Declare valid
+// array.
+
+_DecimalT<4,2> arr_1[] = {__D("12.35"), __D("25.00"),
+__D("-19.58")};
+_DecimalT<4,2> arr_2[N];
+
+void write_num(_DecimalT<4,2> a[N]); //Declare function to
+// write to a file.
+
+void read_num(_DecimalT<4,2> b[N]); //Declare function to
+//read from a file.
+
+int main ( void )
+{
+write_num(arr_1); // Call function to write
+// values of the
+// array to outf with fprintf
+// library function.
+
+read_num(arr_2); // Call function to read
+// values of the
+// array from file using
+// fscanf() function.
+}
+
+// write_num is passed an array. These values are
+// written to a text file with the fstream class.
+// If the function is successful a 0 is returned, otherwise a
+// negative value is returned (indicating an error).
+
+void write_num(_DecimalT<4,2> a[N])
+{
+int i;
+ofstream outf("data",ios::trunc || ios::out,
+filebuf::openprot);
+if (!outf)
+{
+cerr << "Could not open file 'data' " <<endl;
+exit (EXIT_FAILURE);
+}
+for (i=0; i (lt) N; i++) {
+{
+outf << a[i];
+}
+outf.close()
+}
+// read_num is passed an array. The values are
+// read from a text file with the fstream class.
+// If the function is successful a 0 is returned, otherwise a
+// negative value is returned (indicating an error).
+
+void read_num(_DecimalT<4,2> b[N])
+{
+int i;
+ifstream file("data");
+
+if (!file)
+{
+cerr << "Could not open file 'data' " <<endl;
+exit (EXIT_FAILURE);
+}
+for (i=0; i<N; i++)
+{
+file >> b[i];
+cout << "b["<< i <<"]=" <<b[i]; <<endl;
+}
+if (file.eof())
+{
+cerr << "Unexpected EOF!" <<endl;
+exit (EXIT_FAILURE);
+}
+file.close();
+}
+
+The output is:
++--------------------------------------------------------------------------------+
+|b[0]=12.35 |
+|b[1]=25.00 |
+|b[2]=-19.58 |
++--------------------------------------------------------------------------------+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

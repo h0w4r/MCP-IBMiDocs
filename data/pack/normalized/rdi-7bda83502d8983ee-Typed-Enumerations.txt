@@ -1,0 +1,449 @@
+Typed Enumerations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Enumerations > Enumerations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Enumerations
+
+Typed Enumerations
+
+A typed enumeration is an enumeration that is defined with a data-type keyword.
+See Data-type keywords supported for enumerations for the data-type keywords you can specify.
+
+A typed enumeration has a default value.
+You can use the DFT keyword
+to identify one of the constants as the default value for the enumeration.
+Otherwise, the first constant specified for the enumeration is the default value.
+In the following example, the default constant for the status_codes
+enumeration is the first constant, no_error, because none of
+the constants has the DFT keyword.
+The default constant for the employee_types
+enumeration is regular because it has the DFT keyword.
+
+DCL-ENUM status_codes INT(10);
+no_error 0;
+customer_not_found 1;
+order_not_found 2;
+END-ENUM;
+
+DCL-ENUM employee_types CHAR(3) QUALIFIED;
+ceo 'CEO';
+manager 'MGR';
+regular 'REG' DFT;
+END-ENUM;
+
+Defining an item like a typed enumeration
+
+You can define a variable, a prototyped parameter, or the return value of a prototype like a typed enumeration.
+
+When an item is defined like a typed enumeration, the valid values for the
+item are limited to the values in the enumeration.
+
+You can use the following with items defined like an enumeration:
+
+The name of one of the enumeration constants.
+
+The name of another item that is defined like the enumeration.
+In the following example, both like_en1
+and like_like_en1 are considered to be
+defined like the enumeration en1.
+
+DCL-ENUM en1 INT(10);
+v1 1;
+END-ENUM;
+DCL-S like_en1 LIKE(en1);
+DCL-S like_like_en1 LIKE(like_en1);
+
+*HIVAL and *LOVAL.
+These represent the highest and lowest values in the enumeration.
+
+%HIVAL and %LOVAL where the parameter
+can be the enumeration or an item defined like the enumeration.
+
+The CCSID keyword cannot be specified for an item defined like an enumeration.
+The CCSID of the new item is the same as the CCSID of the enumeration.
+
+Rules for variables that are defined like an enumeration
+
+The parameter
+for the INZ keyword
+must be the name of one of the enumeration constants.
+
+If the INZ keyword is not specified, the
+variable is initialized to the default constant.
+
+The CLEAR operation code
+clears the variable to the default value of the enumeration.
+This might not be the same as the normal default value for the data type.
+
+When the variable is used with figurative constant *HIVAL
+or *LOVAL,
+the figurative constant refers to highest or lowest value in the enumeration.
+See Figurative Constants.
+
+Similarly, the result of the %HIVAL or %LOVAL
+built-in function for the variable returns the same value for the variable
+as it returns for the enumeration.
+See %HIVAL and %LOVAL (Highest Value or Lowest Value).
+
+In the following example:
+
+The default constant for
+enumeration employee_types
+is regular.
+
+The INZ keyword is specified for the
+dept data structure,
+so every subfield is initialized, either to the value specified
+by the INZ keyword for the subfield or for
+the default value for the subfield.
+
+Subfield manager.type is
+defined like the enumeration.
+The subfield is explicitly initialized to employee_types.manager
+('MGR').
+
+Subfield employees.type is
+also defined like the enumeration.
+The subfield is not explicitly initialized so it is initialized to
+its default value, which is the default constant for
+the enumeration, regular ('REG').
+
+The parameter for the get_bonus procedure is
+also defined like the enumeration.
+When the parameter is used in the IF and ELSEIF operations,
+it is compared to the constant names in the enumeration.
+
+CTL-OPT CCSID(*EXACT);
+
+DCL-ENUM employee_types CHAR(3) QUALIFIED;
+ceo 'CEO';
+manager 'MGR';
+regular 'REG' DFT; // 1
+END-ENUM;
+
+DCL-DS emp_info_t QUALIFIED TEMPLATE;
+name VARCHAR(50);
+salary PACKED(7 : 2);
+END-DS;
+
+DCL-DS dept INZ QUALIFIED; // 2
+DCL-DS manager;
+type LIKE(employee_types) INZ(employee_types.manager); // 3
+info LIKEDS(emp_info_t);
+END-DS;
+
+num_employees INT(10);
+DCL-DS employees DIM(20);
+type LIKE(employee_types); // 4
+info LIKEDS(emp_info_t);
+END-DS;
+END-DS;
+
+DCL-PROC get_bonus;
+DCL-PI *N PACKED(5 : 2);
+emp_type LIKE(employee_types); // 5
+END-PI;
+
+IF emp_type = employee_types.ceo; // 5
+RETURN 0;
+ELSEIF emp_type = employee_types.manager; // 5
+RETURN 100;
+ELSEIF emp_type = employee_types.regular; // 5
+RETURN 200;
+ENDIF;
+END-PROC;
+
+Rules for prototyped parameters that are defined like an enumeration
+
+The rules are the same for parameters defined with or without
+OPTIONS(*EXACT).
+
+For a parameter passed by reference, only
+a variable defined like the enumeration can be passed.
+
+For a parameter passed by value or by constant reference,
+only the following values can be passed.
+
+One of the constants from the enumeration.
+
+An item defined like the enumeration.
+
+*HIVAL and *LOVAL, which represent the highest and lowest
+constants in the enumeration.
+
+%HIVAL and %LOVAL, where the parameter for the built-in function
+is the enumeration name or another item defined like the enumeration.
+
+In the following example:
+
+The parameter for procedure like_enum_no_exact
+is not defined with OPTIONS(*EXACT).
+
+The parameter for procedure like_enum_exact
+is defined with OPTIONS(*EXACT).
+
+The parameter passed to both procedures is a constant from the enumeration.
+This is allowed for both calls.
+
+The parameter passed to both procedures is a literal value.
+This is not allowed for either call.
+
+The parameter passed to both procedures is a field name
+that is not defined like the enumeration.
+This is not allowed for either call.
+
+The parameter passed to both procedures is an expression.
+
+This is not allowed for procedure like_enum_no_exact.
+
+This is not allowed for procedure like_enum_exact.
+
+DCL-ENUM enum1 INT(10) QUALIFIED;
+v1 5;
+v2 10;
+END-ENUM;
+
+DCL-PR like_enum_no_exact;
+p1 LIKE(enum1) CONST; // 1
+END-PR;
+
+DCL-PR like_enum_exact;
+p1 LIKE(enum1) CONST OPTIONS(*EXACT); // 2
+END-PR;
+
+DCL-S num INT(10);
+
+like_enum_no_exact (enum1.v1); // OK 3
+like_enum_exact (enum1.v1); // OK 3
+
+like_enum_no_exact (5); // NOT OK 4
+like_enum_exact (5); // NOT OK 4
+
+like_enum_no_exact (num); // NOT OK 5
+like_enum_exact (num); // NOT OK 5
+
+like_enum_no_exact (num + 1); // NOT OK 6
+like_enum_exact (num + 1); // NOT OK 6
+
+Data-type keywords supported for enumerations
+
+Character, graphic, and UCS-2 data-type keywords
+
+CHAR and VARCHAR
+
+The enumeration can contain either character literals or hexadecimal
+literals depending on the CCSID.
+The CCSID keyword can be specified.
+If it is not specified, the CCSID defaults to the
+current default CCSID for character data.
+See /SET for more information
+about the current default CCSID.
+
+If the CCSID is 65535 or *HEX, the enumeration must contain only hexadecimal literals.
+
+If the CCSID is not 65535 or *HEX, the enumeration must contain only character literals.
+
+If the enumeration does not contain hexadecimal literals,
+Control keyword CCSID(*EXACT) must be specified.
+
+GRAPH and VARGRAPH
+
+The enumeration must contain graphic literals.
+The CCSID keyword can be specified.
+If it is not specified, the CCSID defaults to the
+current default CCSID for graphic data.
+See /SET for more information
+about the current default CCSID.
+
+Control keyword CCSID(*EXACT) must be specified.
+
+Control keyword CCSID(*GRAPH:*IGNORE) cannot be specified.
+
+UCS2 and VARUCS2
+
+The enumeration must contain UCS2 literals.
+The CCSID keyword can be specified.
+If it is not specified, the CCSID defaults to the
+current default CCSID for UCS-2 data.
+See /SET for more information
+about the current default CCSID.
+
+The enumeration can contain character literals, graphic literals, and UCS-2 literals.
+
+Control keyword CCSID(*EXACT) must be specified
+if it contains any character literals or graphic literals.
+
+Numeric data-type keywords
+
+INT
+
+The enumeration must contain numeric literals with no decimal positions.
+
+UNS
+
+The enumeration can contain positive numeric literals with no decimal positions
+and hexadecimal literals.
+
+BINDEC, PACKED, and ZONED
+
+The enumeration can contain any non-float numeric literals.
+
+FLOAT
+
+The enumeration must contain float numeric literals.
+
+Other data-type keywords
+
+IND
+
+The enumeration must contain character literals with the
+value '0' or '1'.
+
+DATE
+
+The enumeration must contain date literals.
+If the date format is not specified for the DATE keyword,
+the format defaults to tge current default date format.
+See /SET for more information
+about the current default date format.
+
+If the date format has 2-digit years (*MDY, *DMY, *YMD, and *JUL),
+the default date format for the module must also be a format with 2-digit years.
+The default date format for the module is specified by the DATFMT Control keyword.
+
+TIME
+
+The enumeration must contain time literals.
+If the time format is not specified for the TIME keyword,
+the format defaults to the current default time format.
+See /SET for more information
+about the current default time format.
+
+If the time format is *USA, the default time format for
+the module must also be *USA.
+The default time format for the module is specified by the TIMFMT
+Control keyword.
+
+TIMESTAMP
+
+The enumeration must contain timestamp literals.
+
+The number of fractional seconds for the timestamp must be between 6 and 12.
+If the parameter of the TIMESTAMP keyword is specified,
+it must be between 6 and 12.
+
+Diagnostic messages from the compiler related to typed enumerations
+
+Many messages issued by the compiler for coding errors related to typed enumerations have
+reason codes.
+
+The constant is incompatible with the type of the enumeration.
+
+The reason codes are
+
+DECPOS:
+The number of decimal positions is greater than the number of decimal positions of the enumeration.
+
+INDICATOR_VALUE:
+The literal is not '0' or '1' for an enumeration of type IND.
+
+LEN:
+The constant is too long for the type of the enumeration.
+
+NUM_HEX_LITERAL_UNS_ONLY:
+Hexadecimal literals are not allowed for enumerations defined with
+numeric types unless the type is UNS.
+
+RANGE:
+The numeric literal is out of range for the type of the enumeration.
+For example, if the type of the enumeration is UNS(5), the
+valid range is 0 - 65535. The value 65536 is out of range.
+
+TYPE:
+The data type of the constant does not match the data type of the enumeration.
+
+The constant is incompatible with the CCSID of the enumeration.
+
+The reason codes are
+
+CANNOT_CONVERT_CCSID:
+The literal cannot be converted from the CCSID of the
+source file to the CCSID of the enumeration.
+
+CCSID_CONVERT_LEN: The literal is too long after it is converted from
+the CCSID of the source file to the CCSID of the enumeration. For example,
+the literal 'ábç' has 3 bytes in an EBCDIC
+source file, but it has 5 bytes when converted to UTF-8. If
+the CCSID of the enumeration is 1208 or *UTF8, the length
+must be at least 5.
+
+HEX_LITERAL_FOR_NON_HEX_CCSID:
+A hexadecimal literal cannot be specified when the CCSID
+of the enumeration is not 65535 or *HEX.
+
+NON_HEX_LITERAL_FOR_HEX_CCSID:
+A hexadecimal literal must be specified when the CCSID
+of the enumeration is 65535 or *HEX.
+
+Several messages related to calculations with items defined like enumerations.
+
+The messages are:
+
+The item is not valid for assignment to a field defined like an enumeration.
+
+The item is not valid for comparison to an item like an enumeration.
+
+The item is not valid for the RETURN operation for a procedure
+that returns a value defined like an enumeration.
+
+The item is not valid for passing to a parameter defined like an enumeration.
+
+The reason codes for these messages indicate why the
+item is not valid with the variable or procedure that is defined
+like an enumeration.
+
+DIFF_ENUM:
+
+An array defined like an enumeration is assigned
+from a different enumeration.
+
+The parameter for built-in function %HIVAL or %LOVAL
+must be the same enumeration or a variable defined like the same
+enumeration.
+
+DIFF_ENUM_CONST:
+A named constant from a different enumeration is not allowed.
+
+EXPRESSION:
+An expression is not allowed.
+For example:
+
+X + Y
+
+A built-in function other than %HIVALor %LOVAL where the
+parameter is the enumeration or an item defined like the enumeration
+
+FIG_CONST_NOT_HIVAL_OR_LOVAL:
+The only figurative constants that are allowed are *HIVAL
+and *LOVAL.
+Those figurative constants represent the highest and lowest values in
+the enumeration.
+
+ITEM_LIKE_DIFF_ENUM:
+Fields or prototypes returning a value are not allowed unless they are also
+defined like the same enumeration.
+
+ITEM_NOT_LIKE_ENUM:
+Fields or prototypes returning a value are not allowed unless they are also
+defined like the enumeration.
+
+LITERAL_NOT_ALLOWED:
+A literal is not allowed.
+Literals are not allowed even if they are the same as one of the constants
+in the enumeration. Use the name of the enumeration constant instead.
+
+NON_ENUM_CONST:
+A named constant is not allowed if it is not one of the constants in the
+enumeration.
+
+Parent topic: Enumerations

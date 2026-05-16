@@ -1,0 +1,90 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+_Riofbk() — Obtain I/O Feedback Information
+Format
+#include <recio.h>
+#include <xxfdbk.h>
+_XXIOFB_T *_Riofbk(_RFILE *fp);
+Language Level: ILE C Extension
+Threadsafe: Yes.
+
+Description
+The _Riofbk() function returns a pointer to a copy of the I/O feedback
+area for the file that is specified by fp.
+The _Riofbk() function is valid for all types of files.
+Return Value
+The _Riofbk() function returns NULL if an error occurs. See Table 12 and Table 14 for errno settings.
+Example that uses _Riofbk()
+#include <stdio.h>
+#include <recio.h>
+#include <string.h>
+#include <stdlib.h>
+typedef struct {
+char name[20];
+char address[25];
+} format1 ;
+typedef struct {
+char name[8];
+char password[10];
+} format2 ;
+typedef union {
+format1 fmt1;
+format2 fmt2;
+} formats ;
+
+int main(void)
+{
+_RFILE *fp; /* File pointer */
+_RIOFB_T *rfb; /*Pointer to the file's feedback structure */
+_XXIOFB_T *iofb; /* Pointer to the file's feedback area */
+formats buf, in_buf, out_buf; /* Buffers to hold data */
+/* Open the device file. */
+if (( fp = _Ropen ( "MYLIB/T1677RD2", "ar+" )) == NULL )
+{
+printf ( "Could not open file\n" );
+exit ( 1 );
+}
+_Racquire ( fp,"DEVICE1" ); /* Acquire another device. Replace
+*/
+/* with actual device name. */
+_Rformat ( fp,"FORMAT1" ); /* Set the record format for the */
+/* display file. */
+rfb = _Rwrite ( fp, "", 0 ); /* Set up the display. */
+_Rpgmdev ( fp,"DEVICE2" ); /* Change the default program device. */
+/* Replace with actual device name. */
+_Rformat ( fp,"FORMAT2" ); /* Set the record format for the */
+/* display file. */
+rfb = _Rwrite ( fp, "", 0 ); /* Set up the display. */
+rfb = _Rwriterd ( fp, &buf, sizeof(buf) );
+rfb = _Rwrread ( fp, &in_buf, sizeof(in_buf), &out_buf,
+sizeof(out_buf ));
+_Rreadindv ( fp, &buf, sizeof(buf), __DFT );
+/* Read from the first device that */
+/* enters data - device becomes */
+/* default program device. */
+/* Determine which terminal responded first. */
+iofb = _Riofbk ( fp );
+if ( !strncmp ( "FORMAT1 ", iofb -> rec_format, 10 ))
+{
+_Rrelease ( fp, "DEVICE1" );
+}
+else
+{
+_Rrelease(fp, "DEVICE2" );
+}
+/* Continue processing. */
+printf ( "Data displayed is %45.45s\n", &buf);
+_Rclose ( fp );
+}
+Related Information
+
+_Ropnfbk() — Obtain Open Feedback Information
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

@@ -1,0 +1,173 @@
+TIMESTAMPDIFF
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+TIMESTAMPDIFF
+The TIMESTAMPDIFF function returns an estimated number
+of intervals of the type defined by the first argument, based on the
+difference between two timestamps.
+TIMESTAMPDIFF(numeric-expression,string-expression)
+numeric-expression
+The first argument must be a built-in data type of either INTEGER
+or SMALLINT. The value specifies the interval that is used to determine
+the difference between two timestamps. Valid values of the interval
+follow. Table 1. Valid values for numeric-expression
+and equivalent intervals that are used to determine the difference
+between two timestampsValid values for numeric-expression
+Equivalent intervals
+
+1
+Microseconds
+
+2
+Seconds
+
+4
+Minutes
+
+8
+Hours
+
+16
+Days
+
+32
+Weeks
+
+64
+Months
+
+128
+Quarters
+
+256
+Years
+
+string-expression
+string-expression is the result of subtracting
+two timestamps and converting the result to a string of length 22. If the string-expression has more than 6 digits
+to the right of the decimal point, the string will be truncated to
+6 digits. The argument must be an expression that returns a value
+of a built-in character string or a graphic string. If a positive
+or negative sign is present, it is the first character of the string.
+The following table describes the elements of the character string
+duration:Table 2. TIMESTAMPDIFF String ElementsString elements
+Valid values
+Character position from the decimal
+point (negative is left)
+
+Years
+1-9998 or blank
+-14 to -11
+
+Months
+0-11 or blank
+-10 to -9
+
+Days
+0-30 or blank
+-8 to -7
+
+Hours
+0-24 or blank
+-6 to -5
+
+Minutes
+0-59 or blank
+-4 to -3
+
+Seconds
+0-59
+-2 to -1
+
+Decimal separator
+period
+0
+
+Microseconds
+000000-999999
+1 to 6
+
+The result of the function is an integer with the same
+sign as string-expression. If either argument can be null,
+the result can be null; if either argument is null, the result is
+the null value.
+The returned value is determined for each interval as
+indicated by the following table:Table 3. TIMESTAMPDIFF ComputationsResult interval
+Computation using duration elements
+
+Years
+years
+
+Quarters
+integer value of (months+(years*12))/3
+
+Months
+months + (years*12)
+
+Weeks
+integer value of ((days+(months*30))/7)+(years*52)
+
+Days
+days + (months*30)+(years*365)
+
+Hours
+hours + ((days+(months*30)+(years*365))*24)
+
+Minutes (the absolute value of the duration
+must not exceed 40850913020759.999999)
+minutes + (hours+((days+(months*30)+(years*365))*24))*60
+
+Seconds (the absolute value of the duration
+must be less than 680105031408.000000)
+seconds + (minutes+(hours+((days+(months*30)+(years*365))*24))*60
+)*60
+
+Microseconds (the absolute value of the duration
+must be less than 3547.483648)
+microseconds + (seconds+(minutes*60))*1000000
+
+The following assumptions are used when converting the
+element values to the requested interval type:
+One year has 365 days.
+One year has 52 weeks.
+One year has 12 months.
+One quarter has 3 months.
+One month has 30 days.
+One week has 7 days.
+One day has 24 hours.
+One hour has 60 minutes.
+One minute has 60 seconds.
+One second has 1000000 microseconds.
+
+The use of these assumptions imply that some result values
+are an estimate of the interval. Consider the following examples:Difference of 1 month where the month has less than 30 days.TIMESTAMPDIFF(16, CHAR(TIMESTAMP('1997-03-01-00.00.00') - TIMESTAMP('1997-02-01-00.00.00') ) )
+The
+result of the timestamp arithmetic is a duration of 00000100000000.000000,
+or 1 month. When the TIMESTAMPDIFF function is invoked with 16 for
+the interval argument (days), the assumption of 30 days in a month
+is applied and the result is 30.
+Difference of 1 day less than 1 month where the month has less
+than 30 days.TIMESTAMPDIFF(16, CHAR(TIMESTAMP('1997-03-01-00.00.00') - TIMESTAMP('1997-02-02-00.00.00') ) )
+The
+result of the timestamp arithmetic is a duration of 00000027000000.000000,
+or 27 days. When the TIMESTAMPDIFF function is invoked with 16 for
+the interval argument (days), the result is 27.
+Difference of 1 day less than 1 month where the month has 31 days. TIMESTAMPDIFF(64, CHAR(TIMESTAMP('1997-09-01-00.00.00') - TIMESTAMP('1997-08-02-00.00.00') ) )
+The
+result of the timestamp arithmetic is a duration of 00000030000000.000000,
+or 30 days. When the TIMESTAMPDIFF function is invoked with 64 for
+the interval argument (months), the result is 0. The days portion
+of the duration is 30, but it is ignored because the interval specified
+months.
+
+ExampleThe following statement estimates the age of employees in months
+and returns that value as AGE_IN_MONTHS:SELECT
+TIMESTAMPDIFF(64,
+CAST(CURRENT_TIMESTAMP-CAST(BIRTHDATE AS TIMESTAMP) AS CHAR(22)))
+AS AGE_IN_MONTHS
+FROM EMPLOYEE
+
+Parent topic: Scalar functions

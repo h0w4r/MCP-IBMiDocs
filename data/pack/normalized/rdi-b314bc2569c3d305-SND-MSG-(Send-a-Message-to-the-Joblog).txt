@@ -1,0 +1,215 @@
+SND-MSG (Send a Message to the Joblog)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+SND-MSG (Send a Message to the Joblog)
+
+Free-Form Syntax
+
+SND-MSG{(E)} { message-type } message-text
+{ %TARGET(program-or-procedure {: offset-in-program-stack }) };
+
+SND-MSG{(E)} { message-ype } %MSG(message-id : message-file {: replacement-text } )
+{ %TARGET(program-or-procedure {: offset-in-program-stack }) };
+
+Syntax for a fixed-form statement
+
+Code
+
+Factor 1
+
+Extended Factor 2
+
+SND-MSG{(E)}
+
+ 
+
+{ message-type } message-text
+{ %TARGET(program-or-procedure {: offset-in-program-stack }) }
+
+SND-MSG{(E)}
+
+ 
+
+{ message-type } %MSG(message-id : message-file {: replacement-text } )
+{ %TARGET(program-or-procedure {: offset-in-program-stack }) }
+
+The SND-MSG operation is used to send a message.
+
+The first operand is optional.
+It indicates the type of message to send.
+The default is *INFO.
+
+*COMP
+
+A completion message is sent.
+
+*DIAG
+
+A diagnostic message is sent.
+
+*ESCAPE
+
+An escape message is sent.
+An escape message causes an exception.
+
+If the message is sent to the current procedure, the current procedure fails with status code
+9999 unless the exception
+is handled with a MONITOR group or a
+*PSSR subroutine.
+
+If the message is sent to an earlier program or procedure on the call stack, the current procedure
+ends immediately, and exception handling in the target program or procedure can handle the exception.
+
+*INFO
+
+An informational message is sent.
+
+*NOTIFY
+
+A notification message is sent.
+RPG does not monitor for notification messages.
+
+*STATUS
+
+A status message is sent.
+RPG does not monitor for status messages.
+
+The message can be sent to any procedure on the call stack, including the current procedure.
+The message appears in the joblog after it is sent unless the message type is *STATUS.
+
+The second operand of SND-MSG specifies the message to send.
+It can be
+
+A character, UCS-2 or graphic expression that can be converted to the job CCSID.
+If the message type is *INFO, *COMP,
+or *DIAG,
+the message is sent directly without a message ID.
+If the message type is *ESCAPE, *NOTIFY,
+or *STATUS, the message ID defaults to CPF9898,
+the message file defaults to *LIBL/QCPFMSG,
+and the second operand is used as the replacement text for message CPF9898.
+
+The %MSG built-in function, specifying the message ID,
+message file, and optional replacement text, for the message to be sent.
+
+The third operand of SND-MSG is optional.
+It specifies where the message is sent.
+It must be the %TARGET built-in function.
+If the third operand is not specified, the default depends on the message type.
+
+If the message type is *INFO,
+the default is %TARGET(*SELF).
+The message is sent to the current procedure.
+
+If the message type is *COMP, *DIAG,
+*ESCAPE,
+*NOTIFY, or *STATUS,
+the default is %TARGET(*CALLER).
+The message is sent to the caller of the current procedure.
+
+If an error occurs while sending the message, the SND-MSG operation fails with status code 126.
+Operation extender E can be specified to handle status code 126.
+Note: Status code 126 indicates that the message was not sent. For example, if the message file
+specified for %MSG does not exist, or the program or procedure specified for %TARGET
+is not on the program stack.
+
+Note: API QMHSNDPM is used to send the message.
+See QMHSNDPM
+for more information about sending messages.
+
+Examples of SND-MSG
+
+The following example sends an informational message to the joblog.
+The message is sent to the current procedure.
+No message ID or message file is associated with the message.
+
+SND-MSG 'Hello';
+
+The following example sends an escape message to the joblog.
+The message is sent to the caller of the current procedure.
+Message ID CPF9898 in message file *LIBL/QCPFMSG
+is used to send the message.
+
+SND-MSG *ESCAPE 'File ' + filename + ' not found';
+
+The following example sends an escape message to the current procedure.
+
+If message file MYMSGF exists,
+the SND-MSG operation sends the escape message to the current procedure.
+The ON-ERROR block for status code 9999 runs, and the program displays "Escape message".
+
+If message file MYMSGF does not exist,
+the SND-MSG operation cannot be sent, and the operation fails with status code 126.
+The ON-ERROR block for status code 126 runs, and the program displays "SND-MSG error".
+
+MONITOR;
+SND-MSG *ESCAPE %MSG('ABC1234' : 'MYMSGF') %TARGET(*SELF);
+ON-ERROR 126;
+DSPLY 'SND-MSG error';
+ON-ERROR 9999;
+DSPLY 'Escape message';
+ENDMON;
+
+For more examples of SND-MSG, see
+Examples of %MSG and
+Examples of %TARGET sending messages to another procedure on the call stack.
+
+Example of showing progress messages at the bottom of the screen with message type
+*STATUS and %TARGET(*EXT)
+
+The following program sends progress messages to the bottom of the screen as it
+processes all the records in file MYFILE.
+
+To try this program on your system, replace MYFILE with the name of your file,
+or use OVRDBF to override MYFILE to the name of your file.
+
+When the number of records that have been processed is divisible by 10,
+a message is sent with message-type *STATUS and target *EXT.
+The message shows at the bottom of the screen if it is an interactive job.
+
+When all the records have been processed, a completion message message is sent
+to the caller of the program.
+
+For this example, the processRecord procedure
+simply waits for 1 second.
+
+Choose a file with more than 10 records so you can see the status messages changing
+at the bottom of the screen, but avoid choosing a very large file as this program
+waits for 1 second after reading each record.
+
+CTL-OPT DFTACTGRP(*NO);
+
+DCL-F MYFILE INFDS(infds);
+DCL-DS infds QUALIFIED;
+num_rcds INT(10) POS(156);
+END-DS;
+
+DCL-S i INT(10);
+
+READ MYFILE;
+DOW not %EOF;
+i += 1;
+processRecord ();
+IF %REM(i : 10) = 0;
+SND-MSG *STATUS %char(i) + ' of ' + %char(infds.num_rcds) + ' complete'
+%TARGET(*EXT); // 1
+ENDIF;
+READ MYFILE;
+ENDDO;
+
+SND-MSG *COMP %char(infds.num_rcds) + ' records processed'
+%TARGET(*CALLER : 1); // 2
+
+*INLR = '1';
+
+DCL-PROC processRecord; // 3
+DCL-PR sleep EXTPROC(*DCLCASE);
+seconds UNS(10) VALUE;
+END-PR;
+sleep (1);
+END-PROC;
+
+Parent topic: Operation Codes

@@ -1,0 +1,132 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Special member functions (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Special member functions (C++ only)
+
+ILE C/C++ Language Reference
+
+Destructors (C++ only)
+Destructors are usually used to deallocate
+memory and do other cleanup for a class object and its class members
+when the object is destroyed. A destructor is called for a class object
+when that object passes out of scope or is explicitly deleted.
+A destructor is a member function with the same name as its class
+prefixed by a ~ (tilde). For example:
+class X {
+public:
+// Constructor for class X
+X();
+// Destructor for class X
+~X();
+};
+A destructor takes no arguments and has no return type. Its address
+cannot be taken. Destructors cannot be declared const, volatile, const
+volatile or static. A destructor can be declared virtual or
+pure virtual.
+If no user-defined destructor exists for a class and one is needed,
+the compiler implicitly declares a destructor. This implicitly
+declared destructor is an inline public member of its class.
+The compiler will implicitly define an implicitly declared destructor
+when the compiler uses the destructor to destroy an object of the
+destructor's class type. Suppose a class A has an implicitly
+declared destructor. The following is equivalent to the function the
+compiler would implicitly define for A:
+A::~A() { }
+The compiler first implicitly defines the implicitly declared destructors
+of the base classes and nonstatic data members of a class A before
+defining the implicitly declared destructor of A.
+A destructor of a class A is trivial if
+all the following are true:
+
+It is implicitly defined
+All the direct base classes of A have trivial destructors
+The classes of all the nonstatic data members of A have
+trivial destructors
+If any of the above are false, then the destructor is nontrivial.
+A union member cannot be of a class type that has a nontrivial
+destructor.
+Class members that are class types can have their own destructors.
+Both base and derived classes can have destructors, although destructors
+are not inherited. If a base class A or a member of A has
+a destructor, and a class derived from A does not declare
+a destructor, a default destructor is generated.
+The default destructor calls the destructors of the base class
+and members of the derived class.
+The destructors of base classes and members are called in the reverse
+order of the completion of their constructor:
+
+The destructor for a class object is called before destructors
+for members and bases are called.
+Destructors for nonstatic members are called before destructors
+for base classes are called.
+Destructors for nonvirtual base classes are called before destructors
+for virtual base classes are called.
+When an exception is thrown for a class object with a destructor,
+the destructor for the temporary object thrown is not called until
+control passes out of the catch block.
+Destructors are implicitly called when an automatic object (a local
+object that has been declared auto or register,
+or not declared as static or extern) or temporary
+object passes out of scope. They are implicitly called at program
+termination for constructed external and static objects. Destructors
+are invoked when you use the delete operator for objects
+created with the new operator.
+For example:
+#include <string>
+
+class Y {
+private:
+char * string;
+int number;
+public:
+// Constructor
+Y(const char*, int);
+// Destructor
+~Y() { delete[] string; }
+};
+
+// Define class Y constructor
+Y::Y(const char* n, int a) {
+string = strcpy(new char[strlen(n) + 1 ], n);
+number = a;
+}
+
+int main () {
+// Create and initialize
+// object of class Y
+Y yobj = Y("somestring", 10);
+
+// ...
+
+// Destructor ~Y is called before
+// control returns from main()
+}
+You can use a destructor explicitly to destroy objects, although
+this practice is not recommended. However to destroy an object created
+with the placement new operator, you can explicitly call
+the object's destructor. The following example demonstrates this:
+#include <new>
+#include <iostream>
+using namespace std;
+class A {
+public:
+A() { cout << "A::A()" << endl; }
+~A() { cout << "A::~A()" << endl; }
+};
+int main () {
+char* p = new char[sizeof(A)];
+A* ap = new (p) A;
+ap->A::~A();
+delete [] p;
+}
+The statement A* ap = new (p) A dynamically creates
+a new object of type A not in the free store but in the
+memory allocated by p. The statement delete [] p will
+delete the storage allocated by p, but the run time will
+still believe that the object pointed to by ap still exists
+until you explicitly call the destructor of A (with the
+statement ap->A::~A()).
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

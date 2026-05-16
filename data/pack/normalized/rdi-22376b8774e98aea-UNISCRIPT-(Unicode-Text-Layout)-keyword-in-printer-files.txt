@@ -1,0 +1,249 @@
+UNISCRIPT (Unicode Text Layout) keyword in printer files
+
+IBM i programming resources > DDS > DDS for Printer Files > Keyword entries for printer files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Printer Files > Keyword entries for printer files (positions 45 through 80)
+
+UNISCRIPT (Unicode Text Layout) keyword in printer files
+
+You use this field-level keyword to control the selection
+of text marked for complex script processing.
+
+The keyword has two possible formats:
+UNISCRIPTAll
+of the parameters for the UNISCRIPT keyword have defaults. When the keyword
+is provided without parameters, the default for each parameter value is used.
+You
+can also use the keyword with one or more optional parameters. The parameters
+can be provided in any order.
+UNISCRIPT([*PRECHK] [*NORMALIZE]
+[(*ICULOC 'locale_constant_string' | *NONE | &iculocale_field_name)]
+[(*PARDIR *RL | *LR | *PREV | *CALC | &paragraph_dir_field)]
+[(*ALTIPOS position_value | &alternate_inline_position_field])If
+a parameter is not provided, the default for that parameter value is used.
+Use
+the precheck_data parameter, *PRECHK, to request that the data be tested at
+print time to determine whether complex layout techniques are needed. When
+this optional parameter is specified, the data is first analyzed to determine
+whether complex text layout is required to properly present the string. If
+complex layout is not required, the Unicode data is not marked and is processed
+with traditional text-layout techniques. As such, any subsequent UNISCRIPT
+parameters are ignored for this field. If complex layout is required or this
+parameter is omitted, the data is marked for complex text layout. You must
+have installed IBM® i Option
+39—International Components for Unicode (ICU)—to perform this preprocessing.
+Use
+the icu_locale parameter, *ICULOC, to specify a locale to guide the application
+of the text layout functions. Most applications can determine the correct
+layout for the text using the Unicode code points alone. However, a small
+number of TrueType fonts provide substitute glyphs for specific languages,
+countries, or regions. For example, if a single font contains both Chinese
+and Japanese glyphs, a locale will be needed to access the correct character
+variant. The specification of an ICU locale is not recommended unless the
+font is known to contain such variants and the print application is limited
+to that language or region.
+The parameter is an expression of the form
+(*ICULOC value). The allowed values are:
+
+*NONE. No locale name is associated with the field data. This is the default. The
+default locale of the presentation system is used to guide the text layout
+of the data.
+
+locale_constant_string is a quoted string from 2 to 96 bytes long.The
+locale name must adhere to the convention used by the ICU functions used by
+the presentation system. In general, an ICU locale consists of one, two, or
+three ordered codes separated by an underscore. The first is a two- or three-letter
+lowercase language code from the ISO-639 standard. The locale can be further
+qualified by a two- or three-letter uppercase region code from the ISO-3166
+standard. For each of these codes, the two-character value is used if one
+is defined. The third qualifier, the variant code, is an arbitrary string
+that is application specific.
+Because the quoted string value can contain
+lowercase characters, its encoding must be considered in order to be correctly
+interpreted. If the user provides a constant string as input, the DDS compiler
+verifies that the source member is tagged with a (non-*HEX) CCSID.
+
+The locale name can be provided in a program-to-system field. The
+field must be found in the same record format as the UNISCRIPT keyword, and
+have a data type of A (character) with a length of from 2 to 96.
+When
+the host print transform function is used to print the document, the locale
+name specified must be one of those provided with ICU in IBM i Option
+39. If the specified locale is not found, a substitute locale is found based
+on the class hierarchy for defined locales.
+Use the paragraph_direction
+parameter, *PARDIR, to specify how the overriding paragraph direction is determined.
+This value is used as input when the bidirectional algorithm is applied to
+the data. It will also be used to determine whether to place the text at the
+current or alternate inline position, if an alternate position is specified.
+This parameter can be specified as a special value or as a program-to-system
+field.
+The parameter is an expression of the form (*PARDIR value). The
+supported special values and their definitions are listed as follows:
+
+*CALC. The paragraph direction is determined by the complex text run based
+on the first strong directional character that is encountered. If no such
+characters are found in the string, the default paragraph direction of left-to-right
+is used. This is the default value.
+
+*RL. The paragraph direction is set to right-to-left.
+
+*LR. The paragraph direction is set to left-to-right.
+
+*PREV. The paragraph direction is determined by the previous complex text
+run. If the field is the first complex text run for the page, the paragraph
+direction is determined by the text data based on the first strong directional
+character that is encountered. If no such characters are found in the string,
+the default paragraph direction of left-to-right is used.
+
+If the parameter value is a program-to-system field, the field must
+be found in the same record format as the UNISCRIPT keyword and have a data
+type of A (character) with a length of 5.
+Use the alternate-inline-position
+parameter, *ALTIPOS, to specify an alternate position on the current line
+to be used in place of the current inline (across) position for text runs
+of different paragraph directions. This allows fields with a right-to-left
+paragraph direction to be right-aligned and those with a left-to-right paragraph
+direction to be left-aligned. The determination of which position is used
+as the starting point for a given paragraph direction is based on the relationship
+between the current inline direction and the paragraph direction. See the
+following examples for a discussion of how this parameter is used.
+The
+alternate-inline-position value is applied relative to the margins specified
+on the FRONTMGN or BACKMGN parameter on the CRTPRTF command. Valid values
+are 0 to 57.790 cm (0 to 22.750 in). The UOM parameter on the CRTPRTF command
+determines the units of measure for the alternate-inline-position parameter
+value. If the value specified is outside the valid range, it is flagged when
+the spooled file is created.
+The parameter is an expression of the form
+(*ALTIPOS value). The value can be provided in a program-to-system field.
+The field must be found in the same record format as the UNISCRIPT keyword,
+and have a data type of S (numeric) with a length of 5, and 3 decimal positions.
+If the alternate-inline-position parameter is not provided, no additional
+positioning action is done; this is the default.
+Specify DEVTYPE(*AFPDS)
+on the CRTPRTF command when UNISCRIPT is specified in the file. If DEVTYPE
+is changed to anything other than *AFPDS, the keyword is ignored and a warning
+message is issued at print time.
+When the UNISCRIPT keyword is used
+on a field, the following considerations also apply. The field must have a G data
+type and it must use the CCSID keyword with a UCS-2 or UTF-16 CCSID and the
+*NOCONVERT parameter. Because the keyword offers no benefit unless a TrueType
+font is also applied to the data, the FONTNAME keyword (without code page
+parameters) is also required.
+Option indicators are valid for this keyword.
+
+ExamplesIn the following examples, case is used
+to indicate different implicit character types for those unfamiliar with right-to-left
+letters. Uppercase letters stand for right-to-left characters (such as Arabic
+or Hebrew), and lowercase letters stand for left-to-right characters (such
+as English or Russian). In storage, Unicode characters are stored in logical
+order. For these examples, consider the following text string: "TEXT
+text".
+If *RL or *CALC is specified for the paragraph direction
+parameter, this string is rendered in the following way:
+text TXETIf
+*LR is specified, it is rendered as:
+TXET textWhen
+alternate-inline-position is omitted, the field will be placed at the normal
+position and laid out in the current inline direction, regardless of the specified
+or calculated paragraph direction. By default, *AFPDS printer files use a
+left-to-right (L-to-R) inline direction. A right-to-left (R-to-L) inline direction
+can be achieved by specifying a value of 180 degrees for the *ROTATION parameter
+of the FONTNAME keyword and for the TXTRTT keyword. Assuming that the current
+inline position is P1 and the paragraph direction is R-to-L, then:
+
+If the inline direction is L-to-R, the string is rendered as (P1)text TXET
+
+If the inline direction is R-to-L, the string is rendered as text TXET(P1)
+
+The alternate-inline-position parameter allows applications to position
+L-to-R and R-to-L text correctly without having to change the inline direction.
+It is used in the following way:
+
+If the inline direction is L-to-R (0 degree character rotation), the alternate_inline_position
+(P2) is used for a field with a R-to-L paragraph direction. The normal inline
+position (P1) is used if the paragraph direction is L-to-R.
+
+If the inline direction is R-to-L (180 degree character rotation), the
+alternate inline position (P2) is used for paragraphs with a L-to-R direction.
+The normal inline position (P1) is used if the paragraph direction is R-to-L.
+
+When an alternate-inline-position (P2) is specified, our example string
+is positioned in the following manner:
+
+If the current inline direction is L-to-R and the paragraph direction
+is R-to-L, the string is rendered as (P1) text TXET(P2)
+
+If the current inline direction is L-to-R and the paragraph direction
+is L-to-R, the string is rendered as (P1)TXET text (P2)
+
+If the current inline direction is R-to-L and the paragraph direction
+is L-to-R, the string is rendered as (P1) (P2)TXET text
+
+If the current inline direction is R-to-L and the paragraph direction
+is R-to-L, the string is rendered as text TXET(P1) (P2)
+
+If alternate positions are used throughout a document to produce a
+significantly different report layout for R-to-L scripts, it is very important
+that all fields are interpreted with the same paragraph direction. The special
+value of *PREV is provided for the *PARDIR parameter for this purpose. A program-to-system
+field can also be used to achieve this goal.
+Note that Unicode bidirectional
+processing is not supported for either of the vertical inline directions represented
+by character rotation values of 90 and 270 degrees, and the alternate-inline-position
+is ignored.
+The following example shows how to specify the UNISCRIPT
+keyword.
+Note: By using the code examples, you agree to the terms of the Code license and disclaimer information.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A*
+A R REC1
+A F1 10G 3 8UNISCRIPT
+A CCSID(13488 *NOCONVERT)
+A FONTNAME('Monotype Sans WT' +
+A (*POINTSIZE 10.0))
+A*
+A R REC2 CCSID(1200 *NOCONVERT)
+A FONTNAME('Monotype Sans WT' +
+A (*POINTSIZE 10.0))
+A F2 10G 4 8UNISCRIPT(*NORMALIZE +
+A (*ICULOC 'zh_HK') +
+A (*PARDIR *RL) +
+A (*ALTIPOS 5.77))
+A F3 10G 5 8UNISCRIPT(*PRECHK +
+A (*ICULOC &ICULOC) +
+A (*PARDIR &PARDIR) +
+A (*ALTIPOS &ALTPOS))
+A ICULOC 20A P
+A PARDIR 5A P
+A ALTPOS 5S 3P
+A Note: The UOM
+parameter on the CRTPRTF command determines the units of measure for the parameter
+value of the alternate-inline-position parameter.
+Field F1 in record
+REC1 uses the default values of the UNISCRIPT keyword. The text in F1 is not
+pre-checked to determine whether complex text layout is required. The data
+in the field will not be normalized by the presentation device. The ICU locale
+name is provided by the presentation system. The paragraph direction is determined
+by the first strong directional character that is found in the text in F1.
+The alternate-inline-position parameter is not provided, so no additional
+positioning processing is done. The CCSID keyword with a UCS-2 or UTF-16 CCSID
+and the *NOCONVERT parameter is required. The FONTNAME keyword is also required.
+Record
+REC2 uses the CCSID and FONTNAME keywords at the record level. These keywords
+are applied to each G data type field in the format. The result is
+that any G field with the UNISCRIPT keyword will also have the required
+CCSID and FONTNAME keywords.
+Field F2 in REC2 uses the UNISCRIPT keyword
+with all the parameter values provided. The text will be normalized by the
+presentation device. The ICU locale for Hong Kong S.A.R. of PRC is
+requested. The paragraph direction is set to right-to-left. The text is positioned
+at 5.77 units across from the margins specified on the FRONTMGN or BACKMGN
+parameter on the CRTPRTF command.
+Field F3 in REC2 provides some of
+the values for the UNISCRIPT parameters in program-to-system fields. Note
+that *PRECHK and *NORMALIZE do not support a program-to-system field parameter.
+Because the *NORMALIZE parameter is omitted in this example, the text is not
+normalized by the presentation device (the default). Because the *PRECHK parameter
+is specified, the text in the field is prechecked for complex text.

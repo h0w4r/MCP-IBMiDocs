@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="SYS_CONNECT_BY_PATH">
+<meta name="abstract" content="The SYS_CONNECT_BY_PATH function is used in hierarchical queries to build a string representing a path from the root row to this row.">
+<meta name="Description" content="The SYS_CONNECT_BY_PATH function is used in hierarchical queries to build a string representing a path from the root row to this row.">
+<meta name="DC.subject" content="function, scalar, SYS_CONNECT_BY_PATH, SYS_CONNECT_BY_PATH function">
+<meta name="keywords" content="function, scalar, SYS_CONNECT_BY_PATH, SYS_CONNECT_BY_PATH function">
+<meta name="DC.Relation" scheme="URI" content="rbafzhierquery.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzhierquery.htm">
+<title>SYS_CONNECT_BY_PATH</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzscasys_cby_path.htm" + anchorParam);
+}
+</script>
+</head>
+<body class="pagebreak" id="rbafzscasys_cby_path">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsubsel.htm">Queries</a> > <a href="../../topic/db2/rbafzsubselect.htm">subselect</a> > <a href="../../topic/db2/rbafzhierquery.htm">Hierarchical queries</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d641202e7"><h1 class="topictitle1" id="d641202e7">SYS_CONNECT_BY_PATH</h1>
+<div class="body refbody"><p class="shortdesc">The SYS_CONNECT_BY_PATH function is used in hierarchical
+queries to build a string representing a path from the root row to
+this row.</p>
+<section class="section refsyn"><figure class="fig syntaxdiagram fignone"><span class="figgroup groupseq"><span class="keyword kwd">SYS_CONNECT_BY_PATH</span><span class="ph delim">(</span><span class="ph var">string-expression1</span><span class="ph sep">,</span><span class="ph var">string-expression2</span><span class="ph delim">)</span></span></figure>
+</section><section><div class="p">The string for a given row at LEVEL <em>n</em> is built
+as follows: <ul><li>Step 1 (using the values of the root row from the first intermediate
+result table H<sub>1</sub>):<pre class="codeblock"><code>path1 := string-expression2 || string-expression1</code></pre>
+</li>
+<li>Step n (based on the row from the intermediate result table H<sub>n</sub>):<pre class="codeblock"><code>path<sub>n</sub> := path<sub>n-1</sub> || string-expression2 || string-expression1</code></pre>
+</li>
+</ul>
+   </div>
+</section><section> <dl class="parml"><dt class="pt dlterm"><span class="ph synph"><span class="ph var">string-expression1</span></span></dt>
+<dd class="pd">A character string expression that identifies the row. It must
+be a built-in character string data type. The expression must not
+include a NEXT VALUE expression for a sequence, any hierarchical query construct such as the LEVEL pseudocolumn
+or the CONNECT_BY_ROOT operator,
+an OLAP specification, or an aggregate function. </dd>
+<dt class="pt dlterm"><span class="ph synph"><span class="ph var">string-expression2</span></span></dt>
+<dd class="pd">A character string expression that serves as a separator.  It
+must be a built-in character string data type. The expression must
+not include a NEXT VALUE expression for a sequence, any hierarchical query construct such as the LEVEL pseudocolumn
+or the CONNECT_BY_ROOT operator,
+an OLAP specification, or an aggregate function.</dd>
+</dl>
+</section><section><p>The result is a CLOB(1M). </p>
+</section><section><p>The SYS_CONNECT_BY_PATH function must not be used outside
+of the context of a hierarchical query. It cannot be used in a START WITH clause or a CONNECT
+BY clause.</p>
+</section><div class="example"><h2 class="sectiontitle">Example</h2><ul><li>Return the hierarchy of departments in the DEPARTMENT table.<pre class="codeblock"><code><strong>SELECT CAST</strong>(<strong>SYS_CONNECT_BY_PATH</strong>(DEPTNAME, '/')
+                  <strong>AS VARCHAR</strong>(76)) <strong>AS</strong> ORG
+       <strong>FROM</strong> DEPARTMENT 
+       <strong>START WITH</strong> DEPTNO = 'A00'
+       <strong>CONNECT BY NOCYCLE PRIOR</strong> DEPTNO = ADMRDEPT</code></pre>
+This
+query returns:<pre class="codeblock"><code>ORG
+-----------------------------------------------------------------------
+/SPIFFY COMPUTER SERVICE DIV.
+/SPIFFY COMPUTER SERVICE DIV./PLANNING
+/SPIFFY COMPUTER SERVICE DIV./INFORMATION CENTER
+/SPIFFY COMPUTER SERVICE DIV./DEVELOPMENT CENTER
+/SPIFFY COMPUTER SERVICE DIV./DEVELOPMENT CENTER/MANUFACTURING SYSTEMS
+/SPIFFY COMPUTER SERVICE DIV./DEVELOPMENT CENTER/ADMINISTRATION SYSTEMS
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES/OPERATIONS
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES/SOFTWARE SUPPORT
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES/BRANCH OFFICE F2
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES/BRANCH OFFICE G2
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES/BRANCH OFFICE H2
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES/BRANCH OFFICE I2
+/SPIFFY COMPUTER SERVICE DIV./SUPPORT SERVICES/BRANCH OFFICE J2</code></pre>
+</li>
+</ul>
+</div>
+</div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzhierquery.htm" title="Hierarchical queries are a form of recursive query that provides support for retrieving a hierarchy, such as a bill of materials, from relational data using a CONNECT BY clause.">Hierarchical queries</a></li>
+</ul>
+</aside></article></main></body></html>

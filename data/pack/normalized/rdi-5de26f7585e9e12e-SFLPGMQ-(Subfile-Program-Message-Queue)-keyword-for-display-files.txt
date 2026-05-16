@@ -1,0 +1,138 @@
+SFLPGMQ (Subfile Program Message Queue) keyword for display files
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Display Files > DDS keyword entries for display files (positions 45 through 80)
+
+SFLPGMQ (Subfile Program Message Queue) keyword for display files
+
+You use this field-level keyword on the second (and
+last) field in the subfile record format for a message subfile.
+
+This field contains the name of the program message queue used
+by the IBM® i operating
+system to build a message subfile. In addition, SFLPGMQ can be specified on
+the subfile-control record format when the SFLINZ keyword is specified on
+the subfile-control record format.
+The format of the keyword is: SFLPGMQ([10] | [276])
+When
+10 is specified, SFLPGMQ generates a 10-byte field. 10 is the default.
+When
+276 is specified, SFLPGMQ generates a 276-byte field.
+This field is
+predefined as a character data type, hidden field. The following rules apply:
+
+The field name and the SFLPGMQ keyword and parameters are the only DDS
+you can specify for this field.
+
+If the name of the program message queue placed in this field at processing
+time is less than the field length (10 or 276 bytes), it must be left-aligned
+and padded with blanks.
+
+For Integrated Language Environment® (ILE) programs using the 276-byte parameter value,
+the format of the field data must be as follows:
+The first 256 bytes contains the ILE call message queue name. The call
+message queue name is the same as the ILE procedure name. The name must be
+left-aligned and padded with blanks.
+
+Bytes 257 through 266 will optionally contain the ILE module name. The
+name, when specified, must be left-aligned and padded with blanks. If no module
+name is provided, these bytes must be set to blanks.
+
+Bytes 267 through 276 will optionally contain the name of the ILE bound
+program name. The name, when specified, must be left-aligned and padded with
+blanks. If no bound program name is provided, these bytes must be set to blanks. Notes:
+If a parameter value of 10 is used on SFLPGMQ and an ILE procedure name
+longer than 10 bytes is placed into this field at processing time, the procedure
+name is truncated to 10 bytes. The results will be unpredictable.
+
+If a parameter value of 276 is used on SFLPGMQ and a program message queue
+name is placed into this field at processing time, bytes 257 through 276 must
+be set to blanks. If these bytes are not blank, the system assumes that a
+call message queue name has been given and will not find the specified program
+message queue.
+
+If the SFLPGMQ keyword is specified on both the subfile and subfile control
+record, the SFLPGMQ parameter values must match. However, different subfiles
+within the same file can use different SFLPGMQ parameter values.
+
+This field is required on the subfile record format (identified
+by the SFL keyword) to build the subfile one message at a time through multiple
+output operations to the subfile record format.
+You can also specify
+this field on the subfile-control record format (identified by the SFLCTL
+keyword) to build the subfile all at once through a single output operation
+to the subfile control record. Specify option indicators with the SFLINZ keyword
+to control the way the subfile is built.
+
+Multiple output operationIf you specify the field
+name and SFLPGMQ on the subfile record, you build the subfile one message
+at a time with separate output operations to the subfile record format. For
+each output operation, the message reference key must be in the first field
+of the record (SFLMSGKEY keyword), and the name of the program message queue
+must be in the second field. At the time of the output operation, the IBM i program retrieves the identified
+message from the queue and places it in the subfile as a record.
+Note: A
+CL program cannot be used for a multiple output operation. The relative record
+number required each time a message is built is not supported for CL.
+
+Single output operationIf you specify SFLPGMQ (with
+its named field) and the SFLINZ keyword on the subfile-control record format,
+you build the entire subfile with one output operation directed to the subfile-control
+record format. On the output operation, the IBM i operating
+system initializes the subfile with all messages that are on the program message
+queue whose name is in the SFLPGMQ field. If necessary, the IBM i operating
+system extends the subfile to contain all messages on the queue. For this
+function, the SFLMSGRCD, SFLMSGKEY, and SFLPGMQ keywords must be specified
+with the subfile record format (SFL keyword). The SFLPGMQ and SFLMSGKEY keywords
+are ignored for this function and your program need not set the values of
+their fields.
+
+Special valueThe SFLPGMQ field can contain a special
+value, * (asterisk), instead of a program message queue name. If the program
+moves an asterisk to the SFLPGMQ field, the IBM i operating
+system uses the message queue of the program issuing the output operation.
+You cannot use an asterisk if your program is a CL program.
+
+Both multiple and single output operationsIf you
+specify SFLPGMQ with both the subfile record format and subfile-control
+record format, you can use the single operation function one time and the
+multiple operation function some other time. Do this by setting indicators
+before issuing the output operation; however, all operations to a particular
+subfile must be consistent (multiple or single, but not intermixed) when preparing
+for a single display of the subfile.
+Option indicators and display size
+condition names are not valid for this keyword.
+
+ExampleThe following example shows how to specify
+the SFLPGMQ keyword.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A R RCDMSGILE SFL SFLMSGRCD(3)
+00020A FLDKEY SFLMSGKEY
+00030A FLDPGM SFLPGMQ(276)
+00040A R SFLCTLILE SFLCTL(RCDMSG)
+00050A 01 SFLINZ
+00060A SFLPAG(17)
+00070A SFLSIZ(17)
+00080A SFLDSP SFLDSPCTL
+A :
+A :
+00110A FLDPGM SFLPGMQ(276)
+A R RCDMSGOPM SFL SFLMSGRCD(3)
+A FLDKEY SFLMSGKEY
+A FLDPGM SFLPGMQ
+A R SFLCTLOPM SFLCTL(RCDMSG)
+A 02 SFLINZ
+A SFLPAG(17)
+A SFLSIZ(17)
+A SFLDSP SFLDSPCTL
+A :
+A :
+A FLDPGM SFLPGMQ(10)
+AIn this example, the program can build the subfile with
+more than one output operation (indicator 01 off) or a single output operation
+(indicator 01 on) to the subfile-control record format.
+In the first
+record, the name of the subfile program queue can be as long as 276 bytes,
+while the name of the subfile program queue in the third record format can
+only be 10 bytes long.

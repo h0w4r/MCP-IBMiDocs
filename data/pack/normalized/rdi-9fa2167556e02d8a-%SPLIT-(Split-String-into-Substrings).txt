@@ -1,0 +1,211 @@
+%SPLIT (Split String into Substrings)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%SPLIT (Split String into Substrings)
+
+%SPLIT(string {: separators { : *ALLSEP {: *NATURAL | *STDCHARSIZE}}})
+%SPLIT splits a string into an array of substrings.
+It returns a temporary array of the substrings.
+
+%SPLIT can be used in calculation statements wherever an array can be used except:
+
+SORTA
+
+%ELEM
+
+%LOOKUP
+
+%SUBARR
+
+The first operand is the string to be split.
+It can be alphanumeric, graphic, or UCS-2.
+
+The second operand is the list of characters that indicate the end of each substring.
+It is optional unless *ALLSEP is specified as the
+third parameter.
+
+If it is not specified, or if *BLANK or *BLANKS
+is specified, %SPLIT splits at blanks.
+
+If it is specified and not *BLANK or *BLANKS:
+
+If it does not have the
+same type or CCSID as the first operand,
+it is converted to the type and CCSID of the first operand.
+
+If the length of the second operand is greater than 1, any of the characters in the
+second operand indicate the end of each substring.
+For example, %SPLIT('abc.def-ghi' : '.-') has two separator characters,
+'.', and '-', so it
+returns an array with three elements: ('abc','def','ghi').
+
+The third operand can be *ALLSEP, indicating that
+every separator is considered to separate two substrings.
+When *ALLSEP is not specified, separators following other separators,
+leading separators, and trailing separators are ignored.
+
+The final parameter can be *NATURAL or *STDCHARSIZE
+to override the current CHARCOUNT mode for the statement.
+If this parameter is specified, it must be the last parameter.
+
+Specify *NATURAL to indicate that %SPLIT operates in CHARCOUNT NATURAL
+mode. The number of bytes in each character is considered when locating the
+separators. For example, if the string parameter is a UTF-8 string
+with the value '1á2ç3', and the separators parameter is a UTF-8
+string with the value 'á' only 'á' is considered to be a separator. The result
+strings are '1' and '2ç3'.
+
+Specify *STDCHARSIZE to indicate that %SPLIT operates in CHARCOUNT
+STDCHARSIZE mode. In the previous example, with CHARCOUNT STDCHARSIZE mode, each byte of the separator
+is considered to be a separator character. Characters 'á' and 'ç' are 2-byte
+characters, x'C3A1' and x'C3A7'. The first bytes of
+'á' and 'ç' are the same, x'C3', so the first byte of 'ç' is
+considered to be a separator. The result elements of %SPLIT are not all valid, since
+some UTF-8 characters are split incorrectly.
+
+See Processing string data by the natural size of each character and Character Data Type.
+Note:
+%SPLIT can also operate in CHARCOUNT NATURAL mode due to the
+/CHARCOUNT compiler directive or the CHARCOUNT Control keyword.
+
+How separators are handled by %SPLIT
+
+In the following table, the separator is assumed to be '.'.
+
+Separator type
+
+String to be split
+
+Without *ALLSEP
+
+With *ALLSEP
+
+A leading separator
+
+'.abc'
+
+An array
+with one element: ('abc')
+
+An array
+with two elements: ('','abc')
+
+An extra separator
+
+'abc..def'
+
+An array
+with two elements: ('abc','def')
+
+An array
+with three elements: ('abc','','def')
+
+A trailing separator
+
+'def.'
+
+An array
+with one element: ('def')
+
+An array
+with two elements: ('def','')
+
+Several extra separators
+
+'..abc..def..'
+
+An array
+with two elements: ('abc','def')
+
+An array
+with seven elements: ('','','abc','','def','','')
+
+If the length of the separators operand is zero, the result is a single element
+with the value of the string operand.
+For example, if sep has a length of zero,
+%SPLIT('a.b.c' : sep) returns an array
+with one element: ('a.b.c').
+
+If the string has a length of zero, %SPLIT returns zero elements.
+
+If all the characters in the string are one of the separator characters:
+
+If *ALLSEP is not specified, %SPLIT returns zero elements.
+
+If *ALLSEP is specified, %SPLIT returns
+N + 1 empty strings, where N is the length of the string.
+
+Examples of %SPLIT
+
+In the following example, %SPLIT has only one parameter, so
+the string is split at blanks.
+
+DCL-S array VARCHAR(10) DIM(10);
+
+array = %SPLIT('Monday Tuesday Wednesday');
+// array(1) = "Monday"
+// array(2) = "Tuesday"
+// array(3) = "Wednesday"
+
+In the following example, %SPLIT has two parameters.
+The second parameter has two characters, period (.) and blank.
+The string is split when either of the characters in the second parameter is found.
+
+DCL-S array VARCHAR(10) DIM(10);
+
+array = %SPLIT('Today is Monday. Tomorrow is Tuesday.' : '. ');
+// array(1) = "Today"
+// array(2) = "is"
+// array(3) = "Monday"
+// array(4) = "Tomorrow"
+// array(5) = "is"
+// array(6) = "Tuesday"
+
+In the following example, the FOR-EACH operation is used to process
+the temporary arrays returned by %SPLIT.
+
+The string is first split into sentences, splitting at the characters used to end a sentence.
+
+The string is then split into phrases, splitting at commas, colons, and semi-colons.
+
+Each phrase is then split into words, splitting at blanks.
+
+DCL-S sentence VARCHAR(10000);
+DCL-S phrase VARCHAR(10000);
+DCL-S word VARCHAR(10000);
+DCL-S string VARCHAR(10000);
+
+FOR-EACH sentence in %SPLIT(string : '.!?'); // 1
+...
+FOR-EACH phrase in %SPLIT(sentence : ',;:'); // 2
+...
+FOR-EACH word in %SPLIT(phrase); // 3
+...
+ENDFOR;
+ENDFOR;
+ENDFOR;
+
+In the following example, the RPG programmer does not want extra separators
+to be ignored by %SPLIT.
+
+The string normally contains three names, separated by commas: 'Mary,Jane,Smith'.
+
+If there is no middle name, there are two commas together: 'Mary,,Smith'.
+
+To ensure that all commas act as separators, *ALLSEP is specified.
+
+DCL-S string VARCHAR(100);
+DCL-S names VARCHAR(100) DIM(3);
+
+string = 'Mary,Jane,Smith';
+names = %SPLIT (string : ',' : *ALLSEP);
+// names = Mary | Jane | Smith
+
+string = 'Mary,,Smith';
+names = %SPLIT (string : ',' : *ALLSEP);
+// names = Mary | | Smith
+
+Parent topic: Built-in Functions

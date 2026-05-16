@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Timestamp arithmetic">
+<meta name="abstract" content="Timestamps can be subtracted, incremented, or decremented.">
+<meta name="Description" content="Timestamps can be subtracted, incremented, or decremented.">
+<meta name="DC.subject" content="timestamp, arithmetic operations">
+<meta name="keywords" content="timestamp, arithmetic operations">
+<meta name="DC.Relation" scheme="URI" content="rbafzdatetimearith.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzdatetimearith.htm">
+<title>Timestamp arithmetic</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafztimestamparith.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafztimestamparith">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsqlelem.htm">Language elements</a> > <a href="../../topic/db2/rbafzch2expr.htm">Expressions</a> > <a href="../../topic/db2/rbafzdatetimearith.htm">Datetime arithmetic in SQL</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d799571e7"><h1 class="topictitle1" id="d799571e7">Timestamp arithmetic</h1>
+<div class="body refbody"><p class="shortdesc">Timestamps can be subtracted, incremented, or decremented.</p>
+<section><h2 class="sectiontitle">Subtracting timestamps</h2><p>The result of subtracting
+one timestamp (TS2) from another (TS1) is a timestamp duration that
+specifies the number of years, months, days, hours, minutes, seconds,
+and <span class="ph">fractional seconds</span> between the two timestamps.
+The data type of the result is <span class="ph">DECIMAL(14+<em>s</em>,<em>s</em>),
+where <em>s</em> is the maximum timestamp precision of TS1 and TS2.</span> If
+TS1 is greater than or equal to TS2, TS2 is subtracted from TS1. If
+TS1 is less than TS2, however, TS1 is subtracted from TS2 and the
+sign of the result is made negative. The following procedural description
+clarifies the steps involved in the operation RESULT = TS1 - TS2. </p>
+</section><section><div class="lines"><span class="ph"><div>If SECOND(TS2,s) &lt;= SECOND(TS1,s)</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then SECOND(RESULT,s) = SECOND(TS1,s) - SECOND(TS2,s).</div>
+
+<div>If SECOND(TS2,s) &gt; SECOND(TS1,s)</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; then SECOND(RESULT,s) = 60 + SECOND(TS1,s) - SECOND(TS2,s,)</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; and MINUTE(TS2) is incremented by 1.</div>
+
+<div>The minutes part of the timestamps are subtracted as specified</div>
+<div>in the rules for subtracting times.</div>
+</span>
+<div>If HOUR(TS2) &lt;= HOUR(TS1)</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then HOUR(RESULT) = HOUR(TS1) - HOUR(TS2).</div>
+
+<div>If HOUR(TS2) &gt; HOUR(TS1)</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;then HOUR(RESULT) = 24 + HOUR(TS1) - HOUR(TS2)</div>
+<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;and DAY(TS2) is incremented by 1.</div>
+
+<div>The date part of the timestamps is subtracted as specified</div>
+<div>in the rules for subtracting dates.</div>
+
+</div>
+</section><section>The result of subtracting a date (D1) from a
+timestamp (TS1) is the same as subtracting TIMESTAMP(D1) from TS1.
+Similarly, the result of subtracting one timestamp (TS1) from a date
+(D2) is the same as subtracting TS1 from TIMESTAMP(D2).</section><section><h2 class="sectiontitle">Incrementing and decrementing timestamps</h2><div class="p">The
+result of adding a duration to a timestamp, or of subtracting a duration
+from a timestamp, is itself a timestamp. <span class="ph">The precision
+of the result timestamp matches the precision of the timestamp operand.</span> Date
+and time arithmetic is performed as previously defined, except that
+an overflow or underflow of hours is carried into the date part of
+the result, which must be within the range of valid dates. <span class="ph">Fractional seconds</span> overflow into seconds. <span class="ph">Thus, subtracting a duration, X, from a timestamp, TIMESTAMP1,
+where X is a DECIMAL(14+s,s) number is equivalent to the expression:</span><pre class="codeblock"><code>TIMESTAMP1 - YEAR(X) YEARS - MONTH(X) MONTHS - DAY(X) DAYS
+           - HOUR(X) HOURS - MINUTE(X) MINUTES 
+           - SECOND(X,s) SECONDS</code></pre>
+<span class="ph">When subtracting
+a duration with non-zero scale<span class="ph">, a labeled duration
+of MICROSECOND <span class="ph">or MICROSECONDS</span>,</span> or a labeled
+duration of SECOND or SECONDS with a value that includes fractions
+of a second, the subtraction is performed as if the timestamp value
+has up to 12 fractional second digits. The resulting value is assigned
+to a timestamp value with the timestamp precision of the timestamp
+operand which could result in truncation of fractional second digits.</span></div>
+</section></div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzdatetimearith.htm" title="The only arithmetic operations that can be performed on datetime values are addition and subtraction. If a datetime value is the operand of addition, the other operand must be a duration.">Datetime arithmetic in SQL</a></li>
+</ul>
+</aside></article></main></body></html>

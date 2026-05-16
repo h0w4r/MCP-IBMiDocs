@@ -1,0 +1,86 @@
+XMLSERIALIZE
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+XMLSERIALIZE
+The XMLSERIALIZE function returns a serialized XML value
+of the specified data type generated from the XML-expression argument.
+XMLSERIALIZE(CONTENTXML-expressionASdata-type1VERSION'1.0'EXCLUDING XMLDECLARATIONINCLUDING XMLDECLARATION)data-typeCHARACTERCHAR(1)(integer)CHARACTERCHARVARYINGVARCHAR(integer)FOR BIT DATAFOR SBCS DATAFOR MIXED DATAccsid-clauseCHARACTERCHARLARGE OBJECTCLOB(1M)(integerKMG)FOR SBCS DATAFOR MIXED DATAccsid-clauseGRAPHIC(1)(integer)GRAPHIC VARYINGVARGRAPHIC(integer)DBCLOB(1M)(integerKMG)ccsid-clauseNATIONAL CHARACTERNATIONAL CHARNCHAR(1)(integer)NATIONAL CHARACTERNATIONAL CHARNCHARVARYINGNVARCHAR(integer)NATIONAL CHARACTERNCHARLARGE OBJECTNCLOB(1M)(integerKMG)normalize-clauseBINARY(1)(integer)BINARY VARYINGVARBINARY(integer)BINARY LARGE OBJECTBLOB(1M)(integerKMG)
+ccsid-clauseCCSIDintegernormalize-clausenormalize-clauseNOT NORMALIZEDNORMALIZED
+CONTENT
+Specifies that any XML value can be specified and the result of
+the serialization is based on this input value.
+XML-expression
+An expression that returns a value that is a built-in XML string.
+This is the input to the serialization process.
+
+AS data-type
+Specifies the result type. The implicit or explicit length attribute
+of the specified result data type must be sufficient to contain the
+serialized output.If a CCSID is specified and the data-type is
+GRAPHIC, VARGRAPHIC, or DBCLOB, the CCSID must be a Unicode CCSID.
+If the CCSID attribute is not specified, the CCSID is
+determined as described in CAST specification.
+
+VERSION '1.0'
+Specifies the XML version of the serialized value. The only version
+supported is '1.0' which must be specified as a string constant.
+EXCLUDING XMLDECLARATION or INCLUDING XMLDECLARATION
+Specifies whether an XML declaration is included in the result.
+The default is EXCLUDING XMLDECLARATION.EXCLUDING XMLDECLARATION
+Specifies that an XML declaration is not included in the result.
+INCLUDING XMLDECLARATION
+Specifies that an XML declaration is included in the result. The
+XML declaration is the string '<?xml version="1.0" encoding="encoding-name"?>,
+where encoding-name matches the CCSID of the result data type.
+
+If the result of XML-expression can be null, the
+result can be null; if the result of XML-expression is null,
+the result is the null value.
+ExamplesExample 1: Serialize into
+CLOB of UTF-8, the XML value that is returned by the XMLELEMENT function,
+which is a simple XML element with "Emp" as the element name and an
+employee name as the element content:
+SELECT e.empno, XMLSERIALIZE(XMLELEMENT(NAME "Emp",
+e.firstnme || ' ' ||e.lastname)
+AS CLOB(100) CCSID 1208) AS "result"
+FROM employee e WHERE e.lastname = 'SMITH'
+The
+result looks similar to the following results: EMPNO result
+----- ---------------------
+000250 <Emp>DANIEL SMITH</Emp>
+000300 <Emp>PHILIP SMITH</Emp>
+Example 2: Serialize
+into a string of BLOB type, the XML value that is returned by the
+XMLELEMENT function:
+SELECT XMLSERIALIZE(XMLELEMENT(NAME "Emp",
+e.firstnme || ' ' ||e.lastname)
+AS BLOB(1K)
+VERSION '1.0') AS "result"
+FROM employee e WHERE e.empno = '000300'
+The
+result looks similar to the following results: result
+---------------------
+<Emp>PHILIP SMITH</Emp>
+Example 3: Serialize into a string of CLOB type,
+the XML value that is returned by the XMLELEMENT function. Include
+the XMLDECLARATION:
+SELECT e.empno, e.firstnme, e.lastname,
+XMLSERIALIZE(XMLELEMENT(NAME "xmp:Emp",
+XMLNAMESPACES('http://www.xmp.com' as "xmp"),
+XMLATTRIBUTES(e.empno as "serial"),
+e.firstnme, e.lastname
+OPTION NULL ON NULL)
+AS CLOB(1000) CCSID 1208
+INCLUDING XMLDECLARATION) AS "Result"
+FROM employee e WHERE e.empno = '000300'
+The
+result looks similar to the following results: EMPNO FIRSTNME LASTNAME Result
+------ --------- --------- -----------------------
+000300 PHILIP SMITH <?xml version="1.0" encoding="UTF-8" ?>
+<xmp:Emp xmlns:xmp="http://www.xmp.com"
+serial="000300">PHILIPSMITH</xmp:Emp>
+
+Parent topic: Scalar functions

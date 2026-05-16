@@ -1,0 +1,91 @@
+Character length errors
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures > Passing parameters > Common errors when calling programs and procedures > Common errors when calling programs and procedures
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures > Passing parameters > Common errors when calling programs and procedures
+
+Character length errors
+When you pass character values with incorrect length, errors might
+occur.
+If you pass a character value longer than the declared
+character length of the receiving variable, the receiving procedure or program
+cannot access the excess length. In the following example, PGMB changes the
+variable that is passed to it to blanks. Because the variable is declared
+with LEN(5), only 5 characters are changed to blanks in PGMB,
+but the remaining characters are still part of the value when referred to
+in PGMA.
+PGM /* PGMA */
+DCL &A *CHAR 10
+CHGVAR &A 'ABCDEFGHIJ'
+CALL PGMB PARM(&A) /* PASS to PGMB */
+.
+.
+.
+IF (&A *EQ ' ') THEN(...) /* THIS TEST FAILS */
+ENDPGM
+
+PGM PARM(&A) /* PGMB */
+DCL &A *CHAR 5 /* THIS LEN ERROR*/
+CHGVAR &A ' ' /* 5 POSITIONS ONLY; OTHERS UNAFFECTED */
+RETURN
+While this kind of error does not cause an escape message,
+variables handled this way may function differently than expected.
+If
+the value passed to a procedure or program is shorter than its declared length
+in the receiving procedure or program, there may be more serious consequences.
+In this case, the value of the variable in the called procedure or program
+consists of its values as originally passed, and whatever follows that value
+in storage, up to the length declared in the called procedure or program.
+The content of this adopted storage cannot be predicted. If the passed value
+is a variable, it could be followed by other variables or by internal control
+structures for the procedure or program. If the passed value is a constant,
+it could be followed in storage by other constants passed on the CALL or CALLPRC
+command or by internal control structures.
+If the receiving procedure
+or program changes the value, it operates on the original value and on the
+adopted storage. The immediate effect of this could be to change other variables
+or constants, or to change internal structures in such a way that the procedure
+or program fails. Changes to the adopted storage take effect immediately.
+In
+the following example, two 3-character constants are passed to the called
+program. Character constants are passed with a minimum of 32 characters for
+the Call (CALL) command. (Normally, the value is passed
+as 3 characters left-adjusted with trailing blanks.) If the receiving program
+declares the receiving variable to be longer than 32 positions the extra positions
+use adopted storage of unknown value. For this example, assume that the two
+constants are adjacent in storage.
+CALL PGMA ('ABC' 'DEF') /* PASSING PROG */
+
+PGM PARM(&A &B) /* PGMA */
+DCL &A *CHAR 50 /* VALUE:ABC+29' '+DEF+15' ' */
+DCL &B *CHAR 10 /* VALUE:DEF+7' ' */
+CHGVAR VAR(&A) (' ') /* THIS ALSO BLANKS &B */
+.
+.
+.
+ENDPGM
+Values passed as variables behave in exactly the same way.
+In
+the following example, two 3-character constants are passed to the called
+procedure. Only the number of characters specified are passed for the Call
+Procedure (CALLPRC) command. If the receiving program declares the
+receiving variable to be longer than the length of the passed constant, the
+extra positions use adopted storage of unknown value.
+In the following
+example, assume the two constants are adjacent in storage.
+CALLPRC PRCA ('ABC' 'DEF') /* PASSING PROG */
+
+PGM PARM(&A &B) /* *PRCA */
+DCL &A *CHAR 5 /* VALUE:'ABC' + 'DE' */
+DCL &B *CHAR 3 /* VALUE:'DEF' */
+CHGVAR &A ' ' /* This also blanks the first two bytes of &B */
+.
+.
+.
+ENDPGM
+
+Parent topic: Common errors when calling programs and procedures
+
+Related information
+Call Bound Procedure (CALLPRC) command
+Call Program (CALL) command

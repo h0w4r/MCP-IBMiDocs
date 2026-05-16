@@ -1,0 +1,82 @@
+Loading an Array from Identical Externally-Described Fields
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Using Arrays and Tables > Arrays > Loading a Run-Time Array > Loading a Run-Time Array
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Definitions > Using Arrays and Tables > Arrays > Loading a Run-Time Array
+
+Loading an Array from Identical Externally-Described Fields
+
+If an input record from a externally-described database file has
+several fields that are defined identically, you can define a data
+structure that will allow you to process those fields as though they
+were an array. There are three cases to consider:
+
+The fields are consecutive in the record and appear at the beginning
+of the record.
+A R REC
+A FLD1 5P 0
+A FLD2 5P 0
+A FLD3 5P 0
+A OTHER 10A For this case, you
+can use an externally-described data structure and define your array
+as an additional subfield, mapping the array to the fields using the
+OVERLAY keyword:
+FMYFILE IF E DISK
+D myDS E DS EXTNAME(MYFILE)
+D fldArray LIKE(FLD1) DIM(3)
+D OVERLAY(myDs)
+
+C READ MYFILE
+C FOR i = 1 to %ELEM(fldArray)
+C* ... process fldArray(i)
+C ENDFOR
+
+The fields are consecutive in the record but do not appear at
+the beginning of the record.
+A R REC
+A OTHER1 10A
+A ... more fields
+A FLD1 15A
+A FLD2 15A
+A FLD3 15A
+A OTHER2 10A For this case, you
+can use an externally-described data structure and define your array
+as a standalone field, mapping the array to the fields using the BASED
+keyword, and initializing the basing pointer to the address of the
+first field.
+FMYFILE IF E DISK
+D myDS E DS EXTNAME(MYFILE)
+
+D fldArray S LIKE(FLD1) DIM(3)
+D BASED(pFldArray)
+D pFldArray S * INZ(%addr(FLD1))
+
+C READ MYFILE
+C FOR i = 1 to %ELEM(fldArray)
+C* ... process fldArray(i)
+C ENDFOR
+
+The fields are not consecutive in the record.
+A R REC
+A OTHER1 10A
+A FLD1 T TIMFMT(*ISO)
+A FLD2 T TIMFMT(*ISO)
+A OTHER2 10A
+A FLD3 T TIMFMT(*ISO)
+A OTHER3 10A For this
+case, you must define a program-described data structure and list
+the fields to be used for the array without defining any type information.
+Then map the array to the fields using the OVERLAY keyword.
+FMYFILE IF E DISK
+D myDS DS
+D FLD1
+D FLD2
+D FLD3
+D fldArray LIKE(FLD1) DIM(3)
+D OVERLAY(myDs)
+C READ MYFILE
+C FOR i = 1 to %ELEM(fldArray)
+C* ... process fldArray(i)
+C ENDFOR
+
+Parent topic: Loading a Run-Time Array

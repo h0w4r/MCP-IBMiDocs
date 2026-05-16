@@ -1,0 +1,128 @@
+OVERLAY
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+OVERLAY
+Returns a string where length characters have been deleted from
+source-string beginning at start and where
+insert-string has been inserted into
+source-string beginning at start.
+OVERLAY(source-stringPLACINGinsert-stringFROMstartFORlength,insert-string,start,1,length)
+source-string
+An expression that specifies the source string. The source-string may
+be any built-in numeric, string, or datetime expression. It must be compatible with the
+insert-string. For more information about data type compatibility, see Assignments and comparisons. A numeric or datetime argument is cast to VARCHAR with a CCSID that is
+the default SBCS CCSID at the current server before evaluating the function. For more information
+about converting numeric or datetime to a varying character string, see VARCHAR. The actual length of the string must be greater than zero.The
+OVERLAY function is identical to the INSERT function except that the arguments are in a different
+order and length is optional.
+
+insert-string
+An expression that specifies the string to be inserted into
+source-string, starting at the position identified by
+start. The insert-string may be any built-in
+numeric, string, or datetime expression. It must be compatible with the source-string. For
+more information about data type compatibility, see Assignments and comparisons. A numeric or
+datetime argument is cast to VARCHAR with a CCSID that is the default SBCS CCSID at the current
+server before evaluating the function. For more information about converting numeric or datetime to
+a varying character string, see VARCHAR.
+start
+An expression that returns a value of any built-in numeric, character-string, or graphic-string
+data type. If value is not of type INTEGER, it is implicitly cast to INTEGER before evaluating the
+function. The integer specifies the starting character within
+source-string where the deletion of characters and the insertion of
+another string is to begin. The value of the integer must be in the range of 1 to the length of
+source-string plus one.
+length
+An expression that returns a value of any built-in numeric, character-string, or graphic-string
+data type. If value is not of type INTEGER, it is implicitly cast to INTEGER before evaluating the
+function. The integer specifies the number of characters that are to be deleted from
+source-string, starting at the character position identified by
+start. The value of the integer must be in the range of 0 to the length of
+source-string.
+
+The data type of the result of the function depends on the data type of the first and second
+arguments. The result data type is the same as if the two arguments were concatenated except that
+the result is always a varying-length string. For more information see Conversion rules for operations that combine strings.
+The length attribute of the result depends on the arguments:
+If start and length are constants, the
+length attribute of the result is: L1 - MIN((L1-V2 + 1), V3) + L4
+where:
+L1 is the length attribute of source-string
+V2 depends on the encoding schema of source-string:
+- If the source-string is UTF-8, the value MIN(L1+1,start*3)
+- If the source-string is mixed data, the value MIN(L1+1,(start-1)*2.5+4)
+- Otherwise, the value of start
+V3 is the value of length
+L4 is the length attribute of insert-string
+
+Otherwise, the length attribute of the result is the length attribute of
+source-string plus the length attribute of
+insert-string.
+
+If the length attribute of the result exceeds the maximum for the result data type, an error is
+returned.
+The actual length of the result is:
+A1 - MIN((A1 -V2 + 1), V3) + A4
+
+where:
+
+A1 is the actual length of source-string
+V2 is the value of start
+V3 is the value of length
+A4 is the actual length of insert-string
+
+If the actual length of the result string exceeds the maximum for the result data type, an error
+is returned.
+
+If any argument can be null, the result can be null; if any argument is null, the result is the
+null value.
+
+The CCSID of the result is determined by the CCSID of source-string and
+insert-string. The resulting CCSID is the same as if the two arguments
+were concatenated. For more information, see Conversion rules for operations that combine strings.
+Examples
+The following example shows how the string 'INSERTING' can be changed into other strings. The
+use of the CHAR function limits the length of the resulting string to 10 characters.
+  SELECT OVERLAY('INSERTING', 'IS', 4, 2),
+   OVERLAY('INSERTING', 'IS', 4, 0),
+   OVERLAY('INSERTING', '', 4, 2)
+    FROM SYSIBM.SYSDUMMY1
+This
+example returns 'INSISTING ', 'INSISERTING', and 'INSTING '.
+The previous example demonstrated how to insert text into the middle of some text. This example
+shows how to insert text before some text by using 1 as the starting point
+(start).
+  SELECT OVERLAY('INSERTING', 'XX', 1, 0),
+   OVERLAY('INSERTING', 'XX', 1, 1),
+   OVERLAY('INSERTING', 'XX', 1, 2),
+   OVERLAY('INSERTING', 'XX', 1, 3)
+    FROM SYSIBM.SYSDUMMY1
+This
+example returns 'XXINSERTING', 'XXNSERTING', 'XXSERTING ', and 'XXERTING '.
+The following example shows how to insert text after some text. Add 'XX' at the end of string
+'ABCABC'. Because the source string is 6 characters long, set the starting position to 7 (one plus
+the length of the source string).
+  SELECT OVERLAY('ABCABC', 'XX', 7, 0)
+    FROM SYSIBM.SYSDUMMY1
+This
+example returns 'ABCABCXX '.
+The following example changes the string 'Hegelstraße' to
+'Hegelstrasse'.  SELECT OVERLAY('Hegelstraße', 'ss', 10, 1)
+    FROM SYSIBM.SYSDUMMY1
+This
+example returns 'Hegelstrasse'.
+Assume the variable UTF8_VAR is defined as UTF8 and UTF16_VAR is defined as UTF16. Assume both
+contain Unicode string '&N~AB', where '&' is the musical symbol G clef character, and '~' is
+the combining tilde
+character.  SELECT OVERLAY(UTF8_VAR, 'C', 1),
+   OVERLAY(UTF8_VAR, 'C', 5),
+   OVERLAY(UTF16_VAR, 'C', 1),
+   OVERLAY(UTF16_VAR, 'C', 5)
+    FROM SYSIBM.SYSDUMMY1
+This
+example returns 'CN~AB', '&N~AC', 'CN~AB', and '&N~AC'.
+
+Parent topic: Scalar functions

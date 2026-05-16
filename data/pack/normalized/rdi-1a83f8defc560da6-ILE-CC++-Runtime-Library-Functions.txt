@@ -1,0 +1,148 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+_C_Quickpool_Init() — Initialize
+Quick Pool Memory Manager
+Format
+#include <stdlib.h>
+int _C_Quickpool_Init(unsigned int numpools, unsigned int *cell_sizes, unsigned int *num_cells);
+Language Level: Extended
+Threadsafe: Yes.
+Description
+When the _C_Quickpool_Init() function
+is called, all subsequent calls to memory manager functions (malloc, calloc, realloc,
+and free) in the same activation group use the Quick Pool
+memory manager. This memory manager provides improved performance
+for some applications.
+The Quick Pool memory manager breaks memory up into
+a series of pools. Each pool is broken up into a number of cells with
+identical sizes. The number of pools, the size of cells in each pool,
+and the number of cells in each pool extent is set using the _C_Quickpool_Init() function.
+Environment variables can also be used to configure this support (reference
+section Environment Variables).
+Suppose that a user wants to define four pools,
+each of which contains 64 cells. The first pool will have cells which
+are 16 bytes in size; the second pool will have cells which are 256
+bytes in size; the third pool will have cells which are 1024 bytes
+in size; and the fourth pool will have cells which are 2048 bytes
+in size. When a request for storage is made, the memory manager assigns
+the request to a pool first. The memory manager compares the size
+of storage in the request with the size of the cells in a given pool.
+In this example, the first pool satisfies requests
+between 1 and 16 bytes in size; the second pool satisfies requests
+between 17 and 256 bytes in size; the third pool satisfies requests
+between 257 and 1024 bytes in size, and the fourth pool satisfies
+requests between 1025 and 2048 bytes in size. Any requests larger
+than the largest cell size are allocated through the default memory
+manager.
+After the pool has been assigned, the free queue for the pool is
+examined. Each pool has a free queue that contains cells that have
+been freed and have not yet been reallocated. If there is a cell on
+the free queue, the cell is removed from the free queue and returned;
+otherwise, the cell is retrieved from the current extent for the pool.
+An extent is a collection of cells that are allocated as one block.
+Initially, a pool has no extents.
+When the first request comes in for a pool, an extent
+is allocated for the pool and the request is satisfied from that extent.
+Later requests for the pool are also satisfied by that extent until
+the extent is exhausted. When an extent is exhausted, a new extent
+is allocated for the pool. If a new extent cannot be allocated, it
+assumes that a memory problem exists. An attempt will be made to allocate
+the storage using the default memory manager. If the attempt is not
+successful, the NULL value is returned.
+
+numpools
+The number of pools to use for the Quick Pool
+memory manager. This parameter can have a value between 1 and 64.
+
+cell_sizes
+An array of unsigned integer values. The number of entries in
+the array is equal to the number specified on the numpools parameter.
+Each entry specifies the number of bytes in a cell for a given pool.
+These values must be multiples of 16 bytes. If a value is specified
+that is not a multiple of 16 bytes, the cell size is rounded up to
+the next larger multiple of 16 bytes. The minimum valid value is 16
+bytes and the maximum valid value is 4096 bytes.
+
+num_cells
+An array of unsigned integer values. The number
+of entries in the array is equal to the number specified on the numpools
+parameter. Each entry specifies the number of cells in a single extent
+for the corresponding pool. Each value can be any non-negative
+number, but the total size of each extent may be limited due to architecture
+constraints. A value of zero indicates that the implementation should
+choose a large value.
+
+Here is the call to _C_Quickpool_Init() for the preceding
+example:
+unsigned int cell_sizes[4] = { 16, 256, 1024, 2048 };
+unsigned int cells_per_extent[4] = { 64, 64, 64, 64 };
+rc = _C_Quickpool_Init(4, /* number of pools */
+cell_sizes, /* cell sizes for each pool */
+cells_per_extent); /* extent sizes for each pool */
+Return Value
+The follow list shows the return values for the _C_Quickpool_Init() function:
+
+0
+Success
+
+-1
+An alternate memory manager has already been
+enabled for this activation group.
+
+-2
+Error allocating storage for control structures.
+
+-3
+An invalid number of pools was specified.
+
+-4
+_C_Quickpool_Init() was called from an invalid activation
+group.
+
+-5
+An unexpected exception occurred when _C_Quickpool_Init() was
+running.
+
+Example that uses _C_Quickpool_Init()
+The following example uses _C_Quickpool_Init() to enable
+Quick Pool memory allocation.
+
+#include <stdlib.h>
+#include <stdio.h>
+int main(void) {
+char *p;
+unsigned int cell_sizes[2] = { 16, 64 };
+unsigned int cells_per_extent[2] = { 16, 16 };
+
+if (_C_Quickpool_Init(2, cell_sizes, cells_per_extent) {
+printf("Error initializing Quick Pool memory manager.\n");
+return -1;
+}
+if ((p = malloc(10)) == NULL) {
+printf("Error during malloc.\n");
+return -2;
+}
+free(p);
+printf("Test successful!\n");
+return 0;
+}
+/*****************Output should be similar to:*****************
+Test successful!
+*******************************************************************/
+Related Information
+
+_C_Quickpool_Debug() — Modify
+Quick Pool Memory Manager Characteristics
+_C_Quickpool_Report() — Generate
+Quick Pool Memory Manager Report
+<stdlib.h>
+Heap Memory
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

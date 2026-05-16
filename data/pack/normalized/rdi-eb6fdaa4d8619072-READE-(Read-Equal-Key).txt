@@ -1,0 +1,202 @@
+READE (Read Equal Key)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+READE (Read Equal Key)
+
+Free-Form Syntax
+
+READE{(ENHMR)} search-arg|*KEY name {data-structure}
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+READE (E N)
+
+search-arg
+
+name (file
+or record format)
+
+data-structure
+
+_
+
+ER
+
+EOF
+
+The READE operation retrieves the next sequential record from a
+full procedural file if the key of the record
+matches the search argument. If the key of the record does not match
+the search argument, an EOF condition occurs, and the record is not returned to the program. An EOF condition
+also applies when end of file occurs.
+
+The search argument, search-arg,
+identifies the record to be retrieved. The search-arg operand
+is optional in traditional syntax but is required in free-form syntax. search-arg can be:
+
+A field name, a literal, a named constant, or a figurative constant.
+
+A KLIST name for an externally described file.
+
+A list of key values enclosed in parentheses. See Figure 2 for an example of searching using a list of key
+values.
+
+%KDS to indicate that the search arguments are the
+subfields of a data structure. See the example at the end of %KDS (Search Arguments in Data Structure) for an illustration of search arguments in a data structure.
+
+*KEY or (in traditional syntax only) no value. If the full key
+of the next record is equal to that of the current record, the next
+record in the file is retrieved. The full key is defined by the record
+format or file specified in name.
+
+See *STRICTKEYS
+for information about the effect Control keyword EXPROPTS(*STRICTKEYS)
+has on the rules for specifying keys with a list of values or %KDS.
+
+Note: If a file is defined as update and the
+N operation extender is not specified, occasionally a READE operation
+will be forced to wait for a temporary record lock for a record whose
+key value does not match the search argument. Once the temporary lock
+has been obtained, if the key value does not match the search argument,
+the temporary lock is released.
+In most cases, RPG can perform
+READE by using system support that does not require obtaining a temporary
+record lock to determine whether there is a matching record. However,
+in other cases, RPG cannot use this support, and must request the
+next record before it can determine whether the record matches the
+READE request.
+
+Some of the reasons that would require RPG to
+obtain a temporary lock on the next record for a READE operation are:
+
+the key of the current record is not the same as the search argument
+
+the current record is not the same as the requested record
+
+there are null-capable fields in the file
+
+ALWNULL(*USRCTL) was specified for the module
+
+the file has end-of-file delay
+
+Note:
+
+Graphic and UCS-2 keys must have the same CCSID.
+
+The name operand must be the name of the file
+or record format to be retrieved. A record format name is allowed
+only with an externally described file.
+
+If the data-structure operand is specified,
+the record is read directly into the data structure. If name refers
+to a program-described file, the data structure
+can be any data structure of the same length as the file's declared
+record length. If name refers to an externally-described
+file or a record format from an externally described file, the data
+structure must be a data structure defined with EXTNAME(...:*INPUT or *ALL)
+or LIKEREC(...:*INPUT or *ALL). See File Operations for
+information on how to define the data structure and how data is transferred
+between the file and the data structure.
+
+If the file you are reading is an update disk file, you can specify
+an N operation extender to indicate that no lock should be placed
+on the record when it is read. See the Rational® Development Studio for i: ILE RPG Programmer's Guide for more
+information.
+
+To handle READE exceptions (file status codes greater
+than 1000), either the operation code extender 'E' or an error indicator
+ER can be specified, but not both. For more information on error handling,
+see File Exception/Errors.
+
+You can specify an indicator in positions 75-76 that will be set
+on if an EOF condition occurs: that is, if a record is not found with
+a key equal to the search argument or if an end of file is encountered.
+This information can also be obtained from the %EOF built-in function,
+which returns '1' if an EOF condition occurs and '0' otherwise.
+
+If a READE operation is successful, the file is positioned
+at the next record that satisfies the operation. If there is a record-lock
+error (status 1218), the file is still positioned at the locked record
+and the next read operation will attempt to read that record again.
+Otherwise, if there is any other error or an end of file condition,
+you must reposition the file (using a CHAIN, SETLL, or SETGT operation).
+See CHAIN (Random Retrieval from a File), SETGT (Set Greater Than), or SETLL (Set Lower Limit).
+
+Normally, the comparison between the specified key and
+the actual key in the file is done by data management. In some cases
+this is impossible, causing the comparison to be done using the hexadecimal
+collating sequence. This can give different results than expected.
+For more information, see the section "Unexpected Results Using Keyed
+Files" in Rational Development Studio for i: ILE RPG Programmer's Guide.
+
+A READE with the search-arg operand specified
+that immediately follows an OPEN operation or an EOF condition retrieves
+the first record in the file if the key of the record matches the
+search argument. A READE with no search-arg specified
+that immediately follows an OPEN operation or an EOF condition results
+in an error condition. The error indicator in positions 73 and 74,
+if specified, is set on or the 'E' extender, checked with %ERROR,
+if specified, is set on. No further I/O operations can be issued against
+the file until it is successfully closed and reopened.
+
+See Database Null Value Support for information on handling records with
+null-capable fields and keys.
+
+For more information, see File Operations.
+
+Note: Operation code extenders H, M, and R are allowed
+only when the search argument is a list or is %KDS().
+See Keys for File Operations
+and Ensuring Accuracy.
+
+Figure 1. READE Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* With Factor 1 Specified...
+*
+* The READE operation retrieves the next record from the file
+* FILEA and compares its key to the search argument, KEYFLD.
+*
+* The %EOF built-in function is set to return '1' if KEYFLD is
+* not equal to the key of the record read or if end of file
+* is encountered.
+*
+C KEYFLD READE FILEA
+*
+* The READE operation retrieves the next record of the type REC1
+* from an externally described file and compares the key of the
+* record read to the search argument, KEYFLD. (REC1 is a record
+* format name.) Indicator 56 is set on if KEYFLD is not equal to
+* the key of the record read or if end of file is encountered.
+C KEYFLD READE REC1 56
+*
+* With No Factor 1 Specified...
+*
+* The READE operation retrieves the next record in the access
+* path from the file FILEA if the key value is equal to
+* the key value of the record at the current cursor position.
+*
+* If the key values are not equal, %EOF is set to return '1'.
+C READE FILEA
+*
+* The READE operation retrieves the next record in the access
+* path from the file FILEA if the key value equals the key value
+* of the record at the current position. REC1 is a record format
+* name. Indicator 56 is set on if the key values are unequal.
+* N indicates that the record is not locked.
+C READE(N) REC1 56
+
+Parent topic: Operation Codes

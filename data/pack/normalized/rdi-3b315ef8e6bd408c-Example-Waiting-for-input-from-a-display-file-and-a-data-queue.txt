@@ -1,0 +1,78 @@
+Example: Waiting for input from a display file and a data queue
+
+IBM i programming resources > Control language > Control language > CL programming > Communicating between programs and procedures > Using data queues > Examples: Using a data queue > Examples: Using a data queue
+
+IBM i programming resources > Control language > Control language > CL programming > Communicating between programs and procedures > Using data queues > Examples: Using a data queue
+
+Example: Waiting for input from a display file and a data queue
+This example shows a program in a job waiting for input from a
+display file and for input on a data queue in another job.
+The program in Job B is waiting for input from a display file
+that it is using and for input to arrive on the data queue from Job A. Instead
+of alternately waiting for the display file and then the data queue, the program
+waits for one object, the data queue.
+
+The program calls QRCVDTAQ and waits for the placement of an
+entry on the data queue that was specified on the display file. Job A is
+also placing entries on the same data queue. There are two types of entries
+that are put on this queue, the display file entry, and the user-defined entry.
+Display data management places the display file entry on the data queue when
+data is available from the display file. Job A places the user-defined entry
+on the data queue.
+
+The structure of the display file entry is described in the previous
+example.
+
+The structure of the entry placed on the queue by Job A is defined
+by the application programmer.
+
+The following example shows coding logic that the application
+program in Job B might use:
+.
+.
+.
+.
+OPEN DSPFILE ... /* Open the Display file. DTAQ parameter specified on*/
+/* CRTDSPF, CHGDSPF, or OVRDSPF for the file. */
+
+.
+.
+DO
+WRITE DSPFILE /* Write with Invite for the Display file */
+
+CALL QRCVDTAQ /* Receive an entry from the data queue specified */
+/* on the DTAQ parameter for the file. Entries */
+/* are placed on the data queue either by Job A or */
+/* by display data management when data is */
+/* available from any invited device on the display */
+/* file. */
+/* After the entry is received, determine what type */
+/* of entry it is, process it, and return to receive */
+/* the next entry on the data queue. */
+IF 'ENTRY TYPE' FIELD = '*DSPF ' THEN /* Entry is from display */
+DO /* file. Since this entry*/
+/* does not contain the */
+/* data received, the data*/
+/* must be read from the */
+/* file before it can be */
+READ DATA FROM DISPLAY FILE /* processed. */
+PROCESS INPUT DATA FROM DISPLAY FILE
+WRITE TO DISPLAY FILE /* Write with Invite */
+END
+ELSE /* Entry is from Job A. */
+/* This entry contains */
+/* the data from Job A, */
+/* so no read is required*/
+/* before processing the */
+/* data. */
+PROCESS DATA QUEUE ENTRY FROM JOB A
+LOOP BACK TO RECEIVE ENTRY FROM DATA QUEUE
+.
+.
+.
+END
+
+Parent topic: Examples: Using a data queue
+
+Related tasks
+Using data queues

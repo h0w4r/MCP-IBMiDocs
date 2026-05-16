@@ -1,0 +1,104 @@
+Examples of the datasubf option
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > datasubf > datasubf
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > %DATA and %XML options for DATA-GEN, DATA-INTO, and XML-INTO > datasubf
+
+Examples of the datasubf option
+
+The following definitions are used in the examples
+D customer ds qualified
+D id 10a
+D value 100a varying
+
+D order ds qualified
+D id 10a
+D type 10a
+
+D customers ds qualified
+D customer likeds(customer) dim(2)
+
+D orderinfo ds qualified
+D customer likeds(customer)
+D order likeds(order)
+
+The datasubf option specifies the valuesubfield.
+Assume
+that file customer1.xml contains the following:
+<customer id="A34R27K">John Smith</customer>
+
+When
+XML-INTO encounters "John Smith", it is processing the customer data
+structure. It finds that the customer data structure has
+a subfield called value, so it uses that subfield for the
+"John Smith" data.
+
+xml-into customer %xml('customer1.xml'
+: 'doc=file datasubf=value');
+// customer.id = "A34R27K"
+// customer.value = "John Smith"
+
+The datasubf option is not specified.
+Assume that file customer2.xml contains
+the following:
+<customer id="A34R27K">John Smith</customer>
+
+When
+XML-INTO encounters "John Smith", it is processing the customer data
+structure. XML-INTO does not normally support having data for a data
+structure, so the XML-INTO operation fails with status 00353 due to
+extra XML data.
+
+xml-into(e) customer %xml('customer2.xml'
+: 'doc=file');
+// %error = *on
+// %status = 353
+
+The XML document has an ordinary XML element whose name is the
+same as the datasubf option.
+Assume that file customer3.xml contains
+the following:
+<customer id="A34R27K">
+<value>John Smith</value>
+</customer>
+
+The datasubf option is not
+specified. The XML document has an ordinary XML element called value,
+so the value subfield of the customer data structure
+is filled in the usual way. The datasubf option is not needed.
+
+xml-into customer %xml('customer3.xml' : 'doc=file');
+// customer.id = "A34R27K"
+// customer.value = "John Smith"
+The datasubf=value option
+is specified. The XML document has an ordinary XML element called value.
+The XML-INTO operation fails with status 00353 because a scalar subfield
+with the name of the datasubf option cannot be filled by an XML attribute
+or an XML element.
+xml-into(e) customer %xml('customer3.xml'
+: 'doc=file datasubf=value');
+// %error = *on
+// %status = 353
+
+For a complex data structure, the datasubf option is
+sometimes needed, and sometimes not needed.
+Assume that file customer4.xml contains
+the following:
+<orderinfo>
+<customer id="A34R27K">John Smith</customer>
+<order id="P8H41"><type>telephone</type></order>
+</orderinfo>
+
+The datasubf=value option
+is specified. The customer data structure subfield has a value subfield
+so the datasubf option is used. The order data structure
+subfield does not have a value subfield, so the datasubf option
+is ignored.
+xml-into orderinfo %xml('customer4.xml'
+: 'doc=file datasubf=value');
+// orderinfo.customer.id = "A34R27K"
+// orderinfo.customer.value = "John Smith"
+// orderinfo.order.id = "P8H41"
+// orderinfo.order.type = "telephone"
+
+Parent topic: datasubf

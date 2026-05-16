@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - The dynamic_cast Operator</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="downcasting, dynamic_cast operator, Run-Time Type Information (RTTI), dynamic casting with pointers, dynamic casting with, pointers, dynamic casting with references, for a coding assumption, testing">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog611.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog608.htm">Chapter 30&#46; Casting with Run&#45;Time Type Information</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog610.htm">Using C++ Language&#45;Defined RTTI</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRDYNCAST" HREF="cpprog02.htm#ToC_792">The dynamic_cast Operator</A></H3>
+<P>
+<IMG SRC="ngcpplng.gif" ALT="C++ language only">A <I>dynamic cast</I> expression is used to cast a base class pointer to a
+derived class pointer. This is referred to as
+<I>downcasting</I>.
+<P>
+The <STRONG>dynamic_cast</STRONG> operator:
+<UL>
+<LI>Makes downcasting much safer than conventional static casting
+</LI><LI>Obtains a pointer to an object of a derived class that is given a pointer
+to a base class of that object
+</LI><LI>Returns the pointer only if the specific derived class actually exists
+<DL><DT><B>Note:</B></DT><DD>If the specified derived class does not exist zero is returned.
+</DD></DL>
+</LI></UL>
+<P>Dynamic casts have the form: 
+<PRE>>>-dynamic_cast--&lt;--<i>type_name</i>-->--(--<i>expression</i>--)------------->&lt;
+ 
+ 
+</PRE>
+<P>The operator converts the expression to the desired type
+<TT>type_name</TT>. The <TT>type_name</TT> can be a pointer or a
+reference to a class type. If the cast to <TT>type_name</TT> fails,
+the value of the expression is zero.
+<P><H4><A NAME="Header_793">Dynamic Casts with Pointers</A></H4>
+<P>
+<IMG SRC="ngcpplng.gif" ALT="C++ language only">A dynamic cast using pointers is used to get a pointer to a derived class in
+order to use a detail of the derived class that is not otherwise
+available. For an example, see <A HREF="#FIGDYNCAST0">Figure 328</A>:
+<P><B><A NAME="FIGDYNCAST0" HREF="cpprog09.htm#FT_FIGDYNCAST0">Figure 328. ILE Source to Cast a Pointer to a Derived Class to Use a Detail that Is Otherwise Unavailable</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>class employee {
+public:
+    virtual int salary();
+};
+ 
+class manager : public employee {
+public:
+    int salary();
+    virtual int bonus();
+};
+</PRE>
+</TD></TR></TABLE>
+<P>With the class hierarchy used in <A HREF="#FIGDYNCAST0">Figure 328</A>, dynamic casts can be used to include the
+<TT>manager::bonus()</TT> function in the manager's salary
+calculation but not in the calculation for a regular employee. The
+<STRONG>dynamic_cast</STRONG> operator uses a pointer to the base class
+<TT>employee</TT>, and gets a pointer to the derived class
+<TT>manager</TT> in order to use the <TT>bonus()</TT> member
+function.
+<P>In <A HREF="#FIGDYNCAST1">Figure 329</A>, dynamic casts are needed only if the base class
+<TT>employee</TT> and its derived classes are not available to users (as in
+part of a library where it is undesirable to modify the source code).
+Otherwise, adding new virtual functions and providing derived classes with
+specialized definitions for those functions is a better way to solve this
+problem.
+<P><B><A NAME="FIGDYNCAST1" HREF="cpprog09.htm#FT_FIGDYNCAST1">Figure 329. ILE Source to Get a Pointer to a Derived Class to Use a Member Function in Specified Calculations Only</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>void payroll::calc (employee *pe) {
+   // employee salary calculation
+   if (manager *pm = dynamic_cast&lt;manager*>(pe)) {
+         // use manager::bonus()
+   }
+   else {
+         // use employee's member functions
+   }
+}
+</PRE>
+</TD></TR></TABLE>
+<P>In <A HREF="#FIGDYNCAST1">Figure 329</A>:
+<UL>
+<LI>If <TT>pe</TT> actually points to a <TT>manager</TT> object at run
+time, the dynamic cast is successful, <TT>pm</TT> is initialized to a
+pointer to a <TT>manager</TT>, and the <TT>bonus()</TT> function is
+used.
+</LI><LI>If <TT>pe</TT> does not point to a <TT>manager</TT> object at run
+time,, <TT>pm</TT> is initialized to zero and only the functions in the
+<TT>employee</TT> base class are used.
+</LI></UL>
+<P><H4><A NAME="Header_794">Dynamic Casts with References</A></H4>
+<P>
+<IMG SRC="ngcpplng.gif" ALT="C++ language only">The <STRONG>dynamic_cast</STRONG> operator can be used to cast to reference
+types. C++ reference casts are similar to pointer casts: they can
+be used to cast <VAR>from</VAR> references to base class objects <VAR>to</VAR>
+references to derived class objects.
+<P>In dynamic casts to reference types, <VAR>type_name</VAR> represents a type
+and <VAR>expression</VAR> represents a reference. The operator converts
+the expression to the desired type<TT> type_name&amp;</TT>.
+<P>You cannot verify the success of a dynamic cast using reference types by
+comparing the result (the reference that results from the dynamic cast) with
+zero because there is no such thing as a zero reference. A failing
+dynamic cast to a reference type throws a <STRONG>bad_cast</STRONG> exception.
+<P>
+A dynamic cast with a reference is a good way to test for a coding
+assumption. In <A HREF="#FIGDYNCAST2">Figure 330</A>, the example used in <A HREF="#FIGDYNCAST0">Figure 328</A> is modified to use reference
+casts. 
+<DL><DT><B>Note:</B></DT><DD><A HREF="#FIGDYNCAST2">Figure 330</A> is intended only to show the <STRONG>dynamic_cast</STRONG> operator
+used as a test. <VAR>This example does not demonstrate good programming
+style because it uses exceptions to control execution flow. </VAR>Using
+<STRONG>dynamic_cast</STRONG> with pointers, as shown in <A HREF="#FIGDYNCAST1">Figure 329</A>, is a better way.
+</DD></DL>
+<P><B><A NAME="FIGDYNCAST2" HREF="cpprog09.htm#FT_FIGDYNCAST2">Figure 330. ILE Source to Get a Pointer to a Derived Class Using Reference Casts</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>void payroll::calc (employee &amp;re) {
+   // employee salary calculation
+   try {
+      manager &amp;rm = dynamic_cast&lt;manager&amp;>(re);
+      // use manager::bonus()
+   }
+   catch (bad_cast) {
+      // use employee's member functions
+   }
+}
+</PRE>
+</TD></TR></TABLE>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog610.htm">Previous Page</A> | <A HREF="cpprog612.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

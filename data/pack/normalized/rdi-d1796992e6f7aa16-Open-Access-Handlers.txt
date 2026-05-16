@@ -1,0 +1,108 @@
+Open Access Handlers
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Open Access Files > Open Access Files
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Open Access Files
+
+Open Access Handlers
+
+An Open Access handler is responsible for handling all the
+operations for an Open Access file.
+
+The handler is called when the file is opened, when it is closed,
+and for any input or output operation for the file.
+
+The parameter passed to the handler
+
+The handler is passed a single parameter.
+Copy member QRNOPENACC in file
+QOAR/QRPGLESRC contains the data-structure
+template QrnOpenAccess_T which can be used
+with the LIKEDS keyword to define the parameter in the handler.
+
+The handler parameter contains many pointer subfields that
+point to other structures.
+The copy file contains additional data-structure templates
+that can be used to define these other structures.
+For example, the prtctl subfield can be
+used as the basing pointer for a structure defined
+with keyword LIKEDS(QrnPrtctl_T).
+
+The copy file also contains several named constants that
+can be used within the handler.
+For example, there are several named constants whose names begin
+with QrnOperation_, such as
+QrnOperation_OPEN, that can be used with
+subfield rpgOperation of the handler parameter.
+
+The subfields provide the handler with all the information it needs to perform
+the required operation.
+For example, for an output operation, it
+receives the data to be written to the file.
+
+The subfields also allow the handler to pass back all the information
+needed by RPG following the operation.
+For example, for an input operation, the handler can pass back
+the input data, and it can pass back information about whether
+the file reached end-of-file.
+
+If the handler needs to communicate directly with
+the RPG programmer, the handler provider can ask the RPG programmer
+to specify the communication-area parameter of the
+HANDLER keyword.
+The RPG program and the handler provider must ensure
+that the communication-area parameter is defined the
+same in the handler and the RPG program.
+Normally, the handler provider would provide a template
+data structure in a copy file that the RPG programmer can use
+to define the communication-area parameter.
+Note: The communication area is also referred to as the user area.
+The userArea subfield in the handler parameter
+is a pointer to the communication-area parameter specified
+on the HANDLER keyword in the RPG program.
+
+If the handler needs to maintain state information that is
+available across calls to the handler, it can use the
+stateInfo pointer subfield in the handler parameter.
+If the handler places a pointer value in this subfield during
+one call to the handler, the same pointer value will be avaiable
+for all subsequent calls to the handler for that particular file.
+Normally, a handler will allocate storage for the state information
+while it is handling the OPEN operation, and it will deallocate
+the storage when it is handling the CLOSE operation.
+
+Errors in the handler
+
+If the handler fails with an unhandled exception, the
+RPG operation will fail with a status code relevant to the
+operation. For example, if the operation is an OPEN or a CLOSE
+operation, the error status will be either 1216 or 1217.
+For other operations, the status will be 1299.
+
+If the handler detects an error, there are two mechanisms to
+communicate the failure to the RPG program:
+
+Send an exception message that will cause the handler
+to end with an unhandled exception.
+This message will appear in the joblog, and the subsequent RPG
+error message will refer to this error message.
+The advantage of this mechanism is that the handler
+ends as soon as the exception message is sent,
+so the handler does not have to keep track of whether the operation
+has failed.
+
+Set the rpgStatus subfield of
+the handler parameter to the desired RPG status code.
+It may also be helpful to send a diagnostic message to
+the joblog.
+The advantage of this mechanism is that the handler can
+choose the exact status code. For example, there are several
+status codes associated with WORKSTN
+operations.
+
+See the Rational® Open Access: RPG Edition
+topic for information on writing an Open Access handler.
+
+Example of an Open Access Handler
+
+Parent topic: Open Access Files

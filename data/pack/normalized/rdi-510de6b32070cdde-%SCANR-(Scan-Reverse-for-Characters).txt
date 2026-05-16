@@ -1,0 +1,158 @@
+%SCANR (Scan Reverse for Characters)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%SCANR (Scan Reverse for Characters)
+
+%SCANR(search argument : source string {: start position {: length {: *NATURAL | *STDCHARSIZE}}})
+%SCANR returns the last position of the search argument in the
+source string, or 0 if it was not found.
+
+The start position and length specify the substring of
+the source string to be searched. The start position defaults to 1 and
+the length defaults to the remainder of the source string. The result
+is always the position in the source string even if the starting position
+is specified.
+
+The first and second parameters must be of type character, graphic, or
+UCS-2.
+If the first parameter does not have the
+same type or CCSID as the second parameter,
+the first parameter is converted to the type and CCSID of the second parameter.
+
+The third and fourth parameters, if specified, must be numeric with
+zero decimal positions.
+
+The third, fourth, or fifth parameter can be *NATURAL or *STDCHARSIZE
+to override the current CHARCOUNT mode for the statement.
+If this parameter is specified, it must be the last parameter.
+
+Specify *NATURAL to indicate that %SCANR operates in CHARCOUNT NATURAL mode.
+The start position, length, and return value are measured in characters rather than
+bytes or double bytes. For example, if the source string is a UTF-8 string with the
+value 'ábç12', a start position of 3 refers to 'ç' because it is the third character.
+
+Specify *STDCHARSIZE to indicate that %SCANR operates in CHARCOUNT
+STDCHARSIZE mode. In the previous example, with CHARCOUNT
+STDCHARSIZE mode, a start position of 3 refers to 'b' because it is the
+third byte. Characters 'á' and 'ç' are 2-byte characters.
+
+See Processing string data by the natural size of each character and Character Data Type.
+Note:
+%SCANR can also operate in CHARCOUNT NATURAL mode due to the
+/CHARCOUNT compiler directive or the CHARCOUNT Control keyword.
+
+When any parameter is variable in length, the values of the other
+parameters are checked against the current length, not the maximum
+length.
+
+The type of the return value is numeric. This built-in
+function can be used anywhere that a numeric expression
+is valid.
+
+If the search argument contains trailing blanks, the
+scan will include those trailing blanks. For example if 'b' represents
+a blank, %SCANR('12b':'12b312') would return 1. If trailing blanks
+should not be considered in the scan, use %TRIMR on the search argument.
+For example %SCAN(%TRIMR('12b'):'12b312') would return 5.
+
+For more information, see String Operations or Built-in Functions.
+
+%SCANR Examples
+
+The simplest form of %SCANR, with two operands
+The following example finds the final name in a path.
+
+The value of lastSlash is 27 after it is assigned the result
+of the %SCANR built-in function.
+
+Since lastSlash is not zero, the %SUBST built-in function
+is used to obtain the file name.
+The value of filename "a.txt" after the code completes.
+
+path = '/home/locations/manchester/a.txt';
+lastSlash = %SCANR('/' : path); 1
+if lastSlash = 0;
+filename = path;
+else;
+filename = %SUBST(path : lastSlash + 1); 2
+endif;
+
+Using the third operand of %SCANR to specify the starting position of the
+part of the source string to be searched
+The following example finds the suffix of the filename in a path, if it exists.
+
+%SCANR is used to find the location of the last slash, which indicates the
+beginning of the file name.
+
+%SCANR is used to find the location of the last period, starting at the beginning
+of the file name.
+By specifying the start position for the %SCANR built-in function, the
+program avoids finding any irrelevant periods in the path,
+such as the period in the "st.johns" directory.
+
+In this example, there is no period following the last slash in path
+so the value of suffix will be the empty string.
+
+However, if the value of path was "/home/locations/st.johns/report.txt",
+then the value of suffix will be "txt".
+
+path = '/home/locations/st.johns/report';
+p = %SCANR('/' : path); 1
+if p = 0;
+p = 1; // start the next search at the beginning
+endif;
+dot = %SCANR('.' : path : p + 1); 2
+if dot = 0;
+suffix = ''; 3
+else;
+suffix = %SUBST(path : dot + 1); 4
+endif;
+
+Using the fourth operand of %SCANR to specify the length to be searched
+The following example finds the name of the final directory in the path.
+
+The final slash is found at position 27.
+
+The second %SCANR built-in function indicates the search for the slash
+should only be done between positions 1 and 26.
+
+Since p is not zero in this example,
+the %SUBST built-in function will be used to obtain
+the directory name.
+At the end of the code, dir will have the value "manchester".
+
+path = '/home/locations/manchester/a.txt';
+dir = '';
+p = %SCANR('/' : path); 1
+if p > 0;
+p2 = %SCANR('/' : path : 1 : p - 1);
+if p2 > 0;
+dir = %SUBST(path : p2 + 1 : (p - p2 - 1));
+endif;
+endif;
+
+Example using %SCAN and %SCANR together
+
+In the following example, %SCAN and %SCANR are used with the same operands.
+Since %SCAN searches from the beginning and %SCANR searches from the end, they will
+return different results if there is more than one occurrence of the search argument
+in the search string.
+
+The value returned by the %SCAN built-in function is 1.
+
+The value returned by the %SCANR built-in function is 24.
+
+The values are not the same.
+This indicates that there are at least two occurrences of "VALUE" in the string.
+
+string = 'VALUE 9.56, VALUE 7.3, VALUE 4.71';
+p1 = %SCAN ('VALUE' : string); 1
+p2 = %SCANR ('VALUE' : string); 2
+if p1 <> p2;
+moreThanOne = *ON; 3
+endif;
+
+Parent topic: Built-in Functions

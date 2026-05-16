@@ -1,0 +1,140 @@
+Lock states for objects
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Allocating resources > Allocating resources
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Allocating resources
+
+Lock states for objects
+A lock state identifies the use of the
+object and whether it is shared.
+Objects are allocated on the basis of their intended use (read
+or update) and whether they can be shared (used by more than one job). The
+file and member are always allocated *SHRRD and the file data is allocated
+with the level of lock specified with the lock state. The five lock states
+are (parameter values given in parentheses):
+Exclusive (*EXCL). The object is reserved for the exclusive use of the
+requesting job; no other jobs can use the object. However, if the object
+is already allocated to another job, your job cannot get exclusive use of
+the object. This lock state is appropriate when a user does not want any
+other user to have access to the object until the function being performed
+is complete.
+Exclusive allow read (*EXCLRD). The object is allocated to the job that
+requested it, but other jobs can read the object. This lock is appropriate
+when a user wants to prevent other users from performing any operation other
+than a read.
+Shared for update (*SHRUPD). The object can be shared either for update
+or read with another job. That is, another user can request either a shared-for-read
+lock state or a shared-for-update lock state for the same object. This lock
+state is appropriate when a user intends to change an object but wants to
+allow other users to read or change the same object.
+Shared no update (*SHRNUP). The object can be shared with another job
+if the job requests either a shared-no-update lock state, or a shared-for-read
+lock state. This lock state is appropriate when a user does not intend to
+change an object but wants to ensure that no other user changes the object.
+Shared for read (*SHRRD). The object can be shared with another job if
+the user does not request exclusive use of the object. That is, another user
+can request an exclusive-allow-read, shared-for-update, shared-for-read, or
+shared-no-update lock state.
+
+Note: The allocation of a library does not restrict the operations that
+can be performed on the objects within the library. That is, if one job places
+an exclusive-allow-read or shared-for-update lock state on a library, other
+jobs can no longer place objects in or remove objects from the library; however,
+the other jobs can still update objects within the library.
+The following
+table shows the valid lock state combinations for an object.
+Table 1. Valid
+lock state combinationsIf one job obtains this lock state:
+Another job can obtain this lock state:
+
+*EXCL
+None
+
+*EXCLRD
+*SHRRD
+
+*SHRUPD
+*SHRUPD or *SHRRD
+
+*SHRNUP
+*SHRNUP or *SHRRD
+
+*SHRRD
+*EXCLRD, *SHRUPD, *SHRNUP, or *SHRRD
+
+You can specify all five lock states (*EXCL, *EXCLRD, SHRUPD, SHRNUP,
+and SHRRD) for most object types. this does not apply to all object types.
+Object types that cannot have all five lock states specified are listed
+in the following table with valid lock states for the object type.
+Table 2. Valid lock states for specific object typesObject type
+*EXCL
+*EXCLRD
+*SHRUPD
+*SHRNUP
+*SHRRD
+
+Device description
+ 
+x
+ 
+ 
+ 
+
+Library
+ 
+x
+x
+x
+x
+
+Message queue
+x
+ 
+ 
+ 
+x
+
+Panel group
+x
+x
+ 
+ 
+ 
+
+Program
+x
+x
+ 
+ 
+x
+
+Subsystem description
+x
+ 
+ 
+ 
+ 
+
+It is not an error if the DLCOBJ command is issued against an
+object where you do not have a lock or do not have the specific lock state
+requested to be allocated.
+You can change the lock state of an object,
+as the following example shows.
+Note: By using the code example, you agree
+to the terms of the Code license and disclaimer information.
+PGM
+ALCOBJ OBJ((FILEX *FILE *EXCL)) WAIT(0)
+CALL PGMA
+ALCOBJ OBJ((FILEX *FILE *EXCLRD))
+DLCOBJ OBJ((FILEX *FILE *EXCL))
+CALL PGMB
+DLCOBJ OBJ((FILEX *FILE *EXCLRD))
+ENDPGM
+File FILEX is allocated exclusively for PGMA, but FILEX is
+allocated as exclusive-allow-read for PGMB.
+You can use record locks
+to allocate data records within a file. You can also use the WAITFILE parameter
+on a Create File (CRTF) command to specify how long your
+program is to wait for that file before a time-out occurs.
+
+Parent topic: Allocating resources

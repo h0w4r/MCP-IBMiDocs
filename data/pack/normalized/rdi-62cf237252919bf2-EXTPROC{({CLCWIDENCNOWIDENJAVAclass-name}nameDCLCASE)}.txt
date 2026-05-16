@@ -1,0 +1,280 @@
+EXTPROC{({*CL|*CWIDEN|*CNOWIDEN|*JAVA:class-name:}name|*DCLCASE)}
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords > Definition-Specification Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > Definition Specifications > Definition-Specification Keywords
+
+EXTPROC{({*CL|*CWIDEN|*CNOWIDEN|*JAVA:class-name:}name|*DCLCASE)}
+
+The EXTPROC keyword can have one of the following formats:
+
+EXTPROC
+
+When the EXTPROC keyword is specified without the parameters, the
+external name of the called procedure is the upper-case form of the name
+of the prototype or the name of procedure if the EXTPROC keyword is
+specified for a procedure interface definition.
+
+EXTPROC(*CL:name)
+
+Specifies an external procedure that is written in ILE CL, or an RPG
+procedure to be called by ILE CL. Use *CL if your program uses return values
+with data types that CL handles differently from RPG. For example, use *CL
+when prototyping an RPG procedure that is to be called by a CL procedure when
+the return value is 1A.
+
+EXTPROC(*CWIDEN:name|*CNOWIDEN:name)
+
+Specifies an external procedure that is written in ILE C®, or an RPG
+procedure to be called by ILE C.
+
+Use *CNOWIDEN or *CWIDEN if your program
+uses return values or parameters passed by value with data types that C handles
+differently from RPG. Use *CWIDEN or *CNOWIDEN when defining an RPG procedure
+that is to be called by C, or when defining the prototype for a C procedure,
+where the returned
+value or a parameter passed by value is 1A, 1G or 1C, 5U, 5I, or 4F.
+
+Use *CNOWIDEN if the ILE C source contains #pragma argument(procedure-name,nowiden) for the procedure; otherwise, use *CWIDEN.
+
+EXTPROC(*JAVA:class-name:name)
+
+Specifies a method that is written in Java™, or an RPG native method
+to be called by Java. The first parameter is *JAVA. The second parameter is
+a character constant containing the class of the method. The third parameter
+is a character constant containing the method name. The special method name
+*CONSTRUCTOR means that the method is a constructor; this method can be used
+to instantiate a class (create a new class instance).
+For more information
+about invoking Java procedures, see Rational® Development Studio for i: ILE RPG Programmer's Guide.
+
+EXTPROC(name)
+
+Specifies an external procedure that is written in or to be called by
+RPG or COBOL. This format should also be used for a procedure that can be
+called by any of RPG, COBOL, C, or CL; in this case, you must ensure that
+the return value and the parameters do not have any of the problems listed
+above for *CL, *CWIDEN, and *CNOWIDEN.
+
+The EXTPROC keyword indicates the external name of the procedure whose
+prototype is being defined. The name can be a character constant,
+or procedure pointer.
+
+In a free-form definition, you can specify *DCLCASE as the name
+indicating that the external name is derived from
+the name of item being defined, in the same case as
+the name was specified.
+See Specifying *DCLCASE as the External Name.
+
+When EXTPROC is specified, a bound call will be done.
+
+If neither EXTPGM or EXTPROC is specified, then the compiler assumes that
+you are defining a procedure, and assigns it the upper-case form of the
+name of the prototype or the name of the procedure if the EXTPROC keyword is
+specified for a procedure interface definition.
+
+If the name specified for EXTPROC (or the prototype or procedure name,
+if neither EXTPGM
+or EXTPROC is specified or if
+EXTPROC(*DCLCASE) is specified) starts with "CEE" or an underscore ('_'), the compiler
+will treat this as a system built-in function. To avoid confusion with system provided
+APIs, you should not name your procedures starting with "CEE".
+
+For example, to define the prototype for the procedure SQLAllocEnv, that
+is in the service program QSQCLI, the following definition specification could
+be coded:
+D SQLEnv PR EXTPROC('SQLAllocEnv')
+
+If a procedure pointer is specified, it must be assigned a valid address
+before it is used in a call. It should point to a procedure whose return value
+and parameters are consistent with the prototype definition.
+
+When a prototype is specified for a procedure,
+the EXTPROC keyword is specified for the prototype.
+Otherwise, the EXTPROC keyword is specified for the procedure interface.
+It is only necessary to explicitly specify a prototype when the procedure
+will be called from another RPG module.
+When the procedure is only called from within the same module,
+or when it is only called by non-RPG callers,
+the prototype can be implicitly derived from the procedure interface.
+
+Figure 1 shows an example of the EXTPROC keyword with a procedure
+pointer as its parameter.
+
+Figure 1. Using EXTPROC with a Procedure Pointer
+
+* Assume you are calling a procedure that has a procedure
+* pointer as the EXTPROC. Here is how the prototype would
+* be defined:
+D DspMsg PR 10A EXTPROC(DspMsgPPtr)
+D Msg 32767A
+D Length 4B 0 VALUE
+* Here is how you would define the prototype for a procedure
+* that DspMsgPPtr could be assigned to.
+D MyDspMsg PR LIKE(DspMsg)
+D Msg 32767A
+D Length 4B 0 VALUE
+* Before calling DSPMSG, you would assign DSPMSGPPTR
+* to the actual procedure name of MyDspMsg, that is
+* MYDSPMSG.
+C EVAL DspMsgPPtr = %paddr('MYDSPMSG')
+C EVAL Reply = DspMsg(Msg, %size(Msg))
+...
+P MyDspMsg B
+
+Figure 2. Using EXTPROC with *CNOWIDEN - C Code
+
+char RPG_PROC (short s, float f);
+char C_PROC (short s, float f);
+#pragma argument(RPG_PROC, nowiden)
+#pragma argument(C_PROC, nowiden)
+
+/* "fn" calls the RPG procedure with unwidened parameters, */
+/* and expects the return value to be passed according to C */
+/* conventions. */
+void fn(void)
+{
+char c;
+
+c = RPG_PROC(5, 15.3);
+}
+
+/* Function C_PROC expects its parameters to be passed unwidened.*/
+/* It will return its return value using C conventions. */
+char C_PROC (short s, float f);
+{
+char c = 'x';
+
+if (s == 5 || f < 0)
+{
+return 'S';
+}
+else
+{
+return 'F';
+}
+}
+
+Figure 3. Using EXTPROC with *CNOWIDEN - RPG Code
+
+D RPG_PROC PR 1A EXTPROC(*CNOWIDEN : 'RPG_PROC')
+D short 5I 0 VALUE
+D float 4F VALUE
+
+D C_PROC PR 1A EXTPROC(*CNOWIDEN : 'C_PROC')
+D short 5I 0 VALUE
+D float 4F VALUE
+
+P RPG_PROC B EXPORT
+D PI 1A
+D short 5I 0 VALUE
+D float 4F VALUE
+
+D char S 1A
+
+* Call the C procedure
+C EVAL c = C_PROC(4 : 14.7)
+
+* Return the value depending on the values of the parameters
+C IF short < float
+C RETURN 'L'
+C ELSE
+C RETURN 'G'
+C ENDIF
+
+P E
+
+Figure 4. Using EXTPROC with *CWIDEN - C Code
+
+char RPG_PROC (short s, float f);
+char C_PROC (short s, float f);
+
+/* Function "fn" calls the RPG procedure with widened parameters,*/
+/* and expects the return value to be passed according to C */
+/* conventions. */
+void fn(void)
+{
+char c;
+
+c = RPG_PROC(5, 15.3);
+}
+
+/* Function C_PROC expects its parameters to be passed widened. */
+/* It will return its return value using C conventions. */
+char C_PROC (short s, float f);
+{
+char c = 'x';
+
+if (s == 5 || f < 0)
+{
+return 'S';
+}
+else
+{
+return 'F';
+}
+}
+
+Figure 5. Using EXTPROC with *CWIDEN - RPG Code
+
+D RPG_PROC PR 1A EXTPROC(*CWIDEN : 'RPG_PROC')
+D short 5I 0 VALUE
+D float 4F VALUE
+
+D C_PROC PR 1A EXTPROC(*CWIDEN : 'C_PROC')
+D short 5I 0 VALUE
+D float 4F VALUE
+
+P RPG_PROC B EXPORT
+D PI 1A
+D short 5I 0 VALUE
+D float 4F VALUE
+
+D char S 1A
+
+* Call the C procedure
+C EVAL c = C_PROC(4 : 14.7)
+
+* Return the value depending on the values of the parameters
+C IF short < float
+C RETURN 'L'
+C ELSE
+C RETURN 'G'
+C ENDIF
+
+P E
+
+Figure 6. Using EXTPROC with *CL - CL Code
+
+/* CL procedure CL_PROC */
+DCL &CHAR1 TYPE(*CHAR) LEN(1)
+
+/* Call the RPG procedure */
+CALLPRC RPG_PROC RTNVAR(&CHAR1)
+
+Figure 7. Using EXTPROC with *CL - RPG Code
+
+D RPG_PROC PR 1A EXTPROC(*CL : 'RPG_PROC')
+
+P RPG_PROC B EXPORT
+D PI 1A
+
+C RETURN 'X'
+
+P E
+
+Figure 8. Using EXTPROC on a procedure interface for a procedure intended to be called only by CL callers
+
+P isValidCust B EXPORT
+D PI N EXTPROC(*CL : 'isValidCust')
+D custId 10A CONST
+D isValid S N INZ(*OFF)
+/free
+... calculations using the "custId" parameter
+return isValid;
+/end-free
+P E
+
+Specifying *DCLCASE as the External Name
+
+Parent topic: Definition-Specification Keywords

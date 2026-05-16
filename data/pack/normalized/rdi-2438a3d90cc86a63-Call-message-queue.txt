@@ -1,0 +1,90 @@
+Call message queue
+
+IBM i programming resources > Control language > Control language > Messages > Message queues > Job message queues > Job message queues
+
+IBM i programming resources > Control language > Control language > Messages > Message queues > Job message queues
+
+Call message queue
+A call message queue is used to send messages between one program
+or procedure and another program or procedure.
+As long as a program or procedure is on the call stack (has not returned
+yet), its call message queue is active and messages can be sent to that program
+or procedure. After the program or procedure returns, messages can no longer
+be sent to it. Message types which can be sent to a call message queue include
+informational, request, completion, diagnostic, status, escape, and notify.
+The call message queue for an OPM program or ILE procedure is created when
+that program or procedure is called. The call message queue is exclusively
+associated only with the call stack entry in which the program or procedure
+is running. A call message queue is identified indirectly by identifying the
+call stack entry. A call stack entry is identified by the name of the program
+or procedure that is running in that call stack entry.
+In the case of an OPM program, the associated call stack entry is identified
+by the (up to) 10 character program name. In the case of an ILE procedure,
+the associated call stack entry is identified by a three part name which consists
+of the (up to) 4096 character procedure name, the (up to) 10 character module
+name, and the (up to) 10 character program name. The module name is the name
+of the module into which the procedure was compiled. The ILE program name
+is the name of the ILE program into which the module was bound.
+When identifying the call stack entry for an ILE procedure, it is sufficient
+to specify only the procedure name. If the procedure name by itself does
+not uniquely identify the call stack entry, the module name or the ILE program
+name can also be specified. If, at the time a message is sent, a program or
+procedure is on the call stack more than once, the name specified will identify
+the most recently called occurrence of that program or procedure.
+If an OPM or ILE program is compiled and then replaced while it is on the
+call stack, care must be taken when the program name is used to reference
+a call stack entry. For call stack entries that are earlier on the stack than
+the point at which the replace operation was done, the name reference will
+resolve to the replaced object which now exists in QRPLOBJ. These name references
+are valid as long as the replaced object continues to exist in the QRPLOBJ
+library. For entries on the stack that are more recent than the point at which
+the replace operation was done, the name reference is for the new version
+of the program. Because of the manner in which the version to use is determined,
+you should not place a program directly in the library QRPLOBJ. This library
+should be used exclusively for the replaced version of a program. A name reference
+to a program that you place directly into QRPLOBJ will fail.
+If a program object is removed or renamed while an occurrence of it is
+on the call stack, any name reference to the removed program or any name reference
+using the old name will fail. For ILE procedures, if you are using only the
+procedure and module name for a reference, renaming the program will not impact
+the name reference. If you are also using the ILE program name, the name
+reference will fail.
+A message queue for a call stack entry of a program or procedure is no
+longer available when the program or procedure ends. A message
+that was on the associated call message queue can only be referenced at that
+point by using the message reference key of the message.
+For example, assume that procedure A calls procedure B which calls procedure
+C. Procedure C sends a message to procedure B and ends. The message is available
+to procedure B. However, when procedure B ends, its call message queue is
+no longer available. As a result, you cannot access procedure B by using procedure
+A, even though the message appears in the job log. Procedure A cannot access
+messages that are sent to Procedure B unless Procedure A has the message reference
+key to that message.
+If procedure A needs to delete specific messages, you could do the following:
+Have procedure C send specific messages to procedure A
+Have procedure B move or resend the messages to procedure A
+
+The following figure shows the relationship of procedure calls, the job
+message queue, and the call stack entry queues. Procedure A sends a message
+to itself and to *EXT, and then calls procedure B. Procedure B calls Procedure
+C. Procedure C sends a message to its caller (Procedure B) and then calls
+Procedure D. Procedure D sends a message to itself and calls Procedure B.
+A connecting line (-----) indicates which message queue is associated with
+which call of a procedure.
+In the preceding figure, procedure B has two call stack entry queues, one
+for each call of the procedure. There are no message queues for procedure
+C because no messages were sent to procedure C. When procedure C sends a message
+to procedure B, the message goes to the call stack entry queue for the last
+call of procedure B. Note: When you are using the command entry display,
+you can display all the messages sent to the job message queue by pressing
+F10 (Include detailed messages). After the messages are displayed, you can
+roll through them using one of the roll keys.
+
+You can also display the messages for a job by using the Display
+Job Log (DSPJOBLOG) command.
+
+Parent topic: Job message queues
+
+Related tasks
+Receiving a message from a program or procedure that has ended
+Identifying a call stack entry

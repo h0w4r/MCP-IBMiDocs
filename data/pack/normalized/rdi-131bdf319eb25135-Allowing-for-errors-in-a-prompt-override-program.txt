@@ -1,0 +1,47 @@
+Allowing for errors in a prompt override program
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Key parameters and prompt override programs > Using a prompt override program > Prompt override program > Prompt override program
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Key parameters and prompt override programs > Using a prompt override program > Prompt override program
+
+Allowing for errors in a prompt override program
+Your prompt override program should include error handling.
+If the prompt override program detects an error,
+it should follow these steps to handle the error:
+Set the command string length to zero so that the defaults rather than
+current values are displayed when the command is prompted.
+Send a diagnostic message to the previous program on the call stack.
+Send escape message CPF0011.
+
+For example, if you need a message saying that a library does not
+exist, add a message description similar to the following :
+ADDMSGD MSG('Library &2 does not exist') +
+MSGID(USR0012) +
+MSGF(QGPL/ACTMSG) +
+SEV(40) +
+FMT((*CHAR 4) (*CHAR 10))
+Note: The substitution variable &1 is not in the message but
+is defined in the FMT parameter as 4 characters. &1 is reserved for use
+by the system and must always be 4 characters. If the substitution variable &1
+is the only substitution variable defined in the message, you must ensure
+that the fourth byte of the message data does not contain a blank when you
+send the message. The fourth byte is used by the system to manage messages
+during command processing and prompting.
+This message can be sent
+to the calling program of the prompt override program by specifying the following
+in the prompt override program:
+SNDPGMMSG MSGID(USR0012) MSGF(QGPL/ACTMSG) +
+MSGDTA('0000' ∨∨ &libname) MSGTYPE(*DIAG)
+After the prompt override program sends all the necessary diagnostic
+messages, it should then send message CPF0011. To send message CPF0011, use
+the Send Program Message (SNDPGMMSG) command as follows:
+SNDPGMMSG MSGID(CPF0011) MSGF(QCPFMSG) +
+MSGTYPE(*ESCAPE)
+When message CPF0011 is received, message CPD680A is sent to
+the calling program and displayed on the prompt screen to indicate that errors
+have been found. All diagnostic messages are placed in the user's job log.
+
+Parent topic: Prompt override program
+
+Related information
+Send Program Message (SNDPGMMSG) command

@@ -1,0 +1,84 @@
+Validity checking program
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Defining commands
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands
+
+Validity checking program
+To detect syntax errors and send diagnostic messages for your command,
+write a validity checking program.
+To write a validity checking program for your command,
+specify the name of the validity checking program on the VLDCKR parameter
+on the Create Command (CRTCMD) command.
+The program
+does not have to exist when the Create Command (CRTCMD) command
+is run. If *LIBL is used as the library qualifier, the library list is used
+to find the validity checking program when the created command is run.
+The
+following are two considerations for validity checking programs:
+The validity checking program is called only if the command syntax is
+correct. All parameters are passed to the program the same as they are passed
+to a command processing program.
+You should not use the validity checking program to change parameter values
+because the changed values are not always passed to the command processing
+program.
+
+The remainder of this section describes how to send messages from
+a validity checking program that is written in CL.
+If the validity checking
+program detects an error, it should send a diagnostic message to the previous
+call and then send escape message CPF0002. For example, if you need a message
+saying that an account number is no longer valid, you add a message description
+similar to the following to a message file:
+ADDMSGD MSG('Account number &2 no longer valid') +
+MSGID(USR0012) +
+MSGF(QGPL/ACTMSG) +
+SEV(40) +
+FMT((*CHAR 4) (*CHAR 6))
+Note that the substitution variable &1 is not in the message
+but is defined in the FMT parameter as 4 characters. &1 is reserved for
+use by the system and must always be 4 characters. If the substitution variable &1
+is the only substitution variable defined in the message, you must ensure
+that the fourth byte of the message data does not contain a blank when you
+send the message.
+This message can be sent to the system by specifying
+the following in the validity checking:
+SNDPGMMSG MSGID(USR0012) MSGF(QGPL/ACTMSG) +
+MSGDTA('0000' ∨∨ &ACCOUNT) MSGTYPE(*DIAG)
+After the validity checking has sent all the necessary diagnostic
+messages, it should then send message CPF0002. The Send Program
+Message (SNDPGMMSG) command to send message CPF0002 looks like this:
+
+SNDPGMMSG MSGID(CPF0002) MSGF(QCPFMSG) +
+MSGTYPE(*ESCAPE)
+When the system receives message CPF0002, it sends message
+CPF0001 to the calling program to indicate that errors have been found.
+Message
+CPD0006 has been defined for use by the user-defined validity checking programs.
+An immediate message can be sent in the message data. Note in the following
+example that the message must be preceded by four character zeros.
+The
+following shows an example of a validity checking program:
+PGM PARM(&PARM01)
+DCL VAR(&PARM01) TYPE(*CHAR) LEN(10)
+IF COND(&PARM01 *EQ 'ERROR') THEN(DO)
+SNDPGMMSG MSGID(CPD0006) MSGF(QCPFMSG) +
+MSGDTA('0000 DIAGNOSTIC MESSAGE FROM USER-DEFINED +
+VALIDITY CHECKER INDICATING THAT PARM01 IS IN ERROR.') +
+MSGTYPE(*DIAG)
+SNDPGMMSG MSGID(CPF0002) MSGF(QCPFMSG) MSGTYPE(*ESCAPE)
+ENDDO
+ELSE
+.
+.
+.
+ENDPGM
+
+Parent topic: Defining commands
+
+Related concepts
+Validity checking
+
+Related information
+Send Program Message (SNDPGMMSG) command
+Create Command (CRTCMD) command

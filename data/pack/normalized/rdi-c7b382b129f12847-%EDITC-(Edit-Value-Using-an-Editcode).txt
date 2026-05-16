@@ -1,0 +1,122 @@
+%EDITC (Edit Value Using an Editcode)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%EDITC (Edit Value Using an Editcode)
+
+%EDITC(numeric : editcode {: *ASTFILL | *CURSYM | currency-symbol})
+This function returns a character result representing the numeric
+value edited according to the edit code. In general, the rules for
+the numeric value and edit code are identical to those for editing
+numeric values in output specifications. The third parameter is optional,
+and if specified, must be one of:
+
+*ASTFILL
+
+Indicates that asterisk protection is to be used. This means
+that leading zeros are replaced with asterisks in the returned value.
+For example, %EDITC(-0012.5 : 'K' : *ASTFILL) returns '***12.5-'.
+
+*CURSYM
+
+Indicates that a floating currency symbol is to be used. The
+actual symbol will be the one specified on the control specification
+in the CURSYM keyword, or the default, '$'. When *CURSYM is specified,
+the currency symbol is placed in the the result just before the first
+significant digit. For example, %EDITC(0012.5 : 'K' : *CURSYM) returns '   $12.5 '.
+
+currency-symbol
+
+Indicates that floating currency is to be used with the provided
+currency symbol. It must be a 1-byte character constant (literal,
+named constant or expression that can be evaluated at compile time).
+For example, %EDITC(0012.5 : 'K' : 'X') returns '   X12.5 '.
+
+The result of %EDITC is always the same length, and may contain
+leading and trailing blanks. For example, %EDITC(NUM : 'A' : '$')
+might return '$1,234.56CR' for one value of NUM and '    $4.56  '
+for another value.
+
+Float expressions are not allowed in the first parameter (you can
+use %DEC to convert a float to an editable format). In the second
+parameter, the edit code is specified as a character constant; supported
+edit codes are: 'A' - 'D', 'J' - 'Q', 'X' - 'Z', '1' - '9'. The constant
+can be a literal, named constant or an expression whose value can
+be determined at compile time.
+
+For more information, see Conversion Operations or Built-in Functions.
+
+Figure 1. %EDITC Example 1
+
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+D msg S 100A
+D salary S 9P 2 INZ(1000)
+* If the value of salary is 1000, then the value of salary * 12
+* is 12000.00. The edited version of salary * 12 using the A edit
+* code with floating currency is ' $12,000.00 '.
+* The value of msg is 'The annual salary is $12,000.00'
+CL0N01Factor1+++++++Opcode&ExtExtended-factor2+++++++++++++++++++++++++++
+C EVAL msg = 'The annual salary is '
+C + %trim(%editc(salary * 12
+C :'A': *CURSYM))
+* In the next example, the value of msg is 'The annual salary is &12,000.00'
+C EVAL msg = 'The annual salary is '
+C + %trim(%editc(salary * 12
+C :'A': '&'))
+
+* In the next example, the value of msg is 'Salary is $*****12,000.00'
+* Note that the '$' comes from the text, not from the edit code.
+C EVAL msg = 'Salary is $'
+C + %trim(%editc(salary * 12
+C :'B': *ASTFILL))
+
+* In the next example, the value of msg is 'The date is 1/14/1999'
+C EVAL msg = 'The date is '
+C + %trim(%editc(*date : 'Y'))
+
+A common requirement is to edit a field as follows:
+
+Leading zeros are suppressed
+
+Parentheses are placed around the value if it is negative
+
+The following accomplishes this using an %EDITC in a subprocedure:
+
+Figure 2. %EDITC Example 2
+
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+D neg S 5P 2 inz(-12.3)
+D pos S 5P 2 inz(54.32)
+D editparens PR 50A
+D val 30P 2 value
+D editedVal S 10A
+CL0N01Factor1+++++++Opcode&ExtExtended-factor2+++++++++++++++++++++++++++
+C EVAL editedVal = editparens(neg)
+* Now editedVal has the value '(12.30) '
+C EVAL editedVal = editparens(pos)
+* Now editedVal has the value ' 54.32 '
+*---------------------------------------------------------------
+* Subprocedure EDITPARENS
+*---------------------------------------------------------------
+P editparens B
+D editparens PI 50A
+D val 30P 2 value
+D lparen S 1A inz(' ')
+D rparen S 1A inz(' ')
+D res S 50A
+* Use parentheses if the value is negative
+C IF val < 0
+C EVAL lparen = '('
+C EVAL rparen = ')'
+C ENDIF
+* Return the edited value
+* Note that the '1' edit code does not include a sign so we
+* don't have to calculate the absolute value.
+C RETURN lparen +
+C %editc(val : '1') +
+C rparen
+P editparens E
+
+Parent topic: Built-in Functions

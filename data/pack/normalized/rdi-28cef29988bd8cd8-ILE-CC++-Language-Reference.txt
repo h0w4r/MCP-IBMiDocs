@@ -1,0 +1,162 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only)
+
+ILE C/C++ Language Reference
+
+Exception specifications (C++ only)
+C++ provides a mechanism to ensure that a given function is limited
+to throwing only a specified list of exceptions. An exception specification
+at the beginning of any function acts as a guarantee to the function's
+caller that the function will throw only the exceptions contained
+in the exception specification.
+For example, a function:
+void translate() throw(unknown_word,bad_grammar) { /* ... */ }
+explicitly states that it will only throw exception objects whose
+types are unknown_word or bad_grammar, or any
+type derived from unknown_word or bad_grammar.
+
+Exception specification syntax
+
+>>-throw--(--+--------------+--)-------------------------------><
+'-type_id_list-'
+
+The type_id_list is a comma-separated
+list of types. In this list you cannot specify an incomplete type,
+a pointer or a reference to an incomplete type, other than a pointer
+to void, optionally qualified with const and/or volatile.
+You cannot define a type in an exception specification.
+A function with no exception specification allows all exceptions.
+A function with an exception specification that has an empty type_id_list, throw(), does not allow
+any exceptions to be thrown.
+An exception specification is not part of a function's type.
+An exception specification may only appear at the end of a function
+declarator of a function, pointer to function, reference to function,
+pointer to member function declaration, or pointer to member function
+definition. An exception specification cannot appear in a typedef declaration.
+The following declarations demonstrate this:
+void f() throw(int);
+void (*g)() throw(int);
+void h(void i() throw(int));
+// typedef int (*j)() throw(int); This is an error.The compiler
+would not allow the last declaration, typedef int (*j)() throw(int).
+Suppose that class A is one of the types in the type_id_list of an exception specification of
+a function. That function may throw exception objects of class A,
+or any class publicly derived from class A. The following
+example demonstrates this:
+class A { };
+class B : public A { };
+class C { };
+
+void f(int i) throw (A) {
+switch (i) {
+case 0: throw A();
+case 1: throw B();
+default: throw C();
+}
+}
+
+void g(int i) throw (A*) {
+A* a = new A();
+B* b = new B();
+C* c = new C();
+switch (i) {
+case 0: throw a;
+case 1: throw b;
+default: throw c;
+}
+}Function f() can throw objects of types A or B.
+If the function tries to throw an object of type C, the
+compiler will call unexpected() because type C has
+not been specified in the function's exception specification, nor
+does it derive publicly from A. Similarly, function g() cannot
+throw pointers to objects of type C; the function may throw
+pointers of type A or pointers of objects that derive publicly
+from A.
+A function that overrides a virtual function can only throw
+exceptions specified by the virtual function. The following example
+demonstrates this:
+class A {
+public:
+virtual void f() throw (int, char);
+};
+
+class B : public A{
+public: void f() throw (int) { }
+};
+
+/* The following is not allowed. */
+/*
+class C : public A {
+public: void f() { }
+};
+
+class D : public A {
+public: void f() throw (int, char, double) { }
+};
+*/The compiler allows B::f() because the member function
+may throw only exceptions of type int. The compiler would
+not allow C::f() because the member function may throw
+any kind of exception. The compiler would not allow D::f() because
+the member function can throw more types of exceptions (int, char,
+and double) than A::f().
+Suppose that you assign or initialize a pointer to function named x with
+a function or pointer to function named y. The pointer
+to function x can only throw exceptions specified by the
+exception specifications of y. The following example demonstrates
+this:
+void (*f)();
+void (*g)();
+void (*h)() throw (int);
+
+void i() {
+f = h;
+// h = g; This is an error.
+}The compiler allows the assignment f = h because f can
+throw any kind of exception. The compiler would not allow the assignment h
+= g because h can only throw objects of type int,
+while g can throw any kind of exception.
+Implicitly declared special member functions (default constructors,
+copy constructors, destructors, and copy assignment operators) have
+exception specifications. An implicitly declared special member function
+will have in its exception specification the types declared in the
+functions' exception specifications that the special function invokes.
+If any function that a special function invokes allows all exceptions,
+then that special function allows all exceptions. If all the functions
+that a special function invokes allow no exceptions, then that special
+function will allow no exceptions. The following example demonstrates
+this:
+class A {
+public:
+A() throw (int);
+A(const A&) throw (float);
+~A() throw();
+};
+
+class B {
+public:
+B() throw (char);
+B(const A&);
+~B() throw();
+};
+
+class C : public B, public A { };
+The following special functions in the above example have been
+implicitly declared:
+C::C() throw (int, char);
+C::C(const C&); // Can throw any type of exception, including float
+C::~C() throw();The default constructor of C can
+throw exceptions of type int or char. The copy
+constructor of C can throw any kind of exception. The destructor
+of C cannot throw any exceptions.
+Related information
+
+Incomplete types
+Function declarations and definitions
+Pointers to functions
+Special member functions (C++ only)
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

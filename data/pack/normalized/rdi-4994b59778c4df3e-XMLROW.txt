@@ -1,0 +1,91 @@
+XMLROW
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+XMLROW
+The XMLROW function returns an XML value that is a well-formed
+XML document.
+XMLROW(,expressionASqname-identifierOPTION1ROW"row"ROWrow-nameAS ATTRIBUTES)
+expression
+The content of each XML element is specified by an expression.
+The data type of expression must not be ROWID or DATALINK or
+a distinct type that is based on ROWID or DATALINK. When AS ATTRIBUTES
+is specified, the data type of expression must not be XML or
+a distinct type that is based on XML. The expression can be any SQL
+expression. If the expression is not a simple column reference, an
+element name must be specified.
+AS qname-identifier
+Specifies the XML element name or attribute name as an SQL identifier.
+The qname-identifier must be of the form of an XML qualified
+name, or QName. See the W3C XML namespace specifications for more
+details on valid names. If the name is qualified, the namespace prefix
+must be declared within the scope. If qname-identifier is not
+specified, expression must be a column name. The element name
+or attribute name is created from the column name using the fully
+escaped mapping from a column name to a QName.
+OPTION
+Specifies additional options for constructing the XML value. If
+no OPTION clause is specified, the default behavior applies.
+ROW row-name
+Specifies the name of the element to which each row is mapped.
+If this option is not specified, the default element name is "row".
+AS ATTRIBUTES
+Specifies that each expression is mapped to an attribute value
+with column name or qname-identifier serving as the attribute
+name. AS ATTRIBUTES cannot be specified if any expression has a result
+data type of XML.
+
+The result is an XML sequence containing the concatenation
+of the non-null input XML values.
+The result of the function
+is an XML value. Null values in the input are ignored. If the result
+of any expression can be null, the result can be null; if the
+result of every expression is null, the result is the null
+value.
+NotesBy
+default, each row in the result set is mapped to an XML value as follows:Each row is transformed into an XML element named "row" and each expression is
+transformed into a nested element with the column name or qname-identifier as
+the element name.
+The null handling behavior is NULL ON NULL. A null value for an
+expression maps to the absence of the subelement. If all expression
+values are null, the function returns a null value.
+The binary encoding scheme for binary and FOR BIT DATA data types
+is base64Binary encoding.
+
+ExamplesAssume the following table T1 with
+columns C1 and C2:
+C1 C2
+---- ----
+1 2
+- 2
+1 -
+- -
+The following example shows an XMLROW query and output fragment
+with default behavior, using a sequence of row elements to represent
+the table:  SELECT XMLROW(C1, C2) FROM T1
+<row><C1>1</C1><C2>2</C2></row>
+<row><C2>2</C2></row>
+<row><C1>1</C1></row>
+-
+
+The following example shows an XMLROW query and output fragment
+with attribute centric mapping. Instead of appearing as nested elements,
+data is mapped to element attributes:  SELECT XMLROW(C1, C2 OPTION AS ATTRIBUTES) FROM T1
+<row C1="1" C2="2"/>
+<row C2="2"/>
+<row C1="1"/>
+-
+
+The following example shows an XMLROW query and output fragment
+with the default <row> element replaced by <entry>. Columns
+C1 and C2 are returned as <column1> and <column2> elements,
+and the total of C1 and C2 is returned inside a <total> element:  SELECT XMLROW(C1 AS "column1", C2 AS "column2",
+C1+C2 AS "total" OPTION ROW "entry") FROM T1
+<entry><column1>1</column1><column2>2</column2><total>3</total></entry>
+<entry><column2>2</column2></entry>
+<entry><column1>1</column1></entry>
+-
+
+Parent topic: Scalar functions

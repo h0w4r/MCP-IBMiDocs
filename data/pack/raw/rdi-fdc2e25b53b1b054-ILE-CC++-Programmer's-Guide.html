@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Example: a User-Defined CL Program that Calls an ILE C++ Program</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="calling ILE C++, programs, ILE C++ programs, calling">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog518.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog504.htm">Chapter 25&#46; Working with Multi&#45;Language Applications</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog514.htm">Passing Arguments from a CL Program to an ILE C++ Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRCPPCAL" HREF="cpprog02.htm#ToC_665">Example: a User-Defined CL Program that Calls an ILE C++ Program</A></H3>
+<P><A HREF="#FIGXSQUARE">Figure 246</A> shows how to retrieve a return value from
+<TT>main</TT>. A CL command called <TT>SQUARE</TT> calls an ILE C++
+program <TT>SQITF</TT>. The program <TT>SQITF</TT> calls another
+ILE C++ program called <TT>SQ</TT>. The program <TT>SQ</TT> returns
+a value to program <TT>SQITF</TT>.
+<P>You use the CL command prompt <TT>SQUARE</TT> to enter the number you
+want to determine the square of for the ILE C++ program
+<TT>SQITF</TT>: 
+<PRE>CMD        PROMPT('CALCULATE THE SQUARE')
+PARM       KWD(VALUE) TYPE(*INT4) RSTD(*NO) RANGE(1 +
+           9999) MIN(1) ALWUNPRT(*YES) PROMPT('Value' 1)
+</PRE>
+<DL><DT><B>Note:</B></DT><DD>Returning an integer value from an ILE C++ program may impact
+performance.
+</DD></DL>
+<P><H4><A NAME="Header_666">Programming Tasks</A></H4>
+<P>
+<OL TYPE=1>
+<LI>To create a CL command prompt SQUARE using the source shown below,
+type: 
+<PRE>
+<BR>
+CRTCMD CMD(MYLIB/SQUARE) PGM(MYLIB/SQITF) SRCFILE(MYLIB/QCMDSRC)
+</PRE>
+<P>
+<P><B><A NAME="Figure_243" HREF="cpprog09.htm#FT_Figure_243">Figure 243. SQUARE -- CL Command Source to Receive Input Data</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+CMD        PROMPT('CALCULATE THE SQUARE')
+<BR>             PARM       KWD(VALUE) TYPE(*INT4) RSTD(*NO) RANGE(1 +
+<BR>                          9999) MIN(1) ALWUNPRT(*YES) PROMPT('Value' 1)
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>You use the CL command SQUARE to enter the value for the ILE C
+program SQITF.
+</LI><LI>To create a program SQIFT using the source shown below, type: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/SQIFT) SRCFILE(MYLIB/QCSRC)
+</PRE>
+<P>
+<P>
+<P><B><A NAME="Figure_244" HREF="cpprog09.htm#FT_Figure_244">Figure 244. SQITF -- ILE C Source to Pass an Argument by Value</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program SQITF is called by the command SQUARE. This          */
+<BR>/* program then calls another ILE C program SQ to perform        */
+<BR>/* calculations and return a value.                                  */
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;decimal.h&gt;
+<BR>#pragma linkage(SQ, OS)      /* Tell compiler this is external call, */
+<BR>                             /* do not pass by value.                */
+<BR>int SQ(int);
+<BR>int main(int argc, char *argv[])
+<BR>{
+<BR> int  *x;
+<BR> int  result;
+<BR> x = (int *) argv[1];
+<BR> result = SQ(*x);
+<BR> /* Note that although the argument is passed by value, the compiler */
+<BR> /* copies the argument to a temporary variable, and the pointer to  */
+<BR> /* the temporary variable is passed to the called program SQ.       */
+<BR> printf("The SQUARE of %d is %d\n", *x, result);
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI>To create the program SQ using the source shown below, type: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/SQ) SRCFILE(MYLIB/QCSRC) OUTPUT(*PRINT)
+</PRE>
+<P>
+<P>
+<P><B><A NAME="Figure_245" HREF="cpprog09.htm#FT_Figure_245">Figure 245. SQ -- ILE C Source to Perform Calculations and Return a Value</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program is called by another ILE C program called SQITF. */
+<BR>/* It performs the square calculations and returns a value to SQITF. */
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;decimal.h&gt;
+<BR>int main(int argc, char *argv[])
+<BR>{
+<BR> int    *vin;
+<BR> int    vout;
+<BR> vin  = (int *) argv[1];
+<BR> vout = (*vin)*(*vin);
+<BR> return(vout);
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE> 
+<P>The program SQ calculates an integer value and returns the value to the
+calling program SQITF.
+</LI><LI>To enter data for the program SQITF, type: 
+<PRE>
+<BR>
+SQUARE
+</PRE>
+<P>and press F4 (Prompt).
+</LI><LI>Type <TT>10</TT>, and press Enter. The output is as
+follows: 
+<PRE>
++--------------------------------------------------------------------------------+
+|  The SQUARE of 10 is 100                                                       |
+|  Press ENTER to end terminal session.                                          |
++--------------------------------------------------------------------------------+</PRE>
+</LI></OL>
+<P><H4><A NAME="Header_667">Source Code</A></H4>
+<P>
+<P><B><A NAME="FIGXSQUARE" HREF="cpprog09.htm#FT_FIGXSQUARE">Figure 246. User-Defined CL Command SQUARE that Calculates the Square of a Specified Number</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE> // This program SQITF is called by the command SQUARE. This
+ // program then calls another ILE C++ program SQ to perform
+ // calculations and return a value.
+ 
+ #include &lt;iostream.h>
+ 
+ extern "OS" int SQ(int); // Tell compiler this is external call,
+                         // do not pass by value.
+ 
+ int main(int argc, char *argv[])
+ {
+  int  *x;
+  int  result;
+ 
+  x = (int *) argv[1];
+ 
+  result = SQ(*x);
+ 
+  // Note that although the argument is passed by value, the compiler
+  // copies the argument to a temporary variable, and the pointer to
+  // the temporary variable is passed to the called program SQ.
+ 
+  cout &lt;&lt;"The SQUARE of" &lt;&lt;x &lt;&lt;"is" &lt;&lt;result &lt;&lt;endl;
+}
+</PRE>
+<P>The ILE C++ program <TT>SQ</TT> calculates an integer value and returns<BR>
+the value to the calling program <TT>SQITF</TT>: <BR>
+<PRE>// This program is called by a ILE C++ program called SQITF.
+// It performs the square calculations and returns a value to SQITF.
+ 
+int main(int argc, char *argv[])
+ 
+{ return (*(int *) argv[1]) * (*(int *) argv[1]);
+}
+</PRE>
+</TD></TR></TABLE>
+<P><H4><A NAME="Header_668">Using the CL Command SQUARE to Return the Calculated Value</A></H4>
+<P>To enter data for the program <TT>SQITF</TT>:
+<OL TYPE=1>
+<LI>Enter the command <TT>SQUARE</TT> and press F4 (Prompt).
+</LI><LI>Type <TT>10</TT>, and press Enter.
+</LI></OL>
+<P>The output is: 
+<PRE>
++--------------------------------------------------------------------------------+
+|  The SQUARE of 10 is 100                                                       |
+|  Press ENTER to end terminal session.                                          |
++--------------------------------------------------------------------------------+</PRE>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog517.htm">Previous Page</A> | <A HREF="cpprog519.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

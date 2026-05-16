@@ -1,0 +1,777 @@
+SET OPTION
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+SET OPTION
+The SET OPTION statement establishes the processing options
+to be used for SQL statements.
+InvocationThis statement can be used in
+a REXX procedure
+or embedded in an application program. If used in a REXX procedure, it is an executable
+statement. If embedded in an application program, it is not executable
+and must precede any other SQL statements. This statement cannot
+be dynamically prepared.
+AuthorizationNone required.
+SyntaxSET OPTION,ALWBLK = alwblk-optionALWCPYDTA = alwcpydta-optionBINDOPT = bind-optionCLOSQLCSR = closqlcsr-optionCNULIGN = cnulign-optionCNULRQD = cnulrqd-optionCOMMIT = commit-optionCOMPILEOPT = compile-optionCONACC = concurrent-access-optionDATFMT = datfmt-optionDATSEP = datsep-optionDBGVIEW = dbgview-optionDECFLTRND = decfltrnd-optionDECMPT = decmpt-optionDECRESULT = decresult-optionDFTRDBCOL = dftrdbcol-optionDLYPRP = dlyprp-optionDYNDFTCOL = dyndftcol-optionDYNUSRPRF = dynusrprf-optionEVENTF = eventf-optionEXTIND = extind-optionINCFILE = incfile-optionLANGID = langid-optionMONITOR = monitor-optionNAMING = naming-optionOPTLOB = optlob-optionOUTPUT = output-optionRDBCNNMTH = rdbcnnmth-optionSQLCA = sqlca-optionSQLCURRULE = sqlcurrule-optionSQLPATH = sqlpath-optionSRTSEQ = srtseq-optionSYSTIME = systime-optionTGTRLS = tgtrls-optionTIMFMT = timfmt-optionTIMSEP = timsep-optionUSRPRF = usrprf-option
+alwblk-option*READ*NONE*ALLREADalwcpydta-option*YES*NO*OPTIMIZEbind-option*NONEbind-string-constantclosqlcsr-option*ENDACTGRP*ENDMOD*ENDPGM*ENDSQL*ENDJOBcnulign-option*YES*NOcnulrqd-option*YES*NOcommit-option*CHG*NONE*CS*ALL*RR
+compile-option*NONEcompile-string-constantconcurrent-access-option*CURCMT*WAIT*DFT
+datfmt-option*JOB*ISO*EUR*USA*JIS*MDY*DMY*YMD*JULdatsep-option*JOB*SLASH'/'*PERIOD'.'*COMMA','*DASH'-'*BLANK' 'decfltrnd-option*CEILING*DOWN*FLOOR*HALFDOWN*HALFEVEN*HALFUP*UPdecmpt-option*PERIOD*COMMA*SYSVAL*JOBdecresult-option(31max-precision,31max-scale,0min-divide-scale)dbgview-option*NONE*SOURCE*STMT*LISTdftrdbcol-option*NONEschema-namedlyprp-option*YES*NOdyndftcol-option*YES*NOdynusrprf-option*OWNER*USEReventf-option*YES*NOextind-option*YES*NOincfile-option*LIBL/*CURLIB/library-name/file-namelangid-option*JOB*JOBRUNlanguage-ID
+monitor-option*USER*SYSTEMnaming-option*SYS*SQLoptlob-option*YES*NOoutput-option*NONE*PRINTrdbcnnmth-option*DUW*RUWsqlca-option*YES*NOsqlcurrule-option*DB2*STDsqlpath-option*LIBLpath-string-constantsrtseq-option*JOB*HEX*JOBRUN*LANGIDUNQ*LANGIDSHR*LIBL/*CURLIB/library-name/srtseq-table-namesystime-option*YES*NOtgtrls-optionVxRxMxtimfmt-option*HMS*ISO*EUR*USA*JIStimsep-option*JOB*COLON':'*PERIOD'.'*COMMA','*BLANK' 'usrprf-option*OWNER*USER*NAMING
+DescriptionALWBLK
+Specifies
+whether the database manager can use row blocking and the extent to
+which blocking can be used for read-only cursors. This option will
+be ignored in REXX. *ALLREAD
+Rows are blocked for read-only cursors if COMMIT is *NONE, *CHG,
+or *CS. All cursors in a program that are not explicitly able to be
+updated are opened for read-only processing even though EXECUTE or
+EXECUTE IMMEDIATE statements may be in the program. Specifying
+*ALLREAD:
+Allows row blocking under commitment control level *CHG and *CS
+in addition to the blocking allowed for *READ.
+Can improve the performance of almost all read-only cursors in
+programs, but limits queries in the following ways: The Rollback (ROLLBACK) command, a ROLLBACK statement in host
+languages, or the ROLLBACK HOLD SQL statement does not reposition
+a read-only cursor when: ALWBLK(*ALLREAD) was specified when the program or routine that
+contains the cursor was created
+ALWBLK(*READ) and ALWCPYDTA(*OPTIMIZE) were specified when the
+program or routine that contains the cursor was created
+
+Dynamic running of a positioned UPDATE or DELETE statement (for
+example, using EXECUTE IMMEDIATE), cannot be used to update a row
+in a cursor unless the DECLARE statement for the cursor includes the
+FOR UPDATE clause.
+
+*NONE
+Rows are not blocked for retrieval of data for cursors. Specifying
+*NONE:
+Guarantees that the data retrieved is current.
+May reduce the amount of time required to retrieve the first row
+of data for a query.
+Stops the database manager from retrieving a block of data rows
+that is not used by the program when only the first few rows of a
+query are retrieved before the query is closed.
+Can degrade the overall performance of a query that retrieves
+a large number of rows.
+
+*READ
+Rows are blocked for read-only retrieval of data for cursors when: *NONE is specified on the COMMIT parameter, which indicates that
+commitment control is not used.
+The cursor is declared with a FOR READ ONLY clause or there are
+no dynamic statements that could run a positioned UPDATE or DELETE
+statement for the cursor.
+
+Specifying *READ can improve the overall performance of queries
+that meet the above conditions and retrieve a large number of rows.
+
+ALWCPYDTA
+Specifies
+whether a copy of the data can be used in a SELECT statement. This
+option will be ignored in REXX. *OPTIMIZE
+The system determines whether to use the data retrieved directly
+from the database or to use a copy of the data. The decision is based
+on which method provides the best performance. If COMMIT is *CHG or
+*CS and ALWBLK in not *ALLREAD, or if COMMIT is *ALL or *RR, then
+a copy of the data is used only when it is necessary to run a query.
+*YES
+A copy of the data is used only when necessary.
+*NO
+A copy of the data is not allowed. If a temporary copy of the
+data is required to perform the query, an error message is returned.
+
+BINDOPT
+Specifies
+additional parameters to be used on the CRTPGM or CRTSRVPGM CL command
+that is used when creating an SQL function, SQL procedure, or SQL
+trigger. The BINDOPT string is added to the CRTPGM or CRTSRVPGM CL
+command generated by the precompiler. The contents of the string are
+not validated. The bind command will issue an error if any parameter
+is incorrect. The following bind options cannot be specified in this
+string since they are set by the precompiler: ACTGRP, ALWRINZ, AUT, ENTMOD,
+EXPORT, MODULE, REPLACE, STGMDL, TEXT, TGTRLS, and USRPRF.This
+option is only allowed in an SQL function, SQL procedure, or SQL trigger.
+This option will be ignored in REXX.
+*NONE
+No additional parameters will be used on the CRTPGM or CRTSRVPGM
+CL command.
+bind-string-constant
+A character constant of no more than 5000 characters containing
+the bind options.
+
+CLOSQLCSR
+Specifies
+when SQL cursors are implicitly closed, SQL prepared statements are
+implicitly discarded, and LOCK TABLE locks are released. SQL cursors
+are explicitly closed when you issue the CLOSE, COMMIT, or ROLLBACK
+(without HOLD) SQL statements. This option will be ignored in REXX. *ENDACTGRP
+and *ENDMOD are for use by ILE programs and modules, SQL functions,
+SQL procedures, or SQL triggers. *ENDPGM, *ENDSQL, and *ENDJOB are
+for use by non-ILE programs. SQL scalar functions, SQL
+procedures, and SQL triggers use *ENDMOD as the default. SQL table
+functions are always created using *ENDACTGRP.
+*ENDACTGRP
+SQL cursors are closed, SQL prepared statements are implicitly
+discarded, and LOCK TABLE locks are released when the activation group
+ends.
+*ENDMOD
+SQL cursors are closed and SQL prepared statements are implicitly
+discarded when the module is exited. LOCK TABLE locks are released
+when the first SQL program on the call stack ends. Note
+that a cursor may only be logically closed and will only be physically
+closed when the first program with SQL leaves the stack and only if
+that program was not compiled with *ENDACTGRP.
+*ENDPGM
+SQL cursors are closed and SQL prepared statements are discarded
+when the program ends. LOCK TABLE locks are released when the first
+SQL program on the call stack ends.
+*ENDSQL
+SQL cursors remain open between calls and can be fetched without
+running another SQL OPEN. One of the programs higher on the call stack
+must have run at least one SQL statement. SQL cursors are closed,
+SQL prepared statements are discarded, and LOCK TABLE locks are released
+when the first SQL program on the call stack ends. If *ENDSQL is specified
+for a program that is the first SQL program called (the first SQL
+program on the call stack), the program is treated as if *ENDPGM was
+specified.
+*ENDJOB
+SQL cursors remain open between calls and can be fetched without
+running another SQL OPEN. The programs higher on the call stack do
+not need to have run SQL statements. SQL cursors are left open, SQL
+prepared statements are preserved, and LOCK TABLE locks are held when
+the first SQL program on the call stack ends. SQL cursors are closed,
+SQL prepared statements are discarded, and LOCK TABLE locks are released
+when the job ends.
+
+CNULIGN
+Specifies
+whether a NUL-terminator is ignored for character and graphic host
+variables. This option will only be used for SQL statements in C and
+C++ programs. This option is not allowed in an SQL function, SQL
+procedure, or SQL trigger.
+*YES
+Character and graphic host variables defined as NUL-terminated
+will be treated as fixed length variables for INSERT and UPDATE statements.
+NUL-terminators are considered part of the data.
+*NO
+NUL-terminated character and graphic host variables use NUL-terminators
+for INSERT and UPDATE statements.
+
+CNULRQD
+Specifies
+whether a NUL-terminator is returned for character and graphic host
+variables. This option will only be used for SQL statements in C and
+C++ programs. This option is not allowed in an SQL function, SQL
+procedure, or SQL trigger.
+*YES
+Output character and graphic host variables always contain the
+NUL-terminator. If there is not enough space for the NUL-terminator,
+the data is truncated and the NUL-terminator is added. Input character
+and graphic host variables require a NUL-terminator.
+*NO
+For output character and graphic host variables, the NUL-terminator
+is not returned when the host variable is exactly the same length
+as the data. Input character and graphic host variables do not require
+a NUL-terminator.
+
+COMMIT
+Specifies
+the isolation level to be used. In REXX, files that are referred to in the source
+are not affected by this option. Only tables, views, and packages
+referred to in SQL statements are affected. For more information about
+isolation levels, see Isolation level *CHG
+Specifies the isolation level of Uncommitted Read.
+
+*NONE
+Specifies the isolation level of No Commit. If the DROP SCHEMA
+statement is included in a REXX procedure, *NONE must be used.
+
+*CS
+Specifies the isolation level of Cursor Stability.
+
+*ALL
+Specifies the isolation level of Read Stability.
+
+*RR
+Specifies the isolation level of Repeatable Read.
+
+COMPILEOPT
+Specifies
+additional parameters to be used on the compiler command. The COMPILEOPT
+string is added to the compiler command built by the precompiler.
+If 'INCDIR(' is anywhere in the string, the precompiler will call
+the compiler using the SRCSTMF parameter. The contents of the string
+is not validated. The compiler command will issue an error if any
+parameter is incorrect. Using any of the keywords that the precompiler
+passes to the compiler will cause the compiler command to fail because
+of duplicate parameters. Refer to the Embedded SQL Programming topic
+collection for a list of parameters that the precompiler generates
+for the compiler command. This option will be ignored in REXX. This option
+is not allowed in an SQL function, SQL procedure, or SQL trigger.
+*NONE
+No additional parameters will be used on the compiler command.
+character-string
+A character constant of no more than 5000 characters containing
+the compiler options.
+
+CONACC
+Specifies the concurrent access resolution to use for select statements.*CURCMT
+Specifies that the database manager is to use the currently committed
+version of data when encountering a row that is in the process of
+being updated or deleted. Rows that are in the process of being inserted
+are skipped. This value will be honored when possible for isolation
+level of *CS.
+*WAIT
+Specifies to wait for a commit or rollback for data that is in
+the process of being updated or deleted by another transaction. This
+value will be honored when possible for isolation levels of *CS and
+*ALL.
+*DFT
+Specifies that the concurrent access option will not be explicitly
+set for this program. The value that is in effect when the program
+is invoked will be used.
+
+DATFMT
+Specifies
+the format used when accessing date result columns. All output date
+fields are returned in the specified format. For input date strings,
+the specified value is used to determine whether the date is specified
+in a valid format. Note: An input date string that uses the format
+*USA, *ISO, *EUR, or *JIS is always valid.
+*JOB:
+The format specified for the job is used. Use the Display Job
+(DSPJOB) command to determine the current date format for the job.
+
+*ISO
+The International Organization for Standardization (ISO) date
+format (yyyy-mm-dd) is used.
+
+*EUR
+The European date format (dd.mm.yyyy) is used.
+
+*USA
+The United States date format (mm/dd/yyyy) is used.
+
+*JIS
+The Japanese Industrial Standard date format (yyyy-mm-dd) is used.
+
+*MDY
+The date format (mm/dd/yy) is used.
+
+*DMY
+The date format (dd/mm/yy) is used.
+
+*YMD
+The date format (yy/mm/dd) is used.
+
+*JUL
+The Julian date format (yy/ddd) is used.
+
+DATSEP
+Specifies
+the separator used when accessing date result columns. Note: This
+parameter applies only when *JOB, *MDY, *DMY, *YMD, or *JUL is specified
+on the DATFMT parameter.
+*JOB
+The date separator specified for the job is used. Use the Display
+Job (DSPJOB) command to determine the current value for the job.
+
+*SLASH or '/'
+A slash (/) is used.
+
+*PERIOD or '.'
+A period (.) is used.
+
+*COMMA or ','
+A comma (,) is used.
+
+*DASH or '-'
+A dash (-) is used.
+
+*BLANK or ' '
+A blank ( ) is used.
+
+DBGVIEW
+Specifies
+whether the object can be debugged by the system debug facilities
+and the type of debug information to be provided by the compiler.
+The DBGVIEW parameter can only be specified in the body of SQL functions,
+procedures, and triggers. If DEBUG MODE in a CREATE PROCEDURE
+or ALTER PROCEDURE statement is specified, a DBGVIEW option in the
+SET OPTION statement must not be specified.
+The possible choices
+are:
+*NONE
+A debug view will not be generated.
+*SOURCE
+Allows the compiled module object to be debugged using SQL statement
+source. If *SOURCE is specified, the modified source is stored in
+source file QSQDSRC in the same schema as the created function, procedure,
+or trigger.
+*STMT
+Allows the compiled module object to be debugged using program
+statement numbers and symbolic identifiers.
+*LIST
+Generates the listing view for debugging the compiled module object.
+
+If DEBUG MODE is not specified, but a DBGVIEW
+option in the SET OPTION statement is specified, the procedure cannot
+be debugged by the Unified Debugger, but can be debugged by the system
+debug facilities. If neither DEBUG MODE nor a DBGVIEW option is specified,
+the debug mode used is from the CURRENT DEBUG MODE special register.
+
+DECFLTRND
+Specifies
+the DECFLOAT rounding mode used for static SQL statements. The possible
+choices are:*CEILING
+Round toward +Infinity. If all of the discarded digits are zero
+or if the sign is negative the result is unchanged other than the
+removal of the discarded digits. Otherwise, the result coefficient
+is incremented by one (rounded up).
+*DOWN
+Round toward zero (truncation). The discarded digits are ignored.
+*FLOOR
+Round toward -Infinity. If all of the discarded digits are zero
+or if the sign is positive, the result is unchanged other than the
+removal of the discarded digits. Otherwise, the sign is negative and
+the result coefficient is incremented by one.
+*HALFDOWN
+Round to nearest; if equidistant, round down. If the discarded
+digits represent greater than half (0.5) of the value of a one in
+the next left position, then the result coefficient is incremented
+by one (rounded up). Otherwise, the discarded digits are ignored.
+*HALFEVEN
+Round to nearest; if equidistant, round so that the final digit
+is even. If the discarded digits represent greater than half (0.5)
+of the value of a one in the next left position, then the result coefficient
+is incremented by one (rounded up). If they represent less than half,
+then the result coefficient is not adjusted (that is, the discarded
+digits are ignored). Otherwise (they represent exactly half), the
+result coefficient is unaltered if its rightmost digit is even or
+incremented by one (rounded up) if its rightmost digit is odd (to
+make an even digit).
+*HALFUP
+Round to nearest; if equidistant, round up. If the discarded digits
+represent greater than or equal to half (0.5) of the value of a one
+in the next left position, then the result coefficient is incremented
+by one (rounded up). Otherwise, the discarded digits are ignored.
+*UP
+Round away from zero. If all of the discarded digits are zero,
+the result is unchanged other than the removal of discarded digits.
+Otherwise, the result coefficient is incremented by one (rounded up).
+
+DECMPT
+Specifies
+the symbol that you want to represent the decimal point. The possible
+choices are: *PERIOD
+The representation for the decimal point is a period.
+*COMMA
+The representation for the decimal point is a comma.
+*SYSVAL
+The representation for the decimal point is the system value (QDECFMT).
+*JOB
+The representation for the decimal point is the job value (DECFMT).
+
+DECRESULT
+Specifies
+the maximum precision, maximum scale, and minimum divide scale that
+should be used during decimal operations, such as decimal arithmetic.
+The specified limits only apply to NUMERIC and DECIMAL data types. max-precision
+An integer constant that is the maximum precision that should
+be returned from decimal operations. The value can be 31 or 63. The
+default is 31.
+max-scale
+An integer constant that is the maximum scale that should be returned
+from decimal operations. The value can range from 0 to the maximum
+precision. The default is 31.
+min-divide-scale
+An integer constant that is the minimum scale that should be returned
+from division operations. The value can range from 1 to 9
+and cannot be greater than max-scale. The
+default is 0, where 0 indicates that no minimum scale is specified.
+
+DFTRDBCOL
+Specifies
+the schema name used for the unqualified names of tables, views, indexes,
+and SQL packages. This parameter applies only to static SQL statements.
+This option will be ignored in REXX. *NONE
+The naming convention specified on the OPTION precompile parameter
+or by the SET OPTION NAMING option will be used.
+schema-name
+Specify the name of the schema. This value is used instead of
+the naming convention specified on the OPTION precompile parameter
+or by the SET OPTION NAMING option.
+
+DLYPRP
+Specifies
+whether the dynamic statement validation for a PREPARE statement is
+delayed until an OPEN, EXECUTE, or DESCRIBE statement is run. Delaying
+validation improves performance by eliminating redundant validation.
+This option will be ignored in REXX. *NO
+Dynamic statement validation is not delayed. When the dynamic
+statement is prepared, the access plan is validated. When the dynamic
+statement is used in an OPEN or EXECUTE statement, the access plan
+is revalidated. Because the authority or the existence of objects
+referred to by the dynamic statement may change, you must still check
+the SQLCODE or SQLSTATE after issuing the OPEN or EXECUTE statement
+to ensure that the dynamic statement is still valid.
+*YES
+Dynamic statement validation is delayed until the dynamic statement
+is used in an OPEN, EXECUTE, or DESCRIBE SQL statement. When the dynamic
+statement is used, the validation is completed and an access plan
+is built. If you specify *YES, you should check the SQLCODE and SQLSTATE
+after running an OPEN, EXECUTE, or DESCRIBE statement to ensure that
+the dynamic statement is valid. Note: If you specify *YES, performance
+is not improved if the INTO clause is used on the PREPARE statement
+or if a DESCRIBE statement uses the dynamic statement before an OPEN
+is issued for the statement.
+
+DYNDFTCOL
+Specifies
+the schema name specified for the DFTRDBCOL parameter is also used
+for dynamic statements. This option will be ignored in REXX. *NO
+Do not use the value specified for DFTRDBCOL for unqualified names
+of tables, views, indexes, and SQL packages for dynamic SQL statements.
+The naming convention specified on the OPTION precompile parameter
+or by the SET OPTION NAMING option will be used.
+*YES
+The schema name specified for DFTRDBCOL will be used for the unqualified
+names of the tables, views, indexes, and SQL packages in dynamic SQL
+statements.
+
+DYNUSRPRF
+Specifies
+the user profile to be used for dynamic SQL statements. This option
+will be ignored in REXX. *USER
+Local dynamic SQL statements are run under the user profile of
+the job. Distributed dynamic SQL statements are run under the user
+profile of the application server job.
+*OWNER
+Local dynamic SQL statements are run under the user profile of
+the program's owner. Distributed dynamic SQL statements are run under
+the user profile of the SQL package's owner.
+
+EVENTF
+Specifies
+whether an event file will be generated. CoOperative Development Environment/400® (CODE/400) uses the event file to provide error feedback
+integrated with the CODE/400 editor.
+*YES
+The compiler produces an event file for use by CoOperative Development
+Environment/400 (CODE/400).
+*NO
+The compiler will not produce an event file for use by CoOperative
+Development Environment/400 (CODE/400).
+
+EXTIND
+Specifies
+how to treat indicator variable values passed for SQL statements. *NO
+Specifies that extended indicator variables are not enabled and
+non-updatable columns are not allowed in the implicit or explicit
+UPDATE clause of a select-statement
+*YES
+Specifies that extended indicator variables are enabled and non-updatable
+columns are allowed in the implicit or explicit UPDATE clause of a select-statement.
+
+INCFILE
+Specifies
+the name of the source file to use for INCLUDE SQL statements. It
+will be used to locate any source member listed in an INCLUDE SQL
+statement when a source file name is not specified in the INCLUDE
+SQL statement.This option is only allowed in an SQL function, SQL
+procedure, or SQL trigger. This option will be ignored in REXX.
+file-name
+Specify the name of the source file to be used. The name of the
+file can be qualified by one of the following library values: *LIBL
+All libraries in the user and system portions of the job's library
+list are searched until the first match is found.
+*CURLIB
+The current library for the job is searched. If no library is
+specified as the current library for the job, the QGPL library is
+used.
+library-name
+Specifies the name of the library to be searched.
+
+LANGID
+Specifies
+the language identifier to be used when SRTSEQ(*LANGIDUNQ) or SRTSEQ(*LANGIDSHR)
+is specified. *JOB or *JOBRUN
+The LANGID value for the job is used. For distributed applications,
+LANGID(*JOBRUN) is valid only when SRTSEQ(*JOBRUN) is also specified.
+
+language-id
+Specify a language identifier to be used. For information about
+the values that can be used for the language identifier, see the Language
+identifier topic in the Globalization topic collection.
+
+MONITOR
+Specifies
+whether the statements should be identified as user or system statements
+when a database monitor is run. *USER
+The SQL statements are identified as user statements. This is
+the default.
+*SYSTEM
+The SQL statements are identified as system statements.
+
+NAMING
+Specifies
+whether the SQL naming convention or the system naming convention
+is to be used. This option is not allowed in an SQL function, SQL
+procedure, or SQL trigger. The possible choices are:
+*SYS
+The system naming convention will be used.
+*SQL
+The SQL naming convention will be used.
+
+OPTLOB
+Specifies
+whether accesses to XML and LOBs can be optimized when accessing through DRDA®. The possible choices are:
+*YES
+LOB and XML accesses should be optimized. The first
+FETCH for a cursor determines how the cursor will be used for LOBs
+and XML on all subsequent FETCHes. This option remains in effect until
+the cursor is closed. If the first FETCH uses a locator
+to access a LOB or XML column, no subsequent FETCH for that cursor
+can fetch that LOB or XML column into a LOB or XML variable.
+If the first FETCH places the LOB or XML column into a
+LOB or XML variable, no subsequent FETCH for that cursor can use a
+locator for that column.
+
+*NO
+LOB accesses should not be optimized. There is no restriction
+on whether a column is retrieved into a LOB locator or into a LOB
+variable. This option can cause performance to degrade.
+
+OUTPUT
+Specifies
+whether the precompiler and compiler listings are generated. The
+OUTPUT parameter can only be specified in the body of SQL functions,
+procedures, and triggers. The possible choices are: *NONE
+The precompiler and compiler listings are not generated.
+*PRINT
+The precompiler and compiler listings are generated.
+
+RDBCNNMTH
+Specifies
+the semantics used for CONNECT statements. This option will be ignored
+in REXX. *DUW
+CONNECT (Type 2) semantics are used to support distributed unit
+of work. Consecutive CONNECT statements to additional relational databases
+do not result in disconnection of previous connections.
+*RUW
+CONNECT (Type 1) semantics are used to support remote unit of
+work. Consecutive CONNECT statements result in the previous connection
+being disconnected before a new connection is established.
+
+SQLCA
+Specifies
+whether the fields in an SQLCA will be set after each SQL statement.
+The SQLCA option is only allowed for ILE C, ILE C++, ILE COBOL, and
+ILE RPG. This option is not allowed in an SQL function, SQL procedure,
+or SQL trigger. The possible choices are:
+*YES
+The fields in an SQLCA will be set after each SQL statement. The
+user program can reference all the values in the SQLCA following the
+execution of an SQL statement.
+*NO
+The fields in an SQLCA will not be set after each SQL statement.
+The user program should use the GET DIAGNOSTICS statement to retrieve
+information about the execution of the SQL statement. SQLCA(*NO)
+will typically perform better than SQLCA(*YES).
+
+In other host languages, an SQLCA is required
+and fields in the SQLCA will be set after each SQL statement.
+
+SQLCURRULE
+Specifies
+the semantics used for SQL statements. *DB2®
+The semantics of all SQL statements will default to the rules
+established for DB2. The following
+semantics are controlled by this option: Hexadecimal constants are treated as character data.
+Unicode graphic-string constants are UCS-2 (CCSID 13488).
+Assignments to SQL-variables and SQL-parameters within the body
+of a routine or a trigger will use retrieval assignment rules.
+When describing a select statement into an SQLDA and SQLN is smaller
+than the required number of SQLVAR entries, SQLSTATE 01005 is returned
+only when the result table contains LOBs or UDTs.
+
+*STD
+The semantics of all SQL statements will default to the rules
+established by the ISO and ANSI SQL standards. The following semantics
+are controlled by this option: Hexadecimal constants are treated as binary data.
+Unicode graphic-string constants are UTF-16 (CCSID 1200).
+Assignments to SQL-variables and SQL-parameters within the body
+of a routine or a trigger will use storage assignment rules.
+When describing a select statement into an SQLDA and SQLN is smaller
+than the required number of SQLVAR entries, SQLSTATE 01005 is always
+returned.
+
+SQLPATH
+Specifies
+the path to be used to find procedures, functions, and user defined
+types in static SQL statements. This option will be ignored in REXX. *LIBL
+The path used is the library list at runtime.
+character-string
+A character constant with one or more schema names
+that are separated by commas. Only system schema names can be specified.
+
+SRTSEQ
+Specifies
+the collating sequence table to be used for string comparisons in
+SQL statements. Note: *HEX must be specified if a REXX procedure connects to an application
+server that is not a DB2 for
+i or
+a IBM® i product
+whose release level is prior to V2R3M0.
+*JOB or *JOBRUN
+The SRTSEQ value for the job is used.
+
+*HEX
+A collating sequence table is not used. The hexadecimal values
+of the characters are used to determine the collating sequence.
+
+*LANGIDUNQ
+The collating sequence table must contain a unique weight for
+each character in the code page.
+
+*LANGIDSHR
+The shared-weight sort table for the LANGID specified is used.
+
+srtseq-table-name
+Specify the name of the collating sequence table to be used with
+this program. The name of the collating sequence table can be qualified
+by one of the following library values: *LIBL
+All libraries in the user and system portions of the job's library
+list are searched until the first match is found.
+*CURLIB
+The current library for the job is searched. If no library is
+specified as the current library for the job, the QGPL library is
+used.
+library-name
+Specify the name of the library to be searched.
+
+SYSTIME
+Specifies
+whether the CURRENT TEMPORAL SYSTEM_TIME special register affects
+static and dynamic SQL statements.The possible choices are:
+*YES
+Any references to system-period temporal tables are affected by
+the value of the CURRENT TEMPORAL SYSTEM_TIME special register.
+*NO
+Any references to system-period temporal tables are not affected
+by the value of the CURRENT TEMPORAL SYSTEM_TIME special register.
+
+TGTRLS
+Specifies
+the release of the operating system on which the user intends to use
+the object being created. The TGTRLS parameter can only be specified
+in the body of SQL functions, procedures, and triggers, or
+as part of an external function or procedure create statement.
+The possible choices are: VxRxMx
+Specify the release in the format VxRxMx, where Vx is the version,
+Rx is the release, and Mx is the modification level. For example,
+V7R1M0 is version 7, release 1, modification level 0. The object can
+be used on a system with the specified release or with any subsequent
+release of the operating system installed. Valid values depend
+on the current version, release, and modification level, and they
+change with each new release. If you specify a release-level which
+is earlier than the earliest release level supported by the database
+manager, an error message is sent indicating the earliest supported
+release.
+
+TIMFMT
+Specifies
+the format used when accessing time result columns. All output time
+fields are returned in the specified format. For input time strings,
+the specified value is used to determine whether the time is specified
+in a valid format. Note: An input time string that uses the format
+*USA, *ISO, *EUR, or *JIS is always valid.
+*HMS
+The (hh:mm:ss) format is used.
+
+*ISO
+The International Organization for Standardization (ISO) time
+format (hh.mm.ss) is used.
+
+*EUR
+The European time format (hh.mm.ss) is used.
+
+*USA
+The United States time format (hh:mm xx) is used, where xx is
+AM or PM.
+
+*JIS
+The Japanese Industrial Standard time format (hh:mm:ss) is used.
+
+TIMSEP
+Specifies
+the separator used when accessing time result columns. Note: This
+parameter applies only when *HMS is specified on the TIMFMT parameter.
+*JOB
+The time separator specified for the job is used. Use the Display
+Job (DSPJOB) command to determine the current value for the job.
+
+*COLON or ':'
+A colon (:) is used.
+
+*PERIOD or '.'
+A period (.) is used.
+
+*COMMA or ','
+A comma (,) is used.
+
+*BLANK or ' '
+A blank ( ) is used.
+
+USRPRF
+Specifies
+the user profile that is used when the compiled program object is
+run, including the authority that the program object has for each
+object in static SQL statements. The profile of either the program
+owner or the program user is used to control which objects can be
+used by the program object. This option will be ignored in REXX. *NAMING
+The user profile is determined by the naming convention. If the
+naming convention is *SQL, USRPRF(*OWNER) is used. If the naming convention
+is *SYS, USRPRF(*USER) is used.
+*USER
+The profile of the user running the program object is used.
+*OWNER
+The user profiles of both the program owner and the program user
+are used when the program is run.
+
+NotesDefault
+values: The default values for the options depend on the language,
+object type, and the options in effect at create time:
+When an SQL procedure, SQL function, or SQL trigger is created,
+the default values for the options are those in effect at the time
+the object is created. For example, if an SQL procedure is created
+and the current COMMIT option is *CS, *CS is the default COMMIT option.
+Each option is then updated as it is encountered within the SET OPTION
+statement.
+For application programs other than REXX, the default values for the options are
+specified on the CRTSQLxxx command. Each option is then updated as
+it is encountered within a SET OPTION statement. All SET OPTION statements
+must precede any other embedded SQL statements.
+At the start of a REXX procedure
+the options are set to their default value. The default value for
+each option is the first value listed in the syntax diagram. When
+an option is changed by a SET OPTION statement, the new value will
+stay in effect until the option is changed again or the REXX procedure
+ends.
+
+Syntax alternatives: The following keywords are
+synonyms supported for compatibility to prior releases. These keywords
+are non-standard and should not be used:
+*UR can be used as a synonym for *CHG.
+*NC can be used as a synonym for *NONE.
+*RS can be used as a synonym for *ALL.
+
+ExamplesExample 1: Set the isolation
+level to *ALL and the naming mode to SQL names.
+EXEC SQL SET OPTION COMMIT =*ALL, NAMING =*SQL
+
+Example 2: Set the date format to European, the
+isolation level to *CS, and the decimal point to the comma.
+EXEC SQL SET OPTION DATFMT = *EUR, COMMIT = *CS, DECMPT = *COMMA
+
+Parent topic: Statements

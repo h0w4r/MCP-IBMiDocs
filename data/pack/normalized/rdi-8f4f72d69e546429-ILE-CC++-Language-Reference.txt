@@ -1,0 +1,80 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Declarators > Pointers
+
+IBM i programming resources > ILE C/C++ > Language Reference > Declarators > Pointers
+
+ILE C/C++ Language Reference
+
+Type-based aliasing
+The compiler follows the type-based aliasing rule in the C and C++ standards when the ALIAS(*ANSI) option
+is in effect (which it is by default). This rule, also known as the
+ANSI aliasing rule, states that a pointer can only be dereferenced
+to an object of the same type or a compatible type. 1
+The common coding practice of casting a pointer to an incompatible
+type and then dereferencing it violates this rule. (Note that char pointers
+are an exception to this rule.)
+The compiler uses the type-based aliasing information to perform
+optimizations to the generated code. Contravening the type-based aliasing
+rule can lead to unexpected behavior, as demonstrated in the following
+example:
+int *p;
+double d = 0.0;
+
+int *faa(double *g); /* cast operator inside the function */
+
+void foo(double f) {
+p = faa(&f); /* turning &f into a int ptr */
+f += 1.0; /* compiler may discard this statement */
+printf("f=%x\n", *p);
+}
+
+int *faa(double *g) { return (int*) g; } /* questionable cast; */
+/* the function can be in */
+/* another translation unit */
+
+int main() {
+foo(d);
+}In the above printf statement, *p cannot
+be dereferenced to a double under the ANSI aliasing rule.
+The compiler determines that the result of f += 1.0; is
+never used subsequently. Thus, the optimizer may discard the statement
+from the generated code. If you compile the above example with optimization
+enabled, the printf statement may output 0 (zero).
+Related information
+
+The reinterpret_cast operator (C++ only)
+ALIAS(*ANSI) in the ILE C/C++ Compiler Reference
+1.
+The C Standard
+states that an object shall have its stored value accessed only by
+an lvalue that has one of the following types:
+
+the declared type of the object,
+a qualified version of the declared type of the object,
+a type that is the signed or unsigned type corresponding to the
+declared type of the object,
+a type that is the signed or unsigned type corresponding to a
+qualified version of the declared type of the object,
+an aggregate or union type that includes one of the aforementioned
+types among its members (including, recursively, a member of a subaggregate
+or contained union), or
+a character typeThe C++ standard states that if a program attempts
+to access the stored value of an object through an lvalue of other
+than one of the following types, the behavior is undefined:
+
+the dynamic type of the object,
+a cv-qualified version of the dynamic type of the object,
+a type that is the signed or unsigned type corresponding to the
+dynamic type of the object,
+a type that is the signed or unsigned type corresponding to a
+cv-qualified version of the dynamic type of the object,
+an aggregate or union type that includes one of the aforementioned
+types among its members (including, recursively, a member of a subaggregate
+or contained union),
+a type that is a (possible cv-qualified) base class type of the
+dynamic type of the object,
+a char or unsigned char type.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

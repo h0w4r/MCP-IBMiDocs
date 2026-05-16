@@ -1,0 +1,127 @@
+Example: Waiting for input from a display file and an ICF file
+
+IBM i programming resources > Control language > Control language > CL programming > Communicating between programs and procedures > Using data queues > Examples: Using a data queue > Examples: Using a data queue
+
+IBM i programming resources > Control language > Control language > CL programming > Communicating between programs and procedures > Using data queues > Examples: Using a data queue
+
+Example: Waiting for input from a display file and an ICF file
+This example shows a program waiting for input from a display file
+and an ICF file, using a data queue.
+
+The following example is different from the typical use of data
+queues because there is only one job. The data queue serves as a communications
+object within the job rather than between two jobs.
+In this example,
+a program is waiting for input from a display file and an ICF file. Instead
+of alternately waiting for one and then the other, a data queue is used to
+allow the program to wait on one object (the data queue). The program calls
+QRCVDTAQ and waits for an entry to be placed on the data queue that was specified
+on the display file and the ICF file. Both files specify the same data queue.
+Two types of entries are put on the queue by display data management and
+ICF data management support when the data is available from either file. ICF
+file entries start with *ICFF and display file entries start
+with *DSPF.
+
+The display file or ICF file entry that is put on the data queue
+is 80 characters in length and contains the field attributes described in
+the following list. Therefore, the data queue that is specified using the
+CRTDSPF, CHGDSPF, OVRDSPF, CRTICFF, CHGICFF, and OVRICFF commands must have
+a length of at least 80 characters.
+Position (and Data Type)
+Description
+1 through 10 (character)
+The type of file that placed the entry on the data queue. This field will
+have one of two values: *ICFF for ICF file
+*DSPF for display file
+
+If the job receiving the data from the data queue has only one display
+file or one ICF file open, then this is the only field needed to determine
+what type of entry has been received from the data queue.
+
+11 through 12 (binary)
+The unique identifier for the file. The value of the identifier is the
+same as the value in the open feedback area for the file. This field should
+be used by the program receiving the entry from the data queue only if there
+is more than one file with the same name placing entries on the data queue.
+13 through 22 (character)
+The name of the display file or ICF file. This is the name of the file
+actually opened, after all overrides have been processed, and is the same
+as the file name found in the open feedback area for the file. This field
+should be used by the program receiving the entry from the data queue only
+if there is more than one display file or ICF file that is placing entries
+on the data queue.
+23 through 32 (character)
+The library where the file is located. This is the name of the library,
+after all overrides have been processed, and is the same as the library name
+found in the open feedback area for the file. This field should be used by
+the program receiving the entry from the data queue only if there is more
+than one display file or ICF file that is placing entries on the data queue.
+33 through 42 (character)
+The program device name, after all overrides have been processed. This
+name is the same as that found in the program device definition list of the
+open feedback area. For file type *DSPF, this is the name of the display device
+where the command or Enter key was pressed. For file type *ICFF, this is the
+name of the program device where data is available. This field should be used
+by the program receiving the entry from the data queue only if the file that
+placed the entry on the data queue has more than one device or session invited
+before receiving the data queue entry.
+43 through 80 (character)
+Reserved.
+
+The following example shows coding logic that the program previously
+described might use:
+.
+.
+.
+.
+OPEN DSPFILE ... /* Open the Display file. DTAQ parameter specified on*/
+/* CRTDSPF, CHGDSPF, or OVRDSPF for the file. */
+
+OPEN ICFFILE ... /* Open the ICF file. DTAQ parameter specified on */
+/* CRTICFF, CHGICFF, or OVRICFF for the file. */
+
+.
+.
+DO
+WRITE DSPFILE /* Write with Invite for the Display file */
+WRITE ICFFILE /* Write with Invite for the ICF file */
+
+CALL QRCVDTAQ /* Receive an entry from the data queue specified */
+/* on the DTAQ parameters for the files. Entries */
+/* are placed on the data queue when the data is */
+/* available from any invited device or session */
+/* on either file. */
+/* After the entry is received, determine which file */
+/* has data available, read the data, process it, */
+/* invite the file again and return to process the */
+/* next entry on the data queue. */
+IF 'ENTRY TYPE' FIELD = '*DSPF ' THEN /* Entry is from display */
+DO /* file. Since this entry*/
+/* does not contain the */
+/* data received, the data*/
+/* must be read from the */
+/* file before it can be */
+READ DATA FROM DISPLAY FILE /* processed. */
+PROCESS INPUT DATA FROM DISPLAY FILE
+WRITE TO DISPLAY FILE /* Write with Invite */
+END
+ELSE /* Entry is from ICF */
+/* file. Since this entry*/
+/* does not contain the */
+/* data received, the data*/
+/* must be read from the */
+/* file before it can be */
+/* processed. */
+READ DATA FROM ICF FILE
+PROCESS INPUT DATA FROM ICF FILE
+WRITE TO ICF FILE /* Write with Invite */
+LOOP BACK TO RECEIVE ENTRY FROM DATA QUEUE
+.
+.
+.
+END
+
+Parent topic: Examples: Using a data queue
+
+Related tasks
+Using data queues

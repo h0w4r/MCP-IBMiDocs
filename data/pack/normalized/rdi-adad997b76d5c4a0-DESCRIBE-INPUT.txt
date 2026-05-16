@@ -1,0 +1,170 @@
+DESCRIBE INPUT
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+DESCRIBE INPUT
+The DESCRIBE INPUT statement obtains information about
+the IN and INOUT parameter markers of a prepared statement.
+For an explanation of prepared statements, see PREPARE.
+InvocationThis statement can only be embedded
+in an application program, SQL function, SQL procedure, or trigger.
+It is an executable statement that cannot be dynamically prepared.
+It must not be specified in Java™ or REXX.
+AuthorizationNone required. See PREPARE for the authorization required to
+create a prepared statement.
+SyntaxDESCRIBE INPUTstatement-nameUSINGSQLDESCRIPTORLOCALGLOBALSQL-descriptor-nameINTOdescriptor-name
+Descriptionstatement-name
+Identifies
+the prepared statement. When the DESCRIBE INPUT statement is executed,
+the name must identify a prepared statement at the current server.
+USING
+Identifies
+an SQL descriptor. LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope. See GET DESCRIPTOR for an explanation of the information
+that is placed in the SQL descriptor.
+
+INTO descriptor-name
+Identifies
+an SQL descriptor area (SQLDA), which is described in SQLDA (SQL descriptor area). Before the DESCRIBE INPUT statement
+is executed, the following variable in the SQLDA must be set. SQLN
+Specifies the number of SQLVAR occurrences
+provided in the SQLDA. SQLN must be set to a value greater than or
+equal to zero before the DESCRIBE INPUT statement is executed. For
+information about techniques to determine the number of occurrences
+requires, see Determining how many SQLVAR occurrences are needed.
+
+When the DESCRIBE INPUT statement is executed, the
+database manager assigns values to the variables of the SQLDA as follows:
+SQLDAID
+The first 6 bytes are set to 'SQLDA ' (that
+is, 5 letters followed by the space character). The seventh byte
+is set based on the parameter markers described:
+If the SQLDA contains two SQLVAR entries for every input parameter
+marker, the seventh byte is set to '2'. This technique is used in
+order to accommodate LOB input parameters.
+Otherwise, the seventh byte is set to the space character.
+
+The seventh byte is set to the space character if there is
+not enough room in the SQLDA to contain the description of all input
+parameter markers.
+The eighth byte is set to the space character.
+
+SQLDABC
+Length of the SQLDA in bytes.
+SQLD
+The number of input parameter markers in
+the prepared statement.
+SQLVAR
+If the value of SQLD is 0, or greater than
+the value of SQLN, no values are assigned to occurrences of SQLVAR.
+If the value of SQLD is n, where n is greater than
+0 but less than or equal to the value of SQLN, values are assigned
+to the first n occurrences of SQLVAR so that the first occurrence
+of SQLVAR contains a description of the first input parameter marker,
+the second occurrence of SQLVAR contains a description of the second
+input parameter marker, and so on. For information about the values
+assigned to SQLVAR occurrences, see Field descriptions in an occurrence of SQLVAR.
+
+NotesAllocating
+the SQL descriptor: Before the DESCRIBE INPUT statement is executed,
+the SQL descriptor must be allocated using the ALLOCATE DESCRIPTOR
+statement. The number of descriptor items allocated must not be less
+than the number of input parameter markers or an error is returned.
+Allocating the SQLDA: Before the DESCRIBE INPUT
+statement is executed, enough storage must be allocated for some number
+of SQLVAR occurrences. SQLN must then be set to the number of SQLVAR
+occurrences that were allocated. To obtain the description of the
+input parameter markers in the prepared statement, the number of occurrences
+of SQLVAR must not be less than the number of input parameter markers.
+Furthermore, if the input parameter markers include LOBs or distinct
+types, the number of occurrences of SQLVAR should be two times the
+number of input parameter markers. See Determining how many SQLVAR occurrences are needed for
+more information.
+If not enough occurrences are provided to return all sets
+of occurrences, SQLN is set to the total number of occurrences necessary
+to return all information. Otherwise, SQLN is set to the number of
+input parameter markers.
+Among the possible ways to allocate the SQLDA are the
+three described below:
+First technique
+Allocate an SQLDA with enough occurrences of SQLVAR entries to
+accommodate any number of input parameter markers that the application
+will have to process. At the extreme, the number of SQLVARs could
+equal two times the maximum number of parameter markers allowed in
+a prepared statement. Having done the allocation, the application
+can use this SQLDA repeatedly.This technique uses a large amount
+of storage that is never deallocated, even when most of this storage
+is not used for a particular prepared statement.
+
+Second technique
+Repeat the following three steps for every processed prepared
+statement: Execute a DESCRIBE INPUT statement with an SQLDA that has no occurrences
+of SQLVAR entries, that is, an SQLDA for which SQLN is zero. The value
+returned for SQLD is the number of input parameter markers in the
+prepared statement. This value is either the required number of occurrences
+of SQLVAR entries or half the required number. Because there were
+no SQLVAR entries, a warning will be issued. 1
+If the SQLSTATE accompanying that warning is equal to 01005, allocate
+an SQLDA with 2 * SQLD occurrences and set SQLN in the new SQLDA to
+2 * SQLD. Otherwise, allocate an SQLDA with SQLD occurrences and set
+SQLN in the new SQLDA to the value of SQLD.
+Execute the DESCRIBE INPUT statement again, using this new SQLDA.
+
+This technique allows better storage management than the first
+technique, but it doubles the number of DESCRIBE INPUT statements.
+
+Third technique
+Allocate an SQLDA that is large enough to handle most, and perhaps
+all, parameter markers in prepared statements but is also reasonably
+small. If an execution of DESCRIBE INPUT fails because the SQLDA is
+too small, allocate a larger SQLDA and execute DESCRIBE INPUT again.
+For the new SQLDA, use the value of SQLD (or double the value of SQLD)
+returned from the first execution of DESCRIBE INPUT for the number
+of occurrences of SQLVAR entries.This technique is a compromise
+between the first two techniques. Its effectiveness depends on a good
+choice of size for the original SQLDA.
+
+ExamplesExample 1: In a C program,
+execute a DESCRIBE INPUT statement with an SQLDA that has enough to
+describe any number of input parameter markers a prepared statement
+might have. Assume that five parameter markers at most will need to
+be described and that the input data does not contain LOBs.
+EXEC SQL BEGIN DECLARE SECTION;
+char stmt1_str [200];
+EXEC SQL END DECLARE SECTION;
+EXEC SQL INCLUDE SQLDA;
+struct sqlda initialsqlda;
+struct sqlda *sqldaPtr;
+
+… /* stmt1_str contains INSERT statement with VALUES */
+/* clause */
+EXEC SQL PREPARE STMT1_NAME FROM :stmt1_str;
+
+… /* code to set SQLN to five and to allocate the SQLDA */
+EXEC SQL DESCRIBE INPUT STMT1_NAME INTO :SQLDA;
+
+…
+
+Example 2: Allocate a descriptor called 'NEWDA'
+large enough to hold 20 item descriptor areas and use it on DESCRIBE
+INPUT.
+EXEC SQL ALLOCATE DESCRIPTOR 'NEWDA'
+WITH MAX 20;
+
+EXEC SQL DESCRIBE INPUT STMT1
+USING SQL DESCRIPTOR 'NEWDA';
+
+Parent topic: Statements
+
+1 If LOBs or UDTs are
+not in the result set, the warning is only returned if the standards
+option is specified. For information about the standards option, see Standards compliance.

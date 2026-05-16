@@ -1,0 +1,136 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Source Code to Write an Audit Trail</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog169.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog24.htm">Part 2&#46; Creating and Compiling Programs</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog157.htm">Chapter 7&#46; Example&#58; Creating an ILE C Application</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog163.htm">Source Code Samples</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="Header_191" HREF="cpprog02.htm#ToC_191">Source Code to Write an Audit Trail</A></H3>
+<P>The function <TT>write_audit_trail</TT> in module <TT>T1520IC3</TT>
+writes the audit trail for the ILE C program <TT>T1520PG1</TT>.
+Module <TT>T1520IC3</TT> is used to create service program
+<TT>T1520SP1</TT>, shown in <A HREF="cpprog159.htm#FIGILESTR">Figure 52</A>.
+<P>Use the following source:
+<P><B><A NAME="FIGFIGT1520IC3" HREF="cpprog09.htm#FT_FIGFIGT1520IC3">Figure 58. ILE C Source to Write an Audit Trail</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>          /* This function writes an audit trail. To write the audit trail the  */
+          /* file field structure is retrieved from the DDS file T1520DD1 and   */
+          /* the taxrate data item is imported from service program T1520SP2.   */
+          /* Retrieves the file field structure.                                */
+          #pragma mapinc("myinc", "MYLIB/T1520DD1(*all)", "both", "p z","")
+          #include &lt;stdio.h>
+          #include &lt;stdlib.h>
+          #include &lt;string.h>
+          #include &lt;time.h>
+          #include &lt;decimal.h>
+          #include &lt;recio.h>
+          #include &lt;xxcvt.h>
+&nbsp;
+          /* These includes are for the call to QWCCVTDT API to get the system  */<B>(1)</B>
+          /* date to be used in the audit trail.                                */
+          #include &lt;QSYSINC/H/QWCCVTDT>
+          #include &lt;QSYSINC/H/QUSEC>
+          /* DDS mapping of the audit file, T1520DD1.                           */<B>(2)</B>
+          #include "myinc"
+          /* Tax rate is imported from service program T1520SP2.                */<B>(3)</B>
+          const extern decimal (2,2) taxrate;
+          void write_audit_trail (char             user_id[10],
+                                  char             item_name[],
+                                  decimal (10,2)   price,
+                                  short int        quantity,
+                                  char             formatted_cost[22])
+          {
+              char  char_item_name[21];
+              char  char_price[11];
+              char  temp_char_price[11];
+              char  char_quantity[4];
+              char  char_date[6];
+              char  char_taxrate[2];
+           /* Qus_EC_t is defined in QUSEC.                                      */
+              Qus_EC_t errcode;
+              char    get_date[16];
+              int     i;
+              double  d;
+           /* File field structure is generated by the #pragma mapinc directive. */
+              MYLIB_T1520DD1_T1520DD1R_both_t buf1;
+              _RFILE *fp;
+           /* Get the current date.                                              */
+              errcode.Bytes_Provided = 0;
+              QWCCVTDT ("*CURRENT  ", "", "*MDY      ", get_date, &amp;errcode);
+              memcpy (char_date, &amp;(get_date[1]), 6);
+ 
+</PRE>
+<PRE>           /* Loop through the item_name and remove the null terminator.         */
+              for (i=0; i&lt;=20; i++)
+              {
+                if (item_name[i] == '\0') char_item_name[i] = ' ';
+                else char_item_name[i] = item_name[i];
+              }
+           /* Convert packed to zoned for audit file.                            */
+              d = price;
+              QXXDTOZ (char_price, 10, 2, d);
+              QXXITOZ (char_quantity, 4, 0, quantity);
+              d = taxrate;
+              QXXDTOZ (char_taxrate, 2, 2, d);
+           /* Set up buffer for write.                                           */
+              memset(&amp;buf1, ' ',  sizeof(buf1));
+              memcpy(buf1.USER,   user_id, 10);
+              memcpy(buf1.ITEM,   char_item_name, 20);
+              memcpy(buf1.PRICE,  char_price, 11);
+              memcpy(buf1.QTY,    char_quantity, 4);
+              memcpy(buf1.TXRATE, char_taxrate, 2);
+              memcpy(buf1.TOTAL,  formatted_cost, 21);
+              memcpy(buf1.DATE,   char_date, 6);
+              if ((fp = _Ropen("MYLIB/T1520DD1", "ar+")) == NULL)
+              {
+                printf("Cannot open audit file\n");
+              }
+                _Rwrite(fp, (void *)&amp;buf1, sizeof(buf1));
+                _Rclose(fp);
+              }
+</PRE>
+</TD></TR></TABLE>
+<P><B>Notes: </B><OL TYPE=1>
+<P><LI>This source requires two members, QUSEC and QWCCVTDT, that are in the
+QSYSINC/H file. The QSYSINC library is automatically searched for
+system include files as long as the OPTION(*STDINC) parameter (the default) is
+specified on the CRTBNDC or CRTCMOD command.
+<P><LI>The include name <TT>myinc</TT> is associated with the temporary source
+member created by the compiler when it generates the type definitions for the
+<STRONG>#pragma mapinc</STRONG> directive. See <A HREF="cpprog307.htm#HDRHDDS">Chapter 18,  Using Externally Described Files in a Program</A> for information on how to use the <STRONG>#pragma mapinc</STRONG>
+directive.
+<P><LI>To write the audit trail, the tax rate is imported from the service
+program <TT>T1520SP2</TT>.
+</OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog168.htm">Previous Page</A> | <A HREF="cpprog170.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

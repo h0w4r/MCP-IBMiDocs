@@ -1,0 +1,79 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only) > Special exception handling functions (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Exception handling (C++ only) > Special exception handling functions (C++ only)
+
+ILE C/C++ Language Reference
+
+The terminate() function (C++ only)
+In some cases, the exception handling mechanism fails and a call
+to void terminate() is made. This terminate() call
+occurs in any of the following situations:
+
+The exception handling mechanism cannot find a handler for a thrown
+exception. The following are more specific cases of this:
+
+During stack unwinding, a destructor throws an exception and that
+exception is not handled.
+The expression that is thrown also throws an exception, and that
+exception is not handled.
+The constructor or destructor of a nonlocal static object throws
+an exception, and the exception is not handled.
+A function registered with atexit() throws an exception,
+and the exception is not handled. The following demonstrates this:
+extern "C" printf(char* ...);
+#include <exception>
+#include <cstdlib>
+using namespace std;
+
+void f() {
+printf("Function f()\n");
+throw "Exception thrown from f()";
+}
+
+void g() { printf("Function g()\n"); }
+void h() { printf("Function h()\n"); }
+
+void my_terminate() {
+printf("Call to my_terminate\n");
+abort();
+}
+
+int main() {
+set_terminate(my_terminate);
+atexit(f);
+atexit(g);
+atexit(h);
+printf("In main\n");
+}The following is the output of the above example:
+In main
+Function h()
+Function g()
+Function f()
+Call to my_terminateTo register a function with atexit(),
+you pass a parameter to atexit() a pointer to the function
+you want to register. At normal program termination, atexit() calls
+the functions you have registered with no arguments in reverse order.
+The atexit() function is in the <cstdlib> library.
+A throw expression without an operand tries to rethrow an exception,
+and no exception is presently being handled.
+A function f() throws an exception that violates its
+exception specification. The unexpected() function then
+throws an exception which violates the exception specification of f(),
+and the exception specification of f() did not include
+the class std::bad_exception.
+The default value of unexpected_handler is called.
+The terminate() function calls the function pointed
+to by terminate_handler. By default, terminate_handler points
+to the function abort(), which exits from the program.
+You can replace the default value of terminate_handler with
+the function set_terminate().
+A terminate function cannot return to its caller, either by using return or
+by throwing an exception.
+Related information
+
+The set_unexpected() and set_terminate() functions (C++ only)
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

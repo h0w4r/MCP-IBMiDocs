@@ -1,0 +1,209 @@
+OCCUR (Set/Get Occurrence of a Data Structure)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+OCCUR (Set/Get Occurrence of a Data Structure)
+
+Free-Form Syntax
+
+(not allowed - use the %OCCUR built-in function)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+OCCUR (E)
+
+Occurrence value
+
+Data structure
+
+Occurrence value
+
+_
+
+ER
+
+_
+
+The OCCUR operation code specifies the occurrence of the data structure
+that is to be used next within an RPG IV program.
+
+The OCCUR operation establishes which occurrence of a multiple
+occurrence data structure is used next in a program. Only one occurrence
+can be used at a time. If a data structure with multiple occurrences
+or a subfield of that data structure is specified in an operation,
+the first occurrence of the data structure is used until an OCCUR
+operation is specified. After an OCCUR operation is specified, the
+occurrence of the data structure that was established by the OCCUR
+operation is used.
+
+Factor 1 is optional; if specified, it can contain a numeric, zero
+decimal position literal, field name, named constant, or a data structure
+name. Factor 1 is used during the OCCUR operation to set the occurrence
+of the data structure specified in factor 2. If factor 1 is blank,
+the value of the current occurrence of the data structure in factor
+2 is placed in the result field during the OCCUR operation.
+
+If factor 1 is a data structure name, it must be a multiple occurrence
+data structure. The current occurrence of the data structure in factor
+1 is used to set the occurrence of the data structure in factor 2.
+
+Factor 2 is required and must be the name of a multiple occurrence
+data structure.
+
+The result field is optional; if specified, it must be a numeric
+field name with no decimal positions. During the OCCUR operation,
+the value of the current occurrence of the data structure specified
+in factor 2, after being set by any value or data structure that is
+optionally specified in factor 1, is placed in the result field.
+
+At least one of factor 1 or the result field must be specified.
+
+If the occurrence is outside the valid range set for the data structure,
+an error occurs, and the occurrence of the data structure in factor
+2 remains the same as before the OCCUR operation was processed.
+
+To handle OCCUR exceptions (program status
+code 122), either the operation code extender 'E' or an error
+indicator ER can be specified, but not both. For more information
+on error handling, see Program Exception/Errors.
+
+When a multiple-occurrence data structure is imported or exported,
+the information about the current occurrence is not imported or exported.
+See the EXPORT{(external_name)} and IMPORT{(external_name)} keywords
+for more information.
+
+Figure 1. Uses of the OCCUR Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+*
+* DS1 and DS2 are multiple occurrence data structures.
+* Each data structure has 50 occurrences.
+D DS1 DS OCCURS(50)
+D FLDA 1 5
+D FLDB 6 80
+*
+D DS2 DS OCCURS(50)
+D FLDC 1 6
+D FLDD 7 11
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+* DS1 is set to the third occurrence. The subfields FLDA
+* and FLDB of the third occurrence can now be used. The MOVE
+* and Z-ADD operations change the contents of FLDA and FLDB,
+* respectively, in the third occurrence of DS1.
+C
+C 3 OCCUR DS1
+C MOVE 'ABCDE' FLDA
+C Z-ADD 22 FLDB
+*
+* DS1 is set to the fourth occurrence. Using the values in
+* FLDA and FLDB of the fourth occurrence of DS1, the MOVE
+* operation places the contents of FLDA in the result field,
+* FLDX, and the Z-ADD operation places the contents of FLDB
+* in the result field, FLDY.
+C
+C 4 OCCUR DS1
+C MOVE FLDA FLDX
+C Z-ADD FLDB FLDY
+*
+* DS1 is set to the occurrence specified in field X.
+* For example, if X = 10, DS1 is set to the tenth occurrence.
+C X OCCUR DS1
+*
+* DS1 is set to the current occurrence of DS2. For example, if
+* the current occurrence of DS2 is the twelfth occurrence, DSI
+* is set to the twelfth occurrence.
+C DS2 OCCUR DS1
+*
+* The value of the current occurrence of DS1 is placed in the
+* result field, Z. Field Z must be numeric with zero decimal
+* positions. For example, if the current occurrence of DS1
+* is 15, field Z contains the value 15.
+C OCCUR DS1 Z
+C
+* DS1 is set to the current occurrence of DS2. The value of the
+* current occurrence of DS1 is then moved to the result field,
+* Z. For example, if the current occurrence of DS2 is the fifth
+* occurrence, DS1 is set to the fifth occurrence. The result
+* field, Z, contains the value 5.
+C
+C DS2 OCCUR DS1 Z
+*
+* DS1 is set to the current occurrence of X. For example, if
+* X = 15, DS1 is set to the fifteenth occurrence.
+* If X is less than 1 or is greater than 50,
+* an error occurs and %ERROR is set to return '1'.
+* If %ERROR returns '1', the LR indicator is set on.
+C
+C X OCCUR (E) DS1
+C IF %ERROR
+C SETON LR
+C ENDIF
+
+Figure 2. Exporting a Multiple Occurrence
+DS
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords++++++++++++++++++++++++++
+*
+* Procedure P1 exports a multiple occurrence data structure.
+* Since the information about the current occurrence is
+* not exported, P1 can communicate this information to
+* other procedures using parameters, but in this case it
+* communicates this information by exporting the current
+* occurrence.
+*
+D EXP_DS DS OCCURS(50) EXPORT
+D FLDA 1 5
+D NUM_OCCUR C %ELEM(EXP_DS)
+D EXP_DS_CUR S 5P 0 EXPORT
+*
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq.
+*
+* Loop through the occurrences. For each occurrence, call
+* procedure P2 to process the occurrence. Since the occurrence
+* number EXP_DS_CUR is exported, P2 will know which occurrence
+* to process.
+*
+C DO NUM_OCCUR EXP_DS_CUR
+C EXP_DS_CUR OCCUR EXP_DS
+C :
+C CALLB 'P2'
+C ENDDO
+C :
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords++++++++++++++++++++++++++
+*
+* Procedure P2 imports the multiple occurrence data structure.
+* The current occurrence is also imported.
+*
+D EXP_DS DS OCCURS(50) IMPORT
+D FLDA 1 5
+D EXP_DS_CUR S 5P 0 IMPORT
+*
+*...1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq.
+*
+* Set the imported multiple-occurrence data structure using
+* the imported current occurrence.
+*
+C EXP_DS_CUR OCCUR EXP_DS
+*
+* Process the current occurrence.
+C :
+
+Parent topic: Operation Codes

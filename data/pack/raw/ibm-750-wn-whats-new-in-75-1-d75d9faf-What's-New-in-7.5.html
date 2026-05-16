@@ -1,0 +1,1431 @@
+<html><head></head><body><main role="main"><article role="article" aria-labelledby="rpgrelv7r5__title__1">
+<h1 class="topictitle1" id="rpgrelv7r5__title__1">What's New in 7.5?</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-10-07</div>
+
+
+<div class="body">
+<p>This section describes the enhancements made to ILE RPG in 7.5.</p>
+
+<div class="note border-2 cds--inline-notification--info ibmdocs-note cds--inline-notification cds--inline-notification--low-contrast margin-top-1 margin-bottom-1"><div class="cds--inline-notification__details"><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="cds--inline-notification__icon" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16,2A14,14,0,1,0,30,16,14,14,0,0,0,16,2Zm0,5a1.5,1.5,0,1,1-1.5,1.5A1.5,1.5,0,0,1,16,7Zm4,17.12H12V21.88h2.88V15.12H13V12.88h4.13v9H20Z"></path></svg>
+        <div class="cds--inline-notification__text-wrapper">
+          <div class="cds--inline-notification__subtitle"><span class="notetitle ibm-bold ibm-textcolor-blue-50 background-blue cds--inline-notification__title ibm-padding-top-1 ibm-padding-bottom-1 padding-left-1 padding-right-1">Note:</span> Many of these enhancements are also available through PTFs for 7.3 and 7.4.
+See <a href="https://www.ibm.com/support/pages/rpg-cafe" rel="noopener" target="_blank" title="(Opens in a new tab or window)">https://www.ibm.com/support/pages/rpg-cafe</a>
+to determine the 7.3 and 7.4 PTFs you need on the systems where you are compiling and running your programs.
+<p>
+Some enhancements provided through PTFs require both a compile-time PTF and a runtime PTF.
+If a program uses an enhancement that requires a runtime PTF,
+you must ensure that the runtime PTF is applied on any system where the program is restored.
+</p>
+
+</div>
+        </div>
+      </div></div>
+
+<dl>
+
+<dt class="dlterm">New operation code SND-MSG</dt>
+
+<dd class="dlentry">
+With SND-MSG, you can send an informational message or an escape message to a program or procedure
+on the call stack.
+<ul class="cds--list--unordered">
+<li class="cds--list__item">In the following example, "Hello from RPG" is sent to the joblog as an informational message.
+<p>The two SND-MSG operations are equivalent. The first SND-MSG defaults to having <span class="keyword">*INFO</span> as
+the message type. The second SND-MSG explicitly specifies <span class="keyword">*INFO</span>.
+</p>
+
+<p>When <span class="keyword">*INFO</span> is specified as the message-type, or the message-type operand is not specified,
+the message is sent by default to the current procedure.
+</p>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S name VARCHAR(20) inz('RPG');
+
+SND-MSG 'Hello from ' + name;
+
+SND-MSG *INFO 'Hello from ' + name;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</li>
+
+<li class="cds--list__item">In the following example, message <span class="keyword">ACT1234</span> from message file <span class="ph filepath">*LIBL/MYMSGF</span>
+is sent as an escape message to the caller of the current procedure.
+When <span class="keyword">*ESCAPE</span> is specified, the message is sent by default to the caller of the current procedure.
+<p>
+Assume that the message has two replacement values.
+</p>
+
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item"><span class="keyword">TYPE(*CHAR) LEN(25)</span></li>
+
+<li class="cds--list__item"><span class="keyword">TYPE(*DEC) LEN(10)</span></li>
+
+</ol>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS ACT1234_text qualified;
+   account_name char(25);
+   account_number packed(10);
+END-DS;
+
+CHAIN (acct_num) FILE;
+IF NOT %FOUND();
+   ACT1234_text.account_name = name;
+   ACT1234_text.account_number = acct_num;
+   SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text);
+ENDIF;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</li>
+
+<li class="cds--list__item">The SND-MSG operation in the following example is similar to the previous example, but the message
+is explicitly sent to the call-stack entry 'MYCLPGM'.
+The RPG programmer expects that a program called <span class="keyword apiname">MYCLPGM</span> has been called before the current procedure,
+and that <span class="keyword apiname">MYCLPGM</span> has not returned yet.
+If the RPG programmer is debugging the program, and uses the <span class="keyword apiname">DSPJOB</span> command with parameter
+<span class="keyword">OPTION(*PGMSTK)</span>, the program stack must show that <span class="keyword apiname">MYCLPGM</span> is an active caller
+of the current procedure.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+   SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text)
+                   %TARGET('MYCLPGM');
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</li>
+
+<li class="cds--list__item">The SND-MSG operation in the following example is similar to the previous example, but the message
+is explicitly sent to the caller of <span class="keyword apiname">MYCLPGM</span>, by specifying the value 1
+for the <span class="keyword">offset</span> operand of <span class="keyword">%TARGET</span>.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+   SND-MSG *ESCAPE %MSG('ACT1234' : 'MYMSGF' : ACT1234_text)
+                   %TARGET('MYCLPGM' : 1);
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</li>
+
+<li class="cds--list__item">If an error occurs while sending the message, the SND-MSG operation fails with new status
+code 126.
+If you send an escape message to the current procedure, the RPG procedure fails with status code 9999.
+</li>
+
+</ul>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzsndmsg.htm">SND-MSG (Send a Message to the Joblog)</a>.</span>
+<p>This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2022.
+</p>
+
+<p>This enhancement is also available in 7.3 with a compile-time PTF and a runtime PTF.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New operation code ON-EXCP</dt>
+
+<dd class="dlentry">
+You can monitor for specific message IDs in a MONITOR group by listing
+the message IDs in an ON-EXCP operation code.
+ON-EXCP is similar to ON-ERROR, but with ON-EXCP, you list the message IDs to be monitored.
+<p>The ON-EXCP operations must precede any ON-ERROR operations in the MONITOR group.
+</p>
+
+<p>Specify the (C) extender to limit ON-EXCP to escape messages sent to
+the procedure containing the ON-EXCP statement.
+</p>
+
+<p>In the following example, the MONITOR group has two ON-EXCP blocks
+and one ON-ERROR block.
+</p>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+MONITOR;
+ON-EXCP 'ABC1234' : 'ABC2345';
+   // handle exception messages
+ON-EXCP 'DEF1234';
+   // handle another exception message
+ON-ERROR 222;
+   // handle pointer-not-set
+ENDMON;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzonexcp.htm">ON-EXCP (On Exception)</a>.</span>
+<p>This enhancement is available with a compile-time PTF and a runtime PTF in the first half of the year 2022.
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New operation code DATA-GEN</dt>
+
+<dd class="dlentry">DATA-GEN generates a structured document, such as JSON or CSV, from
+an RPG variable.
+It requires a generator to generate the document.
+The DATA-GEN operation calls the generator, passing it the names and values of the
+RPG variables, and the generator passes the text for the structured document
+back to the DATA-GEN operation, which places the
+information into the output file or the output RPG variable.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS product QUALIFIED;
+   name VARCHAR(25);
+   id CHAR(10);
+   price PACKED(9 : 2);
+END-DS product;
+
+DATA-GEN product %DATA('ProductInfo.JSON' : 'doc=file')
+                  %GEN('MYLIB/MYJSONGEN');
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzdatagen.htm">DATA-GEN (Generate a Document from a Variable)</a>,
+<a href="/docs/en/ssw_ibm_i_75/rzasd/bbdata.htm">%DATA (document {:options})</a>,
+<a href="/docs/en/ssw_ibm_i_75/rzasd/bbgen.htm">%GEN (generator {: options})</a>.</span>
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New operation code FOR-EACH</dt>
+
+<dd class="dlentry">The FOR-EACH operation code begins a group of operations that iterates through the elements
+of an array, %LIST, or %SUBARR.
+<p>The first operand of FOR-EACH is a variable that receives the value of the
+current element in the array or %LIST.
+</p>
+
+<p>The loop ends with the ENDFOR operation code.
+</p>
+
+<div class="p">In the following example, each element of the
+<var class="keyword varname">filenames</var> array is processed in the
+FOR-EACH group.
+Within the group of operation codes between the FOR-EACH operation and
+the ENDFOR operation, the <var class="keyword varname">file</var>
+variable has the value of the current element of the <var class="keyword varname">filenames</var> array.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S filenames CHAR(10) DIM(10);
+DCL-S file CHAR(10);
+DCL-S numFilenames INT(10);
+...
+FOR-EACH file in %SUBARR(filenames : 1 : numFilenames);
+   process (file);
+ENDFOR;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzforeach.htm">FOR-EACH (For Each)</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Sort an array data structure by more than one subfield</dt>
+
+<dd class="dlentry">
+Use %FIELDS to list the subfields for sorting an array data structure.
+<p>In the following example, data structure array <var class="keyword varname">info</var>
+is sorted by subfields <var class="keyword varname">dueDate</var> and <var class="keyword varname">orderId</var>.
+To determine the required order of two elements of <var class="keyword varname">info</var>,
+subfield <var class="keyword varname">dueDate</var> is compared first.
+If the value of <var class="keyword varname">dueDate</var> is equal in the two elements,
+then subfield <var class="keyword varname">orderId</var> is used to determine the
+order of the two elements of <var class="keyword varname">info</var>.
+</p>
+
+<p><var class="keyword varname">info(2).dueDate</var> is greater than <var class="keyword varname">info(3).dueDate</var>
+so it is not necessary to compare the second subfield <var class="keyword varname">orderId</var>
+to determine the relative order of elements 2 and 3.
+</p>
+
+<p><var class="keyword varname">info(1).dueDate</var> is equal to <var class="keyword varname">info(3).dueDate</var>
+so <var class="keyword varname">info(1).orderId</var> is compared to <var class="keyword varname">info(3).orderId</var>
+to determine the relative order of elements 1 and 3.
+</p>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS info QUALIFIED DIM(3);
+   orderId packed(5);
+   dueDate DATE(*ISO);
+   quantity int(10);
+END-DS;
+
+info(1).orderId = 23456;
+info(1).dueDate = D'2021-09-08';
+info(1).quantity = 5;
+
+info(2).orderId = 12345;
+info(2).dueDate = D'2021-10-08';
+info(2).quantity = 3;
+
+info(3).orderId = 12345;
+info(3).dueDate = D'2021-09-08';
+info(3).quantity = 25;
+
+SORTA info %FIELDS(dueDate : orderId);
+
+// info(1).orderId = 12345
+// info(1).dueDate = D'2021-09-08'
+// info(1).quantity = 25
+//
+// info(2).orderId = 23456
+// info(2).dueDate = D'2021-09-08'
+// info(2).quantity = 5
+//
+// info(3).orderId = 12345
+// info(3).dueDate = D'2021-10-08'
+// info(3).quantity = 3
+
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbfieldssorta.htm">%FIELDS (Subfields for sorting)</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New IN operator</dt>
+
+<dd class="dlentry">
+The IN operator is used to determine whether an item
+is in an array or %LIST, or in a range.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+IF item IN %RANGE(lower_limit : upper_limit);
+   ...
+ENDIF;
+IF item IN myArray;
+   ...
+ENDIF;
+
+IF item IN %LIST(item1 : item2 : ...);
+ENDIF;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/operin.htm">IN operator</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New built-in function %RANGE</dt>
+
+<dd class="dlentry">
+You can check whether a value is in the range of two other
+values by using the %RANGE built-in function.
+<div class="p">In the following example, the IF statement is true if
+<var class="keyword varname">num</var> is greater than or equal to 1 and
+less than or equal to 10.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S num PACKED(15:5);
+
+IF num IN %RANGE(1 : 10);
+   ...
+ENDIF;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbrange.htm">%RANGE (lower-limit : upper-limit)</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New built-in function %LIST</dt>
+
+<dd class="dlentry">
+You can define a temporary array by using built-in function %LIST.
+%LIST is allowed in calculations anywhere an array is allowed
+except SORTA, %LOOKUPxx, or %SUBARR.
+<div class="p">In the following example, the first four elements of
+the <var class="keyword varname">libraries</var>
+array are assigned from the values in the %LIST built-in function.
+The first element of <var class="keyword varname">libraries</var> is assigned
+the value 'QGPL', the second element is assigned the value of
+variable <var class="keyword varname">currentUserProfile</var> and so on.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S libraries CHAR(10) DIM(10);
+
+libraries = %LIST ('QGPL'
+                 : currentUserProfile
+                 : 'QTEMP'
+                 : getDevLib ());
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bblist.htm">%LIST (item { : item { : item ... } } )</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New built-in functions %LOWER and %UPPER</dt>
+
+<dd class="dlentry">
+You can convert the case of a character or UCS-2 string
+to lower case by using the %LOWER built-in function
+or to upper case by using the built-in function %UPPER.
+<p>You can limit the conversion to only part of the
+string by specifying the start and length for
+the conversion.
+</p>
+
+<div class="p">In the following example, the characters
+following the first character are converted to lower case.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S string VARCHAR(20);
+
+string = %LOWER('GÖTEBORG' : 2);
+// string = "Göteborg"
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bblowerupper.htm">%LOWER and %UPPER (Convert to Lower or Upper Case)</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New built-in function %SPLIT</dt>
+
+<dd class="dlentry">
+You can split a string into a temporary array of substrings
+by using %SPLIT.
+<p>By default, the string is split at blanks.
+You can specify a second parameter with the characters you want to
+split at.
+</p>
+
+<p>In the following examples, the result of %SPLIT is
+assigned to an array.
+</p>
+
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">In the first assignment, the string is split at blanks.
+</li>
+
+<li class="cds--list__item">In the second assignment, the string is split at either
+asterisks or blanks.
+</li>
+
+</ol>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S array VARCHAR(20) DIM(10);
+
+array = %SPLIT(' **One** **Two** **Three** '); // &nbsp;1&nbsp;
+// array(1) = '**One**'
+// array(2) = '**Two**'
+// array(3) = '**Three**'
+
+array = %SPLIT(' **One** **Two** **Three** ' : ' *');  // &nbsp;2&nbsp;
+// array(1) = 'One'
+// array(2) = 'Two'
+// array(3) = 'Three'
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbsplit.htm">%SPLIT (Split String into Substrings)</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2021.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">New built-in functions %MAXARR and %MINARR</dt>
+
+<dd class="dlentry">
+You can find the index of the maximum value or minimum value in an array using %MAXARR
+or %MINARR.
+<div class="p">In the following example
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">
+After the assignment from %LIST,
+the maximum value in the array is 'Yellow' (<var class="keyword varname">array1(2)</var>).
+The minimum value is 'Blue' (<var class="keyword varname">array1(3)</var>).
+</li>
+
+<li class="cds--list__item">
+%MAXARR(array1) returns 2.
+</li>
+
+<li class="cds--list__item">
+%MINARR(array1) returns 3. When %MINARR(array1) is used as an index
+for <var class="keyword varname">array1</var>, the value assigned to <var class="keyword varname">minVal</var> is
+'Blue'.
+</li>
+
+</ol>
+
+</div>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-S array1 VARCHAR(10) DIM(3);
+DCL-S i INT(10);
+DCL-S minVal LIKE(array1);
+
+array1 = %LIST('Red' : 'Yellow' : 'Blue'); // &nbsp;1&nbsp;
+
+i = %MAXARR(array1); // &nbsp;2&nbsp;
+// i = 2
+
+minVal = array1(%MINARR(array1)); // &nbsp;3&nbsp;
+// minVal = 'Blue'
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbmaxminarr.htm">%MAXARR and %MINARR (Maximum or Minimum Element in an Array)</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.4 and 7.4 with a compile-time PTF in the last half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">A new option *STRICTKEYS is added to the EXPROPTS Control keyword.</dt>
+
+<dd class="dlentry">
+When EXPROPTS(*STRICTKEYS) is specified, the rules are more strict for
+specifying the search argument for keyed file operations by using
+a list of keys or %KDS.
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hexprop.htm#hexprop__strictkeys">*STRICTKEYS</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the first half of the year 2021.</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Allow blanks for built-in functions that convert character to numeric</dt>
+
+<dd class="dlentry">
+A new option *ALWBLANKNUM is added to the EXPROPTS Control keyword.
+<p>
+When EXPROPTS(*ALWBLANKNUM) is specified, the numeric conversion built-in functions
+%DEC, %DECH, %FLOAT, %INT, %INTH, %UNS, and %UNSH, a blank character value is allowed.
+These built-in functions return zero if the character
+operand is blank or it has a length of zero.
+For DATA-INTO and XML-INTO, if the value for a numeric field is blank or empty, a value of zero
+is placed in the value.
+</p>
+
+<div class="p">In the following example, the %DEC operation does not fail due to
+a blank value because EXPROPTS(*ALWBLANKNUM) is specified.
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+CTL-OPT EXPROPTS(*ALWBLANKNUM);
+
+DCL-S num PACKED(15:5);
+DCL-S string CHAR(10) INZ(*BLANKS);
+
+num = %DEC(string : 63 : 15);
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hexprop.htm">EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)</a>
+and <a href="/docs/en/ssw_ibm_i_75/rzasd/chartonumbifs.htm">Rules for converting character values to numeric values using built-in functions</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Allow thousands separators for built-in functions that convert character to numeric</dt>
+
+<dd class="dlentry">
+A new option *USEDECEDIT is added to the EXPROPTS Control keyword.
+<p>
+When EXPROPTS(*USEDECEDIT) is specified, the numeric conversion built-in functions
+%DEC, %DECH, %FLOAT, %INT, %INTH, %UNS, and %UNSH interpret the period and comma
+characters according to the setting defined by the Control keyword DECEDIT.
+This keyword also affects the way the data for a numeric field is processed by
+DATA-INTO and XML-INTO.
+</p>
+
+<p>By default, and with DECEDIT('.') or DECEDIT('0.'), or with
+DECEDIT(*JOBRUN) when the job DECFMT value is not J, the period is the decimal-point character
+and the comma is the digit-separator (thousands separator) character.
+</p>
+
+<p>
+With DECEDIT(',') or DECEDIT('0,'),  or with
+DECEDIT(*JOBRUN) when the job DECFMT value is J, the comma is the decimal-point character
+and the period is the digit-separator.
+</p>
+
+<div class="p">In the following example
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Keyword EXPROPTS(*USEDECEDIT) is specified.
+</li>
+
+<li class="cds--list__item">Keyword DECEDIT keyword is not specified, so the decimal-point character
+defaults to the period and the digit-separator character defaults to the comma.
+</li>
+
+<li class="cds--list__item">The string '1,234,567.89' is allowed for %DEC. The commas are
+ignored because the comma is the digit-separator character.
+</li>
+
+<li class="cds--list__item">The %DEC built-in function returns 1234567.89.
+</li>
+
+</ul>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+CTL-OPT EXPROPTS(*USEDECEDIT);
+
+DCL-S num PACKED(15:5);
+
+num = %DEC('1,234,567.89' : 15 : 5);
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hexprop.htm">EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)</a>
+and <a href="/docs/en/ssw_ibm_i_75/rzasd/chartonumbifs.htm">Rules for converting character values to numeric values using built-in functions</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Overloaded prototypes</dt>
+
+<dd class="dlentry">
+The OVERLOAD keyword defines a list of other prototypes that can be called
+by using the name of the prototype with the OVERLOAD keyword.
+When the prototype with the OVERLOAD keyword is used in a call operation, the compiler uses
+the parameters that are specified for the call to determine which of the candidate prototypes
+that are listed in the OVERLOAD keyword to call.
+<p>The /OVERLOAD directive can be used to request more information in the compile
+listing about how the compiler determines which procedure to call.
+</p>
+
+<div class="p">In the following example, <var class="keyword varname">FORMAT</var> is defined with the OVERLOAD keyword.
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">For the first call to <var class="keyword varname">FORMAT</var>, the parameter has type Date,
+so <var class="keyword varname">FORMAT_DATE</var> is called.
+</li>
+
+<li class="cds--list__item">For the second call to <var class="keyword varname">FORMAT</var>, the parameter has type Time,
+so <var class="keyword varname">FORMAT_TIME</var> is called.
+</li>
+
+<li class="cds--list__item">For the second call to <var class="keyword varname">FORMAT</var>, the parameters have type Character,
+so <var class="keyword varname">FORMAT_MESSAGE</var> is called.
+</li>
+
+</ol>
+
+</div>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-PR format_date VARCHAR(100);
+   dateParm DATE(*ISO) CONST;
+END-PR;
+DCL-PR format_time VARCHAR(100);
+   timeParm TIME(*ISO) CONST;
+END-PR;
+DCL-PR format_message VARCHAR(100);
+   msgid CHAR(7) CONST;
+   replacement_text VARCHAR(100) CONST OPTIONS(*NOPASS);
+END-PR;
+DCL-PR format VARCHAR(100) OVERLOAD(format_time : format_date : format_message);
+DCL-S result varchar(50);
+
+result = format(%date());              // &nbsp;1&nbsp;
+result = format(%time());              // &nbsp;2&nbsp;
+result = format('MSG0100' : filename); // &nbsp;3&nbsp;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/dkwoverload.htm">OVERLOAD(prototype1 { : prototype2 ...})</a> and <a href="/docs/en/ssw_ibm_i_75/rzasd/cdoverload.htm">/OVERLOAD DETAIL | NODETAIL</a>.</span>
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">OPTIONS(*EXACT) for prototyped parameters</dt>
+
+<dd class="dlentry">
+When OPTIONS(*EXACT) is specified for a prototyped parameter, additional rules apply to ensure that
+the called procedure receives the same value as the passed parameter.
+For example, without OPTIONS(*EXACT), the compiler allows the passed parameter to be longer than the prototyped parameter,
+and it allows a data structure to be passed that is related by LIKEDS to a different data structure from the passed parameter.
+With OPTIONS(*EXACT), the passed parameter cannot be longer than the prototyped parameter, and if the prototyped
+parameter is defined with LIKEDS keyword, the passed parameter must be related by LIKEDS to the same data structure.
+<p>
+In the following example, field <var class="keyword varname">fld10</var> can be passed to parameter <var class="keyword varname">parm5</var>
+of prototype <span class="keyword apiname">p1</span>, but the called procedure receives the value "abcde" instead of the full value
+'abcdefghij' of <var class="keyword varname">fld10</var>.
+</p>
+
+<p>Field <var class="keyword varname">fld10</var> cannot be passed to parameter <var class="keyword varname">parm5Exact</var>
+of prototype <span class="keyword apiname">p2</span> because the length, 10, of <var class="keyword varname">fld10</var> is greater than
+the length, 5, of the prototyped parameter <var class="keyword varname">parm5Exact</var>.
+</p>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+dcl-pr p1;
+   parm5 char(5);
+end-pr;
+dcl-pr p2;
+   parm5Exact char(5) OPTIONS(*EXACT);
+end-pr;
+dcl-s fld10 char(10) inz('abcdefghij');
+
+p1 (fld10);
+p2 (fld10);  // Error
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/doptns.htm#doptns__exact">OPTIONS(*EXACT)</a>.</span>
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">See the value of named constants in the debugger</dt>
+
+<dd class="dlentry">
+Specify Control keyword DEBUG(*CONSTANTS) to enable viewing the value
+of named constants in the debugger.
+<div class="p"><div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+CTL-OPT DEBUG(*CONSTANTS);
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hdebug.htm">DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}</a>.</span>
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2021.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">See or change the return value from a procedure while debugging</dt>
+
+<dd class="dlentry">If Control keyword DEBUG(*RETVAL) is specified,
+you can evaluate special variable <var class="keyword varname">_QRNU_RETVAL</var>
+to see or change the value that the procedure will return.
+<div class="p">
+Set a breakpoint on the last statement of the procedure to view or change the value of this variable.
+<ul class="cds--list--unordered">
+<li class="cds--list__item">In free-form code, set the breakpoint on the END-PROC statement.</li>
+
+<li class="cds--list__item">In fixed-form code, set the breakpoint on the Procedure-End specification.</li>
+
+</ul>
+
+</div>
+
+<div class="p">For example, a programmer is debugging the following procedure.
+<ol class="cds--list--ordered--temporary">
+
+<li class="cds--list__item">The procedure returns the value 'abcde'.</li>
+
+
+<li class="cds--list__item">The programmer sets a breakpoint on the END-PROC statement.</li>
+
+
+<li class="cds--list__item">In the debug session, the programmer displays the return value.</li>
+
+</ol>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+CTL-OPT DEBUG(*RETVAL);
+...
+DCL-PROC myProc;
+   DCL-PI *n CHAR(10) END-PI;
+
+   RETURN 'abcde'; &nbsp;1&nbsp;
+END-PROC;          &nbsp;2&nbsp;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<div class="p">
+<ol class="cds--list--ordered--temporary">
+
+<li class="cds--list__item">In the debug session at the END-PROC statement, the programmer displays the return value.</li>
+
+
+<li class="cds--list__item">The programmer changes the return value to '12345'.</li>
+
+<li class="cds--list__item">The value '12345' is returned from the procedure.</li>
+
+</ol>
+
+<div class="figborder"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+&gt; EVAL _qrnu_retval                    &nbsp;1&nbsp;
+  _QRNU_RETVAL = 'abcde     '
+&gt; EVAL _qrnu_retval = '12345'          &nbsp;2&nbsp;
+  _QRNU_RETVAL = '12345' = '12345     '
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hdebug.htm">DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}</a>.</span>
+
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Optionally require prototypes for the main procedure and exported procedures</dt>
+
+<dd class="dlentry">
+Parameter REQPREXP is added to the CRTBNDRPG and CRTRPGMOD commands to control
+how the compiler responds when no prototype is specified for an exported procedure.
+Additionally, the keyword REQPREXP can be specified as a Control Specification keyword.
+<p>The default for the parameter is *NO.</p>
+
+<p>With the *WARN level,
+the compiler issues a warning diagnostic message.</p>
+
+<p>With the *REQUIRE level, the compiler issues a severe diagnostic message,
+which causes the compile to fail.</p>
+
+<p>You can specify keyword REQPROTO(*NO) for an exported procedure
+or for the procedure interface of the
+cycle-main procedure to indicate that
+a prototype is never required for the procedure.
+</p>
+
+<p>
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hreqprexp.htm">REQPREXP(*NO | *WARN | *REQUIRE)</a>,
+<a href="/docs/en/ssw_ibm_i_75/rzasd/preqprotokw.htm">REQPROTO(*NO)</a> for exported procedures, and
+<a href="/docs/en/ssw_ibm_i_75/rzasd/dkwreqproto.htm">REQPROTO(*NO)</a> for the procedure interface of the cycle-main procedure.</span>
+
+</p>
+
+<p>This enhancement is also available in 7.3 and 7.4 with compile-time PTFs in the last half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">%TIMESTAMP to return microsecond precision</dt>
+
+<dd class="dlentry">%TIMESTAMP() now returns a timestamp with microsecond precision.
+<p>If you specify %TIMESTAMP(*UNIQUE), the returned timestamp
+has a nonzero value for all 12 fractional digits.
+The first 6 fractional seconds provide microsecond precision.
+The final 6 digits are used to create a unique timestamp.
+</p>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbtmst.htm">%TIMESTAMP (Convert to Timestamp)</a>.</span>
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">A variable or expression is allowed for the second parameter of %KDS</dt>
+
+<dd class="dlentry">The second parameter of %KDS is the number of keys to use for
+the keyed operation.
+You can now specify a variable or expression for the second parameter.
+<div class="figborder">
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-F myfile KEYED;
+DCL-DS keys LIKEREC(myRec : *KEY);
+DCL-S numKeys INT(10);
+
+numKeys = 3;
+CHAIN %KDS(keys : numKeys) myRec;
+READE %KDS(keys : numKeys - 1) myRec;
+</code></pre></div><div class="docs--copy-btn"></div></div>
+</div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbkds.htm">%KDS (Search Arguments in Data Structure)</a>.</span>
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF and a runtime PTF in the first half of the year 2020.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Qualified name for the LIKEDS keyword</dt>
+
+<dd class="dlentry">You can now specify a qualified name for the LIKEDS keyword.
+In the following example
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Data structure subfield <var class="keyword varname">employees</var>
+is defined directly in data structure <var class="keyword varname">employee_info</var>.
+</li>
+
+<li class="cds--list__item">The LIKEDS keyword for the parameter for procedure
+<span class="keyword apiname">check_employee</span> is defined by using the LIKEDS
+keyword to define the parameter the same as the qualified subfield
+<var class="keyword varname">employee_info.employeeds</var>.
+</li>
+
+</ol>
+
+<div class="figborder">
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS employee_info QUALIFIED;
+   num_employees INT(10);
+   DCL-DS employees DIM(20);  // &nbsp;1&nbsp;
+      name VARCHAR(25);
+      salary PACKED(7:2);
+   END-DS;
+END-DS;
+DCL-PR check_employee IND;
+   employee LIKEDS(employee_info.employees);  // &nbsp;2&nbsp;
+END-PI;
+</code></pre></div><div class="docs--copy-btn"></div></div>
+</div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/dlikeds.htm#dlikeds__likedsqual">Specifying LIKEDS with a qualified data structure name</a>.</span>
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">*ON and *OFF can be logical expressions</dt>
+
+<dd class="dlentry">You can now use *ON and *OFF directly in conditional statements.
+For example, if you want an infinitely DOW loop, you can code "DOW *ON".
+<div class="p">
+<div class="fignone"><div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+   DOW *ON;
+    ...
+   ENDDO;
+</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</div>
+
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">Qualified name for the LIKEDS keyword</dt>
+
+<dd class="dlentry">You can now specify a qualified name for the LIKEDS keyword.
+In the following example
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Data structure subfield <var class="keyword varname">employees</var>
+is defined directly in data structure <var class="keyword varname">employee_info</var>.
+</li>
+
+<li class="cds--list__item">The LIKEDS keyword for the parameter for procedure
+<span class="keyword apiname">check_employee</span> is defined by using the LIKEDS
+keyword to define the parameter the same as the qualified subfield
+<var class="keyword varname">employee_info.employeeds</var>.
+</li>
+
+</ol>
+
+<div class="figborder">
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>
+DCL-DS employee_info QUALIFIED;
+   num_employees INT(10);
+   DCL-DS employees DIM(20);  // &nbsp;1&nbsp;
+      name VARCHAR(25);
+      salary PACKED(7:2);
+   END-DS;
+END-DS;
+DCL-PR check_employee IND;
+   employee LIKEDS(employee_info.employees);  // &nbsp;2&nbsp;
+END-PI;
+</code></pre></div><div class="docs--copy-btn"></div></div>
+</div>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/dlikeds.htm#dlikeds__likedsqual">Specifying LIKEDS with a qualified data structure name</a>.</span>
+<p>This enhancement is also available in 7.3 and 7.4 with a compile-time PTF in the last half of the year 2019.
+</p>
+
+</dd>
+
+
+
+<dt class="dlterm">The BOOLEAN data type is supported for ILE RPG</dt>
+
+<dd class="dlentry">When a field in a database file is defined with type BOOLEAN,
+the field is considered to have Indicator type in RPG.
+</dd>
+
+
+</dl>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 1. Changed Language Elements Since 7.4: Built-in functions</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__1" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__2" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__1 ">%KDS</td>
+
+<td headers="rpgrelv7r5__entry__2 ">A variable can now be specified as the second parameter of %KDS
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbkds.htm">%KDS (Search Arguments in Data Structure)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__1 ">%TIMESTAMP</td>
+
+<td headers="rpgrelv7r5__entry__2 ">%TIMESTAMP() returns a value with microsecond precision.
+%TIMESTAMP(*UNIQUE) returns a unique timestamp.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbtmst.htm">%TIMESTAMP (Convert to Timestamp)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 2. Changed Language Elements Since 7.4: Control specification keywords</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__7" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__8" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__7 ">DEBUG keyword</td>
+
+<td headers="rpgrelv7r5__entry__8 ">
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Specify parameter *RETVAL if you want to
+debug the return value from a procedure.</li>
+
+<li class="cds--list__item">Specify parameter *CONSTANTS if you want to view the
+value of named constants in the debugger.</li>
+
+</ul>
+
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hdebug.htm">DEBUG{(*DUMP | *INPUT | *RETVAL | *XMLSAX | *NO | *YES)}</a>.</span>
+
+</td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__7 ">EXPROPTS keyword</td>
+
+<td headers="rpgrelv7r5__entry__8 ">Parameters *ALWBLANKNUM, *USEDECEDIT, and *STRICTKEYS can now be specified for the
+EXPROPTS keyword.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hexprop.htm">EXPROPTS(*MAXDIGITS | *RESDECPOS | *ALWBLANKNUM | *USEDECEDIT)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 3. Changed Language Elements Since 7.4: Definitions</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__13" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__14" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__13 ">LIKEDS</td>
+
+<td headers="rpgrelv7r5__entry__14 ">Allows a qualified name
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/dlikeds.htm#dlikeds__likedsqual">Specifying LIKEDS with a qualified data structure name</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__13 ">OPTIONS(*EXACT)</td>
+
+<td headers="rpgrelv7r5__entry__14 ">The OPTIONS keyword for a prototyped parameter can have
+value *EXACT, indicating that additional rules should be applied by the compiler when checking
+the validity of the passed parameter.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/doptns.htm#doptns__exact">OPTIONS(*EXACT)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 4. Changed Language Elements Since 7.4: Operation codes</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__19" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__20" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__19 ">SORTA operation code</td>
+
+<td headers="rpgrelv7r5__entry__20 ">%FIELDS can be specified with SORTA to list the subfields for sorting.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbfieldssorta.htm">%FIELDS (Subfields for sorting)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 5. New Language Elements Since 7.4: Directives</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__23" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__24" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__23 ">/OVERLOAD</td>
+
+<td headers="rpgrelv7r5__entry__24 ">Specify /OVERLOAD DETAIL to obtain detailed information
+about calls to
+overloaded prototypes in the statements following the directive.
+Specify /OVERLOAD NODETAIL to stop obtaining the detailed information.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/cdoverload.htm">/OVERLOAD DETAIL | NODETAIL</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 6. New Language Elements Since 7.4: Definition specification keywords</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__27" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__28" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__27 ">OVERLOAD</td>
+
+<td headers="rpgrelv7r5__entry__28 ">Defines candidate prototypes that can be called by the name of the overloaded prototype
+(the prototype with the OVERLOAD keyword)
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/dkwoverload.htm">OVERLOAD(prototype1 { : prototype2 ...})</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__27 ">REQPROTO</td>
+
+<td headers="rpgrelv7r5__entry__28 ">REQPROTO(*NO) can be specified on the procedure interface
+for the cycle-main procedure to indicate that a prototype is never required.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/dkwreqproto.htm">REQPROTO(*NO)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 7. New Language Elements Since 7.4: Control specification keywords</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__33" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__34" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__33 ">REQPREXP</td>
+
+<td headers="rpgrelv7r5__entry__34 ">Controls whether prototypes are required for the main procedure
+and exported subprocedures.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/hreqprexp.htm">REQPREXP(*NO | *WARN | *REQUIRE)</a>.</span>
+
+</td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 8. New Language Elements Since 7.4: Expression Operators</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__37" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__38" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__37 ">IN</td>
+
+<td headers="rpgrelv7r5__entry__38 ">Used in a binary conditional statement that tests whether
+the first operand is in the second operand.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/operin.htm">IN operator</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 9. New Language Elements Since 7.4: Built-in functions</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__41" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__42" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%GEN</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Specifies the generator for the DATA-GEN operation code
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbgen.htm">%GEN (generator {: options})</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%LIST</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Returns a temporary array
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bblist.htm">%LIST (item { : item { : item ... } } )</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%LOWER</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Returns the input string converted to lower case.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bblower.htm">%LOWER (Convert to Lower Case)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%MAXARR</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Returns the index of the maximum value in the array
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbmaxminarr.htm">%MAXARR and %MINARR (Maximum or Minimum Element in an Array)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%MINARR</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Returns the index of the minimum value in the array
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbmaxminarr.htm">%MAXARR and %MINARR (Maximum or Minimum Element in an Array)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%MSG</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Specifies the message ID for SND-MSG
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbmsg.htm">%MSG (message-id : message-file { : replacement-text } )</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%RANGE</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Specifies the range to check with the <span class="keyword">IN</span> operator
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbrange.htm">%RANGE (lower-limit : upper-limit)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%SPLIT</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Returns an array of substrings
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbsplit.htm">%SPLIT (Split String into Substrings)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%TARGET</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Specifies the target program or procedure for SND-MSG
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbtarget.htm">%TARGET (program-or-procedure { : offset } )</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__41 ">%UPPER</td>
+
+<td headers="rpgrelv7r5__entry__42 ">Returns the input string converted to upper case.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/bbupper.htm">%UPPER (Convert to Upper Case)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 10. New Language Elements Since 7.4: Operation codes</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__63" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__64" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__63 ">DATA-GEN</td>
+
+<td headers="rpgrelv7r5__entry__64 ">Generate a structured document from
+an RPG variable.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzdatagen.htm">DATA-GEN (Generate a Document from a Variable)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__63 ">FOR-EACH</td>
+
+<td headers="rpgrelv7r5__entry__64 ">Iterate through the items in an array, %LIST, or sub-array
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzforeach.htm">FOR-EACH (For Each)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__63 ">ON-EXCP</td>
+
+<td headers="rpgrelv7r5__entry__64 ">Monitor for a specific escape message ID
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzonexcp.htm">ON-EXCP (On Exception)</a>.</span></td>
+
+</tr>
+
+<tr>
+<td headers="rpgrelv7r5__entry__63 ">SND-MSG</td>
+
+<td headers="rpgrelv7r5__entry__64 ">Send a message to the joblog
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/zzsndmsg.htm">SND-MSG (Send a Message to the Joblog)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" class="defaultstyle cds--data-table"><caption class="cds--data-table-header"><span class="tablecap cds--data-table-header__title">Table 11. New Language Elements Since 7.4: Procedure
+specification keywords</span></caption><colgroup><col><col></colgroup><thead>
+<tr>
+<th id="rpgrelv7r5__entry__73" class="thbot"><div class="cds--table-header-label">Element</div></th>
+
+<th id="rpgrelv7r5__entry__74" class="thbot"><div class="cds--table-header-label">Description</div></th>
+
+</tr>
+
+</thead>
+<tbody>
+<tr>
+<td headers="rpgrelv7r5__entry__73 ">REQPROTO</td>
+
+<td headers="rpgrelv7r5__entry__74 ">REQPROTO(*NO) indicates that a
+prototype is never required for the exported procedure.
+<span class="ph" data-hd-otherprops="rpgref">See <a href="/docs/en/ssw_ibm_i_75/rzasd/preqprotokw.htm">REQPROTO(*NO)</a>.</span></td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+</div>
+
+<aside role="complementary" aria-labelledby="rpgrelv7r5__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_75" href="/docs/en/ssw_ibm_i_75/rzasl/rpgrnewrel.htm" title="New and changed features in each release of the ILE RPG compiler since V3R1" class="bottom-section-link">What's New</a></div></div>
+</div>
+</nav></aside></article></main><script type="text/javascript"  src="/k4npW7/pGK8/gE6J/t69g/C9FUel/kOm3tmmSJb8GVp7c/HFFCUAE/BCdkVQ/t9HyMB"></script></body></html>

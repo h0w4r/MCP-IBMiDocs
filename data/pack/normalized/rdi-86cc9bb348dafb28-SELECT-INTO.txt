@@ -1,0 +1,131 @@
+SELECT INTO
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+SELECT INTO
+The SELECT INTO statement produces a result table consisting
+of at most one row, and assigns the values in that row to variables.
+InvocationThis statement can only be embedded
+in an application program. It is an executable statement that cannot
+be dynamically prepared. It must not be specified in REXX.
+AuthorizationThe privileges held by the
+authorization ID of the statement must include at least one of the
+following:
+For each table or view identified in the statement, The SELECT privilege on the table or view, and
+The system authority *EXECUTE on the library containing the table
+or view
+
+Database administrator authority
+
+If a global variable is specified in the INTO variable
+list, the privileges held by the authorization ID of the statement
+must include at least one of the following:
+The WRITE privilege on the global variable.
+Database administrator authority
+
+For information about the system authorities corresponding
+to SQL privileges, see Corresponding
+System Authorities When Checking Privileges to a Table or View.
+Syntaxselect-clauseINTO,variablefrom-clausewhere-clausegroup-by-clausehaving-clauseorder-by-clausefetch-first-clause1isolation-clauseconcurrent-access-resolution-clause2
+DescriptionThe result table is derived
+by evaluating the isolation-clause, concurrent-access-resolution-clause, from-clause, where-clause, group-by-clause, having-clause, order-by-clause, fetch-first-clause,
+and select-clause, in this order.
+See Queries for a description
+of the select-clause, from-clause, where-clause, group-by-clause, having-clause, order-by-clause, fetch-first-clause, isolation-clause,
+and concurrent-access-resolution-clause.
+INTO variable,…
+Identifies one or more
+host structures or variables that must be declared in the program
+in accordance with the rules for declaring host structures and variables.
+In the operational form of the INTO clause, a reference to a host
+structure is replaced by a reference to each of its variables. The
+first value in the result row is assigned to the first variable in
+the list, the second value to the second variable, and so on. The
+data type of each variable must be compatible with its corresponding
+column.
+
+NotesVariable assignment: Each
+assignment to a variable is performed according to the retrieval assignment
+rules described in Assignments and comparisons.1 If the
+number of variables is less than the number of values in the row,
+an SQL warning (SQLSTATE 01503) is returned (and the SQLWARN3 field
+of the SQLCA is set to 'W'). Note that there is no warning if there
+are more variables than the number of result columns. If a value is
+null, an indicator variable must be provided for that value.
+If the specified variable is character and is not large
+enough to contain the result, a warning (SQLSTATE 01004) is returned
+(and 'W' is assigned to SQLWARN1 in the SQLCA). The actual length
+of the result may be returned in the indicator variable associated
+with the variable, if an indicator variable is provided. For further
+information, see Variables.
+If an assignment error occurs, the value of that variable
+and any following variables is unpredictable. Any values that have
+already been assigned to variables remain assigned.
+Multiple assignments: If more than one variable
+is specified in the INTO clause, the query is completely evaluated
+before the assignments are performed. Thus, references to a variable in
+the select list are always the value of the variable prior
+to any assignment in the SELECT INTO statement.
+Empty result table: If the result table is empty,
+the statement assigns '02000' to the SQLSTATE variable and does not
+assign values to the variables.
+Result tables with more than one row: If more
+than one row satisfies the search condition, statement processing
+is terminated and an error is returned (SQLSTATE 21000). If an error
+occurs because the result table has more than one row, values may
+or may not be assigned to the variables. If values are assigned to
+the variables, the row that is the source of the values is undefined
+and not predictable.
+Result column evaluation considerations: If an
+error occurs while evaluating a result column in the select list of
+a SELECT INTO statement, as the result of an arithmetic expression
+(such as division by zero, or overflow) or a numeric or character
+conversion error, the result is the null value. As in any other case
+of a null value, an indicator variable must be provided. The value
+of the variable is undefined. In this case, however, the indicator
+variable is set to the value of -2. Processing of the statement continues
+and a warning is returned. If an indicator variable is not provided,
+an error is returned and no more values are assigned to variables.
+It is possible that some values have already been assigned to variables
+and will remain assigned when the error is returned.
+When a datetime value is returned, the length of the variable
+must be large enough to store the complete value. Otherwise, depending
+on how much of the value would have to be truncated, a warning or
+an error is returned. See Datetime assignments for details.
+ExamplesExample 1: Using a COBOL
+program statement, put the maximum salary (SALARY) from the EMPLOYEE
+table into the host variable MAX-SALARY (DECIMAL(9,2)).
+EXEC SQL SELECT MAX(SALARY)
+INTO :MAX-SALARY
+FROM EMPLOYEE WITH CS
+END-EXEC.
+
+Example 2: Using a Java™ program
+statement, select the row from the EMPLOYEE table on the connection
+context 'ctx' with a employee number (EMPNO) value the same as that
+stored in the host variable HOST_EMP (java.lang.String). Then put
+the last name (LASTNAME) and education level (EDLEVEL) from that row
+into the host variables HOST_NAME (String) and HOST_EDUCATE (Integer).
+#sql [ctx] { SELECT LASTNAME, EDLEVEL
+INTO :HOST_NAME, :HOST_EDUCATE
+FROM EMPLOYEE
+WHERE EMPNO = :HOST_EMP };
+
+Example 3: Put the row for employee 528671, from
+the EMPLOYEE table, into the host structure EMPREC. Assume that the
+row will be updated later and should be locked when the query executes.
+EXEC SQL SELECT *
+INTO :EMPREC
+FROM EMPLOYEE
+WHERE EMPNO = '528671'
+WITH RS USE AND KEEP EXCLUSIVE LOCKS
+END-EXEC.
+
+Parent topic: Statements
+
+1 If assigning
+to an SQL-variable or SQL-parameter and the standards option is specified,
+storage assignment rules apply. For information about the standards
+option, see Standards compliance.

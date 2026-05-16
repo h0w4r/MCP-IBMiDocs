@@ -1,0 +1,148 @@
+joined-table
+
+IBM i programming resources > SQL > SQL reference > Queries > subselect > from-clause > from-clause
+
+IBM i programming resources > SQL > SQL reference > Queries > subselect > from-clause
+
+joined-table
+A joined-table specifies an intermediate result
+table that is the result of either an inner, outer, cross, or exception
+join. The table is derived by applying one of the join operators:
+INNER, LEFT OUTER, RIGHT OUTER, FULL OUTER, LEFT EXCEPTION, RIGHT
+EXCEPTION, or CROSS to its operands.
+table-referenceINNERLEFTRIGHTFULLOUTERLEFTRIGHTEXCEPTIONJOINtable-referenceONjoin-conditionUSING(,column-name)table-referenceCROSS
+JOINtable-reference(joined-table)
+If a join operator is not specified, INNER is implicit.
+The order in which multiple joins are performed can affect the result.
+Joins can be nested within other joins. The order of processing for
+joins is generally from left to right, but based on the position of
+the required join-condition or USING clause. Parentheses are
+recommended to make the order of nested joins more readable. For example:
+TB1 LEFT JOIN TB2 ON TB1.C1=TB2.C1
+LEFT JOIN TB3 LEFT JOIN TB4 ON TB3.C1=TB4.C1
+ON TB1.C1=TB3.C1
+
+is the same as
+(TB1 LEFT JOIN TB2 ON TB1.C1=TB2.C1)
+LEFT JOIN (TB3 LEFT JOIN TB4 ON TB3.C1=TB4.C1)
+ON TB1.C1=TB3.C1
+
+An inner join combines each row of the left table with
+every row of the right table keeping only the rows where the join-condition (or
+USING clause) is true. Thus, the result table may be missing rows
+from either or both of the joined tables. Outer joins include the
+rows produced by the inner join as well as the missing rows, depending
+on the type of outer join. Exception joins include only the missing
+rows, depending on the type of exception join.
+A left outer join includes the rows from the left table that were
+missing from the inner join.
+A right outer join includes the rows from the right table that
+were missing from the inner join.
+A full outer join includes the rows from both tables that were
+missing from the inner join.
+A left exception join includes only the rows from the left table
+that were missing from the inner join.
+A right exception join includes only the rows from the right table
+that were missing from the inner join.
+
+A joined table can be used in any context in which any
+form of the SELECT statement is used. A view or a cursor is read-only
+if its SELECT statement includes a joined table.
+Join conditionThe join-condition is a search-condition that
+must conform to these rules: It cannot contain a quantified subquery, IN predicate with a subselect,
+or EXISTS subquery. It can contain basic predicate subqueries and
+scalar-fullselects.
+Any column referenced in an expression of the join-condition must
+be a column of one of the operand tables of the associated join (in
+the scope of the same joined-table clause).
+Each column name must unambiguously identify a column in one of
+the tables in the from-clause.
+Aggregate functions cannot be used in the expression.
+
+For any type of join, column references in an expression
+of the join-condition are resolved using the rules for resolution
+of column name qualifiers specified in Column names before
+any rules about which tables the columns must belong to are applied.
+Join USINGThe USING clause specifies a shorthand
+way of defining the join condition. This form is known as a named-columns-join.
+column-name
+Must unambiguously identify a column that exists in both table-references of
+the joined table. The column must not be a DATALINK column.
+
+The result table of the join contains the
+columns from the USING clause first, then the columns from the first
+table of the join that were not in the USING clause, followed by the
+remaining columns from the second table of the join that were not
+in the USING clause. Any column specified in the USING clause cannot
+be qualified in the query.
+The USING clause is equivalent to a join-condition in
+which each column from the left table-reference is
+compared equal to a column of the same name in the right table-reference.
+For example, assume that TB1 and TB2 have columns C1, C2, ... Cn,
+D1, D2 named-columns-join of the form:
+TB1 INNER JOIN TB2
+USING (C1, C2, ... Cn)
+
+defines a result table that is equivalent to:
+SELECT TB1.*, TB2.D1, TB2.D2
+FROM TB1 INNER JOIN TB2
+ON TB1.C1 = TB2.C1 AND
+TB1.C2 = TB2.C2 AND
+...
+TB1.Cn = TB2.Cn
+
+Join operationsA join-condition (or
+USING clause) specifies pairings of T1 and T2, where T1 and T2 are
+the left and right operand tables of the JOIN operator of the join-condition (or
+USING clause). For all possible combinations of rows of T1 and T2,
+a row of T1 is paired with a row of T2 if the join-condition (or
+USING clause) is true. When a row of T1 is joined with a row of T2,
+a row in the result consists of the values of that row of T1 concatenated
+with the values of that row of T2. In the case of OUTER joins, the
+execution might involve the generation of a null row. The null row
+of a table consists of a null value for each column of the table,
+regardless of whether the columns allow null values.
+INNER JOIN or JOIN
+The result
+of T1 INNER JOIN T2 consists of their paired rows. Using the INNER
+JOIN syntax with a join-condition (or USING clause) will produce
+the same result as specifying the join by listing two tables in the
+FROM clause separated by commas and using the where-clause to
+provide the join condition.
+
+LEFT JOIN or LEFT OUTER JOIN
+The result of T1 LEFT OUTER JOIN T2 consists of their
+paired rows and, for each unpaired row of T1, the concatenation of
+that row with the null row of T2. All columns derived from T2 allow
+null values.
+RIGHT JOIN or RIGHT OUTER JOIN
+The result of T1 RIGHT OUTER JOIN T2 consists of their
+paired rows and, for each unpaired row of T2, the concatenation of
+that row with the null row of T1. All columns derived from T1 allow
+null values.
+FULL JOIN or FULL OUTER JOIN
+The result of T1 FULL OUTER JOIN T2 consists of their
+paired rows and, for each unpaired row of T2, the concatenation of
+that row with the null row of T1 and, for each unpaired row of T1,
+the concatenation of that row with the null row of T2. All columns
+derived from T1 and T2 allow null values.FULL OUTER JOIN is not
+allowed if the query specifies:a distributed table,
+a table with a read trigger, or
+a logical file built over multiple physical file members.
+
+LEFT EXCEPTION JOIN and EXCEPTION JOIN
+The
+result of T1 LEFT EXCEPTION JOIN T2 consists only of each unpaired
+row of T1, the concatenation of that row with the null row of T2.
+All columns derived from T2 allow null values.
+RIGHT EXCEPTION JOIN
+The
+result of T1 RIGHT EXCEPTION JOIN T2 consists only of each unpaired
+row of T2, the concatenation of that row with the null row of T1.
+All columns derived from T1 allow null values.
+CROSS JOIN
+The
+result of T1 CROSS JOIN T2 consists of each row of T1 paired with
+each row of T2. CROSS JOIN is also known as Cartesian product.
+
+Parent topic: from-clause

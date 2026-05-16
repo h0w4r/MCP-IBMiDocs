@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Threads">
+<meta name="abstract" content="In the IBM i operating system, an application process can also consist of one or more threads. By default, a thread shares the same commitment definitions and locks as the other threads in the job. Thus, each thread can operate on the same unit of work so that when one thread commits or rolls back, it can commit or rollback all changes performed by all threads. This type of processing is useful if multiple threads are cooperating to perform a single task in parallel.">
+<meta name="Description" content="In the IBM i operating system, an application process can also consist of one or more threads. By default, a thread shares the same commitment definitions and locks as the other threads in the job. Thus, each thread can operate on the same unit of work so that when one thread commits or rolls back, it can commit or rollback all changes performed by all threads. This type of processing is useful if multiple threads are cooperating to perform a single task in parallel.">
+<meta name="DC.subject" content="thread safety">
+<meta name="keywords" content="thread safety">
+<meta name="DC.Relation" scheme="URI" content="rbafzappproc.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzappproc.htm">
+<title>Threads</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzthreads.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzthreads">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzconcept.htm">Concepts</a> > <a href="../../topic/db2/rbafzappproc.htm">Application processes&#44; concurrency&#44; and recovery</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d799247e7"><h1 class="topictitle1" id="d799247e7">Threads</h1>
+<div class="body conbody"><p class="shortdesc">In the <span class="keyword">IBM® i</span> operating
+system, an application process can also consist of one or more threads.
+By default, a thread shares the same commitment definitions and locks
+as the other threads in the job. Thus, each thread can operate on
+the same unit of work so that when one thread commits or rolls back,
+it can commit or rollback all changes performed by all threads. This
+type of processing is useful if multiple threads are cooperating to
+perform a single task in parallel.</p>
+<p>In other cases,
+it is useful for a thread to perform changes independent from other
+threads in the job. In this case, the thread would not want to share
+commitment definitions or lock with the other threads. Furthermore,
+a job can use SQL server mode in order to take more fine grain control
+of multiple database connections and transaction information. A typical
+multi-threaded job may require this control. There are several ways
+to accomplish this type of processing:</p>
+<ul><li>Make sure the programs running in the thread use a separate activation
+group (be careful not to use ACTGRP(*NEW)).</li>
+<li>Make sure that the job is running in SQL server mode before issuing
+the first SQL statement. SQL server mode can be activated for a job
+by using one of the following mechanisms before data access occurs
+in the application: <ul><li>Use the ODBC API, SQLSetEnvAttr() and set the SQL_ATTR_SERVER_MODE
+attribute to SQL_TRUE before doing any data access.</li>
+<li>Use the Change Job API, QWTCHGJB(), and set the 'Server mode for
+Structured Query Language' key before doing any data access.</li>
+<li>Use JAVA to access the database via JDBC. JDBC automatically uses
+server mode to preserve required semantics of JDBC.</li>
+</ul>
+</li>
+</ul>
+<p>When SQL server mode is established, all SQL statements are passed
+to an independent server job that will handle the requests. Server
+mode behavior for SQL behavior includes:</p>
+<ul><li>For embedded SQL, each thread in a job implicitly gets one and
+only one connection to the database (and thus its own commitable transaction).</li>
+<li>For ODBC/CLI, JDBC, OLE DB, and .NET, each connection represents
+a stand-alone connection to the database and can be committed and
+used as a separate entity.</li>
+</ul>
+<p>For more information, see <a href="../cli/rzadpkickoff.htm">SQL Call Level Interface
+(ODBC)</a>.</p>
+<p>The following SQL support is not threadsafe:</p>
+<ul><li>Remote access through DRDA®</li>
+<li>ALTER FUNCTION</li>
+<li>ALTER PROCEDURE</li>
+<li>ALTER SEQUENCE</li>
+<li>ALTER TABLE</li>
+<li>COMMENT</li>
+<li>CREATE ALIAS</li>
+<li>CREATE FUNCTION</li>
+<li>CREATE INDEX</li>
+<li>CREATE PROCEDURE</li>
+<li>CREATE SCHEMA</li>
+<li>CREATE SEQUENCE</li>
+<li>CREATE TABLE</li>
+<li>CREATE TRIGGER</li>
+<li>CREATE TYPE</li>
+<li>CREATE VARIABLE</li>
+<li>CREATE VIEW</li>
+<li>DECLARE GLOBAL TEMPORARY TABLE</li>
+<li>DROP</li>
+<li>GRANT</li>
+<li>LABEL</li>
+<li>REFRESH TABLE</li>
+<li>RENAME</li>
+<li>REVOKE</li>
+</ul>
+<p>For more information, see <a href="../rzahw/rzahwovepo.htm">Multithreaded applications</a> in
+the Programming topic of the <span class="keyword">IBM i
+Information Center</span>.</p>
+</div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzappproc.htm" title="All SQL programs execute as part of an application process. In the IBM i operating system, an application process is called a job. In the case of ODBC, JDBC, OLE DB, .NET, and DRDA, the application process ends when the connection ends even though the job they are using does not end and may be reused.">Application processes, concurrency, and recovery</a></li>
+</ul>
+</aside></article></main></body></html>

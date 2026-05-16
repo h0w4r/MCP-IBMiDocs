@@ -1,0 +1,307 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+wcrtomb() — Convert a Wide Character to a Multibyte
+Character (Restartable)
+Format
+#include <wchar.h>
+size_t wcrtomb (char *s, wchar_t wc, mbstate_t *ps);
+Language Level: ANSI
+Threadsafe: Yes, except when ps is
+NULL.
+Locale Sensitive: The behavior
+of this function might be affected by the LC_CTYPE category of the
+current locale. The behavior might also be affected by the LC_UNI_CTYPE
+category of the current locale if LOCALETYPE(*LOCALEUCS2) or LOCALETYPE(*LOCALEUTF)
+is specified on the compilation command. This function is not available
+when LOCALETYPE(*CLD) is specified on the compilation command. For
+more information, see Understanding CCSIDs and Locales.
+Wide Character Function: See Wide Characters for more information.
+Description
+This function is the restartable version of the wctomb() function.
+The wcrtomb() function converts a wide character to a multibyte
+character.
+If s is a null pointer, the wcrtomb() function
+determines the number of bytes necessary to enter the initial shift
+state (zero if encodings are not state-dependent or if the initial
+conversion state is described). The resulting state described will
+be the initial conversion stated.
+If s is not a null pointer, the wcrtomb() function
+determines the number of bytes needed to represent the multibyte character
+that corresponds to the wide character given by wc (including
+any shift sequences), and stores the resulting bytes in the array
+whose first element is pointed to by s. At
+most MB_CUR_MAX bytes will be stored. If wc is
+a null wide character, the resulting state described will be the initial
+conversions state.
+This function differs from its corresponding internal-state multibyte
+character function in that it has an extra parameter, ps of
+type pointer to mbstate_t that points to an object that can
+completely describe the current conversion state of the associated
+multibyte character sequence. If ps is NULL, an internal
+static variable will be used to keep track of the conversion state.
+Using the internal static variable is not threadsafe.
+Return Value
+If s is a null pointer, the wcrtomb() function
+returns the number of bytes needed to enter the initial shift state.
+The value returned will not be greater than that of the MB_CUR_MAX
+macro.
+If s is not a null pointer, the wcrtomb() function
+returns the number of bytes stored in the array object (including
+any shift sequences) when wc is a valid wide
+character; otherwise (when wc is not a valid
+wide character), an encoding error occurs, the value of the macro
+EILSEQ shall be stored in errno and -1 will be returned, but the conversion
+state will be unchanged.
+If a conversion error occurs, errno may
+be set to ECONVERT.
+Examples that use wcrtomb()
+This program is compiled with LOCALETYPE(*LOCALE) and SYSIFCOPT(*IFSIO):
+#include <stdio.h>
+#include <locale.h>
+#include <wchar.h>
+#include <errno.h>
+
+#define STRLENGTH 10
+#define LOCNAME "qsys.lib/JA_JP.locale"
+#define LOCNAME_EN "qsys.lib/EN_US.locale"
+
+int main(void)
+{
+char string[STRLENGTH];
+int length, sl = 0;
+wchar_t wc = 0x4171;
+wchar_t wc2 = 0x00C1;
+wchar_t wc_string[10];
+mbstate_t ps = 0;
+memset(string, '\0', STRLENGTH);
+wc_string[0] = 0x00C1;
+wc_string[1] = 0x4171;
+wc_string[2] = 0x4172;
+wc_string[3] = 0x00C2;
+wc_string[4] = 0x0000;
+/* In this first example we will convert a wide character */
+/* to a single byte character. We first set the locale */
+/* to a single byte locale. We choose a locale with */
+/* CCSID 37. For single byte cases the state will always */
+/* remain in the initial state 0 */
+
+if (setlocale(LC_ALL, LOCNAME_EN) == NULL)
+printf("setlocale failed.\n");
+
+length = wcrtomb(string, wc, &ps);
+
+/* In this case since wc > 256 hex, lenth is -1 and */
+/* errno is set to EILSEQ (3492) */
+printf("errno = %d, length = %d\n\n", errno, length);
+
+length = wcrtomb(string, wc2, &ps);
+
+/* In this case wc2 00C1 is converted to C1 */
+
+printf("string = %s\n\n", string);
+
+/* Now lets try a multibyte example. We first must set the */
+/* locale to a multibyte locale. We choose a locale with */
+/* CCSID 5026 */
+
+if (setlocale(LC_ALL, LOCNAME) == NULL)
+printf("setlocale failed.\n");
+
+length = wcrtomb(string, wc_string[0], &ps);
+
+/* The first character is < 256 hex so is converted to */
+/* single byte and the state is still the initial state 0 */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = wcrtomb(&string[sl], wc_string[1], &ps);
+
+/* The next character is > 256 hex so we get a shift out */
+/* 0x0e followed by the double byte character. State is */
+/* changed to double byte state. Length is 3. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = wcrtomb(&string[sl], wc_string[2], &ps);
+
+/* The next character is > 256 hex so we get another */
+/* double byte character. The state is left in */
+/* double byte state. Length is 2. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = wcrtomb(&string[sl], wc_string[3], &ps);
+
+/* The next character is < 256 hex so we close off the */
+/* double byte characters with a shift in 0x0f and then */
+/* get a single byte character. Length is 2. */
+/* The hex look at string would now be: */
+/* C10E417141720FC2 */
+/* You would need a device capable of displaying multibyte */
+/* characters to see this string. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+/* In the last example we will show what happens if NULL */
+/* is passed in for the state. */
+memset(string, '\0', STRLENGTH);
+
+length = wcrtomb(string, wc_string[1], NULL);
+
+/* The second character is > 256 hex so a shift out */
+/* followed by the double character is produced but since */
+/* the state is NULL, the double byte character is closed */
+/* off with a shift in right away. So string we look */
+/* like this: 0E41710F and length is 4 and the state is */
+/* left in the initial state. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+}
+/* The output should look like this:
+
+errno = 3492, length = -1
+
+string = A
+
+length = 1, state = 0
+
+length = 3, state = 2
+
+length = 2, state = 2
+
+length = 2, state = 0
+
+length = 4, state = 0
+*/
+This program is compiled with LOCALETYPE(*LOCALEUCS2) and SYSIFCOPT(*IFSIO):
+#include <stdio.h>
+#include <locale.h>
+#include <wchar.h>
+#include <errno.h>
+
+#define STRLENGTH 10
+#define LOCNAME "qsys.lib/JA_JP.locale"
+#define LOCNAME_EN "qsys.lib/EN_US.locale"
+
+int main(void)
+{
+char string[STRLENGTH];
+int length, sl = 0;
+wchar_t wc = 0x4171;
+wchar_t wc2 = 0x0041;
+wchar_t wc_string[10];
+mbstate_t ps = 0;
+memset(string, '\0', STRLENGTH);
+wc_string[0] = 0x0041;
+wc_string[1] = 0xFF31;
+wc_string[2] = 0xFF32;
+wc_string[3] = 0x0042;
+wc_string[4] = 0x0000;
+/* In this first example we will convert a UNICODE character */
+/* to a single byte character. We first set the locale */
+/* to a single byte locale. We choose a locale with */
+/* CCSID 37. For single byte cases the state will always */
+/* remain in the initial state 0 */
+
+if (setlocale(LC_ALL, LOCNAME_EN) == NULL)
+printf("setlocale failed.\n");
+
+length = wcrtomb(string, wc2, &ps);
+
+/* In this case wc2 0041 is converted to C1 */
+/* 0041 is UNICODE A, C1 is CCSID 37 A */
+
+printf("string = %s\n\n", string);
+
+/* Now lets try a multibyte example. We first must set the */
+/* locale to a multibyte locale. We choose a locale with */
+/* CCSID 5026 */
+
+if (setlocale(LC_ALL, LOCNAME) == NULL)
+printf("setlocale failed.\n");
+
+length = wcrtomb(string, wc_string[0], &ps);
+
+/* The first character UNICODE character is converted to a */
+/* single byte and the state is still the initial state 0 */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = wcrtomb(&string[sl], wc_string[1], &ps);
+
+/* The next UNICODE character is converted to a shift out */
+/* 0x0e followed by the double byte character. State is */
+/* changed to double byte state. Length is 3. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = wcrtomb(&string[sl], wc_string[2], &ps);
+
+/* The UNICODE character is converted to another */
+/* double byte character. The state is left in */
+/* double byte state. Length is 2. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+sl += length;
+
+length = wcrtomb(&string[sl], wc_string[3], &ps);
+
+/* The next UNICODE character converts to single byte so */
+/* we close off the */
+/* double byte characters with a shiftin 0x0f and then */
+/* get a single byte character. Length is 2. */
+/* The hex look at string would now be: */
+/* C10E42D842D90FC2 */
+/* You would need a device capable of displaying multibyte */
+/* characters to see this string. */
+
+printf("length = %d, state = %d\n\n", length, ps);
+
+}
+/* The output should look like this:
+
+string = A
+
+length = 1, state = 0
+
+length = 3, state = 2
+
+length = 2, state = 2
+
+length = 2, state = 0
+*/
+Related Information
+
+mblen() — Determine Length of a Multibyte Character
+mbrlen() — Determine Length of a Multibyte Character
+(Restartable)
+mbrtowc() — Convert a Multibyte Character to
+a Wide Character (Restartable)
+mbsrtowcs() — Convert a Multibyte String to
+a Wide Character String (Restartable)
+wcsrtombs() — Convert Wide Character String
+to Multibyte String (Restartable)
+wctomb() — Convert Wide Character to Multibyte
+Character
+<wchar.h>
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

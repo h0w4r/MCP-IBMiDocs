@@ -1,0 +1,111 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="VERIFY_GROUP_FOR_USER">
+<meta name="abstract" content="The VERIFY_GROUP_FOR_USER function returns a value that indicates whether the specified user is in the list of user profiles or is a member of any of the group user profiles specified by the list of authorization-id-expression arguments.">
+<meta name="Description" content="The VERIFY_GROUP_FOR_USER function returns a value that indicates whether the specified user is in the list of user profiles or is a member of any of the group user profiles specified by the list of authorization-id-expression arguments.">
+<meta name="DC.subject" content="function, scalar, VERIFY_GROUP_FOR_USER, VERIFY_GROUP_FOR_USER function">
+<meta name="keywords" content="function, scalar, VERIFY_GROUP_FOR_USER, VERIFY_GROUP_FOR_USER function">
+<meta name="DC.Relation" scheme="URI" content="rbafzscale.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzscale.htm">
+<title>VERIFY_GROUP_FOR_USER</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzscaverify_group.htm" + anchorParam);
+}
+</script>
+</head>
+<body class="pagebreak" id="rbafzscaverify_group">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzch2func.htm">Built&#45;in functions</a> > <a href="../../topic/db2/rbafzscale.htm">Scalar functions</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d657628e7"><h1 class="topictitle1" id="d657628e7">VERIFY_GROUP_FOR_USER</h1>
+<div class="body refbody"><p class="shortdesc">The VERIFY_GROUP_FOR_USER function returns a value that
+indicates whether the specified user is in the list of user profiles
+or is a member of any of the group user profiles specified by the
+list of <em>authorization-id-expression</em> arguments.</p>
+<section class="section refsyn"><figure class="fignone"><div class="p"><figure class="fig syntaxdiagram fignone"><span class="figgroup groupseq"><span class="keyword kwd">VERIFY_GROUP_FOR_USER</span><span class="ph delim">(</span><span class="figgroup groupchoice"><span class="keyword kwd">SESSION_USER</span><span class="keyword kwd">USER</span><span class="keyword kwd">CURRENT_USER</span></span><span class="ph sep">,</span><span class="figgroup groupseq"><span class="ph repsep">,</span><span class="ph var">authorization-id-expression</span></span><span class="ph delim">)</span></span></figure>
+</div>
+</figure>
+</section><section> <dl class="parml"><dt class="pt dlterm">SESSION_USER or USER or CURRENT_USER</dt>
+<dd class="pd">Specifies an authorization ID.</dd>
+</dl>
+<dl class="parml"><dt class="pt dlterm"><span class="ph synph"><span class="ph var">authorization-id-expression</span></span></dt>
+<dd class="pd">An expression that specifies an authorization name. The existence
+of the authorization name at the current server is not verified. <em>authorization-id-expression</em> must
+return a value of any built-in character-string or graphic-string
+data type. The value of each <span class="ph synph"><span class="ph var">authorization-id-expression</span></span> must
+have a length of at least 1 and be less than or equal to 10.</dd>
+</dl>
+</section><section><p>The result of the function is a large integer. The result
+cannot be null. </p>
+<p>The value of the result is 1 if the authorization
+ID represented by the first argument is anywhere in the list of <em>authorization-id-expression</em>s.
+Otherwise, the result is 0.</p>
+<p>The VERIFY_GROUP_FOR_USER function
+is deterministic within a connection. It is not deterministic across
+connections. It can be referenced in a CREATE MASK or CREATE PERMISSION
+statement to verify access to the data.</p>
+</section><div class="example"><h2 class="sectiontitle">Example</h2><div class="p">Assume that table EMPLOYEE exists
+and that column level access control is activated for the table. Alex
+(with QIBM_DB_SECADM authority) created the following column mask
+to control what information is returned for a social security number
+depending on who requests the information.&nbsp;The column mask only returns
+the actual social security number if the session user is a member
+of the MGR group profile. Otherwise a masked representation of the
+social security number is returned.<pre class="codeblock"><code><strong>CREATE MASK</strong> SSN_MASK
+       <strong>ON</strong> EMPLOYEE
+       <strong>FOR COLUMN</strong> SSN
+   <strong>RETURN</strong>
+     <strong>CASE</strong> 
+       <strong>WHEN VERIFY_GROUP_FOR_USER</strong>(<strong>SESSION_USER</strong>,'MGR') = 1
+            <strong>THEN</strong> SSN
+       <strong>ELSE</strong> 'XXX-XX' <strong>CONCAT SUBSTR</strong>(SSN, 8,4)
+     <strong>END</strong>
+   <strong>ENABLE</strong>;</code></pre>
+An ALTER TABLE statement is then issued
+to activate the column mask on the EMPLOYEE table:<pre class="codeblock"><code><strong>ALTER TABLE</strong> EMPLOYEE
+     <strong>ACTIVATE COLUMN ACCESS CONTROL</strong>;
+<strong>COMMIT</strong>;</code></pre>
+</div>
+<div class="p">Assume that Mary is a manager and
+is a member of the MGR group profile. Mary issues the following statement:<pre class="codeblock"><code><strong>SELECT</strong> SSN <strong>FROM</strong> EMPLOYEE <strong>WHERE</strong> NAME = 'Tom';</code></pre>
+The
+SSN_MASK column mask is applied to the SSN column to produce the result
+table. Since Mary is a member of the MGR group profile, the result
+table contains Tom's actual social security number. </div>
+<div class="p">Later,
+Mary is no longer a manager and is removed from the MGR group profile.
+She issues the same query again:<pre class="codeblock"><code><strong>SELECT</strong> SSN <strong>FROM</strong> EMPLOYEE <strong>WHERE</strong> NAME = 'Tom';</code></pre>
+As
+before, the SSN_MASK column mask is applied to the SSN column to produce
+the result table. This time the result table contains a masked version
+of Tom's social security number where only the last 4 digits
+of the actual number are returned.&nbsp;An 'X' is returned for
+the other digits.</div>
+</div>
+</div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzscale.htm" title="A scalar function takes input argument(s) and returns a single value result. A scalar function can be used wherever an expression can be used.">Scalar functions</a></li>
+</ul>
+</aside></article></main></body></html>

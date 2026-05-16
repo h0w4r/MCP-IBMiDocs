@@ -1,0 +1,63 @@
+Writing request-processor procedures and programs
+
+IBM i programming resources > Control language > Control language > Messages > Receiving messages into a CL procedure or program > Receiving messages into a CL procedure or program
+
+IBM i programming resources > Control language > Control language > Messages > Receiving messages into a CL procedure or program
+
+Writing request-processor procedures and programs
+To become a request-processing procedure or program,
+your procedure or program must send and receive a request message and not
+remove the request message. The Send Program Message (SNDPGMMSG) and Receive
+Message (RCVMSG) commands can make your procedure or program become
+a request processor.
+Specifying a CL procedure as a request processor within a program
+has many advantages. The following list specifies three advantages:
+Processes request messages as described in Receiving request messages.
+Allows the use of the End Request (ENDRQS) command,
+which can be used from the System Request menu or as part of the disconnect
+job function.
+Allows filtering of messages to occur.
+
+For example, the following commands make a procedure
+or program become a request processor:
+SNDPGMMSG MSG('Request Message') TOPGMQ(*EXT) MSGTYPE(*RQS)
+RCVMSG PGMQ(*EXT) MSGTYPE(*RQS) RMV(*NO)
+The request message is received from PGMQ *EXT. When any request
+message is received, it is moved (actually, it is removed and resent) to the
+call message queue of the procedure or program that specified the RCVMSG command.
+Therefore, the correct call message queue must be used later when the message
+is removed.
+If the request message is removed using the message reference
+key (MRK), you should obtain the MRK from the KEYVAR keyword of the RCVMSG command
+and not the SNDPGMMSG command. (The MRK changes when receiving
+a request message because the request is moved to a different call message
+queue.) You must specify RMV(*NO) on the RCVMSG command
+because the procedure or program is not a request processor if the request
+message is removed from the call message queue.
+The procedure or program
+is identified as a request processor when the request message is received.
+While the procedure or program is a request processor, other called procedures
+or programs can be ended using option 2 (End request) on the System Request
+menu. The request-processor procedure or program should include a monitor
+for message CPF1907 (Monitor Message (MONMSG) command).
+This is necessary because the end request function (from either option 2 on
+the System Request menu or the End Request command) sends this message to
+the request processor.
+The procedure or program remains a request processor
+until the procedure ends (either normally or abnormally) or until a RCVMSG command
+is run to remove all the request messages from the request-processor's call
+message queue. For example, the following command removes all request messages
+from the message queue and, therefore, ends request processing:
+RMVMSG CLEAR(*ALL)
+Call the QCAPCMD API and specify the message reference key
+to have the i5/OS® command
+analyzer to process a request message for an i5/OS command.
+You can get the message reference key when you receive the request message.
+Process Commands (QCAPCMD) will update the request message in the job log
+and add any new value supplied. QCAPCMD also hides any parameter values, such
+as passwords, that are to hidden in the job log. The system will not update
+the request message in the job log when one of two conditions exists.
+Using the Execute Command (QCMDEXC or QCAEXEC) APIs.
+Failing to supply a message reference key to QCAPCMD.
+
+Parent topic: Receiving messages into a CL procedure or program

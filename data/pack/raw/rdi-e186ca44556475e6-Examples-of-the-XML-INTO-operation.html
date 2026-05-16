@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Examples of the XML-INTO operation" name="DC.title" />
+<meta content="examples of the XML-INTO operation, XML-INTO (parse an XML document into a variable) operation code, examples" name="DC.subject" />
+<meta content="examples of the XML-INTO operation, XML-INTO (parse an XML document into a variable) operation code, examples" name="keywords" />
+<meta content="zzxmlin.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="xmlin4" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Examples of the XML-INTO operation</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Fxmlin4.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="xmlin4">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rpgops.htm" shape="rect">Operations, Expressions, and Functions</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/operxcl.htm" shape="rect">Operation Codes</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/zzxmlin.htm" shape="rect">XML-INTO (Parse an XML Document into a Variable)</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">Examples of the XML-INTO operation</h1>
+
+
+<div class="body">
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 1. </span>Parsing directly into a variable from a file</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code><span class="ph synph"><span class="keyword kwd">D qualName        DS                   QUALIFIED
+D   name                        10A
+D   lib                         10A
+
+D copyInfo        DS                   QUALIFIED
+D   from                               LIKEDS(qualName)
+D   to                                 LIKEDS(qualName)
+
+D toName          S             10A    VARYING</span></span>
+
+ //  Assume file cpyA.xml contains the following lines:
+ //    &lt;copyinfo&gt;
+ //     &lt;to&gt;&lt;name&gt;MYFILE&lt;/name&gt;&lt;lib&gt;*LIBL&lt;/lib&gt;&lt;/to&gt;
+ //     &lt;from name="MASTFILE" lib="CUSTLIB"&gt;&lt;/from&gt;
+ //    &lt;/copyinfo&gt;
+<span class="ph synph"><span class="keyword kwd"> /free</span></span>
+       // Data structure "copyInfo" has two subfields, "from"
+       // and "to".  Each of these subfields has two subfields
+       // "name" and "lib".
+<span class="ph synph"><span class="keyword kwd">       xml-into copyInfo %XML('cpyA.xml' : 'doc=file');
+       // copyInfo.from  .name = 'MASTFILE  ' .lib = 'CUSTLIB   '
+       // copyInfo.to    .name = 'MYFILE    ' .lib = '*LIBL     '</span></span>
+
+       // Parse the "copyinfo/to/name" information into variable
+       // "toName".  Use the "path" option to specify the location
+       // of this information in the XML document.
+<span class="ph synph"><span class="keyword kwd">       xml-into toName %XML('cpyA.xml'
+                          : 'doc=file path=copyinfo/to/name';</span></span>
+       // toName = 'MYFILE'</code></pre></div>
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 2. </span>Parsing directly into a variable from a string
+variable</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code><span class="ph synph"><span class="keyword kwd">D info            DS
+D   name                        10A
+D   val                          5I 0  DIM(2)
+D xmlFragment     S           1000A    VARYING
+D opts            S             20A    INZ('doc=string')
+D dateVal         S             10A    INZ('12/25/04')
+D format          S              4A    INZ('mdy/')
+D mydate          S               D    DATFMT(*ISO)
+
+ /free</span></span>
+
+  // 1. Parsing into a data structure containing an array
+<span class="ph synph"><span class="keyword kwd">  xmlFragment = '&lt;info&gt;&lt;name&gt;Jill&lt;/name&gt;'
+              + '&lt;val&gt;10&lt;/val&gt;&lt;val&gt;-5&lt;/val&gt;&lt;/info&gt;';
+  xml-into info %XML(xmlFragment);</span></span>
+  // info now has the value
+  //    name = 'Jill'
+  //    val(1) = 10
+  //    val(2) = -5
+
+  // 2. Parsing into a date.  The "fmt" XML attribute indicates the
+  //    format of the XML date.
+<span class="ph synph"><span class="keyword kwd">  xmlFragment = '&lt;mydate fmt="' + format + '"&gt;'
+              + dateVal + '&lt;/mydate&gt;';
+  xml-into mydate %XML(xmlFragment);</span></span>
+  // xmlFragment = '&lt;mydate fmt="mdy"&gt;12/25/04&lt;/mydate&gt;'
+  // mydate = 2004-12-25</code></pre></div>
+
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 3. </span>Parsing an unknown number of XML elements using
+a handling procedure</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> // DDS for "MYFILE"
+ // A          R PARTREC
+ // A            ID            10P 0
+ // A            QTY           10P 0
+ // A            COST           7P 2
+
+ // XML data in "partData.xml"
+ //  &lt;parts&gt;
+ //   &lt;part&gt;&lt;qty&gt;100&lt;/qty&gt;&lt;id&gt;13&lt;/id&gt;&lt;cost&gt;12.03&lt;/cost&gt;&lt;/part&gt;
+ //   &lt;part&gt;&lt;qty&gt;9&lt;/qty&gt;&lt;id&gt;14&lt;/id&gt;&lt;cost&gt;3.50&lt;/cost&gt;&lt;/part&gt;
+ //   ...
+ //   &lt;part&gt;&lt;qty&gt;0&lt;/qty&gt;&lt;id&gt;254&lt;/id&gt;&lt;cost&gt;1.98&lt;/cost&gt;&lt;/part&gt;
+ //  &lt;/records&gt;
+<span class="ph synph"><span class="keyword kwd">Fmyfile    o    e             disk
+D options         S            100A
+D allOk           S               N
+
+D partHandler     PR            10I 0
+D   ok                            N
+D   parts                             LIKEREC(partrec) DIM(10) CONST
+D   numRecs                     10U 0 VALUE
+
+:
+:
+ /free</span></span>
+   // Initiating the parsing
+<span class="ph synph"><span class="keyword kwd">   options = 'doc=file path=parts/part';
+   allOk = *ON;
+   xml-into %HANDLER(partHandler : allOk)
+            %XML('partData.xml' : options);</span></span>
+   // Check if the operation wrote the data
+   // successfully
+<span class="ph synph"><span class="keyword kwd">   if not allOk;</span></span>
+      // some output error occurred
+<span class="ph synph"><span class="keyword kwd">   endif;
+ /end-free</span></span>
+
+:
+:
+ // The procedure to receive the data from up to 10
+ // XML elements at a time.  The first call to the
+ // this procedure would be passed the following data
+ // in the "parts" parameter:
+ //   parts(1) .id = 13   .qty = 100  .cost = 12.03
+ //   parts(2) .id = 14   .qty = 9    .cost = 3.50
+ //   ...
+ // If there were more than 10 "part" child elements in
+ // the XML file, this procedure would be called more
+ // than once.
+<span class="ph synph"><span class="keyword kwd">P partHandler     B
+D                 PI            10I 0
+D   ok                           1N
+D   parts                             LIKEREC(partrec) DIM(10) CONST
+D   numRecs                     10U 0 VALUE
+
+D i               S             10I 0</span></span>
+ * xmlRecNum is a static variable, so it will hold its
+ * value across calls to this procedure.
+ * Note: Another way of storing this information would be to
+ * pass it as part of the first parameter; in that
+ * case the first parameter would be a data structure
+ * with two subfields: ok and xmlRecNum</code></pre>
+</div>
+
+
+<div class="fig figborder">
+<pre class="pre codeblock" xml:space="preserve"><code><span class="ph synph"><span class="keyword kwd">D xmlRecNum       S             10I 0 STATIC INZ(0)
+ /free
+   for i = 1 to numRecs;
+      xmlRecNum = xmlRecNum + 1;
+      write(e) partRec parts(i);</span></span>
+      // Parameter "ok" was passed as the second parameter
+      // for the %HANDLER built-in function for the XML-INTO
+      // operation.  The procedure doing the XML-INTO
+      // operation can check this after the operation to
+      // see if all the data was written successfully.
+<span class="ph synph"><span class="keyword kwd">      if %error;</span></span>
+        // log information about the error
+<span class="ph synph"><span class="keyword kwd">        logOutputError (xmlRecNum : parts(i));
+        ok = *OFF;
+      endif;
+   endfor;</span></span>
+
+   // continue parsing
+<span class="ph synph"><span class="keyword kwd">   return 0;
+ /end-free
+P                 E</span></span></code></pre></div>
+
+<p class="p">For more information about XML operations, see <a class="xref" href="yyxml.htm#yyxml" shape="rect">XML Operations</a>.</p>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="zzxmlin.htm" shape="rect">XML-INTO (Parse an XML Document into a Variable)</a></div>
+</div>
+</div></body>
+</html>

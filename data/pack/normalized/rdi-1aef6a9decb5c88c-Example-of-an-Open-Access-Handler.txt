@@ -1,0 +1,489 @@
+Example of an Open Access Handler
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Open Access Files > Open Access Handlers > Open Access Handlers
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > General File Considerations > Open Access Files > Open Access Handlers
+
+Example of an Open Access Handler
+
+Note: Detailed explanation is provided only for the
+aspects of the example that are related to Open Access files.
+Some code, such as the code to open, write, and close
+an IFS file, or the code to signal
+an exception, are provided without explanation.
+
+In this example, a handler allows
+an RPG programmer to read a stream file in the Integrated File System.
+
+The provider of the handler has also provided a copy file containing
+a template for a data structure to be used as a
+communication area between the RPG program and the
+handler.
+The data structure defines the path for the file and
+other options to control the way the handler creates the file.
+The copy file also contains a named constant
+IFSHDLRS_read_handler
+with the name of the handler program.
+
+/IF DEFINED(IFSHDLRS_COPIED)
+/EOF
+/ENDIF
+/DEFINE IFSHDLRS_COPIED
+
+DCL-DS ifshdlrs_info_t QUALIFIED TEMPLATE;
+path VARCHAR(5000);
+createCcsid INT(10);
+append IND;
+END-DS;
+
+DCL-C ifshdlrs_write_handler 'IFSHDLRS/WRITEHDLR';
+
+The following shows the RPG program that
+defines the Open Access file.
+
+Note the following aspects of the program
+
+The copy file provided for the handler.
+
+The communication-area data structure
+used to communicate directly with the handler.
+The userArea subfield in
+the parameter passed to the handler will point
+to this data structure.
+
+The Open Access file. The handler
+in this example supports both program-described
+files and externally-described files.
+This example program uses an externally-described
+file defined from the following source file.
+
+A R STREAMFMT
+A LINE 32740A VARLEN
+
+The HANDLER keyword
+
+The first parameter for the HANDLER keyword is the
+named constant from the copy file that defines the
+handler program or procedure.
+
+The second parameter for the HANDLER keyword
+is the communication-area data structure data structure.
+
+The program sets up the communication area
+with the additional information needed by
+the handler and then it opens the file.
+
+It writes two records to the file.
+
+CTL-OPT DFTACTGRP(*NO) ACTGRP(*NEW);
+
+/copy IFSHDLRS/SRC,RPG 1
+DCL-DS ifs_info LIKEDS(ifshdlrs_info_t); 2
+DCL-F streamfile DISK(*EXT) USAGE(*OUTPUT) 3
+EXTDESC('MYLIB/MYSTMF')
+HANDLER(ifshdlrs_write_handler 4a
+: ifs_info) 4b
+USROPN;
+
+ifs_info.path = '/home/mydir/myfile.txt'; 5
+ifs_info.createCcsid = 0; // job CCSID
+ifs_info.append = *ON;
+OPEN streamfile;
+
+line = 'Hello'; 6
+WRITE streamFmt;
+line = 'world!';
+WRITE streamFmt;
+*inlr = '1';
+
+The following examples show the handler.
+
+Control statement, copy files and global definitions
+
+Main handler procedure
+
+Procedure to open the file
+
+Procedure to close the file
+
+Procedure to write the file using the output buffer
+
+Procedure to write the file using the names-values information
+
+Procedure to write one line to the file
+
+Procedure to send an exception
+
+Procedure to send an exception related to "errno"
+
+Procedure to get the value of "errno"
+
+Control statement, copy files and global definitions
+
+The state_t template data structure
+defines the information needed by the handler
+across calls to the handler.
+In this example, the handler needs to keep track of
+the descriptor for the open file.
+
+CTL-OPT DFTACTGRP(*NO) ACTGRP(*CALLER)
+MAIN(writeHdlr);
+
+/COPY IFSHDLRS/SRC,RPG
+/COPY QOAR/QRPGLESRC,QRNOPENACC
+/COPY QSYSINC/QRPGLESRC,IFS
+
+DCL-S descriptor_t INT(10) TEMPLATE;
+DCL-DS state_t QUALIFIED template; 1
+descriptor LIKE(descriptor_t);
+END-DS;
+
+Main handler procedure
+
+The procedure interface defines the parameter
+that is passed to every Open Access handler.
+The QrnOpenAccess_T template
+is defined in copy file QRNOPENACC in source file
+QOAR/QRPGLESRC.
+
+Several based data structures are defined.
+The basing pointers for these data structures will
+be set from pointers in the handler parameter.
+
+Data structure state holds the
+information needed by the handler across calls to the
+handler.
+The basing pointer pState
+will be set from the stateInfo
+subfield in the handler parameter.
+
+Data structure ifsInfo
+is the communication area parameter.
+By setting the basing pointer pIfsInfo
+from the userArea
+subfield in the handler parameter,
+the ifsInfo data structure
+will refer to the same storage as the
+ifs_info data structure
+that was specified as the second parameter
+for the HANDLER keyword in the RPG program.
+
+Data structure namesValues
+describes the externally-described fields in the
+file.
+The basing pointer is set from the namesValues
+subfield of the handler parameter.
+
+The basing pointers are set for the state
+and ifsInfo.
+
+For the OPEN operation, the handler does the following
+
+It allocates storage for the state
+data structure and assigns the pointer to the stateInfo
+subfield of the handler parameter.
+When the handler is called for subsequent operations, the
+stateInfo subfield will hold the same
+pointer value, allowing the handler to access the
+state information.
+
+It opens the file, saving the returned file-descriptor in
+the state information data structure.
+
+If the file is externally-described in the RPG program,
+it sets on the useNamesValues indicator subfield
+in the handler parameter.
+
+When that subfield is on, the data for output operations
+will be provided in an array of information about each field.
+
+When that subfield is off, the data for output operations
+will be provided as a data structure whose layout is the
+same as a *OUTPUT externally-described data structure.
+
+For the WRITE operation, the handler calls one of the
+procedures to write to the file, depending on the
+useNamesValues subfield of the handler parameter.
+
+For the CLOSE operation, the handler closes the file.
+
+For any other operation, the handler signals an exception.
+The handler in this example only supports the OPEN, WRITE, and CLOSE
+operations.
+
+DCL-PROC writeHdlr;
+DCL-PI *N EXTPGM; 1
+parm LIKEDS(QrnOpenAccess_T);
+END-PI;
+
+DCL-S stackOffsetToRpg INT(10) INZ(2);
+DCL-S errnoVal INT(10);
+
+DCL-DS state LIKEDS(state_t) BASED(pState); 2
+DCL-DS ifsInfo LIKEDS(ifshdlrs_info_t) BASED(pIfsInfo);
+DCL-DS namesValues LIKEDS(QrnNamesValues_T)
+BASED(parm.namesValues);
+
+pState = parm.stateInfo; 3
+pIfsInfo = parm.userArea;
+
+SELECT;
+WHEN parm.RpgOperation = QrnOperation_OPEN; 4
+pState = %ALLOC(%SIZE(state_t));
+parm.stateInfo = pState;
+
+state.descriptor = openFile (ifsInfo
+: stackOffsetToRpg + 1);
+
+IF parm.externallyDescribed;
+parm.useNamesValues = '1';
+ENDIF;
+WHEN parm.RpgOperation = QrnOperation_WRITE; 5
+IF parm.useNamesValues;
+writeFileNv (state.handle
+: namesValues
+: stackOffsetToRpg + 1);
+ELSE:
+writeFileBuf (state.handle
+: parm.outputBuffer
+: parm.outputBufferLen
+: stackOffsetToRpg + 1);
+ENDIF;
+WHEN parm.RpgOperation = QrnOperation_CLOSE; 6
+closeFile (state.handle
+: stackOffsetToRpg + 1);
+state.descriptor = -1;
+DEALLOC(N) pState;
+OTHER; 7
+sendException ('Unexpected operation '
++ %CHAR(parm.RpgOperation)
+: stackOffsetToRpg + 1);
+// Control will not return here
+ENDSL;
+
+END-PROC writeHdlr;
+
+Procedure to open the file
+
+If the file could not be opened, the procedure
+sends an exception message. This causes
+the handler program to fail, which will cause the
+OPEN operation to fail in the RPG program.
+
+DCL-PROC openFile;
+DCL-PI *n LIKE(descriptor_t);
+ifsInfo LIKEDS(ifshdlrs_info_t) CONST;
+stackOffsetToRpg INT(10) VALUE;
+END-PI;
+DCL-C JOB_CCSID 0;
+DCL-S openFlags INT(10);
+DCL-S descriptor LIKE(descriptor_t);
+
+openFlags = O_WRONLY
++ O_CREAT + O_TEXT_CREAT + O_TEXTDATA
++ O_CCSID + O_INHERITMODE;
+IF ifsInfo.append;
+openFlags += O_APPEND;
+ELSE:
+openFlags += O_TRUNC;
+ENDIF;
+
+descriptor = open(ifsInfo.path
+: openFlags
+: 0
+: ifsInfo.createCcsid
+: JOB_CCSID);
+IF descriptor < 0; 1
+errnoException ('Could not open ' + ifsInfo.path + '.'
+: getErrno ()
+: stackOffsetToRpg + 1);
+// Control will not return here
+ENDIF;
+
+return descriptor;
+END-PROC openFile;
+
+Procedure to close the file
+
+DCL-PROC closeFile;
+DCL-PI *n;
+descriptor LIKE(descriptor_t) VALUE;
+stackOffsetToRpg INT(10) VALUE;
+END-PI;
+DCL-S rc INT(10);
+
+rc = close (descriptor);
+IF rc < 0;
+errnoException ('Error closing file.'
+: getErrno ()
+: stackOffsetToRpg + 1);
+// Control will not return here
+ENDIF;
+END-PROC closeFile;
+
+Procedure to write the file using the output buffer
+
+DCL-PROC writeFileBuf;
+DCL-PI *n;
+descriptor LIKE(descriptor_t) VALUE;
+pBuf pointer VALUE;
+bufLen INT(10) VALUE;
+stackOffsetToRpg INT(10) VALUE;
+END-PI;
+
+writeLine (descriptor : pBuf : bufLen
+: stackOffsetToRpg + 1);
+END-PROC writeFileBuf;
+
+Procedure to write the file using the names-values information
+
+The names-values information contains
+an array of information about each field in the
+externally-described format.
+The handler in this example has its own restrictions
+on the number and type of fields that can be in
+the externally-described format.
+
+The handler verifies that there is only one field.
+
+Then the handler verifies that it is an alphanumeric field.
+
+nv.field(1).value is a pointer
+to the data in the first field.
+If the field is a varying-length field, this pointer
+points to the data portion of the field.
+nv.field(1).valueLenBytes
+holds the length of the data.
+
+DCL-PROC writeFileNv;
+DCL-PI *n;
+descriptor LIKE(descriptor_t) VALUE;
+nv LIKEDS(QrnNamesValues_T);
+stackOffsetToRpg INT(10) VALUE;
+END-PI;
+
+IF nv.num > 1; 1a
+sendException ('Only one field supported.'
+: stackOffsetToRpg + 1);
+// Control will not return here
+ELSE:
+IF nv.field(1).dataType <> QrnDatatype_Alpha 2b
+AND nv.field(1).dataType <> QrnDatatype_AlphaVarying;
+sendException ('Field ' + nv.field(1).externalName
++ 'must be Alpha or AlphaVarying type.'
+: stackOffsetToRpg + 1);
+// Control will not return here
+ENDIF;
+ENDIF;
+
+writeLine (descriptor : nv.field(1).value : nv.field(1).valueLenBytes
+: stackOffsetToRpg + 1);
+END-PROC writeFileNv;
+
+Procedure to write one line to the file
+
+DCL-PROC writeLine;
+DCL-PI *n;
+descriptor LIKE(descriptor_t) VALUE;
+pBuf pointer VALUE;
+bufLen INT(10) VALUE;
+stackOffsetToRpg INT(10) VALUE;
+END-PI;
+DCL-S lineFeed CHAR(1) INZ(STREAM_LINE_FEED);
+DCL-S bytesWritten INT(10);
+
+bytesWritten = write (descriptor : pbuf : bufLen);
+IF bytesWritten < 0;
+errnoException ('Could not write data.'
+: getErrno ()
+: stackOffsetToRpg + 1);
+// Control will not return here
+ELSE:
+bytesWritten = write (descriptor : %ADDR(lineFeed) : 1);
+IF bytesWritten < 0;
+errnoException ('Could not write line-feed.'
+: getErrno ()
+: stackOffsetToRpg + 1);
+// Control will not return here
+ENDIF;
+ENDIF;
+END-PROC writeLine;
+
+Procedure to send an exception
+
+DCL-PROC sendException;
+DCL-PI *n;
+msg VARCHAR(2000) CONST;
+stackOffsetToRpg INT(10) VALUE;
+END-PI;
+DCL-DS msgFile qualified;
+*n CHAR(10) INZ('QCPFMSG');
+*n CHAR(10) INZ('*LIBL');
+END-DS;
+DCL-DS errorCode;
+bytesProvided INT(10) INZ(0);
+bytesAvailable INT(10);
+msgId CHAR(7);
+*n CHAR(1);
+END-DS;
+DCL-S key CHAR(4);
+DCL-PR QMHSNDPM EXTPGM;
+msgId CHAR(7) CONST;
+msgFile LIKEDS(msgFile) CONST;
+msgData CHAR(1000) CONST;
+dataLen INT(10) CONST;
+msgType CHAR(10) CONST;
+callStackEntry CHAR(10) CONST;
+callStackOffset INT(10) CONST;
+msgKey CHAR(4) CONST;
+errorCode LIKEDS(errorCode);
+END-PR;
+
+QMHSNDPM ('CPF9898' : msgFile : msg : %LEN(msg)
+: '*ESCAPE' : '*' : stackOffsetToRpg
+: key : errorCode);
+END-PROC sendException;
+
+Procedure to send an exception related to "errno"
+
+DCL-PROC errnoException;
+DCL-PI *n;
+msg VARCHAR(2000) CONST;
+errnoVal INT(10) VALUE;
+stackOffsetToRpg INT(10) VALUE;
+END-PI;
+DCL-S errnoMsg VARCHAR(200);
+DCL-S pErrnoMsg pointer;
+DCL-PR strerror pointer extproc(*dclcase);
+errnoVal INT(10) VALUE;
+END-PR;
+
+pErrnoMsg = strError (errnoVal);
+IF pErrnoMsg <> *null;
+errnoMsg = ' ' + %STR(pErrnoMsg);
+ENDIF;
+errnoMsg += ' (errno = ' + %CHAR(errnoVal) + ')';
+
+sendException (msg + errnoMsg
+: stackOffsetToRpg + 1);
+END-PROC errnoException;
+
+Procedure to get the value of "errno"
+
+DCL-PROC getErrno;
+DCL-PI *n INT(10) END-PI;
+DCL-PR getErrnoPtr pointer extproc('__errno') END-PR;
+DCL-S pErrno pointer static INZ(*null);
+DCL-S errno INT(10) BASED(pErrno);
+
+IF pErrno = *null;
+pErrno = getErrnoPtr();
+ENDIF;
+
+return errno;
+END-PROC getErrno;
+
+See the Rational® Open Access: RPG Edition
+topic for information on writing an Open Access handler.
+
+Parent topic: Open Access Handlers

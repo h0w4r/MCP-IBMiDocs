@@ -1,0 +1,88 @@
+Example of Default Precision Rules
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Expressions > Precision Rules for Numeric Operations > Precision Rules for Numeric Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Expressions > Precision Rules for Numeric Operations
+
+Example of Default Precision Rules
+
+This example shows how the default precision rules work.
+
+Figure 1. Precision of Intermediate Results
+
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++
+D FLD1 S 15P 4
+D FLD2 S 15P 2
+D FLD3 S 5P 2
+D FLD4 S 9P 4
+D FLD5 S 9P 4
+CL0N01Factor1+++++++Opcode(E)+Extended-factor2+++++++++++++++++++++++++++
+C EVAL FLD1 = FLD2/(((FLD3/100)*FLD4)+FLD5)
+( 1 )
+( 2 )
+( 3 )
+( 4 )
+
+When the above Calculation specification is processed, the resulting value
+assigned to FLD1 will have a precision of zero decimals, not the three decimals expected. The reason is that when it gets to the last
+evaluation (4 in the above example), the number to which
+the factor is scaled is negative. To see why, look at how the expression is
+evaluated.
+
+1
+
+Evaluate FLD3/100
+Rules:
+Lr = 63
+Dr = max(63-((L1-D1)+D2),0)
+= max(63-((5-2)+0),0)
+= max(63-3,0)
+= 60
+
+2
+
+Evaluate (Result of 1 * FLD4)
+Rules:
+Lr = min(L1+L2,63)
+= min(63+9,63)
+= 63
+Dr = min(D1+D2,63-min((L1-D1)+(L2-D2),63))
+= min(60+4,63-min((63-60)+(9-4),63))
+= min(64,63-min(4+5,63)
+= min(64,55)
+= 55
+
+3
+
+Evaluate (Result of 2 + FLD5)
+Rules:
+T = min(max(L1-D1,L2-D2)+1,63)
+= min(max(63-55,9-4)+1,63)
+= min(max(8,5)+1,63)
+= min(9,63)
+= 9
+Dr = min(max(D1,D2),31-T)
+= min(max(55,4),63-9)
+= min(55,54)
+= 54
+Lr = T + Dr
+= 9 + 54 = 63
+
+4
+
+Evaluate FLD2/Result of 3
+Rules:
+Lr = 63
+Dr = max(63-((L1-D1)+D2),0)
+= max(63-((15-2)+ 54),0)
+= max(63-(13+54),0)
+= max(-4,0)
+**** NEGATIVE NUMBER TO WHICH FACTOR IS SCALED **** = 0
+
+To avoid this problem, you can change the above expression so that the
+first evaluation is a multiplication rather than a division, that is, FLD3
+* 0.01 or use the %DEC built-in function to set the sub-expression FLD3/100:
+%DEC(FLD3/100 : 15 : 4) or use operation extender (R) to ensure that the number
+of decimal positions never falls below 4.
+
+Parent topic: Precision Rules for Numeric Operations

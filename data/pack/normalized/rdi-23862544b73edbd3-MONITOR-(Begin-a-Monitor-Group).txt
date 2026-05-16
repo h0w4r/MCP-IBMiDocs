@@ -1,0 +1,417 @@
+MONITOR (Begin a Monitor Group)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+MONITOR (Begin a Monitor Group)
+
+Free-Form Syntax
+
+MONITOR
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+MONITOR
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+The monitor group performs conditional error handling based on
+the exception message or status code. It consists of:
+
+A MONITOR block
+
+Zero or more ON-EXCP blocks
+
+Zero or more ON-ERROR blocks
+
+An ENDMON statement.
+
+Note:
+
+The ON-EXCP blocks must precede the ON-ERROR blocks.
+
+At least one ON-EXCP or ON-ERROR block must be specified.
+
+After the MONITOR statement, control passes to the next statement.
+The monitor block consists of all the statements from the MONITOR
+statement to the first ON-EXCP or ON-ERROR statement. If an error occurs when
+the monitor block is processed, control is passed to the appropriate
+ON-EXCP or ON-ERROR block.
+
+If all the statements in the MONITOR block are processed without
+errors, control passes to the statement following the ENDMON statement.
+
+The monitor group can be specified anywhere in calculations. It
+can be nested within IF, DO, SELECT, or other monitor groups. The
+IF, DO, and SELECT groups can be nested within monitor groups.
+
+If a monitor group is nested within another monitor group, the
+innermost group is considered first when an error occurs. If that
+monitor group does not handle the error condition, the next group
+is considered.
+
+Level indicators can be used on the MONITOR operation, to indicate
+that the MONITOR group is part of total calculations. For documentation
+purposes, you can also specify a level indicator on an ON-EXCP, ON-ERROR, or
+ENDMON operation but this level indicator will be ignored.
+
+Conditioning indicators can be used on the MONITOR statement. If
+they are not satisfied, control passes immediately to the statement
+following the ENDMON statement of the monitor group. Conditioning
+indicators cannot be used on ON-EXCP or ON-ERROR operations individually.
+
+If a monitor block contains a call to a subprocedure, and the subprocedure
+has an error, the subprocedure's error handling will take precedence.
+For example, if the subprocedure has a *PSSR subroutine, it will get
+called. The MONITOR group containing the call will only be considered
+if the subprocedure fails to handle the error and the call fails with
+the error-in-call status of 202 or when the exception message causing
+the error is specified for one of the ON-EXCP statements.
+
+The monitor group does handle errors that occur in a subroutine that is
+called from an EXSR statement in the monitor group.
+If the subroutine contains its own monitor groups, they are considered
+first.
+
+Branching operations are not allowed within a MONITOR block, but
+are allowed within an ON-EXCP or ON-ERROR block.
+
+A LEAVE or ITER operation within a monitor block applies to any
+active DO group that contains the monitor block. A LEAVESR or RETURN
+operation within a monitor block applies to any subroutine, subprocedure,
+or procedure that contains the monitor block.
+
+For more information, see Error-Handling Operations.
+
+Example of the MONITOR Operation
+
+In the following example, the MONITOR block consists of
+
+the READ statement
+
+the IF group
+
+the call to the ProcessLine procedure.
+
+Errors that occur in the MONITOR block may be handled
+by the ON-EXCP or ON-ERROR blocks:
+
+The first ON-EXCP block handles message ID "ABC1234",
+which may be issued by called procedure ProcessLine() (7).
+
+The first ON-ERROR block handles status 1211 which is issued
+for the READ operation if the file is not open.
+
+The next ON-ERROR block handles all other file errors.
+
+The next ON-ERROR block handles the string-operation status code 100
+and array index status code 121.
+
+The next ON-ERROR block (which could have had a factor 2
+of *ALL) handles errors not handled by the specific ON-EXCP or ON-ERROR operations.
+
+If no error occurs in the MONITOR block, control passes from the call to
+the ProcessLine procedure to the ENDMON statement.
+
+MONITOR;
+READ FILE1;
+IF NOT %EOF;
+Line = %SUBST(Line(i) : %SCAN('***': Line(i)) + 1);
+ENDIF;
+ProcessLine (Line);
+ON-EXCP 'ABC1234'; // 1
+... handle message ID ABC1234
+ON-ERROR 1211; // 2
+... handle file-not-open
+ON-ERROR *FILE; // 3
+... handle other file errors
+ON-ERROR 00100 : 00121; // 4
+... handle string error and array-index error
+ON-ERROR; // 5
+... handle all other errors
+ENDMON; // 6
+
+DCL-PROC ProcessLine;
+...
+IF error;
+SND-MSG *ESCAPE %MSG('ABC1234' : 'MYMSGF'); // 7
+ENDIF;
+...
+END-PROC;
+
+Monitoring for exception messages
+
+In the following examples, an exception message is sent to
+either the current procedure, or the caller of the current procedure.
+In these examples, the SND-MSG operation
+is used to send the message.
+
+If the message is sent using the SND-MSG operation code
+within the MONITOR block, the exception can be handled by an ON-EXCP block
+monitoring for that message ID, with or without the (C®) extender,
+or by an ON-ERROR operation
+monitoring for status code 9999 (exception sent to procedure).
+
+If the message is sent to a program or procedure called from the
+current MONITOR block, and the exception is not handled during the call,
+the exception can be handled
+by an ON-EXCP block monitoring for that message ID, or by
+an ON-ERROR operation monitoring for
+status code 202 (error in a call operation).
+However, if the (C) extender is specified for the ON-EXCP
+statement, the ON-EXCP(C) block cannot handle the exception
+sent to the called program or procedure.
+
+In the following example, the exception is
+sent to the current procedure.
+The ON-EXCP(C) block handles the exception.
+The program displays "ON-EXCP(CC) ABC1234".
+
+MONITOR;
+SND-MSG *ESCAPE %MSG('ABC1234' : 'MYMSGF') %TARGET(*SELF);
+ON-EXCP(C) 'ABC1234';
+DSPLY 'ON-EXCP(C) ABC1234'; // 1
+ON-EXCP 'ABC1234';
+DSPLY 'ON-EXCP ABC1234';
+ON-ERROR 202;
+DSPLY 'ON-ERROR 202';
+ON-ERROR 9999;
+DSPLY 'ON-ERROR 9999';
+ENDMON;
+
+In the following example, the exception is
+sent to the subprocedure called from the current
+procedure.
+The ON-EXCP block without the (C) extender handles the exception.
+The program displays "ON-EXCP ABC1234".
+
+MONITOR;
+subproc ();
+ON-EXCP(C) 'ABC1234';
+DSPLY 'ON-EXCP(C) ABC1234';
+ON-EXCP 'ABC1234';
+DSPLY 'ON-EXCP ABC1234'; // 2
+ON-ERROR 202;
+DSPLY 'ON-ERROR 202';
+ON-ERROR 9999;
+DSPLY 'ON-ERROR 9999';
+ENDMON;
+
+DCL-PROC subproc;
+SND-MSG *ESCAPE %MSG('ABC1234' : 'MYMSGF') %TARGET(*SELF);
+END-PROC;
+
+In the following example, the exception is
+sent from the subprocedure to its calling procedure.
+The ON-EXCP(C) block extender handles the exception.
+The program displays "ON-EXCP(C) ABC1234".
+
+MONITOR;
+subproc ();
+ON-EXCP(C) 'ABC1234';
+DSPLY 'ON-EXCP(C) ABC1234'; // 3
+ON-EXCP 'ABC1234';
+DSPLY 'ON-EXCP ABC1234';
+ON-ERROR 202;
+DSPLY 'ON-ERROR 202';
+ON-ERROR 9999;
+DSPLY 'ON-ERROR 9999';
+ENDMON;
+
+DCL-PROC subproc;
+SND-MSG *ESCAPE %MSG('ABC1234' : 'MYMSGF'); // *CALLER
+END-PROC;
+
+In the following example, escape message ABC1235
+is sent from the subprocedure to its calling procedure.
+The ON-EXCP blocks are not monitoring for this message,
+so the ON-ERROR block monitoring for status code 202 handles the
+exception.
+The program displays "ON-ERROR 202".
+
+MONITOR;
+subproc ();
+ON-EXCP(C) 'ABC1234';
+DSPLY 'ON-EXCP(C) ABC1234';
+ON-EXCP 'ABC1234';
+DSPLY 'ON-EXCP ABC1234';
+ON-ERROR 202;
+DSPLY 'ON-ERROR 202'; // 4
+ON-ERROR 9999;
+DSPLY 'ON-ERROR 9999';
+ENDMON;
+
+DCL-PROC subproc;
+SND-MSG *ESCAPE %MSG('ABC1235' : 'MYMSGF'); // *CALLER
+END-PROC;
+
+Monitoring for RPG status codes and RNX exception messages
+
+In the following examples, a %SUBST built-in function
+has an error that causes the statement to fail with status 100,
+due to the length operand len being negative.
+To cause the statement to end in error, RPG sends escape message RNX0100
+to the procedure with the failing statement.
+
+If the failing statement is in a MONITOR block, you can monitor
+for message RNX0100 with the ON-EXCP operation,
+or you can monitor for status code 100 with the ON-ERROR operation.
+If you monitor for both the message and the status code, the ON-EXCP
+block will take precedence over the ON-ERROR block, because the
+ON-EXCP blocks must be specified before any ON-ERROR blocks.
+
+If the failing statement is in a procedure called from the
+MONITOR block, an ON-ERROR block with status code 100 will
+not handle the error.
+If a call in the MONITOR block fails, the call statement
+fails with status code 202 (error in call).
+
+However, if operation extender (C) is not specified for
+an ON-EXCP statement, you can handle message RNX0100
+message sent to any procedure called during the MONITOR
+block if the exception was not already handled by the called
+procedure.
+
+In the following example, the failing statement
+is in the MONITOR block, and the ON-ERROR statement
+monitors for status code 100.
+The ON-ERROR block handles the exception, and the program displays "ON-ERROR 100".
+
+MONITOR;
+len = -1;
+Line = %SUBST('abcde' : 1 : len);
+ON-ERROR 100;
+DSPLY 'ON-ERROR 100'; // 1
+ENDMON;
+
+In the following example, the failing statement
+is in a subprocedure called from the MONITOR block, and the ON-ERROR statements
+monitor for status code 100 and 202.
+Since the status code of 100 only applies to the subprocedure,
+the ON-ERROR block for status code 202 handles the exception,
+and the program displays "ON-ERROR 202".
+
+MONITOR;
+subproc ();
+ON-ERROR 100;
+DSPLY 'ON-ERROR 100';
+ON-ERROR 202;
+DSPLY 'ON-ERROR 202'; // 2
+ENDMON;
+
+DCL-PROC subproc;
+len = -1;
+Line = %SUBST('abcde' : 1 : len);
+END-PROC;
+
+The following example is similar to the previous example,
+but an ON-EXCP block monitors for messsage RNX0100.
+The RNX0100 message is sent to the subprocedure,
+but the ON-EXCP block in the main procedure handles the exception.
+The program displays "ON-EXCP RNX0100".
+
+MONITOR;
+subproc();
+ON-EXCP 'RNX0100';
+DSPLY 'ON-EXCP RNX0100'; // 3
+ON-ERROR 100;
+DSPLY 'ON-ERROR 100';
+ON-ERROR 202;
+DSPLY 'ON-ERROR 202';
+ENDMON;
+
+DCL-PROC subproc;
+len = -1;
+Line = %SUBST('abcde' : 1 : len);
+END-PROC;
+
+The following example is similar to the previous example,
+but the ON-EXCP block has the (C) extender, indicating that
+it only handles exceptions sent to the current procedure.
+The RNX0100 message is sent to the subprocedure,
+so ON-EXCP(C) block in the main procedure does not handle the exception.
+Instead, the ON-ERROR block that monitors for status code 202
+handles the exception.
+The program displays "Status 202".
+
+MONITOR;
+subproc();
+ON-EXCP(C) 'RNX0100';
+DSPLY 'Message RNX0100';
+ON-ERROR 100;
+DSPLY 'Status 100';
+ON-ERROR 202;
+DSPLY 'Status 202'; // 4
+ENDMON;
+
+DCL-PROC subproc;
+len = -1;
+Line = %SUBST('abcde' : 1 : len);
+END-PROC;
+
+Using ON-EXCP to monitor for the exception causing an I/O error
+
+See Monitor for the exception that causes an I/O operation to fail for more information.
+
+In the following example, the MONITOR block has an OPEN operation
+which fails due to message CPF4101 indicating that
+the file does not exist.
+RPG sends message RNX1217 to indicate that the
+file could not be opened.
+The ON-EXCP block that monitors for 'CPF4101' gets control.
+The program displays "Message CPF4101, status 1217".
+
+DCL-F badfile DISK(10) USROPN;
+DCL-S status PACKED(5);
+
+MONITOR;
+OPEN badfile;
+ON-EXCP 'CPF4101';
+status = %status();
+DSPLY ('Message CPF4101, status ' + %char(status)); // 1
+ON-EXCP 'RNX1217';
+DSPLY 'Message RNX1217';
+ON-ERROR 1217;
+DSPLY 'Status 1217';
+ENDMON;
+
+The following example is similar to the previous example,
+but the ON-EXCP block for message RNX1217 is coded
+before the ON-EXCP block for message CPF4101.
+In this case, the ON-EXCP block that monitors for 'RNX1217' gets control.
+The program displays "Message RNX1217".
+
+DCL-F badfile DISK(10) USROPN;
+DCL-S status PACKED(5);
+
+MONITOR;
+OPEN badfile;
+ON-EXCP 'RNX1217';
+DSPLY 'Message RNX1217'; // 2
+ON-EXCP 'CPF4101';
+status = %status();
+DSPLY ('Message CPF4101, status ' + %char(status));
+ON-ERROR 1217;
+DSPLY 'Status 1217';
+ENDMON;
+
+Parent topic: Operation Codes

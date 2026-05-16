@@ -1,0 +1,310 @@
+%TARGET (program-or-procedure { : offset } )
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%TARGET (program-or-procedure { : offset } )
+
+%TARGET is used as the third operand of
+the SND-MSG operation.
+%TARGET does not return
+a value, and it cannot be specified anywhere other than for the SND-MSG operation.
+
+%TARGET specifies the target program or procedure for the message.
+
+The first operand can be
+
+*SELF. This is the default for an informational message.
+The message is sent to the current procedure.
+
+*CALLER.
+This is the default for an escape, completion, diagnostic, notification, or status message.
+The message is sent to the caller of the current procedure.
+
+*CTLBDY. This represents the control boundary, which is the
+first procedure of the group of procedures on the call stack that are in the same activation group as the procedure
+with the SND-MSG operation.
+For example, consider the following program stack, where PROC1 called PROC2, which called PROC3, and so on.
+If PROC5 sends a message with %TARGET(*CTLBDY),
+the message is sent to PROC3 because it is the first procedure in the
+contiguous group of procedures that are all in activation group AG1.
+Procedure PROC1 is also in activation group AG1,
+but procedure PROC2 is in a different activation group, so procedure
+PROC1
+is not considered when determining the control boundary for PROC5.
+
+Procedure
+
+Activation group
+
+PROC1
+
+AG1
+
+PROC2
+
+AG2
+
+PROC3
+
+AG1
+
+PROC4
+
+AG1
+
+PROC5
+
+AG1
+
+*EXT. This represents the external message queue.
+When the message type is *STATUS, the message is displayed at the bottom of the screen.
+See Example of showing progress messages at the bottom of the screen with message type *STATUS and %TARGET(*EXT) for an example.
+*EXT cannot be specified when the message-type operand for
+SND-MSG is *ESCAPE.
+
+*PGMBDY. This represents the program boundary, which is
+the first procedure of the group of procedures on the call stack that are in the same program
+or service program as the procedure with the
+SND-MSG operation.
+For example, consider the following program stack, where PROC1 called PROC2, which called PROC3, and so on.
+If PROC5 sends a message with %TARGET(*PGMBDY),
+the message is sent to PROC3 because it is the first procedure in the
+contiguous group of procedures that are all in the same program or service program,
+PGM1, as PROC5.
+Procedure PROC1 is also in
+program or service program PGM1,
+but procedure PROC2
+is a different program, so procedure PROC1
+is not considered when determining the program boundary for PROC5.
+
+Procedure
+
+Program or service program
+
+PROC1
+
+PGM1
+
+PROC2
+
+PGM2
+
+PROC3
+
+PGM1
+
+PROC4
+
+PGM1
+
+PROC5
+
+PGM1
+
+The name of a program or procedure on the program stack.
+It must be a character value in the job CCSID.
+Note: A program or procedure is on the program stack if it was called prior to the current procedure,
+and has not returned yet from that call.
+
+The second operand is the offset on the program stack.
+It represents the number of programs or procedures on the program stack prior to the specified program or procedure
+for the message to be sent.
+For example, if PROC1 called PROC2, and you want to send a message to the
+caller of PROC2, you specify %TARGET('PROC2':1), indicating that you want to
+send the message to the program or procedure at offset 1 from PROC2.
+
+It is optional.
+If it is not specified, it defaults to zero.
+
+It is not allowed if *EXT is specified for the first operand.
+
+It must be a numeric value with zero decimal positions.
+The value cannot be negative.
+
+Note: API QMHSNDPM is used to send the message.
+See QMHSNDPM
+for more information about sending messages.
+
+Note:
+If the current procedure is the main procedure of the program, the caller is the
+Program Entry Procedure (PEP) for the program.
+If you want to send the message to the caller of the program, specify *CALLER
+for the first operand of %TARGET and specify a value of 1
+for the second operand of %TARGET to indicate
+that you want to send the message to the caller's caller.
+If the current procedure is not the main procedure of the program,
+and you want to send the message to the caller of the program,
+specify *PGMBDY for the first operand of %TARGET and specify
+a value of 1 for the second operand.
+
+Examples of %TARGET sending messages to another procedure on the call stack
+
+For the following examples, in the RPG programmer's application, CL program MYCLPGM calls
+RPG program RPGMAIN, which calls RPG program RPGSUB1.
+Within RPGSUB1, the main procedure calls subProc1,
+which calls subProc2. Procedure subProc2
+calls RPG program RPGSUBPGM2 which calls subProc3.
+Program RPGMAIN is in activation group AG1
+and the other programs are in activation group ACTGRP2.
+
+When subProc3 is running, the following represents the call stack
+for the job.
+The call stack can be seen by using the DSPJOB command with
+parameter OPTION(*PGMSTK).
+
+Program
+
+Library
+
+Procedure
+
+Activation group
+
+MYCLPGM
+
+MYLIB
+
+ 
+
+ 
+
+RPGMAIN
+
+MYLIB
+
+_QRNP_PEP_RPGMAIN
+
+AG1
+
+RPGMAIN
+
+MYLIB
+
+RPGMAIN
+
+AG1
+
+RPGSUB1
+
+MYLIB
+
+_QRNP_PEP_RPGSUB1
+
+ACTGRP2
+
+RPGSUB1
+
+MYLIB
+
+RPGSUB1
+
+ACTGRP2
+
+RPGSUB1
+
+MYLIB
+
+subProc1
+
+ACTGRP2
+
+RPGSUB1
+
+MYLIB
+
+subProc2
+
+ACTGRP2
+
+RPGSUBPGM2
+
+MYLIB
+
+_QRNP_PEP_RPGSUBPGM2
+
+ACTGRP2
+
+RPGSUBPGM2
+
+MYLIB
+
+RPGSUBPGM2
+
+ACTGRP2
+
+RPGSUBPGM2
+
+MYLIB
+
+subProc3
+
+ACTGRP2
+
+Procedure subProc2 has several SND-MSG operations.
+
+The message type is not specified, and %TARGET is not specified.
+The default message type is *INFO, so an informational message is sent.
+The default target procedure for an informational message is the current procedure.
+The message is sent from subProc2 to itself.
+SND-MSG 'Msg 1';
+
+The SND-MSG operation is the same as the previous one, but the message type and target
+are explicitly specified.
+The message is sent from subProc2 to itself.
+SND-MSG *INFO 'Msg 2' %TARGET(*SELF);
+
+The SND-MSG operation is the similar to the previous one, but target procedure
+is the caller of the current procedure.
+The message is sent from subProc2 to subProc1.
+ND-MSG 'Msg 3' %TARGET(*CALLER);
+
+The message type is *ESCAPE, so an exception message is sent.
+The default target procedure for an exception message is the caller of the current procedure.
+The message is sent from subProc2 to its caller subProc1.
+SND-MSG *ESCAPE 'Msg 4';
+
+The SND-MSG operation is similar to the previous one, but the second operand of
+%TARGET is set to 1, indicating that the target procedure is the
+caller of the procedure specified in the first operand of %TARGET.
+The message is sent from subProc2 to its caller's caller, RPGSUB1.
+SND-MSG *ESCAPE 'Msg 5' %TARGET(*CALLER : 1);
+
+The SND-MSG operation is similar to the previous one, but the second operand of
+%TARGET is set to 2, indicating that the target procedure is the
+two call-levels above procedure specified in the first operand of %TARGET.
+The message is sent from subProc2 to
+_QRNP_PEP_RPGSUB1.
+If RPGMAIN is the intended target procedure, then the value of 3
+must be specified for the stack offset, to account for the presence of the Program
+Entry Procedure _QRNP_PEP_RPGSUB1 on the program stack.
+SND-MSG *ESCAPE 'Msg 6' %TARGET(*CALLER : 2);
+
+The SND-MSG operation is intended for the program or procedure that calls the
+RPGMAIN program.
+However, the call stack shows that the caller of RPGMAIN is the
+Program Entry Procedure (PEP) for the program, _QRNP_PEP_RPGMAIN.
+The offset for %TARGET must account for any PEP procedures.
+The message is sent from subProc2 to MYCLPGM.
+SND-MSG *INFO 'Msg 7' %TARGET('RPGMAIN' : 2);
+
+Procedure subProc3 in program RPGSUBPGM2 has
+several SND-MSG operations.
+
+The SND-MSG operation is intended to send a completion message to the program or procedure that calls the
+current program.
+For procedure RPGSUBPGM2/subProc3, *PGMBDY represents _QRNP_PEP_SUBPGM2,
+so 1 is specified for the stack offset, causing the message to be sent to subProc2.
+SND-MSG *COMP 'Msg 8' %TARGET(*PGMBDY : 1);
+
+The SND-MSG operation is intended to send a diagnostic message to the program or procedure that calls the
+first program in the current activation group.
+Procedure RPGSUBPGM2/subProc3 is in activation group ACTGRP2.
+The first entry in the program stack with the same activation group is RPGSUB1/_QRNP_PEP_RPGSUB1.
+This is the control boundary, represented by the target *CTLBDY.
+1 is specified for the stack offset, causing the message to be sent to RPGMAIN,
+which is the the caller of the procedure at the control boundary.
+SND-MSG *DIAG 'Msg 9' %TARGET(*CTLBDY : 1);
+
+Parent topic: Built-in Functions

@@ -1,0 +1,223 @@
+DECRYPT_BIT, DECRYPT_BINARY, DECRYPT_CHAR and DECRYPT_DB
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+DECRYPT_BIT, DECRYPT_BINARY, DECRYPT_CHAR and DECRYPT_DB
+The DECRYPT_BIT, DECRYPT_BINARY, DECRYPT_CHAR, and DECRYPT_DB
+functions return a value that is the result of decrypting encrypted
+data. The password used for decryption is either the password-string value
+or the ENCRYPTION PASSWORD value assigned by the SET ENCRYPTION PASSWORD
+statement.
+DECRYPT_BITDECRYPT_BINARYDECRYPT_CHARDECRYPT_DB(encrypted-data,password-stringDEFAULT,integer)
+The decryption functions can only decrypt values that
+are encrypted using the ENCRYPT_AES, ENCRYPT_RC2, or ENCRYPT_TDES
+function.
+encrypted-data
+An expression that must be a string expression that returns a
+complete, encrypted data value of a CHAR FOR BIT DATA, VARCHAR FOR
+BIT DATA, BINARY, VARBINARY, or BLOB built-in data type. The data
+string must have been encrypted using the ENCRYPT_AES, ENCRYPT_RC2,
+or ENCRYPT_TDES function.
+password-string
+An expression that returns a character string value with at least
+6 bytes and no more than 127 bytes. The expression must not be a CLOB.
+This expression must be the same password used to encrypt the data
+or decryption will result in a different value than
+was originally encrypted. If the value of the password argument
+is null or not provided, the data will be decrypted using the ENCRYPTION
+PASSWORD value, which must have been set using the SET ENCRYPTION
+PASSWORD statement.
+DEFAULT
+The data will be decrypted using the ENCRYPTION PASSWORD value,
+which must have been set using the SET ENCRYPTION PASSWORD statement.
+integer
+An integer constant that specifies the CCSID of the result. If
+DECRYPT_BIT or DECRYPT_BINARY is specified, the third argument must
+not be specified. If DECRYPT_CHAR is specified, integer must
+be a valid SBCS CCSID or mixed data CCSID. It cannot be 65535 (bit
+data). If the third argument is an SBCS CCSID, then the result is
+SBCS data. If the third argument is a mixed CCSID, then the result
+is mixed data. If the third argument is not specified then the CCSID
+of the result is the default CCSID of the current server.
+If
+DECRYPT_DB is specified, integer must be
+a valid DBCS CCSID. If the third argument is not specified then the
+CCSID of the result is the DBCS CCSID associated with the default
+CCSID of the current server.
+
+The data type of the result is determined by the function
+specified and the data type of the first argument as shown in the
+following table. If a cast from the actual type of the encrypted data
+to the function's result is not supported a warning or error is returned.
+Function
+Data Type of First Argument
+Actual Data Type of Encrypted
+Data
+Result
+
+DECRYPT_BIT
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Character string
+VARCHAR FOR BIT DATA
+
+DECRYPT_BIT
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Graphic string
+Error or Warning **
+
+DECRYPT_BIT
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Binary string
+Error or Warning **
+
+DECRYPT_BIT
+BLOB
+Any string
+Error
+
+DECRYPT_BINARY
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Any string
+VARBINARY
+
+DECRYPT_BINARY
+BLOB
+Any string
+BLOB
+
+DECRYPT_CHAR
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Character string
+VARCHAR
+
+DECRYPT_CHAR
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Unicode graphic string
+VARCHAR
+
+DECRYPT_CHAR
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Non-Unicode graphic string
+Error or Warning **
+
+DECRYPT_CHAR
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Binary string
+Error or Warning **
+
+DECRYPT_CHAR
+BLOB
+Character string
+CLOB
+
+DECRYPT_CHAR
+BLOB
+Unicode graphic string
+CLOB
+
+DECRYPT_CHAR
+BLOB
+Non-Unicode graphic string
+Error or Warning **
+
+DECRYPT_CHAR
+BLOB
+Binary string
+Error or Warning **
+
+DECRYPT_DB
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+UTF-8 character string or graphic
+string
+VARGRAPHIC
+
+DECRYPT_DB
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Non-UTF-8 character string
+Error or Warning **
+
+DECRYPT_DB
+CHAR FOR BIT DATA, VARCHAR FOR BIT
+DATA, BINARY, or VARBINARY
+Binary string
+Error or Warning **
+
+DECRYPT_DB
+BLOB
+UTF-8 character string or graphic
+string
+DBCLOB
+
+DECRYPT_DB
+BLOB
+Non-UTF-8 character string
+Error or Warning **
+
+DECRYPT_DB
+BLOB
+Binary string
+Error or Warning **
+
+Note:
+** If the decryption
+function is in the select list of an outer subselect, a data mapping
+warning is returned. Otherwise an error is returned. For more information
+about data mapping warnings, see Assignments and comparisons.
+
+If the encrypted-data included
+a hint, the hint is not returned by the function. The length attribute
+of the result is the length attribute of the data type of encrypted-data minus
+8 bytes. The actual length of the result is the length of the original
+string that was encrypted. If the encrypted-data includes
+bytes beyond the encrypted string, these bytes are not returned by
+the function.
+If the argument can be null, the result can be null; if
+the argument is null, the result is the null value.
+If the data is decrypted using a different CCSID than
+the originally encrypted value, expansion may occur when converting
+the decrypted value to this CCSID. In such situations, the encrypted-data should
+be cast to a varying-length string with a larger number of bytes.
+NotePassword protection: To prevent
+inadvertent access to the encryption password, do not specify password-string as
+a string constant in the source for a program, procedure, or function.
+Instead, use the ENCRYPTION PASSWORD special register or a host variable.
+When
+connected to a remote relational database, the specified password
+itself is sent "in the clear". That is, the password itself is not
+encrypted. To protect the password in these cases, consider using
+a communications encryption mechanism such as IPSEC (or SSL if connecting
+between IBM® i products).
+Syntax
+alternatives: For compatibility with previous versions of DB2®, DECRYPT_BIN can be specified
+in place of DECRYPT_BIT.
+ExamplesAssume that table EMP1 has a social security column called SSN.
+This example uses the ENCRYPTION PASSWORD value to hold the encryption
+password.   SET ENCRYPTION PASSWORD = :pw
+
+  INSERT INTO EMP1 (SSN) VALUES ENCRYPT_RC2( '289-46-8832' )
+
+  SELECT DECRYPT_CHAR( SSN)
+    FROM EMP1
+The DECRYPT_CHAR function
+returns the original value '289-46-8832'.
+This example explicitly passes the encryption password which
+has been set in variable pw.   INSERT INTO EMP1 (SSN) VALUES ENCRYPT_TDES( '289-46-8832', :pw)
+
+  SELECT DECRYPT_CHAR( SSN, :pw)
+    FROM EMP1
+The DECRYPT_CHAR function
+returns the original value '289-46-8832'.
+
+Parent topic: Scalar functions

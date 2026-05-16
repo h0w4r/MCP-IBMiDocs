@@ -1,0 +1,137 @@
+Compiler Calculation of Intermediate Results
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Appendixes > Appendix B. Intermediate Results and Arithmetic Precision > Appendix B. Intermediate Results and Arithmetic Precision
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Appendixes > Appendix B. Intermediate Results and Arithmetic Precision
+
+Compiler Calculation of Intermediate Results
+The number of integer places in an ir is calculated as follows:
+The compiler first determines the maximum value that the ir can
+contain by assigning a numerical value to each of the operands used
+to generate the ir, and determining the value that would result from
+the operation. If an operand in this statement is a data-name, the value used
+for the data-name is equal to the numerical value of the PICTURE for
+the data-name (that is, PICTURE 9V99 has the value 9.99).
+If an operand is a literal, the literal is treated as though it
+had a PICTURE, and the numerical value of the PICTURE is used (that
+is, the literal +127.3 has an implied PICTURE S999V9).
+If an operand is an intermediate result, the PICTURE determined
+for the intermediate result in a previous operation is used. The numerical
+value of that PICTURE is used.
+If the operation is division: If op2 is a data-name, the value used for op2 is the minimum nonzero
+value of the digit in the PICTURE for the data-name (that is, PICTURE
+9V99 has the value 0.01).
+If op2 is an intermediate result, the intermediate result is treated
+as though it had a PICTURE, and the minimum nonzero value of the digits
+in this PICTURE is used.
+
+Once the maximum value of the ir has been determined by the above
+procedures, i is set equal to the number of integers in the maximum
+value.
+The number of decimal places contained in an ir is calculated as:
+Table 1. Determining the Precision of
+an Intermediate ResultOperation
+Integer Places
+Decimal Places
+
++ or -
+(i1 or i2) + 1, whichever is greater
+d1 or d2, whichever is greater
+
+*
+i1 + i2
+d1 + d2
+
+/
+i2 + d1
+(d2 - d1) or dmax, whichever is greater
+
+**
+When i2 equals 0,
+     max(min(i1,18),1)
+     if op2 is nonintegral1
+     max(min(i1 * i1,18),1)
+     if op2 is an integral literal1.
+When i2 does not equal 0,
+     max(min(i1 * (9 * i2),18),1)
+     if op2 is nonintegral1
+     max(min(i1 * i1 * (9 * i2),18),1)
+     if op2 is an integral literal1.
+
+dmax if op2 is nonintegral or a
+data-name;
+d1 * op2 if op2 is an integral
+literal
+
+Note: These results are subject to subsequent processing.
+
+You must define the operands of any arithmetic statements with
+enough decimal places to give the desired accuracy in the final result.
+Table 2 indicates the action of the
+compiler when handling intermediate results for fixed-point numbers.
+Table 2. Determining When the Compiler
+Might Truncate Intermediate ResultsValue of i + d2
+Value of d
+Value of i + dmax
+Action Taken
+
+< MAXLENGTH1
+= MAXLENGTH
+
+Any Value
+Any Value
+i integer and d decimal
+places are carried for ir.
+
+> MAXLENGTH3
+< dmax
+= dmax
+
+Any Value
+MAXLENGTH - d integer and d decimal
+places are carried for ir.
+
+> dmax
+< MAXLENGTH
+= MAXLENGTH
+
+i integer and MAXLENGTH - i decimal
+places are carried for ir.
+
+> MAXLENGTH
+MAXLENGTH - dmax integer and dmax
+decimal places are carried for ir.
+
+Note: MAXLENGTH has one of the following values: 18 decimal digits
+
+IBM ExtensionIBM Extension 30 decimal digits, when the (default) compiler option *NOEXTEND
+or the PROCESS statement option NOEXTEND is specified.
+31 decimal digits, when the arithmetic mode compiler
+option *EXTEND31 or PROCESS statement option EXTEND31 is specified.
+34 decimal digits, when the arithmetic mode compiler
+option *EXTEND31FULL or PROCESS statement option EXTEND31FULL is specified.
+63 decimal digits, when the arithmetic mode compiler
+option *EXTEND63 or PROCESS statement option EXTEND63 is specified.
+
+End of IBM Extension
+End of IBM Extension
+If the value of i + d is an even number less than MAXLENGTH, the
+compiler converts it to an odd number by adding 1.
+If the
+value of i + d exceeds 63, system message MCH1202 can result, even
+if the statement includes the SIZE ERROR phrase.
+
+If you think an intermediate result field might exceed MAXLENGTH
+digits, you can use floating-point operands (COMP-1 and COMP-2) to
+avoid truncation.
+Related Information Integer Functions
+Floating-Point Data and Intermediate
+Results
+
+Integer Functions
+
+Mixed Functions
+
+Floating-Point Data and Intermediate Results
+
+Parent topic: Appendix B. Intermediate Results and Arithmetic Precision

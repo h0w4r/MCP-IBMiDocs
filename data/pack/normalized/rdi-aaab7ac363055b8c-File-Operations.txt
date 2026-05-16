@@ -1,0 +1,215 @@
+File Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations > Operations
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations
+
+File Operations
+
+The file operation codes are:
+
+ACQ (Acquire)
+
+CHAIN (Random Retrieval from a File)
+
+CLOSE (Close Files)
+
+COMMIT (Commit)
+
+DELETE (Delete Record)
+
+EXCEPT (Calculation Time Output)
+
+EXFMT (Write/Then Read Format)
+
+FEOD (Force End of Data)
+
+FORCE (Force a Certain File to Be Read Next Cycle)
+
+NEXT (Next)
+
+OPEN (Open File for Processing)
+
+POST (Post)
+
+READ (Read a Record)
+
+READC (Read Next Changed Record)
+
+READE (Read Equal Key)
+
+READP (Read Prior Record)
+
+READPE (Read Prior Equal)
+
+REL (Release)
+
+ROLBK (Roll Back)
+
+SETGT (Set Greater Than)
+
+SETLL (Set Lower Limit)
+
+UNLOCK (Unlock a Data Area or Release a Record)
+
+UPDATE (Modify Existing Record)
+
+WRITE (Create New Records).
+
+The file built-in functions are:
+
+%EOF (Return End or Beginning of File Condition)
+
+%EQUAL (Return Exact Match Condition)
+
+%FOUND (Return Found Condition)
+
+%OPEN (Return File Open Condition)
+
+%STATUS (Return File or Program Status)
+
+These operations are available in both the traditional syntax
+and free-form syntax.
+
+Most file operations can be used with both program described and externally
+described files.
+
+When an externally described file is used with certain file operations,
+a record format name, rather than a file name, can be specified in factor
+2. Thus, the processing operation code retrieves and/or positions the file
+at a record format of the specified type according to the rules of the calculation
+operation code used.
+
+When the OVRDBF (override with data base file) command is used with the
+MBR (*ALL) parameter specified, the SETLL, SETGT and CHAIN operations only
+process the current open file member. For more information, refer to the see the IBM® i
+Information Center database and file systems category.
+
+The CHAIN, READ, READC, READE, READP, and READPE operations may have a result data structure. For these operations,
+data is transferred directly between the file and the data structure, without
+processing the input specifications for the file. Thus, no record identifying
+or field indicators are set on as a result of an input operation to a data
+structure. If all input operations to the file have a result data structure,
+input specifications are not required.
+
+The WRITE and UPDATE operations that specify a program described
+file name in factor 2 must have a data structure name
+specified in the result field. WRITE and UPDATE operations to an externally
+described record may have a result data structure.
+For these operations, data is transferred directly between data structure
+and the file, without processing the output specifications for the file. If
+all output operations to the file have a result data structure, output specifications
+are not required.
+
+A data structure name is allowed as the result of an I/O operation
+to an externally described file name or record name as follows:
+
+When a record name is specified on an I/O operation, the origin of the
+data structure must match the record. That is, the data structure must be
+defined using LIKEREC(rec) or EXTNAME(file:rec) where rec is the format name
+specified on the operation.
+*NULL cannot be specified on the LIKEREC or EXTNAME keyword.
+
+For input operations, the result data structure
+(or base structure for the LIKEDS data structure) must be defined using *INPUT
+or *ALL.
+If the data structure is defined with the LIKEREC keyword, it is not
+necessary to explicitly specify the type.
+
+For WRITE operations to a PRINTER, SEQ, SPECIAL, or WORKSTN file,
+the result data structure must be defined using *OUTPUT or *ALL.
+
+For WRITE to a DISK file, the file may be defined using *OUTPUT or *ALL.
+If the layout of the output
+buffer is identical to the layout of the input buffer, and
+the data structure is defined with the LIKEREC keyword where
+the type is not specified, the data structure may be used for a WRITE operation.
+
+For UPDATE to a subfile record of a WORKSTN file, the result data structure
+may be defined using *OUTPUT or *ALL.
+
+For UPDATE to a DISK file, the result data structure may be defined using
+*INPUT, *OUTPUT or *ALL.
+If the data structure is defined with the LIKEREC keyword, it is not
+necessary to explicitly specify the type.
+
+A result data structure may be specified for an I/O operation to an externally
+described file name, in addition to a record name, for opcodes CHAIN, READ,
+READE, READP, and READPE. When the name of an externally described file is
+specified, the data structure must contain one subfield data structure for
+each record with input-capable fields, where the allowed subfield data structures
+are defined as in rule 1. Each subfield data structure must start in position
+1. (Normally the overlaying subfields will be defined using keyword POS(1)
+or OVERLAY(ds:1).)
+In the special case where the file contains only one record, the result data
+structure may be defined as in rule 1.
+
+The result data structure can also be defined using LIKEDS(ds), where
+ds is a data structure following these rules.
+
+In the following cases, when the data structure is not defined with
+*ALL as the second parameter, data is transferred between the result data structure
+and the input or output buffer as a whole, rather than individual
+subfields being transferred separately.
+
+when DATA(*NOCVT) is in effect for the file, and the data structure
+is defined with CCSID(*EXACT)
+
+when DATA(*CVT) is in effect for the file, and the data structure
+is not defined with CCSID(*EXACT)
+
+when the DATA keyword is not in effect for the file
+and the CCSID keyword is not specfied for the data structure
+
+Otherwise, alphanumeric and graphic subfields may require
+CCSID conversion when the data is transferred between
+the result data structure and the input or output buffer.
+
+In all cases, data for subfields of types other than alphanumeric or
+graphic is transferred directly between the input or output buffer and
+the result data structure without regard for the data type.
+
+See DATA(*CVT | *NOCVT) and
+CCSID(*EXACT | *NOEXACT).
+
+If an input operation (CHAIN, EXFMT, READ, READC, READE, READP, READPE)
+does not retrieve a record because no record was found, because an error occurred
+in the operation, or because the last record was already retrieved (end of
+file), then no data is extracted and all fields in the program remain unchanged.
+
+If you specify N as the operation extender of a CHAIN,
+READ, READE, READP, or READPE operation for an update disk file, a record
+is read without locking. If no operation extender is specified, the record
+is locked if the file is an update disk file.
+
+Exception/errors that occur during file operations can be handled by the
+programmer (by coding an error indicator or specifying a file-error subroutine),
+or by the RPG IV error handler.
+Note: Input and output operations
+in subprocedures involving input and output specifications always use the
+global name, even if there is a local variable of the same name. For example,
+if the field name TOTALS is defined in the main source section, as well as
+in a subprocedure, any input or output operation in the subprocedure will
+use the field as defined in the main source section.
+See Database Null Value Support for information on handling files with null-capable fields.
+
+You can pass a file as a parameter to a prototyped program or
+procedure. When you pass a file as a parameter, then any settings for the
+file that are defined using File specification keywords are in effect for
+all procedures that access the file. For example, if the EXTFILE keyword is
+specified with a variable parameter, and a called procedure opens the file,
+then the value of the caller's variable will be used to set the name of the
+file to be opened. If the called procedure needs to change or access those
+variables associated with the file through keywords, the calling procedure
+must pass the variables as a parameter.
+
+The file-feedback built-in functions %EOF(filename), %EQUAL(filename),
+%FOUND(filename), %OPEN(filename), and %STATUS(filename) can be used in the
+called procedure program or to determine the current state of the file by
+specifying the name of the file parameter as the operand to the built-in function.
+
+For more information on file parameters, see LIKEFILE(filename) and General File Considerations.
+
+Keys for File Operations
+
+Parent topic: Operations

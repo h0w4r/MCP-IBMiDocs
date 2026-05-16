@@ -1,0 +1,142 @@
+/SET
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > Compiler Directives > Compiler Directives
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > RPG IV Concepts > Compiler Directives
+
+/SET
+
+Use the compiler directive /SET to temporarily set a new default
+values for definitions.
+
+To reverse the effect of the /SET directive for one or more keywords,
+use the /RESTORE directive.
+
+You can specify the following keywords with the /SET directive:
+
+CCSID(*CHAR : ccsid)
+
+Specifies the default CCSID for alphanumeric items that are defined
+without CCSID keyword or the LIKE keyword, and for alphanumeric externally-described
+subfields for data structures defined without keyword CCSID(*EXACT).
+See CCSID(*CHAR : *JOBRUN | *JOBRUNMIX | *UTF8 | *HEX | number)
+
+CCSID(*GRAPH : ccsid)
+
+Specifies the default CCSID for graphic items that are specified
+without the CCSID keyword. See CCSID(*GRAPH : *JOBRUN | *SRC | *HEX | *IGNORE | number)
+
+CCSID(*UCS2 : ccsid)
+
+Specifies the default CCSID for UCS-2 items that are specified
+without the CCSID keyword. See CCSID(*UCS2 : *UTF16 | number)
+
+DATFMT(format)
+
+Specifies the default format and separator for date items that
+are specified without the date format (the DATE keyword is specified
+without a parameter in a free-form definition or the DATFMT keyword
+is not specified in a fixed-form definition). See DATFMT(fmt{separator})
+
+TIMFMT(format)
+
+Specifies the default format and separator for time items that
+are specified without the time format (the TIME keyword is specified
+without a parameter in a free-form definition or the TIMFMT keyword
+is not specified in a fixed-form definition). See TIMFMT(fmt{separator})
+
+Specify the SET directive in a copy file to ensure that all modules
+that include the copy file use the same values for the time and date
+formats and the CCSIDs. Any values set by /SET directives within a
+copy file are implicitly restored to their values prior to the /COPY
+or /INCLUDE directive.
+
+If you cannot change the copy file, you can code the /SET directive
+prior to the /COPY or /INCLUDE directive, and then code the /RESTORE directive after the /COPY or
+/INCLUDE directive to restore the defaults to the values that were
+previously in effect before the /SET directive.
+
+Rules for /SET and /RESTORE
+You can nest /SET directives.
+
+The keywords specified on a /RESTORE directive do not have to
+exactly match the keywords specified on the previous /SET directive.
+A /RESTORE directive can some or all of the values set by any previous
+/SET directives.
+
+Examples of /SET and /RESTORE
+
+The default CCSID for alphanumeric and graphic items and the default
+date format for date items are specified using Control specification
+keywords. CCSID(*UCS2) defaults to 13488, and TIMFMT defaults to *ISO.
+
+Field char1 is alphanumeric. The CCSID keyword
+is not specified, so the CCSID defaults to *UTF8.
+
+Field graph1 is graphic. The CCSID keyword
+is not specified, so the CCSID defaults to 835.
+
+The /SET directive sets the default alphanumeric CCSID to 37 and
+it sets the default UCS-2 CCSID to 1200.
+
+Field char2 is alphanumeric. The CCSID keyword
+is not specified, so the CCSID defaults to 37.
+
+Field char3 is defined using the LIKE keyword.
+CCSID(*DFT) is specified, indicating that it will use the default
+CCSID. It is defined like an alphanumeric field, so it uses the current
+default alphanumeric CCSID which is 37.
+
+The /RESTORE directive restores CCSID(*CHAR) to its previous value
+of *UTF8. CCSID(*UCS2) is not specified for the /RESTORE directive,
+so the value 1200 set by the previous /SET directive is still in effect.
+
+Field ucs1 is UCS-2. The CCSID keyword is not
+specified, so the CCSID defaults to 1200, which is the current default
+UCS-2 CCSID.
+
+/COPY is used to include source member copyfile.
+At this point, the defaults are CCSID(*CHAR:*UTF8), CCSID(*GRAPH:835),
+CCSID(*UCS2:1200), DATFMT(*YMD), TIMFMT(*ISO).
+
+The copy file begins with the /SET directive setting defaults
+for the data types used in the copy file. After this point, the defaults
+are CCSID(*CHAR:*UTF8), CCSID(*GRAPH:835), CCSID(*UCS2:13488), DATFMT(*ISO),
+TIMFMT(*HMS).
+
+Field time1 is a time field. The TIMFMT keyword
+is not specified, so the time format defaults to *HMS, which is the
+default set by the /SET directive in the copy file.
+
+Field char4 is alphanumeric. The CCSID keyword
+is not specified, so the CCSID defaults to *UTF8.
+
+At the end of the copy file, any values set by /SET directives
+within the copy file are implicitly restored.
+
+At this point, the defaults are the same as they were before the
+/COPY directive: CCSID(*CHAR:*UTF8), CCSID(*GRAPH:835), CCSID(*UCS2:1200),
+DATFMT(*YMD), TIMFMT(*ISO).
+
+Figure 1. Main source file
+
+CTL-OPT CCSID(*CHAR : *UTF8) CCSID(*GRAPH : 835) 1
+DATFMT(*YMD); 1
+DCL-S char1 char(10); 2
+DCL-S graph1 graph(10); 3
+/SET CCSID(*CHAR : 37) CCSID(*UCS2:1200) 4
+DCL-S char2 char(10); 5
+DCL-S char3 LIKE(char1) CCSID(*DFT); 6
+/RESTORE CCSID(*CHAR) 7
+DCL-S ucs1 UCS2(10); 8
+/COPY copyfile 9
+14
+
+Figure 2. /COPY file copyfile
+
+/SET CCSID(*UCS2 : 13488) DATFMT(*ISO) TIMFMT(*HMS) 10
+DCL-S time1 time; 11
+DCL-S char4 char(10); 12
+13
+
+Parent topic: Compiler Directives

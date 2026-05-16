@@ -1,0 +1,129 @@
+CONTAINS
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+CONTAINS
+The CONTAINS function searches a text search index using
+criteria that are specified in a search argument and returns a result
+about whether or not a match was found.
+CONTAINS(column-name,search-argument,search-argument-options)
+search-argument-optionsQUERYLANGUAGE = valueRESULTLIMIT = valueSYNONYM = OFFON1
+column-name
+Specifies a qualified or unqualified name of a column that has
+a text search index that is to be searched. The column must exist
+in the table or view that is identified in the FROM clause in the
+statement and the column of the table, or the column of the underlying
+base table of the view must have an associated text search index.
+The underlying expression of the column of a view must be a simple
+column reference to the column of an underlying table, directly or
+through another nested view.
+search-argument
+An expression that returns a character-string data type or graphic-string
+data type that contains the terms to be searched for. It must not
+be the empty string or contain all blanks. The actual length of the
+string must not exceed 32 740 bytes after conversion
+to Unicode and must not exceed the text search limitations or number of terms as specified in the search argument
+syntax. For information on search-argument syntax,
+see Text search argument syntax.
+search-argument-options
+A character string or graphic string value that contains the search
+argument options to use for the search. It must be a constant or a
+variable.
+The options that can be specified as part of the search-argument-options are:QUERYLANGUAGE = value
+Specifies the language value. The value can be any of the supported
+language codes. If QUERYLANGUAGE is not specified, the default is
+the language value of the text search index that is used when the
+function is invoked. If the language value of the text search index
+is AUTO, the default value for QUERYLANGUAGE is en_US. For more information
+on the query language option, see Text search language options.
+RESULTLIMIT = value
+Specifies the maximum number of results that are to be returned
+from the underlying search engine. The value must be an integer
+from 1 to 2 147 483 647. If RESULTLIMIT is not specified, no result
+limit is in effect for the query.CONTAINS may or may not be called
+for each row of the result table, depending on the plan that the optimizer
+chooses. If CONTAINS is called once for the query to the underlying
+search engine, a result set of all of the ROWIDs or primary keys that
+match are returned from the search engine. This result set is then
+joined to the table containing the column to identify the result rows.
+In this case, the RESULTLIMIT value acts like a FETCH FIRST n ROWS
+ONLY from the underlying text search engine and can be used as an
+optimization. If CONTAINS is called for each row of the result because
+the optimizer determines that is the best plan, then the RESULTLIMIT
+option has no effect.
+
+SYNONYM = OFF or SYNONYNM = ON
+Specifies whether to use a synonym dictionary associated with
+the text search index. The default is OFF.OFF
+Do not use a synonym dictionary.
+ON
+Use the synonym dictionary associated with the text search index.
+
+If search-argument-options is
+the empty string or the null value, the function is evaluated as if search-argument-options were
+not specified.
+
+The result of the function is a large integer.
+If search-argument can be null, the result can be null; if search-argument is
+null, the result is the null value.
+The result
+is 1 if the column contains a match for the search criteria specified
+by the search-argument. Otherwise, the result is 0. If the
+column contains the null value, the result is 0.
+CONTAINS is
+a non-deterministic function.
+NotesPrerequisites: In order to use the CONTAINS and
+SCORE functions, OmniFind® Text
+Search Server for DB2® for i
+must be installed and started.
+Rules: If a view, nested
+table expression, or common table expression provides a text search
+column for a CONTAINS or SCORE scalar function and the applicable
+view, nested table expression, or common table expression has a DISTINCT
+clause on the outermost SELECT, the SELECT list must contain all the
+corresponding key fields of the text search index.
+If a view,
+nested table expression, or common table expression provides a text
+search column for a CONTAINS or SCORE scalar function, the applicable
+view, nested table expression, or common table expression cannot have
+a UNION, EXCEPT, or INTERSECT at the outermost SELECT.
+If a
+common table expression provides a text search column for a CONTAINS
+or SCORE scalar function, the common table expression cannot be subsequently
+referenced again in the entire query unless that reference does not
+provide a text search column for a CONTAINS or SCORE scalar function.
+CONTAINS and SCORE scalar functions are not allowed if
+the query specifies:
+a distributed table,
+a table with a read trigger, or
+a logical file built over multiple physical file members.
+
+ExamplesThe following statement finds all of the employees who have "COBOL"
+in their resume. The text search argument is not case-sensitive.  SELECT EMPNO
+FROM EMP_RESUME
+WHERE RESUME_FORMAT = 'ascii'
+AND CONTAINS(RESUME, 'cobol') = 1
+
+Find 10 students at random whose online essay contains the phrase
+"fossil fuel" in Spanish, that is "combustible fósil", to be invited
+for a radio interview. Since any 10 students can be selected, optimize
+the query to using RESULTLIMIT to limit the number of results from
+the search.  SELECT FIRSTNME, LASTNAME
+    FROM STUDENT_ESSAYS
+    WHERE CONTAINS(TERM_PAPER, 'combustible fósil',
+'QUERYLANGUAGE = es_ES RESULTLIMIT = 10 SYNONYM = ON') = 1
+
+Find the string 'ate' in the COMMENT column. Use a host variable
+to supply the search argument.char search_arg[100];
+...
+EXEC SQL DECLARE C1 CURSOR FOR
+SELECT CUSTKEY
+FROM CUSTOMERS
+WHERE CONTAINS(COMMENT, :search_arg) = 1
+ORDER BY CUSTKEY;
+strcpy(search_arg, "ate");
+EXEC SQL OPEN C1;
+
+Parent topic: Scalar functions

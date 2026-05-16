@@ -1,0 +1,176 @@
+Using the Call Program command to pass control to a called program
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures > Passing parameters > Passing parameters
+
+IBM i programming resources > Control language > Control language > CL programming > Controlling flow and communicating between programs and procedures > Passing parameters
+
+Using the Call Program command to pass control to a called program
+When the Call Program (CALL) command is issued
+by a CL procedure, each parameter value passed to the called program can be
+a character string constant, a numeric constant, a logical constant, or a
+CL variable.
+A maximum of 255 parameters can be passed to the called program.
+The values of the parameters are passed in the order in which they appear
+on the CALL command, and this must match the order in which
+they appear in the parameter list of the called program. The names of the
+variables passed do not have to be the same as the names on the receiving
+parameter list. The names of the variables receiving the values in the called
+program must be declared to the called program, but the order of the declare
+commands is not important.
+No association exists between the storage
+in the called program and the variables it receives. Instead, when the calling
+program passes a variable, the storage for the variable is in the program
+in which it was originally declared. The system passes variables by address.
+When passing a constant, the calling program makes a copy of the constant,
+and passes the address of that copy to the called program.
+The result
+is that when a variable is passed, the called program can change the value
+of the variable, and the change is reflected in the calling program. The new
+value does not have to be returned to the calling program for later use; it
+is already there. Thus no special coding is needed for a variable that is
+to be returned to the calling program. When a constant is passed, and its
+value is changed by the called program, the changed value is not known to
+the calling program. Therefore, if the calling program calls the same program
+again, it reinitializes the values of constants, but not of variables.
+An
+exception to the previous description is when the CALL command
+calls an Integrated Language Environment® (ILE) C program. When using the CALL command
+to call an ILE C program and pass character or logical constants, the system
+adds a null character (x'00') after the last non-blank character. If the constant
+is a character string that is enclosed in single quotation marks or a hexadecimal
+constant, the null character is added after the last character that was specified.
+This preserves the trailing blanks (x '40' characters). Numeric values are
+not null-terminated.
+If a CL program might be called using a CALL command
+that has not been compiled (an interactive CALL command
+or through the SBMJOB command), the decimal parameters (*DEC) should be declared
+with LEN(15 5), and the character parameters (*CHAR) should
+be declared LEN(32) or less in the receiving program.
+A CALL command
+that is not in a CL procedure or program cannot pass variables as arguments.
+Be careful when specifying the CALL command as a command
+parameter that is defined as TYPE(*CMDSTR). This converts the contents of
+any variables that are specified on the PARM parameter to constants. The command
+(CMD) parameters on the Submit Job (SBMJOB) command, Add
+Job Schedule Entry (ADDJOBSCDE) command, or Change Job
+Schedule Entry (CHGJOBSCDE) command are examples.
+Parameters
+can be passed and received as follows:
+Character string constants of 32 bytes or less are always passed
+with a length of 32 bytes (padded on the right with blanks). If a character
+constant is longer than 32 bytes, the entire length of the constant is passed.
+If the parameter is defined to contain more than 32 bytes, the CALL command
+must pass a constant containing exactly that number of bytes. Constants longer
+than 32 characters are not padded to the length expected by the receiving
+program. The receiving program can receive less than the number of bytes
+passed. For example, if a program specifies that 4 characters are to be received
+and ABCDEF is passed (padded with blanks in 26 positions),
+only ABCD are accepted and used by the program.
+If
+the receiving program receives more than the number of bytes passed, the results
+may be unexpected. Numeric values passed as characters must be enclosed in
+single quotation marks.
+
+Decimal constants are passed in packed form and with a length of LEN(15
+5), where the value is 15 digits long, of which 5 digits are decimal
+positions. Thus, if a parameter of 12345 is passed, the
+receiving program must declare the decimal field with a length of LEN(15
+5); the parameter is received as 12345.00000. If
+you need to pass a numeric constant to a program and the program is expecting
+a value with a length and precision other than 15 5, the constant can be coded
+in hexadecimal format. The following CALL command shows
+how to pass the value 25.5 to a program variable that is declared as LEN(5
+2): CALL PGMA PARM(X'02550F')
+
+Logical constants are passed with a length of 32 bytes. The logical value
+0 or 1 is in the first byte, and the remaining bytes are blank. If a value
+other than 0 or 1 is passed to a program that expects a logical value, the
+results may be unexpected.
+A floating point literal or floating point special value (*NAN, *INF,
+or *NEGINF) is passed as a double precision value, which occupies 8 bytes.
+Although a CL program cannot process floating point numbers, it can receive
+a floating point value into a character variable and pass that variable to
+an high-level language (HLL) program that can process floating point values.
+The system can pass a variable if the call is made from a CL procedure
+or program. In this case the receiving program should declare the field to
+match the variable that is defined in the calling CL procedure or program.
+For example, assume that a CL procedure or program defines a decimal variable
+that is named &CHKNUM as LEN(5 0). Then the receiving
+program should declare the field as packed with 5 digits total, with no decimal
+positions. When running a CALL command in batch mode by
+using the SBMJOB command in a CL procedure or program, the system treats any
+variables that are passed as arguments like constants.
+If either a decimal constant or a program variable can be passed to the
+called program, the parameter should be defined as LEN(15 5),
+and any calling program must adhere to that definition. If the type, number,
+order, and length of the parameters do not match between the calling and receiving
+programs (other than the length exception noted previously for character constants),
+results cannot be predicted.
+In order for an integer constant to be passed to an integer variable,
+the constant must be specified in hexadecimal format. The size of the hexadecimal
+constant and integer variable must be the same.
+The value *N cannot be used to specify a null value because a null value
+cannot be passed to another program.
+
+In the following example, program A passes six parameters: one logical
+constant, three variables, one character constant, and one numeric constant.
+PGM /* PROGRAM A */
+DCL VAR(&B) TYPE(*CHAR)
+DCL VAR(&C) TYPE(*DEC) LEN(15 5) VALUE(13.529)
+DCL VAR(&D) TYPE(*CHAR) VALUE('1234.56')
+CHGVAR VAR(&B) VALUE(ABCDEF)
+CALL PGM(B) PARM('1' &B &C &D XYZ 2) /* Note blanks between parms */
+.
+.
+.
+ENDPGM
+PGM PARM(&A &B &C &W &V &U) /* PROGRAM B */
+DCL VAR(&A) TYPE(*LGL)
+DCL VAR(&B) TYPE(*CHAR) LEN(4)
+DCL VAR(&C) TYPE(*DEC)
+/* Default length (15 5) matches DCL LEN in program A */
+DCL VAR(&W) TYPE(*CHAR)
+DCL VAR(&V) TYPE(*CHAR)
+DCL VAR(&U) TYPE(*DEC)
+.
+.
+. ENDPGM
+Note: If the fifth parameter passed to PGMB was 456 instead
+of XYZ and was intended as alphanumeric data, the value would
+have been specified as '456' in the parameter.
+The
+logical constant '1' does not have to be declared in the calling program.
+It is declared as type logical and named &A in program B.
+Because
+no length is specified on the DCL command for &B, the default length,
+which is 32 characters, is passed. Only 6 characters of &B are specified
+(ABCDEF). Because &B is declared with only 4 characters
+in program B, only those 4 characters are received. If they are changed in
+program B, those 4 positions for &B will also be changed in program A
+for the remainder of this call.
+The length (LEN) parameter must be specified
+for &C in program A. If it were not specified, the length would default
+to the specified value's length, which would be incompatible with the default
+length expected in program B. &C has a value of 13.52900.
+&W
+in program B (&D in program A) is received as a character because it is
+declared as a character. Single quotation marks are not necessary to indicate
+a string if TYPE is *CHAR. In program A, the length defaults to the value's
+length of 7 (the decimal point is considered a position in a character string).
+Program B expects a length of 32. The first 7 characters are passed, but
+the contents past the position 7 cannot be predicted.
+The variable &V
+is a character string XYZ, padded with blanks on the right.
+The variable &U is numeric data, 2.00000.
+
+Parent topic: Passing parameters
+
+Related concepts
+Length of parameter value
+
+Related tasks
+Using the Call Program command to pass control
+
+Related information
+Call Program (CALL) command
+CL command finder

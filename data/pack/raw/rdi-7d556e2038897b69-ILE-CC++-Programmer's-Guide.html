@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Processing a Database Record File Using Record Input and Output Functions</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="record I/O functions, database records">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog353.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog306.htm">Part 5&#46; Working with iSeries File Systems and Devices</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog331.htm">Chapter 19&#46; Using Database Files and Distributed Data Management Files in a Program</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<HR><H2><A NAME="Header_417" HREF="cpprog02.htm#ToC_417">Processing a Database Record File Using Record Input and Output Functions</A></H2>
+<P>You can read and print records from a data file.
+<P><B>Example:</B>
+<P>The following example uses the <TT>_Ropen()</TT>,
+<TT>_Rreadl()</TT>, <TT>_Rreadp()</TT>, <TT>_Rreads()</TT>,
+<TT>_Rreadd()</TT>, <TT>_Rreadf()</TT>, <TT>_Rrlslck()</TT>,
+<TT>_Rdelete()</TT>, <TT>_Ropnfbk()</TT>, and
+<TT>_Rclose()</TT> record I/O functions. The program T1520REC
+reads and prints records from the data file T1520DD4. 
+<OL TYPE=1>
+<LI>
+<P>On the command line, enter: 
+<PRE>
+<BR>
+CRTPF FILE(MYLIB/T1520DD4) SRCFILE(QCPPLE/QADDSSRC)
+</PRE>
+<P>This creates the physical file T1520DD4 that uses the following DDS:
+<P>
+<P><B><A NAME="Figure_131" HREF="cpprog09.htm#FT_Figure_131">Figure 131. T1520DD4 -- DDS Source for Database Records</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>
+<BR>
+     A          R PURCHASE
+<BR>     A            ITEMNAME      10
+<BR>     A            SERIALNUM     10
+<BR>     A          K SERIALNUM
+</PRE>
+</TD></TR></TABLE>
+</LI><LI>Enter the following sample data into T1520DD4: 
+<PRE>
+<BR>
+orange    1000222200
+<BR>grape     1000222010
+<BR>apple     1000222030
+<BR>cherry    1000222020
+</PRE>
+</LI><LI>On the command line, enter:
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520REC) SRCFILE(QCPPLE/QACSRC).
+</PRE>
+<P>This creates the program T1520REC that uses the following source: 
+<P><B><A NAME="Figure_132" HREF="cpprog09.htm#FT_Figure_132">Figure 132. T1520REC -- ILE C Source to Process a Database File Using Record I/O Functions</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program illustrates how to use the _Rreadp(), _Rreads(),      */
+<BR>/* _Rreadd(), _Rreadf(), _Rreadn(),
+<BR>/* _Ropnfbk(), _Rdelete, and _Rrlslck() functions.                    */
+<BR>&nbsp;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;recio.h&gt;
+<BR>&nbsp;
+<BR>int main(void)
+<BR>{
+<BR>    char        buf[21];
+<BR>    _RFILE      *fp;
+<BR>    _XXOPFB_T    *opfb;
+<BR>/* Open the file for processing in arrival sequence.                  */
+<BR>&nbsp;
+<BR>    if (( fp = _Ropen ( "*LIBL/T1520DD4", "rr+, arrseq=Y" )) == NULL )
+<BR>    {
+<BR>        printf ( "Open failed\n" );
+<BR>        exit ( 1 );
+<BR>    };
+<BR>/* Get the library and file names of the file opened.                 */
+<BR>&nbsp;
+<BR>    opfb = _Ropnfbk ( fp );
+<BR>    printf ( "Library: %10.10s\nFile:    %10.10s\n",
+<BR>              opfb-&gt;library_name,
+<BR>              opfb-&gt;file_name);
+<BR>
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* Get the last record.                                               */
+<BR>&nbsp;
+<BR>    _Rreadl ( fp, NULL, 20, __DFT );
+<BR>    printf ( "Fourth record: %10.10s\n", *(fp-&gt;in_buf) );
+<BR>&nbsp;
+<BR>/* Get the third record.                                              */
+<BR>&nbsp;
+<BR>    _Rreadp ( fp, NULL, 20, __DFT );
+<BR>    printf ( "Third record:  %10.10s\n", *(fp-&gt;in_buf) );
+<BR>&nbsp;
+<BR>/* Release lock on the record so another function can access it.     */
+<BR>&nbsp;
+<BR>    _Rrlslck ( fp );
+<BR>/* Read the same record.                                              */
+<BR>&nbsp;
+<BR>    _Rreads ( fp, NULL, 20, __DFT );
+<BR>    printf ( "Same record:  %10.10s\n", *(fp-&gt;in_buf) );
+<BR>
+<BR>/* Get the second record without locking it.                          */
+<BR>&nbsp;
+<BR>    _Rreadd ( fp, NULL, 20, __NO_LOCK, 2 );
+<BR>    printf ( "Second record: %10.10s\n", *(fp-&gt;in_buf) );
+<BR>&nbsp;
+<BR>/* Get the first record.                                              */
+<BR>&nbsp;
+<BR>    _Rreadf ( fp, NULL, 20, __DFT );
+<BR>    printf ( "First record:  %10.10s\n", *(fp-&gt;in_buf) );
+<BR>&nbsp;
+<BR>/* Delete the second record.                                          */
+<BR>&nbsp;
+<BR>    _Rreadn ( fp, NULL, 20, __DFT );
+<BR>    _Rdelete ( fp );
+<BR>&nbsp;
+<BR>/* Read all records after deletion.                                   */
+<BR>&nbsp;
+<BR>    _Rreadf ( fp, NULL, 20, __DFT );
+<BR>    printf ( "First record after deletion: %10.10s\n", *(fp-&gt;in_buf));
+<BR>    _Rreadn ( fp, NULL, 20, __DFT );
+<BR>    printf ( "Second record after deletion: %10.10s\n", *(fp-&gt;in_buf));
+<BR>    _Rreadn ( fp, NULL, 20, __DFT );
+<BR>    printf ( "Third record after deletion:  %10.10s\n", *(fp-&gt;in_buf));
+<BR>&nbsp;
+<BR>    _Rclose ( fp );
+<BR>}
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>The <TT>_Ropen()</TT> function opens the file T1520DD4. The
+<TT>_Ropnfbk()</TT> function gets the library name MYLIB and file name
+T1520DD4. The <TT>_Rreadl()</TT> function reads the fourth record
+&quot;cherry 1000222020&quot;. The <TT>_Rreadp()</TT> function reads
+the third record &quot; apple 1000222030&quot;. The
+<TT>_Rrlslck()</TT> function releases the lock on this record so that
+<TT>_Rreads()</TT> can read it again. The <TT>_Rreadd()</TT>
+function reads the second record &quot;grape 1000222010&quot; without locking
+it. The <TT>_Rreadf()</TT> function reads the first record
+&quot;orange 1000222200&quot;. The <TT>_Rdelete()</TT> function
+deletes the second record. All records are then read and
+printed.
+</LI><LI>Run the program T1520REC. On the command line, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520REC)
+</PRE>
+<P>The screen output is as follows: 
+<PRE>
++--------------------------------------------------------------------------------+
+|  Library: MYLIB                                                                |
+|  File:    T1520DD4                                                             |
+|  Fourth record: cherry                                                         |
+|  Third record:  apple                                                          |
+|  Same record:  apple                                                           |
+|  Second record: grape                                                          |
+|  First record:  orange                                                         |
+|  First record after deletion: orange                                           |
+|  Second record after deletion: apple                                           |
+|  Third record after deletion:  cherry                                          |
+|  Press ENTER to end terminal session.                                          |
++--------------------------------------------------------------------------------+</PRE>
+<P>The physical file T1520DD4 contains the following data: 
+<PRE>
+<BR>
+ORANGE    1000222200
+<BR>APPLE     1000222030
+<BR>CHERRY    1000222020
+</PRE>
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog352.htm">Previous Page</A> | <A HREF="cpprog354.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

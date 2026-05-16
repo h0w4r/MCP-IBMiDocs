@@ -1,0 +1,69 @@
+Using Null-Capable Fields in DDS Files
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Compiler-Directing Statements > COPY Statement > COPY Statement - Format 2 - DDS Translate > COPY Statement - Format 2 - DDS Translate
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Compiler-Directing Statements > COPY Statement > COPY Statement - Format 2 - DDS Translate
+
+Using Null-Capable Fields in DDS Files
+When a field is defined as ALWNULL in DDS, the COPY DDS
+statement identifies the field as null-capable with a comment. For example,
+the following two figures show the DDS file containing the null-capable field,
+and the resulting comment that is created for that field when it is copied
+into the ILE COBOL program's FILE-SECTION.
+Figure 1. DDS Showing Null-Capable Fields ....+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+A* With the following physical file (TESTPF)
+R TESTING
+FLD1 5S 0
+FLD2 8 ALWNULL
+FLD3 6
+
+Figure 2. Result After Null-Capable DDS File Copied into ILE COBOL Program* A COPY DDS-TESTING OF TESTPF.
+* I-O FORMAT:TESTING FROM FILE TESTPF OF LIBRARY QTEMP
+*
+05 TESTING.
+06 FLD1 PIC 9(5).
+06 FLD2 PIC X(8).
+(null-capable field)
+06 FLD3 PIC X(6).
+
+To generate the null-map and null-key-map for the DDS null-capable
+record formats that are being copied in, the WITH NULL-MAP and WITH NULL-KEY-MAP
+phrases need to be specified on a new COPY DDS statement in the WORKING-STORAGE
+or LOCAL-STORAGE sections. Only one copy of the NULL-MAP is generated
+per format in the DDS. For example, if the format contains both I (input only)
+and B (input and output) fields, the size of the null-map generated is for
+all fields specified in the format. In other words, it would include all I
+and B fields.
+For each of the null-capable fields defined in the DDS for a specific format,
+a data item definition is generated. The data item generated,
+depends on whether you specify NULL-MAP or NULL-MAP-ALPHANUM on the COPY DDS
+statement in the WORKING-STORAGE or LOCAL-STORAGE sections.
+If you specify NULL-MAP, a null-map is created with PIC 1 values that are
+initialized to binary zero (0). The following statement is generated in the
+source for a null-capable field:
+06 <field-name>-NF PIC 1 VALUE B"0".
+If the field is not null-capable, a FILLER item is generated.
+If you specify NULL-MAP-ALPHANUM, a null-map is created with PIC X values
+that are initialized to the character zero (0). The following statement is
+generated in the source for a null-capable field:
+06 <field-name>-NF PIC X VALUE ZERO.
+If the field is not null-capable, the following statement is generated
+in the source:
+06 <field-name>-AN PIC X VALUE ZERO.
+
+The size of a null-map generated using NULL-MAP-ALPHANUM is the same as
+the size of a null-map generated using NULL-MAP.
+Figure 3. DDS File With Some Fields Not Null-Capable ....+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....
+A* Physical file for DDS
+R REC
+FLD1 1A
+FLD2 1A ALWNULL
+FLD3 1A
+
+Figure 4. ILE COBOL Code Generated From COPY DDS with NULL-MAP*DDS Generated
+05 REC-NM
+06 FILLER PIC X VALUE ZERO.
+06 FLD2–NF PIC 1 VALUE B"0".
+06 FILLER PIC X VALUE ZERO.
+
+Parent topic: COPY Statement - Format 2 - DDS Translate

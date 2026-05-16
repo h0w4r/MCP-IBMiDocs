@@ -1,0 +1,338 @@
+What's New in 7.4?
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > What's New > What's New
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > What's New
+
+What's New in 7.4?
+
+This section describes the enhancements made to ILE RPG in 7.4.
+
+Varying-dimension arrays
+
+A varying-dimension array is defined with DIM(*AUTO:maximum_elements) or DIM(*VAR:maximum_elements).
+The second parameter of the DIM keyword indicates the maximum number of elements in the array.
+The dimension of a varying-dimension array can be changed by assigning a value to the %ELEM
+built-in function.
+
+DCL-S array_auto CHAR(10) DIM(*AUTO:100);
+DCL-S array_var CHAR(10) DIM(*VAR:100);
+%ELEM(array_auto) = 5;
+%ELEM(array_var) = 5;
+
+The dimension of a varying-dimension array defined with DIM(*AUTO) increases when there is an
+assignment statement to an element that is greater than the current number of elements.
+In the following example, array arr is defined with
+DIM(*AUTO:1000) (1).
+The current number of elements of the array is automatically increased when there
+is an assignment to a new element.
+The dimension of the array is zero before the assignment to arr(5).
+The dimension is 5 after the assignment(2).
+Elements 1 to 4 are initialized with the value specified by the INZ keyword ('?').
+Element 5 is set to the value specified by the assignment statement ('x').
+
+DCL-s arr CHAR(10) DIM(*AUTO:1000) INZ('?'); // 1
+
+arr(5) = 'x'; // 2
+
+You can specify *NEXT as the index for an array defined with DIM(*AUTO)
+when the array is modified by an assignment statement.
+The dimension of the array increases by one.
+In the following example, array custArray is defined with
+DIM(*AUTO:1000) (1).
+The current number of elements of the array is automatically increased by
+one for each assignment to custArray(*NEXT). (2).
+
+DCL-F custfile;
+DCL-DS custDs LIKEREC(custRec);
+DCL-S numCustElems INT(10);
+DCL-DS custArray LIKEDS(custDs) DIM(*AUTO:1000); // 1
+
+READ file custDs;
+DOW NOT %EOF;
+custArray(*next) = custDs; // 2
+READ file custDs;
+ENDDO;
+numCustElems = %ELEM(custArray);
+
+See Varying-dimension arrays
+
+DIM(*CTDATA)
+
+Specify DIM(*CTDATA) to specify that the dimension of a compile-time array or
+table is determined by the number of records in the compile-time data.
+See DIM({*AUTO:|*CTDATA|*VAR:}numeric_constant)
+
+SAMEPOS keyword
+
+The SAMEPOS keyword positions a subfield at the same starting position as another subfield.
+See SAMEPOS(subfield)
+
+This enhancement is also available in 7.3 with a PTF.
+
+New PSDS subfields
+
+The following new subfields are added to the Program Status Data Structure:
+
+Internal job ID, in positions 380 to 395.
+
+System name, in positions 396 - 403.
+
+See Program Status Data Structure
+
+This enhancement is also available in 7.3 with a PTF.
+
+ON-EXIT section
+
+The ON-EXIT section runs every time that a procedure ends, whether the
+procedure ends normally or abnormally.
+In the following example, the procedure allocates heap storage.
+The code that follows the ON-EXIT operation is always run, so the
+heap storage is always deallocated.
+The ON-EXIT section is run whether
+the procedure ends suddenly due to an unhandled exception, or the procedure
+is canceled due to the job ending, or the procedure returns normally due
+to reaching the end of the main part of the procedure or due to reaching
+a RETURN operation.
+
+dcl-proc myproc;
+p = %alloc(100);
+
+...
+on-exit;
+dealloc(n) p;
+end-proc;
+
+See ON-EXIT (On Exit)
+
+This enhancement is also available in 7.2 and 7.3 with PTFs.
+
+Nested data structure subfields
+
+When a qualified data structure is defined using free-form syntax,
+a subfield can be directly defined as a nested data structure subfield.
+The street subfield in the following data structure
+is referred to as product.manufacturer.address.street.
+
+DCL-DS product QUALIFIED;
+name VARCHAR(25);
+id CHAR(10);
+DCL-DS manufacturer;
+name VARCHAR(10);
+DCL-DS address;
+street VARCHAR(50);
+city VARCHAR(25);
+END-DS address;
+active IND;
+END-DS manufacturer;
+price PACKED(9 : 2);
+END-DS product;
+
+See Nested data structure subfield.
+This enhancement is also available in 7.2 and 7.3 with PTFs.
+
+New operation code DATA-INTO
+
+DATA-INTO reads data from a structured document, such as JSON, into
+an RPG variable.
+It requires a parser to parse the document.
+The DATA-INTO operation calls the parser, and the parser passes the information in
+the document back to the DATA-INTO operation, which places the
+information into the RPG variable.
+
+DCL-DS product QUALIFIED;
+name VARCHAR(25);
+id CHAR(10);
+price PACKED(9 : 2);
+END-DS product;
+
+DATA-INTO product %DATA('ProductInfo.JSON' : 'doc=file')
+%PARSER('MYLIB/MYJSONPARS');
+
+See DATA-INTO (Parse a Document into a Variable),
+%DATA (document {:options}),
+%PARSER (parser {: options}).
+This enhancement is also available in 7.2 and 7.3 with PTFs.
+
+Built-in function %PROC()
+
+%PROC() returns the external name of the current procedure.
+See %PROC (Return Name of Current Procedure).
+This enhancement is also available in 7.2 and 7.3 with PTFs.
+
+More places that complex qualified names can be used
+
+Complex qualified names are now allowed in the following places:
+
+Built-in function %ELEM.
+See %ELEM (Get Number of Elements).
+
+Built-in function %SIZE.
+See %SIZE (Get Size in Bytes).
+
+Operation code DEALLOC.
+See DEALLOC (Free Storage).
+
+Operation code RESET.
+See RESET (Reset).
+
+This enhancement is also available in 7.2 and 7.3 with PTFs.
+
+New built-in functions %MAX and %MIN
+
+%MAX returns the maximum value of its operands. %MIN returns the minimum value of its operands.
+There must be at least two operands, but there is no upper limit on the number of operands when
+%MAX or %MIN are used in calculations. When %MAX or %MIN are used in Declaration statements, there
+must be exactly two numeric operands.
+
+In the following example, after the assignment operations, maxval has the
+value 'Zorro' and minval has the value 'Batman'.
+
+DCL-S maxval VARCHAR(10);
+DCL-S minval VARCHAR(10);
+DCL-S name1 VARCHAR(20) INZ('Robin');
+DCL-S name2 VARCHAR(10) INZ('Batman');
+
+maxval = %MAX(name1 : name2 : 'Zorro');
+minval = %MIN(name1 : name2 : 'Zorro');
+
+See %MAX and %MIN (Maximum or Minimum Value).
+This enhancement is also available in 7.2 and 7.3 with PTFs.
+
+ALIGN(*FULL) to define the length of a data structure as a multiple of its alignment
+
+When *FULL is specified for the ALIGN keyword,
+the length of the data structure is a multiple of the alignment size.
+Without *FULL, the length of the data structure is determined by highest end position of the subfields.
+Specify the *FULL parameter when defining an aligned data structure to be passed as a parameter to a function or API,
+or if you use %SIZE to determine the distance between the elements in an array of aligned data structures.
+For example, the following two data structures have a float subfield followed by a character subfield with length 1.
+The alignment size for both data structures is 8.
+The size of data structure DS_ALIGN_FULL is 16, while the size of data structure DS_ALIGN is 9.
+
+DCL-DS ds_align_full ALIGN(*FULL) QUALIFIED;
+sub1 FLOAT(8);
+sub2 CHAR(1);
+END-DS;
+
+DCL-DS ds_align ALIGN QUALIFIED;
+sub1 FLOAT(8);
+sub2 CHAR(1);
+END-DS;
+
+See ALIGN{(*FULL)}.
+This enhancement is also available in 7.2 and 7.3 with PTFs.
+
+New parameter TGTCCSID for CRTBNDRPG and CRTRPGMOD to support compiling from Unicode source
+
+The ILE RPG compiler normally reads the source files for a compile in the CCSID of the primary
+source file. Since the compiler supports reading the source only in an EBCDIC CCSID,
+this means that the compile fails when the primary source file has a Unicode CCSID
+such as UTF-8 or UTF-16. The TGTCCSID parameter for the CRTBNDRPG and CRTRPGMOD
+allows the RPG programmer to specify the CCSID with which the compiler reads the
+source files for the compile. Specify TGTCCSID(*JOB) or specify a specific EBCDIC
+CCSID such as TGTCCSID(37) or TGTCCSID(5035).
+
+The default is TGTCCSID(*SRC).
+This enhancement is also available in 7.1,
+7.2, and 7.3 with PTFs.
+
+Table 1. Changed Language Elements Since 7.3: Built-in functions
+
+Element
+
+Description
+
+%ELEM
+
+A second parameter *ALLOC, *KEEP, or *MAX can be specified
+if the array is a varying-dimension array.
+See %ELEM (Get Number of Elements).
+
+Table 2. Changed Language Elements Since 7.3: Definitions
+
+Element
+
+Description
+
+DIM keyword
+
+The parameter can be *AUTO or *VAR to define a varying-dimension array.
+See Varying-dimension arrays.
+
+The parameter can be *CTDATA to indicate that the dimension of the
+array or table is determined from the number of records in the
+compile-time data.
+See DIM({*AUTO:|*CTDATA|*VAR:}numeric_constant).
+
+DCL-DS operation code
+
+DCL-DS can be nested within a qualified data structure.
+See Nested data structure subfield.
+
+ALIGN(*FULL)
+
+The ALIGN keyword can have parameter *FULL causing
+the length of a data structure to be a multiple of its alignment.
+See ALIGN{(*FULL)}.
+
+Table 3. New Language Elements Since 7.3: Built-in functions
+
+Element
+
+Description
+
+%DATA
+
+Specifies the document to be parsed by the DATA-INTO operation code
+See %DATA (document {:options}).
+
+%MAX
+
+Returns the maximum value of its operands
+See %MAX (Maximum Value).
+
+%MIN
+
+Returns the minimum value of its operands
+See %MIN (Minimum Value).
+
+%PARSER
+
+Specifies the parser for the DATA-INTO operation code
+See %PARSER (parser {: options}).
+
+%PROC
+
+Returns the external name of the current procedure
+See %PROC (Return Name of Current Procedure).
+
+Table 4. New Language Elements Since 7.3: Definition keywords
+
+Element
+
+Description
+
+SAMEPOS
+
+Positions a subfield at the same starting position as another subfield
+See SAMEPOS(subfield).
+
+Table 5. New Language Elements Since 7.3: Operation codes
+
+Element
+
+Description
+
+DATA-INTO
+
+Import data from a structured document into
+an RPG variable.
+See DATA-INTO (Parse a Document into a Variable).
+
+ON-EXIT
+
+Begins a section of code that runs when the procedure ends, either normally or abnormally
+See ON-EXIT (On Exit).
+
+Parent topic: What's New

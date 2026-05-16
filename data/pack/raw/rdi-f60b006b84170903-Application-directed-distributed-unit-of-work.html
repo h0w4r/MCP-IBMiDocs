@@ -1,0 +1,155 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Application-directed distributed unit of work">
+<meta name="abstract" content="The application-directed distributed unit of work facility also provides for the remote preparation and execution of SQL statements in the same fashion as remote unit of work. Like remote unit of work, an activation group at computer system A can connect to an application server at computer system B and execute any number of static or dynamic SQL statements that reference objects at B before ending the unit of work. All objects referenced in a single SQL statement must be managed by the same application server. However, unlike remote unit of work, any number of application servers can participate in the same unit of work. A commit or rollback operation ends the unit of work.">
+<meta name="Description" content="The application-directed distributed unit of work facility also provides for the remote preparation and execution of SQL statements in the same fashion as remote unit of work. Like remote unit of work, an activation group at computer system A can connect to an application server at computer system B and execute any number of static or dynamic SQL statements that reference objects at B before ending the unit of work. All objects referenced in a single SQL statement must be managed by the same application server. However, unlike remote unit of work, any number of application servers can participate in the same unit of work. A commit or rollback operation ends the unit of work.">
+<meta name="DC.Relation" scheme="URI" content="rbafzch1drda.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzch1drda.htm">
+<title>Application-directed distributed unit of work</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzadduwmg.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzadduwmg">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzconcept.htm">Concepts</a> > <a href="../../topic/db2/rbafzch1drda.htm">Distributed relational database</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d19029e7"><h1 class="topictitle1" id="d19029e7">Application-directed distributed unit of work</h1>
+<div class="body conbody"><p class="shortdesc">The <em>application-directed distributed unit of work facility</em> also
+provides for the remote preparation and execution of SQL statements
+in the same fashion as remote unit of work. Like remote unit of work,
+an activation group at computer system A can connect to an application
+server at computer system B and execute any number of static or dynamic
+SQL statements that reference objects at B before ending the unit
+of work. All objects referenced in a single SQL statement must be
+managed by the same application server. However, unlike remote unit
+of work, any number of application servers can participate in the
+same unit of work. A commit or rollback operation ends the unit of
+work.</p>
+<p>Distributed unit of work is fully supported for APPC and TCP/IP
+connections.</p>
+<section id="rbafzadduwmg__rbafzjac3"><h2 class="sectiontitle">Application-directed distributed unit
+of work connection management</h2><p></p>
+<p>At any time: </p>
+<ul><li>An activation group is always in the <em>connected</em> or <em>unconnected</em> state
+and has a set of zero or more connections. Each connection of an activation
+group is uniquely identified by the name of the application server
+of the connection.</li>
+<li>An SQL connection is always in one of the following states:  <ul><li>Current and
+held</li>
+<li>Current and
+release-pending</li>
+<li>Dormant and held</li>
+<li>Dormant and release-pending</li>
+</ul>
+</li>
+</ul>
+</section><section><p><strong>Initial state of an activation group:</strong></p>
+<p>An
+activation group is initially in the connected state and has exactly
+one connection. The initial state of a connection is <em>current and
+held</em>.</p>
+<p>The following diagram shows the state transitions:</p>
+<figure class="fignone" id="rbafzadduwmg__rcntyps"><figcaption>Figure 1. Application-Directed Distributed Unit of Work
+Connection and Activation Group Connection State Transitions</figcaption><div class="image"><img src="rbal3503.gif" alt="Application-Directed Distributed Unit of Work Connection and Activation Group Connection State Transitions. Graphic described in text."></div></figure>
+</section><section><h2 class="sectiontitle">Connection states</h2><p></p>
+<p>If an application process successfully
+executes a CONNECT statement: </p>
+<ul><li>The current connection is placed in the dormant state and held
+state.</li>
+<li>The server name is added to the set of connections and the new
+connection is placed in the current and held state.</li>
+</ul>
+<p> If the server name is already in the set of existing connections
+of the activation group, an error is returned.</p>
+<p>A connection
+in the dormant state is placed in the current state using the SET
+CONNECTION statement. When a connection is placed in the current state,
+the previous current connection, if any, is placed in the dormant
+state. No more than one connection in the set of existing connections
+of an activation group can be current at any time. Changing the state
+of a connection from current to dormant or from dormant to current
+has no effect on its held or release-pending state.</p>
+<p>A connection
+is placed in the release-pending state by the RELEASE statement. When
+an activation group executes a commit operation, every release-pending
+connection of the activation group is ended. Changing the state of
+a connection from held to release-pending has no effect on its current
+or dormant state. Thus, a connection in the release-pending state
+can still be used until the next commit operation. There is no way
+to change the state of a connection from release-pending to held.</p>
+</section><section><h2 class="sectiontitle">Activation group connection states</h2><p></p>
+<p>A
+different application server can be established by the explicit or
+implicit execution of a CONNECT statement. The following rules apply: </p>
+<ul><li>An activation group cannot have more than one connection to the
+same application server at the same time.</li>
+<li>When an activation group executes a SET CONNECTION statement,
+the specified location name must be an existing connection in the
+set of connections of the activation group.</li>
+<li>When an activation group executes a CONNECT statement, the specified
+server name must not be an existing connection in the set of connections
+of the activation group.</li>
+</ul>
+<p><strong>If an activation group has a current connection</strong>, the
+activation group is in the <em>connected</em> state. The CURRENT SERVER
+special register contains the name of the application server of the
+current connection. The activation group can execute SQL statements
+that refer to objects managed by that application server.</p>
+<p>An
+activation group in the unconnected state enters the connected state
+when it successfully executes a CONNECT or SET CONNECTION statement.</p>
+<p><strong>If
+an activation group does not have a current connection</strong>, the activation
+group is in the <em>unconnected</em> state. The CURRENT SERVER special
+register contents are equal to blanks. The only SQL statements that
+can be executed are CONNECT, DISCONNECT, SET CONNECTION, RELEASE,
+COMMIT, and ROLLBACK.</p>
+<p>An activation group in the connected state
+enters the unconnected state when its current connection is intentionally
+ended or the execution of an SQL statement is unsuccessful because
+of a failure that causes a rollback operation at the current server
+and loss of the connection. Connections are intentionally ended when
+an activation group successfully executes a commit operation and the
+connection is in the release-pending state, or when an application
+process successfully executes the DISCONNECT statement.</p>
+</section><section><h2 class="sectiontitle">When a connection is ended</h2><p>When a connection
+is ended, all resources that were acquired by the activation group
+through the connection and all resources that were used to create
+and maintain the connection are deallocated. For example, if application
+process P has placed the connection to application server X in the
+application server state, all cursors of P at X will be closed and
+deallocated when the connection is ended during the next commit operation.</p>
+<p>A
+connection can also be ended as a result of a communications failure
+in which case the activation group is placed in the unconnected state.
+All connections of an activation group are ended when the activation
+group ends.</p>
+</section></div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzch1drda.htm" title="A distributed relational database consists of a set of tables and other objects that are spread across different but interconnected computer systems or logical partitions on the same computer system. Each computer system has a relational database manager that manages the tables in its environment. The database managers communicate and cooperate with each other in a way that allows a database manager to execute SQL statements on another computer system.">Distributed relational database</a></li>
+</ul>
+</aside></article></main></body></html>

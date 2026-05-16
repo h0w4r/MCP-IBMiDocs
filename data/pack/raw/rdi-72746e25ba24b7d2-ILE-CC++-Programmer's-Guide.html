@@ -1,0 +1,181 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Managing the Default Heap</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="default heap, activation groups, dynamic storage, default, heap storage, to manage the default heap, bindable APIs, to free or re-allocate storage, Free Storage (CEEFRST) bindable API, Get Heap Storage (CEEGTST) bindable API, Reallocate Storage (CEECZST) bindable API, dynamically allocating (C++), run-time storage, run-time, storage, dynamically allocating at run time (C++), operator new, teraspace (C++), operator delete, overloading, overloading operator new or operator delete, C++ limitations when overloading replacement functions, replacement functions (C++), C++ replacement functions">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog105.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog24.htm">Part 2&#46; Creating and Compiling Programs</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog90.htm">Chapter 5&#46; Running a Program</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog104.htm">Managing Run&#45;Time Storage</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="HDRMANHEAP" HREF="cpprog02.htm#ToC_121">Managing the Default Heap</A></H3>
+<P>The first request for dynamic storage within an activation group results in
+the creation of a <VAR>default heap</VAR> from which the storage allocation
+takes place. Additional requests for dynamic storage are met by further
+allocations from the default heap. If there is insufficient storage in
+the heap to satisfy the current request for dynamic storage, the heap is
+extended, and the additional storage is allocated.
+<P>Allocated dynamic storage remains allocated until it is explicitly freed,
+or until the heap is discarded. The default heap is discarded only when
+the owning activation group ends.
+<P>Programs in the same activation group all use the same default heap.
+If one program accesses storage beyond what has been allocated, it can cause
+problems for another program.
+<P>For example, assume that two programs, <TT>PGM1</TT> and <TT>PGM2</TT>
+are running in the same activation group. 10 bytes are allocated for
+<TT>PGM1</TT>, but 11 bytes are changed by it. If the extra byte was
+in fact allocated for <TT>PGM2</TT> problems may arise for
+<TT>PGM2</TT>.
+<P><H4><A NAME="HDRAPIHEAP">Using Bindable APIs to Manage the Default Heap</A></H4>
+<P>You can use the following ILE bindable APIs on the default heap: 
+<DL>
+<P><DT><B>Free Storage (CEEFRST)
+</B></DT><DD>Frees one previous allocation of heap storage
+</DD><P><DT><B>Get Heap Storage (CEEGTST)
+</B></DT><DD>Allocates storage within a heap
+</DD><P><DT><B>Reallocate Storage (CEECZST)
+</B></DT><DD>Changes the size of previously allocated storage
+</DD></DL>
+<P><H4><A NAME="HDRDYNARR">Dynamically Allocating Storage at Run Time</A></H4>
+<BR><IMG SRC="ngcpplng.gif" ALT=""><BR>
+<P>In an ILE C++ program, you manage dynamic storage belonging to the default
+heap using the operators <TT>new</TT> and <TT>delete</TT> to create and
+delete dynamic objects. Dynamic objects are never created and deleted
+automatically. Their creation can fail if there is not enough free heap
+space available, and your programs must provide for this possibility.
+<P>The following figures illustrate how to use the <TT>new</TT> and
+<TT>delete</TT> operators for dynamic storage allocation: 
+<P><B><A NAME="Figure_37" HREF="cpprog09.htm#FT_Figure_37">Figure 37. Example of Dynamic Allocation and De-Allocation of Storage for a Class Object</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>
+<BR>
+TClass *p;                        // Define pointer
+<BR>     p= new TClass;               // Construct object
+<BR>     if (!p) {
+<BR>        Error("Unable to construct object");
+<BR>        exit(1);
+<BR>     }
+<BR>     ...
+<BR>     delete p;                    // Delete object
+</PRE>
+</TD></TR></TABLE>
+<P><B><A NAME="Figure_38" HREF="cpprog09.htm#FT_Figure_38">Figure 38. Example of Dynamic Allocation and De-Allocation of Storage for an Array of Objects</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>TClass *array;                          // Define pointer
+     array = new TClass[100];// Construct array of 100 objects
+     ...
+     delete[] array;         // Delete array
+</PRE>
+<DL><DT><B>Note:</B></DT><DD>In this example, you use <TT>delete[]</TT> to delete the<BR>
+array. Without the brackets, <TT>delete</TT> deletes the entire<BR>
+array, but calls the destructor only for the first element in the<BR>
+array. If you have an array of values that do not have destructors, you<BR>
+can use <TT>delete</TT> or <TT>delete[]</TT>.<BR>
+</DD></DL><BR>
+</TD></TR></TABLE>
+<P><H4><A NAME="Header_124">Overriding Replacement Functions</A></H4>
+<P>
+<BR><IMG SRC="ngcpplng.gif" ALT=""><BR>The C++ standard allows an application to redefine a number of
+<I>replacement functions</I>. The program's definitions are
+used instead of the default versions supplied by the library. Such
+replacement occurs prior to program startup.
+<P>A C++ program may provide the definition for any of the eight dynamic
+memory allocation functions. These include:
+<UL>
+<LI><TT>void *operator new (size_t) throw(std::bad_alloc);
+</TT>
+</LI><LI><TT>void *operator new (size_t, const std::nothrow_t&amp;)
+throw();</TT>
+</LI><LI><TT>void *operator new[] (size_t) throw(std:bad_alloc); </TT>
+</LI><LI><TT>void *operator new[] (size_t, const std::nothrow_t&amp;)
+throw(); </TT>
+</LI><LI><TT>void operator delete (void*) throw(); </TT>
+</LI><LI><TT>void operator delete (void*, const std::nothrow_t&amp;)
+throw(); </TT>
+</LI><LI><TT>void operator delete [] (void*) throw(); </TT>
+</LI><LI><TT>void operator delete [] (void*, const
+std::nothrow_t&amp;) throw(); </TT>
+</LI></UL>
+<P><H5><A NAME="Header_125">Limitations</A></H5>
+<P>When overriding replacement functions, consider the following
+limitations:
+<UL>
+<LI>A program that contains a main function has to be compiled with C++
+compiler.
+</LI><LI>When the <TT>main()</TT> entry point is not a C++ module, the calls to
+global <TT>new</TT> or <TT>delete</TT> operators work only if they are in
+the same compilation unit (where the definition of the corresponding
+replacement functions are visible).
+</LI><LI>Infinite recursion can occur when you use standard library objects in the
+implementation of replacement functions because the library makes extensive
+use of calls to the allocation operators. 
+<DL><DT><B>Note:</B></DT><DD>Avoid using iostreams for logging.
+</DD></DL>
+</LI></UL>
+<P><H4><A NAME="HDRHXOVERLNEWDELETEOP">Overloading the new or delete Operator</A></H4>
+<P>
+<IMG SRC="ngcpplng.gif" ALT="C++ language only">
+ The ISO C++ Standard categorizes operator <TT>new</TT> and operator
+<TT>delete</TT> as replacement functions, which means that they can be
+redefined in a C++ program. However, the standard allows only one
+definition of an operator to be in effect during program execution.
+<P>
+<DL><DT><B>Note:</B></DT><DD>Visibility issues can arise if a program does both of the following:
+<UL>
+<LI>Overloads operator new or operator delete
+</LI><LI>Uses multiple C++ translation units
+</LI></UL>
+<P>For detailed information about visibility issues, see <CITE>WebSphere Development Studio: ILE C/C++ Language
+Reference</CITE>.
+</DD></DL>
+<P><B>Example:</B>
+<P>Suppose an application uses three C++ source files (one.cpp,
+two.cpp, and three.cpp):
+<UL>
+<LI>One.cpp contains the main function.
+</LI><LI>Two.cpp contains a redefinition of operator <TT>new</TT> or
+operator <TT>delete</TT>.
+</LI><LI>Three.cpp calls operator <TT>new</TT>.
+</LI></UL>
+<P>After you compile the application, the redefined operator <TT>new</TT>
+(or operator <TT>delete</TT>) is visible to, and used for, all translation
+units.
+<P>Given the same three-translation unit scenario, suppose that one.cpp
+is compiled with the C compiler. The redefined operator is visible in
+translation unit two.cpp but not in three.cpp. Any calls
+to operator <TT>new</TT> (or operator <TT>delete</TT>) outside of
+translation unit two.cpp uses the standard version, not the
+user-defined version, of the operator. 
+<DL><DT><B>Note:</B></DT><DD>Because user-defined and standard operators have different signatures, no
+binder error or compiler warning is generated.
+</DD></DL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog104.htm">Previous Page</A> | <A HREF="cpprog106.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

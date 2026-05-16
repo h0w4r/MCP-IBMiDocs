@@ -1,0 +1,219 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Inheritance (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Inheritance (C++ only)
+
+ILE C/C++ Language Reference
+
+Virtual functions (C++ only)
+By default, C++ matches a function call with the correct function
+definition at compile time. This is called static
+binding. You can specify that the compiler match a function call
+with the correct function definition at run time; this is called dynamic
+binding. You declare a function with the keyword virtual if
+you want the compiler to use dynamic binding for that specific function.
+The following examples demonstrate the differences between static
+and dynamic binding. The first example demonstrates static binding:
+#include <iostream>
+using namespace std;
+
+struct A {
+void f() { cout << "Class A" << endl; }
+};
+
+struct B: A {
+void f() { cout << "Class B" << endl; }
+};
+
+void g(A& arg) {
+arg.f();
+}
+
+int main() {
+B x;
+g(x);
+}The following is the output of the above example:
+Class AWhen
+function g() is called, function A::f() is called,
+although the argument refers to an object of type B. At
+compile time, the compiler knows only that the argument of function g() will
+be a reference to an object derived from A; it cannot determine
+whether the argument will be a reference to an object of type A or
+type B. However, this can be determined at run time. The
+following example is the same as the previous example, except that A::f() is
+declared with the virtual keyword:
+#include <iostream>
+using namespace std;
+
+struct A {
+virtual void f() { cout << "Class A" << endl; }
+};
+
+struct B: A {
+void f() { cout << "Class B" << endl; }
+};
+
+void g(A& arg) {
+arg.f();
+}
+
+int main() {
+B x;
+g(x);
+}The following is the output of the above example:
+Class BThe virtual keyword
+indicates to the compiler that it should choose the appropriate definition
+of f() not by the type of reference, but by the type of
+object that the reference refers to.
+Therefore, a virtual function is a member
+function you may redefine for other derived classes, and can ensure
+that the compiler will call the redefined virtual function for an
+object of the corresponding derived class, even if you call that function
+with a pointer or reference to a base class of the object.
+A class that declares or inherits a virtual function is called
+a polymorphic class.
+You redefine a virtual member function, like any member function,
+in any derived class. Suppose you declare a virtual function named f in
+a class A, and you derive directly or indirectly from A a
+class named B. If you declare a function named f in
+class B with the same name and same parameter list as A::f,
+then B::f is also virtual (regardless whether or not you
+declare B::f with the virtual keyword) and it overrides A::f. However, if the parameter
+lists of A::f and B::f are different, A::f and B::f are
+considered different, B::f does not override A::f,
+and B::f is not virtual (unless you have declared it with
+the virtual keyword). Instead B::f hides A::f. The following example demonstrates
+this:
+#include <iostream>
+using namespace std;
+
+struct A {
+virtual void f() { cout << "Class A" << endl; }
+};
+
+struct B: A {
+void f(int) { cout << "Class B" << endl; }
+};
+
+struct C: B {
+void f() { cout << "Class C" << endl; }
+};
+
+int main() {
+B b; C c;
+A* pa1 = &b;
+A* pa2 = &c;
+// b.f();
+pa1->f();
+pa2->f();
+}The following is the output of the above example:
+Class A
+Class CThe function B::f is not virtual. It hides A::f.
+Thus the compiler will not allow the function call b.f().
+The function C::f is virtual; it overrides A::f even
+though A::f is not visible in C.
+If you declare a base class destructor as virtual, a derived class
+destructor will override that base class destructor, even though destructors
+are not inherited.
+The return type of an overriding virtual function may differ from
+the return type of the overridden virtual function. This overriding
+function would then be called a covariant virtual
+function. Suppose that B::f overrides the virtual
+function A::f. The return types of A::f and B::f may
+differ if all the following conditions are met:
+
+The function B::f returns a reference or pointer to
+a class of type T, and A::f returns a pointer
+or a reference to an unambiguous direct or indirect base class of T.
+The const or volatile qualification of the pointer or reference
+returned by B::f has the same or less const or volatile
+qualification of the pointer or reference returned by A::f.
+The return type of B::f must be complete at the point
+of declaration of B::f, or it can be of type B.The following example demonstrates this:
+#include <iostream>
+using namespace std;
+
+struct A { };
+
+class B : private A {
+friend class D;
+friend class F;
+};
+
+A global_A;
+B global_B;
+
+struct C {
+virtual A* f() {
+cout << "A* C::f()" << endl;
+return &global_A;
+}
+};
+
+struct D : C {
+B* f() {
+cout << "B* D::f()" << endl;
+return &global_B;
+}
+};
+
+struct E;
+
+struct F : C {
+
+// Error:
+// E is incomplete
+// E* f();
+};
+
+struct G : C {
+
+// Error:
+// A is an inaccessible base class of B
+// B* f();
+};
+
+int main() {
+D d;
+C* cp = &d;
+D* dp = &d;
+
+A* ap = cp->f();
+B* bp = dp->f();
+};The following is the output of the above example:
+B* D::f()
+B* D::f()The statement A* ap = cp->f() calls D::f() and
+converts the pointer returned to type A*. The statement B*
+bp = dp->f() calls D::f() as well but does not convert
+the pointer returned; the type returned is B*. The compiler
+would not allow the declaration of the virtual function F::f() because E is
+not a complete class. The compiler would not allow the declaration
+of the virtual function G::f() because class A is
+not an accessible base class of B (unlike friend classes D and F,
+the definition of B does not give access to its members
+for class G).
+A virtual function cannot be global or static because, by definition,
+a virtual function is a member function of a base class and relies
+on a specific object to determine which implementation of the function
+is called. You can declare a virtual function to be a friend of another
+class.
+If a function is declared virtual in its base class, you can still
+access it directly using the scope resolution (::) operator.
+In this case, the virtual function call mechanism is suppressed and
+the function implementation defined in the base class is used. In
+addition, if you do not override a virtual member function in a derived
+class, a call to that function uses the function implementation defined
+in the base class.
+A virtual function must be one of the following:
+
+Defined
+Declared pure
+Defined and declared pureA base class containing one or more pure virtual member functions
+is called an abstract class.
+Related information
+
+Abstract classes (C++ only)
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

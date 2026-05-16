@@ -1,0 +1,68 @@
+Uses for defined variables
+
+IBM i programming resources > Control language > Control language > CL programming > Variables in CL commands > Variables in CL commands
+
+IBM i programming resources > Control language > Control language > CL programming > Variables in CL commands
+
+Uses for defined variables
+Defined variables make it easy to manage complex data structures
+in control language (CL) by eliminating the need to substring values
+out of a large variable.
+Note: By using the code examples, you agree to the terms
+of the Code license and disclaimer information.
+Defined
+variables can be used to map different parts of the defined on variable
+or the same part of a given variable in different ways.
+In the
+following example, the variable &OBJNAME is equal to the first
+10 bytes of &OBJECT and the variable &LIBNAME is equal to
+the last 10 bytes of &OBJECT. Using the defined variables &OBJNAME
+and &LIBNAME improves the readability of the code and makes it
+easier to work with. The variable &OBJECT provides the storage
+for both the &LIBNAME and &OBJNAME variables.
+PGM
+DCL &OBJECT *CHAR 20
+DCL &OBJNAME *CHAR 10 STG(*DEFINED) DEFVAR(&OBJECT)
+DCL &LIBNAME *CHAR 10 STG(*DEFINED) DEFVAR(&OBJECT 11)
+:
+IF COND(&LIBNAME *EQ '*LIBL ') +
+THEN(...))
+:
+ENDPGM
+You can also make the same storage with multiple definitions.
+In this example, the variables &BINLEN and &CHARLEN both
+refer to the same 4 bytes of variable &STRUCT. The program can
+then use the definition that best suits its requirements.
+PGM
+DCL &STRUCT *CHAR 50
+DCL &BINLEN *INT 4 STG(*DEFINED) DEFVAR(&STRUCT)
+DCL &CHARLEN *CHAR 4 STG(*DEFINED) DEFVAR(&STRUCT)
+:
+ENDPGM
+This example shows how a defined variable can be used
+to change values in a variable. This example also uses the %OFFSET
+built-in function and a based variable to navigate the library list.
+This is not the optimal way to do message substitution but illustrates
+some of the capabilities of defined variables.
+PGM
+DCL &MESSAGE *CHAR 25 VALUE('LIBRARY NNN IS XXXXXXXXXX')
+DCL &SEQUENCE *CHAR 3 STG(*DEFINED) DEFVAR(&MESSAGE 9)
+DCL &MSGLIBN *CHAR 10 STG(*DEFINED) DEFVAR(&MESSAGE 16)
+DCL &COUNTER *INT 2
+DCL &LIBL *CHAR 165
+DCL &PTR *PTR ADDRESS(&LIBL)
+DCL &LIBLNAME *CHAR 10 STG(*BASED) BASPTR(&PTR)
+:
+RTVJOBA SYSLIBL(&LIBL)
+CHGVAR &COUNTER 0
+DOFOR &COUNTER FROM(1) TO(15)
+IF (&LIBLNAME *EQ ' ') THEN(LEAVE)
+CHGVAR &SEQUENCE &COUNTER
+CHGVAR &MSGLIBN &LIBLNAME
+SNDPGMMSG MSGID(CPF9898) MSGF(QSYS/QCPFMSG) MSGDTA(&MESSAGE)
+CHGVAR %OFS(&PTR) (%OFS(&PTR) + 11)
+ENDDO
+:
+ENDPGM
+
+Parent topic: Variables in CL commands

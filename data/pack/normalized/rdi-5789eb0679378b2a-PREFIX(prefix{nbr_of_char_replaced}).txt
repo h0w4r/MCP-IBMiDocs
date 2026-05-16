@@ -1,0 +1,180 @@
+PREFIX(prefix{:nbr_of_char_replaced})
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > File Description Specifications > File-Description Keywords > File-Description Keywords
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Specifications > File Description Specifications > File-Description Keywords
+
+PREFIX(prefix{:nbr_of_char_replaced})
+
+The PREFIX keyword is used to partially rename the fields in an
+externally described file.The characters specified
+in the first parameter are prefixed to the names of all fields defined
+in all records of the externally-described file. The characters
+can be specified as a name, for example PREFIX(F1_), or as a character
+literal, for example PREFIX('F1_'). A character literal must be used
+if the prefix contains a period, for example PREFIX('F1DS.') or PREFIX('F1DS.A').
+To remove characters from the beginning of every name, specify an
+empty string as the first parameter: PREFIX('':number_to_remove). In
+addition, you can optionally specify a numeric value to indicate the
+number of characters, if any, in the existing name to be replaced.
+If the 'nbr_of_char_replaced' is not specified, then the string is
+attached to the beginning of the name.
+
+If the 'nbr_of_char_replaced' is specified, it must be a numeric
+constant containing a value between 0 and 9 with no decimal places.
+For example, the specification PREFIX(YE:3) would change the field
+name 'YTDTOTAL' to 'YETOTAL'. Specifying a value of zero is the same
+as not specifying 'nbr_of_char_replaced' at all.
+
+The 'nbr_of_char_replaced' parameter is not used when
+applying the prefix to an alias name. See the ALIAS keyword
+for information on how the PREFIX keyword interacts with the ALIAS
+keyword.
+
+Rules:
+
+To explicitly rename a field on an Input specification
+when the PREFIX keyword has been specified for a file you must choose
+the correct field name to specify for the External Field Name (positions
+21 - 30) of the Input specification. The name specified depends on
+whether the prefixed name has been used prior to the rename specification.
+
+If there has been a prior reference made to the prefixed name,
+the prefixed name must be specified.
+
+If there has not been a prior reference made to the prefixed name,
+the external name of the input field must be specified.
+
+Once the rename operation has been coded then the new name must
+be used to reference the input field.
+For more information, see External Field Name of the Input specification.
+
+The total length of the name after applying the prefix must not
+exceed the maximum length of an RPG field name.
+If the file is a global file defined
+without the LIKEFILE or QUALIFIED keywords,
+the total length of the name must not exceed 14 characters,
+the length of the Name entries of the Input and Output specifications.
+
+The number of characters in the name to be prefixed must not be
+less than or equal to the value represented by the 'nbr_of_char_replaced'
+parameter. That is, after applying the prefix, the resulting name
+must not be the same as the prefix string.
+
+If the prefix is a character literal, it can contain
+a period or end in a period. In this case, the field names must all
+be subfields of the same qualified data structure. The data structure
+must be defined as a qualified data structure. For example, for PREFIX('F1DS.'),
+data structure F1DS must be define as a qualified data structure;
+if the file has fields FLD1 and FLD2, the data structure must have
+subfields F1DS.FLD1 and F1DS.FLD2. Similarly, for PREFIX('F2DS.A'),
+data structure F2DS must be a qualified data structure; if the file
+has fields FLD1 and FLD2, the data structure must have subfields F2DS.AFLD1
+and F2DS.AFLD2.
+
+If the prefix is a character literal, it must be uppercase.
+
+If an externally-described data structure is used to
+define the fields in the file, care must be taken to ensure that
+the field names in the file are the same as the subfield names in
+the data structure. The following table shows the prefix required
+for an externally-described file and externally-described data structure
+for several prefixed versions of the name "XYNAME". When the "Internal
+name" column contains a dot, for example D1.NAME, the externally-described
+data structure is defined as QUALIFIED, and the PREFIX for the File
+specification must contain a dot.
+
+PREFIX for file
+
+PREFIX for externally-described data structure
+
+Internal name
+
+PREFIX(A)
+
+PREFIX(A)
+
+AXYNAME
+
+PREFIX(A:2)
+
+PREFIX(A:2)
+
+ANAME
+
+PREFIX('D.')
+
+None
+
+D.XYNAME
+
+PREFIX('D.' : 2)
+
+PREFIX('' : 2)
+
+D.NAME
+
+PREFIX('D.A')
+
+PREFIX(A)
+
+D.AXYNAME
+
+PREFIX('D.A' : 2)
+
+PREFIX(A : 2)
+
+D.ANAME
+
+PREFIX('':2)
+
+PREFIX('' : 2)
+
+NAME
+
+Examples:
+
+The following example adds the prefix "NEW_" to the
+beginning of the field names for file NEWFILE, and the prefix "OLD_"
+to the beginning of the field names for file OLDFILE.
+Fnewfile o e disk prefix(NEW_)
+Foldfile if e disk prefix(OLD_)
+C READ OLDREC
+C EVAL NEWIDNO = OLD_IDNO
+C EVAL NEWABAL = OLD_ABAL
+C WRITE NEWREC
+
+The following example uses PREFIX(N:2) on both file
+FILE1 and the externally-described data structure DS1. The File-specification
+prefix will cause the FILE1 fields XYIDNUM and XYCUSTNAME to be
+known as NIDNUM and NCUSTNAME in the program; the Data-specification
+prefix will cause the data structure to have subfields NIDNUM and
+NCUSTNAME. During the READ operation, data from the record will
+be moved to the subfields of DS1, which can then be passed to the
+subprocedure processRec to process the data in the record.
+Ffile1 if e disk prefix(N:2)
+D ds1 e ds extname(file1) prefix(N:2)
+C READ file1
+C CALLP processRec (ds1)
+
+The following example uses prefix 'MYDS.' to associate
+the fields in MYFILE with the subfields of qualified data structure
+MYDS.
+Fmyfile if e disk prefix('MYDS.')
+D myds e ds qualified extname(myfile)
+
+The next example uses prefix 'MYDS2.F2':3 to associate
+the fields in MYFILE with the subfields of qualified data structure
+MYDS2. The subfields themselves are further prefixed by replacing
+the first three characters with 'F2'. The fields used by this file
+will be MYDS2.F2FLD1 and MYDS2.F2FLD2. (Data structure MYDS2 must
+be defined with a similar prefix. However, it is not exactly the same,
+since it does not include the data structure name.)
+A R REC
+A ACRFLD1 10A
+A ACRFLD2 5S 0
+Fmyfile2 if e disk prefix('MYDS2.F2':3)
+D myds2 e ds qualified extname(myfile)
+D prefix('F2':3)
+
+Parent topic: File-Description Keywords

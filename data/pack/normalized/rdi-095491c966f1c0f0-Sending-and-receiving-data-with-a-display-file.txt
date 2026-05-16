@@ -1,0 +1,97 @@
+Sending and receiving data with a display file
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Working with files in CL programs or procedures > Working with files in CL programs or procedures
+
+IBM i programming resources > Control language > Control language > Objects and libraries > Working with files in CL programs or procedures
+
+Sending and receiving data with a display file
+The only commands you can use with a display file to send or receive
+data in CL procedures and programs are the Send File (SNDF), Receive
+File (RCVF), and Send/Receive File (SNDRCVF) commands.
+Note: By using the code examples, you agree to the
+terms of the Code license and disclaimer information.
+The system
+formats the content of the variables associated with the output or output/input
+fields in the record format when you run a Send File (SNDF) command.
+Additionally the system sends it to the display device. This is similar to
+when you run a Receive File (RCVF) command. The values
+of the fields associated with input or output/input fields in the record format
+on the display are placed in the corresponding CL variables.
+The Send/Receive
+File (SNDRCVF) command sends the contents of the CL variables to
+the display. The command then performs the equivalent of a RCVF command to
+obtain the updated fields from the display. Note that CL does not support
+zoned decimal numbers. Consequently, fields in the display file that are defined
+as zoned decimal, cause *DEC fields to be defined in the CL procedure or program.
+*DEC fields are internally supported as packed decimal, and the CL commands
+convert the packed and zoned data types as required. Fields that overlap
+in the display file because of coincident display positions result in separately
+defined CL variables that do not overlap. You cannot use record formats that
+contain floating point data in a CL procedure or program.
+Note: If a Send/Receive
+File (SNDRCVF) or Receive File (RCVF) command
+for a workstation indicates WAIT(*NO), then the system uses the WAIT command
+to receive data. The same is true if a Send File (SNDF) command
+is issued using a record format containing the INVITE DDS keyword.
+Except
+for message subfiles, any attempt to send or receive subfile records causes
+runtime errors. Most other functions specified for display files in DDS are
+available; some functions (such as using variable starting line numbers) are
+not.
+The following example shows the steps required to create a typical
+operator menu and to send and receive data using the Send/Receive
+File (SNDRCVF) command. The menu looks like this:
+Operator Menu
+
+1. Accounts Payable
+2. Accounts Receivable
+90. Signoff
+
+Option:
+
+First, enter the following DDS source. The record format is MENU,
+and OPTION is an input-capable field. The OPTION field uses DSPATR(MDT). This
+causes the system to check this field for valid values even if the operator
+does not enter anything.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A R MENU
+A 1 2'Operator Menu'
+A 3 4'1. Accounts Payable'
+A 5 4'2. Accounts Receivable'
+A 5 4'90. Signoff'
+A 7 2'Option'
+A OPTION 2Y 01 + 2VALUES(1 2 90) DSPATR(MDT)
+A
+A
+
+Enter the CRTDSPF command to create the display file. In CL programming,
+the display file name (INTMENU) can be the same as the record format name
+(MENU), though this is not true for some other languages, like RPG for i5/OS®.
+The display file could
+also be created using the Screen Design Aid (SDA) utility.
+Next, enter
+the CL source to run the menu.
+The CL source for this menu is:
+PGM /* OPERATOR MENU */
+DCLF INTMENU
+BEGIN: SNDRCVF RCDFMT(MENU)
+IF COND(&OPTION *EQ 1) THEN(CALL ACTSPAYMNU)
+IF COND(&OPTION *EQ 2) THEN(CALL ACTSRCVMNU)
+IF COND(&OPTION *EQ 90) THEN(SIGNOFF)
+GOTO BEGIN
+ENDPGM
+When this source is compiled, the DCLF command automatically
+declares the input field OPTION in the procedure as a CL variable.
+The Send/Receive
+File (SNDRCVF) command defaults to WAIT(*YES); that is, the program
+waits until input is received by the program.
+
+Parent topic: Working with files in CL programs or procedures
+
+Related tasks
+Messages
+
+Related information
+Send File (SNDF) command
+Receive File (RCVF) command
+Send/Receive File (SNDRCVF) command

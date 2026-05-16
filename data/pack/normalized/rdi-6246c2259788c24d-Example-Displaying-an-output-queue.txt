@@ -1,0 +1,76 @@
+Example: Displaying an output queue
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Examples: Defining and creating commands > Examples: Defining and creating commands
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Examples: Defining and creating commands
+
+Example: Displaying an output queue
+This example shows how to define and create a command that displays
+an output queue.
+Note: By using the code examples, you agree to the terms of the Code license and disclaimer information.
+You can create a command to display
+an output queue that defaults to display the output queue PGMR. The following
+command, Display Output Queue (DSPOQ), also allows the
+display station user to display any queue on the library list and provides
+a print option.
+The command definition statements for the Display
+Output Queue (DSPOQ) command are:
+CMD PROMPT('WRKOUTQ.-Default to PGMR')
+PARM KWD(OUTQ) TYPE(*NAME) LEN(10) DFT(PGMR) +
+PROMPT('Output queue')
+PARM KWD(OUTPUT) TYPE(*CHAR) LEN(6) DFT(*) RSTD(*YES)
+VALUES(* *PRINT) PROMPT('Output')
+The RSTD parameter on the second PARM statement specifies that
+the entry can only be one of the list of values.
+The command processing
+program for the Display Output Queue (DSPOQ) command is:
+
+PGM PARM(&OUTQ &OUTPUT)
+DCL &OUTQ TYPE(*CHAR) LEN(10)
+DCL &OUTPUT TYPE(*CHAR) LEN(6)
+WRKOUTQ OUTQ(*LIBL/&OUTQ) OUTPUT(&OUTPUT)
+ENDPGM
+The Create Command (CRTCMD) command is:
+
+CRTCMD CMD(DSPOQ) PGM(DSPOQ) SRCMBR(DSPOQ)
+The following command, DSPOQ1, is a variation of the preceding
+command. This command allows the workstation user to enter a qualified name
+for the output queue name, and the command defaults to *LIBL for the library
+name.
+The command definition statements for the DSPOQ1 command are:
+
+CMD PROMPT('WRKOUTQ.-Default to PGMR')
+PARM KWD(OUTQ) TYPE(QUAL1) +
+PROMPT('Output queue:')
+PARM KWD(OUTPUT) TYPE(*CHAR) LEN(6) RSTD(*YES) +
+VALUES(* *PRINT) DFT(*) +
+PROMPT('Output')
+QUAL1: QUAL TYPE(*NAME) LEN(10) DFT(PGMR)
+QUAL TYPE(*NAME) LEN(10) DFT(*LIBL) +
+SPCVAL(*LIBL)
+The QUAL statements are used to define the qualified name that
+the user can enter for the OUTQ parameter. If the user does not enter a name,
+*LIBL/PGMR is used. The SPCVAL parameter is used because any library name
+must follow the rules for a valid name (for example, begin with A through
+Z), and the value *LIBL breaks these rules. The SPCVAL parameter specifies
+that if *LIBL is entered, the i5/OS® operating
+system is to ignore the name validation rules.
+The command processing
+program for the DSPOQ1 command is:
+PGM PARM(&OUTQ &OUTPUT)
+DCL &OUTQ TYPE(*CHAR) LEN(20)
+DCL &OBJNAM TYPE(*CHAR) LEN(10)
+DCL &LIB TYPE(*CHAR) LEN(10)
+DCL &OUTPUT TYPE(*CHAR) LEN(6)
+CHGVAR &OBJNAM %SUBSTRING(&OUTQ 1 10)
+CHGVAR &LIB %SUBSTRING(&OUTQ 11 10)
+WRKOUTQ OUTQ(&LIB/&OBJNAM) OUTPUT(&OUTPUT)
+ENDPGM
+Because a qualified name is passed from a command as a 20-character
+variable, the substring built-in function (%SUBSTRING or %SST) must be used
+in this program to put the qualified name in the proper CL syntax.
+
+Parent topic: Examples: Defining and creating commands
+
+Related information
+Create Command (CRTCMD) command

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="Example of passing a file and passing a data structure with the associated variables." name="DC.title" />
+<meta content="varassoc.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="fileparmassoc" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>Example of passing a file and passing a data structure with the associated variables.</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Ffileparmassoc.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="fileparmassoc">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/concepts.htm" shape="rect">RPG IV Concepts</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/fileconsid.htm" shape="rect">General File Considerations</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/varassoc.htm" shape="rect">Variables Associated with Files</a></div>
+
+
+<h1 class="title topictitle1" id="fileparmassoc__passafile">Example of passing a file and passing a data
+structure with the associated variables. </h1>
+
+
+<div class="body">
+<p class="p">The following example shows you how to define a data structure
+to hold the associated variables for a file, how to pass the file
+and the data structure as parameters to a procedure, and how to use
+the parameters within the procedure.</p>
+
+<div class="fig figborder" id="fileparmassoc__copyex"><span class="figcap"><span class="fig--title-label">Figure 1. </span>/COPY file INFILE_DEFS </span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> * The /COPY file has template definitions for the File and Associated Variables
+
+ /if defined(FILE_DEFINITIONS)
+ // Template for the "INFILE" file type
+Finfile_t  if   e             disk    template block(*yes)
+F                                     extdesc('MYLIB/MYFILE')
+ /eof
+ /endif
+ /if defined(DATA_DEFINITIONS)
+ // Template for the associated variables for an INFILE file
+D infileVars_t    ds                  qualified template
+D    filename                   21a
+D    mbrname                    10a
+ // Prototype for a procedure to open an INFILE file
+D open_infile     pr
+D    theFile                          likefile(infile_t)
+D    kwVars                           likeds(infileVars)
+D                                     options(*nullind)
+ /eof
+ /endif
+</code></pre></div>
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 2. </span>The calling procedure that passes
+the file parameter</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code>P myproc          b // Copy in the template and prototype definitions
+ /define FILE_DEFINITIONS
+ /COPY INFILE_DEFS
+ /undefine FILE_DEFINITIONS
+
+ /define DATA_DEFINITIONS
+ /COPY INFILE_DEFS
+ /undefine DATA_DEFINITIONS
+ // Define the file using LIKEFILE, to enable it to be passed as
+ // a parameter to the "open_infile" procedure.
+
+ // Define all the associated variables as subfields of a data
+ // structure, so that all the associated variables can be
+ // passed to the procedure as a single parameter
+Ffile1                                likefile(infile_t)
+F                                     extfile(file1Vars.filename)
+F                                     extmbr(file1Vars.mbrname)
+F                                     usropn
+
+D file1Vars       ds                  likeds(infileVars_t)
+
+  /free
+         open_infile (file1 : file1Vars);
+
+         . . .</code></pre></div>
+
+
+<div class="fig figborder"><span class="figcap"><span class="fig--title-label">Figure 3. </span>The called procedure that uses the
+file parameter</span>
+
+<pre class="pre codeblock" xml:space="preserve"><code> // Copy in the template and prototype definitions
+ /define FILE_DEFINITIONS
+ /COPY INFILE_DEFS
+ /undefine FILE_DEFINITIONS
+
+ /define DATA_DEFINITIONS
+ /COPY INFILE_DEFS
+ /undefine DATA_DEFINITIONS
+P open_infile     b
+ // The open_infile procedure has two parameters
+ //  - a file
+ //  - a data structure containing all the associated variables for the file
+D open_infile     pi
+D    theFile                          likefile(infile_t)
+D    kwVars                           likeds(infileVars)
+  /free
+         // The %OPEN(filename) built-in function reflects the
+         // current state of the file
+         if not %open(theFile);
+            // The called procedure modifies the calling procedure's "file1Vars"
+            // variables directly, through the passed parameter
+            kwVars.extfile = 'LIB1/FILE1';
+            kwVars.extmbr = 'MBR1';
+            // The OPEN operation uses the file1Vars subfields in the
+            // calling procedure to open the file, opening file LIB1/FILE1(MBR1)
+            open theFile;
+         endif;
+         . . .</code></pre></div>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="varassoc.htm" shape="rect">Variables Associated with Files</a></div>
+</div>
+</div></body>
+</html>

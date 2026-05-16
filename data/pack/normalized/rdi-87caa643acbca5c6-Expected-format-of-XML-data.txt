@@ -1,0 +1,346 @@
+Expected format of XML data
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable) > XML-INTO (Parse an XML Document into a Variable)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > XML-INTO (Parse an XML Document into a Variable)
+
+Expected format of XML data
+
+The structure of the XML elements is expected to match the structure
+of the RPG variable.
+
+The XML element matching the RPG variable can be at any nesting
+level of the XML document, but the path option must be specified
+if the XML element is not at the assumed nesting level of the document.
+The following assumptions are made when the path option is
+not specified.
+
+For non-array variables (including table names and multiple occurrence
+data structures, the document element (the outermost XML element)
+is assumed to be the XML element matching the RPG variable. If the
+name of the outermost XML element is not the same as the name of the
+RPG variable, the path option must be used to specify the
+XML element to be used.
+
+For array variables, direct children of the document element (the
+outermost XML element) are assumed to be the XML elements matching
+the RPG variable
+
+XML elements matching an RPG subfield can be
+
+XML attributes of the XML element matching the RPG subfield's
+parent data structure (only for subfields that are not themselves
+data structures)
+
+direct child XML elements of the XML element matching the data
+structure containing the subfield
+
+XML elements matching RPG arrays must be children of the same
+XML parent. It is not required that these child elements appear together
+in the XML document; they may be interleaved with other elements.
+
+Note: XML processing instructions are ignored by XML-INTO.
+Processing instructions are in the form
+<?targetname data value ?>
+
+Scalar variable
+
+D libname S 10A
+/free
+XML-INTO libname %XML(xmldoc : option)
+
+Sample XML for XML-INTO libname
+
+path option
+
+<libname>data</libname>
+
+ 
+
+<library>data</library>
+
+'path=library'
+
+<info><library>data</library></info>
+
+'path=info/library'
+
+Array element
+
+D sites S 25A DIM(3)
+/free
+XML-INTO sites(n) %XML(xmldoc : option)
+
+Sample XML for XML-INTO sites
+
+path option
+
+<sites>data</sites>
+
+blank
+
+<custsites>data</custsites>
+
+'path=custsites'
+
+<info><sites>data</sites></info>
+
+'path=info/sites'
+
+Table name
+
+D tabname S 10A DIM(5)
+/free
+XML-INTO tabname %XML(xmldoc : opts)
+
+Sample XML for XML-INTO tabname
+
+path option
+
+<tabname>data</tabname>
+
+blank
+
+<library>data</library>
+
+'path=library'
+
+<info><library>data</library></info>
+
+'path=info/library'
+
+Simple data structure or multiple-occurrence data structure
+
+Note: The XML data in the examples show line breaks
+and indentation for clarity only. The XML data may be formatted in
+any convenient way.
+
+D pgm DS
+D name 10A
+D lib 10A
+
+OR
+
+D pgm DS OCCURS(5)
+D name 10A
+D lib 10A
+/free
+XML-INTO pgm %XML(xmldoc : option)
+
+Sample XML for XML-INTO pgm
+
+path option
+
+<pgm>
+<name>data</name>
+<lib>data</lib>
+</pgm>
+
+blank
+
+<program>
+<name>data</name>
+<lib>data</lib>
+</program>
+
+'path=program'
+
+<api>
+<program>
+<name>data</name>
+<lib>data</lib>
+</program>
+</api>
+
+'path=api/program'
+
+Note: The subfield information can
+come from XML elements or XML attributes. The following show other
+valid ways to specify the XML for the subfields of the data structure.
+The designer of the XML document can use either attributes or elements
+freely when representing the XML data for a scalar subfield.
+
+<pgm name="data" lib="data"/>
+OR
+<pgm name="data">
+<lib>data</lib>
+</pgm>
+
+Array of scalar type
+
+D sites S 25A DIM(3)
+/free
+XML-INTO sites %XML(xmldoc : option)
+
+Sample XML for XML-INTO sites
+
+path option
+
+<anything>
+<sites>data</sites>
+<sites>data</sites>
+<sites>data</sites>
+</anything>
+
+blank
+
+<info>
+<custsites>data</custsites>
+<custsites>data</custsites>
+<custsites>data</custsites>
+</info>
+
+'path=info/custsites'
+
+Array of data structures
+
+D pgm DS DIM(3) QUALIFIED
+D name 10A
+D lib 10A
+/free
+XML-INTO pgm %XML(xmldoc : option)
+
+Sample XML for XML-INTO pgm
+
+path option
+
+<anything>
+<pgm name="name1" lib="lib1"/>
+<pgm><name>name2</name>
+<lib>lib2</lib></pgm>
+<pgm lib="lib3"><name>name3</pgm>
+</anything>
+
+blank
+
+<programs>
+<pgm name="name1" lib="lib1"/>
+<pgm><name>name2</name>
+<lib>lib2</lib></pgm>
+<pgm lib="lib3"><name>name3</pgm>
+</programs>
+
+'path=programs/pgm'
+
+Note: The three "pgm" XML elements
+have the name and lib information specified in various combinations
+of XML elements and XML attributes. The designer of the XML document
+can use either attributes or elements freely when representing the
+XML data for a scalar subfield.
+
+Complex data structure
+
+D qualname DS QUALIFIED
+D name 10A
+D lib 10A
+D dtaaraInfo DS QUALIFIED
+D dtaara LIKEDS(qualname)
+D type 10I 0
+D value 100a
+/free
+XML-INTO dtaaraInfo %XML(xmldoc : option)
+
+Sample XML for XML-INTO dtaaraInfo
+
+path option
+
+<dtaarainfo>
+<dtaara>
+<name>data</name>
+<lib>data</lib>
+</dtaara>
+<type>data</type>
+<value>data</value>
+</dtaarainfo>
+
+blank
+
+<sys>
+<obj>
+<dta>
+<dtaara>
+<name>data</name>
+<lib>data</lib>
+</dtaara>
+<type>data</type>
+<value>data</value>
+</dta>
+</obj>
+</sys>
+
+'path=sys/obj/dta'
+
+Handler procedure with array of data structures
+
+D myCommArea DS
+D total 20u 0
+D custType DS qualified
+D name 50a varying
+D id_no 10i 0
+D city 20a
+D custHdlr PR
+D commArea likeds(myCommArea)
+D custinfo likeds(custType) dim(5)
+D numElems 10u 0 const
+/free
+XML-INTO %HANDLER(custHdlr : myCommArea) %XML(xmldoc : option)
+Note: The path option is
+required when %HANDLER is specified.
+
+Sample XML for XML-INTO %HANDLER(custHdlr:x)
+
+path option
+
+<info>
+<cust>
+<name>data</name>
+<id_no>data</id_no>
+<city>data</city>
+</cust>
+<cust>
+<name>data</name>
+<id_no>data</id_no>
+<city>data</city>
+</cust>
+:
+:
+<cust>
+<name>data</name>
+<id_no>data</id_no>
+<city>data</city>
+</cust>
+</info>
+
+'path=info/cust'
+
+Handler procedure with array of scalar types
+
+D myCommArea DS
+D total 20u 0
+D nameHdlr PR
+D commArea likeds(myCommArea)
+D names 10a dim(5)
+D numNames 10u 0 const
+/free
+XML-INTO %HANDLER(nameHdlr : myCommArea) %XML(xmldoc : option)
+Note: The path option is required when
+%HANDLER is specified.
+
+Sample XML for XML-INTO %HANDLER(nameHdlr:x)
+
+path option
+
+<info>
+<name>data</name>
+<name>data</name>
+<name>data</name>
+<name>data</name>
+:
+:
+<name>data</name>
+<name>data</name>
+</info>
+
+'path=info/names'
+
+Parent topic: XML-INTO (Parse an XML Document into a Variable)

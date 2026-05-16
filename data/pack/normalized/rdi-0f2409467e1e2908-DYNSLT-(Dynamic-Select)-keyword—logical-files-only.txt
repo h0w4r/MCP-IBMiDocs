@@ -1,0 +1,193 @@
+DYNSLT (Dynamic Select) keyword—logical files only
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Keyword entries for physical and logical files (positions 45 through 80)
+
+IBM i programming resources > DDS > DDS for Physical and Logical Files > Keyword entries for physical and logical files (positions 45 through 80)
+
+DYNSLT (Dynamic Select) keyword—logical files only
+
+You can use this file-level keyword to indicate that
+the selection and omission tests specified in the file (using select/omit
+specifications) are done at processing time.
+
+This keyword specifies dynamic select/omit rather than access
+path select/omit. This keyword has no parameters.
+When your program
+does input operations to a logical file with the DYNSLT keyword specified,
+all the records in the associated physical file are tested by the system to
+see if they satisfy the select/omit values. Only those records that satisfy
+the values are supplied to your program. The testing of each record can result
+in slower I/O performance, but can be more efficient than maintaining an access
+path for the file. This is particularly likely for files read only occasionally,
+especially when the physical files they are based on are updated frequently.
+Using dynamic select/omit is probably also more efficient for files with a
+high percentage of selected records.
+In keyed sequence access files, an access path is
+created at file creation time and is maintained for the file according to
+the MAINT parameter on the Create Logical File (CRTLF) or Change Logical File
+(CHGLF) command. The DYNSLT keyword does not affect the maintenance of access
+paths for keyed sequence access files.
+For all single-format logical
+files with a DYNSLT keyword, you do not need to specify key fields in order
+to specify select/omit fields. However, for all multiple-format logical files
+with a DYNSLT keyword, you do need to specify at least one key field. You
+can specify *NONE for this key field.
+You must use the
+DYNSLT keyword when you want to select or omit fields and any of the following
+situations are true:
+The logical file has arrival sequence (no key fields are specified). See
+example 1 in this topic.
+
+The logical file is a join logical file with the JDFTVAL keyword specified.
+
+The logical file is a join logical file, select/omit fields come from
+more than one of the physical files the logical file is based on, and one
+of the following conditions is true:
+The select/omit fields are on the same select or omit statement. See example
+3 in this topic.
+
+The select/omit fields are on a mixture of select and omit statements.
+See example 4 in this topic.
+
+The select/omit fields are on select statements that are grouped together
+by OR.
+
+The select/omit fields are on omit statements that are grouped together
+by AND.
+
+You cannot specify the DYNSLT keyword with the REFACCPTH keyword.
+For
+a join logical file, the select/omit fields can occur in any of the physical
+files specified on the JFILE keyword. Use the JREF keyword in join logical
+files to qualify the origin of the field and resolve any ambiguities.
+
+ExamplesThe following examples show how to specify
+the DYNSLT keyword.
+
+Example 1The following example shows how to specify
+dynamic select with arrival sequence.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A DYNSLT
+00020A R RECORD1 PFILE(PF1)
+00030A FLD1
+00040A FLD2
+00050A S FLD1 COMP(GT 2)The DYNSLT
+keyword is required because there are no key fields.
+The logical file
+supplies records to your program in arrival sequence. Assume that physical
+file PF1 has the following records:
+
+FLD1
+FLD2
+
+1
+
+aaaa
+
+2
+
+dddd
+
+3
+
+jjjj
+
+4
+
+bbbb
+
+As your program does input operations, the system tests
+the first two records according to the select/omit values, but does not supply
+them to your program. Your program only sees the last two records:
+
+FLD1
+FLD2
+
+3
+
+jjjj
+
+4
+
+bbbb
+
+Example 2The following example shows how to specify
+dynamic select with keyed sequence access path.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A DYNSLT
+00020A R RECORD1 PFILE(PF1)
+00030A FLD1
+00040A FLD2
+00050A K FLD1
+00060A S FLD2 COMP(GT 'bbbb')
+AIn this example, the DYNSLT keyword is not required.
+The logical file supplies records to your program in keyed sequence. Assume
+that physical file PF1 has the following records:
+
+FLD1
+FLD2
+
+1
+
+aaaa
+
+2
+
+dddd
+
+3
+
+jjjj
+
+4
+
+bbbb
+
+When your program requests a record, the system tests
+the value of FLD2 for that record according to the select/omit values. Your
+program only sees the following records:
+
+FLD1
+FLD2
+
+2
+
+dddd
+
+3
+
+jjjj
+
+Example 3The following example shows how to specify
+a join logical file with select/omit comparing fields from two physical files.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A DYNSLT
+00020A R RECORD1 JFILE(PF1 PF2)
+00030A J JFLD(FLD1 FLD3)
+00040A FLD1 JREF(PF1)
+00050A FLD2 JREF(PF1)
+00060A FLD3 JREF(PF2)
+00070A FLD4 JREF(PF2)
+00080A S FLD1 COMP(GT FLD4)
+AFLD1 and FLD2 come from the primary file (PF1), and FLD3
+and FLD4 come from the secondary file (PF2). The select specification compares
+FLD1 from the primary file with FLD4 from the secondary file. Therefore, the
+DYNSLT keyword is required.
+
+Example 4The following example shows how to specify
+a join logical file with select and omit using fields from more than one physical
+file.
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A DYNSLT
+00020A R JREC JFILE(PF1 PF2)
+00030A J JOIN(PF1 PF2)
+00040A JFLD(FLD1 FLD2)
+00050A FLD1 JREF(PF1)
+00060A FLD2 JREF(PF1)
+00070A FLD3 JREF(PF2)
+00080A K FLD1
+00090A S FLD1 COMP(GT 0)
+00100A O FLD3 COMP(GT 4)
+AFLD1 and FLD3 come from different physical files and
+are specified in a mixture of select and omit statements. Therefore, the
+DYNSLT keyword is required.

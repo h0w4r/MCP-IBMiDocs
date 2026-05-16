@@ -1,0 +1,135 @@
+Example: Using a prompt override program
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Key parameters and prompt override programs > Key parameters and prompt override programs
+
+IBM i programming resources > Control language > Control language > CL programming > Defining and documenting commands > Defining commands > Key parameters and prompt override programs
+
+Example: Using a prompt override program
+This example shows the command source for a command and the prompt
+override program.
+The following command allows the ownership and text description of a library
+to be changed. The prompt override program for this command receives the
+name of the library, retrieves the current value of the library owner and
+the text description, and then places these values into a command
+string and returns it.
+Note: By using the code examples, you agree to the terms of the Code license and disclaimer information.
+Command sourceCHGLIBATR: CMD PROMPT('Change Library Attributes')
+PARM KWD(LIB) +
+TYPE(*CHAR) MIN(1) MAX(1) LEN(10) +
+KEYPARM(*YES) +
+PROMPT('Library to be changed')
+PARM KWD(OWNER) +
+TYPE(*CHAR) LEN(10) MIN(0) MAX(1) +
+KEYPARM(*NO) +
+PROMPT('Library owner')
+PARM KWD(TEXT) +
+TYPE(*CHAR) MIN(0) MAX(1) LEN(50) +
+KEYPARM(*NO) +
+PROMPT('Text description')
+
+Prompt override programThe following prompt override
+program uses the "?^" selective prompt characters.
+PGM PARM(&cmdname &keyparm1 &rtnstring)
+/*********************************************************************/
+/* */
+/* Declarations of parameters passed to the prompt override program */
+/* */
+/*********************************************************************/
+DCL VAR(&cmdname) TYPE(*CHAR) LEN(20)
+DCL VAR(&keyparm1) TYPE(*CHAR) LEN(10)
+DCL VAR(&rtnstring) TYPE(*CHAR) LEN(5700)
+
+/********************************************************************/
+/* */
+/* Return command string structure declaration */
+/* */
+/********************************************************************/
+
+/* Length of command string generated */
+DCL VAR(&stringlen) TYPE(*DEC) LEN(5 0) VALUE(131)
+DCL VAR(&binlen) TYPE(*CHAR) LEN(2)
+/* OWNER keyword */
+DCL VAR(&ownerkwd) TYPE(*CHAR) LEN(8) VALUE('?<OWNER(')
+DCL VAR(&name) TYPE(*CHAR) LEN(10)
+/* TEXT keyword */
+DCL VAR(&textkwd) TYPE(*CHAR) LEN(8) VALUE(' ?<TEXT(')
+DCL VAR(&descript) TYPE(*CHAR) LEN(102)
+
+/********************************************************************/
+/* */
+/* Variables related to command string declarations */
+/* */
+/********************************************************************/
+DCL VAR(&quote) TYPE(*CHAR) LEN(1) VALUE('''')
+DCL VAR(&closparen) TYPE(*CHAR) LEN(1) VALUE(')')
+
+/********************************************************************/
+/* */
+/* Start of operable code */
+/* */
+/********************************************************************/
+/********************************************************************/
+/* */
+/* Monitor for exceptions */
+/* */
+/********************************************************************/
+MONMSG MSGID(CPF0000) +
+EXEC(GOTO CMDLBL(error))
+
+/********************************************************************/
+/* */
+/* Retrieve the owner and text description for the library specified*/
+/* on the LIB parameter. Note: This program assumes there are */
+/* no apostrophes in the TEXT description, such as (Carol's) */
+/* */
+/********************************************************************/
+RTVOBJD OBJ(&keyparm1) OBJTYPE(*LIB) OWNER(&name) TEXT(&descript)
+
+CHGVAR VAR(%BIN(&binlen)) VALUE(&stringlen)
+
+/********************************************************************/
+/* */
+/* Build the command string */
+/* */
+/********************************************************************/
+CHGVAR VAR(&rtnstring) VALUE(&binlen)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &ownerkwd)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &name)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &closparen)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &textkwd)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &quote)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &descript)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &quote)
+CHGVAR VAR(&rtnstring) VALUE(&rtnstring *TCAT &closparen)
+
+GOTO CMDLBL(pgmend)
+ERROR:
+VALUE(0)
+CHGVAR VAR(%BIN(&rtnstring 1 2)) VALUE(&stringlen)
+VALUE(&binlen)
+
+/********************************************************************/
+/* */
+/* Send error message(s) */
+/* */
+/* NOTE: If you want to send a diagnostic message as well as CPF0011*/
+/* you will have to enter a valid error message ID in the */
+/* MSGID parameter and a valid message file in the MSGF */
+/* parameter for the first SNGPGMMSG command listed below. */
+/* If you do not want to send a diagnostic message, do not */
+/* include the first SNDPGMMSG in your program. However, in */
+/* error conditions, you must ALWAYS send CPF0011 so the */
+/* second SNDPGMMSG command must be included in your program. */
+/* */
+/********************************************************************/
+SNDPGMMSG MSGID(XXXXXXX) MSGF(MSGLIB/MSGFILE) MSGTYPE(*DIAG)
+SNDPGMMSG MSGID(CPF0011) MSGF(QCPFMSG) MSGTYPE(*ESCAPE)
+
+PGMEND:
+ENDPGM
+
+Parent topic: Key parameters and prompt override programs
+
+Related concepts
+Prompt override program
+Information returned from the prompt override program

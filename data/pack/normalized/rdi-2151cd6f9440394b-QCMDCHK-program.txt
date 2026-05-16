@@ -1,0 +1,104 @@
+QCMDCHK program
+
+IBM i programming resources > Control language > Control language > CL programming > Command-related APIs > Command-related APIs
+
+IBM i programming resources > Control language > Control language > CL programming > Command-related APIs
+
+QCMDCHK program
+The Check Command Syntax (QCMDCHK) API is an
+IBM-supplied program that performs syntax checking for a single command, and
+optionally prompts for the command.
+The command is not run. If prompting is requested, the command
+string is returned to the calling procedure or program with the updated values
+as entered through prompting. The QCMDCHK program can be called from a CL
+procedure or program or an HLL procedure or program.
+Typical uses of
+QCMDCHK are:
+Prompt the user for a command and then store the command for later processing.
+Determine the options the user specified.
+Log the processed command. First, prompt with QCMDCHK, run with QCMDEXC,
+and then log the processed command.
+
+The format of the call to QCMDCHK is:
+CALL PGM(QCMDCHK) PARM(command command-length)
+The first parameter passed to QCMDCHK is a character string
+containing the command to be checked or prompted. If the first parameter
+is a variable and prompting is requested, the command entered by the workstation
+user is placed in the variable.
+The second parameter is the maximum
+length of the command string being passed. If the command string is passed
+as a quoted string, the command length is exactly the length of the quoted
+string. If the command string is passed in a variable, the command length
+is the length of the CL variable. The second parameter must be a packed decimal
+value of length 15 with 5 decimal positions.
+The QCMDCHK program performs
+syntax checking on the command string which is passed to it. It verifies
+that all required parameters are coded, and that all parameters have allowable
+values. It does not check for the processing environment. That is, a command
+can be checked whether it is allowed in batch only, interactive only, or only
+in a batch or interactive CL program. QCMDCHK does not allow checking of
+command definition statements.
+If a syntax error is detected on the
+command, message CPF0006 is sent. You can monitor for this message to determine
+if an error occurred on the command. Message CPF0006 is preceded by one or
+more diagnostic messages that identify the error. In the following example,
+control is passed to the label ERROR within the program, because the value
+123 is not valid for the PGM parameter of the Create CL Program (CRTCLPGM) command.
+
+CALL QCMDCHK ('CRTCLPGM PGM(QGPL/123)' 22)
+MONMSG CPF0006 EXEC(GOTO ERROR)
+You can request prompting for the command by either placing
+a question mark before the command name or by placing selective prompt characters
+before one or more keyword names in the command string.
+If no errors
+are detected during checking and prompting for the command, the updated command
+string is placed in the variable specified for the first parameter. The prompt
+request characters are removed from the command string. This is shown in
+the following example:
+DCL &CMD *CHAR 2000
+.
+.
+CHGVAR &CMD '?CRTCLPGM'
+CALL QCMDCHK (&CMD 2000)
+After the call to the QCMDCHK program is run, variable &CMD
+contains the command string with all values entered through the prompter.
+This might be something like:
+CRTCLPGM PGM(PGMA) SRCFILE(TESTLIB/SOURCE) USRPRF(*OWNER)
+Note that the question mark preceding the command name is removed.
+When
+prompting is requested through the QCMDCHK program, the command string should
+be passed in a CL variable. Otherwise, the updated command string is not
+returned to your procedure or program. You must also be sure that the variable
+for the command string is long enough to contain the updated command string
+which is returned from the prompter. If it is not long enough, message CPF0005
+is sent, and the variable containing the command string is not changed. Without
+selective prompting, the prompter only returns entries that were typed by
+the user.
+The length of the variable is determined by the value of the
+second parameter, and not the actual length of the variable. In the following
+example, escape message CPF0005 is sent because the specified length is too
+short to contain the updated command, even though the variable was declared
+with an adequate length.
+DCL &CMD *CHAR 2000
+.
+.
+CHGVAR &CMD '?CRTCLPGM'
+CALL QCMDCHK (&CMD 9)
+If you press F3 or F12 to exit from the prompter while running
+QCMDCHK, message CPF6801 is sent to the procedure or program that called QCMDCHK,
+and the variable containing the command string is not changed.
+If PASSATR(*YES)
+is specified on the PARM, ELEM, or QUAL command definition statement, and
+the default value is changed using the Change Command Definition
+(CHGCMDDFT) command, the default value is highlighted as though
+this was a user-specified value and not a default value. If a default value
+of a changed PARM, ELEM, or QUAL command definition statement is changed back
+to its original default value, the default value will no longer be highlighted.
+
+Parent topic: Command-related APIs
+
+Related tasks
+Using selective prompting for CL commands
+
+Related information
+Check Command Syntax (QCMDCHK) API

@@ -1,0 +1,359 @@
+DELETE
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+DELETE
+The DELETE statement deletes rows from a table or view.
+Deleting a row from a view deletes the row from the table on which
+the view is based if no INSTEAD OF DELETE trigger is defined for this
+view. If such a trigger is defined, the trigger will be activated
+instead.
+There are two forms of this statement:
+The Searched DELETE form is used to delete one or more
+rows (optionally determined by a search condition).
+The Positioned DELETE form is used to delete exactly one
+row (as determined by the current position of a cursor).
+
+InvocationA Searched DELETE statement can
+be embedded in an application program or issued interactively. A Positioned
+DELETE must be embedded in an application program. Both forms are
+executable statements that can be dynamically prepared.
+AuthorizationThe privileges held by the
+authorization ID of the statement must include at least one of the
+following:
+For the table or view identified in the statement: The DELETE privilege on the table or view, and
+The system authority *EXECUTE on the library containing the table
+or view
+
+Database administrator authority
+
+If the search-condition in a Searched DELETE contains
+a reference to a column of the table or view, then the privileges
+held by the authorization ID of the statement must also include one
+of the following:
+The SELECT privilege on the table or view
+Database administrator authority
+
+If search-condition includes a subquery, the privileges
+held by the authorization ID of the statement must also include at
+least one of the following:
+For each table or view identified in the subquery: The SELECT privilege on the table or view, and
+The system authority *EXECUTE on the library containing the table
+or view
+
+Database administrator authority
+
+For information about the system authorities corresponding
+to SQL privileges, see Corresponding
+System Authorities When Checking Privileges to a Table or View.
+SyntaxSearched DELETE:
+DELETE FROMtable-nameview-namecorrelation-clauseWHEREsearch-conditionisolation-clauseconcurrent-access-resolution-clause1
+Positioned DELETE:
+DELETE FROMtable-nameview-namecorrelation-clauseWHERE CURRENT OFcursor-name
+isolation–clauseWITHNCURCSRSRR
+DescriptionFROM table-name or view-name
+Identifies the table or view
+from which rows are to be deleted. The name must identify a table
+or view that exists at the current server, but it must not identify
+a catalog table, a view of a catalog table, or a view that is not
+deletable. For an explanation of deletable views, see CREATE VIEW.
+correlation-clause
+Specifies an alternate name
+that can be used within the search-condition to
+designate the table or view. For an explanation of correlation-clause,
+see Queries. For an explanation of correlation-name,
+see Correlation names.
+WHERE
+Specifies the
+rows to be deleted. The clause can be omitted, or a search-condition or cursor-name can
+be specified. If the clause is omitted, all rows of the table or view
+are deleted. search-condition
+Is any search condition as described in Search conditions. Each column-name in
+the search-condition, other than in a subquery,
+must identify a column of the table or view. The search-condition is
+applied to each row of the table or view and the deleted rows are
+those for which the result of the search-condition is
+true.
+If the search-condition contains
+a subquery, the subquery can be thought of as being executed each
+time the search condition is applied to
+a row, and the results used in applying the search condition.
+In actuality, a subquery with no correlated references may be executed
+only once, whereas a subquery with a correlated reference may have
+to be executed once for each row.
+If a subquery refers to the
+object table of the DELETE statement or a dependent table with a delete
+rule of CASCADE, SET NULL, or SET DEFAULT, the subquery is completely
+evaluated before any rows are deleted.
+
+CURRENT OF cursor-name
+Identifies the cursor to be
+used in the delete operation. The cursor-name must
+identify a declared cursor as explained in the Notes for the DECLARE CURSOR statement.
+The table or view identified must also be specified in the FROM
+clause of the select-statement of the cursor
+and the cursor must be deletable. For an explanation of deletable
+cursors, see DECLARE CURSOR.
+The
+DECLARE CURSOR statement must not have a period-specification for
+the table or view used by the delete statement.
+When
+the DELETE statement is executed, the cursor must be positioned on
+a row; that row is the one deleted. After the deletion, the cursor
+is positioned before the next row of its result table. If there is
+no next row, the cursor is positioned after the last row.
+
+isolation-clause
+Specifies
+the isolation level to be used for this statement. WITH
+Introduces
+the isolation level, which may be one of: RR Repeatable read
+RS Read stability
+CS Cursor stability
+UR Uncommitted read
+NC No commit
+
+If isolation-clause is
+not specified the default isolation is used. For more information
+on the default isolation, see isolation-clause.
+concurrent-access-resolution-clause
+Specifies the concurrent access resolution
+to use for the select statement. For more information, see concurrent-access-resolution-clause.
+
+DELETE RulesTriggers: If
+the identified table or the base table of the identified view has
+a delete trigger, the trigger is activated. A trigger might cause
+other statements to be executed or return error conditions based on
+the deleted values.
+Referential Integrity: If the identified table or the base
+table of the identified table is a parent table, the rows selected
+must not have any dependents in a relationship with a delete rule
+of RESTRICT or NO ACTION, and the DELETE must not cascade to descendent
+rows that have dependents in a relationship with a delete rule of
+RESTRICT or NO ACTION.
+If the delete operation is not prevented by a RESTRICT
+or NO ACTION delete rule, the selected rows are deleted. Any rows
+that are dependents of the selected rows are also affected:
+The nullable columns of the foreign keys of any rows that are
+their dependents in a relationship with a delete rule of SET NULL
+are set to the null value.
+Any rows that are their dependents in a relationship with a delete
+rule of CASCADE are also deleted, and the above rules apply, in turn
+to those rows.
+The columns of the foreign keys of any rows that are their dependents
+in a relationship with a delete rule of SET DEFAULT are set to the
+corresponding default value.
+
+The referential constraints (other than a referential
+constraint with a RESTRICT delete rule), are effectively checked at
+the end of the statement. In the case of a multiple-row delete, this
+would occur after all rows were deleted and any associated triggers
+were activated.
+Check Constraints: A check constraint can prevent
+the deletion of a row in a parent table when there are dependents
+in a relationship with a delete rule of SET NULL or SET DEFAULT. If
+deleting a row in the parent table would cause a column in a dependent
+table to be set to null or a default value and the null or default
+value would cause a search condition of a check constraint to evaluate
+to false, the row is not deleted.
+NotesDelete
+operation errors: If an error occurs while executing any delete
+operation, changes from this statement, referential constraints, and
+any triggered SQL statements are rolled back (unless the isolation
+level is NC for this statement or any other triggered SQL statements).
+Locking: Unless appropriate locks already exist,
+one or more exclusive locks are acquired during the execution of a
+successful DELETE statement. Until the locks are released by a commit
+or rollback operation, the effect of the DELETE operation can only
+be perceived by:
+The application process that performed the deletion
+Another application process using isolation level UR or NC
+
+The locks can prevent other application processes from
+performing operations on the table. For further information about
+locking, see the description of the COMMIT, ROLLBACK, and LOCK TABLE
+statements, and Isolation level.
+If an application process deletes a row on which any of
+its non-updatable cursors are positioned, those cursors are positioned
+before the next row of their result table. Let C be a cursor that
+is positioned before the next row R (as the result of an OPEN, a DELETE
+through C, a DELETE through some other cursor, or a Searched DELETE).
+In the presence of INSERT, UPDATE, and DELETE operations that affect
+the base table from which R is derived, the next FETCH operation referencing
+C does not necessarily position C on R. For example, the operation
+can position C on R' where R' is a new row that is now the next row
+of the result table.
+A maximum of 4000000 rows can be deleted or changed in
+any single DELETE statement when COMMIT(*RR), COMMIT(*ALL), COMMIT(*CS),
+or COMMIT(*CHG) was specified. The number of rows changed includes
+any rows inserted, updated, or deleted under the same commitment definition
+as a result of a trigger, a CASCADE, SET NULL, or SET DEFAULT referential
+integrity delete rule.
+Position of cursor: If an application process deletes
+a row on which any of its cursors are positioned, those cursors are
+positioned before the next row of their result table. Let C be a cursor
+that is positioned before row R (as a result of an OPEN, a DELETE
+through C, a DELETE through some other cursor, or a Searched DELETE).
+In the presence of INSERT, UPDATE, and DELETE operations that affect
+the base table from which R is derived, the next FETCH operation referencing
+C does not necessarily position C on R. For example, the operation
+can position C on R', where R' is a new row that is now
+the next row of the result table.
+Number of rows deleted: When a DELETE statement
+is completed, the number of rows deleted is returned in the ROW_COUNT
+condition area item in the SQL Diagnostics Area (or SQLERRD(3) in
+the SQLCA). The value in the ROW_COUNT item does not include the number
+of rows that were deleted as a result of a CASCADE delete rule or
+a trigger.
+For a description of the SQLCA, see SQLCA (SQL communication area).
+DELETE Performance: An
+SQL DELETE statement that does not contain a WHERE clause will delete
+all rows of a table. In this case, the rows may be deleted using either
+a clear operation (if not running under commitment control) or a change
+file operation (if running under commitment control). If running under
+commitment control, the deletes can still be committed or rolled back.
+This implementation will be much faster than individually deleting
+each row, but individual journal entries for each row will not be
+recorded in the journal. This technique will only be used if all the
+following are true:
+The target table is not a view.
+The target table is not a system-period temporal table.
+A significant number of rows are being deleted.
+The job issuing the DELETE statement does not have an open cursor
+on the file (not including pseudo-closed SQL cursors).
+No other job has a lock on the table.
+The table does not have an active delete trigger.
+The table is not the parent in a referential constraint with a
+CASCADE, SET NULL, or SET DEFAULT delete rule.
+The user issuing the DELETE statement has *OBJMGT or *OBJALTER
+system authority on the table in addition to the DELETE privilege.
+The SQL_FAST_DELETE_ROW_COUNT QAQQINI option allows
+fast delete.
+
+If this technique is successful, the number of increments
+(see the SIZE keyword on the CHGPF CL command) is set to zero.
+The TRUNCATE statement can be used to delete all rows
+from a table.
+Referential integrity considerations: The DB2_ROW_COUNT_SECONDARY
+condition information item in the SQL Diagnostics Area (or SQLERRD(5)
+in the SQLCA) shows the number of rows affected by referential constraints.
+It includes rows that were deleted as the result of a CASCADE delete
+rule and rows in which foreign keys were set to NULL or the default
+value as the result of a SET NULL or SET DEFAULT delete rule.
+For a description of DB2_ROW_COUNT_SECONDARY, see GET DIAGNOSTICS. For a description of the SQLCA,
+see SQLCA (SQL communication area).
+Deleting rows in a table for which row
+access control is enforced: When a DELETE statement is issued
+for a table for which row access control is enforced, the rules specified
+in the enabled row permissions determine whether the row can be deleted.
+Typically those rules are based on the authorization ID of the statement.
+The following describes how enabled row permissions and column masks
+are used during DELETE:Row permissions are used to identify the set of rows to be deleted.When
+multiple enabled row permissions are defined for a table, a row access
+control search condition is derived by application of the logical
+OR operator to the search condition in each enabled permission. This
+row access control search condition is applied to the table to determine
+which rows are accessible to the authorization ID of the DELETE statement.
+If the WHERE clause is specified in the DELETE statement, the user-specified
+predicates are applied on the accessible rows to determine the rows
+to be deleted. If there is no WHERE clause, all the accessible rows
+are the rows to be deleted.
+
+Considerations for a system-period temporal
+table: If the DELETE statement has a search condition that contains
+a correlated subquery that references the history table (explicitly
+referencing the name of the history table or implicitly referenced
+through the use of a period specification in the FROM clause), the
+deleted rows that are stored as historical rows are potentially visible
+for delete operations for the rows that are subsequently processed
+for the statement.
+If the CURRENT TEMPORAL SYSTEM_TIME special
+register is set to a non-null value and the value of the SYSTIME option
+is YES, the underlying target of the DELETE statement must not be
+a system-period temporal table. This restriction applies regardless
+of whether the system-period temporal table is directly or indirectly
+referenced.
+Considerations for a history table: When
+a row of a system-period temporal table is deleted, a historical copy
+of the row is inserted into the corresponding history table and the
+end timestamp of the historical row is captured in the form of a system
+determined value that corresponds to the time of the data change operation.
+The database manager assigns the value that is generated using a reading
+of the time-of-day clock during execution of the first data change
+statement in the transaction that requires a value to be assigned
+to the row begin or transaction start-ID column in a table, or a row
+in a system-period temporal table is deleted. The database manager
+ensures uniqueness of the generated values for an end column in a
+history table across transactions. The timestamp value might be adjusted
+to ensure that rows inserted into the history table have the end timestamp
+value greater than the begin timestamp value which can happen when
+a conflicting transaction is updating the same row in the system-period
+temporal table. The SYSTIME_PERIOD_ADJ QAQQINI option must be set
+to *ADJUST for this adjustment to the timestamp value to occur. Otherwise
+an error is returned.
+For a delete operation, the adjustment
+only affects the value for the end column in the history table that
+corresponds to the row-end column in the associated system-period
+temporal table. Take these adjustments into consideration on subsequent
+references to the table when there is a search for the transaction
+start time in the row-begin column and row-end column for the SYSTEM_TIME
+period of the associated system-period temporal table.
+When
+the history table is defined with ON DELETE ADD EXTRA ROW, the version
+of the row prior to the delete is added to the history table. Values
+for the row begin, row end, and any generated expression columns are
+generated when this row is added. This information represents when
+the row was deleted.
+REXX: Variables
+cannot be used in the DELETE statement within a REXX procedure. Instead, the DELETE
+must be the object of a PREPARE and EXECUTE using parameter markers.
+Syntax alternatives: The following keywords are
+synonyms supported for compatibility to prior releases. These keywords
+are non-standard and should not be used:
+The keyword NONE can be used as a synonym for NC.
+The keyword CHG can be used as a synonym for UR.
+The keyword ALL can be used as a synonym for RS.
+The FROM keyword is optional.
+
+ExamplesExample 1: Delete department
+(DEPTNO) ‘D11' from the DEPARTMENT table.
+DELETE FROM DEPARTMENT
+WHERE DEPTNO = 'D11'
+
+Example 2: Delete all the departments from the
+DEPARTMENT table (that is, empty the table).
+DELETE FROM DEPARTMENT
+
+Example 3: Use a Java program
+statement to delete all the subprojects (MAJPROJ is NULL) from the
+PROJECT table on the connection context 'ctx', for a department (DEPTNO)
+equal to that in the host variable HOSTDEPT (java.lang.String).
+#sql [ctx] { DELETE FROM PROJECT
+WHERE DEPTNO = :HOSTDEPT
+AND MAJPROJ IS NULL };
+
+Example 4: Code a portion of a Java program that will be used to display retired
+employees (JOB) and then, if requested to do so, remove certain employees
+from the EMPLOYEE table on the connection context 'ctx'.
+#sql iterator empIterator implements sqlj.runtime.ForUpdate
+( ... );
+empIterator C1;
+
+#sql [ctx] C1 = { SELECT * FROM EMPLOYEE
+WHERE JOB = 'RETIRED' };
+
+#sql { FETCH C1 INTO ... };
+while ( !C1.endFetch() ) {
+System.out.println( ... );
+...
+if ( condition for deleting row ) {
+#sql [ctx] { DELETE FROM EMPLOYEE
+WHERE CURRENT OF C1 };
+}
+#sql { FETCH C1 INTO ... };
+}
+C1.close();
+
+Parent topic: Statements

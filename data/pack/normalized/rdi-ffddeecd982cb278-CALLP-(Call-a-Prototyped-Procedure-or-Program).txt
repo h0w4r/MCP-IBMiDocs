@@ -1,0 +1,211 @@
+CALLP (Call a Prototyped Procedure or Program)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+CALLP (Call a Prototyped Procedure or Program)
+
+Free-Form Syntax
+
+{CALLP{(EMR)}} name( {parm1{:parm2...}}
+)
+
+Code
+
+Factor 1
+
+Extended Factor 2
+
+CALLP (E M/R)
+
+ 
+
+name{ (parm1 {:parm2 …})
+}
+
+The CALLP operation is used to call prototyped procedures or programs.
+
+Unlike the other call operations, CALLP uses a free-form syntax.
+You use the name operand to specify the name
+of the prototype of the called program or procedure, as well as any
+parameters to be passed. (This is similar to calling a built-in function.) A maximum
+of 255 parameters are allowed for a program call, and a maximum of
+399 for a procedure call.
+
+On a free-form calculation specification, the operation
+code name may be omitted if no extenders are needed, and if the prototype
+does not have the same name as an operation code.
+
+The compiler then uses the prototype name to
+obtain an external name, if required, for the call. If the keyword
+EXTPGM is specified on the prototype, the call will be a dynamic external
+call; otherwise it will be a bound procedure call.
+
+If the called program or procedure is defined in a
+different module, a prototype for the program or procedure being called
+must be included in the definition specifications preceding the CALLP.
+If the called program or procedure is defined in the same module as
+the call, an explicit prototype is not required; the prototype can
+be implicitly defined from the procedure interface of the called program
+or procedure.
+
+Note that if CALLP is used to call a procedure which returns a
+value, that value will not be available to the caller. If the value
+is required, call the prototyped procedure from within an expression.
+
+To handle CALLP exceptions (program status
+codes 202, 211, or 231), the operation code extender 'E' can be
+specified. For more information on error handling, see Program Exception/Errors.
+Note: The E extender is only active during
+the final call for CALLP. If an error occurs on a call that is done
+as part of the parameter processing, control will not pass to the
+next operation. For example, if FileRecs is a procedure returning
+a numeric value, and an error occurs when FileRecs is called in the
+following statement, the E extender would have no effect.
+CALLP(E) PROGNAME(FileRecs(Fld) + 1)
+
+For more information on call operations, see Call Operations.
+For more information on defining prototypes, see Prototypes and Parameters.
+For information on how operation extenders M and R are used, see Precision Rules for Numeric Operations.
+
+Figure 1. Calling a Prototyped Program Using
+CALLP
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+*-------------------------------------------------------------
+* This prototype for QCMDEXC defines two parameters:
+* 1- a character field that may be shorter in length
+* than expected
+* 2- any numeric field
+*-------------------------------------------------------------
+D qcmdexc PR extpgm('QCMDEXC')
+D cmd 200A options(*varsize) const
+D cmdlen 15P 5 const
+
+/FREE
+qcmdexc ('WRKSPLF' : %size ('WRKSPLF'));
+/END-FREE
+
+Figure 2. Passing an array parameter using
+CALLP
+
+* The prototype for the procedure has an array parameter.
+D proc pr
+D parm 10a dim(5)
+
+* An array to pass to the procedure
+D array s 10a dim(5)
+
+* Call the procedure, passing the array
+C callp proc (array)
+
+The following example of CALLP is from the service program example
+in Rational® Development Studio for i: ILE RPG Programmer's Guide. CvtToHex is a procedure in a service program
+created to hold conversion routines. CvtToHex converts an input string
+to its hexadecimal form. The prototyped calls are to the ILE CEE API,
+CEEDOD (Retrieve Operational Descriptor). It is used to determine
+the length of the input string.
+
+Figure 3. Calling a Prototyped Procedure Using
+CALLP
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+*=================================================================*
+* CvtToHex - convert input string to hex output string *
+*=================================================================*
+D/COPY MYLIB/QRPGLESRC,CVTHEXPR
+
+*-----------------------------------------------------------------*
+* Main entry parameters *
+* 1. Input: string character(n) *
+* 2. Output: hex string character(2 * n) *
+*-----------------------------------------------------------------*
+D CvtToHex PI OPDESC
+D InString 16383 CONST OPTIONS(*VARSIZE)
+D HexString 32766 OPTIONS(*VARSIZE)
+
+*-----------------------------------------------------------------*
+* Prototype for CEEDOD (Retrieve operational descriptor) *
+*-----------------------------------------------------------------*
+D CEEDOD PR
+D 10I 0 CONST
+D 10I 0
+D 10I 0
+D 10I 0
+D 10I 0
+D 10I 0
+D 12A OPTIONS(*OMIT)
+
+* Parameters passed to CEEDOD
+D ParmNum S 10I 0
+D DescType S 10I 0
+D DataType S 10I 0
+D DescInfo1 S 10I 0
+D DescInfo2 S 10I 0
+D InLen S 10I 0
+D HexLen S 10I 0
+
+*-----------------------------------------------------------------*
+* Other fields used by the program *
+*-----------------------------------------------------------------*
+D HexDigits C CONST('0123456789ABCDEF')
+D IntDs DS
+D IntNum 5I 0 INZ(0)
+D IntChar 1 OVERLAY(IntNum:2)
+D HexDs DS
+D HexC1 1
+D HexC2 1
+D InChar S 1
+D Pos S 5P 0
+D HexPos S 5P 0
+
+/FREE
+//-------------------------------------------------------------//
+// Use the operational descriptors to determine the lengths of //
+// the parameters that were passed. //
+//-------------------------------------------------------------//
+CEEDOD (1 : DescType : DataType :
+DescInfo1 : DescInfo2 : Inlen : *OMIT);
+CEEDOD (2 : DescType : DataType :
+DescInfo1 : DescInfo2 : HexLen : *OMIT);
+
+//-------------------------------------------------------------//
+// Determine the length to handle (minimum of the input length //
+// and half of the hex length) //
+//-------------------------------------------------------------//
+if InLen > HexLen / 2;
+InLen = HexLen / 2;
+endif;
+
+//-------------------------------------------------------------//
+// For each character in the input string, convert to a 2-byte //
+// hexadecimal representation (for example, '5' --> 'F5') //
+//-------------------------------------------------------------//
+HexPos = 1;
+for Pos = 1 to InLen;
+InChar = %SUBST(InString : Pos :1);
+exsr GetHex;
+%subst (HexString: HexPos: 2) = HexDs;
+HexPos = HexPos + 2;
+endfor;
+
+return;
+
+//================================================================//
+// GetHex - subroutine to convert 'InChar' to 'HexDs' //
+// Use division by 16 to separate the two hexadecimal digits. //
+// The quotient is the first digit, the remainder is the second. //
+//================================================================//
+begsr GetHex;
+IntChar = InChar;
+
+//-----------------------------------------------------//
+// Use the hexadecimal digit (plus 1) to substring the //
+// list of hexadecimal characters '012...CDEF'. //
+//-----------------------------------------------------//
+HexC1 = %subst (HexDigits: %div(IntNum:16) + 1: 1);
+HexC2 = %subst (HexDigits: %rem(IntNum:16) + 1: 1);
+endsr; // GetHex
+
+Parent topic: Operation Codes

@@ -1,0 +1,75 @@
+%SCAN built-in function
+
+%SCAN built-in functionLast Updated: 2025-09-29
+
+The scan built-in function (%SCAN) returns the first position
+of a search argument in the source string,
+or 0 if it was not found.
+
+The %SCAN built-in function can be used anywhere that
+CL supports an arithmetic expression. %SCAN can be used alone or as
+part of a more complex arithmetic expression. For example, %SCAN can
+be used to compare to a numeric CL variable in the COND parameter
+of an IF or WHEN command. %SCAN
+can also be used to set the value of a CL command parameter, if the
+associated command object defines the parameter with EXPR(*YES) and
+TYPE of *DEC, *INT2, *INT4, *UINT2, or *UINT4.
+The format of
+the scan built-in function is:%SCAN(search-argument source-string [starting-position])
+The search
+argument must be either a CL character variable or a character
+literal. The source string can be a CL character variable
+or *LDA. When *LDA is specified, the scan function is performed on
+the contents of the local data area for the job. The starting
+position is optional and defaults to 1. Searching begins at
+the starting position (start) of the source string. The result is
+always relative to the first byte in the source string, even if the
+starting position is specified. The starting position, if specified,
+must be either a CL integer variable or a CL decimal variable with
+zero decimal positions or a numeric literal with zero decimal positions.
+The starting position cannot be zero or negative. If the starting
+position is greater than the length of the entire source-string variable
+or the local data area, an error occurs. The length of the local data
+area is 1024.
+The following examples are about the scan built-in
+function:
+
+Search for a specific string, CL variable &FNAME is scanned
+for the string ’John’. If the string ’John’
+is not found anywhere in variable &FNAME, a message is sent.
+
+Note: The
+scan is case-sensitive, so a scan for ’John’ does not
+return a positive result if &FNAME contains the value ’JOHN’.
+
+PGM PARM(&FNAME)
+DCL VAR(&FNAME) TYPE(*CHAR) LEN(10)
+IF COND(%SCAN('John' &FNAME) *EQ 0) +
+THEN(SNDPGMMSG ('NOT FOUND!'))
+
+Search from a specific position in the string. The %SCAN function
+is used multiple times to take a date value that contains a date separator
+and retrieve the month value into a numeric variable. The first %SCAN
+finds the position of the date separator between the day and month.
+The second %SCAN starts with the character that follows the first
+date separator and finds the position of the date separator between
+the month and year. The substring (%SST) built-in function is then
+used to convert the month value from character form to a decimal variable.DCL VAR(&YYYYMMDD) TYPE(*CHAR) LEN(10) VALUE('2012/8/29')
+DCL VAR(&DATSEP) TYPE(*CHAR) LEN(1) VALUE('/')
+DCL VAR(&SPOS) TYPE(*UINT) LEN(2)
+DCL VAR(&EPOS) TYPE(*UINT) LEN(2)
+DCL VAR(&LEN) TYPE(*UINT) LEN(2)
+DCL VAR(&MONTH) TYPE(*DEC) LEN(2)
+CHGVAR VAR(&SPOS) VALUE(%SCAN(&DATSEP &YYYYMMDD))
+CHGVAR VAR(&SPOS) VALUE(&SPOS + 1)
+CHGVAR VAR(&EPOS) VALUE(%SCAN(&DATSEP &YYYYMMDD &SPOS))
+CHGVAR VAR(&LEN) VALUE(&EPOS - &SPOS)
+CHGVAR VAR(&MONTH) VALUE(%SST(&YYYYMMDD &SPOS &LEN))
+
+Search characters from the local data area (*LDA). The local data
+area (LDA) is scanned starting from byte 1 of the LDA for the string
+’Escape’. If the string is found, the position of the
+string in the LDA is assigned to CL variable &POS. If the string
+’Escape’ is not found in the whole LDA, a value of zero
+is assigned to variable &POS.DCL VAR(&POS) TYPE(*UINT) LEN(2)
+CHGVAR VAR(&POS) VALUE(%SCAN('Escape' *LDA))

@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Using Subfiles to Minimize I/O Operations</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog369.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog306.htm">Part 5&#46; Working with iSeries File Systems and Devices</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog356.htm">Chapter 20&#46; Using Device Files in a Program</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog367.htm">Using Display Files and Subfiles</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="Header_439" HREF="cpprog02.htm#ToC_439">Using Subfiles to Minimize I/O Operations</A></H3>
+<P>You can use subfiles to read or write a number of records to and from a
+display in one operation.
+<P><B>Example:</B>
+<P>The following subfile example uses DDS from T1520DDG and T1520DDH to
+display a list of names and telephone numbers. 
+<OL TYPE=1>
+<LI>To create the display file T1520DDG using the DDS source shown below,
+enter: 
+<PRE>
+<BR>
+CRTDSPF FILE(MYLIB/T1520DDG) SRCFILE(QCPPLE/QADDSSRC)
+</PRE>
+<P><B><A NAME="Figure_147" HREF="cpprog09.htm#FT_Figure_147">Figure 147. T1520DDG -- DDS Source for a Subfile Display</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+     A                                      DSPSIZ(24 80 *DS3)
+<BR>     A          R SFL                       SFL
+<BR>     A            NAME          10A  B 10 25
+<BR>     A            PHONE         10A  B    +5
+<BR>     A          R SFLCTL                    SFLCTL(SFL)
+<BR>     A                                      SFLPAG(5)
+<BR>     A                                      SFLSIZ(26)
+<BR>     A                                      SFLDSP
+<BR>     A                                      SFLDSPCTL
+<BR>     A                                 22 25'&lt;PAGE DOWN&gt; FOR NEXT PAGE'
+<BR>     A                                 23 25'&lt;PAGE UP&gt; FOR PREVIOUS PAGE'
+</SPAN></PRE>
+</TD></TR></TABLE>
+</LI><LI>To create the physical file T1520DDH using the DDS source shown below,
+enter: 
+<PRE>
+<BR>
+CRTPF FILE(MYLIB/T1520DDH) SRCFILE(QCPPLE/QADDSSRC)
+</PRE>
+<P>
+<P>
+<PRE>
+<BR>
+                R ENTRY
+<BR>                  NAME          10A
+<BR>                  PHONE         10A
+</PRE>
+</LI><LI>Type the following data into T1520DDH: 
+<PRE>
+<BR>
+David     435-5634
+<BR>Florence  343-4537
+<BR>Irene     255-5235
+<BR>Carrie    747-5347
+<BR>Michele   634-4557
+</PRE>
+</LI><LI>To create the program T1520SUB using the source shown below, enter: 
+<PRE>
+<BR>
+CRTBNDC PGM(MYLIB/T1520SUB) SRCFILE(QCPPLE/QACSRC)
+</PRE>
+<P><B><A NAME="Figure_148" HREF="cpprog09.htm#FT_Figure_148">Figure 148. T1520SUB -- ILE C Source to Use Subfiles</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+/* This program illustrates how to use subfiles.                      */&nbsp;
+<BR>#include &lt;stdio.h&gt;
+<BR>#include &lt;stdlib.h&gt;
+<BR>#include &lt;recio.h&gt;&nbsp;
+<BR>#define LEN          10
+<BR>#define NUM_RECS     20
+<BR>#define SUBFILENAME  "*LIBL/T1520DDG"
+<BR>#define PFILENAME    "*LIBL/T1520DDH"
+<BR>&nbsp;
+<BR>typedef struct{
+<BR>    char name[LEN];
+<BR>    char phone[LEN];
+<BR>}pf_t;&nbsp;
+<BR>#define RECLEN sizeof(pf_t)
+<BR>&nbsp;
+<BR>void init_subfile(_RFILE *, _RFILE *);
+<BR>
+<BR>int main(void)
+<BR>{
+<BR>    _RFILE           *pf;
+<BR>    _RFILE           *subf;&nbsp;
+<BR>/* Open the subfile and the physical file.                            */&nbsp;
+<BR>    if ((pf = _Ropen(PFILENAME, "rr")) == NULL)
+<BR>    {
+<BR>        printf("can't open file %s\n", PFILENAME);
+<BR>        exit(1);
+<BR>    }
+<BR>    if ((subf = _Ropen(SUBFILENAME, "ar+")) == NULL)
+<BR>    {
+<BR>        printf("can't open file %s\n", SUBFILENAME);
+<BR>        exit(2);
+<BR>    }
+<BR>/* Initialize the subfile with records from the physical file.        */&nbsp;
+<BR>    init_subfile(pf, subf);
+<BR>&nbsp;
+</SPAN></PRE>
+<PRE><SPAN STYLE="font-size:80%">
+<BR>
+ /* Write the subfile to the display by writing a record to the        */
+<BR>/* subfile control format.                                            */
+<BR>     _Rformat(subf, "SFLCTL");
+<BR>     _Rwrite(subf, "", 0);
+<BR>     _Rreadn(subf, "", 0, __DFT);
+<BR>&nbsp;
+<BR>/* Close the physical file and the subfile.                           */&nbsp;
+<BR>     _Rclose(pf);
+<BR>     _Rclose(subf);
+<BR>}
+<BR>void init_subfile(_RFILE *pf, _RFILE *subf)
+<BR>  {
+<BR>        _RIOFB_T      *fb;
+<BR>        int           i;
+<BR>        pf_t          record;
+<BR>&nbsp;
+<BR>/* Select the subfile record format.                                  */&nbsp;
+<BR>        _Rformat(subf, "SFL");&nbsp;
+<BR>        for (i = 1; i &lt;= NUM_RECS; i++)
+<BR>        {
+<BR>               fb = _Rreadn(pf, &amp;record, RECLEN, __DFT);
+<BR>               if (fb-&gt;num_bytes != EOF)
+<BR>               {
+<BR>                 fb = _Rwrited(subf, &amp;record, RECLEN, i);
+<BR>                 if (fb-&gt;num_bytes != RECLEN)
+<BR>                 {
+<BR>                   printf("error occurred during write\n");
+<BR>                   exit(3);
+<BR>                 }
+<BR>               }
+<BR>        }
+<BR>    }
+</SPAN></PRE>
+</TD></TR></TABLE>
+<P>This program uses <TT>_Ropen()</TT> to open subfile T1520DDG and
+physical file T1520DDH. The subfile is then initialized with records
+from the physical file. Subfile records are written to the display
+using the <TT>_Rwrited()</TT> function.
+</LI><LI>To run the program T1520SUB and see the output, enter: 
+<PRE>
+<BR>
+CALL PGM(MYLIB/T1520SUB)
+</PRE>
+<PRE>
++--------------------------------------------------------------------------------+
+|                                                                                |
+|                                                                                |
+|              <I>David</I>     <I>435-5634</I>&nbsp;                                               |
+|              <I>Florence</I>     <I>343-4537</I>&nbsp;                                            |
+|              <I>Irene</I>     <I>255-5235</I>&nbsp;                                               |
+|              <I>Carrie</I>     <I>747-5347</I>&nbsp;                                              |
+|              <I>Michele</I>     <I>643-4557</I>&nbsp;                                             |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|                                                                                |
+|              &lt;PAGE DOWN> FOR NEXT PAGE                                         |
+|              &lt;PAGE UP> FOR PREVIOUS PAGE                                       |
+|                                                                                |
+|                                                                                |
+|                                                                                |
++--------------------------------------------------------------------------------+</PRE>
+</LI></OL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog368.htm">Previous Page</A> | <A HREF="cpprog370.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

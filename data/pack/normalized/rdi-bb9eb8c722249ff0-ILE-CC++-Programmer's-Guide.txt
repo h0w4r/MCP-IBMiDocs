@@ -1,0 +1,123 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 20. Using Device Files in a Program > Writing to a Tape File
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 20. Using Device Files in a Program > Writing to a Tape File
+
+ILE C/C++ Programmer's Guide
+Record Functions for Tape Files
+Use the following record functions to process tape files:
+
+_Rclose()
+_Rfeod()
+_Rfeov()
+_Riofbk()
+_Ropen()
+_Ropfbk()
+_Rreadn()
+_Rupfb()
+_Rwrite()
+
+Example:
+The following example illustrates how to write to a tape file.
+
+To create the tape file T1520TPF, enter:
+
+CRTTAPF FILE(MYLIB/T1520TPF) DEV(TAP01) SEQNBR(*END)
+LABEL(CSOURCE) FILETYPE(*SRC)
+
+To create the source physical file QCSRC with the member CSOURCE,
+enter:
+
+CRTSRCPF FILE(MYLIB/QCSRC) MBR(CSOURCE)
+
+The CRTSRCPF command creates the physical file QCSRC with member CSOURCE in
+MYLIB. The following statements are copied to the tape file:
+Figure 155. Sample Source Statements for Program T1520TAP
+
+/* This program SQITF is called by the command SQUARE. This */
+/* program then calls another ILE C program SQ to perform */
+/* calculations and return a value. */
+#include <stdio.h>
+#include <decimal.h>
+#pragma linkage(SQ, OS) /* Tell compiler this is external call, */
+/* do not pass by value. */
+int SQ(int);
+int main(int argc, char *argv[])
+{
+int *x;
+int result;
+x = (int *) argv[1];
+result = SQ(*x);
+/* Note that although the argument is passed by value, the compiler */
+/* copies the argument to a temporary variable, and the pointer to */
+/* the temporary variable is passed to the called program SQ. */
+printf("The SQUARE of %d is %d\n", *x, result);
+}
+
+To create the program T1520TAP using the source shown below, enter:
+
+CRTBNDC PGM(MYLIB/T1520TAP) SRCFILE(QCPPLE/QACSRC)
+
+Figure 156. T1520TAP -- ILE C Source to Write to a Tape File
+
+/* This program illustrates how to write to a tape file. */
+ 
+#include <stdio.h>
+#include <string.h>
+#include <recio.h>
+#include <stdlib.h>
+#define RECLEN 80
+ 
+int main(void)
+{
+_RFILE *tape;
+_RFILE *fp;
+char buf [92];
+int i;
+ 
+/* Open the source physical file containing the C source. */
+
+if (( fp = _Ropen ( "*LIBL/QCSRC(CSOURCE)", "rr blkrcd=y" )) == NULL )
+{
+printf ( "could not open C source file\n" );
+exit ( 1 );
+}
+/* Open the tape file to receive the C source statements */
+ 
+if (( tape = _Ropen ( "*LIBL/T1520TPF", "wr lrecl=92 blkrcd=y" )) == NULL )
+{
+printf ( "could not open tape file\n" );
+exit ( 2 );
+}
+ 
+/* Read the C source statements, find their sizes */
+/* and add them to the tape file. */
+ 
+while (( _Rreadn ( fp, buf, sizeof(buf), __DFT )) -> num_bytes != EOF )
+{
+memmove ( buf, buf+12, RECLEN );
+_Rwrite ( tape, buf, RECLEN );
+}
+ 
+_Rclose ( fp );
+_Rclose ( tape );
+return(0);
+}
+
+This program opens the source physical file T1520TPF. The
+_Ropen() function file QCSRC contains the member CSOURCE with
+the source statements. The _Ropen() function opens the
+tape file T1520TPF to receive the C source statements. The
+_Rreadn() function reads the C source statements, finds their
+sizes, and adds them to the tape file T1520TPF.
+To run the program T1520TAP, enter:
+
+CALL PGM(MYLIB/T1520TAP)
+
+After you run the program, the tape file contains the source statements
+from CSOURCE.
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

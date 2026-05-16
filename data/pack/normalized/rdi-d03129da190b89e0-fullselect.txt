@@ -1,0 +1,274 @@
+fullselect
+
+IBM i programming resources > SQL > SQL reference > Queries > Queries
+
+IBM i programming resources > SQL > SQL reference > Queries
+
+fullselect
+The fullselect is a component of the select-statement,
+ALTER TABLE statement for the definition of a materialized query table,
+CREATE TABLE statement, CREATE VIEW statement, DECLARE GLOBAL TEMPORARY
+TABLE statement, INSERT statement, SET transition-variable statement,
+SET VARIABLE statement, UPDATE statement, and assignment-statement.
+subselect(fullselect)values-clauseUNIONDISTINCTALLEXCEPTDISTINCTINTERSECTDISTINCTsubselect(fullselect)values-clauseorder-by-clauseoffset-clausefetch-first-clausevalues-clauseVALUES,values-rowvalues-rowexpressionNULL(,expressionNULL)
+A
+fullselect that is enclosed in parenthesis is called a subquery.
+For example, a subquery can be used in a
+search condition.
+A scalar-fullselect is
+a fullselect, enclosed in parentheses, that returns a single result
+row and a single result column. If the result of the fullselect is
+no rows, then the null value is returned. An error is returned if
+there is more than one row in the result.
+A fullselect specifies a result table.
+If UNION, EXCEPT, or INTERSECT is not used, the result of the fullselect
+is the result of the specified subselect or values-clause.
+values-clause
+Derives a result table by specifying the actual values, using
+expressions, for each column of a row in the result table. Multiple
+rows may be specified.
+NULL can only be used with multiple specifications of values-row,
+and at least one row in the same column must not be NULL.
+A values-row is specified by:A single expression for a single column result table or,
+n expressions (or NULL) separated by commas and enclosed
+in parentheses, where n is the number of columns in the result
+table.
+
+A multiple row VALUES clause must have the same number of expressions
+in each values-row.
+The following are examples of values-clauses and their
+meanings. VALUES (1), (2), (3) - 3 rows of 1 column
+VALUES 1, 2, 3 - 3 rows of 1 column
+VALUES (1, 2, 3) - 1 row of 3 columns
+VALUES (1,21), (2,22), (3,23) - 3 rows of 2 columns
+A values-clause that
+is composed of n specifications of values-row, RE1 to
+REn, where n is greater than 1 is equivalent to: RE1 UNION ALL RE2 ... UNION ALL REn
+This
+means that the corresponding expressions of each values-row must
+be comparable. All result columns in a values-row are unnamed.
+
+UNION, EXCEPT,
+or INTERSECT
+The set operators UNION, EXCEPT, and INTERSECT correspond
+to the relational operators union, difference, and intersection. A
+fullselect specifies a result table. If a set operator is not used,
+the result of the fullselect is the result of the specified subselect.
+Otherwise, the result table is derived by combining two other result
+tables (R1 and R2) subject to the specified set operator.UNION DISTINCT or UNION
+ALL
+If UNION
+is specified without the ALL option, the result is the set of all
+rows in either R1 or R2, with duplicate rows eliminated. In either
+case, however, each row of the UNION table is either a row from R1
+or a row from R2.
+EXCEPT DISTINCT
+The
+result consists of all rows that are only in R1, with duplicate rows
+in the result of this operation eliminated. Each row in the result
+table of the difference is a row from R1 that does not have a matching
+row in R2.
+INTERSECT DISTINCT
+The
+result consists of all rows that are in both R1 and R2, with the duplicate
+rows eliminated. Each row in the result table of the intersection
+is a row that exists in both R1 and R2.
+
+The expression that corresponds to
+the nth column in R1 and R2 can reference columns with column
+masks. The nth column of the result of the set operation can
+be derived from the masked values in R1 or R2.
+With
+DISTINCT, the elimination of the duplicate rows is based on the unmasked
+values in R1 and R2. Because all rows are from R1 or R2, the output
+values in the result table of the set operation may vary when one
+or more of the following conditions occur:The expression corresponding to the nth column in R1 references
+columns with column masks, but the expression corresponding to the nth
+column in R2 does not, or vise versa.
+The expressions corresponding to the nth column in R1 and
+R2 reference columns with different column masks.
+The column mask definition references columns that are not the
+same target column for which the column mask is defined, and those
+columns are not part of the DISTINCT operation. It is recommended
+that the column mask definition does not reference other columns from
+the target table.
+
+For example, a row in R1 is derived from the
+masked value, and a row in R2 is derived from the unmasked value.
+If the DISTINCT picks the row for the result table from R1, the masked
+value is returned. If the DISTINCT picks the row for the result table
+from R2, the unmasked value is returned.
+
+Rules for columns:R1 and R2 must have the same number of columns, and the data type
+of the nth column of R1 must be compatible with the data type
+of the nth column of R2. Character-string values are compatible
+with datetime values.
+The nth column of the result of UNION, UNION ALL, EXCEPT,
+or INTERSECT is derived from the nth columns of R1 and R2.
+The attributes of the result columns are determined using the rules
+for result columns.
+If the nth column of R1 is named, then the nth
+column of the result table has that result column name. Otherwise,
+the result column is unnamed.
+If UNION, INTERSECT, or EXCEPT is specified, no column
+can be a DATALINK or XML column.
+
+For information on the valid combinations of operand columns
+and the data type of the result column, see Rules for result data types.
+EXCEPT and INTERSECT restrictions: VALUES, INTERSECT,
+and EXCEPT are not allowed if the query specifies one of the following:
+A distributed table
+A table with a read trigger
+A logical file built over multiple physical file members
+
+Duplicate rows: Two rows are duplicates if each
+value in the first is equal to the corresponding value of the second.
+(For determining duplicates, two null values are considered equal.)
+Operator precedence: UNION, UNION ALL, and INTERSECT are
+associative set operations. However, when UNION, UNION ALL, EXCEPT,
+and INTERSECT are used in the same statement, the result depends on
+the order in which the operations are performed. Operations within
+parenthesis are performed first. When the order is not specified by
+parentheses, operations are performed in left-to-right order with
+the exception that all INTERSECT operations are performed before UNION
+or EXCEPT operations.
+Results of set operators: In the following example,
+the values of tables R1 and R2 are shown on the left. The other headings
+listed show the values as a result of various set operations on R1
+and R2.
+R1
+R2
+UNION ALL
+UNION
+EXCEPT
+INTERSECT
+
+1
+1
+1
+1
+2
+1
+
+1
+1
+1
+2
+5
+3
+
+1
+3
+1
+3
+ 
+4
+
+2
+3
+1
+4
+ 
+ 
+
+2
+3
+1
+5
+ 
+ 
+
+2
+3
+2
+ 
+ 
+ 
+
+3
+4
+2
+ 
+ 
+ 
+
+4
+ 
+2
+ 
+ 
+ 
+
+4
+ 
+3
+ 
+ 
+ 
+
+5
+ 
+3
+ 
+ 
+ 
+
+ 
+ 
+3
+ 
+ 
+ 
+
+ 
+ 
+3
+ 
+ 
+ 
+
+ 
+ 
+3
+ 
+ 
+ 
+
+ 
+ 
+4
+ 
+ 
+ 
+
+ 
+ 
+4
+ 
+ 
+ 
+
+ 
+ 
+4
+ 
+ 
+ 
+
+ 
+ 
+5
+ 
+ 
+ 
+
+Collating sequence: If a collating sequence other
+than *HEX is in effect when the statement that contains the UNION,
+EXCEPT, or INTERSECT keyword is executed and if the result tables
+contain columns that are SBCS data, mixed data, or Unicode data, the
+comparison for those columns is done using weighted values. The weighted
+values are derived by applying the collating sequence to each value.
+
+Examples of a fullselect
+
+Parent topic: Queries

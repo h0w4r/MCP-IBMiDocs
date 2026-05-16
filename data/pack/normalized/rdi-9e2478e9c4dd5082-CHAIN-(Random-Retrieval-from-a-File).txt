@@ -1,0 +1,187 @@
+CHAIN (Random Retrieval from a File)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+CHAIN (Random Retrieval from a File)
+
+Free-Form Syntax
+
+CHAIN{(ENHMR)} search-arg name {data-structure}
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+CHAIN (E N)
+
+search-arg
+
+name (file or
+record format)
+
+data-structure
+
+NR
+
+ER
+
+_
+
+The CHAIN operation retrieves a record from a full procedural file, sets a record identifying indicator on
+(if specified on the input specifications), and places the data from
+the record into the input fields.
+
+The search argument, search-arg,
+must be the key or relative record number used to retrieve the record.
+If access is by key, search-arg can be a
+a single key in the form of a field name, a named constant, a figurative
+constant, or a literal.
+
+If the file is an externally-described file, search-arg can
+also be a composite key in the form of a KLIST name, a list of values,
+or %KDS. For keys specified using a KLIST, key fields must have the same CCSID as
+the key in the file. For an example of %KDS, see the example at the
+end of %KDS (Search Arguments in Data Structure). If access is by relative
+record number, search-arg must be an integer
+literal or a numeric field with zero decimal positions.
+
+See *STRICTKEYS
+for information about the effect Control keyword EXPROPTS(*STRICTKEYS)
+has on the rules for specifying keys with a list of values or %KDS.
+
+The name operand specifies
+the file or record format name that is to be read. A record format
+name is valid with an externally described file. If a file name is
+specified in name and access
+is by key, the CHAIN operation retrieves the first record that matches
+the search argument.
+
+If name is a record format
+name and access is by key, the CHAIN operation retrieves the first
+record of the specified record type whose key matches the search argument.
+If no record is found of the specified record type that matches the
+search argument, a no-record-found condition exists.
+
+If the data-structure operand
+is specified, the record is read directly into the data structure.
+If name refers to a program-described
+file, the data structure can be any
+data structure of the same length as the file's declared record length.
+If name refers to an externally-described
+file or a record format from an externally described file, the data
+structure must be a data structure defined with EXTNAME(...:*INPUT or *ALL) or LIKEREC(...:*INPUT or *ALL). See File Operations for information on how to define the
+data structure and how data is transferred between the file and the
+data structure.
+
+For a WORKSTN file, the CHAIN operation retrieves a subfile record.
+
+For a multiple device file, you must specify a record format in
+the name operand. Data is read
+from the program device identified by the field name specified in
+the DEVID(fieldname) keyword in the file specifications
+for the device file. If the keyword is not specified, data is read
+from the device for the last successful input operation to the file.
+
+If the file is specified as an input DISK file, all records are
+read without locks and so no operation extender can be specified.
+If the file is specified as update, all records are locked if the
+N operation extender is not specified.
+
+If you are reading from an update disk file, you can specify an
+N operation extender to indicate that no lock should be placed on
+the record when it is read (e.g. CHAIN (N)). See the Rational® Development Studio for i: ILE RPG Programmer's Guide for more
+information.
+
+You can specify an indicator in positions 71-72 that is set on
+if no record in the file matches the search argument. This information
+can also be obtained from the %FOUND built-in function, which returns
+'0' if no record is found, and '1' if a record is found.
+
+Positions 75 and 76 must be blank.
+
+To handle CHAIN exceptions (file
+status codes greater than 1000), either the operation code
+extender 'E' or an error indicator ER can be specified, but not both.
+For more information on error handling, see File Exception/Errors.
+
+When the CHAIN operation is successful, the file specified in name is positioned such that a subsequent
+read operation retrieves the record logically following or preceding
+the retrieved record. When the CHAIN operation is not completed successfully
+(for example, an error occurs or no record is found), the file specified
+in name must be repositioned
+(for example, by a CHAIN or SETLL operation) before a subsequent read
+operation can be done on that file.
+
+If an update (on the calculation or output specifications) is done
+on the file specified in name immediately
+after a successful CHAIN operation to that file, the last record retrieved
+is updated.
+
+See Database Null Value Support for information on handling
+records with null-capable fields and keys.
+
+For more information, see File Operations.
+
+Note: Operation code extenders H, M, and R are allowed
+only when the search argument is a list or is %KDS().
+See Keys for File Operations
+and Ensuring Accuracy.
+
+Figure 1. CHAIN Operation with a File Name
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+*
+* The CHAIN operation retrieves the first record from the file,
+* FILEX, that has a key field with the same value as the search
+* argument KEY (factor 1).
+
+/FREE
+CHAIN KEY FILEX;
+
+// If a record with a key value equal to the search argument is
+// not found, %FOUND returns '0' and the EXSR operation is
+// processed. If a record is found with a key value equal
+// to the search argument, the program continues with
+// the calculations after the EXSR operation.
+
+IF NOT %FOUND;
+EXSR Not_Found;
+ENDIF;
+/END-FREE
+
+Figure 2. CHAIN Operation Using
+a List of Key Fields
+FFilename++IPEASF.....L.....A.Device+.Keywords+++++++++++++++++++++++++
+FCUSTFILE IF E K DISK
+/free
+// Specify the search keys directly in a list
+chain ('abc' : 'AB') custrec;
+// Expressions can be used in the list of keys
+chain (%xlate(custname : LO : UP) : companyCode + partCode)
+custrec;
+return;
+
+Figure 3. CHAIN Operation Using
+a Data Structure with an Externally-Described File
+FFilename++IPEASF.....L.....A.Device+.Keywords+++++++++++++++++++++++++
+FCUSTFILE IF E K DISK
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++
+D custRecDs ds likerec(custRec)
+
+/free
+// Read the record directly into the data structure
+chain ('abc' : 'AB') custRec custRecDs;
+// Use the data structure fields
+if (custRecDs.code = *BLANKS);
+custRecDs.code = getCompanyCode (custRecDs);
+update custRec custRecDs;
+endif;
+
+Parent topic: Operation Codes

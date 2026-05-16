@@ -1,0 +1,212 @@
+Receiving a message from a program or procedure that has ended
+
+IBM i programming resources > Control language > Control language > Messages > Messages
+
+IBM i programming resources > Control language > Control language > Messages
+
+Receiving a message from a program or procedure that has ended
+Occasionally, there is a need to receive messages from the job
+log that are sent to a call message queue that is no longer active.
+For example, PGMA calls PGMB and PGMB sends a diagnostic message
+to itself and an escape message to PGMA. PGMA can easily receive the escape
+message that was sent to it, but sometimes it is necessary to also receive
+the diagnostic message. Because the diagnostic is on a call message queue
+that is no longer active, the message must be received by using a message
+reference key. This can be done, but it takes more work than one simple
+receive message command.
+The following considerations are important
+in understanding how this works:
+If the Receive Message (RCVMSG) command (or QMHRCVPM API)
+is coded to receive a message by key from its own call message queue, it will
+receive the message with that key (if it still exists) from the job log,
+regardless of what call message queue the message was sent to or whether
+that procedure is active.
+The message reference key for messages in the job log can be treated as
+a 4-byte unsigned integer that is incremented for each message sent (even
+though it is documented externally as a 4-character value).
+
+The following steps are required to obtain a message from a program
+or procedure that has ended:
+
+Send a message (and optionally remove it) to obtain a starting
+message reference key.
+Run the function that will send the messages you are interested
+in.
+Send another message to obtain an ending message reference key.
+In a loop, increment the message reference key between the starting
+and ending message keys identified in steps 1 and 3 and receive the message
+for each key. There can be gaps in the message reference key so the CPF2410
+exception from the receive message function must be handled. The gaps can
+occur from a message that have been deleted or from internal exception handling.
+
+Note: This topic provides a procedure and example for one way to
+receive a message from a program or procedure that has ended. There are other
+techniques that can be used to access some or all of the messages in the
+job log. These are summarized in the following list, but are not explained
+in detail, nor are sample programs provided:
+
+Write the job log to an outfile. This can be done either by specifying
+OUTPUT(*OUTFILE) on the Display Job Log (DSPJOBLOG) command,
+or using the QMHCTLJL API to define the job log outfile
+specifications and either ending the job or specifying OUTPUT(*APIDFN) on
+the Display Job Log (DSPJOBLOG) command. When you do this
+all messages in the job log will be written to the outfile. So messages that
+are left on a call message queue when the program or procedure ends
+are included.
+Use the List Job Log Messages (QMHLJOBL) API to copy
+messages from the job log into a user space. You can select all of the messages
+in the job log or a subset, and you can select which fields are returned for
+each message. There are APIs that can be used to access the contents of the
+user space. The QUSPTRUS API can be used to get a pointer
+to the data in the user space. Then the pointer can be used with languages
+that support pointers. API QUSRTVUS can be used to retrieve
+data from the user space in order to use languages that do not support pointers.
+
+A sample program of the procedure described previously is provided
+as follows using the RCVMSG command and the QMHRCVPM API.
+Note: By
+using the code example, you agree to the terms of the Code license and disclaimer information.
+*******************************************************************************
+*
+* CL program example using the RCVMSG command
+*
+*
+*******************************************************************************
+
+This has the advantage of being easier to code and is easier to follow.
+It has the disadvantage of requiring the program to monitor for and handle
+the CPF2410 exception, which is not a good thing if performance is important.
+
+PGM
+DCL &LOWKEY *CHAR 4
+DCL &HIKEY *CHAR 4
+DCL &MSGKEY *CHAR 4
+DCL &MSG *CHAR 256
+/*-----------------------------------------------------------------*/
+/* OBTAIN STARTING MESSAGE REFERENCE KEY */
+/*-----------------------------------------------------------------*/
+SNDPGMMSG MSG(TEST) TOPGMQ(*SAME) KEYVAR(&LOWKEY)
+RMVMSG MSGKEY(&LOWKEY)
+/*-----------------------------------------------------------------*/
+/* EXECUTE FUNCTION */
+/*-----------------------------------------------------------------*/
+
+---- Insert whatever command(s) or program call(s) you want ----
+---- to handle messages for here ----
+
+/*-----------------------------------------------------------------*/
+/* OBTAIN ENDING MESSAGE REFERENCE KEY */
+/*-----------------------------------------------------------------*/
+SNDPGMMSG MSG(TEST) TOPGMQ(*SAME) KEYVAR(&HIKEY)
+RMVMSG MSGKEY(&HIKEY)
+/*-----------------------------------------------------------------*/
+/* LOOP TO RECEIVE MESSAGES ON INACTIVE INVOCATION */
+/*-----------------------------------------------------------------*/
+CHGVAR %BIN(&MSGKEY 1 4) (%BIN(&LOWKEY 1 4) + 1)
+LOOP:
+RCVMSG PGMQ(*SAME (*)) MSGKEY(&MSGKEY) RMV(*NO) MSG(&MSG)
+MONMSG CPF2410 EXEC(DO) /* HANDLE MSGKEY NOT FOUND */
+RCVMSG MSGTYPE(*EXCP) RMV(*YES) /* REMOVE UNWANTED EXCEPTION */
+GOTO SKIP
+ENDDO
+
+---- Insert code here to do whatever processing is needed ----
+---- for the message. You may need to add additional ----
+---- values, such as message ID, message type, etc., to ----
+---- the RCVMSG command. ----
+
+SKIP:
+CHGVAR %BIN(&MSGKEY 1 4) (%BIN(&MSGKEY 1 4) + 1)
+IF (&MSGKEY *LT &HIKEY) GOTO LOOP
+ENDPGM
+
+*******************************************************************************
+*
+* CL program using the QMHRCVPM API.
+*
+*******************************************************************************
+
+This sample is similar to the first sample. The only difference is that
+it uses the QMHRCVPM API instead of the RCVMSG CL command. By using the error
+code structure, it eliminates the need to handle the CPF2410 exception and the
+overhead required to send the exception in the case of the message key not
+being found. This example shows how to extract the message text from the
+structure returned by the API. If the message is an immediate message (i.e. no
+message ID), the message is in the 'Replacement data or impromptu message text'
+area; otherwise it is in the 'Message' area which follows the 'Replacement
+data' field. The example checks the message length to determine which of these
+fields to use for the message.
+
+PGM
+DCL &LOWKEY *CHAR 4
+DCL &HIKEY *CHAR 4
+DCL &MSGKEY *CHAR 4
+DCL &MSG *CHAR 256
+/*------------------------------------------------------------------*/
+/* Some messages have a large amount of message data, in which case */
+/* the size of the &MSGINFO variable will not be adequate. If you */
+/* expect to receive messages with a large amount of message data, */
+/* you will need to increase the size of this variable accordingly. */
+/* Be sure to also change the value that is put into &MSGINFOL to */
+/* reflect the size of the variable. */
+/*------------------------------------------------------------------*/
+DCL &MSGINFO *CHAR 1000
+DCL &MSGINFOL *CHAR 4
+DCL &ERRCODE *CHAR 16
+DCL &MSGOFFS *DEC (4 0)
+DCL &MSGLEN *DEC (4 0)
+/*-----------------------------------------------------------------*/
+/* OBTAIN STARTING MESSAGE REFERENCE KEY */
+/*-----------------------------------------------------------------*/
+SNDPGMMSG MSG(TEST) TOPGMQ(*SAME) KEYVAR(&LOWKEY)
+RMVMSG MSGKEY(&LOWKEY)
+/*-----------------------------------------------------------------*/
+/* EXECUTE FUNCTION */
+/*-----------------------------------------------------------------*/
+
+---- Insert whatever command(s) or program call(s) you want ----
+---- to handle messages for here ----
+
+/*-----------------------------------------------------------------*/
+/* OBTAIN ENDING MESSAGE REFERENCE KEY */
+/*-----------------------------------------------------------------*/
+SNDPGMMSG MSG(TEST) TOPGMQ(*SAME) KEYVAR(&HIKEY)
+RMVMSG MSGKEY(&HIKEY)
+/*-----------------------------------------------------------------*/
+/* LOOP TO RECEIVE MESSAGES WITH QMHRCVPM API */
+/*-----------------------------------------------------------------*/
+CHGVAR %BIN(&MSGKEY 1 4) (%BIN(&LOWKEY 1 4) + 1)
+CHGVAR %BIN(&MSGINFOL 1 4) 1000
+CHGVAR %BIN(&ERRCODE 1 4) 16
+LOOP2:
+CALL QMHRCVPM (&MSGINFO &MSGINFOL RCVM0200 '* ' +
+X'00000000' '*ANY ' &MSGKEY X'00000000' +
+'*SAME ' &ERRCODE)
+IF ((%BIN(&MSGINFO 5 4) *GT 0) *AND (%BIN(&ERRCODE 5 4) *EQ 0)) +
+DO /* IF A MESSAGE WAS RECEIVED */
+IF (%BIN(&MSGINFO 161 4) *EQ 0) +
+DO /* IMPROMPTU MESSAGE */
+CHGVAR &MSGLEN %BIN(&MSGINFO 153 4)
+CHGVAR &MSGOFFS 177
+ENDDO
+ELSE +
+DO /* STORED MESSAGE */
+CHGVAR &MSGLEN %BIN(&MSGINFO 161 4)
+CHGVAR &MSGOFFS (177 + %BIN(&MSGINFO 153 4))
+ENDDO
+CHGVAR &MSG %SST(&MSGINFO &MSGOFFS &MSGLEN)
+
+---- Insert code here to do whatever processing is needed ----
+---- for the message. You can extract additional ----
+---- values, such as message ID, message type, etc., ----
+---- from the message information structure if necessary. ----
+
+ENDDO
+CHGVAR %BIN(&MSGKEY 1 4) (%BIN(&MSGKEY 1 4) + 1)
+IF (&MSGKEY *LT &HIKEY) GOTO LOOP2
+ENDPGM
+
+Parent topic: Messages
+
+Related concepts
+Call message queue

@@ -1,0 +1,161 @@
+LISTAGG
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Aggregate functions > Aggregate functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Aggregate functions
+
+LISTAGG
+The LISTAGG function aggregates a set of string elements
+into one string by concatenating the strings. Optionally, a separator
+string can be provided which is inserted between contiguous input
+strings.
+LISTAGG(ALLDISTINCTstring-expression,separator-expressionON OVERFLOW ERRORON OVERFLOW TRUNCATE'...'overflow-charactersWITH COUNTWITHOUT COUNT)WITHIN GROUP(ORDER BY,sort-key-expressionASCDESC)
+The LISTAGG function aggregates a set of string values
+for the group into one string by appending the string-expression values
+based on the order specified in the WITHIN GROUP clause.
+The
+function is applied to the set of values that are derived from the
+first argument by the elimination of null values. If DISTINCT is specified,
+duplicate string-expression values are eliminated. If a separator
+argument is specified that is not the null value, the separator value
+is inserted between each pair of non-null string-expression values.
+string-expression
+An expression that specifies the string values to be aggregated.
+The expression must return a value that is a built-in string, numeric,
+or datetime data type. If the value is a numeric or datetime data
+type, it is implicitly cast to VARCHAR before the function is evaluated.
+separator-expression
+An expression that defines the string that is to be used between
+non-null string-expression values. The expression must return
+a value that is a built-in string, numeric, or datetime data type.
+If the value is a numeric or datetime data type, it is implicitly
+cast to VARCHAR before the function is evaluated. separator-expression must
+not contain a scalar-fullselect, a column reference, or a reference
+to a function that is not deterministic or external action.
+If no separator-expression is specified or if separator-expression is
+the null value, there is no separation between string-expression values.
+ON OVERFLOW ERROR or ON OVERFLOW TRUNCATE
+Specifies the behavior if the actual length of the aggregated
+result string exceeds the result length. The default is ON OVERFLOW
+ERROR.ON OVERFLOW ERROR
+Indicates an error is returned if the actual length of the result
+string exceeds the result length.
+ON OVERFLOW TRUNCATE
+Indicates the aggregated result string will be truncated if the
+actual length of the result string exceeds the result length. The
+truncation will occur at the end of a string value. The result string
+will contain complete entries including a final separator-expression,
+if one is defined.
+If string-expression is a binary string or a non-Unicode
+graphic string, this option is not allowed.'...' or overflow-characters
+Indicates a character string constant to be appended to the end
+of the result string to indicate truncation occurred.'...'
+Indicates that three period characters are appended directly after
+the last complete entry. This is the default.
+overflow-characters
+Indicates the character string constant to be appended directly
+after the last complete entry.
+
+WITH COUNT or WITHOUT COUNT
+Indicates whether the number of truncated values is included at
+the end of the result string. The default is WITH COUNT.WITH COUNT
+The number of values truncated from the string is appended to
+the end of the result string. It is formatted as a number within parentheses.
+For example, if 10 entries were truncated, (10) is
+included at the end of the string.
+WITHOUT COUNT
+No indication of the number of entries that were truncated is
+returned.
+
+WITHIN GROUP
+Indicates that the aggregation will follow the specified ordering
+within the grouping set. If WITHIN GROUP is not specified, the
+ordering of strings within the result is not deterministic.
+ORDER BY
+Specifies the order of the rows from the same grouping set that
+are processed in the aggregation. If the ORDER BY clause is not specified,
+or if the ORDER BY clause cannot differentiate the order of the sort
+key value, the rows in the same grouping set are arbitrarily ordered.
+sort-key-expression
+Specifies a sort key value that is either a column name or an
+expression. The data type of the column or expression must not be
+a DATALINK or XML value.
+The ordering of the aggregated elements is based on the values
+of the sort keys.
+The sum of the length attributes of the sort-key-expression must
+not exceed 3.5 gigabytes.
+ASC
+Processes the sort-key-expression in ascending order. This
+is the default.
+DESC
+Processes the sort-key-expression in descending order.
+
+If a collating sequence other than *HEX is in effect when the
+statement that contains the LISTAGG function is executed and the sort-key-expressions are
+SBCS data, mixed data, or Unicode data, then the result is obtained
+by comparing weighted values. The weighted values are derived by applying
+the collating sequence to the sort-key-expressions.
+
+The result data type of LISTAGG is based on the
+data type of string-expressionTable 1. Determining the
+result data type and lengthData type of string-expression
+Result data type and length
+
+CHAR(n) or VARCHAR(n)
+VARCHAR(MAX(4000, n))
+
+CLOB(n)
+CLOB(1M)
+
+GRAPHIC(n) or VARGRAPHIC(n)
+VARGRAPHIC(MAX(2000, n))
+
+DBCLOB(n)
+DBCLOB(1M)
+
+BINARY(n) or VARBINARY(n)
+VARBINARY(MAX(4000, n))
+
+BLOB(n)
+BLOB(1M)
+
+The result data type can exceed VARCHAR(4000), VARBINARY(4000),
+or VARGRAPHIC(2000) if a derived size is used to determine the size
+of the result. The maximum possible value is the maximum for the result
+data type. The following example yields a return data type of VARCHAR(10000): LISTAGG(CAST(NAME AS VARCHAR(10000)), ',')
+
+If
+the actual length of the aggregated result string exceeds the result
+length, the behavior is determined by the ON OVERFLOW clause.
+The
+CCSID of the result is the CCSID of string-expression.
+If
+a collating sequence other than *HEX is in effect when the statement
+that contains the LISTAGG function is executed, and the sort-key-expressions
+are SBCS data, mixed data, or Unicode data, then the result is obtained
+by comparing the weighted values. The weighted values are derived
+by applying the collating sequence to the sort-key-expressions.
+The
+result can be null. If the function is applied to an empty set or
+all of the string-expression values in the set are null values,
+the result is the null value.
+RulesLISTAGG cannot be used as part of an OLAP specification.
+
+ExampleProduce an alphabetical list of comma-separated names, grouped
+by department.SELECT workdept,
+LISTAGG(lastname, ', ') WITHIN GROUP(ORDER BY lastname)
+AS employees
+FROM emp
+GROUP BY workdept
+Generates the following result:WORKDEPT EMPLOYEES
+A00 HAAS, HEMMINGER, LUCCHESSI, O'CONNELL, ORLANDO
+B01 THOMPSON
+C01 KWAN, NATZ, NICHOLLS, QUINTANA
+D11 ADAMSON, BROWN, JOHN, JONES, LUTZ, PIANKA, SCOUTTEN, STERN, WALKER
+YAMAMOTO, YOSHIMURA
+D21 JEFFERSON, JOHNSON, MARINO, MONTEVERDE, PEREZ, PULASKI, SMITH
+E01 GEYER
+E11 HENDERSON, PARKER, SCHNEIDER, SCHWARTZ, SETRIGHT, SMITH, SPRINGER
+E21 ALONZO, GOUNOT, LEE, MEHTA, SPENSER, WONG
+
+Parent topic: Aggregate functions

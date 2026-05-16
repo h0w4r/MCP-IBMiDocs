@@ -1,0 +1,155 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 19. Using Database Files and Distributed Data Management Files in a Program
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 19. Using Database Files and Distributed Data Management Files in a Program
+
+ILE C/C++ Programmer's Guide
+Processing a Database Record File Using Record Input and Output Functions
+You can read and print records from a data file.
+Example:
+The following example uses the _Ropen(),
+_Rreadl(), _Rreadp(), _Rreads(),
+_Rreadd(), _Rreadf(), _Rrlslck(),
+_Rdelete(), _Ropnfbk(), and
+_Rclose() record I/O functions. The program T1520REC
+reads and prints records from the data file T1520DD4.
+
+On the command line, enter:
+
+CRTPF FILE(MYLIB/T1520DD4) SRCFILE(QCPPLE/QADDSSRC)
+
+This creates the physical file T1520DD4 that uses the following DDS:
+
+Figure 131. T1520DD4 -- DDS Source for Database Records
+
+A R PURCHASE
+A ITEMNAME 10
+A SERIALNUM 10
+A K SERIALNUM
+
+Enter the following sample data into T1520DD4:
+
+orange 1000222200
+grape 1000222010
+apple 1000222030
+cherry 1000222020
+
+On the command line, enter:
+
+CRTBNDC PGM(MYLIB/T1520REC) SRCFILE(QCPPLE/QACSRC).
+
+This creates the program T1520REC that uses the following source:
+Figure 132. T1520REC -- ILE C Source to Process a Database File Using Record I/O Functions
+
+/* This program illustrates how to use the _Rreadp(), _Rreads(), */
+/* _Rreadd(), _Rreadf(), _Rreadn(),
+/* _Ropnfbk(), _Rdelete, and _Rrlslck() functions. */
+ 
+#include <stdio.h>
+#include <stdlib.h>
+#include <recio.h>
+ 
+int main(void)
+{
+char buf[21];
+_RFILE *fp;
+_XXOPFB_T *opfb;
+/* Open the file for processing in arrival sequence. */
+ 
+if (( fp = _Ropen ( "*LIBL/T1520DD4", "rr+, arrseq=Y" )) == NULL )
+{
+printf ( "Open failed\n" );
+exit ( 1 );
+};
+/* Get the library and file names of the file opened. */
+ 
+opfb = _Ropnfbk ( fp );
+printf ( "Library: %10.10s\nFile: %10.10s\n",
+opfb->library_name,
+opfb->file_name);
+
+/* Get the last record. */
+ 
+_Rreadl ( fp, NULL, 20, __DFT );
+printf ( "Fourth record: %10.10s\n", *(fp->in_buf) );
+ 
+/* Get the third record. */
+ 
+_Rreadp ( fp, NULL, 20, __DFT );
+printf ( "Third record: %10.10s\n", *(fp->in_buf) );
+ 
+/* Release lock on the record so another function can access it. */
+ 
+_Rrlslck ( fp );
+/* Read the same record. */
+ 
+_Rreads ( fp, NULL, 20, __DFT );
+printf ( "Same record: %10.10s\n", *(fp->in_buf) );
+
+/* Get the second record without locking it. */
+ 
+_Rreadd ( fp, NULL, 20, __NO_LOCK, 2 );
+printf ( "Second record: %10.10s\n", *(fp->in_buf) );
+ 
+/* Get the first record. */
+ 
+_Rreadf ( fp, NULL, 20, __DFT );
+printf ( "First record: %10.10s\n", *(fp->in_buf) );
+ 
+/* Delete the second record. */
+ 
+_Rreadn ( fp, NULL, 20, __DFT );
+_Rdelete ( fp );
+ 
+/* Read all records after deletion. */
+ 
+_Rreadf ( fp, NULL, 20, __DFT );
+printf ( "First record after deletion: %10.10s\n", *(fp->in_buf));
+_Rreadn ( fp, NULL, 20, __DFT );
+printf ( "Second record after deletion: %10.10s\n", *(fp->in_buf));
+_Rreadn ( fp, NULL, 20, __DFT );
+printf ( "Third record after deletion: %10.10s\n", *(fp->in_buf));
+ 
+_Rclose ( fp );
+}
+
+The _Ropen() function opens the file T1520DD4. The
+_Ropnfbk() function gets the library name MYLIB and file name
+T1520DD4. The _Rreadl() function reads the fourth record
+"cherry 1000222020". The _Rreadp() function reads
+the third record " apple 1000222030". The
+_Rrlslck() function releases the lock on this record so that
+_Rreads() can read it again. The _Rreadd()
+function reads the second record "grape 1000222010" without locking
+it. The _Rreadf() function reads the first record
+"orange 1000222200". The _Rdelete() function
+deletes the second record. All records are then read and
+printed.
+Run the program T1520REC. On the command line, enter:
+
+CALL PGM(MYLIB/T1520REC)
+
+The screen output is as follows:
++--------------------------------------------------------------------------------+
+| Library: MYLIB |
+| File: T1520DD4 |
+| Fourth record: cherry |
+| Third record: apple |
+| Same record: apple |
+| Second record: grape |
+| First record: orange |
+| First record after deletion: orange |
+| Second record after deletion: apple |
+| Third record after deletion: cherry |
+| Press ENTER to end terminal session. |
++--------------------------------------------------------------------------------+
+The physical file T1520DD4 contains the following data:
+
+ORANGE 1000222200
+APPLE 1000222030
+CHERRY 1000222020
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

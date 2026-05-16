@@ -1,0 +1,105 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 3. Debugging Programs > Chapter 8. The ILE Source Debugger > Examples of Using Debug Expressions in ILE C Programs
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 3. Debugging Programs > Chapter 8. The ILE Source Debugger > Examples of Using Debug Expressions in ILE C Programs
+
+ILE C/C++ Programmer's Guide
+Examples of Displaying System and Space Pointers in the ILE Source Debugger
+
+The ILE C source code in Figure 69 sets up system and space pointers for an example of how they
+can be displayed with the debugger. The corresponding debug expressions
+and information are shown in Figure 70
+
+Figure 69. System and Space Pointers in ILE C Source Code
+
+#include <stdio.h>
+#include <mispace.h>
+#include <pointer.h>
+#include <mispcobj.h>
+#include <except.h>
+#include <lecond.h>
+#include <leenv.h>
+#include <qtedbgs.h> /* From qsysinc */
+/* Link up the Create User Space API */
+#pragma linkage(CreateUserSpace,OS)
+#pragma map(CreateUserSpace,"QUSCRTUS")
+void CreateUserSpace(char[20],
+char[10],
+long int,
+char,
+char[10],
+char[50],
+char[10],
+_TE_ERROR_CODE_T *
+);
+/* Link up the Delete User Space API */
+#pragma linkage(DeleteUserSpace,OS)
+#pragma map(DeleteUserSpace,"QUSDLTUS")
+void DeleteUserSpace(char[20],
+_TE_ERROR_CODE_T *
+);
+
+/* Link up the Retrieve Pointer to User Space API */
+#pragma linkage(RetrievePointerToUserSpace,OS)
+#pragma map(RetrievePointerToUserSpace,"QUSPTRUS")
+void RetrievePointerToUserSpace(char[20],
+char **,
+_TE_ERROR_CODE_T *
+);
+int main (int argc, char *argv[])
+{
+char *pBuffer;
+_SYSPTR pSYSptr;
+_TE_ERROR_CODE_T errorCode;
+errorCode.BytesProvided = 0;
+CreateUserSpace("QTEUSERSPCQTEMP ",
+"QTESSPC ",
+10,
+0,
+"*ALL ",
+" ",
+"*YES ",
+&errorCode
+);
+
+/*! call RetrievePointerToUserSpace - Retrieve Pointer to User Space */
+/*!! (pass: Name and library of user space, pointer variable */
+/*!! return: nothing (pointer variable is left pointing to start*/
+/*!! of user space) */
+RetrievePointerToUserSpace("QTEUSERSPCQTEMP ",
+&pBuffer,
+&errorCode);
+
+/* convert the space pointer to a system pointer */
+pSYSptr = _SETSPFP(pBuffer);
+
+printf("Space pointer: %p\n",pBuffer);
+printf("System pointer: %p\n",pSYSptr);
+
+return 0;
+}
+
+The following figure illustrates how the debugger displays system and space
+pointers.
+Figure 70. Example of System and Space Pointer Display
+
++--------------------------------------------------------------------------------+
+| Evaluate Expression  |
+| Previous debug expressions |
+|>eval pSYSptr System pointers are formatted |
+| pSYSptr = |
+| SYP:QTEUSERSPC :1934:QTEMP :111111110 |
+| 0011100 |
+|>eval pBuffer |
+| pBuffer = SPP:071ECD0002000000 Space pointers return 6 bytes that can |
+| be used in System Service Tools |
+| Bottom |
+| Debug . . . _________________________________________________________________|
+|_______________________________________________________________________________ |
+| F3=Exit F9=Retrieve F12=Cancel F18=Command entry F19=Left F20=Right |
++--------------------------------------------------------------------------------+
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

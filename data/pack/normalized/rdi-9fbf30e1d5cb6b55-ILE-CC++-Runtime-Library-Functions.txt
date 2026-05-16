@@ -1,0 +1,172 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations > Heap Memory
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Runtime Considerations > Heap Memory
+
+ILE C/C++ Runtime Library Functions
+
+Debug Memory Manager
+The debug memory manager is used primarily to find incorrect heap
+usage by an application. It is not optimized for performance and might
+negatively affect the performance of the application. However, it
+is valuable in determination of incorrect heap usage.
+Memory management errors are sometimes caused by writing past the
+end of an allocated buffer. Symptoms do not arise until much later
+when the memory that was overwritten (typically belonging to another
+allocation) is referenced and no longer contains the expected data.
+The debug memory manager allows detection of memory overwrites,
+memory over reads, duplicate frees, and reuse of freed memory. Memory
+problems detected by the debug memory manager result in one of two
+behaviors:
+
+If the problem is detected at the point that the incorrect usage
+occurs, an MCH exception message (typically an MCH0601, MCH3402, or
+MCH6801) is generated. In this case, the error message typically stops
+the application.
+If the problem is not detected until later, after the incorrect
+usage has already occurred, a C2M1212 message is generated. In this
+case, the message does not typically stop the application.
+The debug memory manager detects memory overwrites and memory over
+reads in two ways:
+
+First, it uses restricted access memory pages. A memory page with
+restricted access is placed before and after each allocation. Each
+memory block is aligned on a 16 byte boundary and placed as close
+to the end of a page as possible. Since memory protection is only
+allowed on a page boundary, this alignment allows the best detection
+of memory overwrites and memory over reads. Any read or write from
+one of the restricted access memory pages immediately results in an
+MCH exception.
+Second, it uses padding bytes before and after each allocation.
+A few bytes immediately before each allocation are initialized at
+allocation time to a preset byte pattern. Any padding bytes following
+the allocation required to round the allocation size to a multiple
+of 16 bytes are initialized at allocation time to a preset byte pattern.
+When the allocation is freed, all the padding bytes are verified to
+ensure that they still contain the expected preset byte pattern. If
+any of the padding bytes have been modified, the debug memory manager
+generates a C2M1212 message with reason code X’80000000’,
+indicating this fact.
+Allocation
+A large amount of extra memory is required for each allocation
+request. The extra memory is due to the following:
+
+A memory page before the allocation (single-level store
+version only)
+A memory page after the allocation
+A header on each allocation
+Alignment of each block of memory on a 16 byte boundary
+The size of the header on each allocation is 16 bytes. Each block
+must be aligned on a 16 byte boundary. The total amount of memory
+required for an allocation of size n in the
+single-level store version is:
+size = ROUND((PAGESIZE * 2) + n + 16, PAGESIZE)
+For example, an allocation of size 37 with a page size of 4096
+bytes requires a size of ROUND(8192 + 37 + 16, 4096), which is equal
+to 12,288 bytes.
+The total amount of memory required for an allocation of size n in the teraspace version is:
+
+size = ROUND(PAGESIZE + n + 16, PAGESIZE)
+For example, an allocation of size 37 with a page size of 4096
+bytes requires a size of ROUND(4096 + 37 + 16, 4096), which is equal
+to 8,192 bytes.
+Deallocation
+Memory blocks deallocated with the free operation are
+returned to the system. The page protection attributes are set so
+that any further read or write access to that memory block generates
+an MCH exception.
+Reallocation
+In all cases, the following processing occurs:
+
+A new block of the requested size is allocated.
+The data is moved from the original block to the new block.
+The original block is returned with the free operation.
+The new block is returned to the caller.
+Enabling the debug memory manager
+The debug memory manager is not enabled by default, but is enabled
+and configured by setting the following environment variables:
+QIBM_MALLOC_TYPE=DEBUG
+QIBM_MALLOC_DEBUG_OPTIONS=options
+To enable the debug memory manager with the default settings, QIBM_MALLOC_TYPE=DEBUG
+needs to be specified. To enable the debug memory manager with user-specified
+configuration options, set QIBM_MALLOC_DEBUG_OPTIONS=options where options is a blank delimited list of one or more
+configuration options.
+If the QIBM_MALLOC_TYPE=DEBUG environment variable is specified
+and the _C_Quickpool_Init() function is called, the environment
+variable settings take precedence over the _C_Quickpool_Init() function
+and the _C_Quickpool_Init() function returns a -1
+value indicating that an alternate heap manager has been enabled.
+Configuration Options
+The following configuration options are available:
+MALLOC_INIT:N
+This option can be used to specify that each byte of allocated
+memory is initialized to the given value. The value N represents
+an integer in the range of 0 to 255.
+This option is not enabled by default.
+FREE_INIT:N
+This option can be used to specify that each byte of freed memory
+is initialized to the given value. The value N represents
+an integer in the range of 0 to 255.
+This option is not enabled by default.
+Any number of options can be specified and they can be specified
+in any order. Blanks are the only valid delimiters for separating
+configuration options. Each configuration option should only be specified
+once. If a configuration option is specified more than one, only the
+final instance applies. If a configuration option is specified with
+an invalid value, the configuration option is ignored.
+Examples
+
+ADDENVVAR ENVVAR(QIBM_MALLOC_DEBUG_OPTIONS) LEVEL(*JOB) REPLACE(*YES) VALUE('')
+
+ADDENVVAR ENVVAR(QIBM_MALLOC_DEBUG_OPTIONS) LEVEL(*JOB) REPLACE(*YES)
+VALUE('MALLOC_INIT:255 FREE_INIT:0')
+The first example represents the default configuration values.
+The second example illustrates all options being specified.
+Related Functions
+There are no functions available to enable or specify configuration
+options for the debug memory manager. Use the environment variable
+support to enable or specify configuration options.
+
+Notes:
+
+Use the debug memory manager to debug single applications or small
+groups of applications at the same time.
+The debug memory manager
+is not appropriate for full-time, constant, or system-wide
+use. Although it is designed for minimal performance impact upon
+the application being debugged, significant negative impact on overall
+system throughput can result if it is used on a system-wide
+basis. It might cause significant system problems, such as excessive
+use of the system auxiliary storage pool (ASP).
+The debug memory manager consumes significantly more memory than
+the default memory manager. As a result, the debug memory manager
+might not be appropriate for use in some debugging situations.
+Because
+the allocations require two memory pages or more of extra memory per
+allocation, applications that issue many small allocation requests
+see their memory usage increase dramatically. These programs might
+encounter new failures as memory allocation requests are denied due
+to a lack of memory. These failures are not necessarily errors in
+the application being debugged and they are not errors in the debug
+memory manager.
+Single-level store versions are limited
+to slightly less than 4 GB for the maximum amount of allocated heap
+storage. The debug memory manager allocates a minimum of three pages
+per allocation, which allows for less than 350,000 outstanding heap
+allocations (with a page size of 4096 bytes).
+The single-level store version of the debug memory manager
+does each allocation in a separate 16 MB segment which can cause the
+system to use temporary addresses more rapidly.
+
+Related Information
+
+calloc() — Reserve and Initialize Storage
+free() — Release Storage Blocks
+malloc() — Reserve Storage Block
+realloc() — Change Reserved Storage Block Size
+_C_Quickpool_Init() — Initialize
+Quick Pool Memory Manager
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

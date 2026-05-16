@@ -1,0 +1,78 @@
+Trailing blanks on command parameters
+
+Trailing blanks on command parametersLast Updated: 2025-10-07
+
+In certain command parameters, you can define how trailing
+blanks are processed.
+
+Some command parameters are defined with the parameter
+value of VARY(*YES). This parameter value causes the length of the
+value passed to be the number of characters between the single quotation
+marks. When a CL variable is used to specify the value for a parameter
+defined in this way, the system removes trailing blanks before determining
+the length of the variable to be passed to the command processor program.
+If the trailing blanks are present and are significant for the parameter,
+you must take special actions to ensure that the length passed includes
+them. Most command parameters are defined and used in ways that do
+not cause this condition to occur. An example of a parameter defined
+where this condition is likely to occur is the key value element of
+the POSITION parameter on the Override with Database File
+(OVRDBF) command.
+When this condition occurs, the
+result that you want can be attained for these parameters by constructing
+a command string that delimits the parameter value with single quotation
+marks and passing the string to QCMDEXC or QCAPCMD for processing.
+Here
+is an example of a program that can be used to run the Override
+with Database File (OVRDBF) command so that the trailing
+blanks are included as part of the key value. This same technique
+can be used for other commands that have parameters defined using
+the parameter VARY(*YES); trailing blanks must be passed with the
+parameter.
+
+Note: By using the code example, you agree to the terms
+of the Code license and disclaimer information.
+
+PGM PARM(&KEYVAL &LEN)
+/* PROGRAM TO SHOW HOW TO SPECIFY A KEY VALUE WITH TRAILING */
+/* BLANKS AS PART OF THE POSITION PARAMETER ON THE OVRDBF */
+/* COMMAND IN A CL PROGRAM. */
+/* THE KEY VALUE ELEMENT OF THE POSITION PARAMETER OF THE OVRDBF */
+/* COMMAND IS DEFINED USING THE VARY(*YES) PARAMETER. */
+/* THE DESCRIPTION OF THIS PARAMETER ON THE ELEM COMMAND */
+/* DEFINITION STATEMENT SPECIFIES THAT IF A PARAMETER */
+/* DEFINED IN THIS WAY IS SPECIFIED AS A CL VARIABLE THE */
+/* LENGTH IS PASSED AS THE VARIABLE WITH TRAILING BLANKS */
+/* REMOVED. A CALL TO QCMDEXC USING APOSTROPHES TO DELIMIT */
+/* THE LENGTH OF THE KEY VALUE CAN BE USED TO CIRCUMVENT */
+/* THIS ACTION. */
+/* PARAMETERS-- */
+DCL VAR(&KEYVAL) TYPE(*CHAR) LEN(32) /* THE VALUE +
+OF THE REQUESTED KEY. NOTE IT IS DEFINED AS +
+32 CHAR. */
+DCL VAR(&LEN) TYPE(*INT) /* THE LENGTH +
+OF THE KEY VALUE TO BE USED. ANY VALUE OF +
+1 TO 32 CAN BE USED */
+/* THE STRING TO BE FINISHED FOR THE OVERRIDE COMMAND TO BE */
+/* PASSED TO QCMDEXC (NOTE 2 APOSTROPHES TO GET ONE). */
+DCL VAR(&STRING) TYPE(*CHAR) LEN(100) +
+VALUE('OVRDBF FILE(X3) POSITION(*KEY 1 FMT1 '' ')
+/* POSITION MARKER 123456789 123456789 123456789 123456789 */
+DCL VAR(&END) TYPE(*DEC) LEN(15 5) /* A VARIABLE +
+TO CALCULATE THE END OF THE KEY IN &STRING */
+
+CHGVAR VAR(%SST(&STRING 40 &LEN)) VALUE(&KEYVAL) /* +
+PUT THE KEY VALUE INTO COMMAND STRING FOR +
+QCMDEXC IMMEDIATELY AFTER THE APOSTROPHE. */
+CHGVAR VAR(&END) VALUE(&LEN + 40) /* POSITION AFTER +
+LAST CHARACTER OF KEY VALUE */
+CHGVAR VAR(%SST(&STRING &END 2)) VALUE('')') /* PUT +
+A CLOSING APOSTROPHE & PAREN TO END +
+PARAMETER */
+CALL PGM(QCMDEXC) PARM(&STRING 100) /* CALL TO +
+PROCESS THE COMMAND */
+ENDPGM
+
+Note: If you use VARY(*YES) and RTNVAL(*YES) and are passing
+a CL variable, the length of the variable is passed rather than the
+length of the data in the CL variable.

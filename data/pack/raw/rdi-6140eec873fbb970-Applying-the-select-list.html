@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="DC.Title" content="Applying the select list">
+<meta name="DC.Relation" scheme="URI" content="rbafzselectclause.htm">
+<meta name="prodname" content="IBM i">
+<meta name="version" content="7.3">
+<meta name="brand" content="eserver-white">
+<meta name="copyright" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Rights.Owner" content="© Copyright IBM Corporation 1998, 2015">
+<meta name="DC.Date" scheme="iso8601" content="2017-03-18">
+<meta name="DC.Language" content="en-us">
+<meta name="IBM.Country" content="ZZ">
+<!-- Licensed Materials - Property of IBM -->
+<!-- US Government Users Restricted Rights -->
+<!-- Use, duplication or disclosure restricted by -->
+<!-- GSA ADP Schedule Contract with IBM Corp. -->
+<link rel="stylesheet" type="text/css" href="./ibmdita.css">
+<link rel="stylesheet" type="text/css" href="./ic.css">
+<link rel="Start" href="rbafzselectclause.htm">
+<title>Applying the select list</title>
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fdb2%2Frbafzapplyselect.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="rbafzapplyselect">
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_4">SQL</a> > <a href="../../topic/db2/rbafzintro.htm">SQL reference</a> > <a href="../../topic/db2/rbafzsubsel.htm">Queries</a> > <a href="../../topic/db2/rbafzsubselect.htm">subselect</a> > <a href="../../topic/db2/rbafzselectclause.htm">select&#45;clause</a></div>
+<header role="banner"><!-- Java sync-link --><script language="Javascript" src="../rzahg/synch.js" type="text/javascript"></script>
+</header><main role="main"><article role="article" aria-labelledby="d33772e7"><h1 class="topictitle1" id="d33772e7">Applying the select list</h1>
+<div class="body refbody"><section><p>The results of applying the select list to R depend on
+whether GROUP BY or HAVING is used:</p>
+</section><section><p id="rbafzapplyselect__rbafzselgbys">If GROUP BY or HAVING is used</p>
+</section><section> <ul><li>Each <span class="ph synph"><span class="ph var">column-name</span></span> in the select list
+must identify a grouping expression, or be specified within an aggregate
+function, or be a correlated reference:<ul><li>If the grouping expression is a column name, the select list may
+apply additional operators to the column name. For example, if the
+grouping expression is column C1, the select list may contain C1+1.</li>
+<li>If the grouping expression is not a column name, the select list
+may not apply additional operators to the expression. For example,
+if the grouping expression is C1+1, the select list may contain C1+1,
+but not (C1+1)/8.</li>
+</ul>
+</li>
+<li>The select list is applied to each group of R, and the result
+contains as many rows as there are groups in R. When the select list
+is applied to a group of R, that group is the source of the arguments
+of the aggregate functions in the select list.</li>
+<li>The RRN, RID, DATAPARTITIONNAME, DATAPARTITIONNUM, DBPARTITIONNAME,
+DBPARTITIONNUM, and HASHED_VALUE functions cannot be specified in
+the select list.</li>
+</ul>
+</section><section><p id="rbafzapplyselect__rbafzselgbno">If neither GROUP BY nor HAVING is used</p>
+</section><section> <ul><li>The select list
+must not include any aggregate functions, or each <span class="ph synph"><span class="ph var">column-name</span></span> must
+be specified in an aggregate function or be a correlated reference.</li>
+<li>If the select list does not include aggregate functions, it is
+applied to each row of R and the result contains as many rows as there
+are rows in R.</li>
+<li>If the select list is a list of aggregate functions, R is the
+source of the arguments of the functions and the result of applying
+the select list is one row.</li>
+</ul>
+</section><section><p>In either case the <em>n</em>th column of the result contains
+the values specified by applying the <em>n</em>th expression in the
+operational form of the select list.</p>
+</section><section><p><strong>Effect of column masks on result columns:</strong> When
+column masks are enabled, they determine the values in the final result
+table of an outermost select list. When a column mask is enabled for
+a column, if the column appears in the outermost select list (either
+implicitly or explicitly), the column mask is applied to the column
+to produce the values for the final result table. If the column itself
+does not appear in the outermost select list, but is included in the
+output (for example, it appears in a materialized table expression
+or a view), the masked value is included in the result table of the
+table expression or view so that it can be used in the final result
+table.</p>
+<p>The enabled column masks do not interfere with the operations
+of other clauses within the statement, such as the WHERE, GROUP BY,
+HAVING, SELECT DISTINCT, and ORDER BY clauses.</p>
+<p>The rows that
+are returned in the final result table remain the same, except that
+the values in the result rows might be masked. As such, if a column
+with masked values also appears in an ORDER BY clause with a sort-key
+expression, the order is based on the original column values (the
+masked values in the final result table might not reflect that order).
+Similarly, the masked values might not reflect the uniqueness enforced
+by a SELECT DISTINCT. If the masked column is embedded in an expression,
+the result of the expression might be different because the column
+mask is applied to the column before the expression is evaluated.
+For example, a column mask on column SSN can change the result of
+the function COUNT(DISTINCT SSN) because the DISTINCT operation is
+performed on the masked values. </p>
+<p>When the definition of a column
+mask is applied to an SQL statement to mask column values in the final
+result table, the semantics of the column mask might conflict with
+certain SQL semantics in the statement. In these situations, the combination
+of the statement and the column mask might return an error.</p>
+<p>See <a href="rbafzatabl.htm" title="The ALTER TABLE statement alters the definition of a table.">ALTER TABLE</a> for more information
+about the application of enabled column masks.</p>
+</section></div>
+<aside>
+<ul class="familylinks">
+<li><strong>Parent topic:</strong> <a data-hd-product="ssw_ibm_i_73" data-hd-activity="administer learn" data-hd-operatingsystem="IBMi" href="rbafzselectclause.htm" title="The SELECT clause specifies the columns of the final result table.">select-clause</a></li>
+</ul>
+</aside></article></main></body></html>

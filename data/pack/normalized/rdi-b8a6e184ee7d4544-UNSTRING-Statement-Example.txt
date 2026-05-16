@@ -1,0 +1,115 @@
+UNSTRING Statement Example
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > UNSTRING Statement > UNSTRING Statement
+
+IBM i programming resources > ILE COBOL > ILE COBOL Language Reference > Procedure Division > Procedure Division Statements > UNSTRING Statement
+
+UNSTRING Statement Example
+The following example illustrates some of the considerations that apply
+to the UNSTRING statement.
+In the Data Division, the user has defined the following input record to
+be acted upon by the UNSTRING statement:
+01 INV-RCD.
+05 CONTROL-CHARS PIC XX.
+05 ITEM-INDENT PIC X(20).
+05 FILLER PIC X.
+05 INV-CODE PIC X(10).
+05 FILLER PIC X.
+05 NO-UNITS PIC 9(6).
+05 FILLER PIC X.
+05 PRICE-PER-M PIC 99999.
+05 FILLER PIC X.
+05 RTL-AMT PIC 9(6).99.
+
+The next two records are defined as receiving fields for the UNSTRING statement.
+DISPLAY-REC is to be used for printed output. WORK-REC is to be used for
+further internal processing.
+01 DISPLAY-REC
+05 INV-NO PIC X(6).
+05 FILLER PIC X VALUE SPACE
+05 ITEM-NAME PIC X(20).
+05 FILLER PIC X VALUE SPACE
+05 DISPLAY-DOLS PIC 9(6).
+
+01 WORK-REC
+05 M-UNITS PIC 9(6).
+05 FIELD-A PIC 9(6).
+05 WK-PRICE
+REDEFINES
+FIELD-A PIC 9999V99.
+05 INV-CLASS PIC X(3).
+
+The user has also defined the following fields for use as control fields
+in the UNSTRING statement.
+01 DBY-1 PIC X, VALUE IS ".".
+01 CTR-1 PIC 99, VALUE IS ZERO.
+01 CTR-2 PIC 99, VALUE IS ZERO.
+01 CTR-3 PIC 99, VALUE IS ZERO.
+01 CTR-4 PIC 99, VALUE IS ZERO.
+01 DLTR-1 PIC X.
+01 DLTR-2 PIC X.
+01 CHAR-CT PIC 99, VALUE IS 3.
+01 FLDS-FILLED PIC 99, VALUE IS ZERO.
+
+In the Procedure Division, the user writes the following UNSTRING statement
+to move subfields of INV-RCD to the subfields of DISPLAY-REC and WORK-REC:
+UNSTRING INV-RCD
+DELIMITED BY ALL SPACES
+OR "⁄"
+OR DBY-1
+INTO ITEM-NAME COUNT IN CTR-1,
+INV-NO DELIMITER IN DLTR-1
+COUNT IN CTR-2,
+INV-CLASS,
+M-UNITS COUNT IN CTR-3,
+DISPLAY-DOLS DELIMITER IN DLTR-2
+COUNT IN CTR-4
+WITH POINTER CHAR-CT
+TALLYING IN FLDS-FILLED
+ON OVERFLOW
+GO TO UNSTRING-COMPLETE.
+
+Before the UNSTRING statement is issued, the user places the value 3 in
+the CHAR-CT (the pointer item), so as not to work with the two control characters
+at the beginning of INV-RCD. In DBY-1, a period is placed for use as a delimiter,
+and in FLDS-FILLED (the tallying item) the value 0 is placed. The following
+data is then read into INV-RCD as shown in Figure 1.
+Figure 1. UNSTRING Statement Example–Input Data
+When the UNSTRING statement is executed, the following actions take place:
+Positions 3 through 18 (FOUR-PENNY-NAILS) of INV-RCD are placed in ITEM-NAME,
+left-justified within the area, and the unused character positions are padded
+with spaces. The value 16 is placed in CTR-1.
+Because ALL SPACES is specified as a delimiter, the five contiguous SPACE
+characters are considered to be one occurrence of the delimiter.
+Positions 24 through 29 (707890) are placed in INV-NO. The delimiter
+character ⁄ is placed in DLTR-1, and the value 6 is placed in CTR-2.
+Positions 31 through 33 are placed in INV-CLASS. The delimiter is a SPACE,
+but because no field has been defined as a receiving area for delimiters,
+the SPACE is merely bypassed.
+Positions 35 through 40 (475120) are examined and are placed in M-UNITS.
+The delimiter is a SPACE, but because no receiving field has been defined
+as a receiving area for delimiters, the SPACE is bypassed. The value 6 is
+placed in CTR-3.
+Positions 42 through 46 (00122) are placed in FIELD-A and right-justified
+within the area. The high-order digit position is filled with a 0 (zero).
+The delimiter is a SPACE, but because no field has been defined as a receiving
+area for delimiters, the SPACE is bypassed.
+Positions 48 through 53 (000379) are placed in DISPLAY-DOLS. The period
+delimiter character is placed in DLTR-2, and the value 6 is placed in CTR-4.
+Because all receiving fields have been acted upon and two characters of
+data in INV-RCD have not been examined, the ON OVERFLOW exit is taken, and
+execution of the UNSTRING statement is completed.
+
+At the end of execution of the UNSTRING statement, DISPLAY-REC contains
+the following data:
+   707890 FOUR-PENNY-NAILS 000379
+
+WORK-REC contains the following data:
+   475120000122BBA
+
+CHAR-CT (the pointer field) contains the value 55, and FLD-FILLED (the
+tallying field) contains the value 6.
+Note: One UNSTRING statement
+can be written instead of a series of MOVE statements.
+
+Parent topic: UNSTRING Statement

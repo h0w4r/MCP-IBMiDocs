@@ -1,0 +1,106 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 5. Running a Program > Calling Programs
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 2. Creating and Compiling Programs > Chapter 5. Running a Program > Calling Programs
+
+ILE C/C++ Programmer's Guide
+Creating a CL Command to Run a Program
+
+You can also run a program from your own CL command. To create a
+command:
+
+Enter a set of command statements into a source file.
+Process the source file and create a command object (type *CMD)
+using the Create Command (CRTCMD) command.
+The CRTCMD command definition includes the command name, parameter
+descriptions, and validity-checking information, and identifies the program
+that performs the function requested by the command.
+Enter the command interactively, or in a batch job.
+The program called by your command is run.
+
+The following example illustrates how to run a program
+from a user-created command:
+Program Description
+A newly created command COST prompts for and accepts user input
+values. It then calls a C++ program CALCOST and passes it
+the input values. CALCOST accepts the input values from the
+command COST, performs calculations on these values, and prints
+results. Figure 31 illustrates this example.
+Figure 31. Calling Program CALCOST from a User-Defined Command COST
+
+Instructions
+To create and run the example, follow the steps below:
+
+Enter the source code for the command prompt COST (shown in Figure 32) into a source file QCMDSRC in library
+MYLIB, and save it as member COST:
+To Create the command prompt COST. From the command
+line, enter:
+CRTCMD CMD(MYLIB/COST) PGM(MYLIB/CALCOST) SRCFILE(MYLIB/QCMDSRC)
+
+To create program CALCOST from the source file
+calcost.cpp (shown in Figure 32), enter:
+CRTBNDCPP PGM(MYLIB/CALCOST)
+
+To run program CALCOST:
+
+EnterCOST and press F4 (Prompt). The prompts ITEM,
+PRICE, and QUANTITY appear in order.
+When prompted, enter the data shown below:
+Hammers
+1.98
+5000
+
+The output of program CALCOST is:
++--------------------------------------------------------------------------------+
+| It costs $11385.00 to buy 5000 HAMMERS |
+| Press ENTER to end terminal session. |
+| > |
++--------------------------------------------------------------------------------+
+
+Code Samples
+
+Figure 32. Source Code for Command Prompt that Runs the CALCOST Program
+
+/* Source for Command Prompt COST */ 
+CMD PROMPT('CALCULATE TOTAL COST')
+PARM KWD(ITEM) TYPE(*CHAR) LEN(20) RSTD(*NO) +
+MIN(1) ALWUNPRT(*NO) PROMPT('Item name' 1)
+PARM KWD(PRICE) TYPE(*DEC) LEN(10 2) RSTD(*NO) +
+RANGE(0.01 99999999.99) MIN(1) +
+ALWUNPRT(*YES) PROMPT('Unit price' 2)
+PARM KWD(QUANTITY) TYPE(*INT2) RSTD(*NO) RANGE(1 +
+9999) MIN(1) ALWUNPRT(*YES) +
+PROMPT('Number of items' 3)
+
+Figure 33. Source Code for Program CALCOST
+
+// calcost.cpp
+// Source for Program CALCOST
+
+#include <iostream.h>
+#include <string.h>
+#include <bcd.h>
+
+int main(int argc, char *argv[])
+{
+char *item_name;
+_DecimalT<10,2> *price;
+short int *quantity;
+const _DecimalT<2,2> taxrate=__D("0.15");
+_DecimalT<17,2> cost;
+item_name = argv[1];
+price = (_DecimalT<10,2> *) argv[2];
+quantity = (short *) argv[3];
+cost = (*quantity)*(*price)*(__D(1.00+taxrate));
+cout << "\nIt costs $" << cost << " to buy "
+<< *quantity << " " << item_name << endl;
+}
+
+Note:This program receives the incoming arguments from the command
+COST, calculates a cost, and prints values. All incoming
+arguments are pointers.
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

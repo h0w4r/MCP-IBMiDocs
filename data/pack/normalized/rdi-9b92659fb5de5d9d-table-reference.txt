@@ -1,0 +1,375 @@
+table-reference
+
+IBM i programming resources > SQL > SQL reference > Queries > subselect > from-clause > from-clause
+
+IBM i programming resources > SQL > SQL reference > Queries > subselect > from-clause
+
+table-reference
+A table-reference specifies an intermediate result
+table.
+single-tablenested-table-expressiontable-functionjson_table-expressionxmltable-expressiondata-change-table-referencecollection-derived-tablejoined-tablesingle-tabletable-nameview-nameperiod-specificationcorrelation-clausenested-table-expressionLATERAL(fullselect)correlation-clausetable-functionTABLE(function-invocation)correlation-clausejson_table-expressionjson_table-functioncorrelation-clausexmltable-expressionxmltable-functioncorrelation-clausedata-change-table-referenceFINALNEWTABLE(INSERT statement)correlation-clausecollection-derived-tableUNNEST(,array-expression)WITH ORDINALITYcorrelation-clauseperiod-specificationFOR SYSTEM_TIMEAS OFvalueFROMvalue1TOvalue2BETWEENvalue1ANDvalue2correlation-clauseAScorrelation-name(,column-name)
+If a single table or view is identified without
+a period-specification, the intermediate result table
+is simply that table or view. If a period-specification is
+specified for a table-name or view-name, the intermediate
+result table consists of the rows of the temporal table where the
+period matches the specification.
+A fullselect in parentheses called a nested table expression.1 If
+a nested table expression is specified, the result table is the result
+of that nested table expression. The columns of the result do not
+need unique names, but a column with a non-unique name cannot be explicitly
+referenced.
+If a function-name , json_table-expression,
+or xmltable-expression is specified, the intermediate result
+table is the set of rows returned by the table function.
+If a data-change-table-reference is specified, the intermediate
+result table is the set of rows inserted by the INSERT statement.
+If a collection-derived-table is specified,
+the intermediate result table is a set of rows from one or more arrays.
+If a joined-table is specified, the intermediate result
+table is the result of one or more join operations. For more information,
+see joined-table.
+
+If table-reference identifies a distributed
+table or a table that has a read trigger, the query cannot contain:
+EXCEPT or INTERSECT operations,
+VALUES in a fullselect,
+OLAP specifications,
+recursive common table expressions,
+ORDER OF,
+scalar fullselects (scalar subselects are supported),
+full outer join,
+LOBs in a GROUP BY,
+grouping sets or super groups,
+ORDER BY or FETCH FIRST n ROWS clause in a subselect,
+CONTAINS or SCORE functions,
+XMLAGG, XMLATTRIBUTES, XMLCOMMENT, XMLCONCAT, XMLDOCUMENT,
+XMLELEMENT, XMLFOREST, XMLGROUP, XMLNAMESPACES, XMLPI, XMLROW, XMLTABLE,
+or XMLTEXT functions,
+global variables, or
+references to arrays.
+
+If the CURRENT TEMPORAL SYSTEM_TIME special register
+is set to a non-null value CTST, the value of the SYSTIME option
+is YES, and table-name or view-name identifies a system-period
+temporal table, the table reference is executed as if it contained
+the following specification with the special register set to the null
+value: table-name FOR SYSTEM_TIME AS OF CTST
+or view-name FOR SYSTEM_TIME AS OF CTST
+
+The
+list of names in the FROM clause must conform to these rules:
+Each table-name and view-name must name an existing
+table or view at the current server or the table-identifier of
+a common table expression defined preceding the subselect containing
+the table-reference.
+The exposed names must be unique. An exposed name is:A correlation-name
+A table-name or view-name that is not followed by
+a correlation-name
+The table-name or view-name that is the target of
+the data-change-table-reference when the data-change-table-reference is
+not followed by a correlation-name
+
+Each function-name, together with the types of its arguments,
+must resolve to a table function that exists at the current server.
+An algorithm called function resolution, which is described on Function resolution, uses the function name and the arguments
+to determine the exact function to use. Unless given column names
+in the correlation-clause, the column names for a table function
+are those specified on the RETURNS clause of the CREATE FUNCTION statement.
+This is analogous to the column names of a table, which are defined
+in the CREATE TABLE statement.
+Each array-variable-name must identify an array
+variable in the SQL procedure.
+
+Each correlation-name is
+defined as a designator of the intermediate result table specified
+by the immediately preceding table-reference. A correlation-name must
+be specified for nested table expressions and table functions.
+Any qualified reference to a column for a table,
+view, nested table expression, table function, collection-derived-table,
+or data-change-table-reference must use the exposed name. If
+the same table name or view name is specified twice, at least one
+specification should be followed by a correlation-name. The correlation-name is
+used to qualify references to the columns of the table or view. When
+a correlation-name is specified, column-names can also be specified
+to give names to the columns of the table-name, view-name, nested-table-expression, table-function, data-change-table-reference,
+or collection-derived-table. If a column list is specified,
+there must be a name in the column list for each column in the table
+or view and for each result column in the nested-table-expression, table-function, data-change-table-reference,
+or collection-derived-table. For more information, see Correlation names.
+In general, nested-table-expressions, table-functions,
+and collection-derived-tables can be specified in any FROM
+clause. Columns from the nested table expressions, table functions,
+and collection derived tables can be referenced in the select list
+and in the rest of the subselect using the correlation name which
+must be specified. The scope of this correlation name is the same
+as correlation names for other table or view names in the FROM clause.
+A
+nested table expression can be used:
+in place of a view to avoid creating the view (when general use
+of the view is not required)
+when the wanted result table is based on variables.
+
+period-specificationSpecifies
+that a period specification applies to the table-reference.
+A period-specification cannot be specified for a table or
+view that has a column referenced in a CONTAINS or SCORE built-in
+function.
+The rows of the table reference are derived by application
+of the period specification.
+The rows of a view reference are
+derived by application of the period specification to all of the temporal
+tables that are accessed when computing the result table of the view.
+If the view does not access any temporal tables, the period specification
+has no effect on the result table of the view. If a period-specification was
+specified for any of the table references within the view definition,
+a table reference of that view cannot include a period-specification.
+The definition of the view must not reference an external function
+with a data access indication other than NO SQL and must not reference
+an SQL function unless it is an inline function.
+If the CURRENT
+TEMPORAL SYSTEM_TIME special register is set to a value other than
+the null value, a period-specification is not allowed unless
+the value of the SYSTIME option is NO.
+FOR SYSTEM_TIME
+Specifies that the SYSTEM_TIME period is used for the period-specification.
+The table reference must be a view or a system-period temporal table.
+AS OF value
+Specifies that the table-reference includes each row for
+which the begin value for the specified period is less than or equal
+to value and the end value for the period is greater than value.
+The table-reference contains zero rows if value is the
+null value. value
+Specifies an expression that returns a value of a built-in data
+type. The result of the expression must be comparable to TIMESTAMP(12)
+according to the comparison rules specified in Datetime comparisons.
+The expression must not contain a column reference, a scalar fullselect,
+or a function that is non-deterministic, external action, or modifies
+SQL data.
+
+FROM value1 TO value2
+Specifies that the table-reference includes rows that exist
+for the period that is specified from value1 up to value2.
+A row is included in the table-reference if the start value
+for the period in the row is less than value2 and the end value
+for the period in the row is greater than value1. The table-reference contains
+zero rows if value1 is greater than or equal to value2 or
+if value1 or value2 is the null value. value1 or value2
+Specifies an expression that returns a value of a built-in data
+type. The result of the expression must be comparable to TIMESTAMP(12)
+according to the comparison rules specified in Datetime comparisons.
+The expression must not contain a column reference, a scalar fullselect,
+or a function that is non-deterministic, external action, or modifies
+SQL data.
+
+BETWEEN value1 AND value2
+Specifies that the table-reference includes rows in which
+the specified period overlaps at any point in time between value1 and value2.
+A row is included in the table-reference if the start value
+for the period in the row is less than or equal to value2 and
+the end value for the period in the row is greater than value1.
+The table-reference contains zero rows if value1 is
+greater than value2 or if value1 or value2 is
+the null value. If value1 = value2, the expression is
+equivalent to AS OF value1. value1 or value2
+Specifies an expression that returns a value of a built-in data
+type. The result of the expression must be comparable to TIMESTAMP(12)
+according to the comparison rules specified in Datetime comparisons.
+The expression must not contain a column reference, a scalar fullselect,
+or a function that is non-deterministic, external action, or modifies
+SQL data.
+
+Syntax alternatives: AS OF TIMESTAMP can be specified in place of FOR SYSTEM_TIME AS
+OF
+VERSIONS BETWEEN TIMESTAMP can be specified in place of FOR SYSTEM_TIME
+BETWEEN
+
+json_table-functionSpecifies
+an invocation of the built-in JSON_TABLE table function. See JSON_TABLE for more information.
+xmltable-functionSpecifies
+an invocation of the built-in XMLTABLE table function. See XMLTABLE for more information.
+Data change table referenceA data-change-table-reference specifies
+an intermediate result table that is based on the rows that are directly
+changed by the INSERT statement included in the clause. A data-change-table-reference must
+be the only table-reference in the FROM clause of the outer
+fullselect that is used in a select-statement, a SELECT INTO statement,
+a SET variable statement, or as the only fullselect in an assignment
+statement.
+The intermediate result table for a data-change-table-reference includes
+all rows that were inserted. All columns of the inserted table may
+be referenced in the subselect, along with any INCLUDE columns defined
+on the INSERT statement. A data-change-table-reference has
+the following restrictions:
+It can appear only in the outer level fullselect.
+The target table or view of the INSERT statement is considered
+a table or view referenced in the query. Therefore, the authorization
+ID of the query must be authorized to the table or view as well as
+having the necessary privileges required by the INSERT.
+A fullselect in the INSERT statement cannot contain correlated
+references to columns outside the fullselect of the INSERT statement.
+A data-change-table-reference in a select-statement makes
+the cursor READ ONLY. This means that UPDATE WHERE CURRENT OF and
+DELETE WHERE CURRENT OF cannot be used.
+If the INSERT references a view, the view must be defined using
+WITH CASCADED CHECK OPTION or could have been defined using WITH CHECK
+OPTION. In addition, the view cannot have a WHERE clause that contains:a function that modifies SQL data
+a function that is not deterministic or has external action
+
+A data-change-table-reference clause cannot be specified
+in a view definition or a materialized query table definition.
+If the target of the SQL data change statement is a view that
+is defined with an INSTEAD OF INSERT trigger, an error is returned.
+
+If row access control is enforced for the target
+of the data change statement, the rows in the intermediate result
+table already satisfy the rules that are specified in the enabled
+row permissions. If column access control is enforced for the target
+of the data change statement, the enabled column masks are applied
+to the outermost select list. See select-clause for
+more information.
+FINAL TABLE
+Specifies
+that the rows of the intermediate result table represent the set of
+rows that are inserted by the SQL data change statement as they appear
+at the completion of the data change statement. If there are AFTER
+INSERT triggers or referential constraints that result in further
+changes to the inserted rows of the table that is the target of the
+data change statement, an error is returned.
+NEW TABLE
+Specifies
+that the rows of the intermediate result table represent the set of
+rows that are changed by the SQL data change statement prior to the
+application of referential constraints and AFTER triggers. Data in
+the target table at the completion of the statement might not match
+the data in the intermediate result table because of additional processing
+for referential constraints and AFTER triggers.
+
+Collection derived tableA collection
+derived table can be used to unnest the elements of arrays into rows.
+array-expression
+An expression that returns an array data type. The expression
+must be one of the following expressions:An SQL variable
+An SQL parameter
+A CAST specification of a parameter marker
+
+Names for the result columns produced
+by the UNNEST function can be provided as part of the correlation-clause
+of the collection-derived-table clause.
+The result
+table depends on the input arguments.If a single array argument is specified, the result is a single
+column table with a column data type that matches the array element
+data type.
+If more than one array is specified, the first array provides
+the first column in the result table, the second array provides the
+second column, and so on. The data type of each column matches the
+data type of the array elements of the corresponding array argument.
+If WITH ORDINALITY is specified, an extra column of type BIGINT, which
+contains the position of the elements in the arrays, is appended.If
+the cardinalities of the arrays are not identical, the cardinality
+of the result table is the same as the array with the largest cardinality.
+The column values in the table are set to the null value for all rows
+whose array index value is greater than the cardinality of the corresponding
+array. In other words, if each array is viewed as a table with two
+columns (one for the subindices and one for the data), then UNNEST
+performs an OUTER JOIN among the arrays using equality on the subindices
+as the join predicate.
+
+UNNEST can only be specified within an SQL
+procedure or SQL function.
+Correlated references in table-referencesCorrelated
+references can be used in nested-table-expressions. The basic
+rule that applies is that the correlated reference must be from a table-reference at
+a higher level in the hierarchy of subqueries. This hierarchy includes
+the table-references that have already
+been resolved in the left-to-right processing of the FROM clause.
+For nested table expressions, the TABLE or LATERAL keyword must appear
+before the fullselect. For more information see References to SQL parameters and SQL variables
+A table function can contain one or more correlated references
+to other tables in the same FROM clause if the referenced tables precede
+the reference in the left-to-right order of the tables in the FROM
+clause. The same capability exists for nested table expressions if
+the optional keyword TABLE or LATERAL is specified. Otherwise, only
+references to higher levels in the hierarchy of subqueries is allowed.
+A nested table expression or table function that contains
+correlated references to other tables in the same FROM clause:
+Cannot participate in a RIGHT OUTER JOIN, FULL OUTER JOIN, or
+RIGHT EXCEPTION JOIN
+Can participate in LEFT OUTER JOIN or an INNER JOIN if the referenced
+tables precede the reference in the left-to-right order of the tables
+in the FROM clause
+
+If table-reference identifies a distributed table or a table that has a read trigger; a nested table
+expression cannot contain a correlated reference to other tables in
+the same FROM clause when:
+The nested table expression contains a UNION, EXCEPT, or INTERSECT.
+The nested table expression uses the DISTINCT keyword in the select
+list.
+The nested table expression contains an ORDER BY and FETCH FIRST
+clause.
+The nested table expression is in the FROM clause of another nested
+table expression that contains one of these restrictions.
+
+Syntax Alternatives: TABLE can be
+specified in place of LATERAL.
+Example 1The following example is valid:
+
+SELECT D.DEPTNO, D.DEPTNAME, EMPINFO.AVGSAL, EMPINFO.EMPCOUNT
+FROM DEPARTMENT D,
+  (SELECT AVG(E.SALARY) AS AVGSAL,COUNT (*) AS EMPCOUNT
+     FROM EMPLOYEE E
+     WHERE E.WORKDEPT =
+       (SELECT X.DEPTNO
+         FROM DEPARTMENT X
+         WHERE X.DEPTNO = E.WORKDEPT ) ) AS EMPINFO
+The following example is not valid because the reference
+to D.DEPTNO in the WHERE clause of the nested-table-expression attempts
+to reference a table that is outside the hierarchy of subqueries:
+SELECT D.DEPTNO, D.DEPTNAME,
+EMPINFO.AVGSAL, EMPINFO.EMPCOUNT ***INCORRECT***
+  FROM DEPARTMENT D,
+  (SELECT AVG(E.SALARY) AS AVGSAL,COUNT (*) AS EMPCOUNT
+     FROM EMPLOYEE E
+     WHERE E.WORKDEPT = D.DEPTNO ) AS EMPINFO
+
+The following example is valid because the reference to
+D.DEPTNO in the WHERE clause of the nested-table-expression references
+DEPT, which precedes the nested-table-expression and the LATERAL
+keyword was specified:
+SELECT D.DEPTNO, D.DEPTNAME,
+EMPINFO.AVGSAL, EMPINFO.EMPCOUNT
+  FROM DEPARTMENT D,
+  LATERAL (SELECT AVG(E.SALARY) AS AVGSAL,COUNT (*) AS EMPCOUNT
+     FROM EMPLOYEE E
+     WHERE E.WORKDEPT = D.DEPTNO ) AS EMPINFO
+
+Example 2The following example of a table
+function is valid:
+SELECT t.c1, z.c5
+FROM t, TABLE(tf3 (t.c2 ) ) AS z 
+WHERE t.c3 = z.c4
+
+The following example is not valid because the reference
+to t.c2 is for a table that is to the right of the table function
+in the FROM clause:
+SELECT t.c1, z.c5
+FROM TABLE(tf6 (t.c2 ) ) AS z, t ***INCORRECT***
+WHERE t.c3 = z.c4
+
+Example 3The following example of a table
+function is valid:
+SELECT t.c1, z.c5
+FROM t, TABLE(tf4 (2 * t.c2 ) ) AS z 
+WHERE t.c3 = z.c4
+
+The following example is not valid because the reference
+to b.c2 is for the table function that is to the right of the table
+function containing the reference to b.c2 in the FROM clause:
+SELECT a.c1, b.c5
+FROM TABLE(tf7a (b.c2 ) ) AS z, ***INCORRECT***
+TABLE(tf7b (a.c6 ) ) AS b
+WHERE a.c3 = b.c4
+
+Parent topic: from-clause
+
+1 A nested
+table expression is also called a derived table.

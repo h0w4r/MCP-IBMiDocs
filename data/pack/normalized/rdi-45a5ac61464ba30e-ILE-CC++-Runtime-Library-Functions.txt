@@ -1,0 +1,165 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+fdopen() — Associates Stream With File Descriptor
+Format
+#include <stdio.h>
+FILE *fdopen(int handle, char *type);
+Language Level: XPG4
+Threadsafe: Yes.
+Integrated File System Interface:
+This function is not available when SYSIFCOPT(*NOIFSIO) is specified
+on the compilation command.
+Description
+The fdopen() function associates an input or output
+stream with the file that is identified by handle. The type variable
+is a character string specifying the type of access that is requested
+for the stream. The variable contains one positional parameter that
+is followed by optional keyword parameters.
+The possible values for the positional parameters are:
+
+Mode
+Description
+r
+Create a stream to read a text file. The file pointer is set
+to the beginning of the file.
+
+w
+Create a stream to write to a text file. The file pointer is
+set to the beginning of the file.
+
+a
+Create a stream to write, in append mode, at the end of the
+text file. The file pointer is set to the end of the file.
+
+r+
+Create a stream for reading and writing a text file. The file
+pointer is set to the beginning of the file.
+
+w+
+Create a stream for reading and writing a text file. The file
+pointer is set to the beginning of the file.
+
+a+
+Create a stream for reading or writing, in append mode, at the
+end of the text file. The file pointer is set to the end of the file.
+
+rb
+Create a stream to read a binary file. The file pointer is set
+to the beginning of the file.
+
+wb
+Create a stream to write to a binary file. The file pointer
+is set to the beginning of the file.
+
+ab
+Create a stream to write to a binary file in append mode. The
+file pointer is set to the end of the file.
+
+r+b or rb+
+Create a stream for reading and writing a binary file. The file
+pointer is set to the beginning of the file.
+
+w+b or wb+
+Create a stream for reading and writing a binary file. The file
+pointer is set to the beginning of the file.
+
+a+b or ab+
+Create a stream for reading and writing to a binary file in
+append mode. The file pointer is set to the end of the file.
+
+Note:
+Use the w, w+, wb, wb+, and w+b modes
+with care; they can destroy existing files.
+The specified type must be compatible with the access
+method you used to open the file. If the file was opened with the
+O_APPEND flag, the stream mode must be a, a+, ab, a+b, or ab+.
+To use the fdopen() function you need a file descriptor. To get a
+descriptor use the POSIX function open(). The O_APPEND flag is
+a mode for open(). Modes for open() are defined in QSYSINC/H/FCNTL.
+For further information see the APIs topic
+in the i5/OS® Information Center.
+The keyword parameters allowed for fdopen() are
+the same as those documented in fopen() — Open Files that are for
+the integrated file system.
+If fdopen() returns NULL, use close() to close
+the file. If fdopen() is successful, you must use fclose() to close
+the stream and file.
+Return Value
+The fdopen() function returns a pointer to a file structure that
+can be used to access the open file. A NULL pointer return
+value indicates an error.
+Example that uses fdopen()
+This example opens the file sample.dat and associates
+a stream with the file using fdopen(). It then reads from the stream
+into the buffer.
+
+/* compile with SYSIFCOPT(*IFSIO) */
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <string.h>
+
+int main(void)
+{
+long length;
+int fh;
+char buffer[20];
+FILE *fp;
+
+printf("\nCreating sample.dat.\n");
+if ((fp= fopen("/sample.dat", "w")) == NULL) {
+perror(" File was not created: ");
+exit(1);
+}
+fputs("Sample Program", fp);
+fclose(fp);
+
+memset(buffer, '\0', 20); /* Initialize buffer*/
+
+if (-1 == (fh = open("/sample.dat", O_RDWR|O_APPEND))) {
+perror("Unable to open sample.dat");
+exit(1);
+}
+if (NULL == (fp = fdopen(fh, "r"))) {
+perror("fdopen failed");
+close(fh);
+exit(1);
+}
+if (14 != fread(buffer, 1, 14, fp)) {
+perror("fread failed");
+fclose(fp);
+exit(1);
+}
+printf("Successfully read from the stream the following:\n%s.\n", buffer);
+fclose(fp);
+return 1;
+
+/****************************************************************
+* The output should be:
+*
+* Creating sample.dat.
+* Successfully read from the stream the following:
+* Sample Program.
+*/
+}
+Related Information
+
+fclose() — Close Stream
+fopen() — Open Files
+fseek() — fseeko() — Reposition File Position
+fsetpos() — Set File Position
+rewind() — Adjust Current File Position
+<stdio.h>
+open API in the APIs topic in
+the i5/OS Information Center.
+close API in the APIs topic in
+the i5/OS Information Center.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

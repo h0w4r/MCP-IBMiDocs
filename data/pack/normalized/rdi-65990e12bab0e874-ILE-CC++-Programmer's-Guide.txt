@@ -1,0 +1,132 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 18. Using Externally Described Files in a Program > Creating Externally Described Database Files
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 5. Working with iSeries File Systems and Devices > Chapter 18. Using Externally Described Files in a Program > Creating Externally Described Database Files
+
+ILE C/C++ Programmer's Guide
+Defining the Structure Type (KEY Field)
+To include a separate structure type definition for the KEY fields in a
+format, specify the KEY option on the #pragma mapinc
+directive. Comments are listed beside the fields in the structure
+definition to indicate how the key fields are defined in the externally
+described file.
+
+C++ users must use the GENCSRC utility for structure type definition.
+
+C users can use either the GENCSRC utility or the #pragma mapinc
+directive for structure type definition.
+Note:For more information on the differences between the GENCSRC utility
+and the #pragma mapinc directive, see Appendix A, The GENCSRC Utility and the #pragma mapinc Directive.
+
+Example:
+The following ILE C program contains the #pragma mapinc
+directive to include the externally described database file CUSMSTL:
+
+ 
+#pragma mapinc("custmf","example/cusmstl(cusrec)","both key","d")
+#include "custmf"
+
+The following example contains the DDS for the file T1520DD8 in the library
+MYLIB.
+Figure 109. T1520DD8 -- DDS Source for Customer Records
+
+A* CUSTOMER MASTER FILE -- T1520DD8
+A R CUSREC TEXT('Customer master record')
+A CUST 5 TEXT('Customer number')
+A NAME 20 TEXT('Customer name')
+A ADDR 20 TEXT('Customer address')
+A CITY 20 TEXT('Customer city')
+A STATE 2 TEXT('State abbreviation')
+A ZIP 5 0 TEXT('Zip code')
+A ARBAL 10 2 TEXT('Accounts receivable balance')
+A K CUST
+A*
+A*
+
+Program T1520EDF uses the #pragma mapinc directive to generate the
+file field structure that is defined in T1520DD8.
+Figure 110. T1520EDF -- ILE C Source to Include an Externally Described Database File
+
+/* This program contains the #pragma mapinc directive to */
+/* include the externally described database file T1520DD8. */
+/* This program reads customer information from a terminal and issues */
+/* a warning message if the customer's balance is less than $1000. */
+ 
+#include <stdio.h>
+#include <recio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <decimal.h>
+ 
+#pragma mapinc("custmf","QGPL/T1520DD8(cusrec)","both key","_P")
+#include "custmf"
+ 
+ 
+int main(void)
+{
+ 
+/* Declare x of data structure type QGPL_T1520DD8_CUSREC_both_t. */
+/* The data structure type was defined from the DDS specified. */
+ 
+QGPL_T1520DD8_CUSREC_both_t x;
+ 
+/* Get information from entry. */
+ 
+printf("Please type in the customer name (max 20 char).\n");
+gets(x.NAME);
+printf("Please type in the customer balance.\n");
+scanf("%D(10,2)",&x.ARBAL);
+ 
+/* Prints out warning message if x.ARBAL<1000. */
+ 
+if (x.ARBAL<1000)
+ 
+{
+printf("%s has a balance less than $1000!\n", x.NAME);
+}
+ 
+}
+
+The type definitions are created in your ILE C source listing that is based
+on the #pragma directive that is specified in the ILE C source
+program.
+The output is as follows:
++--------------------------------------------------------------------------------+
+| Please type in the customer name (max 20 char). |
+| > James Smith |
+| Please type in the customer balance. |
+| > 250.58 |
+| James Smith has a balance less than $1000! |
+| Press ENTER to end terminal session. |
++--------------------------------------------------------------------------------+
+
+The DDS part of the program listing is as follows:
+Figure 111. Ouput Listing from Program T1520EDF -- Customer Master Record
+
+/* ------------------------------------------------------------------------*/
+/* PHYSICAL FILE: QGPL/T1520DD8 */
+/* FILE CREATION DATE: 93/08/14 */
+/* RECORD FORMAT: CUSREC */
+/* FORMAT LEVEL IDENTIFIER: 4E9D9ACA60E00 */
+/* ------------------------------------------------------------------------*/
+typedef _Packed struct {
+char CUST[5]; /* Customer number */
+char NAME[20]; /* Customer name */
+char ADDR[20]; /* Customer address */
+char CITY[20]; /* Customer city */
+char STATE[2]; /* State abbreviation*/
+decimal(5,0) ZIP; /* Zip code */
+/* PACKED SPECIFIED IN DDS */
+decimal(10,2) ARBAL; /* Accounts receivable balance*/
+/* PACKED SPECIFIED IN DDS */
+}QGPL_T1520DD8_CUSREC_both_t;
+typedef _Packed struct {
+char CUST[5];
+/* DDS - ASCENDING*/
+/* STRING KEY FIELD*/
+}QGPL_T1520DD8_CUSREC_key_t;
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

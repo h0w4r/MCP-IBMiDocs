@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-us">
+<head>
+<meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+<meta content="en-us" name="dc.language" scheme="rfc1766" />
+<!-- Licensed Materials Property of IBM                      -->
+<!-- US Government Users Restricted Rights                   -->
+<!-- Use, duplication or disclosure restricted by            -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                -->
+<meta content="2010-02-09" name="dc.date" scheme="iso8601" />
+<meta content="© Copyright IBM Corporation 1999, 2010" name="copyright" />
+<meta content="public" name="security" />
+<meta content="index,follow" name="Robots" />
+<meta content="(PICS-1.1 &quot;http://www.icra.org/ratingsv02.html&quot; l gen true r (cz 1 lz 1 nz 1 oz 1 vz 1) &quot;http://www.rsac.org/ratingsv01.html&quot; l gen true r (n 0 s 0 v 0 l 0) &quot;http://www.classify.org/safesurf/&quot; l gen true r (SS~~000 1))" http-equiv="PICS-Label" />
+<meta content="RCHCLERK@us.ibm.com" name="owner" />
+<meta content="_Rrollbck() function, _Rrollbck, record input/ouput" name="keywords" />
+<title>ILE C/C++ Runtime Library Functions</title>
+<link href="ibmidwb.css" rel="stylesheet" type="text/css" />
+<link href="help.css" rel="stylesheet" type="text/css" />
+
+<script src="../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.langref.doc%2Frzan5mst246.htm" + anchorParam);
+}
+</script>
+</head>
+<body>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../nav/2_5" shape="rect">ILE C/C++</a> &gt; <a href="../../nav/2_5_3" shape="rect">Runtime Library functions</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref.doc/rzan5mst10.htm" shape="rect">Runtime Library Functions</a> &gt; <a href="../../topic/com.ibm.etools.iseries.langref.doc/rzan5mst46.htm" shape="rect">Library Functions</a></div>
+
+<a id="Top_Of_Page" name="Top_Of_Page" shape="rect"><!-- --></a><!-- header --> 
+<H1>ILE C/C++ Runtime Library Functions</H1>
+<!-- end header -->
+
+
+<a name="rrollbc" shape="rect"><!-- --></a>
+<h2 id="rrollbc"><a href="rzan5mst02.htm#ToC_244" shape="rect">_Rrollbck()  — Roll Back Commitment Control Changes</a></h2><a id="idx962" name="idx962" shape="rect"><!-- --></a><a id="idx963" name="idx963" shape="rect"><!-- --></a>
+<p><strong>Format</strong> </p>
+<pre class="xmp" xml:space="preserve">#include &lt;recio.h&gt;
+
+int _Rrollbck(void);</pre>
+<p><strong>Language Level</strong>: ILE C Extension</p>
+<p><strong>Threadsafe:</strong>  No.</p>
+<p><strong>Description</strong></p>
+<p>The <tt class="xph">_Rrollbck()</tt> function reestablishes the last commitment boundary
+as the current commitment boundary. All changes that are made to the
+files under commitment control in the job, are reversed. All locked
+records are released. Any file that is open under commitment control
+in the job will be affected. You must specify the keyword parameter
+commit=y when the file is opened to be under commitment control. A
+commitment control environment must have been set up prior to this.</p>
+<p>The <tt class="xph">_Rrollbck()</tt> function is valid for database and DDM files.</p>
+<p><strong>Return Value</strong></p>
+<p>The <tt class="xph">_Rrollbck()</tt> function returns 1 if the operation is successful
+or zero if the operation is unsuccessful. The value of errno may be
+set to EIOERROR (a non-recoverable I/O error occurred) or EIORECERR
+(a recoverable I/O error occurred). See <a href="rzan5mst372.htm#errnom" shape="rect">Table 12</a> and <a href="rzan5mst374.htm#rexcp" shape="rect">Table 14</a> for errno settings.</p>
+<p><strong>Example that uses</strong>  <tt class="xph">_Rrollbck()</tt></p>
+<pre class="xmp" xml:space="preserve">#include &lt;stdio.h&gt;
+#include &lt;recio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+ 
+int main(void)
+{
+  char       buf[40];
+  int        rc = 1;
+  _RFILE     *purf;
+  _RFILE     *dailyf;
+ 
+  /* Open purchase display file and daily transaction file          */
+  if ( ( purf = _Ropen ( "MYLIB/T1677RD3", "ar+,indicators=y" )) == NULL )
+  {
+      printf ( "Display file did not open.\n" );
+      exit ( 1 );
+  }
+ 
+  if ( ( dailyf = _Ropen ( "MYLIB/T1677RDA", "wr,commit=y") ) == NULL )
+  {
+      printf ( "Daily transaction file did not open.\n" );
+      exit ( 2 );
+  }
+ 
+  /* Select purchase record format */
+  _Rformat ( purf, "PURCHASE" );
+ 
+  /* Invite user to enter a purchase transaction.                   */
+  /* The _Rwrite function writes the purchase display.              */
+  _Rwrite ( purf, "", 0 );
+  _Rreadn ( purf, buf, sizeof(buf), __DFT );
+ 
+  /* Update daily transaction file                                  */
+  rc = (( _Rwrite ( dailyf, buf, sizeof(buf) ))-&gt;num_bytes );
+ 
+  /* If the databases were updated, then commit the transaction.    */
+  /* Otherwise, rollback the transaction and indicate to the        */
+  /* user that an error has occurred and end the application.       */
+  if ( rc )
+    {
+        _Rcommit ( "Transaction complete" );
+    }
+  else
+    {
+        _Rrollbck ( );
+        _Rformat ( purf, "ERROR" );
+    }
+ 
+  _Rclose ( purf );
+  _Rclose ( dailyf );
+}</pre>
+<p><strong>Related Information</strong> </p>
+<ul>
+<li><a href="rzan5mst215.htm#rcommit" shape="rect">_Rcommit() — Commit Current Record</a></li>
+<li><cite>Recovering your system</cite> manual</li></ul>
+<hr /><br clear="none" />
+[ <a href="#Top_Of_Page" shape="rect">Top of Page</a> | <a href="rzan5mst245.htm" shape="rect">Previous Page</a> | <a href="rzan5mst247.htm" shape="rect">Next Page</a> | <a href="rzan5mst02.htm#wq2" shape="rect">Contents</a> |
+<a href="rzan5mst410.htm#wq795" shape="rect">Index</a> ]<br clear="none" />
+<div id="relatedLinks" style="display: none;"><!-- --></div>
+
+
+<a id="Bot_Of_Page" name="Bot_Of_Page" shape="rect"><!-- --></a>
+</body>
+</html>

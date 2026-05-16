@@ -1,0 +1,122 @@
+EXFMT (Write/Then Read Format)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+EXFMT (Write/Then Read Format)
+
+Free-Form Syntax
+
+EXFMT{(E)} format-name
+{data-structure}
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+EXFMT (E)
+
+ 
+
+format-name
+
+data-structure
+
+_
+
+ER
+
+_
+
+The EXFMT operation is a combination of a WRITE followed by a READ
+to the same record format. EXFMT is valid only for a WORKSTN file
+defined as a full procedural combined file that is externally
+described.
+
+The format-name operand must be the name of
+the record format to be written and then read.
+
+If the data-structure operand is specified, the record
+is written from and read into the data structure. The data structure
+must be a data structure defined with EXTNAME(...:*ALL) or LIKEREC(...:*ALL).
+See File Operations for information on how to define the data
+structure and how data is transferred between the file and the data
+structure.
+
+To handle EXFMT exceptions (file status codes greater
+than 1000), either the operation code extender 'E' or an error indicator
+ER can be specified, but not both. When an error occurs, the read
+portion of the operation is not processed (record-identifying indicators
+and fields are not modified). For more information on error handling,
+see File Exception/Errors.
+
+Positions 71, 72, 75, and 76 must be blank.
+
+For the use of EXFMT with multiple device files, see the descriptions
+of the READ (by format name) and WRITE operations.
+
+For more information, see File Operations.
+
+Figure 1. EXFMT Operation
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+F*Flename++IPEASFRLen+LKlen+AIDevice+.Keywords+++++++++++++++++++++++++
+*
+* PROMTD is a WORKSTN file which prompts the user for an option.
+* Based on what user enters, this program executes different
+* subroutines to add, delete, or change a record.
+*
+FPROMTD CF E WORKSTN
+
+/free
+// If user enters F3 function key, indicator *IN03 is set
+// on and the do while loop is exited.
+dow not *in03;
+
+// EXFMT writes out the prompt to the screen and expects user to
+// enter an option. SCR1 is a record format name defined in the
+// WORKSTN file and OPT is a field defined in the record.
+exfmt SCR1;
+select;
+when opt = 'A';
+exsr AddRec;
+when opt = 'D';
+exsr DelRec;
+when opt = 'C';
+exsr ChgRec;
+endsl;
+enddo;
+do_something ();
+do_more_stuff ();
+/end-free
+
+Figure 2. Using a result data structure with
+EXFMT
+
+* DDS for display file MYDSPF
+A R REC
+A QUESTION 40A O 5 2
+A NAME 20A I 7 5
+A CITY 20A B 8 5
+* RPG program using MYDSPF
+Fmydspf cf e workstn
+* Define a data structure for use with EXFMT REC
+D recDs ds likerec(rec : *all)
+/free
+// Set the output-capable fields
+recDs.question = 'What is your name?';
+recDs.city = 'Toronto'; // Show the screen to the user
+exfmt rec recDs;
+// Use the input-capable fields
+// Since the "city" field is both input and output
+// capable, its value may have changed during EXFMT
+dsply ('Hello ' + recDs.name + ' in ' + recDs.city);
+
+Parent topic: Operation Codes

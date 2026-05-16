@@ -1,0 +1,163 @@
+XLATE (Translate)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+XLATE (Translate)
+
+Free-Form Syntax
+
+(not allowed - use the %XLATE built-in function)
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+XLATE (E P)
+
+From:To
+
+Source-String:start
+
+Target String
+
+_
+
+ER
+
+_
+
+Characters in the source string (factor 2) are translated according
+to the From and To strings (both in factor 1) and put into a receiver
+field (result field). Source characters with a match in the From string
+are translated to corresponding characters in the To string. The From,
+To, Source, and Target strings must be of the same type, either all
+character, all graphic, or all UCS-2. As well, their CCSIDs must be
+the same, unless one of the CCSIDs is 65535, or in the case of graphic
+fields, CCSID(*GRAPH : *IGNORE) was specified on the Control Specification.
+
+XLATE starts translating the source at the location specified in
+factor 2 and continues character by character, from left to right.
+If a character of the source string exists in the From string, the
+corresponding character in the To string is placed in the result field.
+Any characters in the source field before the starting position are
+placed unchanged in the result field.
+
+Factor 1 must contain the From string, followed by a colon, followed
+by the To string. The From and To strings can contain one of the
+following: a field name, array element, named constant, data structure
+name, literal, or table name.
+
+Factor 2 must contain either the source string or the source string
+followed by a colon and the start location. The source string portion
+of factor 2 can contain one of the following: a field name, array
+element, named constant, data structure name, data structure subfield,
+literal, or table name. If the operation uses graphic or UCS-2 data,
+the start position refers to double-byte characters. The start location
+portion of factor 2 must be numeric with no decimal positions and
+can be a named constant, array element, field name, literal, or table
+name. If no start location is specified, a value of 1 is used.
+
+The result field can be a field, array element, data structure,
+or table. The length of the result field should be as large as the
+source string specified in factor 2. If the result field is larger
+than the source string, the result will be left adjusted. If the result
+field is shorter than the source string, the result field will contain
+the leftmost part of the translated source. If the
+result field is variable-length, its length does not change.
+
+If a character in the From string is duplicated, the first occurrence
+(leftmost) is used.
+Note: Figurative constants cannot be
+used in factor 1, factor 2, or result fields. No overlapping in a
+data structure is allowed for factor 1 and the result field, or factor
+2 and the result field.
+
+If the From string is longer than the To string, the
+additional characters in the From string are ignored.
+
+Any valid indicator can be specified in columns 7 to 11.
+
+If factor 2 is shorter than the result field, a P specified in
+the operation extender position indicates that the result field should
+be padded on the right with blanks after the translation. If the result
+field is graphic and P is specified, graphic blanks will be used.
+If the result field is UCS-2 and P is specified, UCS-2 blanks will
+be used.
+
+To handle XLATE exceptions (program status
+code 100), either the operation code extender 'E' or an error
+indicator ER can be specified, but not both. For more information
+on error handling, see Program Exception/Errors.
+
+Columns 75-76 must be blank.
+
+For more information, see String Operations.
+
+Figure 1. XLATE Operation
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* The following translates the blank in NUMBER to '-'. The result
+* in RESULT will be '999-9999'.
+*
+C MOVE '999 9999' Number 8
+C ' ':'-' XLATE Number Result 8
+
+Figure 2. XLATE Operation With Named Constants
+
+*...1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+DName+++++++++++ETDsFrom+++To/L+++IDc.Keywords+++++++++++++++++++++++++++++
+D Up C 'ABCDEFGHIJKLMNOPQRS-
+D TUVWXYZ'
+D Lo C 'abcdefghijklmnopqrs-
+D tuvwxyz'
+CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq..
+*
+* In the following example, all values in STRING are translated to
+* lowercase. As a result, RESULT='rpg dept'.
+*
+C MOVE 'RPG DEPT' String 8
+C Up:Lo XLATE String Result
+*
+* In the following example only part of the string is translated
+* to lowercase. As a result, RESULT='RPG Dept'.
+*
+C Up:Lo XLATE String:6 Result
+
+Figure 3. Alternate Code Page
+Example of XLATE
+
+I..............Namedconstant+++++++++C.........Fldnme.............
+* US English alphabet.
+I 'aaaaae- C US
+I 'c-
+I 'eee-
+I 'iiii-
+I 'n' * Extended alphabet.
+I 'áâàãäæ- C XA
+I 'ç-
+I 'éêè-
+I 'íîïì-
+I 'ñ' CL0N01Factor1+++++++Opcode(E)+Factor2+++++++Result++++++++Len++D+HiLoEq....
+*
+* The following examples change characters only supported in
+* certain languages to characters more widely supported.
+* The field FRANC contains names of employees in the European offices
+* of an international corporation. The program translates those
+* characters that are not printable with a US English printer.
+* Assuming the FRANC field contains the names 'François',
+* 'Hélene', and 'Niña', they will be translated to
+* 'Francois', 'Helene', and 'Nina'.
+*
+C XA:US XLATE FRANC INTER1 20
+
+Parent topic: Operation Codes

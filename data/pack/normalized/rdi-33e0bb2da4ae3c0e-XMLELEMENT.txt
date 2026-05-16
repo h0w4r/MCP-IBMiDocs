@@ -1,0 +1,168 @@
+XMLELEMENT
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+XMLELEMENT
+The XMLELEMENT function returns an XML value that is an
+XML element.
+XMLELEMENT(NAMEelement-name,xmlnamespaces-declaration,xmlattributes-function,element-content-expressionOPTION1EMPTY ON NULLNULL ON NULL2XMLBINARYUSINGBASE64XMLBINARYUSINGHEX3)
+NAME element-name
+Specifies the name of an XML element. The name is an SQL identifier
+that must be in the form of an XML qualified name, or QName. See the
+W3C XML namespace specifications for more details on valid names.
+If the name is qualified, the namespace prefix must be declared within
+the scope.
+xmlnamespaces-declaration
+Specifies the XML namespace declarations that are the result of
+the XMLNAMESPACES declaration. The namespaces that are declared are
+in the scope of the XMLELEMENT function. The namespaces apply to any
+nested XML functions within the XMLELEMENT function, regardless of
+whether or not they appear inside another subselect. See XMLNAMESPACES for more information on declaring
+XML namespaces.
+If xmlnamespaces-declaration is not specified, namespace
+declarations are not associated with the constructed element.
+xmlattributes-function
+Specifies the XML attributes for the element. The attributes are
+the result of the XMLATTRIBUTES function. See XMLATTRIBUTES for more information on construction
+attributes.
+element-content-expression
+The content of the generated XML element node is specified by
+an expression or a list of expressions. The expression can be any
+SQL expression of any SQL data type except for ROWID or DATALINK.
+The expression is used to construct the namespace declarations, attributes,
+and content of the constructed element.
+If element-content-expression is not specified, an empty
+string is used as the content for the element and NULL ON NULL or
+EMPTY ON NULL must not be specified.
+OPTION
+Specifies additional options for constructing the XML element.
+This clause has no impact on nested XMLELEMENT invocations specified
+in element-content-expression.EMPTY ON NULL or NULL ON NULL
+Specifies whether a null value or an empty element is to be returned
+if the value of every element-content-expression is the null
+value. This option only affects null handling of element contents,
+not attribute values. The default is EMPTY ON NULL.EMPTY ON NULL
+If the value of each element-content-expression is null,
+an empty element is returned.
+NULL ON NULL
+If the value of each element-content-expression is null,
+a null value is returned.
+
+XMLBINARY USING BASE64 or XMLBINARY USING HEX
+Specifies the assumed encoding of binary input data, character
+string data with the FOR BIT DATA attribute, or a distinct type that
+is based on one of these types. The encoding applies to element content
+or attribute values. The default is XMLBINARY USING BASE64.XMLBINARY USING BASE64
+Specifies that the assumed encoding is base64 characters, as defined
+for XML schema type xs:base64Binary encoding. The base64 encoding
+uses a 65-character subset of US-ASCII (10 digits, 26 lowercase characters,
+26 uppercase characters, '+', and '/') to represent every six bits
+of the binary or bit data with one printable character in the subset.
+These characters are selected so that they are universally representable.
+Using this method, the size of the encoded data is 33 percent larger
+than the original binary or bit data.
+XMLBINARY USING HEX
+Specifies that the assumed encoding is hexadecimal characters,
+as defined for XML schema type xs:hexBinary encoding. The hexadecimal
+encoding represents each byte (8 bits) with two hexadecimal characters.
+Using this method, the encoded data is twice the size of the original
+binary or bit data.
+
+This function takes an element name, an optional collection
+of namespace declarations, an optional collection of attributes, and
+zero or more arguments that make up the content of the XML element.
+The result is an XML sequence containing an XML element node or the
+null value. If the results of all element-content-expression arguments
+are empty strings, the result is an XML sequence that contains an
+empty element.
+The result of the function is XML. The result
+can be null; if all the element-content-expression argument
+values are null and the NULL ON NULL option is in effect, the result
+is the null value.
+Rules about using namespaces within XMLELEMENT: The
+following rules describe scoping of namespaces:The namespaces declared in the XMLNAMESPACES declaration are the
+in-scope namespaces of the element constructed by the XMLELEMENT function.
+If the element is serialized, then each of its in-scope namespaces
+will be serialized as a namespace attribute unless it is an in-scope
+namespace of an XML value that includes this element.
+The scope of these namespaces is the lexical scope of the XMLELEMENT
+function, including the element name, the attribute names that are
+specified in the XMLATTRIBUTES function, and all element-content-expressions.
+These are used to resolve the QNames in the scope.
+If an attribute of the constructed element comes from an element-content-expression,
+its namespace might not already by declared as an in-scope namespace
+of the constructed element. In this case, a new namespace is created
+for it. If this would result in a conflict, which means that the prefix
+of the attribute name is already bound to a different URI by an in-scope
+namespace, DB2® generates a different
+prefix to be used in the attribute name. A namespace is created for
+this generated prefix. The name of the generated prefix follows the
+following pattern: db2ns-xx, where xx is a pair of characters
+chosen from the set [A-Z, a-z, 0-9].
+
+ExampleNote: XMLELEMENT does not insert blank
+spaces or new line characters in the output. All example output has
+been formatted to enhance readability.
+The following examples
+use a temporary CANDIDATES employee table: DECLARE GLOBAL TEMPORARY TABLE CANDIDATES
+(EMPNO CHAR(6),
+FIRSTNME VARCHAR(12),
+MIDINIT CHAR(1),
+LASTNAME VARCHAR(15),
+WORKDEPT CHAR(4),
+EDLEVEL INT)
+ INSERT INTO SESSION.CANDIDATES
+VALUES('A0001', 'John', 'A', 'Parker', 'X001', 12)
+ INSERT INTO SESSION.CANDIDATES
+VALUES('B0001', NULL, NULL, 'Smith', 'X001', 12)
+ INSERT INTO SESSION.CANDIDATES
+VALUES('B0002', NULL, NULL, NULL, 'X001', NULL)
+ INSERT INTO SESSION.CANDIDATES
+VALUES(NULL, NULL, NULL, NULL, 'X001', NULL)
+
+The following statement used the XMLELEMENT function to create
+an XML element that contains an employee's name. The statement also
+sets the employee number as an attribute names serial. If there is
+a null value in the referenced column, the function returns the null
+value: SELECT E.EMPNO, E.FIRSTNME, E.LASTNAME,
+XMLELEMENT(NAME "foo:Emp",
+XMLNAMESPACES('http://www.foo.com' AS "foo"),
+XMLATTRIBUTES(E.EMPNO AS "serial"),
+E.FIRSTNME, E.LASTNAME
+OPTION NULL ON NULL) AS "Result"
+FROM SESSION.CANDIDATES E
+This
+query produces the following result:
+EMPNO FIRSTNME LASTNAME Result
+------ --------- -------- -------------------
+A0001 John Parker <foo:Emp xmlns:foo="http://www.foo.com"
+serial="A0001">JohnParker</foo:Emp>
+B0001 (null) Smith <foo:Emp xmlns:foo="http://www.foo.com"
+serial="B0001">Smith</foo:Emp>
+B0002 (null) (null) (null)
+(null) (null) (null) (null)
+
+The following example is similar to the previous one. However,
+when there is a null value in the referenced column, an empty element
+is returned: SELECT E.EMPNO, E.FIRSTNME, E.LASTNAME,
+XMLELEMENT(NAME "foo:Emp",
+XMLNAMESPACES('http://www.foo.com' AS "foo"),
+XMLATTRIBUTES(E.EMPNO AS "serial"),
+E.FIRSTNME, E.LASTNAME
+OPTION EMPTY ON NULL) AS "Result"
+FROM SESSION.CANDIDATES E
+This
+query produces the following result:
+EMPNO FIRSTNME LASTNAME Result
+------ --------- -------- -------------------
+A0001 John Parker <foo:Emp xmlns:foo="http://www.foo.com"
+serial="A0001">JohnParker</foo:Emp>
+B0001 (null) Smith <foo:Emp xmlns:foo="http://www.foo.com"
+serial="B0001">Smith</foo:Emp>
+B0002 (null) (null) <foo:Emp xmlns:foo="http://www.foo.com"
+serial="B0002"></foo:Emp>
+(null) (null) (null) <foo:Emp xmlns:foo="http://www.foo.com"></foo:Emp>
+
+Parent topic: Scalar functions

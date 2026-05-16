@@ -1,0 +1,76 @@
+Example: Timing out while waiting for input from a device display
+
+IBM i programming resources > Control language > Control language > CL programming > Examples: CL programming > Examples: CL programming
+
+IBM i programming resources > Control language > Control language > CL programming > Examples: CL programming
+
+Example: Timing out while waiting for input from a device display
+This program illustrates how to write a CL program using a display
+file that will wait for a specified amount of time for the user to enter an
+option. If he does not, the user is signed off.
+Note: By using the code example, you agree to the terms of the Code license and disclaimer information.
+DCLF FILE(QGPL/MENU)
+DOWHILE '1' /* DO FOREVER */
+SNDRCVF DEV(*FILE) RCDFMT(MENUFMT) WAIT(*NO)
+WAIT MONMSG MSGID(CPF0889) EXEC(SIGNOFF)
+CHGVAR VAR(&IN99) VALUE('0')
+IF COND(&IN01) THEN(ITERATE)
+SELECT
+WHEN (&OPTION *EQ '1') (CALL ORDENT) /* OPTION 1-ORDER ENTRY */
+WHEN (&OPTION *EQ '2') (CALL ORDDSP) /* OPTION 2-ORDER DISPLAY */
+WHEN (&OPTION *EQ '3') (CALL ORDCHG) /* OPTION 3-ORDER CHANGE */
+WHEN (&OPTION *EQ '4') (CALL ORDPRT) /* OPTION 4-ORDER PRINT */
+WHEN (&OPTION *EQ '9') (SIGNOFF) /* OPTION 9-SIGNOFF */
+OTHERWISE DO /* OPTION SELECTED NOT VALID */
+CHGVAR VAR(&IN99) VALUE('1')
+ENDDO
+ENDSELECT
+ENDDO
+ENDPGM
+
+The display file was created with the following command:
+CRTDSPF FILE(MENU) SRCFILE(QGPL/QDDSSRC) SRCMBR(MENU) +
+DEV(*REQUESTER) WAITRCD(60)
+
+The display file will use the *REQUESTER device. When a Wait
+(WAIT) command is issued, it waits for the number of seconds (60)
+specified on the WAITRCD keyword. The following is the DDS for the display
+file:
+SEQNBR *... ... 1 ... ... 2 ... ... 3 ... ... 4 ... ... 5 ... ...
+6 ... ... 7 ... ... 8
+
+0100 A PRINT CA01(01)
+0200 A R MENUFMT BLINK
+0300 A TEXT('Order
+Entry Menu')
+0400 A 1 31'Order Entry Menu'
+0500 A 2 2'Select one
+of the following: '
+0600 A 3 4'1. Enter Order'
+0700 A 4 4'2. Display Order'
+0800 A 5 4'3. Change Order'
+0900 A 6 4'4. Print Order'
+1000 A 7 4'9. Sign Off'
+1100 A 23 2'Option:'
+1200 A OPTION 1 I 23 10
+1300 A 99 ERRMSG('Invalid
+option selected.')
+
+* * * * * * E N D O F S O U R C E
+* * * * *
+
+The program performs a SNDRCVF WAIT(*NO) to display the menu and
+request an option from the user. Then it issues a WAIT command to accept
+an option from the user. If the user enters a 1 through 4, the appropriate
+program is called. If the user enters a 9, the SIGNOFF command is issued.
+If the user enters an option that is not valid, the menu is displayed with
+an 'OPTION SELECTED NOT VALID' message. The user can then enter another valid
+option. If the user does not respond within 60 seconds, the CPF0889 message
+is issued to the program and the Monitor Message (MONMSG) command
+issues the SIGNOFF command.
+
+A Send File (SNDF) command using a record format
+containing the INVITE DDS keyword could be used instead of the SNDRCVF WAIT(*NO).
+The function would be the same.
+
+Parent topic: Examples: CL programming

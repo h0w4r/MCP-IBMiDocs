@@ -1,0 +1,215 @@
+Sequence reference
+
+IBM i programming resources > SQL > SQL reference > Language elements > Expressions > Expressions
+
+IBM i programming resources > SQL > SQL reference > Language elements > Expressions
+
+Sequence reference
+A sequence is referenced by using the NEXT VALUE and PREVIOUS
+VALUE expressions specifying the name of the sequence.
+sequence-referencenextval-expressionprevval-expressionnextval-expressionNEXT VALUEFORsequence-nameprevval-expressionPREVIOUS VALUEFORsequence-name
+A sequence is referenced by using the NEXT VALUE and PREVIOUS
+VALUE expressions specifying the name of the sequence.
+nextval-expression
+A
+NEXT VALUE expression generates and returns the next value for a specified
+sequence. A new value is generated for a sequence when a NEXT VALUE
+expression specifies the name of the sequence. However, if there are
+multiple instances of a NEXT VALUE expression specifying the same
+sequence name within a query, the sequence value is incremented only
+once for each row of the result, and all instances of NEXT VALUE return
+the same value for a row of the result. NEXT VALUE is a non-deterministic
+expression with external actions since it causes the sequence value
+to be incremented. When the next value for the sequence is generated,
+if the maximum value for an ascending sequence or the minimum value
+for a descending sequence of the logical range of the sequence is
+exceeded and the NO CYCLE option is in effect, then an error is returned.
+The
+data type and length attributes of the result of a NEXT VALUE expression
+are the same as for the specified sequence. The result cannot be null.
+
+prevval-expression
+A
+PREVIOUS VALUE expression returns the most recently generated value
+for the specified sequence for a previous statement within the current
+application process. This value can be repeatedly referenced by using
+PREVIOUS VALUE expressions and specifying the name of the sequence.
+There may be multiple instances of PREVIOUS VALUE expressions specifying
+the same sequence name within a single statement and they all return
+the same value. A PREVIOUS VALUE expression can be used only if
+a NEXT VALUE expression specifying the same sequence name has already
+been referenced in the current application process.
+The data
+type and length attributes of the result of a PREVIOUS VALUE expression
+are the same as for the specified sequence. The result cannot be null.
+
+sequence-name
+Identifies
+the sequence to be referenced. The sequence-name must
+identify a sequence that exists at the current server.
+
+NotesAuthorization: If
+a sequence is referenced in a statement, the privileges held by the
+authorization ID of the statement must include at least one of the
+following:
+For the sequence identified in the statement, The USAGE privilege on the sequence, and
+The system authority *EXECUTE on the library containing the sequence
+
+Database administrator authority
+
+For information about the system authorities corresponding
+to SQL privileges, see Corresponding System
+Authorities When Checking Privileges to a Sequence.
+Generating values with NEXT VALUE: When a value
+is generated for a sequence, that value is consumed, and the next
+time that a value is requested, a new value will be generated. This
+is true even when the statement containing the NEXT VALUE expression
+fails or is rolled back.
+Scope of PREVIOUS VALUE: The PREVIOUS VALUE value
+persists until the next value is generated for the sequence in the
+current session, the sequence is dropped or altered, or the application
+session ends. The value is unaffected by COMMIT or ROLLBACK statements. The value of PREVIOUS VALUE cannot be directly set and
+is a result of executing the NEXT VALUE expression for the sequence.
+A technique commonly used, especially for performance,
+is for an application or product to manage a set of connections and
+route transactions to an arbitrary connection. In these situations,
+the availability of the PREVIOUS VALUE for a sequence should only
+be relied on until the end of the transaction.
+Use as a Unique Key Value: The same sequence number
+can be used as a unique key value in two separate tables by referencing
+the sequence number with a NEXT VALUE expression for the first row
+(this generates the sequence value), and a PREVIOUS VALUE expression
+for the other rows (the instance of PREVIOUS VALUE refers to the sequence
+value most recently generated in the current session), as shown below:
+  INSERT INTO ORDER (ORDERNO, CUSTNO)
+    VALUES (NEXT VALUE FOR ORDER_SEQ, 123456)
+
+  INSERT INTO LINE_ITEM (ORDERNO, PARTNO, QUANTITY)
+    VALUES (PREVIOUS VALUE FOR ORDER_SEQ, 987654, 1)
+
+Allowed use of NEXT VALUE and PREVIOUS VALUE: NEXT
+VALUE and PREVIOUS VALUE expressions can be specified in the following
+places:
+Within the select-clause of a SELECT
+statement or SELECT INTO statement as long as the statement does not
+contain a DISTINCT keyword, a GROUP BY clause, an ORDER BY clause,
+a UNION keyword, an INTERSECT keyword, or EXCEPT keyword
+Within a VALUES clause of a fullselect (NEXT VALUE is not
+allowed)
+Within a VALUES clause of an INSERT statement
+Within the select-clause of the fullselect
+of an INSERT statement
+Within the SET clause of a searched or positioned UPDATE statement,
+though NEXT VALUE cannot be specified in the select-clause of
+the subselect of an expression in the SET clause A PREVIOUS VALUE
+expression can be specified anywhere within a SET clause of an UPDATE
+statement, but a NEXT VALUE expression can be specified only in a
+SET clause if it is not within the select-clause of
+the fullselect of an expression. For example, the following uses of
+sequence expressions are supported:   UPDATE T SET C1 = (SELECT PREVIOUS VALUE FOR S1 FROM T)
+
+  UPDATE T SET C1 = PREVIOUS VALUE FOR S1
+
+  UPDATE T SET C1 = NEXT VALUE FOR S1
+The following use of a sequence expression is not supported:   UPDATE T SET C1 = (SELECT NEXT VALUE FOR S1 FROM T)
+
+Within an assignment-statement, except
+within the select-clause of the fullselect of
+an expression. The following uses of sequence expressions are supported:
+  SET :ORDERNUM = NEXT VALUE FOR INVOICE
+
+  SET :ORDERNUM = PREVIOUS VALUE FOR INVOICE
+The following use of a sequence expression is not supported:   SET :X = (SELECT NEXT VALUE FOR S1 FROM T)
+
+  SET :X = (SELECT PREVIOUS VALUE FOR S1 FROM T)
+
+Within a VALUES or VALUES INTO statement though not within the select-clause of
+the fullselect of an expression
+Within the SQL-routine-body of a CREATE
+PROCEDURE statement
+Within the SQL-trigger-body of a CREATE
+TRIGGER statement (PREVIOUS VALUE is not allowed)
+Within the argument list of a CALL statement.
+Within a default expression for CREATE PROCEDURE or
+CREATE FUNCTION. A function with a default containing NEXT VALUE or
+PREVIOUS VALUE can only be used in location where the NEXT VALUE or
+PREVIOUS VALUE can be specified directly.
+
+Restrictions on the use of NEXT VALUE and PREVIOUS
+VALUE: NEXT VALUE and PREVIOUS VALUE expressions cannot
+be specified in the following places:
+Within a materialized query table definition in a CREATE TABLE
+or ALTER TABLE statement
+Within a CHECK constraint
+Within a view definition
+Within a CREATE INDEX statement
+Within the SQL-routine-body of a CREATE
+FUNCTION statement
+
+In addition, the NEXT VALUE expression cannot be specified
+in the following places:
+CASE expression
+Parameter list of an aggregate function
+Subquery in a context other than those explicitly allowed
+SELECT statement for which the outer SELECT contains a DISTINCT
+operator or a GROUP BY clause
+SELECT statement for which the outer SELECT is combined with another
+SELECT statement using the UNION, INTERSECT, or EXCEPT operator
+SELECT statement that contains an OFFSET clause.
+Join condition of a join
+Nested table expression
+Parameter list of a table function
+select-clause of the fullselect of an
+expression in the SET clause of an UPDATE statement
+WHERE clause of the outermost SELECT statement or a DELETE, or
+UPDATE statement
+ORDER BY clause of the outermost SELECT statement
+IF, WHILE, DO . . . UNTIL, or CASE statements in an SQL routine
+
+Using sequence expressions with a cursor:
+Normally, a SELECT NEXT VALUE FOR ORDER_SEQ FROM T1 would produce
+a result table containing as many generated values from the sequence
+ORDER_SEQ as the number of rows retrieved from T1. A reference to
+a NEXT VALUE expression in the SELECT statement of a cursor refers
+to a value that is generated for a row of the result table. A sequence
+value is generated for a NEXT VALUE expression each time a row is
+retrieved.
+If blocking is done at a client in a DRDA® environment, sequence values may get generated
+at the DB2® server before the
+processing of an application's FETCH statement. If the client application
+does not explicitly FETCH all the rows that have been retrieved from
+the database, the application will never see all those generated values
+of the sequence (as many as the rows that were not FETCHed). These
+values may constitute a gap in the sequence.
+A reference to the PREVIOUS VALUE expression in a SELECT
+statement of a cursor is evaluated at OPEN time. In other words, a
+reference to the PREVIOUS VALUE expression in the SELECT statement
+of a cursor refers to the last value generated by this application
+process for the specified sequence prior to the opening of the cursor.
+Once evaluated at OPEN time, the value returned by PREVIOUS VALUE
+within the body of the cursor will not change from FETCH to FETCH,
+even if NEXT VALUE is invoked within the body of the cursor. After
+the cursor is closed, the value of PREVIOUS VALUE will be the last
+NEXT VALUE generated by the application process.
+Syntax alternatives: The keywords NEXTVAL and PREVVAL
+can be used as alternatives for NEXT VALUE and PREVIOUS VALUE respectively.
+ExamplesAssume that there is a table called ORDER, and that a sequence
+called ORDER_SEQ is created as follows:   CREATE SEQUENCE ORDER_SEQ
+    START WITH 1
+    INCREMENT BY 1
+    NO MAXVALUE
+    NO CYCLE
+    CACHE 24
+Following are some
+examples of how to generate an ORDER_SEQ sequence number with a NEXT
+VALUE expression:   INSERT INTO ORDER (ORDERNO, CUSTNO)
+    VALUES (NEXT VALUE FOR ORDER_SEQ, 123456)
+
+  UPDATE ORDER
+    SET ORDERNO = NEXT VALUE FOR ORDER_SEQ
+    WHERE CUSTNO = 123456
+
+  VALUES NEXT VALUE FOR ORDER
+    INTO :HV_SEQ
+
+Parent topic: Expressions

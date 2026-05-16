@@ -1,0 +1,64 @@
+Example: Using the Retrieve Job Attributes command
+
+IBM i programming resources > Control language > Control language > CL programming > Retrieving values that can be used as variables > Retrieving job attributes > Retrieving job attributes
+
+IBM i programming resources > Control language > Control language > CL programming > Retrieving values that can be used as variables > Retrieving job attributes
+
+Example: Using the Retrieve Job Attributes command
+This example shows how to retrieve job attributes
+by using the Retrieve Job Attributes (RTVJOBA) command.
+Assume in the following CL procedure, an interactive job submits
+a program including the CL procedure to batch. A Retrieve Job Attributes
+(RTVJOBA) command retrieves the name of the message queue to which
+the job's completion message is sent, and uses that message queue to communicate
+with the user who submitted the job.
+PGM
+DCL &MSGQ *CHAR 10
+DCL &MSGQLIB *CHAR 10
+DCL &MSGKEY *CHAR 4
+DCL &REPLY *CHAR 1
+DCL &ACCTNO *CHAR 6
+.
+.
+.
+RTVJOBA SBMMSGQ(&MSGQ) SBMMSGQLIB(&MSGQLIB)
+IF (&MSGQ *EQ '*NONE') THEN(DO)
+CHGVAR &MSGQ 'QSYSOPR'
+CHGVAR &MSGQLIB 'QSYS'
+ENDDO
+.
+.
+.
+IF (. . . ) THEN(DO)
+SNDMSG:SNDPGMMSG MSG('Account number ' *CAT &ACCTNO *CAT 'is +
+not valid. Do you want to cancel the update +
+(Y or N)?') TOMSGQ(&MSGQLIB/&MSGQ) MSGTYPE(*INQ) +
+KEYVAR(&MSGKEY)
+RCVMSG MSGQ(*PGMQ) MSGTYPE(*RPY) MSGKEY(&MSGKEY) +
+MSG(&REPLY) WAIT(*MAX)
+IF (&REPLY *EQ 'Y') THEN(RETURN)
+ELSE IF (&REPLY *NE 'N') THEN(GOTO SNDMSG)
+ENDDO
+.
+.
+.
+
+Two variables, &MSGQ and &MSGQLIB, are declared to receive
+the name and library of the message queue to be used. The Retrieve
+Job Attributes (RTVJOBA) command is used to retrieve the message
+queue name and library name. Because it is possible that a message queue
+is not specified for the job, the message queue name is compared to the value
+*NONE. If the comparison is equal, no message queue is specified, and the
+variables are changed so that message queue QSYSOPR in library QSYS is used.
+Later in the procedure, when an error condition is detected, an inquiry message
+is sent to the specified message queue and the reply is received and processed.
+Some of the other possible uses of the Retrieve Job Attributes (RTVJOBA) command
+are:
+Retrieve one or more of the job attributes (such as output queue, library
+list) so that they can be changed temporarily and later restored to their
+original values.
+Retrieve one or more of the job attributes for use in the Submit
+Job (SBMJOB) command, so that the submitted job will have the same
+attributes as the submitting job.
+
+Parent topic: Retrieving job attributes

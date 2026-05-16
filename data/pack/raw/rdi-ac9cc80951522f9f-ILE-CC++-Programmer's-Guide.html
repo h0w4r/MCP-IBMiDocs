@@ -1,0 +1,103 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 4//EN">
+<HTML><HEAD>
+<TITLE>ILE C/C++ Programmer's Guide - Passing Arguments from an ILE Program to a Non-EPM Program</TITLE>
+<!-- Begin Header Records  ========================================== -->
+<!-- C:\IDWBWIN\Temp\idwt87664\cpprog.scr converted by idb2h R4.4     -->
+<!-- (367) ID Workbench Version (WINNT-WIN95) on 9 Jun 2005 at        -->
+<!-- 22:10:01                                                         -->
+<!-- (C) Copyright IBM Corporation, 1999                              -->
+<!-- All rights reserved. Licensed Materials Property of IBM          -->
+<!-- US Government Users Restricted Rights -                          -->
+<!-- Use, duplication or disclosure restricted by                     -->
+<!-- GSA ADP Schedule Contract with IBM Corp.                         -->
+<META NAME="KEYWORDS" CONTENT="common mechanism to return function results, returning function results, Retrieve Job Attributes (RTVJOBA) command, Retrieve Job Attributes (RTVJOBA), control language (CL) commands, #pragma map directive, #pragma linkage (PGMNAME, OS) directive, milib.h, header files">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+<META HTTP-EQUIV="updated" CONTENT="Thu, 09 Jun 2005 22:09:43">
+<META HTTP-EQUIV="review" CONTENT="Fri, 09 Jun 2006 22:09:43">
+<META HTTP-EQUIV="expires" CONTENT="Sat, 09 Jun 2007 22:09:43">
+
+<link rel="stylesheet" type="text/css" href="help.css" />
+
+<script type="text/javascript" src="../../advanced/synchWithToc.js"></script>
+
+<link rel="stylesheet" href="../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" charset="ISO-8859-1" type="text/css"></link>
+<script type="text/javascript" src="../../content/org.eclipse.help/livehelp.js"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../index.jsp?topic=%2Fcom.ibm.etools.iseries.pgmgd.doc%2Fcpprog508.htm" + anchorParam);
+}
+</script>
+</HEAD><BODY>
+<div class="help_breadcrumbs"><a href="../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html">IBM i programming resources</a> > <a href="../../nav/2_5">ILE C&#47;C++</a> > <a href="../../nav/2_5_1">Programmer&#39;s Guide</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog405.htm">Part 6&#46; Working with iSeries Features</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog504.htm">Chapter 25&#46; Working with Multi&#45;Language Applications</a> > <a href="../../topic/com.ibm.etools.iseries.pgmgd.doc/cpprog506.htm">ILE Conventions for Calling Any Program &#40;&#42;PGM&#41;</a></div>
+
+<!-- End Header Records  ============================================ -->
+<A NAME="Top_Of_Page"></A>
+<H1>ILE C/C++ Programmer's Guide</H1>
+<P><H3><A NAME="Header_634" HREF="cpprog02.htm#ToC_634">Passing Arguments from an ILE Program to a Non-EPM Program</A></H3>
+<P>
+When passing arguments to any program other than an EPM entry point, use the
+following conventions: 
+<UL>
+<LI>The program name that the ILE C/C++ program calls must be in
+uppercase. You can use the <STRONG>#pragma map</STRONG> directive to
+map an internal identifier longer than 10 characters to an OS/400-compliant
+object name (10 characters or less) in your program.
+</LI><LI>The return code for the program call can be retrieved by declaring the
+program to return an integer. For example:
+<P><B><A NAME="Figure_234" HREF="cpprog09.htm#FT_Figure_234">Figure 234. Example of Using the #pragma linkage(PGMNAME, OS) Directive to Retrieve Returned Function Results</A></B><BR>
+<TABLE BORDER ><TR><TD><BR>
+<PRE>
+<BR>
+int PGMNAME(void);
+<BR>#pragma linkage(PGMNAME, OS)
+<BR>
+</PRE>
+<DL><DT><B>Note:</B></DT><DD>The declared function in the ILE source must return either <TT>int</TT> or<BR>
+<TT>void</TT>. No other type is allowed.<BR>
+</DD></DL><BR>
+</TD></TR></TABLE>
+<P>
+<P>The value that is returned on the call is the return code for the program
+call. If the program being called is an ILE program, this return code
+can also be accessed using the _LANGUAGE_RETURN_CODE macro defined in
+the header file <TT>&lt;milib.h></TT>. If the program being
+called is an EPM or OPM program, use the Retrieve Job Attributes (RTVJOBA)
+command to access this return code.
+</LI><LI>If you use the <STRONG>#pragma linkage (PGMNAME, OS)</STRONG> directive, all
+arguments (except pointers and aggregates) are copied to
+temporary variables by the compiler. Pointers to the temporary
+variables are passed to the called program. Non-pointer arguments are
+passed by value-reference. 
+<P>Value reference (sometimes referred to as by value, indirectly) refers to
+the parameter passing mechanism where: 
+<UL>
+<LI>A non-pointer value is copied to a temporary variable, and the address of
+the temporary variable is passed on. The changes that are made to the
+variable in the called program are not reflected in the calling
+program.
+</LI><LI>If the argument you are passing is an aggregate name or a pointer, then
+the argument is passed directly, and a temporary variable is not
+created. This means that the data that is refered to by the array or
+pointer can be changed by the called program.
+</LI></UL>
+</LI><LI>If you want to pass arguments by reference, you must use the address of
+(&amp;) operator.
+</LI></UL>
+<P>When passing arguments to an EPM entry point, use the following
+conventions:
+<UL>
+<LI>If you have an ILE C program calling an EPM default entry point, then use
+the <STRONG>#pragma linkage (PGMNAME, OS)</STRONG> directive in your ILE C source to
+tell the compiler that PGMNAME is an external program, not a bound ILE
+procedure.
+</LI><LI>If you have an ILE C program calling an EPM non-default entry point, you
+must use the EPM API QPXXCALL. QPXXCALL can also be used to call EPM
+default entry points. Because QPXXCALL is an OPM program, you must use
+the <STRONG>#pragma linkage (QPXXCALL, OS)</STRONG> directive in your ILE C
+source.
+</LI></UL>
+<P><HR><B>[ <A HREF="#Top_Of_Page">Top of Page</A> | <A HREF="cpprog507.htm">Previous Page</A> | <A HREF="cpprog509.htm">Next Page</A> | <A HREF="cpprog02.htm#ToC">Table of Contents</A> ]</B> 
+<A NAME="Bot_Of_Page"></A>
+<p class="copyright">(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.</p>
+</body></HTML>

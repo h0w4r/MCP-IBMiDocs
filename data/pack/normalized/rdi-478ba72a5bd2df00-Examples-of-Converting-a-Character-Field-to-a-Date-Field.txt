@@ -1,0 +1,105 @@
+Examples of Converting a Character Field to a Date Field
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations > Move Operations > Moving Date-Time Data > Moving Date-Time Data
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operations > Move Operations > Moving Date-Time Data
+
+Examples of Converting a Character Field to a Date Field
+
+Figure 1 shows some examples of how to define and move 2-
+and 4-digit year dates between date fields, or between character and date
+fields.
+
+Figure 1. Moving character and date data
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+* Define two 8-byte character fields.
+D CHR_8a s 8a inz('95/05/21')
+D CHR_8b s 8a inz('abcdefgh')
+*
+* Define two 8-byte date fields. To get a 2-digit year instead of
+* the default 4-digit year (for *ISO format), they are defined
+* with a 2-digit year date format, *YMD. For D_8a, a separator (.)
+* is also specified. Note that the format of the date literal
+* specified with the INZ keyword must be the same as the format
+* specified on the * control specification. In this case, none
+* is specified, so it is the default, *ISO.
+*
+D D_8a s d datfmt(*ymd.)
+D D_8b s d inz(d'1995-07-31') datfmt(*ymd)
+*
+* Define a 10-byte date field. By default, it has *ISO format.
+D D_10 s d inz(d'1994-06-10')
+*
+* D_10 now has the value 1995-05-21
+*
+* Move the 8-character field to a 10-character date field D_10.
+* It will contain the date that CHR_8a was initialized to, but
+* with a 4-digit year and the format of D_10, namely,
+* 1995-05-21 (*ISO format).
+*
+* Note that a format must be specified with built-in function
+* %DATE to indicate the format of the character field.
+*
+/FREE
+D_10 = %DATE (CHR_8a: *YMD);
+//
+// Move the 10-character date to an 8-character field CHR_8b.
+// It will contain the date that was just moved to D_10, but with
+// a 2-digit year and the default separator indicated by the *YMD
+// format.
+//
+CHR_8b = %CHAR (D_10: *YMD);
+//
+// Move the 10-character date to an 8-character date D_8a.
+// It will contain the date that * was just moved to D_10, but
+// with a 2-digit year and a . separator since D_8a was defined
+// with the (*YMD.) format.
+//
+D_8a = D_10;
+//
+// Move the 8-character date to a 10-character date D_10
+// It will contain the date that * D_8b was initialized to,
+// but with a 4-digit year, 1995-07-31.
+//
+D_10 = D_8b;
+//
+// After the last move, the fields will contain
+// CHR_8b: 95/05/21
+// D_8a: 95.05.21
+// D_10: 1995-07-31
+//
+*INLR = *ON;
+/END-FREE
+
+The following example shows how to convert from a character field in the
+form CYYMMDD to a date field in *ISO format. This is particularly useful when
+using command parameters of type *DATE.
+
+The RPG program is only intended to be called using the command
+interface, so it is not necessary to specify a prototype for the program.
+The prototype will be implicitly defined by the compiler using the information
+in the procedure interface.
+
+Figure 2. Source for a command using a date parameter.
+
+CMD PROMPT('Use DATE parameter')
+PARM KWD(DATE) TYPE(*DATE)
+
+Figure 3. Part of RPG IV command processing program for this command.
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+* Procedure interface for this program (no prototype is necessary)
+D FIG210 PI EXTPGM('FIG210')
+D DateParm 7A
+
+* Declare a date type with date format *ISO.
+D ISO_DATE S D DATFMT(*ISO)
+
+* The format of the DateParm parameter is CYYMMDD, so code
+* *CYMD0 as the 2nd parameter of built-in function %DATE.
+/FREE
+ISO_DATE = %DATE (DateParm: *CYMD0);
+/END-FREE
+
+Parent topic: Moving Date-Time Data

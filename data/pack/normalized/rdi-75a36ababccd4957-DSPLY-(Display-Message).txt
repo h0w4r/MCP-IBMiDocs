@@ -1,0 +1,209 @@
+DSPLY (Display Message)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes > Operation Codes
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Operation Codes
+
+DSPLY (Display Message)
+
+Free-Form Syntax
+
+DSPLY{(E)} {message {message-queue {response}}}
+
+Code
+
+Factor 1
+
+Factor 2
+
+Result Field
+
+Indicators
+
+DSPLY (E)
+
+message
+
+message-queue
+
+response
+
+_
+
+ER
+
+_
+
+The DSPLY operation allows the program to communicate with the
+display work station that requested the program. Either message, response, or both operands must be specified. The
+operation can display a message and accept a response.
+
+The value in the message operand and possibly
+the response operand are used to create the message
+to be displayed. message can be a field name,
+a literal, a named constant, a table name, or an array element whose
+value is used to create the message to be displayed. Within
+free-form calculations, the message operand can be an expression,
+provided the expression is enclosed by parentheses. The message operand can also be *M, followed by a message
+identifier that identifies the message to be retrieved from the message
+file, QUSERMSG. Use the OVRMSGF CL command to use a different message
+file. QUSERMSG must be in a library
+in the library list of the job receiving the message.
+
+The message identifier must be 7 characters in length consisting
+3 alphabetic characters and four numeric characters (for example,
+*MUSR0001, this means message USR0001 is used).
+
+If specified, the message-queue operand can
+be a character field, a literal, a named constant, a table name, or
+an array element whose value is the symbolic name of the object meant
+to receive the message and from which the optional response can be
+sent. Any queue name, except a program message queue name, can be
+the value contained in the message-queue operand.
+The queue must be declared to the operating system before it can be
+used during program execution. (For information on how to create a
+queue, see the CL Programming). There are two predefined queues:
+
+Queue
+Value
+
+QSYSOPR
+
+The message is sent to the system operator. Note that the QSYSOPR
+message queue severity level must be zero (00) to enable the DSPLY
+operation to immediately display a message to the system operator.
+
+*EXT
+
+The message is sent to the external message queue.
+
+Note: For a batch job, if no message-queue value
+is specified, the default is QSYSOPR. For an interactive job, the
+default value is *EXT.
+
+The response operand is optional.
+If it is specified, the response is placed in it. response can
+be a field name, a table name, or an array element in which the response
+is placed. If no data is entered, response is
+unchanged. To specify a response but no message queue in a free-form
+specification, specify a blank for message-queue.
+
+DSPLY fld1 ' ' fld2;
+
+Fully qualified names may be specified as the Result-Field
+operand, and expressions are allowed as Factor 1 and Factor 2 operands,
+when coded in free-form calculation specifications. However, if the
+operand is more complex than a fully qualified name, the expression
+must be enclosed in parentheses.
+
+To handle DSPLY exceptions (program status
+code 333), either the operation code extender 'E' or an error
+indicator ER can be specified, but not both. The exception is handled
+by the specified method if an error occurs on the operation. For more
+information on error handling, see Program Exception/Errors.
+
+When you specify the DSPLY operation with no
+message identifier in the message operand, the operation functions
+as follows:
+
+If the message operand is specified but the response operand is not, the contents of the message operand are displayed. The program does not
+wait for a response unless a display file with the parameter RSTDSP
+(*NO) specified was used to display a format at the workstation. Then
+the program waits for the user to press Enter.
+
+If the message operand is not specified but
+the response operand is, the contents of the response operand are displayed and the program waits
+for the user to enter data for the response. The reply is placed in
+the response operand.
+
+When both message and response operands
+are specified,, their contents are combined and displayed. The program
+waits for the user to enter data for the response. The response is
+placed in the result field.
+
+If you request help on the message, you can find the type and
+attributes of the data that is expected and the number of unsuccessful
+attempts that have been made.
+The maximum length of information
+that can be displayed is 52 bytes.
+
+The format of the record written by the DSPLY operation with no
+message identifier specified by the message operand
+follows:
+
+Figure 1. DSPLY Operation Record Format. 1The maximum length of information that can
+be displayed is 52 bytes.
+
+When you specify the DSPLY operation with a
+message identifier in the message operand, the operation functions
+as follows: the message identified in the message operand
+is retrieved from QUSERMSG, the message is displayed, and the program
+waits for the user to respond by entering data if the response operand
+is specified. The response is placed in the result field.
+
+When replying to a message, remember the following:
+
+Non-float numeric fields sent to the display are right-adjusted
+and zero-suppressed.
+
+If a non-float numeric field is entered with a length greater
+than the number of digits in the result field and the rightmost character
+is not a minus sign (-), an error is detected and a second wait occurs.
+The user must key in the field again.
+
+A float value is entered in the external display representation.
+It can be no longer than 14 characters for 4-byte float fields, and
+no longer than 23 characters for 8-byte float fields.
+
+If graphic, UCS-2, or character data is entered, the length must
+be equal or less than the receiving field length.
+
+If the result field is variable-length, its length
+will be set to the length of the value that you enter.
+
+If a date, time, or timestamp field is entered, the format and
+separator must match the format and separator of the result field.
+If the format or separator do not match, or the value is not valid
+(for example a date of 1999/99/99), an error is detected and a second
+wait occurs. The user must key in the field again.
+
+The DSPLY operation allows the workstation user up to 5 attempts
+to respond to the message. After the fifth unsuccessful attemp, the
+DSPLY operation fails. If the DSPLY operation does not have a message
+identifier specified in the message operand,
+the user can request help on the message to find the type and attributes
+of the expected response.
+
+To enter a null response to the system operator queue (QSYSOPR),
+the user must enter the characters *N and then press Enter.
+
+Graphic, UCS-2, or character fields are padded on the right with
+blanks after all characters are entered.
+
+UCS-2 fields are displayed and entered as single-byte characters.
+
+Numeric fields are right-adjusted and padded on the left with
+zeros after all characters are entered.
+
+Lowercase characters are not converted to uppercase.
+
+If factor 1 or the result field is of graphic data type, they
+will be bracketed by SO/SI when displayed. The SO/SI will be stripped
+from the value to be assigned to the graphic result field on input.
+
+Float fields are displayed in the external display representation.
+Float values can be entered as numeric literals or float literals.
+When entering a response, the float value does not have to be normalized.
+
+For more information, see Message Operation.
+
+Figure 2. DSPLY Operation Code Examples
+
+/free
+// Display prompt and wait for response:
+dsply prompt '' result;
+// Display string constructed in an expression:
+dsply ('Length of name is ' + %char(%len(str)) + ' bytes.');
+/end-free
+
+Parent topic: Operation Codes

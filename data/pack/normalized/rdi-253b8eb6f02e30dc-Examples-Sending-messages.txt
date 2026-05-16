@@ -1,0 +1,173 @@
+Examples: Sending messages
+
+IBM i programming resources > Control language > Control language > Messages > Commands used to send messages from a CL program > Commands used to send messages from a CL program
+
+IBM i programming resources > Control language > Control language > Messages > Commands used to send messages from a CL program
+
+Examples: Sending messages
+These examples show how to send different kinds
+of messages.
+Example 1: Sending
+a completion messageNote: By using the code examples, you agree to the terms
+of the Code license and disclaimer information.
+The following CL procedure allows the display
+station user to submit a job by calling a CL program (which contains this
+procedure) instead of entering the Submit Job (SBMJOB) command.
+The procedure sends a completion message when the job has been submitted.
+
+PGM
+SBMJOB JOB(WKLYPAY) JOBD(USERA) RQSDTA('CALL WKLY PARM(PAY1)')
+SNDPGMMSG MSG('WKLYPAY job submitted') MSGTYPE(*COMP)
+ENDPGM
+
+Example 2: Sending a completion message with variable textThe
+following CL procedure sends a message based on a parameter received from
+a program that is called from within this procedure. The message is sent
+by the CL procedure as a completion message. (The RCDCNT field is defined
+as characters in PGMA.)
+PGM
+DCL &RCDCNT TYPE(*CHAR) LEN(3)
+CALL PGMA PARM(&RCDCNT)
+SNDPGMMSG MSG('PGMA completed' *BCAT &RCDCNT *BCAT +
+'records processed') MSGTYPE(*COMP)
+ENDPGM
+
+Example 3: Sending an inquiry message and receive its replyThe
+following procedure sends a message requesting the system operator to load
+a special form. The Receive Message (RCVMSG) command waits
+for the reply. The system operator must enter at least 1 character as a reply
+to the inquiry message, but the procedure does not contain the remainder of
+the code that would use the reply value.
+PGM
+DCL SNDRCOPY TYPE(*CHAR) LEN(4)
+SNDPGMMSG MSG('Load special form') TOUSR(*SYSOPR) +
+KEYVAR(SNDRCOPY) MSGTYPE(*INQ)
+RCVMSG MSGTYPE(*RPY) MSGKEY(SNDRCOPY) WAIT(120)
+.
+.
+.
+ENDPGM
+Notes: The WAIT parameter must be specified on the Receive Message (RCVMSG) command
+so that the procedure waits for the reply. If the WAIT parameter is not specified,
+the procedure continues with the instruction following the Receive
+Message (RCVMSG) command, without receiving the reply.
+The variable SNDRCOPY in the Send Program Message
+(SNDPGMMSG) command returns to the procedure the message key of
+the sender copy message associated with the inquiry message. This is needed
+to get the reply. When this key is specified on a Receive Message
+(RCVMSG) command with a message type of *RPY, the reply that was
+entered for the associated inquiry message is returned. The SNDRCOPY message
+key is specified in the MSGKEY parameter of the Receive Message (RCVMSG) command.
+
+Example 4: Sending an inquiry message and receive a reply
+with SNDUSRMSGThe following procedure sends a message to the system
+operator when it is run in batch mode or to the display station operator when
+it is run from a display station. The procedure accepts either an uppercase
+or lowercase Y or N. (The lowercase values are translated to uppercase by
+the translation table (the default of the TRNTBL parameter of the Send
+User Message (SNDUSRMSG) command) to make program logic easier.)
+If the value entered is not one of these four, the operator is issued a message
+from Send User Message (SNDUSRMSG) indicating the reply
+is not valid.
+PGM
+DCL &REPLY *CHAR LEN(1)
+.
+.
+SNDUSRMSG MSG('Update YTD Information Y or N') VALUES(Y N) +
+MSGRPY(&REPLY)
+IF (&REPLY *EQ Y)
+DO
+.
+.
+.
+ENDDO
+ELSE
+DO
+.
+.
+ENDDO
+.
+.
+.
+ENDPGM
+
+Example 5: Sending an escape messageThe following
+procedure uses the message CPF9898 to send an escape message. The text of
+the message is 'Procedure detected failure'. Immediate messages
+are not allowed as escape messages so message CPF9898 can be used with the
+message as message data.
+PGM
+.
+.
+.
+SNDPGMMSG MSGID(CPF9898) MSGF(QCPFMSG) MSGTYPE(*ESCAPE)
+MSGDTA('Procedure detected failure')
+.
+.
+ENDPGM
+
+Example 6: Sending an informational message to multiple usersThe
+following procedure allows the system operator to send a message to several
+display stations. When the system operator calls the program containing this
+procedure, it displays a prompt which the system operator can enter the type
+of message to be sent and the text for the message. The procedure concatenates
+the date, time, and text of the message.
+PGM
+DCLF WSMSGD
+DCL &MSG TYPE(*CHAR) LEN(150)
+DCL &HOUR TYPE(*CHAR) LEN(2)
+DCL &MINUTE TYPE(*CHAR) LEN(2)
+DCL &MONTH TYPE(*CHAR) LEN(2)
+DCL &DAY TYPE(*CHAR) LEN(2)
+DCL &WORKHR TYPE(*DEC) LEN(2 0)
+SNDRCVF RCDFMT(PROMPT)
+IF &IN91 RETURN /* Request was ended */
+RTVSYSVAL QMONTH RTNVAR(&MONTH)
+RTVSYSVAL QDAY RTNVAR(&DAY)
+RTVSYSVAL QHOUR RTNVAR(&HOUR)
+IF (&HOUR *GT '12') DO /* Change from military time */
+CHGVAR &WORKHR &HOUR
+CHGVAR &WORKHR (&WORKHR - 12)
+CHGVAR &HOUR &WORKHR
+ENDDO
+RTVSYSVAL QMINUTE RTNVAR(&MINUTE)
+CHGVAR &MSG ('From Sys Opr ' *CAT &MONTH *CAT '/' +
+*CAT &DAY +
+*BCAT &HOUR *CAT ':' *CAT &MINUTE +
+*BCAT &TEXT)
+IF (&TYPE *EQ 'B') GOTO BREAK
+NORMAL: SNDPGMMSG MSG(&MSG) TOMSGQ(WS1 WS2 WS3)
+GOTO ENDMSG
+BREAK: SNDBRKMSG MSG(&MSG) TOMSGQ(WS1 WS2 WS3)
+ENDMSG: SNDPGMMSG MSG('Message sent to display stations') +
+MSGTYPE(*COMP)
+ENDPGM
+The DDS for the display file, WSMSGD, used in this program
+follows:
+|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+A DSPSIZ(24 80)
+A R PROMPT TEXT('Prompt')
+A BLINK
+A CA03(91 'Return')
+A 1 2'Send Messages To Workstations'
+DSPATR(HI)
+A 3 2'TYPE'
+A TYPE 1 1 +2VALUES('N' 'B')
+A CHECK(ME)
+DSPATR(MDT)
+A +3'(N = No breaks B = Break)'
+A 5 2'Text'
+A TEXT 100 1 +2LOWER
+A
+A
+If the system operator enters the following on the prompt:
+B
+
+Please sign off by 3:30 today
+the following break message is sent:
+From Sys Opr 10/30 02:00 Please sign off by 3:30 today
+
+Parent topic: Commands used to send messages from a CL program
+
+Related tasks
+Using a sender copy message to obtain a reply

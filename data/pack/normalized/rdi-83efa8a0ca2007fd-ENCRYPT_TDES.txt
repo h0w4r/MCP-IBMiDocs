@@ -1,0 +1,147 @@
+ENCRYPT_TDES
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions > Scalar functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Scalar functions
+
+ENCRYPT_TDES
+The ENCRYPT_TDES function returns a value that is the result
+of encrypting data-string using the Triple
+DES encryption algorithm. The password used for decryption is either
+the password-string value or the encryption
+password value (assigned by the SET ENCRYPTION PASSWORD statement).
+ENCRYPT_TDES(data-string,password-string,hint-string)
+data-string
+An expression that returns the string value to be encrypted. The
+string expression must be a built-in string data type. The length
+attribute for the data type of data-string must
+be less than m - MOD(m,8)
+- n - 1, where m is
+the maximum length of the result data type and n is
+the amount of overhead necessary to encrypt the value.
+
+password-string
+An expression that returns a character string value with at least
+6 bytes and no more than 127 bytes. The expression must not be a CLOB
+and the CCSID of the expression must not be 65535. The value represents
+the password used to encrypt the data-string.
+If the value of the password argument is null or not provided, the
+data will be encrypted using the ENCRYPTION PASSWORD value, which
+must have been set using the SET ENCRYPTION PASSWORD statement.
+hint-string
+An expression that returns a character string value with up to
+32 bytes that will help data owners remember passwords (For example,
+'Ocean' is a hint to remember 'Pacific'). The expression must not
+be a CLOB and the CCSID of the expression must not be 65535. If a
+hint value is specified, the hint is embedded into the result and
+can be retrieved using the GETHINT function. If the password-string is
+specified and this argument is the null value or not provided, no
+hint will be embedded in the result. If the password-string is
+not specified, the hint may be specified using the SET ENCRYPTION
+PASSWORD statement.
+
+The data type of the result is determined by the first
+argument as shown in the following table:
+Data Type of the First Argument
+Data Type of the Result
+
+BINARY or VARBINARY
+VARBINARY
+
+CHAR, VARCHAR, GRAPHIC, or VARGRAPHIC
+VARCHAR FOR BIT DATA
+
+BLOB, CLOB, or DBCLOB
+BLOB
+
+The length attribute of the result depends on the arguments
+that are specified:
+When a password-string is specified
+but a hint-string is not specified, the
+length attribute of data-string plus 24
+plus the number of bytes to an 8 byte boundary.
+Otherwise, the length attribute of data-string plus
+56 plus the number of bytes to an 8 byte boundary.
+
+The actual length of the result is the sum of :The actual length of data-string plus
+a number of bytes to get to the an 8 byte boundary.
+The actual length of the hint. The actual length of the hint
+is zero if hint-string is not specified
+as a function argument or on the SET ENCRYPTION PASSWORD statement.
+
+n, where n (the
+amount of overhead necessary to encrypt the value) is 16 bytes (or
+24 bytes if data-string is a LOB or different
+CCSID values are used for the data-string,
+the password, or the hint).
+
+If the argument can be null, the result can be null; if
+the argument is null, the result is the null value.
+Note that the encrypted result is longer than the data-string value.
+Therefore, when assigning encrypted values, ensure that the target
+is declared with sufficient size to contain the entire encrypted value.
+NotesPassword
+protection: To prevent inadvertent access to the encryption password,
+do not specify password-string as a string
+constant in the source for a program, procedure, or function. Instead,
+use the SET ENCRYPTION PASSWORD statement or a host variable.
+When
+connected to a remote relational database, the specified password
+itself is sent "in the clear". That is, the password itself is not
+encrypted. To protect the password in these cases, consider using
+a communications encryption mechanism such as IPSEC (or SSL if connecting
+between IBM® i products).
+Encryption
+algorithm: The internal encryption algorithm used is Triple DES
+block cipher with padding, the 128 bit secret key is derived from
+the password using a SHA1 message digest.
+Encryption passwords
+and data: It is the user's responsibility to perform password
+management. Once the data is encrypted only the password used to encrypt
+it can be used to decrypt it. Be careful when using CHAR variables
+to set password values as they may be padded with blanks. The encrypted
+result may contain a null terminator and other non-printable characters.
+Table
+column definition: When defining columns and distinct types to
+contain encrypted data:
+The column must be defined with a data type of CHAR FOR BIT DATA,
+VARCHAR FOR BIT DATA, BINARY, VARBINARY, or BLOB.
+The length attribute of the column must include an additional n bytes,
+where n is the overhead necessary to encrypt
+the data as described above.
+
+Any assignment or cast to a column without one of these data
+types or with a length shorter than the suggested data length may
+result in an assignment error or, if the assignment is successful,
+a failure and lost data when the data is subsequently decrypted. Blanks
+are valid encrypted data values that may be truncated when stored
+in a column that is too short.
+Some sample column length calculations:
+Maximum length of non-encrypted data 6 bytes
+Number of bytes to the next 8 byte boundary 2 bytes
+Overhead 16 bytes (or 24 bytes)
+--------
+Encrypted data column length 24 bytes (or 32 bytes)
+
+Maximum length of non-encrypted data 32 bytes
+Number of bytes to an 8 byte boundary 0 bytes
+Overhead 16 bytes (or 24 bytes)
+--------
+Encrypted data column length 48 bytes (or 56 bytes)
+Administration
+of encrypted data: Encrypted data can only be decrypted on servers
+that support the decryption functions that correspond to the ENCRYPT_TDES
+function. Hence, replication of columns with encrypted data should
+only be done to servers that support the decryption functions.
+ExampleAssume that table EMP1 has a social security column called SSN.
+This example uses the ENCRYPTION PASSWORD value to hold the encryption
+password.   SET ENCRYPTION PASSWORD = 'Ben123'
+
+  INSERT INTO EMP1 (SSN) VALUES ENCRYPT_TDES( '289-46-8832' )
+
+This example explicitly passes the encryption password.   INSERT INTO EMP1 (SSN) VALUES ENCRYPT_TDES( '289-46-8832', 'Ben123' )
+
+The hint 'Ocean' is stored to help the user remember the encryption
+password 'Pacific'.   INSERT INTO EMP1 (SSN) VALUES ENCRYPT_TDES( '289-46-8832', 'Pacific', 'Ocean' )
+
+Parent topic: Scalar functions

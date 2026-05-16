@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-us" xml:lang="en-us">
+<head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+
+<meta content="(C) Copyright 2025" name="copyright" />
+<meta content="(C) Copyright 2025" name="DC.rights.owner" />
+<meta content="topic" name="DC.type" />
+<meta content="ALIGN{(*FULL)}" name="DC.title" />
+<meta content="definition specification keywords, ALIGN, ALIGN keyword, description, integer format, alignment of fields" name="DC.subject" />
+<meta content="definition specification keywords, ALIGN, ALIGN keyword, description, integer format, alignment of fields" name="keywords" />
+<meta content="dskwd.htm" name="DC.relation" scheme="URI" />
+<meta content="ILE RPG" name="prodname" />
+<meta content="7.6" name="version" />
+<meta content="eserver-white" name="brand" />
+<meta content="June 2012" name="DC.date.created" />
+<meta content="XHTML" name="DC.format" />
+<meta content="dalign" name="DC.identifier" />
+<meta content="en-us" name="DC.language" />
+<link href="commonltr.css" rel="stylesheet" type="text/css" />
+<title>ALIGN{(*FULL)}</title>
+
+<link href="../../com.ibm.etools.iseries.resources.alt.doc/css/custom.css" rel="stylesheet" type="text/css" />
+
+<script src="../../../advanced/synchWithToc.js" type="text/javascript" xml:space="preserve"><!-- --></script>
+
+<link charset="ISO-8859-1" href="../../../content/org.eclipse.help.webapp/advanced/breadcrumbs.css" rel="stylesheet" type="text/css" />
+<script src="../../../content/org.eclipse.help/livehelp.js" type="text/javascript" xml:space="preserve"> </script>
+<script type="text/javascript">
+if( self == top ){
+  var  anchorParam = location.hash.length > 0 ? '\u0026anchor=' + location.hash.substr(1) : '';
+  window.location.replace( "../../../index.jsp?topic=%2Fcom.ibm.etools.iseries.ilerpg.ref.f1.doc%2Ftopics%2Fdalign.htm" + anchorParam);
+}
+</script>
+</head>
+<body id="dalign">
+<div class="help_breadcrumbs"><a href="../../../topic/com.ibm.iseries.xd.ref.doc/topics/iprgm.html" shape="rect">IBM i programming resources</a> &gt; <a href="../../../nav/2_0" shape="rect">ILE RPG</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/rzasdmain.htm" shape="rect">ILE RPG Reference</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/specsgen.htm" shape="rect">Specifications</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dspec9.htm" shape="rect">Definition Specifications</a> &gt; <a href="../../../topic/com.ibm.etools.iseries.ilerpg.ref.f1.doc/topics/dskwd.htm" shape="rect">Definition-Specification Keywords</a></div>
+
+
+<h1 class="title topictitle1" id="ariaid-title1">ALIGN{(*FULL)}</h1>
+
+
+<div class="body">
+<p class="p">The ALIGN keyword is used to align float, integer, and unsigned subfields.
+When ALIGN is specified, 2-byte subfields are aligned on a 2-byte boundary,
+4-byte subfields are aligned on a 4-byte boundary, and 8-byte subfields are
+aligned on an 8-byte boundary. Alignment might improve performance
+when accessing float, integer, or unsigned subfields.</p>
+
+<p class="p">Specify ALIGN on the data structure definition. However, you cannot specify
+ALIGN for either the file information data structure (INFDS) or the program
+status data structure (PSDS).</p>
+
+<p class="p">Alignment occurs only to data structure subfields defined with length notation
+and without the keyword OVERLAY. A diagnostic message is issued if subfields
+that are defined with absolute notation or by using the OVERLAY keyword
+are not properly aligned.</p>
+
+<p class="p">Pointer subfields are always aligned on a 16-byte boundary whether or not
+ALIGN is specified.</p>
+
+<div class="p">Specify ALIGN(*FULL) if you want the data structure length to be a multiple of
+the required alignment.
+<ul class="ul">
+<li class="li">The data structure length might need to be a multiple of the required alignment when you are passing the parameter to some functions or APIs. For example, when calling a C® function or API with a data structure parameter that is defined in C without the <span class="keyword">_packed</span> keyword, the RPG data structure for the API should be defined
+with ALIGN(*FULL). Using ALIGN(*FULL) will ensure that the data structure is large enough.
+For example, the <var class="keyword varname">regex_t</var> data structure, which is
+defined in member <span class="ph filepath">REGEX</span> of source file
+<span class="ph filepath">QSYSINC/H</span> has a length of 656.
+A matching data structure that is defined in RPG with the ALIGN keyword has a length of only 644,
+while a matching data structure defined with the ALIGN(*FULL) keyword has the correct length of 656.
+If ALIGN(*FULL) is not specified with the *FULL parameter,
+then calling the <var class="keyword varname">regcomp()</var> API might result
+in data corruption because the RPG data structure is smaller than the API requires.
+</li>
+
+<li class="li">When using %SIZE to determine the distance between elements of an array of data structures,
+or the occurrences of a multiple-occurrence data structure,
+if the data structure is defined with ALIGN(*FULL), you can use %SIZE(ds_name).
+However, if the data structure is defined simply with ALIGN, or if the ALIGN keyword
+is not specified and the data structure contains a pointer, then you must use %SIZE(ds_name:*ALL)
+divided by %ELEM(ds_name).
+<div class="note warning"><span class="warningtitle">Warning:</span> See <a class="xref" href="bbsize.htm" shape="rect">%SIZE (Get Size in Bytes)</a> for information on how the OVERLAY keyword
+can also affect the distance between elements of an array.
+</div>
+
+</li>
+
+</ul>
+
+</div>
+
+<div class="section" id="dalign__examples"><h2 class="title sectiontitle">Examples showing the effect of the ALIGN keyword</h2>
+
+<div class="p">The data structures in the following examples all have the same subfields.
+<ol class="ol">
+<li class="li">Data structure <var class="keyword varname">ds1_no_align</var> is defined without the ALIGN keyword.
+Integer subfield <var class="keyword varname">sub2</var> is in position 2.
+Character subfield <var class="keyword varname">sub3</var> is in position 6. There is no padding at the end of the data
+structure so the size is 6.
+<p class="p">For the array version of the data structure, the result of %SIZE with *ALL
+(<span class="keyword calloutlabel">2</span>) is a multiple
+of the result of %SIZE with only one parameter (<span class="keyword calloutlabel">1</span>).
+</p>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+     DCL-DS ds1_no_align QUALIFIED;
+        sub1 CHAR(1);
+        sub2 INT(10);
+        sub3 CHAR(1);
+     END-DS;
+
+     DCL-DS ds1_no_align_arr LIKEDS(ds1_no_align) DIM(2);
+
+     size = %SIZE(ds1_no_align);             // 6
+     size = %SIZE(ds1_no_align_arr);         // 6  <span class="keyword calloutlabel">1</span>
+     size = %SIZE(ds1_no_align_arr : *ALL);  // 12 <span class="keyword calloutlabel">2</span>
+</code></pre></div>
+
+</li>
+
+<li class="li">Data structure <var class="keyword varname">ds2_simple_align</var> is defined with the ALIGN keyword
+with no parameter.
+Integer subfield <var class="keyword varname">sub2</var> requires 4-byte alignment, so it is in position 5.
+Character subfield <var class="keyword varname">sub3</var> is in position 9. There is no padding at the end of the data
+structure so the size is 9.
+<p class="p">For the array version of the data structure, the result of %SIZE with *ALL
+(<span class="keyword calloutlabel">2</span>) is not a multiple
+of the result of %SIZE with only one parameter (<span class="keyword calloutlabel">1</span>).
+</p>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+     DCL-DS ds2_simple_align ALIGN QUALIFIED;
+        sub1 CHAR(1);
+        sub2 INT(10);
+        sub3 CHAR(1);
+     END-DS;
+
+     DCL-DS ds2_simple_align_arr LIKEDS(ds2_simple_align) DIM(2);
+
+     size = %SIZE(ds2_simple_align);            // 9
+     size = %SIZE(ds2_simple_align_arr);        // 9  <span class="keyword calloutlabel">1</span>
+     size = %SIZE(ds2_simple_align_arr : *ALL); // 24 <span class="keyword calloutlabel">2</span>
+</code></pre></div>
+
+</li>
+
+<li class="li">Data structure <var class="keyword varname">ds3_align_full</var> is defined with the ALIGN(*FULL) keyword.
+Integer subfield <var class="keyword varname">sub2</var> requires 4-byte alignment, so it is in position 5.
+Character subfield <var class="keyword varname">sub3</var> is in position 9. The natural size of the data structure is 9,
+but the size of the data structure must be
+a multiple of the highest alignment that is required by any subfield. Padding is added
+at the end of the data structure to force the size to be 12.
+<p class="p">For the array version of the data structure, the result of %SIZE with *ALL
+(<span class="keyword calloutlabel">2</span>) is a multiple
+of the result of %SIZE with only one parameter (<span class="keyword calloutlabel">1</span>).
+</p>
+
+<div class="fig figborder"><pre class="pre codeblock" xml:space="preserve"><code>
+     DCL-DS ds3_align_full ALIGN(*FULL) QUALIFIED;
+        sub1 CHAR(1);
+        sub2 INT(10);
+        sub3 CHAR(1);
+     END-DS;
+
+     DCL-DS ds3_align_full_arr LIKEDS(ds3_align_full) DIM(2);
+
+     size = %SIZE(ds3_align_full);             // 12
+     size = %SIZE(ds3_align_full_arr);         // 12  <span class="keyword calloutlabel">1</span>
+     size = %SIZE(ds3_align_full_arr : *ALL);  // 24 <span class="keyword calloutlabel">2</span>
+</code></pre></div>
+
+</li>
+
+</ol>
+
+</div>
+
+</div>
+
+<p class="p">See <a class="xref" href="dsalgn.htm#dsalgn" shape="rect">Aligning Data Structure Subfields</a> for more information.</p>
+
+</div>
+<div class="related-links">
+<div class="familylinks">
+<div class="parentlink"><strong>Parent topic:</strong> <a class="link" href="dskwd.htm" shape="rect">Definition-Specification Keywords</a></div>
+</div>
+</div></body>
+</html>

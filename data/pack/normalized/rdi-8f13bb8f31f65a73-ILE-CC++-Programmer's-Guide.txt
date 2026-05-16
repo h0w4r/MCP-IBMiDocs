@@ -1,0 +1,81 @@
+ILE C/C++ Programmer's Guide
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 22. Using OS/400 pointers in a Program
+
+IBM i programming resources > ILE C/C++ > Programmer's Guide > Part 6. Working with iSeries Features > Chapter 22. Using OS/400 pointers in a Program
+
+ILE C/C++ Programmer's Guide
+Casting Pointers
+
+In the C language, casting is a construct to view a data object
+temporarily as another data type.
+When you cast pointers, especially for non-data object pointers, consider
+the following characteristics and constraints:
+
+You can cast a pointer to another pointer of the same OS/400 pointer
+type.
+Note:If the ILE C compiler detects a type mismatch in an expression, a
+compile-time error occurs.
+
+An open (void) pointer can hold a pointer of any type. Casting an
+open pointer to other pointer types and casting other pointer types to an open
+pointer does not result in a compile-time error.
+Note:You might receive a run-time exception if the pointer contains a value
+unsuitable for the context.
+
+When you convert a valid data object pointer to a signed or unsigned
+integer type, the return value is the offset of the pointer. If the
+pointer is NULL, the conversion returns a value of zero (0).
+Note:It is not possible to determine whether the conversion originated from a NULL
+pointer or a valid pointer with an offset 0.
+
+When you convert a valid function (procedure) pointer, system
+pointer, invocation pointer, label pointer, or suspend pointer to a signed or
+unsigned integer type, the result is always zero.
+When you convert an open pointer that contains a valid space
+address, the return value is the offset that is contained in the
+address.
+You can convert an integer to pointer, but the resulting pointer
+value cannot be dereferenced. The right four bytes of such a pointer
+will contain the original integer value, and this value can be recovered by
+converting the pointer back to an integer.
+Note:This marks a change from behavior exhibited in earlier versions of ILE C,
+where integer to pointer conversions always resulted in a NULL pointer
+value.
+
+Example:
+Figure 193 shows OS/400 pointer casting:
+Figure 193. ILE C Source to Show OS/400 pointer casting
+
+#include <pointer.h>
+#pragma datamodel(p128)
+#pragma linkage(TESTPTR, OS)
+#pragma datamodel(pop)
+void TESTPTR(void); /* System pointer to this program */
+_SYSPTR sysp; /* System pointer */
+_OPENPTR opnp; /* open pointer */
+void (*fp)(void); /* function pointer */
+int i = 1; /* integer */
+int *ip = &i; /* Space pointer */
+void main (void) { 
+fp = &main; /* initialize function pointer */
+sysp = &TESTPTR; /* initialize system pointer */
+ 
+i = (int) ip; /* segment offset stored in i */
+ip = (int *) i; /* address stored is invalid */
+i = (int) fp; /* zero is stored in i */
+i = 2; 
+fp = (void (*)()) i; /* address stored is invalid */
+i = 3; 
+sysp = (_SYSPTR) i; /* address stored is invalid */
+opnp = &i; /* address of i stored in open pointer */
+i = (int) opnp; /* offset of space pointer contained */
+/* in open pointer is stored in i */
+i = 4; 
+opnp = (_OPENPTR) i; /* address stored is invalid */
+i = (int) opnp; /* i is set to integer value stored (4)*/
+}
+
+[ Top of Page | Previous Page | Next Page | Table of Contents ]
+
+(C) Copyright IBM Corporation 1992, 2005. All Rights Reserved.

@@ -1,0 +1,84 @@
+ILE C/C++ Language Reference
+
+IBM i programming resources > ILE C/C++ > Language Reference > Inheritance (C++ only) > Virtual functions (C++ only)
+
+IBM i programming resources > ILE C/C++ > Language Reference > Inheritance (C++ only) > Virtual functions (C++ only)
+
+ILE C/C++ Language Reference
+
+Ambiguous virtual function calls (C++ only)
+You cannot override one virtual function with two or more ambiguous
+virtual functions. This can happen in a derived class that inherits
+from two nonvirtual bases that are derived from a virtual base class.
+For example:
+class V {
+public:
+virtual void f() { }
+};
+
+class A : virtual public V {
+void f() { }
+};
+
+class B : virtual public V {
+void f() { }
+};
+
+// Error:
+// Both A::f() and B::f() try to override V::f()
+class D : public A, public B { };
+
+int main() {
+D d;
+V* vptr = &d;
+
+// which f(), A::f() or B::f()?
+vptr->f();
+}
+The compiler will not allow the definition of class D.
+In class A, only A::f() will override V::f().
+Similarly, in class B, only B::f() will override V::f().
+However, in class D, both A::f() and B::f() will
+try to override V::f(). This attempt is not allowed because
+it is not possible to decide which function to call if a D object
+is referenced with a pointer to class V, as shown in the
+above example. Only one function can override a virtual function.
+A special case occurs when the ambiguous overriding virtual functions
+come from separate instances of the same class type. In the following
+example, class D has two separate subobjects of class A:
+#include <iostream>
+using namespace std;
+
+struct A {
+virtual void f() { cout << "A::f()" << endl; };
+};
+
+struct B : A {
+void f() { cout << "B::f()" << endl;};
+};
+
+struct C : A {
+void f() { cout << "C::f()" << endl;};
+};
+
+struct D : B, C { };
+
+int main() {
+D d;
+
+B* bp = &d;
+A* ap = bp;
+D* dp = &d;
+
+ap->f();
+// dp->f();
+}
+Class D has two occurrences of class A, one
+inherited from B, and another inherited from C.
+Therefore there are also two occurrences of the virtual function A::f.
+The statement ap->f() calls D::B::f. However
+the compiler would not allow the statement dp->f() because
+it could either call D::B::f or D::C::f.
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]

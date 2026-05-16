@@ -1,0 +1,99 @@
+%CHECK (Check Characters)
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions > Built-in Functions
+
+IBM i programming resources > ILE RPG > ILE RPG Reference > Operations, Expressions, and Functions > Built-in Functions
+
+%CHECK (Check Characters)
+
+%CHECK(comparator : base {: start { : *NATURAL | *STDCHARSIZE}})
+%CHECK returns the first position of the string base that
+contains a character that does not appear in string comparator.
+If all of the characters in base also appear in comparator,
+the function returns 0.
+
+The check begins at the starting position and continues to the
+right until a character that is not contained in the comparator string
+is found. The starting position defaults to 1.
+
+The first and second parameters must be of type character, graphic, or UCS-2,
+fixed or varying length. If the first parameter does not have the same type and CCSID as the
+second parameter, the first parameter is converted to the type and CCSID of the second parameter.
+
+The third parameter, if specified, must be
+a non-float numeric with zero decimal positions.
+
+The third or fourth parameter can be *NATURAL or *STDCHARSIZE
+to override the current CHARCOUNT mode for the statement.
+If this parameter is specified, it must be the last parameter.
+
+Specify *NATURAL to indicate that %CHECK operates in CHARCOUNT
+NATURAL mode. The start position and return value are measured in characters
+rather than bytes or double bytes. For example, if the base string is a UTF-8 string with
+the value 'ábç12', and the comparator string is 'çbá', the '1' character is the first
+character in the base string that does not appear in the comparator string. With CHARCOUNT NATURAL mode, %CHECK returns 4, because the character
+'1' is the fourth character in the base string.
+
+Specify *STDCHARSIZE to indicate that %CHECK operates in CHARCOUNT
+STDCHARSIZE mode. In the previous example, with CHARCOUNT STDCHARSIZE mode, %CHECK returns 6 because '1' is the 6th byte in
+the string. Characters 'á' and 'ç' are 2-byte characters.
+
+See Processing string data by the natural size of each character.
+Note:
+%CHECK can also operate in CHARCOUNT NATURAL mode due to the
+/CHARCOUNT compiler directive or the CHARCOUNT Control keyword.
+
+For more information, see String Operations or Built-in Functions.
+
+Figure 1. %CHECK Example
+
+*..1....+....2....+....3....+....4....+....5....+....6....+....7...+....
+*--------------------------------------------------
+* A string contains a series of numbers separated
+* by blanks and/or commas.
+* Use %CHECK to extract the numbers
+*--------------------------------------------------
+D string s 50a varying
+D inz('12, 233 17, 1, 234')
+D delimiters C ' ,'
+D digits C '0123456789'
+D num S 50a varying
+D pos S 10i 0
+D len S 10i 0
+D token s 50a varying
+
+/free
+
+// make sure the string ends with a delimiter
+string = string + delimiters;
+
+dou string = '';
+
+// Find the beginning of the group of digits
+pos = %check (delimiters : string);
+if (pos = 0);
+leave;
+endif;
+
+// skip past the delimiters
+string = %subst(string : pos);
+
+// Find the length of the group of digits
+len = %check (digits : string) - 1;
+
+// Extract the group of digits
+token = %subst(string : 1 : len);
+dsply ' ' ' ' token;
+
+// Skip past the digits
+if (len < %len(string));
+string = %subst (string : len + 1);
+endif;
+
+enddo;
+
+/end-free
+
+See also Figure 2.
+
+Parent topic: Built-in Functions

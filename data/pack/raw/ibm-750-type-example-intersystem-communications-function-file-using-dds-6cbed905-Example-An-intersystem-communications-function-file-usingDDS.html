@@ -1,0 +1,174 @@
+<html><head></head><body><main role="main"><article role="article" aria-labelledby="icffileexamp__title__1">
+<h1 class="topictitle1" id="icffileexamp__title__1">Example: An intersystem communications function file using
+DDS</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-09-29</div>
+
+
+
+<div class="body conbody"><p class="shortdesc">This example contains data description specifications
+(DDS) for transmitting data between the <span class="keyword">IBM i</span> platform and a remote
+system or device.</p>
+
+<p>The following keywords are important in the example:</p>
+
+
+<div class="tablenoborder"><div class="cds--data-table-container"><table summary="" role="presentation" class="presentation cds--data-table"><colgroup><col><col></colgroup><tbody>
+<tr>
+<td class="nrule"><div class="lines">CONFIRM<br>
+DETACH<br>
+EVOKE<br>
+RCVDETACH<br>
+RCVFAIL<br>
+RCVCONFIRM<br>
+RCVTRNRND</div>
+</td>
+
+<td class="nrule"><div class="lines">RECID<br>
+SYNLVL<br>
+EOS<br>
+RSPCONFIRM<br>
+ALWWRT<br>
+FAIL<br>
+RQSWRT</div>
+</td>
+
+</tr>
+
+</tbody>
+</table></div>
+</div>
+
+<figure class="fignone" id="icffileexamp__o23"><figcaption>Figure 1. ICF file</figcaption>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00010A*
+00020A*  SAMPLE ICF FILE
+00030A*
+00040A  01                             (3)  EOS
+00050A                                 (2)  RCVTRNRND(01 'TRNRND INDICATION')
+00060A                                 (2)  RCVDETACH(02 'DETACH RECEIVED')
+00070A                                 (2)  RCVCONFIRM(03 'CONFIRM REQUEST')
+00080A                                 (2)  RCVFAIL(04 'FAIL RECEIVED')
+00090A
+00100A          R CATCHALL
+00110A            FLD1         132A
+00120A*
+00130A          R SNDEVOKE                  EVOKE(&amp;LIBNME/&amp;PGMNME);
+00140A     (1)                              SYNLVL(*CONFIRM) SECURITY(2 PASSWRD)
+00150A     (1)                              CONFIRM
+00160A            PGMNME        10A  P
+00170A            LIBNME        10A  P
+00180A            PASSWRD        8A  P
+00190A*
+00200A          R HEADER                    RECID(1 'H')
+     A</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>|...+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....8
+00210A  09                                  CONFIRM
+00220A            ID             1A
+00230A        (4) PART#         12A
+00240A            UNTCST         6S 2
+00250A            QTYONORDR      9B 0
+00260A            TOTAL          9B 0
+00270A*
+00280A          R DETAIL                    RECID(1 'D') RECID(1 'E')
+00290A  09                                  CONFIRM
+00300A            ID             1A
+00310A        (4) LOC            6A
+00320A            QTY            9B 0
+00330A*
+00340A          R COMMANDS
+00350A  05                              (5) FALL
+00360A  06                              (5) ALWWRT
+00370A  07                              (5) DETACH
+00380A  08                              (5) RQSWRT
+00390A  09                              (5) CONFIRM
+00400A  10                              (5) RSPCONFIRM
+     A</code></pre></div><div class="docs--copy-btn"></div></div>
+</figure>
+
+<p>Legend:</p>
+
+<dl>
+<dt class="dlterm">(1)</dt>
+
+<dd class="dlentry">The record format SNDEVOKE causes the program specified in the
+field PGMNME and the library specified in the field LIBNME to be started
+on the remote system. It also establishes a synchronization level
+of *CONFIRM for the transaction and passes the data in the field PASSWRD
+as security information. The CONFIRM keyword requests that the remote
+system confirm the start of the program.</dd>
+
+
+<dt class="dlterm">(2)</dt>
+
+<dd class="dlentry">If the remote program performs any of the following actions:  <ul class="cds--list--unordered">
+<li class="cds--list__item">Requests to end sending data</li>
+
+<li class="cds--list__item">Requests to end the transaction</li>
+
+<li class="cds--list__item">Requests to confirm receiving the data</li>
+
+<li class="cds--list__item">Sends a FAIL</li>
+
+</ul>
+   This sets on one of the following response indicators:  <ul class="cds--list--unordered">
+<li class="cds--list__item">01 (the RCVTRNRND keyword)</li>
+
+<li class="cds--list__item">02 (the RCVDETACH keyword)</li>
+
+<li class="cds--list__item">03 (the RCVCONFIRM keyword)</li>
+
+<li class="cds--list__item">04 (the RCVFAIL keyword)</li>
+
+</ul>
+</dd>
+
+
+<dt class="dlterm">(3)</dt>
+
+<dd class="dlentry">The EOS keyword causes the session to end if indicator 01 is on
+and the program issues an output operation.</dd>
+
+
+<dt class="dlterm">(4)</dt>
+
+<dd class="dlentry">The system sends and receives data in the form of header
+records (record format HEADER) and detail records (record format DETAIL).
+If your program is sending, option indicator 09 can be set on, which
+enables the CONFIRM keyword to request the remote system to confirm
+receiving the data.  <p>When receiving data, the record selection
+processing (RECID keyword) determines which record is received. If
+an H is in position 1, record format HEADER is selected.  If a D or
+an E is in position 1, record format DETAIL is selected. If anything
+else is in position 1 (unexpected record format, application error,
+or indicators with no data, RCVDETACH, RCVFAIL, and so on), record
+format CATCHALL is selected.</p>
+</dd>
+
+
+<dt class="dlterm">(5)</dt>
+
+<dd class="dlentry">Record format, COMMANDS, is used to request the following communications
+functions:  <ul class="cds--list--unordered">
+<li class="cds--list__item">If indicator 05 is on, the FAIL function is performed.</li>
+
+<li class="cds--list__item">If indicator 06 is on, the ALWWRT function is performed.</li>
+
+<li class="cds--list__item">If indicator 07 is on, the DETACH function is performed.</li>
+
+<li class="cds--list__item">If indicator 08 is on, the RQSWRT function is performed.</li>
+
+<li class="cds--list__item">If indicator 09 is on, the CONFIRM function is performed.</li>
+
+<li class="cds--list__item">If indicator 10 is on, the RSPCONFIRM function is performed.</li>
+
+</ul>
+</dd>
+
+</dl>
+
+</div>
+
+<aside role="complementary" aria-labelledby="icffileexamp__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_73" href="/docs/en/ssw_ibm_i_75/dds/rbafpmstexamp.htm" title="You can use these examples with appropriate high-level language programs." class="bottom-section-link">Examples: DDS for each file type</a></div></div>
+</div>
+</nav></aside></article></main><script type="text/javascript"  src="/k4npW7/pGK8/gE6J/t69g/C9FUel/kOm3tmmSJb8GVp7c/HFFCUAE/BCdkVQ/t9HyMB"></script></body></html>

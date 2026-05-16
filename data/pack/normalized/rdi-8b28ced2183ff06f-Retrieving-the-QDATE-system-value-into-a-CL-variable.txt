@@ -1,0 +1,127 @@
+Retrieving the QDATE system value into a CL variable
+
+IBM i programming resources > Control language > Control language > CL programming > Retrieving values that can be used as variables > Retrieving system values > Retrieving system values
+
+IBM i programming resources > Control language > Control language > CL programming > Retrieving values that can be used as variables > Retrieving system values
+
+Retrieving the QDATE system value into a CL variable
+In many applications, you might want to
+use the current date in your program or procedure by retrieving the
+system value QDATE and placing it in a variable. You might also want
+to change the format of that date for use in your program or procedure.
+Note: By using the code examples, you agree to the terms
+of the Code license and disclaimer information.
+To
+convert the format of a date in a CL program or procedure, use the Convert
+Date (CVTDAT) command.
+The format for the system date
+is the system value QDATFMT. The included value of QDATFMT varies
+according to country or region. For example, 062488 is
+the MDY (month day year) format for June 24 1988. You can change
+this format to the YMD, DMY, or the JUL (Julian) format. For Julian,
+the QDAY value is a three-character value from 001 to 366. It is
+used to determine the number of days between two dates. You can also
+delete the date separators or change the character used as a date
+separator with the Convert Date (CVTDAT) command.
+The
+format for the Convert Date (CVTDAT) command is:
+
+CVTDAT DATE(date-to-be-converted) TOVAR(CL-variable) +
+FROMFMT(old-format) TOFMT(new-format) +
+TOSEP(new-separators)
+The DATE parameter can specify a constant or a variable
+to be converted. After the date has been converted, it is placed
+in the variable named on the TOVAR parameter. In the following example,
+the date in variable &DATE, which is formatted as MDY, is changed
+to the DMY format and placed in the variable &CVTDAT.
+CVTDAT DATE(&DATE) TOVAR(&CVTDAT) FROMFMT(*MDY) TOFMT(*DMY)
+TOSEP(*SYSVAL)
+The date separator remains as specified in the system
+value QDATSEP.
+The Convert Date (CVTDAT) command
+can be useful when creating objects or adding a member that uses a
+date as part of its name. For example, assume that a member must
+be added to a file using the current system date. Also, assume that
+the current date is in the MDY format and is to be converted to the
+Julian format.
+PGM
+DCL &DATE6 *CHAR LEN(6)
+DCL &DATE5 *CHAR LEN(5)
+RTVSYSVAL QDATE RTNVAR(&DATE6)
+CVTDAT DATE(&DATE6) TOVAR(&DATE5) TOFMT(*JUL) TOSEP(*NONE)
+ADDPFM LIB1/FILEX MBR('MBR' *CAT &DATE5)
+.
+.
+.
+ENDPGM
+If the current date is 5 January 1988, the added member
+would be named MBR88005.
+Remember when converting dates:
+The length of the value in the DATE parameter and the length of
+the variable on the TOVAR parameter must be compatible with the date
+format. The length of the variable on the TOVAR parameter must be
+at least:
+For Non-Julian Dates possessing 2-digit years Use six characters when using no separators. July 28, 1978 would be written as 072878.
+
+Use 8 characters when using separators. July 28, 1978 would be written as 07-28-78.
+
+For Non-Julian Dates with 4-digit years Use eight characters when using no separators. July 28, 1978 would be written as 07281978.
+
+Use ten characters when using separators. July 28, 1978 would be written as 07-28-1978.
+
+For Julian dates with 2–digit years Use five characters when using no separators. December 31, 1996 would be written as 96365.
+
+Use six characters when using separators. December 31, 1996 would be written as 96-365.
+
+For Julian dates with 4–digit years, Seven characters are required when no separators are used. February 4, 1997 would be written as 1997035.
+
+Eight characters are required when separators are used. February 4, 1997 would be written as 1997-035.
+
+Error messages are sent for converted characters that do
+not fit in the variable. If the converted date is shorter than the
+variable, it is padded on the right with blanks.
+
+In every date format except Julian, the month and day are 2-byte
+fields no matter what value they contain. The year can be either 2-byte
+or 4-byte fields. All converted values are right-aligned and, when
+necessary, padded with leading zeros.
+In the Julian format, day is a 3-byte field, and year is a 2-byte
+or 4-byte field. All converted values are right-aligned and, when
+necessary, padded with leading zeros.
+
+The following is an alternative program that uses the ILE
+bindable API, Get Current Local Time (CEELOCT), to convert a date
+to Julian format. To create this program, you must use the Create
+Bound Control Language Program (CRTBNDCL) command alone,
+or the Create Control Language Module (CRTCLMOD) command
+and the Create Program (CRTPGM) command together.
+
+PGM
+DCL &LILDATE *INT LEN(4)
+DCL &PICTSTR *CHAR LEN(5) VALUE(YYDDD)
+DCL &JULDATE *CHAR LEN(5)
+DCL &SECONDS *CHAR 8 /* Seconds from CEELOCT */
+DCL &GREG *CHAR 23 /* Gregorian date from CEELOCT */
+/* */
+CALLPRC PRC(CEELOCT) /* Get current date and time */ +
+PARM(&LILDATE /* Date in Lilian format */ +
+&SECONDS /* Seconds field will not be used */ +
+&GREG /* Gregorian field will not be used */ +
+*OMIT) /* Omit feedback parameter */ +
+/* so exceptions are signalled */
+
+CALLPRC PRC(CEEDATE) +
+PARM(&LILDATE /* Today's date */ +
+&PICTSTR /* How to format */ +
+&JULDATE /* Julian date */ +
+*OMIT)
+
+ADDPFM LIB1/FILEX MBR('MBR' *CAT &JULDATE)
+
+ENDPGM
+
+Parent topic: Retrieving system values
+
+Related information
+Get Current Local Time (CEELOCT) API
+Application Programming Interfaces (API)

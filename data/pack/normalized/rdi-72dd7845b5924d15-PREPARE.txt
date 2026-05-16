@@ -1,0 +1,1079 @@
+PREPARE
+
+IBM i programming resources > SQL > SQL reference > Statements > Statements
+
+IBM i programming resources > SQL > SQL reference > Statements
+
+PREPARE
+The PREPARE statement creates an executable form of an
+SQL statement from a character-string form of the statement. The character-string
+form is called a statement string, and the executable form
+is called a prepared statement.
+InvocationThis statement can only be embedded
+in an application program, SQL function, SQL procedure, or trigger.
+It is an executable statement that cannot be dynamically prepared.
+It must not be specified in Java™.
+AuthorizationThe authorization rules are
+the same as those defined for the SQL statement specified by the PREPARE
+statement. For example, see select-statement for
+the authorization rules that apply when a SELECT statement is prepared.
+If
+DLYPRP(*NO) is specified on the CRTSQLxxx command, the authorization
+checking is performed when the statement is prepared, except:
+If a DROP SCHEMA statement is prepared, privileges on all objects
+in the schema are not checked until the statement is executed.
+If a DROP TABLE statement is prepared, privileges on all views,
+indexes, and logical files that reference the table are not checked
+until the statement is executed.
+If a DROP VIEW statement is prepared, privileges on all views
+that reference the view are not checked until the statement is executed.
+If a CREATE TRIGGER statement is prepared, privileges on objects
+referenced in the triggered-action are not
+checked until the statement is executed.
+If a DROP, COMMENT, or LABEL of a FUNCTION, PROCEDURE,
+SEQUENCE, TYPE, TRIGGER, VARIABLE, or XSROBJECT statement is prepared,
+authorities are not checked until the statement is executed.
+If a GRANT or REVOKE statement is prepared, authorities are not
+checked until the statement is executed.
+
+If DLYPRP(*YES) is specified on the CRTSQLxxx command, all
+authorization checking is deferred until the statement is executed
+or used in an OPEN statement.
+The authorization
+ID of the statement is the run-time authorization ID unless USRPRF(*OWNER)
+and DYNUSRPRF(*OWNER) were specified on the CRTSQLxxx command when
+the program was created. For more information, see Authorization IDs and authorization names.
+If a global variable
+is referenced in a statement, the privileges held by the authorization
+ID of the statement must include at least one of the following:
+For the global variable identified in the statement, The READ privilege on the global variable, and
+The system authority *EXECUTE on the library containing the global
+variable
+
+Database administrator authority
+
+SyntaxPREPAREstatement-nameUSINGSQLDESCRIPTORLOCALGLOBALSQL-descriptor-nameINTOdescriptor-nameUSINGNAMESSYSTEM NAMESLABELSANYBOTHALLFROMvariableexpressionATTRIBUTESattr-variableFROMvariableexpression
+attribute-stringASENSITIVEINSENSITIVESENSITIVEDYNAMICNO SCROLLSCROLLWITHOUT HOLDWITH HOLDWITHOUT RETURNWITH RETURNTO CALLERTO CLIENToffset-clausefetch-first-clauseread-only-clauseupdate-clauseoptimize-clauseisolation-clauseconcurrent-access-resolution-clauseWITHOUT EXTENDED INDICATORSWITH EXTENDED INDICATORSWITHOUT ROW CHANGE COLUMNSWITH ROW CHANGE COLUMNSPOSSIBLY DISTINCTALWAYS DISTINCT1
+Descriptionstatement-name
+Names
+the prepared statement. If the name identifies an existing prepared
+statement, that prepared statement is destroyed if: it was prepared in the same instance of the same program, or
+CLOSQLCSR(*ENDJOB), CLOSQLCSR(*ENDACTGRP), or CLOSQLCSR(*ENDSQL)
+are specified on the CRTSQLxxx commands associated with both prepared
+statements.
+
+The name must not identify a prepared statement that is the SELECT
+statement of an open cursor of this instance of the program.
+USING SQL DESCRIPTOR SQL-descriptor-name
+Identifies
+an SQL descriptor. If USING is specified, and the PREPARE statement
+is successfully executed, information about the prepared statement
+is placed in the SQL descriptor specified by the SQL-descriptor-name.
+Thus, the PREPARE statement: EXEC SQL PREPARE S1 USING SQL DESCRIPTOR :sqldescriptor FROM :V1;
+is
+equivalent to:
+EXEC SQL PREPARE S1 FROM :V1;
+EXEC SQL DESCRIBE S1 USING SQL DESCRIPTOR :sqldescriptor;
+LOCAL
+Specifies the scope of the name of the descriptor to be local
+to program invocation.
+GLOBAL
+Specifies the scope of the name of the descriptor to be global
+to the SQL session.
+SQL-descriptor-name
+Names the SQL descriptor. The name must identify a descriptor
+that already exists with the specified scope.
+
+See GET DESCRIPTOR for
+an explanation of the information that is placed in the SQL descriptor.
+
+INTO
+If INTO is used, and the
+PREPARE statement is successfully executed, information about the
+prepared statement is placed in the SQLDA specified by the descriptor-name.
+Thus, the PREPARE statement: EXEC SQL PREPARE S1 INTO :SQLDA FROM :V1;
+is
+equivalent to:
+EXEC SQL PREPARE S1 FROM :V1;
+EXEC SQL DESCRIBE S1 INTO :SQLDA;
+descriptor-name
+Identifies an SQL descriptor area (SQLDA), which is described
+in SQLDA (SQL descriptor area). Before the PREPARE statement
+is executed, the following variable in the SQLDA must be set (The
+rules for REXX are
+different. For more information, see the Embedded SQL Programming topic
+collection.) : SQLN
+Indicates the number of variables represented by SQLVAR. (SQLN
+provides the dimension of the SQLVAR array.) SQLN must be set to a
+value greater than or equal to zero before the PREPARE statement is
+executed. For information about techniques to determine the number
+of occurrences required, see Determining how many SQLVAR occurrences are needed.
+
+See DESCRIBE for
+an explanation of the information that is placed in the SQLDA.
+
+USING
+Specifies
+what value to assign to each SQLNAME variable in the SQLDA. If the
+requested value does not exist or a name is longer than 30, SQLNAME
+is set to length 0. NAMES
+Assigns
+the name of the column. This is the default. For a prepared statement
+where the names are explicitly specified in the select-list, the name
+specified is returned.
+SYSTEM NAMES
+Assigns the system column
+name of the column.
+LABELS
+Assigns the label of
+the column. (Column labels are defined by the LABEL statement.) Only
+the first 20 bytes of the label are returned.
+ANY
+Assigns the column label.
+If the column has no label, the label is the column name.
+BOTH
+Assigns both the label
+and name of the column. In this case, two or three occurrences of
+SQLVAR per column, depending on whether the result set contains distinct
+types, are needed to accommodate the additional information. To specify
+this expansion of the SQLVAR array, set SQLN to 2*n or 3*n(where n is
+the number of columns in the table or view). The first n occurrences
+of SQLVAR contain the column names. Either the second or third n occurrences
+contain the column labels. If there are no distinct types, the labels
+are returned in the second set of SQLVAR entries. Otherwise, the labels
+are returned in the third set of SQLVAR entries. If the same SQLDA
+is used on a subsequent FETCH statement, set SQLN to n after
+the PREPARE is complete.
+
+ALL
+Assigns the label, column
+name, and system column name. In this case three or four occurrences
+of SQLVAR per column, depending on whether the result set contains
+distinct types, are needed to accommodate the additional information.
+To specify this expansion of the SQLVAR array, set SQLN to 3*n or
+4*n (where n is the number of columns in the result
+table). The first n occurrences of SQLVAR contain the system
+column names. The second or third n occurrences contain the
+column labels. The third or fourth n occurrences contain the
+column names if they are different from the system column name. If
+there are no distinct types, the labels are returned in the second
+set of SQLVAR entries and the column names are returned in the third
+set of SQLVAR entries. Otherwise, the labels are returned in the third
+set of SQLVAR entries and the column names are returned in the fourth
+set of SQLVAR entries. If the same SQLDA is used on a subsequent
+FETCH statement, set SQLN to n after the PREPARE is complete.
+
+ATTRIBUTES attr-variable
+Specifies the attributes for this cursor that
+are in effect if a corresponding attribute has not been specified
+as part of the outermost fullselect of the associated SELECT statement.
+If attributes are specified for the outermost fullselect, they are
+used instead of the corresponding attributes specified on the PREPARE
+statement. In turn, if attributes are specified in the PREPARE statement,
+they are used instead of the corresponding attributes specified on
+a DECLARE CURSOR statement.All attributes other
+than USE CURRENTLY COMMITTED and WAIT FOR OUTCOME are ignored if the
+prepared statement is not a select-statement.
+attr-variable must
+identify a character-string or Unicode graphic variable that is declared
+in the program in accordance with the rules for declaring string variables. attr-variable must
+be a string variable (either fixed-length or varying-length) that
+has a length attribute that does not exceed the maximum length of
+a VARCHAR. Leading and trailing blanks are removed from the value
+of the variable. The variable must contain a valid attribute-string.
+An
+indicator variable can be used to indicate whether attributes are
+actually provided on the PREPARE statement. Thus, applications can
+use the same PREPARE statement regardless of whether attributes need
+to be specified or not. The options that can be specified as part
+of the attribute-string are as follows: ASENSITIVE, SENSITIVE, or INSENSITIVE
+Specifies whether the cursor is asensitive, sensitive, or insensitive
+to changes. For more information, see DECLARE CURSOR. If
+SENSITIVE is specified, then a fetch-first-clause must
+not be specified. If INSENSITIVE is specified, then an update-clause must
+not be specified.
+
+NO SCROLL or SCROLL
+Specifies whether the cursor is scrollable or not scrollable.
+For more information, see DECLARE CURSOR.
+WITHOUT HOLD or WITH HOLD
+Specifies whether the cursor should be prevented from being closed
+as a consequence of a commit operation. For more information, see DECLARE CURSOR.
+WITHOUT RETURN or WITH RETURN
+Specifies whether the result table of the cursor is intended to
+be used as a result set that will be returned from a procedure. For
+more information, see DECLARE CURSOR.
+offset-clause
+Specifies the number of rows to skip before any rows are retrieved.
+For more information, see offset-clause. The offset-row-count must
+be a constant.
+fetch-first-clause
+Specifies that a maximum number of rows should be retrieved. For
+more information, see fetch-first-clause. The fetch-first-row-count must be a constant.
+read-only-clause or update-clause
+Specifies whether the result table is read-only or updatable.
+The update-clause clause must be specified
+without column names (FOR UPDATE). For more information, see read-only-clause and update-clause.
+optimize-clause
+Specifies that the database manager should assume that the program
+does not intend to retrieve more than integer rows
+from the result table. For more information, see optimize-clause.
+isolation-clause
+Specifies an isolation level at which the select statement is
+executed. For more information, see isolation-clause.
+concurrent-access-resolution-clause
+Specifies the concurrent access resolution
+to use for the select statement. For more information, see concurrent-access-resolution-clause.
+WITHOUT EXTENDED INDICATORS or WITH EXTENDED INDICATORS
+Specifies whether the values provided for indicator variables
+during execution of an INSERT or UPDATE follow standard SQL semantics
+for indicating NULL values, or may use extended capabilities to indicate
+the assignment of a DEFAULT or UNASSIGNED value.
+WITH EXTENDED INDICATORS must only be specified when the statement
+is an INSERT using VALUES form of the INSERT statement, an UPDATE
+statement, or when the statement contains an INSERT using VALUES form
+of the INSERT statement.
+WITHOUT ROW CHANGE COLUMNS or WITH ROW CHANGE COLUMNS
+POSSIBLY DISTINCT or WITH ROW CHANGE COLUMNS ALWAYS DISTINCT
+Specifies whether additional column(s) should be added to the
+result set of a prepared select-statement that can be subsequently
+be used to identify whether a value of a column in the row might have
+changed. Additional row change columns are only added if a single
+table (or an updatable view) is referenced in the outermost subselect.
+The DESCRIBE and GET DESCRIPTOR statements will indicate which rows
+have been added.WITHOUT ROW CHANGE COLUMNS
+Row change columns are not added to the result set. This is the
+default.
+WITH ROW CHANGE COLUMNS POSSIBLY DISTINCT
+Row change columns are added to the result set even if they do
+not uniquely represent a single row. The columns added can be used
+to determine whether a value of a column in the row might have changed
+since it was originally fetched.If the row change column values have not changed since they were
+first fetched, then no columns of the row have been changed since
+they were first fetched.
+If the row change column values have changed since they were first
+fetched, then columns of the row may or may not have changed since
+the row change values are not guaranteed to represent a single row.
+
+WITH ROW CHANGE COLUMNS ALWAYS DISTINCT
+Row change columns are added to the result set only if they uniquely
+represent a single row. Otherwise, no row change columns are added
+to the result set. The columns added can be used to determine whether
+a value of a column in the row has changed since it was originally
+fetched. (Note that a table requires a row change timestamp column
+to guarantee that the row change columns of a row uniquely identify
+a single row.)If the row change column values have not changed since they were
+first fetched, then no columns of the row have been changed since
+they were first fetched.
+If the row change column values have changed since they were first
+fetched, then columns of the row have changed.
+
+A warning is returned (SQLSTATE 0168T) if WITH ROW CHANGE COLUMNS
+ALWAYS DISTINCT is specified and the database manager is unable to
+return distinct row change columns.
+
+FROM
+Introduces
+the statement string. The statement string is the value of the specified expression, string-expression,
+or the identified variable. variable
+Identifies
+a variable that is declared in the program
+in accordance with the rules for declaring character-string or Unicode
+graphic variables. An indicator variable must not be specified.
+expression
+An expression of
+the type described in Expressions, that
+does not include an aggregate function or column name. It must return
+a value that is a character string or a Unicode graphic string. If a variable is specified in the expression it
+must not have a CCSID of 65535.1
+
+The statement string must be one of the following
+SQL statements:
+ALLOCATE CURSOR
+INSERT
+SET CURRENT DEGREE
+
+ALTER
+LABEL
+SET CURRENT IMPLICIT XMLPARSE OPTION
+
+ASSOCIATE LOCATORS
+LOCK TABLE
+SET CURRENT TEMPORAL
+SYSTEM_TIME
+
+CALL
+MERGE
+SET ENCRYPTION PASSWORD
+
+COMMENT
+REFRESH TABLE
+SET PATH
+
+COMMIT
+RELEASE SAVEPOINT
+SET SCHEMA
+
+Compound (dynamic)
+RENAME
+SET SESSION AUTHORIZATION
+
+CREATE
+REVOKE
+SET TRANSACTION
+
+DECLARE GLOBAL TEMPORARY TABLE
+ROLLBACK
+SET variable2
+
+DELETE
+SAVEPOINT
+TRANSFER OWNERSHIP
+
+DROP
+select-statement
+TRUNCATE
+
+FREE LOCATOR
+SET CURRENT DEBUG MODE
+UPDATE
+
+GRANT
+SET CURRENT DECFLOAT ROUNDING MODE
+VALUES INTO
+
+HOLD LOCATOR
+ 
+ 
+
+The statement string must not:
+Begin with EXEC SQL.
+End with END-EXEC or a semicolon.
+Include references to variables. Global variables
+are allowed.
+
+NotesParameter
+markers: Although a statement string cannot include references
+to host variables, SQL variables, or SQL parameters,
+it may include parameter markers or global variables. Parameter
+markers can be replaced by the values of variables when the prepared
+statement is executed. A parameter marker is a question mark (?)
+that is used where a variable could be used if the statement string
+were a static SQL statement. For an explanation of how parameter markers
+are replaced by values, see OPEN and EXECUTE.
+There
+are two types of parameter markers:
+Typed parameter marker
+A parameter marker that is specified along with its target data
+type. It has the general form: CAST(? AS data-type)
+This
+notation is not a function call, but a “promise” that
+the type of the parameter at run time will be of the data type specified
+or some data type that can be converted to the specified data type.
+For example, in: UPDATE EMPLOYEE
+SET LASTNAME = TRANSLATE(CAST(? AS VARCHAR(12)))
+WHERE EMPNO = ?
+the
+value of the argument of the TRANSLATE function will be provided at
+run time. The data type of that value will either be VARCHAR(12),
+or some type that can be converted to VARCHAR(12). For more information,
+refer to CAST specification.
+Untyped parameter marker
+A parameter marker that is specified without its target data type.
+It has the form of a single question mark. The data type of an untyped
+parameter marker is provided by context. For example, the untyped
+parameter marker in the predicate of the above update statement is
+the same as the data type of the EMPNO column.
+
+Typed parameter markers can be used in dynamic SQL statements
+wherever a variable is supported and the data type is based on the
+promise made in the CAST function.
+Untyped parameters markers can be used in dynamic SQL
+statements in selected locations where variables are supported. These locations and the resulting data type are found
+in the following tables:Table 1. Untyped Parameter Marker Usage in Expressions (Including
+Select List, CASE, and VALUES)Untyped Parameter Marker Location
+Data Type
+
+Alone in a select list that is not
+in a subquery
+Error
+
+Alone in a select list that is in
+an EXISTS subquery
+Error
+
+Alone in a select list that is in
+a subquery
+The data type of the other operand
+of the subquery.3
+
+Alone as offset-row-count in an offset-clause.
+BIGINT
+
+Alone as fetch-first-row-count in a fetch-first-clause.
+BIGINT
+
+Both operands of a single arithmetic
+operator, after considering operator precedence and order of operation
+rules. Includes cases such as: ? + ? + 10
+
+DECFLOAT(34)
+
+One operand of a single operator
+in an arithmetic expression (not a datetime expression) Includes
+cases such as: ? + ? * 10
+
+The data type of the other operand.
+
+Labelled duration within a datetime
+expression with a unit type other than SECONDS. (Note that the portion
+of a labelled duration that indicates the type of units cannot be
+a parameter marker.)
+DECIMAL(15,0)
+
+Labelled duration within a datetime
+expression with a type unit of SECONDS. (Note that the portion of
+a labelled duration that indicates the type of units cannot be a parameter
+marker.)
+DECIMAL(27,12)
+
+Any other operand of a datetime expression
+(for instance 'timecol + ?' or '? - datecol').
+Error
+
+Both operands of a CONCAT operator
+DBCLOB(1G) CCSID 1200
+
+One operand of a CONCAT operator
+when the other operand is a non-CLOB character data type
+VARCHAR(32740) with
+the same CCSID as the other operand
+
+One operand of a CONCAT operator,
+when the other operand is a non-DBCLOB graphic data type
+VARGRAPHIC(16370) with
+the same CCSID as the other operand
+
+One operand of a CONCAT operator
+when the other operand is a non-BLOB binary type
+VARBINARY(32740)
+
+One operand of a CONCAT operator,
+when the other operand is a large object string
+Same as that of the other operand
+
+The expression following the CASE
+keyword in a simple CASE expression
+Result of applying the Rules for result data types to the expressions following the WHEN
+keyword that are other than untyped parameter markers
+
+At least one of the result-expressions
+in a CASE expression (both Simple and Searched) with the rest of the
+result-expressions either untyped parameter marker or NULL.
+Error
+
+Any or all expressions following
+WHEN in a simple CASE expression.
+Result of applying the Rules for result data types to the expression following CASE and
+the expressions following WHEN that are not untyped parameter markers.
+
+A result-expression in a CASE expression
+(both simple and searched) where at least one result-expression is
+not NULL and not an untyped parameter marker.
+Result of applying the Rules for result data types to all result-expressions that are
+other than NULL or untyped parameter markers.
+
+Alone as a column-expression in
+a single-row VALUES clause that is not within an INSERT statement
+and not within the VALUES clause of in insert operation of a MERGE
+statement.
+Error
+
+Alone as a column-expression in a multi-row
+VALUES clause that is not within an INSERT statement, and for which
+the column-expressions in the same position in all other row-expressions are
+untyped parameter markers.
+Error
+
+Alone as a column-expression in a multi-row
+VALUES clause that is not within an INSERT statement, and for which
+a column-expression in the same position of at least one other row-expression is
+not an untyped parameter marker or NULL.
+Result of applying the Rules for result data types to all operands that are other than
+untyped parameter markers.
+
+Alone as a column-expression in
+a single-row VALUES clause within an INSERT statement.
+The data type of the column. If the
+column is defined as a user-defined distinct type, then it is the
+source data type of the user-defined distinct type. 3
+
+Alone as a column-expression in
+a multi-row VALUES clause within an INSERT statement.
+The data type of the column. If the
+column is defined as a user-defined distinct type, then it is the
+source data type of the user-defined distinct type. 3
+
+Alone as a column-expression in
+a VALUES clause of the source-table for a MERGE statement
+Error
+
+Alone as a column-expression in
+the VALUES clause of an insert operation of a MERGE statement
+The data type of the column. If the
+column is defined as a user-defined distinct type, then it is the
+source data type of the user-defined distinct type. 3
+
+Alone as a column-expression on
+the right side of assignment-clause for an update operation of a MERGE
+statement
+The data type of the column. If the
+column is defined as a user-defined distinct type, then it is the
+source data type of the user-defined distinct type. 3
+
+Alone as a value on the right hand
+side of a SET clause of an UPDATE statement.
+The data type of the column. If the
+column is defined as a user-defined distinct type, then it is the
+source data type of the user-defined distinct type. 3
+
+As a value in an insert-multiple-rows of
+an INSERT statement.
+INTEGER
+
+As a value on the right side of a
+SET special register statement
+The data type of the special register.
+
+As a value in the VALUES clause of
+the VALUES INTO statement, where the associated expression is a global
+variable.
+The data type of the global variable.
+
+As a value in the INTO clause of
+the VALUES INTO statement
+The data type of the associated expression. 3
+
+As a value in a FREE LOCATOR or HOLD
+LOCATOR statement
+Locator.
+
+As a value for the password in a SET ENCRYPTION
+PASSWORD statement
+VARCHAR(128)
+
+As a value for the hint in a SET ENCRYPTION
+PASSWORD statement
+VARCHAR(32)
+
+Table 2. Untyped
+Parameter Marker Usage in PredicatesUntyped Parameter Marker Location
+Data Type
+
+Both operands of a
+comparison operator or DISTINCT predicate
+VARGRAPHIC(16370) CCSID
+1200
+
+One operand of a comparison
+operator or DISTINCT predicate where the other operand is other than
+an untyped parameter marker or a distinct type.
+The data type of the other operand.3
+
+One operand of a comparison operator
+where the other operand is a distinct type.
+Error
+
+All operands of a BETWEEN predicate
+VARGRAPHIC(16370) CCSID
+1200
+
+Two operands of a BETWEEN predicate
+Same as that of the only non-parameter
+marker.
+
+Only one operand of a BETWEEN predicate
+Result of applying the Rules for result data types on all operands that are other than
+untyped parameter markers, except the CCSID attribute is the CCSID
+of the value specified at execution time.
+
+All operands of an IN predicate,
+for example, ? IN (?,?,?)
+VARGRAPHIC(16370) CCSID
+1200
+
+The first operand of an IN predicate
+where the right hand side is a fullselect, for example, ? IN (fullselect).
+Data type of the selected column
+
+The first operand of an IN predicate
+where the right hand side is not a fullselect, for example, ? IN (?,A,B)
+or for example, ? IN (A,?,B,?).
+Result of applying the Rules for result data types on all operands of the IN list (operands
+to the right of IN keyword) that are other than untyped parameter
+markers, except the CCSID attribute is the CCSID of the value specified
+at execution time.
+
+Any or all operands of the IN list
+of the IN predicate, for example, for example, A IN (?,B,?).
+Result of applying the Rules for result data types on all operands of the IN predicate
+(operands to the left and right of the IN predicate) that are other
+than untyped parameter markers, except the CCSID attribute is the
+CCSID of the value specified at execution time.
+
+Any operands in a row-value-expression of
+an IN predicate, for example, (c1,?) IN ...
+Error
+
+Any select list items in a subquery
+if a row-value-expression is specified in
+an IN predicate, for example, (c1,c2) IN (SELECT ?, c1 FROM ...)
+Error
+
+First operand of the IS JSON predicate
+CLOB(2G) CCSID 1208
+
+json-expression or sql-json-path-expression of
+the JSON_EXISTS predicate.
+CLOB(2G) CCSID 1208
+
+All three operands of the LIKE predicate.
+Match expression (operand
+1) and pattern expression (operand 2) VARCHAR(32740); escape expression
+(operand 3) is VARCHAR(1) 4 with
+the CCSID of the job.
+
+The match expression
+of the LIKE predicate when either the pattern expression or the escape
+expression is other than an untyped parameter marker.
+Either VARCHAR(32740)
+or VARGRAPHIC(16370) or VARBINARY(32740) depending on the data type
+of the first operand that is not an untyped parameter marker. The
+CCSID depends on the CCSID of the first operand.
+
+The pattern expression of the LIKE
+predicate when either the match expression or the escape expression
+is other than an untyped parameter marker.
+Either VARCHAR(32740)
+or VARGRAPHIC(16370) or VARBINARY(32740) depending on the data type
+of the first operand that is not an untyped parameter marker. The
+CCSID depends on the CCSID of the first operand.For information
+about using fixed-length variables for the value of the pattern, see LIKE predicate.
+
+The escape expression
+of the LIKE predicate when either the match expression or the pattern
+expression is other than an untyped parameter marker.
+Either VARCHAR(1) 4 or VARGRAPHIC(1) or
+VARBINARY(1) depending on the result of applying the Rules for result data types on all operands that are other than
+untyped parameter markers. The CCSID also depends on result of applying
+these rules.
+
+Operand of the NULL
+predicate
+VARGRAPHIC(16370) CCSID 1200
+
+Table 3. Untyped
+Parameter Marker Usage in Built-in FunctionsUntyped Parameter Marker Location
+Data Type
+
+All arguments of BITAND,
+BITANDNOT, BITOR, BITXOR, BITNOT, COALESCE, IFNULL, LAND, LOR, MIN,
+MAX, NULLIF, VALUE, or XOR
+Error
+
+Any argument of COALESCE,
+IFNULL, LAND, LOR, MIN, MAX, NULLIF, or VALUE, or XOR where at least
+one argument is other than an untyped parameter marker.
+Result of applying the Rules for result data types on all arguments that are other than
+untyped parameter markers. If the result is a distinct type, an error
+is returned.
+
+An argument of BITAND,
+BITANDNOT, BITOR, and BITXOR where the other argument is other than
+an untyped parameter marker.
+If the other argument is SMALLINT,
+INTEGER, or BIGINT, the data type of the other argument. Otherwise,
+DECFLOAT(34).
+
+All arguments of COMPARE_DECFLOAT,
+DECFLOAT_SORTKEY, NORMALIZE_DECFLOAT, QUANTIZE, and TOTALORDER
+DECFLOAT(34)
+
+First argument of DAYNAME
+TIMESTAMP(12)
+
+Both arguments of LOCATE, POSITION,
+or POSSTR
+DBCLOB(1G) CCSID 1200
+
+One argument of LOCATE, POSITION,
+or POSSTR when the other argument is a character data type.
+VARCHAR(32740) with
+the CCSID of the other argument
+
+One argument of LOCATE, POSITION,
+or POSSTR when the other argument is a graphic data type.
+VARGRAPHIC(16370) with
+the CCSID of the other argument
+
+One argument of LOCATE, POSITION,
+or POSSTR when the other argument is a binary data type.
+VARBINARY(32740)
+
+Both the first and second arguments
+of LOCATE_IN_STRING or OVERLAY
+DBCLOB(1G) CCSID 1200
+
+The first or second argument of
+LOCATE_IN_STRING or OVERLAY when the other string argument is a character
+data type.
+VARCHAR(32740) with the CCSID of
+the other argument
+
+The first or second argument of
+LOCATE_IN_STRING or OVERLAY when the other string argument is a graphic
+data type.
+VARGRAPHIC(16370) with the CCSID
+of the other argument
+
+The first or second argument of
+LOCATE_IN_STRING or OVERLAY when the other string argument is a binary
+data type.
+VARBINARY(32740)
+
+The third or fourth argument of
+LOCATE_IN_STRING or OVERLAY
+INTEGER
+
+The second argument of LPAD or RPAD
+INTEGER
+
+The third argument of LPAD or RPAD
+VARCHAR(32740)
+
+The first argument of LTRIM or RTRIM
+DBCLOB(1G) CCSID 1200
+
+The second argument of LTRIM or RTRIM
+VARCHAR(32740) if the first argument is a character
+type; VARBINARY(32740) if the first argument is a binary type; VARGRAPHIC(16370)
+if the first argument is a graphic type. The CCSID depends on the
+CCSID of the first argument.
+
+The argument of UPPER, LOWER, UCASE, and LCASE
+DBCLOB(1G) CCSID 1200
+
+First argument of MONTHNAME
+TIMESTAMP(12)
+
+First or second argument of MONTHS_BETWEEN
+TIMESTAMP(12)
+
+First operand of REGEXP_LIKE, REGEXP_INSTR,
+REGEXP_SUBSTR, REGEXP_COUNT, and REGEXP_REPLACE
+DBCLOB(1G) CCSID 1200
+
+Second operand of REGEXP_LIKE,
+REGEXP_INSTR, REGEXP_SUBSTR, REGEXP_COUNT, and REGEXP_REPLACE
+DBCLOB(32K) CCSID 1200
+
+Third operand of REGEXP_REPLACE
+DBCLOB(32K) CCSID 1200
+
+source-string operand of
+REGEXP_LIKE, REGEXP_COUNT, REGEXP_INSTR, REGEXP_SUBSTR, and REGEXP_REPLACE
+DBCLOB(32K) CCSID 1200
+
+pattern-expression of REGEXP_LIKE,
+REGEXP_COUNT, REGEXP_INSTR, REGEXP_SUBSTR, and REGEXP_REPLACE
+DBCLOB(32K) CCSID 1200
+
+replacement-string operand
+of REGEXP_REPLACE
+DBCLOB(32K) CCSID 1200
+
+start operand of REGEXP_LIKE,
+REGEXP_COUNT, REGEXP_INSTR, REGEXP_SUBSTR, and REGEXP_REPLACE
+INTEGER
+
+flags operand of REGEXP_LIKE,
+REGEXP_COUNT, REGEXP_INSTR, REGEXP_SUBSTR, and REGEXP_REPLACE
+VARCHAR(6)
+
+occurrence operand of REGEXP_INSTR,
+REGEXP_SUBSTR, and REGEXP_REPLACE
+INTEGER
+
+return-option operand of
+REGEXP_INSTR
+INTEGER
+
+group operand of REGEXP_INSTR
+and REGEXP_SUBSTR
+INTEGER
+
+SUBSTR (first argument)
+DBCLOB(1G) CCSID 1200
+
+SUBSTR (second and third arguments)
+INTEGER
+
+The first argument of TRANSLATE
+Error
+
+The second and third arguments of
+TRANSLATE
+VARCHAR(32740) if the
+first argument is a character type; VARGRAPHIC(16370) if the first
+argument is a graphic type. The CCSID depends on the CCSID of the
+first argument.
+
+The fourth argument of TRANSLATE
+VARCHAR(1) if the first
+argument is a character type; VARGRAPHIC(1) if the first argument
+is a graphic type. The CCSID depends on the CCSID of the first argument.
+
+The first argument of TIMESTAMP or
+TIMESTAMP_ISO
+Error
+
+The second argument of TIMESTAMP
+TIME
+
+The first argument of TIMESTAMP_FORMAT
+VARGRAPHIC(16370) CCSID 1200
+
+The first argument of VARCHAR_FORMAT
+TIMESTAMP(12)
+
+The second argument of TIMESTAMP_FORMAT or VARCHAR_FORMAT
+Error
+
+Any argument after the first argument of VERIFY_GROUP_FOR_USER
+VARCHAR(128)
+
+First argument of XMLVALIDATE
+XML 5
+
+First argument of XMLPARSE
+CLOB(2G) or DBCLOB(1G) based on
+the CCSID value for the query option SQL_XML_DATA_CCSID
+
+First argument of XMLCOMMENT
+VARCHAR(32740) or VARGRAPHIC(16370)
+based on the CCSID value for the query option SQL_XML_DATA_CCSID
+
+First argument of XMLTEXT
+VARCHAR(32740) or VARGRAPHIC(16370)
+based on the CCSID value for the query option SQL_XML_DATA_CCSID
+
+Second argument of XMLPI
+VARCHAR(36740) or VARGRAPHIC(16370)
+based on the CCSID value for the query option SQL_XML_DATA_CCSID
+
+First argument of XMLSERIALIZE
+XML 6
+
+All arguments of XMLDOCUMENT
+XML 5
+
+All arguments of XMLCONCAT
+XML 5
+
+First, second, and third arguments
+of XSLTRANSFORM
+XML 6
+
+Array index of
+an ARRAY
+BIGINT
+
+Unary minus
+DECFLOAT(34)
+
+Unary plus
+DECFLOAT(34)
+
+All other arguments
+of all other scalar functions.
+Error
+
+Argument of MEDIAN
+DECFLOAT(34)
+
+First or second argument of CORRELATION,
+COVARIANCE, COVARIANCE_SAMP, or any of the Regression functions
+DECFLOAT(34) if the other argument
+is DECFLOAT. Otherwise, DOUBLE.
+
+Second argument of LISTAGG
+VARCHAR(32740) if the first argument
+is a character type; VARBINARY(32740) if the first argument is a binary
+type; VARGRAPHIC(16370) if the first argument is a graphic type. The
+CCSID depends on the CCSID of the first argument.
+
+Argument or order by expression
+of PERCENTILE_CONT or PERCENTILE_DISC
+DECFLOAT(34)
+
+Arguments of all other aggregate
+functions
+Error
+
+json-expression or sql-json-path-expression argument
+of JSON_TABLE
+CLOB(2G) CCSID 1208
+
+Table 4. Untyped
+Parameter Marker Usage in User-defined RoutinesUntyped Parameter Marker Location
+Data Type
+
+Argument of a function
+The data type of the
+parameter, as defined when the function was created
+
+Argument of a procedure
+The data type of the parameter, as
+defined when the procedure was created
+
+Error checking: When a PREPARE statement is executed,
+the statement string is parsed and checked for errors. If the statement
+string is not valid, a prepared statement is not created and an error
+is returned.
+In local and remote processing, the DLYPREP(*YES) option
+can cause some SQL statements to receive "delayed" errors. For example,
+DESCRIBE, EXECUTE, and OPEN might receive an SQLCODE that normally
+occurs during PREPARE processing.
+Reference and execution rules: Prepared statements
+can be referred to in the following kinds of statements, with the
+following restrictions shown:
+Statement The prepared statement restrictions
+DESCRIBE None
+DECLARE CURSOR Must be SELECT when the cursor is opened
+EXECUTE Must not be SELECT
+
+A prepared statement can be executed many times. If a
+prepared statement is not executed more than once and does not contain
+parameter markers, it is more efficient to use the EXECUTE IMMEDIATE
+statement rather than the PREPARE and EXECUTE statements.
+Extended indicator usage: The EXTENDED INDICATORS
+clause indicates whether extended indicator variable values are enabled
+in the SET assignment-clause of an UPDATE statement, the VALUES expression-list of
+an INSERT statement, or the insert operation or update operation of
+a MERGE statement.
+Extended indicator variables and deferred
+error checks: When extended indicator variables are enabled, the
+UNASSIGNED indicator variable value effectively causes its target
+column to be omitted from the statement. Because of this, validation
+that is normally done during statement preparation is delayed until
+statement execution.
+Prepared statement persistence: All prepared statements
+are destroyed when:7
+A CONNECT (Type 1) statement is executed.
+A DISCONNECT statement disconnects the connection with which the
+prepared statement is associated.
+A prepared statement is associated with a release-pending connection
+and a successful commit occurs.
+The associated scope (job, activation group, or program) of the
+SQL statement ends.
+
+Scope of a statement: The scope of statement-name is
+the source program in which it is defined. You can only reference
+a prepared statement by other SQL statements that are precompiled
+with the PREPARE statement. For example, a program called from another
+separately compiled program cannot use a prepared statement that was
+created by the calling program.
+The scope of statement-name is also limited to the thread
+in which the program that contains the statement is running. For example,
+if the same program is running in two separate threads in the same
+job, the second thread cannot use a statement that was prepared by
+the first thread.
+Although the scope of a statement is the program in which
+it is defined, each package created from the program includes a separate
+instance of the prepared statement and more than one prepared statement
+can exist at run time. For example, assume a program using CONNECT
+(Type 2) statements connects to location X and location Y in the following
+sequence:
+EXEC SQL CONNECT TO X;
+EXEC SQL PREPARE S FROM :hv1;
+EXEC SQL EXECUTE S;
+.
+.
+.
+EXEC SQL CONNECT TO Y;
+EXEC SQL PREPARE S FROM :hv1;
+EXEC SQL EXECUTE S;
+
+The second prepare of S prepares another instance of S
+at Y.
+A prepared statement can only be referenced in the same
+instance of the program in the program stack, unless CLOSQLCSR(*ENDJOB),
+CLOSQLCSR(*ENDACTGRP), or CLOSQLCSR(*ENDSQL) is specified on the CRTSQLxxx
+commands.
+If CLOSQLCSR(*ENDJOB) is specified, the prepared statement can
+be referred to by any instance of the program (that prepared the statement)
+on the program stack. In this case, the prepared statement is destroyed
+at the end of the job.
+If CLOSQLCSR(*ENDSQL) is specified, the prepared statement can
+be referred to by any instance of the program (that prepared the statement)
+on the program stack until the last SQL program on the program stack
+ends. In this case, the prepared statement is destroyed when the last
+SQL program on the program stack ends.
+If CLOSQLCSR(*ENDACTGRP) is specified, the prepared statement
+can be referred to by all instances of the module in the program that
+prepared the statement until the activation group ends. In this case,
+the prepared statement is destroyed when the activation group ends.
+
+Allocating the SQL descriptor: If
+a USING clause is specified, before the PREPARE statement is executed,
+the SQL descriptor must be allocated using the ALLOCATE DESCRIPTOR
+statement. If the number of descriptor items allocated is less than
+the number of result columns, a warning (SQLSTATE 01005) is returned.
+PREPARE and *LIBL: Normally, any unqualified names
+of objects are resolved when a statement is prepared. Hence, any changes
+to the CURRENT SCHEMA or CURRENT PATH after the statement has been
+prepared have no effect on which objects will be referenced when the
+statement is executed or opened. However, if system naming is used
+and an object name is implicitly qualified with *LIBL, the object
+is resolved at execute or open time. Any changes to the library list
+after the statement is prepared but before execute or open time will
+affect which objects will be referenced when the statement is executed
+or opened.
+ExamplesExample 1: Prepare and execute
+a non-select-statement in a COBOL program.
+Assume the statement is contained in a variable HOLDER and that the
+program will place a statement string into the variable based on some
+instructions from the user. The statement to be prepared does not
+have any parameter markers.
+EXEC SQL PREPARE STMT_NAME FROM :HOLDER END-EXEC.
+
+EXEC SQL EXECUTE STMT_NAME END-EXEC.
+
+Example 2: Prepare and execute a non-select-statement as
+in example 1, except assume the statement to be prepared can contain
+any number of parameter markers.
+EXEC SQL PREPARE STMT_NAME FROM :HOLDER END-EXEC.
+
+EXEC SQL EXECUTE STMT_NAME USING DESCRIPTOR :INSERT_DA END-EXEC.
+
+Assume that the following statement is to be prepared:
+INSERT INTO DEPARTMENT VALUES(?, ?, ?, ?)
+
+To insert department number G01 named COMPLAINTS, which
+has no manager and reports to department A00, the structure INSERT_DA
+should have the following values before executing the EXECUTE statement.
+
+Parent topic: Statements
+
+1 In a PL/I program, a PL/I
+string expression can also be specified.2 The target of the SET variable
+statement must be a global variable.3 If the data type is DATE, TIME, or TIMESTAMP,
+then VARCHAR(32740) is used.4 If the escape expression
+is MIXED data, the data type is VARCHAR(4).5 The
+CCSID for XML is determined as described in XML Values.6 The
+CCSID is determined based on the attributes of the data-type specified
+on the AS clause as described in CAST specification.
+If the data-type is a binary string or bit data, then the SQL_XML_DATA_CCSID
+is used for the CCSID attribute.7 Prepared statements may be cached and not actually
+destroyed. However, a cached statement can only be used if the same
+statement is prepared again.

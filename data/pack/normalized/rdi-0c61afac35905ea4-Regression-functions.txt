@@ -1,0 +1,148 @@
+Regression functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Aggregate functions > Aggregate functions
+
+IBM i programming resources > SQL > SQL reference > Built-in functions > Aggregate functions
+
+Regression functions
+The regression functions support the fitting of an ordinary-least-squares
+regression line of the form y = a * x + b to a set of number pairs.
+The first element of each pair (expression1) is interpreted
+as a value of the dependent variable (that is, a "y value"). The second
+element of each pair (expression2 ) is interpreted as a value
+of the independent variable (that is, an "x value").
+REGR_AVGXREGR_AVGYREGR_COUNTREGR_INTERCEPTREGR_R2REGR_SLOPEREGR_SXXREGR_SXYREGR_SYY(expression1,expression2)
+expression1
+An expression that returns a value of any built-in numeric, character-string,
+or graphic-string data type. If the argument is a character-string
+or graphic-string, it is cast to DECFLOAT(34) before evaluating the
+function.
+expression2
+An expression that returns a value of any built-in numeric, character-string,
+or graphic-string data type. If the argument is a character-string
+or graphic-string, it is cast to DECFLOAT(34) before evaluating the
+function.
+
+The REGR_COUNT function returns the number of non-null
+number pairs used to fit the regression line.
+The REGR_INTERCEPT
+function returns the y-intercept of the regression line ("b" in the
+equation y = a * x + b).
+The REGR_R2 function returns the coefficient
+of determination ("R-squared" or "goodness-of-fit") for the regression.
+The
+REGR_SLOPE function returns the slope of the line ("a" in the equation
+y = a * x + b).
+The REGR_AVGX, REGR_AVGY, REGR_SXX, REGR_SXY,
+and REGR_SYY functions return quantities that can be used to compute
+various diagnostic statistics needed for the evaluation of the quality
+and statistical validity of the regression model.
+The data type of the result of REGR_COUNT is bigint. For
+the remaining functions, if either argument is DECFLOAT(n), the data
+type of the result is DECFLOAT(34); otherwise, the data type of the
+result is double-precision floating-point. If either argument is a
+special decimal floating-point value, the rules for general arithmetic
+operations for decimal floating-point apply. See General arithmetic operation rules for DECFLOAT for more information.
+The
+result can be null. When not null, the result of REGR_R2 is between
+0 and 1, and the result of both REGR_SXX and REGR_SYY is non-negative.
+Each
+function is applied to the set of (expression1, expression2)
+pairs derived from the argument values by the elimination of all pairs
+for which either expression1 or expression2 is null.
+If the set is empty, REGR_COUNT returns zero and the remaining
+functions return a null value.
+If the set is not empty, the
+functions return results defined as follows:
+REGR_COUNT
+The number of non-null pairs in the set
+REGR_SLOPE
+If VARIANCE(expression2) is positive: REGR_SLOPE(expression1,expression2) =
+COVARIANCE(expression1,expression2)/VARIANCE(expression2)
+If
+VARIANCE(expression2) is equal to zero, returns the null value.
+REGR_INTERCEPT
+If VARIANCE(expression2) is positive: REGR_INTERCEPT(expression1, expression2) =
+AVG(expression1) - REGR_SLOPE(expression1, expression2) * AVG(expression2)
+If
+VARIANCE(expression2) is equal to zero, returns the null value.
+REGR_R2
+If VARIANCE(expression2) is positive:If VARIANCE(expression1) is positive: REGR_R2(expression1, expression2) =
+POWER(CORRELATION(expression1, expression2), 2)
+
+if VARIANCE(expression1) is equal to zero: REGR_R2(expression1, expression2) = 1
+
+If VARIANCE(expression2) is equal to zero, returns the
+null value.
+REGR_AVGX
+REGR_AVGX(expression1, expression2) = AVG(expression2)
+
+REGR_AVGY
+REGR_AVGY(expression1, expression2) = AVG(expression1)
+
+REGR_SXX
+REGR_SXX(expression1, expression2) =
+REGR_COUNT(expression1, expression2) * VARIANCE(expression2)
+
+REGR_SYY
+REGR_SYY(expression1, expression2) =
+REGR_COUNT(expression1, expression2) * VARIANCE(expression1)
+
+REGR_SXY
+REGR_SXY(expression1, expression2) =
+REGR_COUNT(expression1, expression2) * COVARIANCE(expression1, expression2)
+
+The order in which the values are aggregated is
+undefined, but every intermediate result must be within the range
+of the result data type.
+The usual diagnostic statistics that accompany a linear-regression
+analysis can be computed in terms of the above functions. For example:
+Adjusted R2
+1 - ( (1 - REGR_R2) * ((REGR_COUNT - 1) / (REGR_COUNT - 2)) )
+Standard error
+SQRT( (REGR_SYY-(POWER(REGR_SXY,2)/REGR_SXX))/(REGR_COUNT-2) )
+Total sum of squares
+REGR_SYY
+Regression sum of squares
+POWER(REGR_SXY,2) / REGR_SXX
+Residual sum of squares
+(Total sum of squares)-(Regression sum of squares)
+t statistic for slope
+REGR_SLOPE * SQRT(REGR_SXX) / (Standard error)
+t statistic for y-intercept
+REGR_INTERCEPT/((Standard error) *
+SQRT((1/REGR_COUNT)+(POWER(REGR_AVGX,2)/REGR_SXX)))
+NoteSyntax alternatives: REGR_ICPT
+can be specified as a synonym for REGR_INTERCEPT.ExampleUsing the EMPLOYEE table, compute an ordinary-least-squares regression
+line that expresses the bonus of an employee in department (WORKDEPT)
+'A00' as a linear function of the employee's salary. Set the host
+variables SLOPE, ICPT, RSQR to the slope, intercept, and coefficient
+of determination of the regression line, respectively. Also set the
+host variables AVGSAL and AVGBONUS to the average salary and average
+bonus, respectively, of the employees in department 'A00', and set
+the host variable CNT (integer) to the number of employees in department
+'A00' for whom both salary and bonus data are available. Store the
+remaining regression statistics in host variables SXX, SYY, and SXY. SELECT REGR_SLOPE(BONUS,SALARY), REGR_INTERCEPT(BONUS,SALARY),
+REGR_R2(BONUS,SALARY), REGR_COUNT(BONUS,SALARY),
+REGR_AVGX(BONUS,SALARY), REGR_AVGY(BONUS,SALARY),
+REGR_SXX(BONUS,SALARY), REGR_SYY(BONUS,SALARY),
+REGR_SXY(BONUS,SALARY)
+INTO :SLOPE, :ICPT,
+:RSQR, :CNT,
+:AVGSAL, :AVGBONUS,
+:SXX, :SYY,
+:SXY
+FROM EMPLOYEE
+WHERE WORKDEPT = 'A00'
+When using the sample table,
+the host variables are set to the following approximate values: SLOPE: 0.018363799188747826
+ICPT: 69.8388031396513
+RSQR: 0.9526220829162935
+CNT: 5
+AVGSAL: 40850.0
+AVGBONUS: 820.0
+SXX: 4.74575E8
+SYY: 168000.0
+SXY: 8715000.0
+
+Parent topic: Aggregate functions

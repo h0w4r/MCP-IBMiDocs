@@ -1,0 +1,120 @@
+ILE C/C++ Runtime Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+IBM i programming resources > ILE C/C++ > Runtime Library functions > Runtime Library Functions > Library Functions
+
+ILE C/C++ Runtime Library Functions
+
+_Rreadnc() — Read the Next Changed Record in a Subfile
+Format
+#include <recio.h>
+
+_RIOFB_T *_Rreadnc(_RFILE *fp, void *buf, size_t size);
+Language Level: ILE C Extension
+Threadsafe: No.
+Description
+The _Rreadnc() function reads the next changed record from the current
+position in the subfile that is associated with fp. The minimum size of
+data that is read from the screen are copied from the system buffer
+to buf.
+The following are valid parameters for the _Rreadnc() function.
+
+buf
+Points to the buffer where the data that is read is to be stored.
+If locate mode is used, this parameter must be set to NULL.
+
+size
+Specifies the number of bytes that are to be read and stored
+in buf.
+
+The _Rreadnc() function is valid for subfiles.
+Return Value
+The _Rreadnc() function returns a pointer to the _RIOFB_T
+structure that is associated with fp. If the _Rreadnc() operation
+is successful the num_bytes field is set to the number of bytes
+transferred from the system buffer to the user's buffer (move mode)
+or the record length of the file (locate mode). The rrn and sysparm
+fields are updated. If there are no changed records between the current
+position and the end of the file, the num_bytes field is set to
+EOF. If it is unsuccessful, the num_bytes field is set to a value
+less than size, and errno is changed.
+The value of errno may be set to:
+
+Value
+Meaning
+ENOTREAD
+The file is not open for read operations.
+
+ETRUNC
+Truncation occurred on an I/O operation.
+
+EIOERROR
+A non-recoverable I/O error occurred.
+
+EIORECERR
+A recoverable I/O error occurred.
+
+See Table 12 and Table 14 for errno settings.
+Example that uses _Rreadnc()
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <recio.h>
+#define LEN 10
+#define NUM_RECS 20
+#define SUBFILENAME "MYLIB/T1677RD6"
+#define PFILENAME "MYLIB/T1677RDB"
+typedef struct {
+char name[LEN];
+char phone[LEN];
+} pf_t;
+#define RECLEN sizeof(pf_t)
+void init_subfile(_RFILE *, _RFILE *);
+
+int main(void)
+{
+_RFILE *pf;
+_RFILE *subf;
+/*************************************************
+* Open the subfile and the physical file. *
+*************************************************/
+if ((pf = _Ropen(PFILENAME, "rr")) == NULL) {
+printf("can't open file %s\n", PFILENAME);
+exit(1);
+}
+if ((subf = _Ropen(SUBFILENAME, "ar+")) == NULL) {
+printf("can't open file %s\n", SUBFILENAME);
+exit(2);
+}
+/*************************************************
+* Initialize the subfile with records *
+* from the physical file. *
+*************************************************/
+init_subfile(pf, subf);
+/*************************************************
+* Write the subfile to the display by writing *
+* a record to the subfile control format. *
+*************************************************/
+_Rformat(subf, "SFLCTL");
+_Rwrite(subf, "", 0);
+_Rreadnc(subf, "", 0);
+/*************************************************
+* Close the physical file and the subfile. *
+*************************************************/
+_Rclose(pf);
+_Rclose(subf);
+}
+Related Information
+
+_Rreadd() — Read a Record by Relative Record Number
+_Rreadf() — Read the First Record
+_Rreadindv() — Read from an Invited Device
+_Rreadk() — Read a Record by Key
+_Rreadl() — Read the Last Record
+_Rreadn() — Read the Next Record
+_Rreadp() — Read the Previous Record
+_Rreads() — Read the Same Record
+
+[ Top of Page | Previous Page | Next Page | Contents |
+Index ]
