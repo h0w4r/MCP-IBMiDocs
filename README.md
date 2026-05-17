@@ -131,7 +131,7 @@ El crawler usa APIs públicas de IBM Docs para obtener contenido documental real
 
 Estado actual: la instalación soportada es desde el repositorio GitHub. Todavía no hay paquete publicado en npm ni release asset público del data pack, así que no uses comandos `npm install -g` con este paquete hasta que el README indique una publicación verificable.
 
-El servidor final no depende de RDi, Eclipse Help ni de `127.0.0.1:52070`. El repositorio incluye `data/pack` para que puedas usar el MCP desde una máquina limpia.
+El servidor final no depende de RDi, Eclipse Help ni del endpoint temporal local usado durante el bootstrap documental. El repositorio incluye `data/pack` para que puedas usar el MCP desde una máquina limpia.
 
 ### Prerrequisitos
 
