@@ -30,6 +30,30 @@ También puedes usar un directorio explícito:
 node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out D:\MCP-IBMiDocs\data\pack
 ```
 
+## Actualizar un data pack existente
+
+Si usas el pack del propio repo (`D:\MCP-IBMiDocs\data\pack`), basta con actualizar el repositorio y validar:
+
+```powershell
+cd D:\MCP-IBMiDocs
+git pull --ff-only
+npm install
+npm run build
+npm run pack:validate
+node dist/src/cli.js doctor
+```
+
+Si copiaste el pack a otra carpeta o configuraste `IBMI_DOCS_PACK_DIR`, vuelve a instalar el archive local sobre esa ruta:
+
+```powershell
+cd D:\MCP-IBMiDocs
+npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
+node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out <ruta-del-pack-en-uso>
+node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
+```
+
+Cuando exista un release asset público, esta sección se actualizará con la URL verificable. Hasta entonces, no uses URLs de releases inventadas ni comandos de instalación npm que no estén publicados.
+
 ## Resolución runtime
 
 El servidor busca el pack en este orden:

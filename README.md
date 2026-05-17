@@ -63,6 +63,63 @@ La estrategia preparada para distribución futura es:
 
 Mientras tanto, usa la instalación local desde repo.
 
+## Actualización de una instalación existente
+
+### Si instalaste desde este repo
+
+Esta es la ruta de actualización válida mientras el proyecto no esté publicado en npm:
+
+```powershell
+cd D:\MCP-IBMiDocs
+git status --short
+git pull --ff-only
+npm install
+npm run build
+npm run pack:validate
+npm run smoke
+node dist/src/cli.js doctor
+```
+
+Notas:
+
+- Si `git status --short` muestra cambios locales tuyos, guárdalos con commit o `git stash` antes de hacer `git pull`.
+- Si Codex apunta a `D:\MCP-IBMiDocs\dist\src\server.js` y `D:\MCP-IBMiDocs\data\pack`, normalmente no necesitas cambiar `config.toml`; solo reinicia la sesión de Codex después de actualizar.
+- Si moviste el servidor o el data pack a otra ruta, regenera el bloque de configuración:
+
+```powershell
+node dist/src/cli.js codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\MCP-IBMiDocs\dist\src\server.js --cwd D:\MCP-IBMiDocs
+```
+
+- Si usas el binario local con `npm link`, puedes refrescar el enlace después de actualizar:
+
+```powershell
+npm link
+ibmi-docs doctor
+```
+
+### Si usas un data pack copiado a otra carpeta
+
+Si tu runtime usa una ruta externa mediante `IBMI_DOCS_PACK_DIR`, actualiza también ese pack:
+
+```powershell
+cd D:\MCP-IBMiDocs
+npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
+node dist/src/cli.js pack install --from D:\MCP-IBMiDocs\dist\ibmi-docs-pack.tgz --out <ruta-del-pack-en-uso>
+node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
+```
+
+Sustituye `<ruta-del-pack-en-uso>` por la ruta real configurada en `IBMI_DOCS_PACK_DIR`.
+
+### Cuando exista publicación npm/release
+
+Esta opción todavía no aplica porque no hay paquete npm ni release asset público. Cuando existan, usa únicamente el nombre de paquete y la URL publicados en este README o en la página de releases del proyecto. El flujo esperado será:
+
+```powershell
+npm update -g <nombre-publicado-en-npm>
+<binario-publicado> pack install --from <url-verificada-del-release-asset>
+<binario-publicado> doctor
+```
+
 ## Data pack local
 
 Puedes crear un archive local del pack y reinstalarlo en otra ruta:
