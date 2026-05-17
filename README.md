@@ -26,9 +26,13 @@ El complemento de IBM Docs se obtiene desde endpoints públicos de IBM Docs:
 
 El crawler usa `https://www.ibm.com/docs/api/v1/toc/...` y `https://www.ibm.com/docs/api/v1/content/...` para obtener contenido documental real, no solo el shell web de IBM Docs.
 
-## Instalación y ejecución
+## Instalación y ejecución local
+
+Clona el repositorio en una ruta definitiva y construye el servidor:
 
 ```powershell
+git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
+cd D:\MCP-IBMiDocs
 npm install
 npm run build
 node dist/src/server.js
@@ -39,6 +43,32 @@ También puedes apuntar a un data pack externo:
 ```powershell
 $env:IBMI_DOCS_PACK_DIR = "D:\ruta\a\data\pack"
 node dist/src/server.js
+```
+
+El data pack incluido usa nombres de archivo cortos y determinísticos por hash para evitar problemas de `Filename too long` en instalaciones Windows.
+
+## Instalación en Codex como MCP local
+
+Ejemplo de configuración en `C:\Users\<usuario>\.codex\config.toml`:
+
+```toml
+[mcp_servers.ibmi-docs]
+command = 'C:\Program Files\nodejs\node.exe'
+args = ['D:\MCP-IBMiDocs\dist\src\server.js']
+cwd = 'D:\MCP-IBMiDocs'
+startup_timeout_sec = 30.0
+tool_timeout_sec = 120.0
+
+[mcp_servers.ibmi-docs.env]
+IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+```
+
+Después de editar `config.toml`, reinicia la sesión de Codex para que el nuevo MCP aparezca en el listado de herramientas.
+
+Puedes validar la entrada con:
+
+```powershell
+codex mcp list
 ```
 
 ## Desarrollo del corpus
@@ -92,7 +122,6 @@ La documentación, publicaciones, páginas, textos, ejemplos y metadatos proveni
 La licencia de este repositorio cubre únicamente el código fuente, scripts, configuración y documentación original del proyecto. No otorga derechos sobre contenido, marcas, publicaciones o materiales de IBM ni de terceros. El corpus documental incluido o generado conserva atribución y metadatos de fuente para facilitar trazabilidad técnica.
 
 Si eres titular de derechos y consideras que algún material debe corregirse, atribuirse de otra forma o retirarse, abre un issue en el repositorio para revisarlo.
-
 
 ## Licencia
 

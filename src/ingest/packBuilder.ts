@@ -16,7 +16,8 @@ export async function buildDataPack(options: BuildPackOptions): Promise<CorpusMa
   await fs.mkdir(outDir, { recursive: true });
 
   const manifests = await loadInputManifests(inputDir);
-  const documents = dedupeDocuments(manifests.flatMap((manifest) => manifest.documents.map(sanitizeDocumentForRuntime)));
+  const sourceDocuments = dedupeDocuments(manifests.flatMap((manifest) => manifest.documents.map(sanitizeDocumentForRuntime)));
+  const documents = sourceDocuments.map(withPortablePackPaths);
   const merged: CorpusManifest = {
     schemaVersion: 1,
     corpusVersion: `ibmi-docs-pack-${new Date().toISOString().slice(0, 10)}`,
@@ -27,10 +28,22 @@ export async function buildDataPack(options: BuildPackOptions): Promise<CorpusMa
     coverage: buildCoverage(documents, manifests)
   };
 
-  await copyDocumentFiles(manifests, inputDir, outDir, documents);
+  await copyDocumentFiles(manifests, inputDir, outDir, sourceDocuments, documents);
   await fs.writeFile(path.join(outDir, "manifest.json"), JSON.stringify(merged, null, 2), "utf8");
   await buildSqlite(path.join(outDir, "ibmi-docs.sqlite"), outDir, documents, merged);
   return merged;
+}
+
+function withPortablePackPaths(doc: DocumentRecord): DocumentRecord {
+  const key = doc.sha256 || doc.id;
+  const suffix = key.replace(/[^a-fA-F0-9]/g, "").slice(0, 24) || doc.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24);
+  // Los títulos de IBM pueden ser muy largos; usar rutas por hash evita errores
+  // de checkout en Windows sin requerir core.longpaths para instalaciones normales.
+  return {
+    ...doc,
+    rawHtmlPath: `raw/${suffix}.html`,
+    normalizedTextPath: `normalized/${suffix}.txt`
+  };
 }
 
 function sanitizeDocumentForRuntime(doc: DocumentRecord): DocumentRecord {
@@ -92,7 +105,13 @@ function sourcePriority(kind: string): number {
   return 2;
 }
 
-async function copyDocumentFiles(manifests: CorpusManifest[], inputDir: string, outDir: string, documents: DocumentRecord[]): Promise<void> {
+async function copyDocumentFiles(
+  manifests: CorpusManifest[],
+  inputDir: string,
+  outDir: string,
+  sourceDocuments: DocumentRecord[],
+  targetDocuments: DocumentRecord[]
+): Promise<void> {
   const rawDir = path.join(outDir, "raw");
   const normalizedDir = path.join(outDir, "normalized");
   await fs.mkdir(rawDir, { recursive: true });
@@ -104,13 +123,16 @@ async function copyDocumentFiles(manifests: CorpusManifest[], inputDir: string, 
     for (const doc of manifest.documents) sourceRoots.set(doc.id, root);
   }
 
-  for (const doc of documents) {
-    const root = sourceRoots.get(doc.id);
+  const targetsById = new Map(targetDocuments.map((doc) => [doc.id, doc]));
+  for (const sourceDoc of sourceDocuments) {
+    const targetDoc = targetsById.get(sourceDoc.id);
+    if (!targetDoc) continue;
+    const root = sourceRoots.get(sourceDoc.id);
     if (!root) continue;
-    const rawSource = path.join(root, doc.rawHtmlPath);
-    const normalizedSource = path.join(root, doc.normalizedTextPath);
-    const rawTarget = path.join(outDir, doc.rawHtmlPath);
-    const normalizedTarget = path.join(outDir, doc.normalizedTextPath);
+    const rawSource = path.join(root, sourceDoc.rawHtmlPath);
+    const normalizedSource = path.join(root, sourceDoc.normalizedTextPath);
+    const rawTarget = path.join(outDir, targetDoc.rawHtmlPath);
+    const normalizedTarget = path.join(outDir, targetDoc.normalizedTextPath);
     await fs.mkdir(path.dirname(rawTarget), { recursive: true });
     await fs.mkdir(path.dirname(normalizedTarget), { recursive: true });
     await fs.copyFile(rawSource, rawTarget).catch(() => undefined);
