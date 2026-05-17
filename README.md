@@ -127,18 +127,77 @@ El complemento de IBM Docs se obtiene desde endpoints públicos de IBM Docs:
 
 El crawler usa APIs públicas de IBM Docs para obtener contenido documental real, no solo el shell web.
 
-## Instalación y ejecución local desde repo
+## Instalación recomendada desde GitHub
+
+Estado actual: la instalación soportada es desde el repositorio GitHub. Todavía no hay paquete publicado en npm ni release asset público del data pack, así que no uses comandos `npm install -g` con este paquete hasta que el README indique una publicación verificable.
+
+El servidor final no depende de RDi, Eclipse Help ni de `127.0.0.1:52070`. El repositorio incluye `data/pack` para que puedas usar el MCP desde una máquina limpia.
+
+### Prerrequisitos
+
+- Git.
+- Node.js 22.x recomendado. El CI del proyecto se valida con Node.js 22 en Windows.
+- npm incluido con Node.js.
+- Codex, Claude Desktop u otro cliente MCP si quieres conectarlo como servidor MCP.
+
+### Instalación en Windows PowerShell
+
+Usa una carpeta definitiva, no temporal, porque esa ruta quedará referenciada por tu cliente MCP.
 
 ```powershell
 git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
 cd D:\MCP-IBMiDocs
-npm install
+npm ci
 npm run build
+npm run pack:validate
 npm run smoke
+node dist/src/cli.js doctor
+```
+
+### Instalación en macOS/Linux
+
+```bash
+git clone https://github.com/h0w4r/MCP-IBMiDocs.git ~/MCP-IBMiDocs
+cd ~/MCP-IBMiDocs
+npm ci
+npm run build
+npm run pack:validate
+npm run smoke
+node dist/src/cli.js doctor
+```
+
+### Qué valida esta instalación
+
+- `npm ci`: instala dependencias exactamente desde `package-lock.json`, igual que el CI.
+- `npm run build`: compila TypeScript en `dist/`.
+- `npm run pack:validate`: verifica que `data/pack` tenga `manifest.json`, normalizados e índice SQLite.
+- `npm run smoke`: prueba búsquedas clave como `CRTRPGMOD`, `RNF0004`, `CLLE`, `DDS PF` y `SQLRPGLE`.
+- `node dist/src/cli.js doctor`: confirma resolución del pack, conteos y diagnóstico del runtime.
+
+### Ejecutar el servidor MCP manualmente
+
+```powershell
 node dist/src/server.js
 ```
 
-El repositorio mantiene `data/pack` para desarrollo, pruebas locales y uso desde este repo.
+El servidor usa stdio. Es normal que el proceso quede esperando mensajes del cliente MCP y no abra una URL web.
+
+### CLI local opcional
+
+Puedes usar la CLI sin instalar nada global:
+
+```powershell
+node dist/src/cli.js search "CRTRPGMOD" --category ile-rpg --limit 3
+node dist/src/cli.js doctor
+```
+
+Si quieres exponer los binarios `ibmi-docs` e `ibmi-docs-mcp` durante desarrollo local:
+
+```powershell
+npm link
+ibmi-docs doctor
+ibmi-docs search "RNF0004" --limit 3
+```
 
 ## Estado de distribución
 
@@ -154,7 +213,7 @@ La estrategia preparada para distribución futura es:
 - publicar el data pack como release asset independiente;
 - evitar que el paquete npm incluya `data/pack` o `ibmi-docs.sqlite` directamente.
 
-Mientras tanto, usa la instalación local desde repo.
+Mientras tanto, usa la instalación desde GitHub descrita arriba.
 
 ## Actualización de una instalación existente
 
@@ -166,7 +225,7 @@ Esta es la ruta de actualización válida mientras el proyecto no esté publicad
 cd D:\MCP-IBMiDocs
 git status --short
 git pull --ff-only
-npm install
+npm ci
 npm run build
 npm run pack:validate
 npm run smoke
@@ -231,13 +290,15 @@ Resolución del pack en runtime:
 
 ## Instalación en Codex como MCP local
 
-Genera el bloque TOML:
+Primero completa la instalación desde GitHub y confirma que `node dist/src/cli.js doctor` funciona.
+
+Genera el bloque TOML con rutas absolutas:
 
 ```powershell
 node dist/src/cli.js codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\MCP-IBMiDocs\dist\src\server.js --cwd D:\MCP-IBMiDocs
 ```
 
-Ejemplo de `C:\Users\<usuario>\.codex\config.toml`:
+Copia el bloque generado en `C:\Users\<usuario>\.codex\config.toml`. Ejemplo para Windows:
 
 ```toml
 [mcp_servers.ibmi-docs]
@@ -255,6 +316,12 @@ Después de editar `config.toml`, reinicia la sesión de Codex y valida con:
 
 ```powershell
 codex mcp list
+```
+
+También puedes hacer una prueba rápida desde el chat preguntando algo como:
+
+```text
+Usa el MCP IBM i Docs para buscar CRTRPGMOD y resume cuándo usarlo.
 ```
 
 ## CLI útil
