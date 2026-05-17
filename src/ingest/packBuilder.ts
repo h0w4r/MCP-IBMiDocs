@@ -47,16 +47,26 @@ function withPortablePackPaths(doc: DocumentRecord): DocumentRecord {
 }
 
 function sanitizeDocumentForRuntime(doc: DocumentRecord): DocumentRecord {
-  if (doc.sourceKind !== "rdi-local-export") return doc;
+  const normalizedVersion = normalizeDocumentVersion(doc);
+  if (doc.sourceKind !== "rdi-local-export") return { ...doc, version: normalizedVersion };
   const provenanceUrl = `rdi-help-bootstrap://topic/${encodeURIComponent(doc.id)}`;
   return {
     ...doc,
+    version: normalizedVersion,
     // La exportación desde Eclipse/RDi Help ocurre una sola vez durante build.
     // En el paquete runtime no dejamos URLs 127.0.0.1 para evitar que clientes
     // o modelos las interpreten como endpoint disponible o requisito.
     originalUrl: provenanceUrl,
     canonicalUrl: provenanceUrl
   };
+}
+
+function normalizeDocumentVersion(doc: DocumentRecord): string {
+  const values = [doc.version, doc.canonicalUrl, doc.originalUrl, doc.sourceId, doc.id].filter(Boolean).join(" ");
+  const match = values.match(/7\.[3456](?:\.0)?/);
+  if (match) return match[0].slice(0, 3);
+  if (doc.sourceKind === "rdi-local-export") return "RDi-local";
+  return doc.version || "RDi-local";
 }
 
 function sanitizeSourceForRuntime(source: SourceManifest): SourceManifest {
@@ -244,7 +254,7 @@ function readTextIfExists(filePath: string): string {
 function splitIntoChunks(text: string, maxChars: number): string[] {
   const clean = text.trim();
   if (!clean) return [""];
-  const paragraphs = clean.split(/\n{2,}/);
+  const paragraphs = splitIntoStructuralBlocks(clean);
   const chunks: string[] = [];
   let current = "";
   for (const paragraph of paragraphs) {
@@ -259,16 +269,60 @@ function splitIntoChunks(text: string, maxChars: number): string[] {
   return chunks;
 }
 
+function splitIntoStructuralBlocks(text: string): string[] {
+  const lines = text.split(/\n/);
+  const blocks: string[] = [];
+  let current: string[] = [];
+  const flush = () => {
+    const block = current.join("\n").trim();
+    if (block) blocks.push(block);
+    current = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flush();
+      continue;
+    }
+    // Muchas páginas IBM llegan como texto plano: detectamos títulos/secciones
+    // cortas para que FTS indexe comandos, keywords y apartados sin mezclarlos
+    // en chunks gigantes que degradan el ranking.
+    const looksLikeHeading =
+      trimmed.length <= 120 &&
+      (/(command|keyword|example|syntax|messages?|reference|guide|concepts?|programming)$/i.test(trimmed) ||
+        /^[A-Z0-9_/%*()[\] .,-]{4,}$/.test(trimmed));
+    if (looksLikeHeading && current.length > 0) flush();
+    current.push(trimmed);
+  }
+  flush();
+  return blocks.length ? blocks : [text];
+}
+
 function buildCoverage(documents: DocumentRecord[], manifests: CorpusManifest[]): Record<string, unknown> {
   const byCategory: Record<string, number> = {};
   const bySource: Record<string, number> = {};
   const byVersion: Record<string, number> = {};
+  const versionAnomalies: Array<{ id: string; version: string }> = [];
+  const allowedVersions = new Set(["7.3", "7.4", "7.5", "7.6", "RDi-local"]);
   for (const doc of documents) {
     byCategory[doc.category] = (byCategory[doc.category] ?? 0) + 1;
     bySource[doc.sourceKind] = (bySource[doc.sourceKind] ?? 0) + 1;
     byVersion[doc.version] = (byVersion[doc.version] ?? 0) + 1;
+    if (!allowedVersions.has(doc.version)) versionAnomalies.push({ id: doc.id, version: doc.version });
   }
-  return { documentCount: documents.length, sourceCount: manifests.length, byCategory, bySource, byVersion };
+  return {
+    documentCount: documents.length,
+    sourceCount: manifests.length,
+    byCategory,
+    bySource,
+    byVersion,
+    quality: {
+      allowedVersions: [...allowedVersions],
+      versionAnomalies: versionAnomalies.slice(0, 50),
+      versionAnomalyCount: versionAnomalies.length
+    }
+  };
 }
 
 

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "CK/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Unit and golden tests
+        run: npm test
+
+      - name: Smoke corpus
+        run: npm run smoke
+
+      - name: Validate data pack
+        run: npm run pack:validate
+
+      - name: Verify anti runtime dependency on RDi endpoint
+        shell: pwsh
+        run: |
+          $matches = Select-String -Path src/**/*.ts,README.md,NOTICE.md -Pattern '127\.0\.0\.1:52070|localhost:52070' -ErrorAction SilentlyContinue
+          if ($matches) {
+            $matches | Format-Table -AutoSize
+            throw 'Runtime/docs públicos no deben depender del endpoint temporal RDi.'
+          }
+
+      - name: Verify npm package excludes data pack
+        shell: pwsh
+        run: |
+          $json = npm pack --dry-run --json | ConvertFrom-Json
+          $packed = $json[0].files.path
+          if ($packed -contains 'data/pack/ibmi-docs.sqlite' -or $packed -contains 'dist/ibmi-docs-pack.tgz') {
+            throw 'El paquete npm no debe incluir data packs ni archives; publicar como release asset.'
+          }
+
+      - name: Create data pack archive artifact
+        run: npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
+
+      - name: Upload data pack artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ibmi-docs-pack
+          path: dist/ibmi-docs-pack.tgz
+
