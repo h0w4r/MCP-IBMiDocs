@@ -23,6 +23,99 @@ MCP comunitario para consultar documentación IBM i / AS400 localmente. Se basa 
   - `ibmi_docs_diagnostics`
   - `ibmi_docs_sync`
 
+## Por qué usar este MCP
+
+Los modelos generalistas suelen conocer IBM i de forma irregular: recuerdan conceptos, pero pueden mezclar versiones, comandos, parámetros, mensajes RNF, DDS y detalles de compilación. Este MCP agrega una capa de contraste documental local para que el agente consulte evidencia antes de responder o modificar código.
+
+En castellano simple: menos “creo que era así” y más “esto aparece en el corpus IBM i que tengo indexado”. El mainframe ya es suficientemente dramático; no necesita alucinaciones actuando de consultor senior.
+
+### Antes y después
+
+| Situación | Sin MCP | Con MCP IBM i Docs |
+| --- | --- | --- |
+| Crear un módulo RPGLE | El agente puede recordar `CRTRPGMOD`, pero omitir opciones relevantes o mezclarlo con `CRTBNDRPG`. | Consulta `CRTRPGMOD Command`, recupera versiones IBM i disponibles y puede justificar la recomendación con tópicos del corpus. |
+| Revisar un programa SQLRPGLE | Puede sugerir compilar como RPGLE normal aunque exista `EXEC SQL`. | Detecta SQL embebido y orienta hacia `CRTSQLRPGI`, `RPGPPOPT`, copybooks y opciones a revisar. |
+| Explicar `RNF0004` | Puede dar una explicación genérica del error. | Busca la familia documental `RPG Messages` y devuelve evidencia trazable. |
+| Trabajar con DDS PF/LF | Puede confundir PF, LF, keywords o ejemplos de DDS. | Prioriza documentación de DDS para archivos físicos/lógicos y keywords como `UNIQUE`. |
+| Responder diferencias por versión | Puede asumir que IBM i 7.3, 7.4, 7.5 y 7.6 son iguales. | Usa `ibmi_docs_compare_versions` para contrastar tópicos entre versiones disponibles. |
+| Preparar contexto para un agente | El prompt queda largo y frágil. | `ibmi_docs_context` empaqueta intención, lenguaje, comandos, riesgos y documentos recomendados. |
+
+### Ejemplos de prompts útiles para agentes
+
+Estos ejemplos están pensados para Codex u otros clientes MCP. La idea es que el agente use automáticamente las tools del MCP antes de responder:
+
+```text
+Estoy creando un programa SQLRPGLE con EXEC SQL y /COPY.
+Contrasta la guía de compilación contra IBM i Docs antes de proponer el comando.
+```
+
+Tools esperadas:
+
+- `ibmi_docs_context`
+- `ibmi_docs_compile_guidance`
+- `ibmi_docs_search`
+
+Resultado esperado: recomendación enfocada en `CRTSQLRPGI`, opciones a revisar como `RPGPPOPT`, evidencia documental y advertencias sobre copybooks/precompilador.
+
+```text
+Tengo el mensaje RNF0004 en un listado RPGLE.
+Explícalo y dame una checklist de recuperación basada en documentación.
+```
+
+Tools esperadas:
+
+- `ibmi_docs_explain_message`
+- `ibmi_docs_search`
+- `ibmi_docs_read`
+
+Resultado esperado: explicación trazable contra `RPG Messages`, pasos para revisar severidad, línea de listado, causa probable y documentación relacionada.
+
+```text
+Necesito definir un PF con DDS y claves únicas.
+Busca la documentación sobre DDS PF y UNIQUE antes de generar el fuente.
+```
+
+Tools esperadas:
+
+- `ibmi_docs_search`
+- `ibmi_docs_context`
+- `ibmi_docs_related`
+
+Resultado esperado: recuperación de `Defining a physical file using DDS` y `UNIQUE (Unique) keyword for physical and logical files`, con menos magia negra y más fuente verificable.
+
+### Ejemplos desde la CLI local
+
+La CLI permite probar el corpus sin conectar ningún cliente MCP:
+
+```powershell
+node dist/src/cli.js search "CRTRPGMOD" --category ile-rpg --limit 2
+node dist/src/cli.js search "RNF0004" --category mensajes-rnf --limit 2
+node dist/src/cli.js search "DDS UNIQUE physical logical file" --category dds --limit 2
+node dist/src/cli.js read ibm-740-commands-crtrpgmod-command-bd55c5ef
+node dist/src/cli.js doctor
+```
+
+Ejemplos de documentos que debería recuperar el pack actual:
+
+- `CRTRPGMOD Command`
+- `RPG Messages`
+- `UNIQUE (Unique) keyword for physical and logical files`
+- `Defining a physical file using DDS`
+
+### Ideas para contribuir
+
+Este proyecto mejora muchísimo con aportes pequeños y verificables:
+
+| Aporte | Dónde tocar | Cómo validar |
+| --- | --- | --- |
+| Mejorar ranking de una consulta | `src/repository/CorpusRepository.ts` | Agrega un caso en `tests/fixtures/golden-queries.json` y ejecuta `npm test`. |
+| Añadir una categoría IBM i | Ingesta/corpus + tipos en `src/types.ts` | Reconstruye el pack y revisa `node dist/src/cli.js diagnostics`. |
+| Reportar resultado flojo | Issue template `ranking.yml` | Incluye query, resultado esperado, resultado actual y versión del corpus. |
+| Mejorar documentación | `README.md`, `docs/` | `git diff --check` y lectura manual. |
+| Validar instalación en otro entorno | `docs/DATA_PACKS.md`, `README.md` | Ejecuta `node dist/src/cli.js doctor` y comparte salida saneada. |
+
+Si ves una respuesta pobre para `CLLE`, `DDS`, `SQLRPGLE`, `RNFxxxx`, COBOL o comandos IBM i, abre un issue. Un buen caso de prueba vale más que veinte opiniones y tres cafés quemados.
+
 ## Fuentes IBM públicas complementarias
 
 El complemento de IBM Docs se obtiene desde endpoints públicos de IBM Docs:
