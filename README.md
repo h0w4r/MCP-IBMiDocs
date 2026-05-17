@@ -1,6 +1,6 @@
 # MCP IBM i Docs
 
-MCP comunitario para consultar documentación IBM i / AS400 localmente. El runtime es independiente de RDi, Eclipse Help y endpoints locales.
+MCP comunitario para consultar documentación IBM i / AS400 localmente. Se basa en documentación oficial de IBM y sus herramientas de desarrollo.
 
 ## Qué incluye
 
@@ -45,20 +45,31 @@ npm run smoke
 node dist/src/server.js
 ```
 
-El repositorio mantiene `data/pack` para desarrollo/smoke local. El paquete npm, en cambio, no incluye el data pack: se instala como release asset independiente.
+El repositorio mantiene `data/pack` para desarrollo, pruebas locales y uso desde este repo.
 
-## Instalación como paquete + data pack
+## Estado de distribución
+
+Actualmente este proyecto está disponible desde el repositorio GitHub:
+
+- <https://github.com/h0w4r/MCP-IBMiDocs>
+
+Todavía **no** hay paquete publicado en npm ni release asset público versionado para el data pack. Cuando exista una publicación en npm o un release de GitHub, esta sección se actualizará con el nombre, versión y URL verificables.
+
+La estrategia preparada para distribución futura es:
+
+- publicar el código/CLI como paquete npm;
+- publicar el data pack como release asset independiente;
+- evitar que el paquete npm incluya `data/pack` o `ibmi-docs.sqlite` directamente.
+
+Mientras tanto, usa la instalación local desde repo.
+
+## Data pack local
+
+Puedes crear un archive local del pack y reinstalarlo en otra ruta:
 
 ```powershell
-npm install -g @chriskirsch/ibmi-docs-mcp
-ibmi-docs pack install --from https://github.com/h0w4r/MCP-IBMiDocs/releases/download/v0.2.0/ibmi-docs-pack.tgz
-ibmi-docs doctor
-```
-
-También puedes instalar un pack local:
-
-```powershell
-ibmi-docs pack install --from D:\MCP-IBMiDocs\dist\ibmi-docs-pack.tgz --out D:\MCP-IBMiDocs\data\pack
+npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
+node dist/src/cli.js pack install --from D:\MCP-IBMiDocs\dist\ibmi-docs-pack.tgz --out D:\MCP-IBMiDocs\data\pack
 ```
 
 Resolución del pack en runtime:
@@ -73,7 +84,7 @@ Resolución del pack en runtime:
 Genera el bloque TOML:
 
 ```powershell
-ibmi-docs codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\MCP-IBMiDocs\dist\src\server.js --cwd D:\MCP-IBMiDocs
+node dist/src/cli.js codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\MCP-IBMiDocs\dist\src\server.js --cwd D:\MCP-IBMiDocs
 ```
 
 Ejemplo de `C:\Users\<usuario>\.codex\config.toml`:
@@ -98,13 +109,22 @@ codex mcp list
 
 ## CLI útil
 
+Desde el repo, usa la CLI con Node:
+
 ```powershell
-ibmi-docs diagnostics
-ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 5
-ibmi-docs read ibm-730-commands-crtrpgmod-command-7d3ce327
-ibmi-docs validate-pack
+node dist/src/cli.js diagnostics
+node dist/src/cli.js search "CRTRPGMOD" --category ile-rpg --limit 5
+node dist/src/cli.js read ibm-730-commands-crtrpgmod-command-7d3ce327
+node dist/src/cli.js validate-pack
+node dist/src/cli.js doctor
+node dist/src/cli.js pack archive --pack data/pack --out dist/ibmi-docs-pack.tgz
+```
+
+Si quieres usar el binario `ibmi-docs` localmente durante desarrollo, enlaza el paquete desde este repo:
+
+```powershell
+npm link
 ibmi-docs doctor
-ibmi-docs pack archive --pack data/pack --out dist/ibmi-docs-pack.tgz
 ```
 
 ## Desarrollo del corpus

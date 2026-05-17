@@ -1,8 +1,10 @@
 # Data packs IBM i Docs
 
-El paquete npm del MCP no incluye `data/pack`. El corpus se distribuye como release asset para mantener el paquete ligero y permitir actualizaciones independientes.
+Actualmente el repo incluye `data/pack` para desarrollo y uso local. Todavía no hay paquete npm ni release asset público del data pack.
 
-## Crear release asset
+La estrategia de distribución preparada para futuras publicaciones es que el paquete npm no incluya `data/pack` y que el corpus se publique como release asset independiente para mantener el paquete ligero y permitir actualizaciones separadas.
+
+## Crear archive local del data pack
 
 ```powershell
 npm run build:pack
@@ -10,10 +12,10 @@ npm run pack:validate
 npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
 ```
 
-## Instalar data pack desde release asset
+## Instalar data pack desde un archive local
 
 ```powershell
-ibmi-docs pack install --from https://github.com/h0w4r/MCP-IBMiDocs/releases/download/v0.2.0/ibmi-docs-pack.tgz
+node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz
 ```
 
 Destino por defecto:
@@ -25,7 +27,7 @@ Destino por defecto:
 También puedes usar un directorio explícito:
 
 ```powershell
-ibmi-docs pack install --from .\dist\ibmi-docs-pack.tgz --out D:\MCP-IBMiDocs\data\pack
+node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out D:\MCP-IBMiDocs\data\pack
 ```
 
 ## Resolución runtime
@@ -40,6 +42,6 @@ El servidor busca el pack en este orden:
 ## Integridad
 
 ```powershell
-ibmi-docs validate-pack
-ibmi-docs doctor
+node dist/src/cli.js validate-pack
+node dist/src/cli.js doctor
 ```
