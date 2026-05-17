@@ -1,6 +1,6 @@
 # MCP IBM i Docs
 
-MCP comunitario para consultar documentación IBM i / AS400 desde un corpus local propio. El servidor final **no depende de RDi**, **no depende de Eclipse Help** y **no intenta conectarse a endpoints locales**.
+MCP comunitario para consultar documentación IBM i / AS400 desde un corpus local propio. Sin depender de conexiones externas.
 
 ## Qué incluye
 
@@ -14,19 +14,6 @@ MCP comunitario para consultar documentación IBM i / AS400 desde un corpus loca
   - `ibmi_docs_context`
   - `ibmi_docs_diagnostics`
   - `ibmi_docs_sync`
-
-## Política sobre RDi
-
-La ayuda local de RDi/Eclipse Help se usó solo como **fuente temporal de bootstrap durante la construcción del data pack**. En el paquete runtime:
-
-- no se consulta RDi;
-- no se arranca Eclipse Help;
-- no se requiere `127.0.0.1:52070`;
-- no se usa ese endpoint en `npm install`;
-- no se usa en el primer arranque;
-- no se usa en `ibmi_docs_sync`.
-
-La fuente queda registrada como `rdi-help-bootstrap://local-export` para trazabilidad interna, no como URL ejecutable.
 
 ## Fuentes IBM públicas complementarias
 
@@ -56,13 +43,7 @@ node dist/src/server.js
 
 ## Desarrollo del corpus
 
-> Estos comandos son para mantenedores del proyecto. No son requisitos de usuarios finales.
-
-Exportación interna desde una ayuda RDi disponible solo en la máquina de construcción:
-
-```powershell
-npx tsx src/cli.ts export-rdi --base-url http://127.0.0.1:52070/help --out data/rdi-export --max-topics 30000 --concurrency 10
-```
+> Dirigido a quienes deseen colaborar en este proyecto, no es necesario para usuarios que solo quieran usar el MCP:
 
 Sincronización desde IBM Docs público:
 
@@ -94,4 +75,27 @@ El smoke valida búsquedas base:
 
 ## Sync runtime
 
-`ibmi_docs_sync` está deshabilitado por defecto. Si se habilita con `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`, solo consulta IBM Docs público y reconstruye el data pack local. Nunca usa la exportación RDi ni endpoints locales.
+`ibmi_docs_sync` está deshabilitado por defecto. Si se habilita con `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`, solo consulta IBM Docs público y reconstruye el data pack local.
+
+## Aviso legal y marcas
+
+Este proyecto es comunitario e independiente. No está afiliado, patrocinado, aprobado ni mantenido por IBM.
+
+IBM, IBM i, AS/400, Rational Developer for i, RDi, Db2 y otros nombres de productos o servicios de IBM mencionados en este repositorio pueden ser marcas comerciales o marcas registradas de International Business Machines Corporation en Estados Unidos y/o en otros países. Este proyecto usa esos nombres únicamente como referencias técnicas nominativas para identificar tecnologías, documentación y compatibilidad. No se usan logotipos de IBM ni se pretende sugerir respaldo oficial.
+
+La documentación, publicaciones, páginas, textos, ejemplos y metadatos provenientes de IBM o de IBM Documentation pertenecen a sus respectivos titulares y se rigen por los términos aplicables de IBM, incluyendo:
+
+- <https://www.ibm.com/legal/terms>
+- <https://www.ibm.com/legal/copyright-trademark>
+- <https://www.ibm.com/docs>
+
+La licencia de este repositorio cubre únicamente el código fuente, scripts, configuración y documentación original del proyecto. No otorga derechos sobre contenido, marcas, publicaciones o materiales de IBM ni de terceros. El corpus documental incluido o generado conserva atribución y metadatos de fuente para facilitar trazabilidad técnica.
+
+Si eres titular de derechos y consideras que algún material debe corregirse, atribuirse de otra forma o retirarse, abre un issue en el repositorio para revisarlo.
+
+
+## Licencia
+
+El código original de este proyecto se publica bajo licencia ISC. Consulta [`LICENSE`](LICENSE).
+
+El aviso legal y las atribuciones de terceros están documentados en [`NOTICE.md`](NOTICE.md).
