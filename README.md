@@ -1,6 +1,6 @@
 # MCP IBM i Docs
 
-MCP comunitario para consultar documentación IBM i / AS400 desde un corpus local propio. Sin depender de conexiones externas.
+MCP comunitario para consultar documentación IBM i / AS400 localmente. Sin depender de conexiones externas.
 
 ## Qué incluye
 
