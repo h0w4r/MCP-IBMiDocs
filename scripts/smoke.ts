@@ -39,6 +39,18 @@ try {
   const related = repo.related("ibm-730-commands-crtrpgmod-command-7d3ce327", { limit: 5 });
   console.log("Related CRTRPGMOD:", JSON.stringify({ equivalents: related.equivalentVersions.length, related: related.related.length }, null, 2));
   if (!related.topic || related.equivalentVersions.length === 0) process.exitCode = 1;
+
+  const answer = repo.answer({ question: "Explica SND-MSG, %MSG y %TARGET", language: "RPGLE", includeExamples: true, limit: 3 });
+  console.log("Answer SND-MSG:", JSON.stringify({ confidence: answer.confidence, citations: answer.citations.length }, null, 2));
+  if (!answer.citations.length || !answer.answer.includes("Respuesta basada")) process.exitCode = 1;
+
+  const ranking = repo.explainRanking({ query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET", category: "ile-rpg", top: 3 });
+  console.log("Ranking SND-MSG:", JSON.stringify({ semanticQueries: ranking.semanticQueries.length, results: ranking.results.length }, null, 2));
+  if (!ranking.semanticQueries.length || !ranking.results.length) process.exitCode = 1;
+
+  const quality = repo.qualityReport();
+  console.log("Quality report:", JSON.stringify({ ok: quality.ok, docs: quality.documents, short: quality.shortDocuments.length }, null, 2));
+  if (!quality.documents || !quality.recommendations.length) process.exitCode = 1;
 } finally {
   repo.close();
 }

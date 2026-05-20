@@ -150,6 +150,7 @@ cd D:\MCP-IBMiDocs
 npm ci
 npm run build
 npm run pack:validate
+npm run bench:golden
 npm run smoke
 node dist/src/cli.js doctor
 ```
@@ -162,6 +163,7 @@ cd ~/MCP-IBMiDocs
 npm ci
 npm run build
 npm run pack:validate
+npm run bench:golden
 npm run smoke
 node dist/src/cli.js doctor
 ```
@@ -228,6 +230,7 @@ git pull --ff-only
 npm ci
 npm run build
 npm run pack:validate
+npm run bench:golden
 npm run smoke
 node dist/src/cli.js doctor
 ```
@@ -330,10 +333,20 @@ Desde el repo, usa la CLI con Node:
 
 ```powershell
 node dist/src/cli.js diagnostics
-node dist/src/cli.js search "CRTRPGMOD" --category ile-rpg --limit 5
+node dist/src/cli.js search "CRTRPGMOD" --category ile-rpg --limit 5 --mode hybrid
+node dist/src/cli.js search "SND-MSG %MSG %TARGET" --category ile-rpg --auto-read --sections
+node dist/src/cli.js answer "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
+node dist/src/cli.js explain-ranking "SND-MSG Send a Message to the Joblog" --category ile-rpg
+node dist/src/cli.js sections rdi-b314bc2569c3d305
 node dist/src/cli.js read ibm-730-commands-crtrpgmod-command-7d3ce327
+node dist/src/cli.js quality-report
+node dist/src/cli.js recipes
 node dist/src/cli.js validate-pack
 node dist/src/cli.js doctor
+node dist/src/cli.js setup --pack data/pack --print-codex
+node dist/src/cli.js pack verify --pack data/pack
+node dist/src/cli.js pack list --root "$env:USERPROFILE\.ibmi-docs"
+node dist/src/cli.js pack lint-contribution --input .\mi-corpus
 node dist/src/cli.js pack archive --pack data/pack --out dist/ibmi-docs-pack.tgz
 ```
 
@@ -342,6 +355,28 @@ Si quieres usar el binario `ibmi-docs` localmente durante desarrollo, enlaza el 
 ```powershell
 npm link
 ibmi-docs doctor
+```
+
+
+## Capacidades agénticas avanzadas
+
+La versión actual no se limita a FTS plano. Incluye una capa híbrida local para mejorar respuestas de agentes sin depender de red ni embeddings externos:
+
+- búsqueda FTS5 + expansión semántica local por dominio IBM i;
+- `autoRead` para adjuntar contenido completo cuando el resultado es fuerte;
+- extracción de secciones (`syntax`, `parameters`, `examples`, `notes`, `messages`, etc.);
+- taxonomía fina: comandos, RPG opcodes, RPG BIFs, mensajes, DDS keywords, SQL/Db2 for i, APIs y guías de lenguaje;
+- `ibmi_docs_answer` para respuestas extractivas con citas;
+- `ibmi_docs_explain_ranking` para auditar por qué ganó un resultado;
+- `ibmi_docs_quality_report` para revisar cobertura, duplicados y tópicos cortos;
+- benchmark ampliado con más de 100 queries doradas (`npm run bench:golden`).
+
+Ejemplo rápido:
+
+```powershell
+node dist/src/cli.js answer "Cómo envío un mensaje al joblog desde RPG usando SND-MSG" --language RPGLE --examples
+node dist/src/cli.js explain-ranking "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET" --category ile-rpg
+npm run bench:golden
 ```
 
 ## Desarrollo del corpus
@@ -359,6 +394,7 @@ Construcción del data pack:
 ```powershell
 npm run build:pack
 npm run pack:validate
+npm run bench:golden
 ```
 
 Crear release asset:
@@ -374,6 +410,7 @@ npm run build
 npm test
 npm run smoke
 npm run pack:validate
+npm run bench:golden
 npm pack --dry-run
 ```
 
@@ -395,6 +432,8 @@ El smoke valida búsquedas y contexto base:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/DATA_PACKS.md`](docs/DATA_PACKS.md)
+- [`docs/RECIPES.md`](docs/RECIPES.md)
+- [`docs/CORPUS_CONTRIBUTION.md`](docs/CORPUS_CONTRIBUTION.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - [`SECURITY.md`](SECURITY.md)
 - [`NOTICE.md`](NOTICE.md)

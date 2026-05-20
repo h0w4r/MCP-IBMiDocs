@@ -183,6 +183,16 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       body TEXT NOT NULL,
       token_hint INTEGER NOT NULL
     );
+    CREATE TABLE document_sections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      section_index INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      start_line INTEGER NOT NULL,
+      end_line INTEGER NOT NULL
+    );
     CREATE VIRTUAL TABLE chunks_fts USING fts5(
       title,
       body,
@@ -193,6 +203,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
     );
     CREATE INDEX idx_documents_category ON documents(category);
     CREATE INDEX idx_documents_version ON documents(version);
+    CREATE INDEX idx_sections_document ON document_sections(document_id, section_index);
   `);
 
   const insertMeta = db.prepare("INSERT INTO meta(key, value) VALUES (?, ?)");
@@ -202,6 +213,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const insertChunk = db.prepare("INSERT INTO chunks(document_id, chunk_index, title, body, token_hint) VALUES (?, ?, ?, ?, ?)");
   const insertFts = db.prepare("INSERT INTO chunks_fts(rowid, title, body, document_id, category, version) VALUES (?, ?, ?, ?, ?, ?)");
+  const insertSection = db.prepare("INSERT INTO document_sections(document_id, section_index, kind, title, body, start_line, end_line) VALUES (?, ?, ?, ?, ?, ?, ?)");
 
   const tx = db.transaction(() => {
     insertMeta.run("manifest", JSON.stringify(manifest));
@@ -227,6 +239,9 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       );
       const textPath = path.join(packRoot, doc.normalizedTextPath);
       const text = readTextIfExists(textPath);
+      extractDocumentSections(text).forEach((section, index) => {
+        insertSection.run(doc.id, index, section.kind, section.title, section.body, section.startLine, section.endLine);
+      });
       const chunks = splitIntoChunks(text, 3200);
       chunks.forEach((chunk, index) => {
         const result = insertChunk.run(doc.id, index, doc.title, chunk, Math.ceil(chunk.length / 4));
@@ -297,6 +312,42 @@ function splitIntoStructuralBlocks(text: string): string[] {
   }
   flush();
   return blocks.length ? blocks : [text];
+}
+
+function extractDocumentSections(text: string): Array<{ kind: string; title: string; body: string; startLine: number; endLine: number }> {
+  const lines = text.split(/\r?\n/);
+  const headings: Array<{ index: number; title: string; kind: string }> = [];
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 140) return;
+    const kind = detectSectionKind(trimmed);
+    const looksHeading = kind !== "generic" || (/^[A-Z0-9_/%*()[\] .,:;-]{4,}$/.test(trimmed) && index > 0);
+    if (looksHeading) headings.push({ index, title: trimmed, kind });
+  });
+  if (!headings.length) return [{ kind: "description", title: "Contenido", body: text.trim(), startLine: 1, endLine: lines.length }];
+  return headings.map((heading, index) => {
+    const next = headings[index + 1]?.index ?? lines.length;
+    return {
+      kind: heading.kind,
+      title: heading.title,
+      body: lines.slice(heading.index + 1, next).join("\n").trim() || heading.title,
+      startLine: heading.index + 1,
+      endLine: next
+    };
+  }).filter((section) => section.body).slice(0, 80);
+}
+
+function detectSectionKind(title: string): string {
+  if (/syntax|free-form|fixed-form|formato|sintaxis/i.test(title)) return "syntax";
+  if (/parameter|operand|factor|par[aá]metro/i.test(title)) return "parameters";
+  if (/description|usage|purpose|descripci[oó]n/i.test(title)) return "description";
+  if (/example|ejemplo|sample/i.test(title)) return "examples";
+  if (/restriction|restricci[oó]n/i.test(title)) return "restrictions";
+  if (/note|consideration|consideraci[oó]n/i.test(title)) return "notes";
+  if (/message|mensaje|rnf|sql\d/i.test(title)) return "messages";
+  if (/recovery|recover|cause|response|acci[oó]n/i.test(title)) return "recovery";
+  if (/related|see also|referencia|api/i.test(title)) return "related";
+  return "generic";
 }
 
 function buildCoverage(documents: DocumentRecord[], manifests: CorpusManifest[]): Record<string, unknown> {

@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import type {
+  AnswerCitation,
+  AnswerOptions,
+  AnswerResult,
   CategoryDiagnostics,
   CodeValidationFinding,
   CodeValidationOptions,
@@ -13,19 +16,99 @@ import type {
   ContextPackage,
   CorpusManifest,
   ExplainMessageOptions,
+  DocsRecipe,
   MessageExplanation,
   PackDiagnostics,
+  QualityReport,
   ReadResult,
+  RankingExplanation,
+  RankingExplanationOptions,
   RelatedDocuments,
   RelatedOptions,
   SearchHit,
   SearchOptions,
+  TopicSection,
+  TopicTaxonomy,
   VersionComparison
 } from "../types.js";
 import { clamp } from "../util/common.js";
 
 const SUPPORTED_VERSIONS = ["7.3", "7.4", "7.5", "7.6", "RDi-local"];
 const FTS_STOPWORDS = new Set(["a", "an", "and", "as", "de", "del", "el", "en", "for", "in", "la", "las", "los", "of", "on", "or", "the", "to", "un", "una", "with"]);
+const DEFAULT_VERSIONS = ["7.3", "7.4", "7.5", "7.6"];
+
+// Expansiones semánticas locales: no dependen de embeddings externos ni red.
+// Funcionan como una capa de "recall" para prompts naturales de agentes.
+const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: string[] }> = [
+  {
+    pattern: /sql\s*(embebido|embedded)|sqlrpgle|exec\s+sql|precompil/i,
+    queries: ["CRTSQLRPGI command", "SQLRPGLE embedded SQL RPG", "RPGPPOPT SQL precompiler", "Using /COPY /INCLUDE in Source Files with Embedded SQL"],
+    signals: ["sqlrpgle", "embedded-sql", "precompiler"]
+  },
+  {
+    pattern: /\b(joblog|mensaje|message|snd-msg|%msg|%target|qmhsndpm)\b/i,
+    queries: ["SND-MSG Send a Message to the Joblog", "%MSG built-in function", "%TARGET built-in function", "QMHSNDPM API"],
+    signals: ["joblog-message", "rpg-message-operation"]
+  },
+  {
+    pattern: /\brnf\d{4}\b|rpg messages?|listado de compilaci[oó]n/i,
+    queries: ["RPG Messages", "RNF compiler messages", "ILE RPG Compiler Reference"],
+    signals: ["rnf-message"]
+  },
+  {
+    pattern: /\bdds\b|\bpf\b|\blf\b|physical file|logical file|archivo f[ií]sico|archivo l[oó]gico/i,
+    queries: ["Defining a physical file using DDS", "DDS for physical and logical files", "DDS keywords physical logical files", "CRTPF command"],
+    signals: ["dds", "database-file"]
+  },
+  {
+    pattern: /\bclle\b|control language|monmsg|sndpgmmsg|rtvjoba|crtbndcl/i,
+    queries: ["CL programs and procedures", "CRTBNDCL command", "MONMSG command", "SNDPGMMSG command", "CL command coding examples"],
+    signals: ["clle", "control-language"]
+  },
+  {
+    pattern: /\brpgle\b|ile rpg|crtrpgmod|crtbndrpg|free[- ]form/i,
+    queries: ["ILE RPG Reference", "CRTRPGMOD Command", "CRTBNDRPG Command", "ILE RPG free form"],
+    signals: ["rpgle", "ile-rpg"]
+  }
+];
+
+const RECIPES: DocsRecipe[] = [
+  {
+    id: "diagnosticar-rnf",
+    title: "Diagnosticar un RNF de compilación",
+    prompt: "Explícame RNF0004, posibles causas y pasos de recuperación para un fuente RPGLE.",
+    tools: ["ibmi_docs_explain_message", "ibmi_docs_read"],
+    expectedOutcome: "Resumen del mensaje, evidencia documental y checklist de recuperación."
+  },
+  {
+    id: "crear-sqlrpgle",
+    title: "Crear o revisar SQLRPGLE",
+    prompt: "Necesito un programa SQLRPGLE con EXEC SQL y /COPY; dime comandos y opciones de compilación.",
+    tools: ["ibmi_docs_answer", "ibmi_docs_compile_guidance", "ibmi_docs_validate_code_context"],
+    expectedOutcome: "Guía con CRTSQLRPGI, RPGPPOPT, COMMIT, DBGVIEW y evidencia trazable."
+  },
+  {
+    id: "comparar-versiones",
+    title: "Comparar documentación entre releases",
+    prompt: "Compara CRTRPGMOD entre IBM i 7.3 y 7.6.",
+    tools: ["ibmi_docs_compare_versions", "ibmi_docs_read"],
+    expectedOutcome: "Disponibilidad, diferencias estructurales y citas por versión."
+  },
+  {
+    id: "dds-pf",
+    title: "Diseñar DDS para archivo físico",
+    prompt: "Dame guía oficial para definir un PF con DDS y keywords comunes.",
+    tools: ["ibmi_docs_answer", "ibmi_docs_search"],
+    expectedOutcome: "Tópicos de DDS/PF, keywords y lectura completa sugerida."
+  },
+  {
+    id: "explicar-opcode",
+    title: "Entender un opcode RPG moderno",
+    prompt: "Explica SND-MSG, %MSG y %TARGET con sintaxis y notas.",
+    tools: ["ibmi_docs_answer", "ibmi_docs_sections"],
+    expectedOutcome: "Sintaxis, operandos, notas y referencias como QMHSNDPM."
+  }
+];
 
 type LanguagePreset = {
   language: string;
@@ -135,18 +218,18 @@ export class CorpusRepository {
 
   search(options: SearchOptions): SearchHit[] {
     const limit = clamp(options.limit, 8, 1, 50);
-    const fts = toFtsQuery(options.query);
-    if (!fts) return [];
-    const exactTerms = extractExactTechnicalTerms(options.query);
+    const semantic = buildSemanticExpansion(options.query);
+    const ftsInputs = options.mode === "fts" ? [options.query] : [...new Set([options.query, ...semantic.queries])];
+    const exactTerms = [...new Set([...extractExactTechnicalTerms(options.query), ...semantic.signals.filter((signal) => isCommandOrOpcodeTerm(signal))])];
     const filters: string[] = [];
-    const params: Record<string, string | number> = { fts, limit: Math.max(limit * 16, 80) };
+    const baseParams: Record<string, string | number> = { limit: Math.max(limit * 16, 80) };
     if (options.version) {
       filters.push("d.version = @version");
-      params.version = normalizeVersionInput(options.version);
+      baseParams.version = normalizeVersionInput(options.version);
     }
     if (options.category) {
       filters.push("d.category = @category");
-      params.category = options.category;
+      baseParams.category = options.category;
     }
     const where = filters.length ? `AND ${filters.join(" AND ")}` : "";
     const sql = `
@@ -159,14 +242,31 @@ export class CorpusRepository {
       ORDER BY rank ASC
       LIMIT @limit
     `;
-    const rows = [
-      ...(this.db.prepare(sql).all(params) as Array<Record<string, unknown>>),
-      ...this.findExactTechnicalRows(exactTerms, options)
-    ];
+    const stmt = this.db.prepare(sql);
+    const rows: Array<Record<string, unknown>> = [];
+    for (const input of ftsInputs) {
+      const fts = toFtsQuery(input);
+      if (!fts) continue;
+      // MATCH sigue parametrizado; las expansiones solo cambian el recall, no concatenan SQL.
+      rows.push(...(stmt.all({ ...baseParams, fts }) as Array<Record<string, unknown>>));
+    }
+    rows.push(...this.findExactTechnicalRows(exactTerms, options));
     const bestByDocument = new Map<string, SearchHit>();
     for (const row of rows) {
       const hit = rowToHit(row, options.query);
-      hit.score = scoreHit(hit, String(row.body), Number(row.rank ?? 0), options, Number(row.chunk_index ?? 0));
+      hit.taxonomy = classifyTaxonomy(hit, String(row.body ?? ""));
+      hit.semanticScore = semanticScore(hit, options.query, semantic);
+      hit.matchReasons = buildMatchReasons(hit, String(row.body ?? ""), options.query, semantic);
+      hit.score = scoreHit(hit, String(row.body), Number(row.rank ?? 0), options, Number(row.chunk_index ?? 0)) + hit.semanticScore;
+      if (options.includeSections) hit.sectionsPreview = extractTopicSections(String(row.body ?? "")).slice(0, 4);
+      if (options.autoRead && hit.score >= 50) {
+        const read = this.read(hit.id);
+        if (read) {
+          hit.autoReadApplied = true;
+          hit.fullContent = read.content;
+          hit.sectionsPreview = read.sections?.slice(0, 6);
+        }
+      }
       const existing = bestByDocument.get(hit.id);
       if (!existing || hit.score > existing.score) bestByDocument.set(hit.id, hit);
     }
@@ -178,7 +278,8 @@ export class CorpusRepository {
     if (!row) return null;
     const textPath = path.join(this.packDir, String(row.normalized_text_path));
     const content = fs.existsSync(textPath) ? fs.readFileSync(textPath, "utf8") : "";
-    return {
+    const sections = extractTopicSections(content);
+    const result: ReadResult = {
       id: String(row.id),
       title: String(row.title),
       snippet: makeSnippet(content, "", 520),
@@ -191,7 +292,72 @@ export class CorpusRepository {
       breadcrumbs: JSON.parse(String(row.breadcrumbs_json || "[]")) as string[],
       content,
       textLength: Number(row.text_length),
-      sha256: String(row.sha256)
+      sha256: String(row.sha256),
+      sections
+    };
+    result.taxonomy = classifyTaxonomy(result, content);
+    result.sectionsPreview = sections.slice(0, 6);
+    return result;
+  }
+
+  sections(id: string): { topic: ReadResult | null; sections: TopicSection[] } {
+    const topic = this.read(id);
+    return { topic, sections: topic?.sections ?? [] };
+  }
+
+  answer(options: AnswerOptions): AnswerResult {
+    const limit = clamp(options.limit, 5, 1, 10);
+    const preset = resolvePreset(options.language ?? options.question);
+    const hits = this.search({
+      query: options.question,
+      version: options.version,
+      category: options.category ?? preset?.category,
+      limit,
+      mode: "hybrid",
+      includeSections: true
+    });
+    const reads = hits.slice(0, Math.min(3, hits.length)).map((hit) => this.read(hit.id)).filter((value): value is ReadResult => Boolean(value));
+    const citations: AnswerCitation[] = reads.map((read) => ({
+      id: read.id,
+      title: read.title,
+      version: read.version,
+      sourceKind: read.sourceKind,
+      canonicalUrl: read.canonicalUrl,
+      section: pickBestSection(read.sections ?? [], options.question)?.title
+    }));
+    const compile = options.includeCompileCommands && (preset || options.language)
+      ? this.compileGuidance({ language: options.language ?? preset?.language ?? "RPGLE", version: options.version, limit: 5 })
+      : undefined;
+    const warnings: string[] = [];
+    if (!hits.length) warnings.push("No se encontró evidencia documental suficiente; evita afirmar detalles no sustentados.");
+    if (hits.length && hits[0].score < 20) warnings.push("La evidencia existe, pero el score principal es bajo; conviene leer los tópicos antes de responder con seguridad.");
+
+    return {
+      question: options.question,
+      answer: buildExtractiveAnswer(options, reads, compile),
+      confidence: hits[0]?.score >= 60 ? "alta" : hits.length >= 2 ? "media" : "baja",
+      citations,
+      evidence: hits,
+      warnings,
+      suggestedTools: hits.length ? ["ibmi_docs_read", "ibmi_docs_sections", "ibmi_docs_explain_ranking"] : ["ibmi_docs_search"]
+    };
+  }
+
+  explainRanking(options: RankingExplanationOptions): RankingExplanation {
+    const top = clamp(options.top ?? options.limit, 5, 1, 20);
+    const semantic = buildSemanticExpansion(options.query);
+    const hits = this.search({ ...options, limit: top, mode: options.mode ?? "hybrid", includeSections: true });
+    return {
+      query: options.query,
+      ftsQuery: toFtsQuery(options.query),
+      semanticQueries: semantic.queries,
+      exactTerms: extractExactTechnicalTerms(options.query),
+      results: hits.map((hit) => ({
+        hit,
+        reasons: hit.matchReasons ?? [],
+        taxonomy: hit.taxonomy ?? classifyTaxonomy(hit, hit.snippet),
+        semanticScore: hit.semanticScore ?? 0
+      }))
     };
   }
 
@@ -309,6 +475,60 @@ export class CorpusRepository {
     };
   }
 
+  qualityReport(): QualityReport {
+    const manifest = this.manifest();
+    const pack = this.packDiagnostics();
+    const coverage = this.categories();
+    const shortDocuments = this.db.prepare(`
+      SELECT id, title, text_length AS textLength, category, version
+      FROM documents
+      WHERE text_length < 300
+      ORDER BY text_length ASC, title ASC
+      LIMIT 40
+    `).all() as QualityReport["shortDocuments"];
+    const duplicateTitles = this.db.prepare(`
+      SELECT title, COUNT(*) AS count, GROUP_CONCAT(DISTINCT version) AS versions
+      FROM documents
+      GROUP BY lower(title)
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC, title ASC
+      LIMIT 40
+    `).all().map((row: any) => ({
+      title: String(row.title),
+      count: Number(row.count),
+      versions: String(row.versions ?? "").split(",").filter(Boolean).sort(naturalVersionSort)
+    }));
+    const sparseCategories = Object.entries(coverage.byCategory)
+      .filter(([, count]) => count < 50)
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => a.count - b.count);
+    return {
+      ok: pack.ok && shortDocuments.length < 100,
+      generatedAt: new Date().toISOString(),
+      corpusVersion: manifest.corpusVersion,
+      documents: pack.documents,
+      chunks: pack.chunks,
+      coverage,
+      shortDocuments,
+      duplicateTitles,
+      sparseCategories,
+      benchmarkHints: [
+        "Agregar golden queries para comandos CRT*, DSP*, WRK*, opcodes RPG, BIFs %, DDS keywords y mensajes RNF/SQL.",
+        "Revisar tópicos cortos: pueden ser redirecciones, páginas índice o contenido incompleto.",
+        "Usar ibmi_docs_explain_ranking cuando un resultado parezca inesperado."
+      ],
+      recommendations: [
+        "Mantener al menos una query dorada por categoría y por familia técnica.",
+        "Publicar data packs como release assets y validarlos con pack:validate antes de anunciarlos.",
+        "Evitar dependencias runtime a RDi, Eclipse Help o endpoints loopback."
+      ]
+    };
+  }
+
+  recipes(): DocsRecipe[] {
+    return RECIPES;
+  }
+
   related(id: string, options: RelatedOptions = {}): RelatedDocuments {
     const topic = this.read(id);
     if (!topic) return { topic: null, equivalentVersions: [], related: [] };
@@ -319,18 +539,39 @@ export class CorpusRepository {
   }
 
   compareVersions(options: CompareVersionsOptions): VersionComparison {
-    const versions = options.versions.map((version) => normalizeVersionInput(version));
+    const versions = (options.versions?.length ? options.versions : DEFAULT_VERSIONS).map((version) => normalizeVersionInput(version));
     const evidence: SearchHit[] = [];
     const entries = versions.map((version) => {
       const result = this.search({ query: options.query, version, category: options.category, limit: options.limit ?? 5 })[0];
       if (result) evidence.push(result);
+      const read = result ? this.read(result.id) : null;
+      const sections = read?.sections ?? [];
       return {
         version,
         found: Boolean(result),
         result,
-        notes: result ? [`Encontrado: ${result.title} (${result.sourceKind})`] : ["No se encontró tópico equivalente para esta versión."]
+        notes: result ? [
+          `Encontrado: ${result.title} (${result.sourceKind})`,
+          `Longitud normalizada: ${read?.textLength ?? result.textLength ?? 0} caracteres.`,
+          `Secciones detectadas: ${sections.map((section) => section.kind).filter(unique).slice(0, 8).join(", ") || "n/a"}.`
+        ] : ["No se encontró tópico equivalente para esta versión."],
+        structural: {
+          textLength: read?.textLength ?? result?.textLength ?? 0,
+          sectionKinds: sections.map((section) => section.kind).filter(unique),
+          sha256: read?.sha256
+        }
       };
     });
+    const baseline = entries.find((entry) => entry.found && (entry as any).structural.textLength > 0) as any;
+    if (baseline) {
+      for (const entry of entries as any[]) {
+        if (!entry.found || entry === baseline) continue;
+        const delta = entry.structural.textLength - baseline.structural.textLength;
+        const missing = baseline.structural.sectionKinds.filter((kind: string) => !entry.structural.sectionKinds.includes(kind));
+        entry.notes.push(`Delta vs ${baseline.version}: ${delta >= 0 ? "+" : ""}${delta} caracteres.`);
+        if (missing.length) entry.notes.push(`Secciones presentes en baseline y ausentes aquí: ${missing.join(", ")}.`);
+      }
+    }
     return { query: options.query, versions: entries, evidence };
   }
 
@@ -551,6 +792,152 @@ function makeSnippet(text: string, query: string, maxChars: number): string {
   return `${start > 0 ? "…" : ""}${clean.slice(start, end).trim()}${end < clean.length ? "…" : ""}`;
 }
 
+function buildSemanticExpansion(query: string): { queries: string[]; signals: string[] } {
+  const queries: string[] = [];
+  const signals: string[] = [];
+  for (const expansion of SEMANTIC_EXPANSIONS) {
+    if (!expansion.pattern.test(query)) continue;
+    queries.push(...expansion.queries);
+    signals.push(...expansion.signals);
+  }
+  const preset = resolvePreset(query);
+  if (preset) {
+    queries.push(...preset.queries, ...preset.compileCommands.map((command) => `${command} command`));
+    signals.push(preset.language.toLowerCase());
+  }
+  return {
+    queries: [...new Set(queries)].slice(0, 12),
+    signals: [...new Set(signals)].slice(0, 20)
+  };
+}
+
+function semanticScore(hit: SearchHit, query: string, semantic: { queries: string[]; signals: string[] }): number {
+  const haystack = fold([hit.title, hit.category, hit.breadcrumbs.join(" "), hit.snippet].join(" "));
+  let score = 0;
+  for (const signal of semantic.signals) {
+    const folded = fold(signal);
+    if (haystack.includes(folded)) score += 6;
+  }
+  const queryTaxonomy = classifyTaxonomy({ ...hit, title: query, category: hit.category, breadcrumbs: [] }, query);
+  const hitTaxonomy = hit.taxonomy ?? classifyTaxonomy(hit, hit.snippet);
+  if (queryTaxonomy.kind !== "general" && queryTaxonomy.kind === hitTaxonomy.kind) score += 12;
+  return score;
+}
+
+function buildMatchReasons(hit: SearchHit, body: string, query: string, semantic: { queries: string[]; signals: string[] }): string[] {
+  const reasons: string[] = [];
+  const title = fold(hit.title);
+  const bodyFold = fold(body);
+  const exactTerms = extractExactTechnicalTerms(query);
+  for (const term of exactTerms) {
+    if (title.includes(term)) reasons.push(`match exacto en título: ${term}`);
+    else if (bodyFold.includes(term)) reasons.push(`match exacto en contenido: ${term}`);
+  }
+  if (semantic.queries.length) reasons.push(`expansión semántica local: ${semantic.queries.slice(0, 3).join(" | ")}`);
+  if (hit.taxonomy) reasons.push(`taxonomía: ${hit.taxonomy.kind} (${hit.taxonomy.signals.slice(0, 3).join(", ") || "sin señales"})`);
+  if (hit.version !== "RDi-local") reasons.push(`documento versionado IBM i ${hit.version}`);
+  return [...new Set(reasons)].slice(0, 8);
+}
+
+function classifyTaxonomy(hit: Pick<SearchHit, "title" | "category" | "breadcrumbs">, content: string): TopicTaxonomy {
+  const haystack = fold([hit.title, hit.category, hit.breadcrumbs?.join(" ") ?? "", content.slice(0, 1200)].join(" "));
+  const signals: string[] = [];
+  const match = (kind: TopicTaxonomy["kind"], label: string, checks: Array<[RegExp, string]>): TopicTaxonomy | undefined => {
+    for (const [pattern, signal] of checks) if (pattern.test(haystack)) signals.push(signal);
+    if (!signals.length) return undefined;
+    return { kind, label, confidence: Math.min(1, 0.45 + signals.length * 0.18), signals: [...new Set(signals)] };
+  };
+  return match("rpg-bif", "Built-in function RPG", [[/%[a-z][a-z0-9_-]+/, "percent-bif"], [/built-in function/, "built-in function"]])
+    ?? match("rpg-opcode", "Operation code RPG", [[/\bsnd-msg\b|\bchain\b|\breade\b|\bmonitor\b|\bon-error\b/, "rpg opcode"], [/operation codes?/, "operation code"]])
+    ?? match("message", "Mensaje IBM i/RNF/SQL", [[/\brnf\d{4}\b/, "RNF"], [/\bsql\d{4,5}\b/, "SQL message"], [/messages?/, "message"]])
+    ?? match("command", "Comando IBM i", [[/\b(add|chg|crt|dlt|dsp|end|mon|ovr|rcv|rmv|rst|sav|snd|str|wrk)[a-z0-9]{2,}\b/, "command prefix"], [/\bcommand\b/, "command"]])
+    ?? match("dds-keyword", "DDS/keyword", [[/\bdds\b|\bphysical file\b|\blogical file\b|\bkeyword\b/, "dds keyword"], [/\b(unique|reffld|edtcde|dspatr)\b/, "dds keyword name"]])
+    ?? match("sql", "Db2 for i / SQL", [[/\bsqlrpgle\b|embedded sql|exec sql|db2 for i/, "sql"], [/\bselect\b|\bcommit\b|\bcursor\b/, "sql statement"]])
+    ?? match("api", "API IBM i", [[/\bq[a-z0-9]{6,}\b/, "qsys api"], [/\bapi\b/, "api"]])
+    ?? match("language-guide", "Guía de lenguaje", [[/ile rpg|cl programs|cobol|control language/, "language guide"]])
+    ?? { kind: "general", label: "General IBM i", confidence: 0.2, signals: [] };
+}
+
+function extractTopicSections(content: string): TopicSection[] {
+  const lines = content.split(/\r?\n/);
+  const headingIndexes: Array<{ index: number; title: string; kind: TopicSection["kind"] }> = [];
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 140) return;
+    const kind = detectSectionKind(trimmed);
+    const looksHeading = kind !== "generic" || (/^[A-Z0-9_/%*()[\] .,:;-]{4,}$/.test(trimmed) && index > 0);
+    if (looksHeading) headingIndexes.push({ index, title: trimmed, kind });
+  });
+  if (!headingIndexes.length) {
+    return [{ kind: "description", title: "Contenido", content: content.trim(), startLine: 1, endLine: lines.length }];
+  }
+  const sections: TopicSection[] = [];
+  for (let i = 0; i < headingIndexes.length; i += 1) {
+    const current = headingIndexes[i];
+    const next = headingIndexes[i + 1]?.index ?? lines.length;
+    const sectionContent = lines.slice(current.index + 1, next).join("\n").trim();
+    if (!sectionContent && current.kind === "generic") continue;
+    sections.push({
+      kind: current.kind,
+      title: current.title,
+      content: sectionContent || current.title,
+      startLine: current.index + 1,
+      endLine: next
+    });
+  }
+  return sections.slice(0, 80);
+}
+
+function detectSectionKind(title: string): TopicSection["kind"] {
+  if (/syntax|free-form|fixed-form|formato|sintaxis/i.test(title)) return "syntax";
+  if (/parameter|operand|factor|par[aá]metro/i.test(title)) return "parameters";
+  if (/description|usage|purpose|descripci[oó]n/i.test(title)) return "description";
+  if (/example|ejemplo|sample/i.test(title)) return "examples";
+  if (/note|restriction|consideration|restricci[oó]n|consideraci[oó]n/i.test(title)) return /restriction|restricci/i.test(title) ? "restrictions" : "notes";
+  if (/message|mensaje|rnf|sql\d/i.test(title)) return "messages";
+  if (/recovery|recover|cause|response|acci[oó]n/i.test(title)) return "recovery";
+  if (/related|see also|referencia|api/i.test(title)) return "related";
+  return "generic";
+}
+
+function pickBestSection(sections: TopicSection[], query: string): TopicSection | undefined {
+  const queryFold = fold(query);
+  return [...sections]
+    .map((section) => ({
+      section,
+      score: tokenize(queryFold).reduce((sum, token) => sum + (fold(`${section.title} ${section.content}`).includes(token) ? 1 : 0), 0)
+        + (section.kind === "syntax" && /syntax|sintaxis|formato/i.test(query) ? 5 : 0)
+        + (section.kind === "examples" && /example|ejemplo/i.test(query) ? 5 : 0)
+    }))
+    .sort((a, b) => b.score - a.score)[0]?.section;
+}
+
+function buildExtractiveAnswer(options: AnswerOptions, reads: ReadResult[], compile?: CompileGuidance): string {
+  if (!reads.length) {
+    return [
+      "No encontré evidencia suficiente en el corpus local para responder con seguridad.",
+      "Siguiente paso recomendado: ampliar la consulta con nombre de comando, mensaje RNF/SQL, lenguaje o versión IBM i."
+    ].join("\n");
+  }
+  const lines: string[] = [`Respuesta basada en ${reads.length} tópico(s) del corpus local:`];
+  for (const read of reads) {
+    const section = pickBestSection(read.sections ?? [], options.question) ?? read.sections?.find((item) => item.kind === "description") ?? read.sections?.[0];
+    lines.push("", `- ${read.title} [${read.version}/${read.category}]`);
+    lines.push(`  ${makeSnippet(section?.content ?? read.content, options.question, options.includeExamples ? 900 : 520)}`);
+    if (options.includeExamples) {
+      const example = read.sections?.find((item) => item.kind === "examples");
+      if (example) lines.push(`  Ejemplo/documentación relacionada: ${makeSnippet(example.content, options.question, 500)}`);
+    }
+  }
+  if (compile) {
+    lines.push("", "Comandos/opciones sugeridas por contexto:");
+    lines.push(`- Comandos: ${compile.recommendedCommands.join(", ") || "n/a"}`);
+    lines.push(`- Opciones a revisar: ${compile.optionsToReview.join(", ") || "n/a"}`);
+  }
+  lines.push("", "Citas: usa los IDs devueltos en structuredContent con ibmi_docs_read para auditar el texto completo.");
+  return lines.join("\n");
+}
+
 function tokenize(value: string): string[] {
   return value
     .normalize("NFD")
@@ -639,6 +1026,10 @@ function buildVersionNotes(hits: SearchHit[]): string[] {
 function queryCounts(db: Database.Database, column: "category" | "version" | "source_kind"): Record<string, number> {
   const rows = db.prepare(`SELECT ${column} AS key, COUNT(*) AS value FROM documents GROUP BY ${column}`).all() as Array<{ key: string; value: number }>;
   return Object.fromEntries(rows.map((row) => [String(row.key), Number(row.value)]));
+}
+
+function unique<T>(value: T, index: number, array: T[]): boolean {
+  return array.indexOf(value) === index;
 }
 
 function naturalVersionSort(a: string, b: string): number {
