@@ -299,6 +299,8 @@ function renderSearchResults(query: string, results: Array<any>): string {
     `   Score: ${result.score}`,
     `   Versión/Categoría: ${result.version} / ${result.category}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
+    // La búsqueda entrega evidencia resumida; esta pista evita que el agente confunda el snippet con el tópico completo.
+    `   Lectura completa: usa ibmi_docs_read con id="${result.id}"${result.textLength ? ` (${result.textLength} caracteres)` : ""}`,
     `   Evidencia: ${result.snippet}`
   ].join("\n"))].join("\n");
 }

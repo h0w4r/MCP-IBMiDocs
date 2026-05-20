@@ -67,6 +67,8 @@ export interface SearchHit {
   category: string;
   canonicalUrl: string;
   breadcrumbs: string[];
+  textLength?: number;
+  readHint?: string;
 }
 
 export interface ReadResult extends SearchHit {

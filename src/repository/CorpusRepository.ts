@@ -25,6 +25,7 @@ import type {
 import { clamp } from "../util/common.js";
 
 const SUPPORTED_VERSIONS = ["7.3", "7.4", "7.5", "7.6", "RDi-local"];
+const FTS_STOPWORDS = new Set(["a", "an", "and", "as", "de", "del", "el", "en", "for", "in", "la", "las", "los", "of", "on", "or", "the", "to", "un", "una", "with"]);
 
 type LanguagePreset = {
   language: string;
@@ -136,6 +137,7 @@ export class CorpusRepository {
     const limit = clamp(options.limit, 8, 1, 50);
     const fts = toFtsQuery(options.query);
     if (!fts) return [];
+    const exactTerms = extractExactTechnicalTerms(options.query);
     const filters: string[] = [];
     const params: Record<string, string | number> = { fts, limit: Math.max(limit * 16, 80) };
     if (options.version) {
@@ -148,7 +150,7 @@ export class CorpusRepository {
     }
     const where = filters.length ? `AND ${filters.join(" AND ")}` : "";
     const sql = `
-      SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url,
+      SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url, d.text_length,
              d.breadcrumbs_json, c.body, c.chunk_index, bm25(chunks_fts) AS rank
       FROM chunks_fts
       JOIN chunks c ON c.id = chunks_fts.rowid
@@ -157,7 +159,10 @@ export class CorpusRepository {
       ORDER BY rank ASC
       LIMIT @limit
     `;
-    const rows = this.db.prepare(sql).all(params) as Array<Record<string, unknown>>;
+    const rows = [
+      ...(this.db.prepare(sql).all(params) as Array<Record<string, unknown>>),
+      ...this.findExactTechnicalRows(exactTerms, options)
+    ];
     const bestByDocument = new Map<string, SearchHit>();
     for (const row of rows) {
       const hit = rowToHit(row, options.query);
@@ -385,7 +390,7 @@ export class CorpusRepository {
 
   private findEquivalentVersions(topic: SearchHit): SearchHit[] {
     const rows = this.db.prepare(`
-      SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url,
+      SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url, d.text_length,
              d.breadcrumbs_json, c.body, c.chunk_index, 0 AS rank
       FROM documents d
       LEFT JOIN chunks c ON c.document_id = d.id AND c.chunk_index = 0
@@ -395,13 +400,61 @@ export class CorpusRepository {
     `).all({ title: topic.title }) as Array<Record<string, unknown>>;
     return rows.map((row) => ({ ...rowToHit(row, topic.title), score: 5 }));
   }
+
+  private findExactTechnicalRows(terms: string[], options: SearchOptions): Array<Record<string, unknown>> {
+    if (!terms.length) return [];
+    const rows: Array<Record<string, unknown>> = [];
+    const filters: string[] = [];
+    const baseParams: Record<string, string> = {};
+    if (options.version) {
+      filters.push("d.version = @version");
+      baseParams.version = normalizeVersionInput(options.version);
+    }
+    if (options.category) {
+      filters.push("d.category = @category");
+      baseParams.category = options.category;
+    }
+    const where = filters.length ? `AND ${filters.join(" AND ")}` : "";
+    const stmt = this.db.prepare(`
+      SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url, d.text_length,
+             d.breadcrumbs_json, c.body, c.chunk_index, 9999 AS rank
+      FROM documents d
+      LEFT JOIN chunks c ON c.document_id = d.id AND c.chunk_index = 0
+      WHERE (
+        lower(d.title) LIKE @like ESCAPE '\\'
+        OR lower(d.breadcrumbs_json) LIKE @like ESCAPE '\\'
+      ) ${where}
+      ORDER BY
+        CASE
+          WHEN lower(d.title) LIKE @titlePrefix ESCAPE '\\' THEN 0
+          WHEN lower(d.title) LIKE @like ESCAPE '\\' THEN 1
+          WHEN lower(d.breadcrumbs_json) LIKE @like ESCAPE '\\' THEN 2
+          ELSE 3
+        END,
+        d.title ASC
+      LIMIT 30
+    `);
+    for (const term of terms.slice(0, 6)) {
+      rows.push(...(stmt.all({ ...baseParams, like: likePattern(term), titlePrefix: `${escapeLike(term)}%` }) as Array<Record<string, unknown>>));
+    }
+    return rows;
+  }
 }
 
 export function toFtsQuery(query: string): string {
   const tokens = tokenize(query).slice(0, 16);
   const expanded = expandIbmiTerms(tokens);
   // Cada token se escapa y se consulta como frase para evitar inyección FTS; todo entra por parámetro preparado.
-  return [...new Set(expanded)].map((token) => `"${token.replace(/"/g, "")}"`).join(" OR ");
+  const safeTokens = expanded.flatMap(toFtsSafeTokens).slice(0, 48);
+  return [...new Set(safeTokens)].map((token) => `"${token.replace(/"/g, "")}"`).join(" OR ");
+}
+
+function toFtsSafeTokens(token: string): string[] {
+  return token
+    .replace(/^%+/, "")
+    .split(/[^\p{L}\p{N}_]+/gu)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 2 && !FTS_STOPWORDS.has(part));
 }
 
 function expandIbmiTerms(tokens: string[]): string[] {
@@ -422,8 +475,9 @@ function expandIbmiTerms(tokens: string[]): string[] {
 }
 
 function rowToHit(row: Record<string, unknown>, query: string): SearchHit {
+  const id = String(row.id);
   return {
-    id: String(row.id),
+    id,
     title: String(row.title),
     snippet: makeSnippet(String(row.body ?? ""), query, 520),
     score: 0,
@@ -432,12 +486,15 @@ function rowToHit(row: Record<string, unknown>, query: string): SearchHit {
     version: String(row.version),
     category: String(row.category),
     canonicalUrl: String(row.canonical_url),
-    breadcrumbs: JSON.parse(String(row.breadcrumbs_json || "[]")) as string[]
+    breadcrumbs: JSON.parse(String(row.breadcrumbs_json || "[]")) as string[],
+    textLength: Number(row.text_length ?? 0),
+    readHint: `Para obtener la ayuda completa llama ibmi_docs_read con id="${id}".`
   };
 }
 
 function scoreHit(hit: SearchHit, body: string, rank: number, options: SearchOptions, chunkIndex: number): number {
   const queryTokens = tokenize(options.query);
+  const exactTerms = extractExactTechnicalTerms(options.query);
   const title = fold(hit.title);
   const breadcrumbs = fold(hit.breadcrumbs.join(" "));
   const bodyFold = fold(body.slice(0, 2000));
@@ -465,6 +522,21 @@ function scoreHit(hit: SearchHit, body: string, rank: number, options: SearchOpt
   if (/crtrpgmod/i.test(options.query) && /crtrpgmod command/i.test(hit.title)) score += 25;
   if (/crtrpgmod/i.test(options.query) && /^crtrpgmod command$/i.test(hit.title.trim())) score += 30;
   if (/copy|include|sqlrpgle|embedded sql/i.test(options.query) && /copy.*include|embedded sql/i.test(hit.title)) score += 15;
+  if (exactTerms.length) {
+    const hitPrimaryTerm = extractPrimaryTechnicalTerm(hit.title);
+    const matchedInTitle = exactTerms.some((term) => title.includes(term));
+    const matchedInBreadcrumbs = exactTerms.some((term) => breadcrumbs.includes(term));
+    const matchedInBody = exactTerms.some((term) => bodyFold.includes(term));
+    if (matchedInTitle) score += 55;
+    if (matchedInBreadcrumbs) score += 14;
+    if (matchedInBody) score += 8;
+    if (!matchedInTitle && !matchedInBreadcrumbs && !matchedInBody) score -= 45;
+    if (hitPrimaryTerm && !exactTerms.includes(hitPrimaryTerm) && exactTerms.some(isCommandOrOpcodeTerm)) score -= 35;
+  }
+  if (isLikelyIbmCommandQuery(options.query) && /\b(command|description of the .+ command)\b/i.test(hit.title)) {
+    if (/^description of the .+ command$/i.test(hit.title.trim())) score -= 6;
+    if (/^[A-Z0-9]{3,12} Command$/i.test(hit.title.trim())) score += 18;
+  }
   return Math.round(score * 100000) / 100000;
 }
 
@@ -485,6 +557,45 @@ function tokenize(value: string): string[] {
     .replace(/\p{M}+/gu, "")
     .toLowerCase()
     .match(/[\p{L}\p{N}_#$@.\/+%-]{2,}/gu) ?? [];
+}
+
+function extractExactTechnicalTerms(query: string): string[] {
+  const rawTokens = query
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
+    .toLowerCase()
+    .match(/[%]?[a-z][a-z0-9]*(?:[-_/][a-z0-9]+)*|[#@$][a-z0-9_%-]+/gu) ?? [];
+  return [...new Set(rawTokens
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 || token.startsWith("%"))
+    .filter((token) => isCommandOrOpcodeTerm(token) || token.startsWith("%")))];
+}
+
+function extractPrimaryTechnicalTerm(title: string): string | undefined {
+  const first = tokenize(title)[0];
+  if (first && isCommandOrOpcodeTerm(first)) return first;
+  const match = fold(title).match(/\b([a-z]{2,}[a-z0-9]*(?:-[a-z0-9]+)?)\b/);
+  return match?.[1] && isCommandOrOpcodeTerm(match[1]) ? match[1] : undefined;
+}
+
+function isCommandOrOpcodeTerm(token: string): boolean {
+  return /-/.test(token)
+    || /^%[a-z][a-z0-9_-]+$/.test(token)
+    || /^(add|chg|crt|dlt|dsp|end|mon|ovr|rcv|rmv|rst|sav|snd|str|wrk)[a-z0-9]{2,}$/i.test(token)
+    || /^rnf\d{4}$/i.test(token)
+    || /^sql\d{4,5}$/i.test(token);
+}
+
+function isLikelyIbmCommandQuery(query: string): boolean {
+  return extractExactTechnicalTerms(query).some((term) => /^(add|chg|crt|dlt|dsp|end|mon|ovr|rcv|rmv|rst|sav|snd|str|wrk)[a-z0-9]{2,}$/i.test(term));
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+function likePattern(value: string): string {
+  return `%${escapeLike(value)}%`;
 }
 
 function fold(value: string): string {

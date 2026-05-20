@@ -111,6 +111,18 @@ describe("capacidades agénticas del repositorio", () => {
     expect(comparison.evidence.length).toBeGreaterThan(0);
   });
 
+  it("devuelve pista de lectura completa porque search solo entrega evidencia resumida", () => {
+    const results = withRepo((repo) => repo.search({
+      query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
+      category: "ile-rpg",
+      limit: 3
+    }));
+
+    expect(results[0]?.title).toBe("SND-MSG (Send a Message to the Joblog)");
+    expect(results[0]?.textLength).toBeGreaterThan(results[0]?.snippet.length ?? 0);
+    expect(results[0]?.readHint).toContain("ibmi_docs_read");
+  });
+
   it("valida código RPGLE/SQLRPGLE contra contexto documental", () => {
     const result = withRepo((repo) => repo.validateCodeContext({
       language: "SQLRPGLE",
