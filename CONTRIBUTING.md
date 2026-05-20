@@ -41,3 +41,16 @@ Toda mejora al ranking debe proteger consultas golden como:
 ## Aviso legal
 
 No uses logos de IBM ni sugieras respaldo oficial. Mantén `NOTICE.md` actualizado si agregas nuevas fuentes o data packs.
+
+## Contribuciones de corpus y ranking
+
+Para contribuir mejoras documentales o ajustar recuperación:
+
+```powershell
+node dist/src/cli.js pack lint-contribution --input .\mi-corpus
+npm run bench:golden
+node dist/src/cli.js explain-ranking "SND-MSG Send a Message to the Joblog" --category ile-rpg
+node dist/src/cli.js quality-report
+```
+
+Consulta también [`docs/CORPUS_CONTRIBUTION.md`](docs/CORPUS_CONTRIBUTION.md) y [`docs/RECIPES.md`](docs/RECIPES.md).

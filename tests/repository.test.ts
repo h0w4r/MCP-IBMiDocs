@@ -16,6 +16,8 @@ interface GoldenQuery {
 
 const fixturePath = new URL("./fixtures/golden-queries.json", import.meta.url);
 const goldenQueries = JSON.parse(fs.readFileSync(fixturePath, "utf8")) as GoldenQuery[];
+const extendedFixturePath = new URL("./fixtures/extended-golden-queries.json", import.meta.url);
+const extendedGoldenQueries = JSON.parse(fs.readFileSync(extendedFixturePath, "utf8")) as GoldenQuery[];
 
 function withRepo<T>(callback: (repo: CorpusRepository) => T): T {
   const repo = new CorpusRepository(path.resolve("data", "pack"));
@@ -47,6 +49,13 @@ describe("benchmark golden de recuperación documental", () => {
       }
     });
   }
+
+  it("mantiene un benchmark ampliado con cobertura comunitaria", () => {
+    expect(extendedGoldenQueries.length).toBeGreaterThanOrEqual(100);
+    const sample = extendedGoldenQueries.slice(0, 12);
+    const misses = withRepo((repo) => sample.filter((golden) => repo.search({ query: golden.query, category: golden.category, limit: 3 }).length === 0));
+    expect(misses).toEqual([]);
+  });
 });
 
 describe("capacidades agénticas del repositorio", () => {
@@ -115,12 +124,67 @@ describe("capacidades agénticas del repositorio", () => {
     const results = withRepo((repo) => repo.search({
       query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
       category: "ile-rpg",
-      limit: 3
+      limit: 3,
+      includeSections: true
     }));
 
     expect(results[0]?.title).toBe("SND-MSG (Send a Message to the Joblog)");
     expect(results[0]?.textLength).toBeGreaterThan(results[0]?.snippet.length ?? 0);
     expect(results[0]?.readHint).toContain("ibmi_docs_read");
+    expect(results[0]?.taxonomy?.kind).toMatch(/rpg-opcode|rpg-bif|message/);
+    expect(results[0]?.sectionsPreview?.length).toBeGreaterThan(0);
+  });
+
+  it("soporta auto-read para resultados fuertes sin confundir snippet con contenido completo", () => {
+    const results = withRepo((repo) => repo.search({
+      query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
+      category: "ile-rpg",
+      limit: 1,
+      autoRead: true
+    }));
+
+    expect(results[0]?.autoReadApplied).toBe(true);
+    expect(results[0]?.fullContent?.length).toBeGreaterThan(1000);
+  });
+
+  it("genera respuesta agéntica con citas y evidencia", () => {
+    const answer = withRepo((repo) => repo.answer({
+      question: "Explica SND-MSG, %MSG y %TARGET",
+      language: "RPGLE",
+      includeExamples: true,
+      limit: 3
+    }));
+
+    expect(answer.answer).toContain("Respuesta basada");
+    expect(answer.citations.length).toBeGreaterThan(0);
+    expect(answer.suggestedTools).toContain("ibmi_docs_read");
+  });
+
+  it("explica ranking con FTS, expansión semántica y razones", () => {
+    const explanation = withRepo((repo) => repo.explainRanking({
+      query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
+      category: "ile-rpg",
+      top: 3
+    }));
+
+    expect(explanation.ftsQuery).toContain("snd");
+    expect(explanation.semanticQueries.length).toBeGreaterThan(0);
+    expect(explanation.results[0]?.reasons.length).toBeGreaterThan(0);
+  });
+
+  it("extrae secciones estructurales de tópicos completos", () => {
+    const sections = withRepo((repo) => repo.sections("rdi-b314bc2569c3d305"));
+
+    expect(sections.topic?.title).toContain("SND-MSG");
+    expect(sections.sections.some((section) => section.kind === "syntax")).toBe(true);
+  });
+
+  it("emite reporte de calidad y recetas comunitarias", () => {
+    const result = withRepo((repo) => ({ quality: repo.qualityReport(), recipes: repo.recipes() }));
+
+    expect(result.quality.documents).toBeGreaterThan(1000);
+    expect(result.quality.recommendations.length).toBeGreaterThan(0);
+    expect(result.recipes.length).toBeGreaterThan(3);
   });
 
   it("valida código RPGLE/SQLRPGLE contra contexto documental", () => {

@@ -28,7 +28,7 @@ function withRepository<T>(callback: (repo: CorpusRepository) => T): T {
 
 export function createServer(): McpServer {
   const server = new McpServer(
-    { name: "ibmi-docs-mcp", version: "0.2.0" },
+    { name: "ibmi-docs-mcp", version: "0.3.0" },
     {
       instructions:
         "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial. El runtime no depende de RDi ni Eclipse Help."
@@ -44,12 +44,15 @@ export function createServer(): McpServer {
         query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF0004, CLLE, DDS PF, SQLRPGLE, etc."),
         version: z.string().optional().describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
         category: z.string().optional().describe("Categoría opcional: ile-rpg, cl-clle, dds, sql-db2-for-i, mensajes-rnf."),
-        limit: z.number().int().min(1).max(50).optional()
+        limit: z.number().int().min(1).max(50).optional(),
+        mode: z.enum(["fts", "hybrid"]).optional().describe("Modo fts puro o híbrido con expansión semántica local."),
+        autoRead: z.boolean().optional().describe("Si true, adjunta contenido completo cuando el resultado es fuerte."),
+        includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas.")
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ query, version, category, limit }) => {
-      const results = withRepository((repo) => repo.search({ query, version, category, limit }));
+    async ({ query, version, category, limit, mode, autoRead, includeSections }) => {
+      const results = withRepository((repo) => repo.search({ query, version, category, limit, mode, autoRead, includeSections }));
       return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results }) };
     }
   );
@@ -66,6 +69,43 @@ export function createServer(): McpServer {
       const result = withRepository((repo) => repo.read(id));
       if (!result) return { content: [{ type: "text" as const, text: `No se encontró el tópico ${id}.` }], isError: true };
       return { content: [{ type: "text" as const, text: renderReadResult(result) }], structuredContent: structured({ result }) };
+    }
+  );
+
+  server.registerTool(
+    "ibmi_docs_sections",
+    {
+      title: "Secciones de tópico IBM i",
+      description: "Extrae secciones estructurales del tópico: sintaxis, parámetros, ejemplos, notas, mensajes y referencias.",
+      inputSchema: z.object({ id: z.string().min(1).describe("ID de documento devuelto por ibmi_docs_search.") }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async ({ id }) => {
+      const result = withRepository((repo) => repo.sections(id));
+      if (!result.topic) return { content: [{ type: "text" as const, text: `No se encontró el tópico ${id}.` }], isError: true };
+      return { content: [{ type: "text" as const, text: renderSections(result) }], structuredContent: structured(result) };
+    }
+  );
+
+  server.registerTool(
+    "ibmi_docs_answer",
+    {
+      title: "Responder con evidencia IBM i",
+      description: "Construye una respuesta extractiva y trazable usando búsqueda híbrida, lectura de tópicos, citas y comandos cuando aplica.",
+      inputSchema: z.object({
+        question: z.string().min(1),
+        language: z.string().optional(),
+        version: z.string().optional(),
+        category: z.string().optional(),
+        includeExamples: z.boolean().optional(),
+        includeCompileCommands: z.boolean().optional(),
+        limit: z.number().int().min(1).max(10).optional()
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async (input) => {
+      const answer = withRepository((repo) => repo.answer(input));
+      return { content: [{ type: "text" as const, text: renderAnswer(answer) }], structuredContent: structured(answer) };
     }
   );
 
@@ -157,6 +197,26 @@ export function createServer(): McpServer {
   );
 
   server.registerTool(
+    "ibmi_docs_explain_ranking",
+    {
+      title: "Explicar ranking IBM i Docs",
+      description: "Explica FTS, expansión semántica local, términos exactos, taxonomía y razones de ranking para depurar búsquedas.",
+      inputSchema: z.object({
+        query: z.string().min(1),
+        version: z.string().optional(),
+        category: z.string().optional(),
+        top: z.number().int().min(1).max(20).optional(),
+        mode: z.enum(["fts", "hybrid"]).optional()
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async (input) => {
+      const explanation = withRepository((repo) => repo.explainRanking(input));
+      return { content: [{ type: "text" as const, text: renderRankingExplanation(explanation) }], structuredContent: structured(explanation) };
+    }
+  );
+
+  server.registerTool(
     "ibmi_docs_validate_code_context",
     {
       title: "Validar código contra docs IBM i",
@@ -199,6 +259,34 @@ export function createServer(): McpServer {
     async () => {
       const diagnostics = withRepository((repo) => repo.packDiagnostics());
       return { content: [{ type: "text" as const, text: JSON.stringify(diagnostics, null, 2) }], structuredContent: structured(diagnostics) };
+    }
+  );
+
+  server.registerTool(
+    "ibmi_docs_quality_report",
+    {
+      title: "Reporte de calidad del corpus IBM i",
+      description: "Reporta tópicos cortos, duplicados, cobertura, categorías escasas y recomendaciones para contribuir al corpus.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async () => {
+      const report = withRepository((repo) => repo.qualityReport());
+      return { content: [{ type: "text" as const, text: renderQualityReport(report) }], structuredContent: structured(report) };
+    }
+  );
+
+  server.registerTool(
+    "ibmi_docs_recipes",
+    {
+      title: "Recetas de uso IBM i Docs",
+      description: "Devuelve prompts y flujos listos para usar con agentes, útiles para onboarding y contribución comunitaria.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async () => {
+      const recipes = withRepository((repo) => repo.recipes());
+      return { content: [{ type: "text" as const, text: renderRecipes(recipes) }], structuredContent: structured({ recipes }) };
     }
   );
 
@@ -306,7 +394,31 @@ function renderSearchResults(query: string, results: Array<any>): string {
 }
 
 function renderReadResult(result: any): string {
-  return [`Título: ${result.title}`, `ID: ${result.id}`, `Versión/Categoría: ${result.version} / ${result.category}`, `Fuente: ${result.sourceKind} · ${result.canonicalUrl}`, `SHA-256: ${result.sha256}`, "", String(result.content ?? "")].join("\n");
+  return [`Título: ${result.title}`, `ID: ${result.id}`, `Versión/Categoría: ${result.version} / ${result.category}`, `Taxonomía: ${result.taxonomy?.kind ?? "n/a"} · ${result.taxonomy?.label ?? "n/a"}`, `Fuente: ${result.sourceKind} · ${result.canonicalUrl}`, `SHA-256: ${result.sha256}`, "", String(result.content ?? "")].join("\n");
+}
+
+function renderSections(result: any): string {
+  const topic = result.topic;
+  const sections = result.sections as Array<{ kind: string; title: string; content: string; startLine: number; endLine: number }>;
+  return [`Secciones para: ${topic.title} (${topic.id})`, "", ...sections.map((section, index) => [
+    `${index + 1}. [${section.kind}] ${section.title} · líneas ${section.startLine}-${section.endLine}`,
+    section.content.slice(0, 700)
+  ].join("\n"))].join("\n\n");
+}
+
+function renderAnswer(answer: any): string {
+  return [
+    `Pregunta: ${answer.question}`,
+    `Confianza: ${answer.confidence}`,
+    "",
+    answer.answer,
+    "",
+    "Citas:",
+    bullet((answer.citations as Array<any>).map((citation) => `${citation.title} (${citation.id}, ${citation.version}, ${citation.sourceKind})`)),
+    "",
+    "Advertencias:",
+    bullet(answer.warnings)
+  ].join("\n");
 }
 
 function renderContext(context: any): string {
@@ -327,8 +439,51 @@ function renderRelated(related: any): string {
 }
 
 function renderVersionComparison(comparison: any): string {
-  const entries = comparison.versions as Array<{ version: string; found: boolean; result?: { title: string; id: string } }>;
-  return [`Comparación de versiones para: ${comparison.query}`, "", ...entries.map((entry) => `- ${entry.version}: ${entry.found ? `${entry.result?.title} (${entry.result?.id})` : "sin resultado"}`), "", renderSearchResults("evidencia comparativa", comparison.evidence as Array<any>)].join("\n");
+  const entries = comparison.versions as Array<{ version: string; found: boolean; result?: { title: string; id: string }; notes: string[] }>;
+  return [`Comparación de versiones para: ${comparison.query}`, "", ...entries.map((entry) => [
+    `- ${entry.version}: ${entry.found ? `${entry.result?.title} (${entry.result?.id})` : "sin resultado"}`,
+    ...entry.notes.map((note) => `  - ${note}`)
+  ].join("\n")), "", renderSearchResults("evidencia comparativa", comparison.evidence as Array<any>)].join("\n");
+}
+
+function renderRankingExplanation(explanation: any): string {
+  return [
+    `Ranking para: ${explanation.query}`,
+    `FTS: ${explanation.ftsQuery}`,
+    `Expansiones: ${(explanation.semanticQueries as string[]).join(" | ") || "n/a"}`,
+    `Términos exactos: ${(explanation.exactTerms as string[]).join(", ") || "n/a"}`,
+    "",
+    ...(explanation.results as Array<any>).map((item, index) => [
+      `${index + 1}. ${item.hit.title} · score=${item.hit.score} · ${item.taxonomy.kind}`,
+      ...item.reasons.map((reason: string) => `   - ${reason}`)
+    ].join("\n"))
+  ].join("\n");
+}
+
+function renderQualityReport(report: any): string {
+  return [
+    `Calidad del corpus: ${report.ok ? "OK" : "REVISAR"}`,
+    `Corpus: ${report.corpusVersion}`,
+    `Documentos/chunks: ${report.documents}/${report.chunks}`,
+    "",
+    "Categorías:",
+    JSON.stringify(report.coverage.byCategory, null, 2),
+    "",
+    "Tópicos cortos destacados:",
+    bullet((report.shortDocuments as Array<any>).slice(0, 10).map((doc) => `${doc.title} (${doc.id}) · ${doc.textLength} chars`)),
+    "",
+    "Recomendaciones:",
+    bullet(report.recommendations)
+  ].join("\n");
+}
+
+function renderRecipes(recipes: Array<any>): string {
+  return ["Recetas IBM i Docs:", "", ...recipes.map((recipe) => [
+    `- ${recipe.title} (${recipe.id})`,
+    `  Prompt: ${recipe.prompt}`,
+    `  Tools: ${(recipe.tools as string[]).join(", ")}`,
+    `  Resultado: ${recipe.expectedOutcome}`
+  ].join("\n"))].join("\n\n");
 }
 
 function renderCodeValidation(validation: any): string {

@@ -15,6 +15,15 @@ export interface ArchiveDataPackOptions {
   outFile: string;
 }
 
+export interface DataPackInfo {
+  packDir: string;
+  ok: boolean;
+  corpusVersion?: string;
+  documents?: number;
+  generatedAt?: string;
+  issues: string[];
+}
+
 export async function installDataPack(options: InstallDataPackOptions): Promise<{ outDir: string; source: string }> {
   const outDir = path.resolve(options.outDir);
   await fs.mkdir(outDir, { recursive: true });
@@ -40,6 +49,74 @@ export async function archiveDataPack(options: ArchiveDataPackOptions): Promise<
   await fs.mkdir(path.dirname(outFile), { recursive: true });
   await tar.c({ gzip: true, cwd: packDir, file: outFile }, ["."]);
   return { outFile };
+}
+
+export async function verifyDataPack(packDir: string): Promise<DataPackInfo> {
+  const resolved = path.resolve(packDir);
+  const issues: string[] = [];
+  const manifestFile = path.join(resolved, "manifest.json");
+  const sqliteFile = path.join(resolved, "ibmi-docs.sqlite");
+  if (!fsSync.existsSync(manifestFile)) issues.push("Falta manifest.json");
+  if (!fsSync.existsSync(sqliteFile)) issues.push("Falta ibmi-docs.sqlite");
+  let corpusVersion: string | undefined;
+  let generatedAt: string | undefined;
+  let documents: number | undefined;
+  if (fsSync.existsSync(manifestFile)) {
+    const raw = await fs.readFile(manifestFile, "utf8");
+    if (/127\.0\.0\.1|localhost|52070/i.test(raw)) issues.push("El manifest contiene referencias loopback/RDi temporales no aptas para runtime.");
+    const manifest = JSON.parse(raw) as { corpusVersion?: string; generatedAt?: string; documents?: unknown[] };
+    corpusVersion = manifest.corpusVersion;
+    generatedAt = manifest.generatedAt;
+    documents = manifest.documents?.length ?? 0;
+    if (!documents) issues.push("El manifest no contiene documentos.");
+  }
+  return { packDir: resolved, ok: issues.length === 0, corpusVersion, documents, generatedAt, issues };
+}
+
+export async function listCandidatePacks(rootDir: string): Promise<DataPackInfo[]> {
+  const root = path.resolve(rootDir);
+  if (!fsSync.existsSync(root)) return [];
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => path.join(root, entry.name));
+  if (hasPack(root)) dirs.unshift(root);
+  const uniqueDirs = [...new Set(dirs)];
+  return Promise.all(uniqueDirs.map((dir) => verifyDataPack(dir)));
+}
+
+export async function lintContribution(inputDir: string): Promise<{ ok: boolean; inputDir: string; issues: string[]; hints: string[] }> {
+  const resolved = path.resolve(inputDir);
+  const issues: string[] = [];
+  const hints: string[] = [];
+  const manifestFile = path.join(resolved, "manifest.json");
+  if (!fsSync.existsSync(manifestFile)) {
+    issues.push("Falta manifest.json en la raíz de la contribución.");
+  } else {
+    const raw = await fs.readFile(manifestFile, "utf8");
+    if (/127\.0\.0\.1|localhost|52070/i.test(raw)) issues.push("No incluyas endpoints locales/RDi en contribuciones redistribuibles.");
+    const manifest = JSON.parse(raw) as { documents?: Array<{ id?: string; title?: string; rawHtmlPath?: string; normalizedTextPath?: string; sha256?: string }> };
+    const ids = new Set<string>();
+    for (const doc of manifest.documents ?? []) {
+      if (!doc.id || !doc.title) issues.push(`Documento incompleto: ${JSON.stringify(doc).slice(0, 120)}`);
+      if (doc.id && ids.has(doc.id)) issues.push(`ID duplicado: ${doc.id}`);
+      if (doc.id) ids.add(doc.id);
+      for (const key of ["rawHtmlPath", "normalizedTextPath"] as const) {
+        const value = doc[key];
+        if (value && !fsSync.existsSync(path.join(resolved, value))) issues.push(`Archivo faltante para ${doc.id}: ${value}`);
+      }
+      if (!doc.sha256) hints.push(`Considera incluir sha256 para ${doc.id ?? doc.title}.`);
+    }
+    if ((manifest.documents ?? []).length < 1) issues.push("La contribución no contiene documentos.");
+  }
+  return {
+    ok: issues.length === 0,
+    inputDir: resolved,
+    issues,
+    hints: [...new Set([
+      ...hints,
+      "Incluye raw HTML, texto normalizado, metadatos, hashes y licencia/procedencia clara.",
+      "No agregues contenido exclusivo de RDi/Eclipse UI si no aporta a IBM i runtime/desarrollo."
+    ])]
+  };
 }
 
 async function materializeSource(source: string): Promise<string> {

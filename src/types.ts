@@ -49,11 +49,43 @@ export interface CorpusManifest {
   coverage: Record<string, unknown>;
 }
 
+
+export type TaxonomyKind =
+  | "command"
+  | "rpg-opcode"
+  | "rpg-bif"
+  | "message"
+  | "dds-keyword"
+  | "sql"
+  | "api"
+  | "language-guide"
+  | "general";
+
+export interface TopicTaxonomy {
+  kind: TaxonomyKind;
+  label: string;
+  confidence: number;
+  signals: string[];
+}
+
+export type TopicSectionKind = "syntax" | "parameters" | "description" | "examples" | "notes" | "restrictions" | "messages" | "recovery" | "related" | "generic";
+
+export interface TopicSection {
+  kind: TopicSectionKind;
+  title: string;
+  content: string;
+  startLine: number;
+  endLine: number;
+}
+
 export interface SearchOptions {
   query: string;
   version?: string;
   category?: string;
   limit?: number;
+  mode?: "fts" | "hybrid";
+  autoRead?: boolean;
+  includeSections?: boolean;
 }
 
 export interface SearchHit {
@@ -69,12 +101,19 @@ export interface SearchHit {
   breadcrumbs: string[];
   textLength?: number;
   readHint?: string;
+  taxonomy?: TopicTaxonomy;
+  semanticScore?: number;
+  matchReasons?: string[];
+  sectionsPreview?: TopicSection[];
+  autoReadApplied?: boolean;
+  fullContent?: string;
 }
 
 export interface ReadResult extends SearchHit {
   content: string;
   textLength: number;
   sha256: string;
+  sections?: TopicSection[];
 }
 
 export interface ContextOptions {
@@ -203,4 +242,88 @@ export interface PackDiagnostics {
   longPaths: string[];
   anomalies: string[];
   runtimeDependency: string;
+}
+
+
+export interface AnswerOptions {
+  question: string;
+  language?: string;
+  version?: string;
+  category?: string;
+  includeExamples?: boolean;
+  includeCompileCommands?: boolean;
+  limit?: number;
+}
+
+export interface AnswerCitation {
+  id: string;
+  title: string;
+  version: string;
+  sourceKind: SourceKind;
+  canonicalUrl: string;
+  section?: string;
+}
+
+export interface AnswerResult {
+  question: string;
+  answer: string;
+  confidence: "alta" | "media" | "baja";
+  citations: AnswerCitation[];
+  evidence: SearchHit[];
+  warnings: string[];
+  suggestedTools: string[];
+}
+
+export interface RankingExplanationOptions extends SearchOptions {
+  top?: number;
+}
+
+export interface RankingExplanationItem {
+  hit: SearchHit;
+  reasons: string[];
+  taxonomy: TopicTaxonomy;
+  semanticScore: number;
+}
+
+export interface RankingExplanation {
+  query: string;
+  ftsQuery: string;
+  semanticQueries: string[];
+  exactTerms: string[];
+  results: RankingExplanationItem[];
+}
+
+export interface QualityReport {
+  ok: boolean;
+  generatedAt: string;
+  corpusVersion: string;
+  documents: number;
+  chunks: number;
+  coverage: CategoryDiagnostics;
+  shortDocuments: Array<{ id: string; title: string; textLength: number; category: string; version: string }>;
+  duplicateTitles: Array<{ title: string; count: number; versions: string[] }>;
+  sparseCategories: Array<{ category: string; count: number }>;
+  benchmarkHints: string[];
+  recommendations: string[];
+}
+
+export interface SetupCheck {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+export interface SetupReport {
+  ok: boolean;
+  packDir: string;
+  checks: SetupCheck[];
+  codexConfig?: string;
+}
+
+export interface DocsRecipe {
+  id: string;
+  title: string;
+  prompt: string;
+  tools: string[];
+  expectedOutcome: string;
 }
