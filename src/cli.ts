@@ -126,6 +126,29 @@ program
   }))));
 
 program
+  .command("resolve")
+  .description("Resuelve una consulta con workflow agéntico: search -> read -> sections -> answer/context/diagnóstico según intención.")
+  .argument("<question>", "Pregunta técnica")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--language <language>", "Lenguaje/tecnología")
+  .option("--version <version>", "Versión IBM i")
+  .option("--category <category>", "Categoría")
+  .option("--code <code>", "Código a validar documentalmente")
+  .option("--examples", "Incluye ejemplos si existen")
+  .option("--compile", "Incluye comandos/opciones de compilación")
+  .option("--limit <n>", "Límite", "6")
+  .action((question, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.resolve({
+    question,
+    language: opts.language,
+    version: opts.version,
+    category: opts.category,
+    code: opts.code,
+    includeExamples: Boolean(opts.examples),
+    includeCompileCommands: Boolean(opts.compile),
+    limit: Number(opts.limit)
+  }))));
+
+program
   .command("explain-ranking")
   .description("Explica por qué ganó cada resultado de búsqueda.")
   .argument("<query>", "Consulta técnica")
@@ -171,6 +194,13 @@ program
   .description("Muestra recetas/prompts útiles para agentes y contribuidores.")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .action((opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.recipes())));
+
+program
+  .command("trace-report")
+  .description("Resume trazas opcionales de uso activadas con IBMI_DOCS_TRACE=1.")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--limit <n>", "Eventos recientes", "30")
+  .action((opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.traceReport(Number(opts.limit)))));
 
 program
   .command("setup")

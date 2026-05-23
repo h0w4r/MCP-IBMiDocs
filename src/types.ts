@@ -88,6 +88,30 @@ export interface SearchOptions {
   includeSections?: boolean;
 }
 
+export type DocsIntent =
+  | "explain_topic"
+  | "syntax_lookup"
+  | "compile_guidance"
+  | "message_diagnostic"
+  | "code_review"
+  | "version_question"
+  | "ranking_debug"
+  | "search_discovery";
+
+export interface WorkflowStage {
+  tool: string;
+  reason: string;
+  status: "planned" | "executed" | "skipped";
+  evidenceIds?: string[];
+  outputSummary?: string;
+}
+
+export interface NextToolRecommendation {
+  tool: string;
+  reason: string;
+  arguments: Record<string, unknown>;
+}
+
 export interface SearchHit {
   id: string;
   title: string;
@@ -107,6 +131,10 @@ export interface SearchHit {
   sectionsPreview?: TopicSection[];
   autoReadApplied?: boolean;
   fullContent?: string;
+  nextRecommendedTool?: string;
+  nextRecommendedReason?: string;
+  nextRecommendedArguments?: Record<string, unknown>;
+  workflowHints?: string[];
 }
 
 export interface ReadResult extends SearchHit {
@@ -274,6 +302,48 @@ export interface AnswerResult {
   suggestedTools: string[];
 }
 
+export interface WorkflowPolicy {
+  intent: DocsIntent;
+  preferredTools: string[];
+  requiredEvidence: string[];
+  defaultLimit: number;
+  description: string;
+}
+
+export interface ResolveOptions {
+  question: string;
+  language?: string;
+  version?: string;
+  category?: string;
+  code?: string;
+  includeExamples?: boolean;
+  includeCompileCommands?: boolean;
+  limit?: number;
+}
+
+export interface ResolveResult {
+  question: string;
+  intent: DocsIntent;
+  policy: WorkflowPolicy;
+  answer: string;
+  confidence: "alta" | "media" | "baja";
+  stages: WorkflowStage[];
+  evidence: SearchHit[];
+  reads: ReadResult[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  citations: AnswerCitation[];
+  answerResult?: AnswerResult;
+  context?: ContextPackage;
+  compileGuidance?: CompileGuidance;
+  messageExplanation?: MessageExplanation;
+  versionComparison?: VersionComparison;
+  rankingExplanation?: RankingExplanation;
+  codeValidation?: CodeValidationResult;
+  related?: RelatedDocuments;
+  suggestedTools: string[];
+  warnings: string[];
+}
+
 export interface RankingExplanationOptions extends SearchOptions {
   top?: number;
 }
@@ -326,4 +396,31 @@ export interface DocsRecipe {
   prompt: string;
   tools: string[];
   expectedOutcome: string;
+}
+
+export interface TraceEvent {
+  timestamp: string;
+  tool: string;
+  query?: string;
+  id?: string;
+  intent?: DocsIntent;
+  topResultId?: string;
+  topResultTitle?: string;
+  resultCount?: number;
+  durationMs: number;
+  autoReadApplied?: boolean;
+  followedReadCandidateIds?: string[];
+}
+
+export interface TraceReport {
+  enabled: boolean;
+  traceFile: string;
+  events: number;
+  byTool: Record<string, number>;
+  searchEvents: number;
+  searchOnlyRate: number;
+  searchThenReadRate: number;
+  answerUsageRate: number;
+  resolveUsageRate: number;
+  recent: TraceEvent[];
 }

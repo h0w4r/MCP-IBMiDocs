@@ -198,6 +198,104 @@ describe("capacidades agénticas del repositorio", () => {
     expect(result.findings.length).toBeGreaterThan(0);
     expect(result.evidence.length).toBeGreaterThan(0);
   });
+
+  it("resuelve consultas de sintaxis con workflow search-read-sections-answer", () => {
+    const result = withRepo((repo) => repo.resolve({
+      question: "Explica la sintaxis de SND-MSG con %MSG y %TARGET",
+      language: "RPGLE",
+      version: "7.6",
+      limit: 4
+    }));
+
+    expect(result.intent).toBe("syntax_lookup");
+    expect(result.stages.map((stage) => stage.tool)).toEqual(expect.arrayContaining(["ibmi_docs_search", "ibmi_docs_read", "ibmi_docs_sections", "ibmi_docs_answer"]));
+    expect(result.reads.length).toBeGreaterThan(0);
+    expect(result.sections.some((topic) => topic.sections.length > 0)).toBe(true);
+    expect(result.suggestedTools).toContain("ibmi_docs_read");
+  });
+
+  it("resuelve diagnósticos de mensajes con explain_message", () => {
+    const result = withRepo((repo) => repo.resolve({
+      question: "Diagnostica RNF0004 en una compilación RPGLE",
+      language: "RPGLE",
+      limit: 4
+    }));
+
+    expect(result.intent).toBe("message_diagnostic");
+    expect(result.messageExplanation?.messageId).toBe("RNF0004");
+    expect(result.stages.map((stage) => stage.tool)).toContain("ibmi_docs_explain_message");
+  });
+
+  it("resuelve guía de compilación SQLRPGLE con contexto y compile guidance", () => {
+    const result = withRepo((repo) => repo.resolve({
+      question: "Cómo compilo un programa SQLRPGLE con EXEC SQL y /COPY",
+      language: "SQLRPGLE",
+      includeCompileCommands: true,
+      limit: 5
+    }));
+
+    expect(result.intent).toBe("compile_guidance");
+    expect(result.context?.compileCommands).toContain("CRTSQLRPGI");
+    expect(result.compileGuidance?.recommendedCommands).toContain("CRTSQLRPGI");
+    expect(result.stages.map((stage) => stage.tool)).toEqual(expect.arrayContaining(["ibmi_docs_context", "ibmi_docs_compile_guidance"]));
+  });
+
+  it("resuelve comparación de versiones con compare_versions", () => {
+    const result = withRepo((repo) => repo.resolve({
+      question: "Compara CRTRPGMOD entre IBM i 7.3 y 7.6",
+      limit: 4
+    }));
+
+    expect(result.intent).toBe("version_question");
+    expect(result.versionComparison?.versions.map((entry) => entry.version)).toEqual(expect.arrayContaining(["7.3", "7.6"]));
+    expect(result.stages.map((stage) => stage.tool)).toContain("ibmi_docs_compare_versions");
+  });
+
+  it("search recomienda siguiente tool y auto-lee comandos exactos fuertes", () => {
+    const results = withRepo((repo) => repo.search({
+      query: "CRTRPGMOD command",
+      version: "7.6",
+      limit: 2,
+      includeSections: true
+    }));
+
+    expect(results[0]?.title).toContain("CRTRPGMOD");
+    expect(results[0]?.nextRecommendedTool).toBe("ibmi_docs_read");
+    expect(results[0]?.nextRecommendedArguments).toMatchObject({ id: results[0]?.id });
+    expect(results[0]?.autoReadApplied).toBe(true);
+    expect(results[0]?.fullContent?.length).toBeGreaterThan(1000);
+  });
+
+  it("registra trazas opcionales y calcula tasas de uso", () => {
+    const traceFile = path.resolve("data", "test-trace.ndjson");
+    const previousTrace = process.env.IBMI_DOCS_TRACE;
+    const previousTraceFile = process.env.IBMI_DOCS_TRACE_FILE;
+    if (fs.existsSync(traceFile)) fs.unlinkSync(traceFile);
+    process.env.IBMI_DOCS_TRACE = "1";
+    process.env.IBMI_DOCS_TRACE_FILE = traceFile;
+    try {
+      const report = withRepo((repo) => {
+        const hits = repo.search({ query: "SND-MSG", version: "7.6", limit: 1 });
+        if (hits[0]) repo.read(hits[0].id);
+        repo.answer({ question: "Explica SND-MSG", language: "RPGLE", limit: 2 });
+        repo.resolve({ question: "Explica RNF0004", language: "RPGLE", limit: 2 });
+        return repo.traceReport(20);
+      });
+
+      expect(report.enabled).toBe(true);
+      expect(report.events).toBeGreaterThanOrEqual(4);
+      expect(report.byTool.ibmi_docs_search).toBeGreaterThan(0);
+      expect(report.byTool.ibmi_docs_answer).toBeGreaterThan(0);
+      expect(report.byTool.ibmi_docs_resolve).toBeGreaterThan(0);
+      expect(report.searchThenReadRate).toBeGreaterThanOrEqual(0);
+    } finally {
+      if (previousTrace === undefined) delete process.env.IBMI_DOCS_TRACE;
+      else process.env.IBMI_DOCS_TRACE = previousTrace;
+      if (previousTraceFile === undefined) delete process.env.IBMI_DOCS_TRACE_FILE;
+      else process.env.IBMI_DOCS_TRACE_FILE = previousTraceFile;
+      if (fs.existsSync(traceFile)) fs.unlinkSync(traceFile);
+    }
+  });
 });
 
 describe("curación y distribución del data pack", () => {

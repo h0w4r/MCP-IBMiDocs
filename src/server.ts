@@ -31,7 +31,35 @@ export function createServer(): McpServer {
     { name: "ibmi-docs-mcp", version: "0.3.0" },
     {
       instructions:
-        "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial. El runtime no depende de RDi ni Eclipse Help."
+        [
+          "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial.",
+          "Para preguntas normales usa primero ibmi_docs_resolve o ibmi_docs_answer; ibmi_docs_search es una herramienta de descubrimiento de bajo nivel y no debe ser el último paso cuando se requiere una respuesta técnica.",
+          "Workflow recomendado: resolve/answer -> read -> sections cuando haya comandos, opcodes, BIFs, DDS keywords o mensajes; compile_guidance/context para desarrollo; explain_message para RNF/SQL/CPF/MCH; compare_versions para releases; explain_ranking para depurar resultados raros.",
+          "El runtime no depende de RDi ni Eclipse Help y nunca consulta el endpoint local de bootstrap."
+        ].join(" ")
+    }
+  );
+
+  server.registerTool(
+    "ibmi_docs_resolve",
+    {
+      title: "Resolver consulta IBM i con workflow agéntico",
+      description: "Herramienta principal para agentes: clasifica la intención y orquesta search -> read -> sections -> answer/context/compile/message/version/ranking según corresponda. Úsala antes que ibmi_docs_search para preguntas normales.",
+      inputSchema: z.object({
+        question: z.string().min(1).describe("Consulta completa del usuario sobre IBM i/AS400."),
+        language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
+        version: z.string().optional().describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
+        category: z.string().optional().describe("Categoría opcional del corpus."),
+        code: z.string().optional().describe("Código a validar documentalmente si la consulta es revisión/corrección."),
+        includeExamples: z.boolean().optional(),
+        includeCompileCommands: z.boolean().optional(),
+        limit: z.number().int().min(1).max(12).optional()
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async (input) => {
+      const resolved = withRepository((repo) => repo.resolve(input));
+      return { content: [{ type: "text" as const, text: renderResolve(resolved) }], structuredContent: structured(resolved) };
     }
   );
 
@@ -39,7 +67,7 @@ export function createServer(): McpServer {
     "ibmi_docs_search",
     {
       title: "Buscar documentación IBM i",
-      description: "Busca en el corpus local IBM i/AS400 con SQLite FTS5, ranking heurístico y evidencia trazable.",
+      description: "Descubrimiento de documentos candidatos con SQLite FTS5, ranking heurístico y evidencia trazable. No lo uses como respuesta final: después llama ibmi_docs_read/sections o usa ibmi_docs_resolve.",
       inputSchema: z.object({
         query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF0004, CLLE, DDS PF, SQLRPGLE, etc."),
         version: z.string().optional().describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
@@ -61,7 +89,7 @@ export function createServer(): McpServer {
     "ibmi_docs_read",
     {
       title: "Leer tópico IBM i",
-      description: "Lee el contenido completo normalizado de un tópico previamente localizado por ibmi_docs_search.",
+      description: "Lee el contenido completo normalizado de un tópico. Debe seguir a ibmi_docs_search cuando el agente necesita responder con detalles, sintaxis o parámetros.",
       inputSchema: z.object({ id: z.string().min(1).describe("ID de documento devuelto por ibmi_docs_search.") }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
@@ -91,7 +119,7 @@ export function createServer(): McpServer {
     "ibmi_docs_answer",
     {
       title: "Responder con evidencia IBM i",
-      description: "Construye una respuesta extractiva y trazable usando búsqueda híbrida, lectura de tópicos, citas y comandos cuando aplica.",
+      description: "Respuesta recomendada para preguntas directas: construye una respuesta extractiva y trazable usando búsqueda híbrida, lectura de tópicos, citas y comandos cuando aplica.",
       inputSchema: z.object({
         question: z.string().min(1),
         language: z.string().optional(),
@@ -305,6 +333,20 @@ export function createServer(): McpServer {
   );
 
   server.registerTool(
+    "ibmi_docs_trace_report",
+    {
+      title: "Reporte de trazas de uso IBM i Docs",
+      description: "Resume trazas locales opcionales activadas con IBMI_DOCS_TRACE=1: search-only rate, search->read, uso de answer/resolve y eventos recientes.",
+      inputSchema: z.object({ limit: z.number().int().min(1).max(200).optional() }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async ({ limit }) => {
+      const report = withRepository((repo) => repo.traceReport(limit));
+      return { content: [{ type: "text" as const, text: renderTraceReport(report) }], structuredContent: structured(report) };
+    }
+  );
+
+  server.registerTool(
     "ibmi_docs_sync",
     {
       title: "Sincronizar IBM Docs público",
@@ -353,21 +395,21 @@ export function createServer(): McpServer {
 
   server.registerPrompt("consultar-documentacion-ibmi", {
     title: "Consultar documentación IBM i",
-    description: "Prompt para obligar al agente a contrastar con el MCP antes de responder sobre IBM i.",
+    description: "Prompt para resolver una consulta IBM i con workflow agéntico y evidencia antes de responder.",
     argsSchema: { consulta: z.string().min(1) }
-  }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Busca en ibmi_docs_search evidencia para: ${consulta}. Después responde citando título, versión y fuente.` } }] }));
+  }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para: ${consulta}. Si por alguna razón usas ibmi_docs_search, después debes llamar ibmi_docs_read y, si aplica, ibmi_docs_sections antes de responder citando título, versión y fuente.` } }] }));
 
   server.registerPrompt("revisar-codigo-rpgle-con-docs", {
     title: "Revisar RPGLE con documentación",
     description: "Prompt para revisar código RPGLE con ayuda IBM i.",
     argsSchema: { codigo: z.string().min(1) }
-  }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_validate_code_context con lenguaje RPGLE y revisa este código contra documentación oficial:\n\n${codigo}` } }] }));
+  }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve con language=RPGLE y code para revisar este código contra documentación oficial. Complementa con ibmi_docs_validate_code_context y compile_guidance si detectas SQL embebido o /COPY:\n\n${codigo}` } }] }));
 
   server.registerPrompt("diagnosticar-error-rnf", {
     title: "Diagnosticar RNF",
     description: "Prompt para diagnosticar mensajes RNF con causa y recovery.",
     argsSchema: { mensaje: z.string().min(1) }
-  }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_explain_message para ${mensaje} y resume causa, recovery y acciones de validación.` } }] }));
+  }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para diagnosticar ${mensaje}; si el intent es message_diagnostic, complementa con ibmi_docs_explain_message y lee la evidencia principal antes de resumir causa, recovery y acciones de validación.` } }] }));
 
   return server;
 }
@@ -389,8 +431,33 @@ function renderSearchResults(query: string, results: Array<any>): string {
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
     // La búsqueda entrega evidencia resumida; esta pista evita que el agente confunda el snippet con el tópico completo.
     `   Lectura completa: usa ibmi_docs_read con id="${result.id}"${result.textLength ? ` (${result.textLength} caracteres)` : ""}`,
+    result.nextRecommendedTool ? `   Siguiente tool recomendada: ${result.nextRecommendedTool} · ${result.nextRecommendedReason}` : "",
+    result.nextRecommendedArguments ? `   Args sugeridos: ${JSON.stringify(result.nextRecommendedArguments)}` : "",
     `   Evidencia: ${result.snippet}`
-  ].join("\n"))].join("\n");
+  ].filter(Boolean).join("\n"))].join("\n");
+}
+
+function renderResolve(resolved: any): string {
+  return [
+    `Consulta: ${resolved.question}`,
+    `Intención: ${resolved.intent}`,
+    `Confianza: ${resolved.confidence}`,
+    `Política: ${resolved.policy?.description ?? "n/a"}`,
+    "",
+    resolved.answer,
+    "",
+    "Workflow ejecutado:",
+    ...(resolved.stages as Array<any>).map((stage) => `- [${stage.status}] ${stage.tool}: ${stage.reason}${stage.outputSummary ? ` (${stage.outputSummary})` : ""}`),
+    "",
+    "Citas:",
+    bullet((resolved.citations as Array<any>).map((citation) => `${citation.title} (${citation.id}, ${citation.version}, ${citation.sourceKind})`)),
+    "",
+    "Tools sugeridas:",
+    bullet(resolved.suggestedTools),
+    "",
+    "Advertencias:",
+    bullet(resolved.warnings)
+  ].join("\n");
 }
 
 function renderReadResult(result: any): string {
@@ -489,6 +556,25 @@ function renderRecipes(recipes: Array<any>): string {
 function renderCodeValidation(validation: any): string {
   const findings = validation.findings as Array<{ severity: string; title: string; detail: string }>;
   return [`Validación documental para ${validation.language}`, `Señales: ${(validation.detectedSignals as string[]).join(", ") || "sin señales"}`, "", "Hallazgos:", ...findings.map((finding) => `- [${finding.severity}] ${finding.title}: ${finding.detail}`), "", renderSearchResults("evidencia de validación", validation.evidence as Array<any>)].join("\n");
+}
+
+function renderTraceReport(report: any): string {
+  return [
+    `Trace IBM i Docs: ${report.enabled ? "activo" : "inactivo"}`,
+    `Archivo: ${report.traceFile}`,
+    `Eventos: ${report.events}`,
+    `Search events: ${report.searchEvents}`,
+    `Search-only rate: ${report.searchOnlyRate}%`,
+    `Search->read rate: ${report.searchThenReadRate}%`,
+    `Answer usage rate: ${report.answerUsageRate}%`,
+    `Resolve usage rate: ${report.resolveUsageRate}%`,
+    "",
+    "Por tool:",
+    JSON.stringify(report.byTool, null, 2),
+    "",
+    "Recientes:",
+    ...((report.recent as Array<any>) ?? []).slice(-10).map((event) => `- ${event.timestamp} ${event.tool} ${event.query ?? event.id ?? ""} (${event.durationMs} ms)`)
+  ].join("\n");
 }
 
 function structured(value: unknown): Record<string, unknown> {
