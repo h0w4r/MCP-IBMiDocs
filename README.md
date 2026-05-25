@@ -20,7 +20,7 @@ Sirve para:
 
 - **No necesitas RDi instalado** para usar el MCP.
 - **No usa Eclipse Help en runtime**.
-- **No llama a `127.0.0.1:52070`** ni a ningún endpoint local de RDi.
+- **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
 - El paquete npm instala el servidor y la CLI.
 - El corpus documental vive en un **data pack local** con SQLite FTS5.
 - Por ahora, el data pack público disponible está en este repositorio bajo `data/pack`.
