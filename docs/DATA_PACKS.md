@@ -1,8 +1,8 @@
 # Data packs IBM i Docs
 
-Actualmente el repo incluye `data/pack` para desarrollo y uso local. Todavía no hay paquete npm ni release asset público del data pack.
+El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI, pero no incluye `data/pack` ni `ibmi-docs.sqlite`.
 
-La estrategia de distribución preparada para futuras publicaciones es que el paquete npm no incluya `data/pack` y que el corpus se publique como release asset independiente para mantener el paquete ligero y permitir actualizaciones separadas.
+La distribución separa runtime y corpus para mantener npm ligero y permitir actualizaciones independientes del data pack. Todavía no hay release asset público versionado para el data pack; por ahora, usa el pack incluido en este repositorio o uno autorizado por tu organización.
 
 ## Crear archive local del data pack
 
@@ -52,7 +52,7 @@ node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out <ruta-d
 node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 ```
 
-Cuando exista un release asset público, esta sección se actualizará con la URL verificable. Hasta entonces, no uses URLs de releases inventadas ni comandos de instalación npm que no estén publicados.
+Cuando exista un release asset público, esta sección se actualizará con la URL verificable. Hasta entonces, no uses URLs de releases inventadas.
 
 ## Resolución runtime
 

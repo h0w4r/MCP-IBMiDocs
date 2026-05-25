@@ -1,0 +1,185 @@
+# Instalación y operación
+
+Guía práctica para instalar, actualizar, configurar y eliminar MCP IBM i Docs.
+
+## Paquete npm
+
+El runtime público está en:
+
+```powershell
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+```
+
+Esto instala dos binarios:
+
+- `ibmi-docs`: CLI para diagnóstico, búsqueda y validación.
+- `ibmi-docs-mcp`: servidor MCP por stdio.
+
+El paquete npm **no** incluye `data/pack` ni `ibmi-docs.sqlite`.
+
+## Instalación recomendada
+
+### Windows PowerShell
+
+```powershell
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
+$env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+ibmi-docs doctor
+ibmi-docs validate-pack
+ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 3
+```
+
+### macOS/Linux
+
+```bash
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+git clone https://github.com/h0w4r/MCP-IBMiDocs.git ~/MCP-IBMiDocs
+export IBMI_DOCS_PACK_DIR="$HOME/MCP-IBMiDocs/data/pack"
+ibmi-docs doctor
+ibmi-docs validate-pack
+ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 3
+```
+
+## Instalar una versión específica
+
+```powershell
+npm install -g @ckirsch94/ibmi-docs-mcp@0.4.0
+```
+
+## Configurar Codex
+
+### Instalación npm global
+
+Windows:
+
+```powershell
+(Get-Command ibmi-docs-mcp.cmd).Source
+```
+
+Ejemplo para `C:\Users\<usuario>\.codex\config.toml`:
+
+```toml
+[mcp_servers.ibmi-docs]
+command = 'C:\Users\<usuario>\AppData\Roaming\npm\ibmi-docs-mcp.cmd'
+args = []
+cwd = 'D:\MCP-IBMiDocs'
+startup_timeout_sec = 30.0
+tool_timeout_sec = 120.0
+
+[mcp_servers.ibmi-docs.env]
+IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+```
+
+macOS/Linux:
+
+```bash
+command -v ibmi-docs-mcp
+```
+
+Usa esa ruta absoluta como `command` y apunta `IBMI_DOCS_PACK_DIR` al data pack.
+
+### Instalación desde fuente
+
+Si trabajas desde el repo, también puedes generar un bloque TOML:
+
+```powershell
+node dist/src/cli.js codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\MCP-IBMiDocs\dist\src\server.js --cwd D:\MCP-IBMiDocs
+```
+
+## Actualizar
+
+### Runtime npm
+
+```powershell
+npm outdated -g @ckirsch94/ibmi-docs-mcp
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+ibmi-docs --version
+ibmi-docs doctor
+```
+
+Actualizar npm cambia el servidor/CLI, no el corpus documental.
+
+### Repo/data pack incluido
+
+```powershell
+cd D:\MCP-IBMiDocs
+git status --short
+git pull --ff-only
+npm ci
+npm run build
+npm run pack:validate
+npm run smoke
+node dist/src/cli.js doctor
+```
+
+Si tienes cambios locales, haz commit o `git stash` antes de `git pull`.
+
+### Data pack copiado a otra carpeta
+
+```powershell
+cd D:\MCP-IBMiDocs
+npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
+node dist/src/cli.js pack install --from D:\MCP-IBMiDocs\dist\ibmi-docs-pack.tgz --out <ruta-del-pack-en-uso>
+node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
+```
+
+## Desinstalar
+
+### Paquete npm
+
+1. Quita el bloque `mcp_servers.ibmi-docs` de tu cliente MCP.
+2. Desinstala el paquete global:
+
+```powershell
+npm uninstall -g @ckirsch94/ibmi-docs-mcp
+```
+
+3. Verifica:
+
+```powershell
+Get-Command ibmi-docs -ErrorAction SilentlyContinue
+Get-Command ibmi-docs-mcp -ErrorAction SilentlyContinue
+```
+
+macOS/Linux:
+
+```bash
+command -v ibmi-docs || true
+command -v ibmi-docs-mcp || true
+```
+
+### Data pack o repo local
+
+Solo si ya no lo necesitas:
+
+```powershell
+Remove-Item -LiteralPath 'D:\MCP-IBMiDocs' -Recurse -Force
+```
+
+No borres el data pack si lo compartes con otra instalación o quieres conservar el corpus offline.
+
+## Desarrollo desde fuente
+
+```powershell
+git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
+cd D:\MCP-IBMiDocs
+npm ci
+npm run build
+npm run test
+npm run pack:validate
+npm run smoke
+node dist/src/cli.js doctor
+```
+
+## Comandos útiles
+
+```powershell
+ibmi-docs doctor
+ibmi-docs diagnostics
+ibmi-docs resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --version 7.6 --examples
+ibmi-docs resolve "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE
+ibmi-docs resolve "Compara CRTRPGMOD entre IBM i 7.3 y 7.6"
+ibmi-docs search "DDS UNIQUE physical logical file" --category dds --limit 3
+ibmi-docs validate-pack
+```
