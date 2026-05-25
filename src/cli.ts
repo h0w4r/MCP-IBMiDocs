@@ -12,7 +12,7 @@ const program = new Command();
 program
   .name("ibmi-docs")
   .description("CLI de construcción, validación y consulta del corpus local para MCP IBM i Docs.")
-  .version("0.3.0");
+  .version("0.4.0");
 
 program
   .command("export-rdi")

@@ -154,22 +154,80 @@ El complemento de IBM Docs se obtiene desde endpoints públicos de IBM Docs:
 
 El crawler usa APIs públicas de IBM Docs para obtener contenido documental real, no solo el shell web.
 
-## Instalación recomendada desde GitHub
+## Instalación
 
-Estado actual: la instalación soportada es desde el repositorio GitHub. Todavía no hay paquete publicado en npm ni release asset público del data pack, así que no uses comandos `npm install -g` con este paquete hasta que el README indique una publicación verificable.
+Para usuarios finales, la forma más cómoda es instalar el **runtime MCP/CLI desde npm** y apuntarlo a un **data pack local válido**. El paquete npm facilita instalación, actualización y eliminación del servidor; el corpus documental se mantiene separado a propósito.
 
-El servidor final no depende de RDi, Eclipse Help ni del endpoint temporal local usado durante el bootstrap documental. El repositorio incluye `data/pack` para que puedas usar el MCP desde una máquina limpia.
+El servidor final no depende de RDi, Eclipse Help ni del endpoint temporal local usado durante el bootstrap documental.
 
 ### Prerrequisitos
 
-- Git.
 - Node.js 22.x recomendado. El CI del proyecto se valida con Node.js 22 en Windows.
 - npm incluido con Node.js.
+- Git, solo si vas a obtener el data pack desde este repositorio o contribuir al proyecto.
 - Codex, Claude Desktop u otro cliente MCP si quieres conectarlo como servidor MCP.
 
-### Instalación en Windows PowerShell
+### Instalación recomendada: npm + data pack local
 
-Usa una carpeta definitiva, no temporal, porque esa ruta quedará referenciada por tu cliente MCP.
+#### 1. Instalar el runtime MCP/CLI
+
+Windows PowerShell, macOS o Linux:
+
+```powershell
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+ibmi-docs --version
+ibmi-docs --help
+```
+
+También puedes fijar una versión concreta:
+
+```powershell
+npm install -g @ckirsch94/ibmi-docs-mcp@0.4.0
+```
+
+#### 2. Obtener un data pack
+
+El paquete npm no incluye `data/pack` ni `ibmi-docs.sqlite`. Para el primer uso, la ruta pública disponible es clonar este repositorio y usar el pack incluido:
+
+```powershell
+git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
+```
+
+En macOS/Linux:
+
+```bash
+git clone https://github.com/h0w4r/MCP-IBMiDocs.git ~/MCP-IBMiDocs
+```
+
+> Si tu organización ya distribuye un data pack propio, puedes usar esa ruta en lugar de clonar el repositorio.
+
+#### 3. Apuntar el runtime al data pack y validar
+
+Windows PowerShell:
+
+```powershell
+$env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+ibmi-docs doctor
+ibmi-docs validate-pack
+ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 3
+```
+
+macOS/Linux:
+
+```bash
+export IBMI_DOCS_PACK_DIR="$HOME/MCP-IBMiDocs/data/pack"
+ibmi-docs doctor
+ibmi-docs validate-pack
+ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 3
+```
+
+Si `doctor` muestra `runtimePolicy: Sin RDi, sin Eclipse Help, sin endpoint local de RDi`, la instalación está usando el corpus local correcto.
+
+### Instalación desde fuente para contribuidores
+
+Usa esta ruta si vas a modificar el MCP, regenerar el data pack o ejecutar la batería completa del repositorio.
+
+#### Windows PowerShell
 
 ```powershell
 git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
@@ -182,7 +240,7 @@ npm run smoke
 node dist/src/cli.js doctor
 ```
 
-### Instalación en macOS/Linux
+#### macOS/Linux
 
 ```bash
 git clone https://github.com/h0w4r/MCP-IBMiDocs.git ~/MCP-IBMiDocs
@@ -197,13 +255,21 @@ node dist/src/cli.js doctor
 
 ### Qué valida esta instalación
 
-- `npm ci`: instala dependencias exactamente desde `package-lock.json`, igual que el CI.
-- `npm run build`: compila TypeScript en `dist/`.
-- `npm run pack:validate`: verifica que `data/pack` tenga `manifest.json`, normalizados e índice SQLite.
-- `npm run smoke`: prueba búsquedas clave como `CRTRPGMOD`, `RNF0004`, `CLLE`, `DDS PF` y `SQLRPGLE`.
-- `node dist/src/cli.js doctor`: confirma resolución del pack, conteos y diagnóstico del runtime.
+- `npm install -g @ckirsch94/ibmi-docs-mcp@latest`: instala los binarios `ibmi-docs` e `ibmi-docs-mcp`.
+- `ibmi-docs doctor`: confirma resolución del pack, conteos y política runtime anti-RDi.
+- `ibmi-docs validate-pack`: verifica `manifest.json`, normalizados e índice SQLite del data pack.
+- `ibmi-docs search`: prueba búsquedas reales como `CRTRPGMOD`, `RNF0004`, `CLLE`, `DDS PF` y `SQLRPGLE`.
+- En instalación desde fuente, `npm run bench:golden` valida el benchmark dorado del repo.
 
 ### Ejecutar el servidor MCP manualmente
+
+Con instalación npm global:
+
+```powershell
+ibmi-docs-mcp
+```
+
+Desde el repo:
 
 ```powershell
 node dist/src/server.js
@@ -211,7 +277,7 @@ node dist/src/server.js
 
 El servidor usa stdio. Es normal que el proceso quede esperando mensajes del cliente MCP y no abra una URL web.
 
-### CLI local opcional
+### CLI local opcional para desarrollo
 
 Puedes usar la CLI sin instalar nada global:
 
@@ -230,25 +296,52 @@ ibmi-docs search "RNF0004" --limit 3
 
 ## Estado de distribución
 
-Actualmente este proyecto está disponible desde el repositorio GitHub:
+Actualmente este proyecto está disponible en:
 
-- <https://github.com/h0w4r/MCP-IBMiDocs>
+- GitHub: <https://github.com/h0w4r/MCP-IBMiDocs>
+- npm: <https://www.npmjs.com/package/@ckirsch94/ibmi-docs-mcp>
 
-Todavía **no** hay paquete publicado en npm ni release asset público versionado para el data pack. Cuando exista una publicación en npm o un release de GitHub, esta sección se actualizará con el nombre, versión y URL verificables.
+La distribución se separa deliberadamente en dos piezas:
 
-La estrategia preparada para distribución futura es:
+- **runtime MCP/CLI** publicado como paquete npm `@ckirsch94/ibmi-docs-mcp`;
+- **data pack documental** en `data/pack` dentro del repositorio, o como pack generado/instalado por tu organización.
 
-- publicar el código/CLI como paquete npm;
-- publicar el data pack como release asset independiente;
-- evitar que el paquete npm incluya `data/pack` o `ibmi-docs.sqlite` directamente.
-
-Mientras tanto, usa la instalación desde GitHub descrita arriba.
+El paquete npm no incluye `data/pack` ni `ibmi-docs.sqlite` directamente. Esto mantiene el paquete liviano y evita mezclar runtime con corpus documental pesado. Si en el futuro existe un release asset público versionado para el data pack, se documentará aquí con URL verificable.
 
 ## Actualización de una instalación existente
 
-### Si instalaste desde este repo
+### Si instalaste el runtime desde npm
 
-Esta es la ruta de actualización válida mientras el proyecto no esté publicado en npm:
+```powershell
+npm outdated -g @ckirsch94/ibmi-docs-mcp
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+ibmi-docs --version
+ibmi-docs doctor
+```
+
+Si quieres actualizar a una versión específica:
+
+```powershell
+npm install -g @ckirsch94/ibmi-docs-mcp@0.4.0
+```
+
+Si el runtime usa `IBMI_DOCS_PACK_DIR`, confirma que la variable siga apuntando al data pack correcto:
+
+```powershell
+$env:IBMI_DOCS_PACK_DIR
+ibmi-docs validate-pack --pack $env:IBMI_DOCS_PACK_DIR
+```
+
+En macOS/Linux:
+
+```bash
+echo "$IBMI_DOCS_PACK_DIR"
+ibmi-docs validate-pack --pack "$IBMI_DOCS_PACK_DIR"
+```
+
+> Actualizar el paquete npm actualiza el servidor/CLI, no el corpus documental. Si tu organización publica un nuevo data pack, instálalo o reemplázalo por separado y vuelve a ejecutar `ibmi-docs doctor`.
+
+### Si instalaste desde este repo
 
 ```powershell
 cd D:\MCP-IBMiDocs
@@ -292,14 +385,51 @@ node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 
 Sustituye `<ruta-del-pack-en-uso>` por la ruta real configurada en `IBMI_DOCS_PACK_DIR`.
 
-### Cuando exista publicación npm/release
+## Eliminación / desinstalación
 
-Esta opción todavía no aplica porque no hay paquete npm ni release asset público. Cuando existan, usa únicamente el nombre de paquete y la URL publicados en este README o en la página de releases del proyecto. El flujo esperado será:
+### Si instalaste desde npm
+
+1. Quita o comenta el bloque `mcp_servers.ibmi-docs` de tu cliente MCP, por ejemplo `C:\Users\<usuario>\.codex\config.toml`.
+2. Desinstala el paquete global:
 
 ```powershell
-npm update -g <nombre-publicado-en-npm>
-<binario-publicado> pack install --from <url-verificada-del-release-asset>
-<binario-publicado> doctor
+npm uninstall -g @ckirsch94/ibmi-docs-mcp
+```
+
+3. Verifica que los binarios ya no estén disponibles:
+
+```powershell
+Get-Command ibmi-docs -ErrorAction SilentlyContinue
+Get-Command ibmi-docs-mcp -ErrorAction SilentlyContinue
+```
+
+En macOS/Linux:
+
+```bash
+command -v ibmi-docs || true
+command -v ibmi-docs-mcp || true
+```
+
+4. Opcionalmente elimina el data pack local si ya no lo necesitas:
+
+```powershell
+Remove-Item -LiteralPath 'D:\MCP-IBMiDocs\data\pack' -Recurse -Force
+```
+
+No elimines el data pack si lo compartes con otra instalación o si quieres conservar el corpus offline.
+
+### Si instalaste desde fuente
+
+```powershell
+cd D:\MCP-IBMiDocs
+npm unlink -g @ckirsch94/ibmi-docs-mcp 2>$null
+```
+
+Después elimina el bloque del cliente MCP y borra el directorio del repo solo si no tienes cambios locales que quieras conservar:
+
+```powershell
+cd D:\
+Remove-Item -LiteralPath 'D:\MCP-IBMiDocs' -Recurse -Force
 ```
 
 ## Data pack local
@@ -320,7 +450,38 @@ Resolución del pack en runtime:
 
 ## Instalación en Codex como MCP local
 
-Primero completa la instalación desde GitHub y confirma que `node dist/src/cli.js doctor` funciona.
+Primero confirma que el runtime encuentra un data pack válido:
+
+```powershell
+$env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+ibmi-docs doctor
+```
+
+### Opción recomendada si instalaste desde npm
+
+Obtén la ruta absoluta del binario global:
+
+```powershell
+(Get-Command ibmi-docs-mcp.cmd).Source
+```
+
+Copia el bloque en `C:\Users\<usuario>\.codex\config.toml`, ajustando rutas si corresponde:
+
+```toml
+[mcp_servers.ibmi-docs]
+command = 'C:\Users\<usuario>\AppData\Roaming\npm\ibmi-docs-mcp.cmd'
+args = []
+cwd = 'D:\MCP-IBMiDocs'
+startup_timeout_sec = 30.0
+tool_timeout_sec = 120.0
+
+[mcp_servers.ibmi-docs.env]
+IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+```
+
+En macOS/Linux, usa la ruta absoluta que devuelva `command -v ibmi-docs-mcp`.
+
+### Opción desde el repo fuente
 
 Genera el bloque TOML con rutas absolutas:
 
@@ -328,7 +489,7 @@ Genera el bloque TOML con rutas absolutas:
 node dist/src/cli.js codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\MCP-IBMiDocs\dist\src\server.js --cwd D:\MCP-IBMiDocs
 ```
 
-Copia el bloque generado en `C:\Users\<usuario>\.codex\config.toml`. Ejemplo para Windows:
+Ejemplo para Windows:
 
 ```toml
 [mcp_servers.ibmi-docs]
@@ -356,7 +517,7 @@ Usa el MCP IBM i Docs para buscar CRTRPGMOD y resume cuándo usarlo.
 
 ## CLI útil
 
-Desde el repo, usa la CLI con Node:
+Desde el repo, usa la CLI con Node. Si instalaste desde npm, reemplaza `node dist/src/cli.js` por `ibmi-docs`:
 
 ```powershell
 node dist/src/cli.js diagnostics
