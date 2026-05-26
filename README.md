@@ -1,5 +1,9 @@
 # MCP IBM i Docs
 
+<p align="center">
+  <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
+</p>
+
 MCP comunitario para que agentes de IA consulten documentación IBM i / AS400 desde un corpus local antes de responder sobre RPGLE, SQLRPGLE, CLLE, DDS, comandos, mensajes y Db2 for i.
 
 La idea es simple: menos “creo que era así” y más “lo contrasté contra documentación IBM i indexada”. El AS/400 ya trae suficiente mística; no hace falta añadirle alucinaciones con corbata.
