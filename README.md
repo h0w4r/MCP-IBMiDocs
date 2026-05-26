@@ -1,5 +1,8 @@
 # MCP IBM i Docs
 
+> [!WARNING]
+> **Proyecto en beta.** MCP IBM i Docs está en construcción activa y puede tener fallos, resultados incompletos o cambios incompatibles entre versiones. Úsalo, pruébalo y reporta cualquier caso raro: el feedback de la comunidad IBM i es justamente lo que lo va a hacer mejorar.
+
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
 </p>
