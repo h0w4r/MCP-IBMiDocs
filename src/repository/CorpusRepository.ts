@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { resolveContainedPath } from "../util/paths.js";
 import type {
   AnswerCitation,
   AnswerOptions,
@@ -46,6 +47,13 @@ import { clamp } from "../util/common.js";
 const SUPPORTED_VERSIONS = ["7.3", "7.4", "7.5", "7.6", "RDi-local"];
 const FTS_STOPWORDS = new Set(["a", "an", "and", "as", "de", "del", "el", "en", "for", "in", "la", "las", "los", "of", "on", "or", "the", "to", "un", "una", "with"]);
 const DEFAULT_VERSIONS = ["7.3", "7.4", "7.5", "7.6"];
+const IBM_I_COMMAND_PREFIXES = [
+  "add", "alw", "ap", "call", "chg", "chk", "clr", "cpy", "crt", "dcl", "dlt", "dmp", "dsp", "ed", "end", "go", "grt",
+  "hold", "mon", "ovr", "prt", "rcv", "rel", "rmv", "rnm", "rst", "rtv", "run", "sav", "sbm", "snd", "str", "tfr",
+  "wrk"
+];
+const IBM_I_COMMAND_PREFIX_PATTERN = new RegExp(`^(${IBM_I_COMMAND_PREFIXES.join("|")})[a-z0-9]{1,}$`, "i");
+const IBM_I_COMMAND_TOKEN_PATTERN = new RegExp(`\\b(${IBM_I_COMMAND_PREFIXES.join("|")})[a-z0-9]{1,}\\b`, "i");
 
 // Expansiones semánticas locales: no dependen de embeddings externos ni red.
 // Funcionan como una capa de "recall" para prompts naturales de agentes.
@@ -267,7 +275,11 @@ export class CorpusRepository {
   manifest(): CorpusManifest {
     const row = this.db.prepare("SELECT value FROM meta WHERE key = ?").get("manifest") as { value: string } | undefined;
     if (!row) throw new Error("Manifest no encontrado dentro del SQLite.");
-    return JSON.parse(row.value) as CorpusManifest;
+    try {
+      return JSON.parse(row.value) as CorpusManifest;
+    } catch (error) {
+      throw new Error(`Manifest inválido dentro del SQLite: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   diagnostics(): Record<string, unknown> {
@@ -318,10 +330,19 @@ export class CorpusRepository {
       const fts = toFtsQuery(input);
       if (!fts) continue;
       // MATCH sigue parametrizado; las expansiones solo cambian el recall, no concatenan SQL.
-      rows.push(...(stmt.all({ ...baseParams, fts }) as Array<Record<string, unknown>>));
+      try {
+        rows.push(...(stmt.all({ ...baseParams, fts }) as Array<Record<string, unknown>>));
+      } catch (error) {
+        // Un FTS malformado o una base parcialmente corrupta no debe tumbar el
+        // workflow completo si otras expansiones todavía pueden aportar recall.
+        rows.push(...[]);
+      }
     }
     const exactRows = this.findExactTechnicalRows(exactTerms, options);
     rows.push(...exactRows);
+    if (options.category && exactTerms.length && !exactRows.length) {
+      rows.push(...this.findExactTechnicalRows(exactTerms, { ...options, category: undefined }).map((row) => ({ ...row, requested_category_fallback: 1 })));
+    }
     if (options.version && exactTerms.length && !exactRows.length) {
       // Si la versión pedida no tiene un tópico exacto, agregamos candidatos
       // canónicos de otras fuentes/versiones como fallback explícito. Esto evita
@@ -340,6 +361,11 @@ export class CorpusRepository {
       hit.requestedVersionFallback = Boolean(row.requested_version_fallback);
       hit.matchReasons = buildMatchReasons(hit, body, options.query, semantic);
       hit.relevanceWarnings = buildRelevanceWarnings(hit, body, options);
+      if (row.requested_category_fallback) {
+        hit.score += 0;
+        hit.matchReasons.push(`fallback exacto fuera de la categoría solicitada ${options.category}`);
+        hit.relevanceWarnings.push(`No se encontró tópico exacto en categoría ${options.category}; este resultado es fallback desde ${hit.category}.`);
+      }
       hit.score = scoreHit(hit, body, Number(row.rank ?? 0), options, Number(row.chunk_index ?? 0)) + hit.semanticScore;
       hit.score += documentKindScoreAdjustment(hit);
       if (hit.requestedVersionFallback) {
@@ -363,9 +389,16 @@ export class CorpusRepository {
     }
     const sortedResults = [...bestByDocument.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
     const guardedResults = exactTerms.length
-      ? sortedResults.filter((hit) => hit.score >= 0 && !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("sin términos exactos")))
+      ? sortedResults.filter((hit) => hit.score >= 0 && !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("Resultado penalizado")))
       : sortedResults;
-    const results = (guardedResults.length ? guardedResults : sortedResults).slice(0, limit);
+    let results = (exactTerms.length ? guardedResults : sortedResults).slice(0, limit);
+    if (!results.length && options.category && exactTerms.length) {
+      results = this.search({ ...options, category: undefined, limit }).map((hit) => ({
+        ...hit,
+        matchReasons: [...(hit.matchReasons ?? []), `fallback exacto fuera de la categoría solicitada ${options.category}`],
+        relevanceWarnings: [...(hit.relevanceWarnings ?? []), `No se encontró tópico exacto en categoría ${options.category}; este resultado es fallback desde ${hit.category}.`]
+      }));
+    }
     this.recordTrace("ibmi_docs_search", started, {
       query: options.query,
       resultCount: results.length,
@@ -397,7 +430,7 @@ export class CorpusRepository {
       version: String(row.version),
       category: String(row.category),
       canonicalUrl: String(row.canonical_url),
-      breadcrumbs: JSON.parse(String(row.breadcrumbs_json || "[]")) as string[],
+      breadcrumbs: safeJsonArray(String(row.breadcrumbs_json || "[]")),
       content,
       textLength: Number(row.text_length),
       sha256: String(row.sha256),
@@ -451,12 +484,13 @@ export class CorpusRepository {
     for (const warning of hits.flatMap((hit) => hit.relevanceWarnings ?? []).slice(0, 4)) warnings.push(warning);
     if (hits.length && hits[0].score < 20) warnings.push("La evidencia existe, pero el score principal es bajo; conviene leer los tópicos antes de responder con seguridad.");
 
+    const exactTerms = extractExactTechnicalTerms(options.question);
     const result: AnswerResult = {
       question: options.question,
       answer: buildExtractiveAnswer(options, reads, compile),
       confidence: evidenceHits[0]?.score >= 60 && !warnings.length ? "alta" : evidenceHits.length >= 2 ? "media" : "baja",
       citations,
-      evidence: evidenceHits.length ? evidenceHits : hits,
+      evidence: evidenceHits.length || exactTerms.length ? evidenceHits : hits,
       warnings,
       suggestedTools: hits.length ? ["ibmi_docs_read", "ibmi_docs_sections", "ibmi_docs_explain_ranking"] : ["ibmi_docs_search"]
     };
@@ -563,8 +597,18 @@ export class CorpusRepository {
     const started = Date.now();
     const messageId = options.messageId.trim().toUpperCase();
     const family = messageId.match(/^[A-Z]+/)?.[0] ?? "MESSAGE";
-    const category = family === "RNF" ? "mensajes-rnf" : family === "SQL" ? "sql-db2-for-i" : "ibm-i-general";
-    const evidence = this.search({ query: messageId, category, limit: options.limit ?? 6 });
+    const category = family === "RNF"
+      ? "mensajes-rnf"
+      : family === "SQL"
+        ? "sql-db2-for-i"
+        : family === "CPF"
+          ? "mensajes-cpf"
+          : family === "MCH"
+            ? "mensajes-mch"
+            : "ibm-i-general";
+    const searchCategory = family === "RNF" || family === "SQL" ? category : undefined;
+    const evidence = this.search({ query: messageId, category: searchCategory, limit: options.limit ?? 6 })
+      .filter((hit) => isMessageEvidenceHit(hit, messageId, family));
     const result: MessageExplanation = {
       messageId,
       family,
@@ -616,7 +660,13 @@ export class CorpusRepository {
       const version = String(row.version);
       if (!SUPPORTED_VERSIONS.includes(version)) anomalies.push(`Versión no normalizada ${version} en ${String(row.id)}`);
       for (const key of ["raw_html_path", "normalized_text_path"] as const) {
-        const file = path.join(this.packDir, String(row[key]));
+        let file = "";
+        try {
+          file = resolveContainedPath(this.packDir, String(row[key]));
+        } catch (error) {
+          anomalies.push(`Ruta inválida para ${String(row.id)} (${key}): ${error instanceof Error ? error.message : String(error)}`);
+          continue;
+        }
         checkedFiles += 1;
         if (!fs.existsSync(file)) missingFiles += 1;
         if (path.relative(this.packDir, file).length > 180) longPaths.push(path.relative(this.packDir, file));
@@ -659,8 +709,9 @@ export class CorpusRepository {
       count: Number(row.count),
       versions: String(row.versions ?? "").split(",").filter(Boolean).sort(naturalVersionSort)
     }));
+    const canonicalColumnSql = hasColumn(this.db, "documents", "canonical_topic_key") ? "canonical_topic_key" : "'' AS canonical_topic_key";
     const docRows = this.db.prepare(`
-      SELECT id, title, category, version, text_length AS textLength, breadcrumbs_json
+      SELECT id, title, category, version, text_length AS textLength, breadcrumbs_json, ${canonicalColumnSql}
       FROM documents
     `).all() as Array<Record<string, unknown>>;
     const documentKinds = Object.fromEntries(["topic", "reference", "index", "landing", "stub"].map((kind) => [kind, 0])) as QualityReport["documentKinds"];
@@ -676,12 +727,12 @@ export class CorpusRepository {
         version: String(row.version),
         category: String(row.category),
         canonicalUrl: "",
-        breadcrumbs: JSON.parse(String(row.breadcrumbs_json || "[]")) as string[],
+        breadcrumbs: safeJsonArray(String(row.breadcrumbs_json || "[]")),
         textLength: Number(row.textLength ?? 0)
       };
       const kind = classifyDocumentKind(hit, "") ?? "topic";
       documentKinds[kind] += 1;
-      const key = canonicalTopicKey(hit);
+      const key = String(row.canonical_topic_key ?? "") || canonicalTopicKey(hit);
       const bucketKey = `${hit.version}:${hit.category}:${key}`;
       const bucket = duplicateCanonicalMap.get(bucketKey) ?? { canonicalTopicKey: key, count: 0, titles: new Set<string>(), versions: new Set<string>() };
       bucket.count += 1;
@@ -703,8 +754,10 @@ export class CorpusRepository {
       .filter(([, count]) => count < 50)
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => a.count - b.count);
+    const criticalSparseCategories = sparseCategories.filter((item) => ["ibm-i-general", "cl-clle", "ile-rpg", "dds", "sql-db2-for-i", "mensajes-rnf"].includes(item.category));
+    const worstDuplicateCount = duplicateCanonicalTopics[0]?.count ?? 0;
     return {
-      ok: pack.ok && shortDocuments.length < 100,
+      ok: pack.ok && shortDocuments.length < 100 && documentKinds.stub < 100 && criticalSparseCategories.length === 0 && worstDuplicateCount < 100,
       generatedAt: new Date().toISOString(),
       corpusVersion: manifest.corpusVersion,
       documents: pack.documents,
@@ -836,7 +889,7 @@ export class CorpusRepository {
 
     // En guía de compilación el resumen final se arma desde context + compileGuidance;
     // ejecutar answer además duplica búsquedas/lecturas y vuelve el workflow innecesariamente pesado.
-    const answerResult = intent !== "ranking_debug" && intent !== "compile_guidance"
+    const answerResult = intent !== "ranking_debug" && intent !== "compile_guidance" && intent !== "message_diagnostic"
       ? this.answer({
           question: options.question,
           language: options.language,
@@ -962,8 +1015,16 @@ export class CorpusRepository {
     }
 
     const evidence = [...evidenceById.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+    const requiredEvidenceWarnings = buildRequiredEvidenceWarnings({
+      intent,
+      messageExplanation,
+      compileGuidance,
+      versionComparison,
+      evidence
+    });
     const warnings = [
       ...(answerResult?.warnings ?? []),
+      ...requiredEvidenceWarnings,
       ...(!evidence.length ? ["No se encontró evidencia documental suficiente; no inventar detalles fuera del corpus."] : []),
       ...(intent === "search_discovery" ? ["Esta resolución es exploratoria: lee los IDs recomendados antes de citar detalles finos."] : [])
     ];
@@ -992,7 +1053,7 @@ export class CorpusRepository {
         codeValidation,
         related
       }),
-      confidence: answerResult?.confidence ?? (evidence[0]?.score >= 60 ? "alta" : evidence.length >= 2 ? "media" : "baja"),
+      confidence: computeResolveConfidence({ intent, evidence, answerResult, messageExplanation, compileGuidance, versionComparison, warnings }),
       stages,
       evidence,
       reads,
@@ -1272,7 +1333,7 @@ function rowToHit(row: Record<string, unknown>, query: string): SearchHit {
     version: String(row.version),
     category: String(row.category),
     canonicalUrl: String(row.canonical_url),
-    breadcrumbs: JSON.parse(String(row.breadcrumbs_json || "[]")) as string[],
+    breadcrumbs: safeJsonArray(String(row.breadcrumbs_json || "[]")),
     textLength: Number(row.text_length ?? 0),
     readHint: `Para obtener la ayuda completa llama ibmi_docs_read con id="${id}".`
   };
@@ -1330,6 +1391,10 @@ function buildRelevanceWarnings(hit: SearchHit, body: string, options: SearchOpt
   if (exactTerms.length && !exactTerms.some((term) => haystack.includes(fold(term)))) {
     warnings.push(`Resultado penalizado: sin términos exactos (${exactTerms.join(", ")}) en título, ruta ni contenido principal.`);
   }
+  const messageTerms = exactTerms.filter(isMessageIdTerm);
+  if (messageTerms.length && !isMessageEvidenceHit(hit, messageTerms[0])) {
+    warnings.push(`Resultado penalizado: ${messageTerms.join(", ")} aparece fuera de una fuente/categoría de mensajes IBM i.`);
+  }
   if (hit.documentKind === "stub") warnings.push("Documento clasificado como stub/corto; úsalo solo como pista, no como evidencia principal.");
   if (hit.documentKind === "index") warnings.push("Documento clasificado como índice/novedades; puede mencionar el término sin ser el tópico canónico.");
   return [...new Set(warnings)];
@@ -1340,8 +1405,9 @@ function selectAnswerEvidence(hits: SearchHit[], query: string): SearchHit[] {
   const filtered = hits.filter((hit) => {
     if (hit.documentKind === "stub" || hit.documentKind === "landing") return false;
     if (!exactTerms.length) return true;
-    return !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("sin términos exactos"));
+    return !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("Resultado penalizado"));
   });
+  if (exactTerms.length) return filtered;
   // Si solo hay índices, conservamos el mejor índice antes que devolver nada,
   // pero la respuesta quedará con advertencias y confianza baja/media.
   return filtered.length ? filtered : hits.filter((hit) => hit.documentKind !== "landing").slice(0, 1);
@@ -1463,8 +1529,8 @@ function classifyTaxonomy(hit: Pick<SearchHit, "title" | "category" | "breadcrum
   };
   return match("rpg-bif", "Built-in function RPG", [[/%[a-z][a-z0-9_-]+/, "percent-bif"], [/built-in function/, "built-in function"]])
     ?? match("rpg-opcode", "Operation code RPG", [[/\bsnd-msg\b|\bchain\b|\breade\b|\bmonitor\b|\bon-error\b/, "rpg opcode"], [/operation codes?/, "operation code"]])
-    ?? match("message", "Mensaje IBM i/RNF/SQL", [[/\brnf\d{4}\b/, "RNF"], [/\bsql\d{4,5}\b/, "SQL message"], [/messages?/, "message"]])
-    ?? match("command", "Comando IBM i", [[/\b(add|chg|crt|dlt|dsp|end|mon|ovr|rcv|rmv|rst|sav|snd|str|wrk)[a-z0-9]{2,}\b/, "command prefix"], [/\bcommand\b/, "command"]])
+    ?? match("message", "Mensaje IBM i/RNF/SQL", [[/\brnf\d{4}\b/, "RNF"], [/\bsql\d{4,5}\b/, "SQL message"], [/\bcpf\d{4}\b/, "CPF"], [/\bmch\d{4}\b/, "MCH"], [/messages?/, "message"]])
+    ?? match("command", "Comando IBM i", [[IBM_I_COMMAND_TOKEN_PATTERN, "command prefix"], [/\bcommand\b/, "command"]])
     ?? match("dds-keyword", "DDS/keyword", [[/\bdds\b|\bphysical file\b|\blogical file\b|\bkeyword\b/, "dds keyword"], [/\b(unique|reffld|edtcde|dspatr)\b/, "dds keyword name"]])
     ?? match("sql", "Db2 for i / SQL", [[/\bsqlrpgle\b|embedded sql|exec sql|db2 for i/, "sql"], [/\bselect\b|\bcommit\b|\bcursor\b/, "sql statement"]])
     ?? match("api", "API IBM i", [[/\bq[a-z0-9]{6,}\b/, "qsys api"], [/\bapi\b/, "api"]])
@@ -1636,6 +1702,44 @@ function buildResolvedAnswer(input: {
   return lines.join("\n");
 }
 
+function buildRequiredEvidenceWarnings(input: {
+  intent: DocsIntent;
+  evidence: SearchHit[];
+  messageExplanation?: MessageExplanation;
+  compileGuidance?: CompileGuidance;
+  versionComparison?: VersionComparison;
+}): string[] {
+  const warnings: string[] = [];
+  if (input.intent === "message_diagnostic" && !input.messageExplanation?.evidence.length) {
+    warnings.push("La intención exige diagnóstico de mensaje, pero no se encontró evidencia exacta para el mensaje solicitado.");
+  }
+  if (input.intent === "compile_guidance" && !input.compileGuidance?.evidence.length) {
+    warnings.push("La intención exige guía de compilación, pero no se encontró evidencia documental suficiente para comandos/opciones.");
+  }
+  if (input.intent === "version_question" && !input.versionComparison?.evidence.length) {
+    warnings.push("La intención exige comparación por versión, pero no se encontró evidencia suficiente por release.");
+  }
+  if (!input.evidence.length) warnings.push("No hay evidencia utilizable después de aplicar guardrails de relevancia.");
+  return [...new Set(warnings)];
+}
+
+function computeResolveConfidence(input: {
+  intent: DocsIntent;
+  evidence: SearchHit[];
+  answerResult?: AnswerResult;
+  messageExplanation?: MessageExplanation;
+  compileGuidance?: CompileGuidance;
+  versionComparison?: VersionComparison;
+  warnings: string[];
+}): "alta" | "media" | "baja" {
+  if (input.intent === "message_diagnostic" && !input.messageExplanation?.evidence.length) return "baja";
+  if (input.intent === "compile_guidance" && !input.compileGuidance?.evidence.length) return "baja";
+  if (input.intent === "version_question" && !input.versionComparison?.evidence.length) return "baja";
+  if (input.warnings.some((warning) => /no se encontr[oó]|no hay evidencia|sin evidencia|no inventar/i.test(warning))) return "baja";
+  if (input.answerResult?.confidence) return input.answerResult.confidence;
+  return input.evidence[0]?.score >= 60 ? "alta" : input.evidence.length >= 2 ? "media" : "baja";
+}
+
 function renderQueryIssueMarkdown(report: QueryReport): string {
   const lines = [
     "## Reporte de búsqueda IBM i Docs",
@@ -1707,10 +1811,11 @@ function buildNextToolRecommendation(hit: SearchHit, options: SearchOptions): Ne
     };
   }
   if (/compil|crtrpgmod|crtbndrpg|crtsqlrpgi|crtbndcl|crtp[fl]/i.test(options.query) || lowerTitle.includes("command")) {
+    const language = normalizeLanguage(options.query) ?? (isLikelyIbmCommandQuery(options.query) ? "CLLE" : undefined);
     return {
       tool: "ibmi_docs_compile_guidance",
       reason: "La consulta apunta a construcción/compilación; usa guía de compilación para comandos, opciones y pitfalls.",
-      arguments: { language: normalizeLanguage(options.query) ?? "RPGLE", version: options.version, limit: options.limit ?? 8 }
+      arguments: { ...(language ? { language } : {}), version: options.version, limit: options.limit ?? 8 }
     };
   }
   return {
@@ -1757,6 +1862,15 @@ function tokenize(value: string): string[] {
     .match(/[\p{L}\p{N}_#$@.\/+%-]{2,}/gu) ?? [];
 }
 
+function safeJsonArray(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : [];
+  } catch {
+    return [];
+  }
+}
+
 function extractExactTechnicalTerms(query: string): string[] {
   const rawTokens = query
     .normalize("NFD")
@@ -1779,13 +1893,31 @@ function extractPrimaryTechnicalTerm(title: string): string | undefined {
 function isCommandOrOpcodeTerm(token: string): boolean {
   return /-/.test(token)
     || /^%[a-z][a-z0-9_-]+$/.test(token)
-    || /^(add|chg|crt|dlt|dsp|end|mon|ovr|rcv|rmv|rst|sav|snd|str|wrk)[a-z0-9]{2,}$/i.test(token)
+    || IBM_I_COMMAND_PREFIX_PATTERN.test(token)
     || /^rnf\d{4}$/i.test(token)
-    || /^sql\d{4,5}$/i.test(token);
+    || /^sql\d{4,5}$/i.test(token)
+    || /^cpf\d{4}$/i.test(token)
+    || /^mch\d{4}$/i.test(token);
+}
+
+function isMessageIdTerm(token: string): boolean {
+  return /^(rnf|cpf|mch)\d{4}$/i.test(token) || /^sql\d{4,5}$/i.test(token);
+}
+
+function isMessageEvidenceHit(hit: Pick<SearchHit, "title" | "category" | "breadcrumbs" | "snippet">, messageId: string, family = messageId.match(/^[A-Z]+/i)?.[0] ?? ""): boolean {
+  const normalizedFamily = family.toUpperCase();
+  const titleAndPath = fold([hit.title, hit.breadcrumbs?.join(" ") ?? ""].join(" "));
+  const category = fold(hit.category ?? "");
+  if (titleAndPath.includes(fold(messageId))) return true;
+  if (normalizedFamily === "RNF") return category === "mensajes-rnf" || /rpg messages|compiler messages|messages and codes/.test(titleAndPath);
+  if (normalizedFamily === "SQL") return category === "sql-db2-for-i" || /sql messages|sql codes|messages and codes/.test(titleAndPath);
+  if (normalizedFamily === "CPF") return category === "mensajes-cpf" || /cpf messages|system messages|message descriptions|messages and codes/.test(titleAndPath);
+  if (normalizedFamily === "MCH") return category === "mensajes-mch" || /mch messages|machine messages|message descriptions|messages and codes/.test(titleAndPath);
+  return /^mensajes/.test(category) || /messages and codes|message descriptions/.test(titleAndPath);
 }
 
 function isLikelyIbmCommandQuery(query: string): boolean {
-  return extractExactTechnicalTerms(query).some((term) => /^(add|chg|crt|dlt|dsp|end|mon|ovr|rcv|rmv|rst|sav|snd|str|wrk)[a-z0-9]{2,}$/i.test(term));
+  return extractExactTechnicalTerms(query).some((term) => IBM_I_COMMAND_PREFIX_PATTERN.test(term));
 }
 
 function escapeLike(value: string): string {
@@ -1814,7 +1946,7 @@ function normalizeLanguage(input?: string): string | undefined {
   if (/CLLE|CONTROL\s+LANGUAGE|\bCL\b/.test(value)) return "CLLE";
   if (/DDS|PHYSICAL\s+FILE|LOGICAL\s+FILE|\bPF\b|\bLF\b/.test(value)) return "DDS";
   if (/COBOL/.test(value)) return "COBOL";
-  return value || undefined;
+  return undefined;
 }
 
 function detectSignals(task: string, language?: string, preset?: LanguagePreset): string[] {
@@ -1837,6 +1969,11 @@ function buildVersionNotes(hits: SearchHit[]): string[] {
 function queryCounts(db: Database.Database, column: "category" | "version" | "source_kind"): Record<string, number> {
   const rows = db.prepare(`SELECT ${column} AS key, COUNT(*) AS value FROM documents GROUP BY ${column}`).all() as Array<{ key: string; value: number }>;
   return Object.fromEntries(rows.map((row) => [String(row.key), Number(row.value)]));
+}
+
+function hasColumn(db: Database.Database, table: string, column: string): boolean {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  return rows.some((row) => row.name === column);
 }
 
 function unique<T>(value: T, index: number, array: T[]): boolean {

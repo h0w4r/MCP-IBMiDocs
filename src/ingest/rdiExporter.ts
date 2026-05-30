@@ -4,6 +4,7 @@ import { XMLParser } from "fast-xml-parser";
 import pLimit from "p-limit";
 import type { CorpusManifest, DocumentRecord, TocNodeRecord } from "../types.js";
 import { ensureSafeFileName, nowIso, sha256, toPosixPath, unique } from "../util/common.js";
+import { fetchTextWithTimeout } from "../util/fetch.js";
 import { extractDocumentContent, inferCategory } from "../util/html.js";
 
 interface ExportRdiOptions {
@@ -23,6 +24,9 @@ interface XmlNode {
 }
 
 const DEFAULT_TOC_ROOTS = ["/com.ibm.iseries.xd.ref.doc/ref_map.xml"];
+const USER_AGENT = "ibmi-docs-mcp-builder/0.4 (+rdi-bootstrap-export)";
+const DEFAULT_HTTP_TIMEOUT_MS = Number(process.env.IBMI_DOCS_RDI_HTTP_TIMEOUT_MS ?? 30_000);
+const DEFAULT_HTTP_MAX_BYTES = Number(process.env.IBMI_DOCS_RDI_HTTP_MAX_BYTES ?? 25 * 1024 * 1024);
 
 const xmlParser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "", allowBooleanAttributes: true });
 
@@ -183,9 +187,20 @@ async function fetchXml(url: string): Promise<unknown> {
 }
 
 async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url, { headers: { "User-Agent": "ibmi-docs-mcp-builder/0.1" } });
-  if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
-  return response.text();
+  let lastError = "";
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await fetchTextWithTimeout(url, {
+        headers: { "User-Agent": USER_AGENT },
+        timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+        maxBytes: DEFAULT_HTTP_MAX_BYTES
+      });
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+    }
+  }
+  throw new Error(`No se pudo leer ${url}: ${lastError || "sin respuesta"}`);
 }
 
 function asArray<T>(value: T | T[] | undefined): T[] {

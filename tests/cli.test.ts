@@ -35,4 +35,34 @@ describe("CLI ibmi-docs", () => {
     expect(parsed.diagnostics.exactTerms).toContain("snd-msg");
     expect(parsed.issueMarkdown).toContain("Reporte de búsqueda IBM i Docs");
   });
+
+  it("expone comandos CLI equivalentes a tools MCP públicas", () => {
+    const help = runCli(["--help"]);
+
+    expect(help.status).toBe(0);
+    expect(help.stdout).toContain("context");
+    expect(help.stdout).toContain("compile-guidance");
+    expect(help.stdout).toContain("explain-message");
+    expect(help.stdout).toContain("related");
+    expect(help.stdout).toContain("compare-versions");
+    expect(help.stdout).toContain("validate-code-context");
+  });
+
+  it("ejecuta comandos CLI nuevos con salida JSON reproducible", () => {
+    const context = runCli(["context", "Crear programa SQLRPGLE con EXEC SQL", "--language", "SQLRPGLE", "--limit", "2"]);
+    expect(context.status).toBe(0);
+    expect(JSON.parse(context.stdout).intent.language).toBe("SQLRPGLE");
+
+    const message = runCli(["explain-message", "CPF0001", "--limit", "2"]);
+    expect(message.status).toBe(0);
+    expect(JSON.parse(message.stdout).messageId).toBe("CPF0001");
+
+    const comparison = runCli(["compare-versions", "CRTRPGMOD", "--versions", "7.3,7.6", "--limit", "1"]);
+    expect(comparison.status).toBe(0);
+    expect(JSON.parse(comparison.stdout).versions.map((entry: { version: string }) => entry.version)).toEqual(expect.arrayContaining(["7.3", "7.6"]));
+
+    const validation = runCli(["validate-code-context", "--language", "SQLRPGLE", "--code", "exec sql select 1 from sysibm.sysdummy1;", "--limit", "2"]);
+    expect(validation.status).toBe(0);
+    expect(JSON.parse(validation.stdout).findings.length).toBeGreaterThan(0);
+  });
 });

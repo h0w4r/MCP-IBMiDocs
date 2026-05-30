@@ -4,6 +4,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import type { CorpusManifest, DocumentRecord, SourceManifest } from "../types.js";
 import { nowIso } from "../util/common.js";
+import { resolveContainedPath } from "../util/paths.js";
 
 interface BuildPackOptions {
   inputDir: string;
@@ -105,26 +106,40 @@ async function loadInputManifests(inputDir: string): Promise<CorpusManifest[]> {
 }
 
 function dedupeDocuments(documents: DocumentRecord[]): DocumentRecord[] {
-  const byHash = new Map<string, DocumentRecord>();
+  const byIdentity = new Map<string, DocumentRecord>();
   for (const doc of documents) {
     const key = buildDocumentDedupeKey(doc);
-    const existing = byHash.get(key);
-    if (!existing || sourcePriority(doc.sourceKind) < sourcePriority(existing.sourceKind)) byHash.set(key, doc);
+    const existing = byIdentity.get(key);
+    if (!existing || sourcePriority(doc.sourceKind) < sourcePriority(existing.sourceKind)) byIdentity.set(key, doc);
   }
-  return [...byHash.values()].sort((a, b) => a.title.localeCompare(b.title));
+  return [...byIdentity.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
 function buildDocumentDedupeKey(doc: DocumentRecord): string {
-  if (doc.sha256) return `sha:${doc.sha256}`;
   const canonical = doc.canonicalTopicKey ?? canonicalTopicKeyForBuild(doc);
-  if (canonical && canonical !== "ibm-i-general:topic") return `topic:${doc.version}:${doc.category}:${canonical}`;
-  return `url:${doc.canonicalUrl}`;
+  if (isUsefulCanonicalKey(canonical)) return `topic:${doc.version}:${doc.category}:${canonical}`;
+  if (doc.canonicalUrl) return `url:${doc.version}:${doc.category}:${normalizeCanonicalUrlForDedupe(doc.canonicalUrl)}`;
+  if (doc.sha256) return `sha:${doc.sha256}`;
+  return `id:${doc.id}`;
 }
 
 function sourcePriority(kind: string): number {
   if (kind === "rdi-local-export") return 0;
   if (kind === "ibm-docs") return 1;
   return 2;
+}
+
+function isUsefulCanonicalKey(key: string | undefined): boolean {
+  if (!key) return false;
+  return !/:(topic|ibm|ile|sql|cobol|dds|rpg|cl)$/i.test(key);
+}
+
+function normalizeCanonicalUrlForDedupe(url: string): string {
+  return url
+    .replace(/#.*$/, "")
+    .replace(/[?&]view=kc.*$/i, "")
+    .replace(/\/+$/, "")
+    .toLowerCase();
 }
 
 async function copyDocumentFiles(
@@ -141,8 +156,7 @@ async function copyDocumentFiles(
 
   const sourceRoots = new Map<string, string>();
   for (const manifest of manifests) {
-    const root = manifest.sources[0]?.kind === "rdi-local-export" ? path.join(inputDir, "rdi-export") : path.join(inputDir, "ibm-docs-cache");
-    for (const doc of manifest.documents) sourceRoots.set(doc.id, root);
+    for (const doc of manifest.documents) sourceRoots.set(doc.id, sourceRootForDocument(inputDir, doc, manifest));
   }
 
   const targetsById = new Map(targetDocuments.map((doc) => [doc.id, doc]));
@@ -151,15 +165,25 @@ async function copyDocumentFiles(
     if (!targetDoc) continue;
     const root = sourceRoots.get(sourceDoc.id);
     if (!root) continue;
-    const rawSource = path.join(root, sourceDoc.rawHtmlPath);
-    const normalizedSource = path.join(root, sourceDoc.normalizedTextPath);
-    const rawTarget = path.join(outDir, targetDoc.rawHtmlPath);
-    const normalizedTarget = path.join(outDir, targetDoc.normalizedTextPath);
+    const rawSource = resolveContainedPath(root, sourceDoc.rawHtmlPath);
+    const normalizedSource = resolveContainedPath(root, sourceDoc.normalizedTextPath);
+    const rawTarget = resolveContainedPath(outDir, targetDoc.rawHtmlPath);
+    const normalizedTarget = resolveContainedPath(outDir, targetDoc.normalizedTextPath);
+    if (!fsSync.existsSync(rawSource)) throw new Error(`No existe rawHtmlPath para ${sourceDoc.id}: ${sourceDoc.rawHtmlPath} en ${root}`);
+    if (!fsSync.existsSync(normalizedSource)) throw new Error(`No existe normalizedTextPath para ${sourceDoc.id}: ${sourceDoc.normalizedTextPath} en ${root}`);
     await fs.mkdir(path.dirname(rawTarget), { recursive: true });
     await fs.mkdir(path.dirname(normalizedTarget), { recursive: true });
-    await fs.copyFile(rawSource, rawTarget).catch(() => undefined);
-    await fs.copyFile(normalizedSource, normalizedTarget).catch(() => undefined);
+    await fs.copyFile(rawSource, rawTarget);
+    await fs.copyFile(normalizedSource, normalizedTarget);
   }
+}
+
+function sourceRootForDocument(inputDir: string, doc: DocumentRecord, manifest: CorpusManifest): string {
+  const source = manifest.sources.find((item) => item.id === doc.sourceId) ?? manifest.sources.find((item) => item.kind === doc.sourceKind);
+  const kind = source?.kind ?? doc.sourceKind;
+  if (kind === "rdi-local-export") return path.join(inputDir, "rdi-export");
+  if (kind === "ibm-docs") return path.join(inputDir, "ibm-docs-cache");
+  return inputDir;
 }
 
 async function buildSqlite(dbPath: string, packRoot: string, documents: DocumentRecord[], manifest: CorpusManifest): Promise<void> {
@@ -413,7 +437,7 @@ function classifyDocumentKindForBuild(doc: DocumentRecord): NonNullable<Document
 }
 
 function canonicalTopicKeyForBuild(doc: DocumentRecord): string {
-  const command = doc.title.match(/\b[A-Z]{2,}[A-Z0-9]*(?:-[A-Z0-9]+)?\b/)?.[0]?.toLowerCase();
+  const technical = extractCanonicalTechnicalTokenForBuild(doc);
   const bif = doc.title.match(/%[A-Z][A-Z0-9_-]+/i)?.[0]?.toLowerCase();
   const title = foldBuild(doc.title)
     .replace(/\b(description of the|using the|command|keyword|operation code|built-in function|send a message to the joblog)\b/g, " ")
@@ -423,7 +447,31 @@ function canonicalTopicKeyForBuild(doc: DocumentRecord): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80);
-  return `${doc.category}:${bif ?? command ?? title ?? "topic"}`;
+  return `${doc.category}:${bif ?? technical ?? title ?? "topic"}`;
+}
+
+const BUILD_COMMAND_PREFIXES = [
+  "add", "alw", "ap", "call", "chg", "chk", "clr", "cpy", "crt", "dcl", "dlt", "dmp", "dsp", "ed", "end", "go", "grt",
+  "hold", "mon", "ovr", "prt", "rcv", "rel", "rmv", "rnm", "rst", "rtv", "run", "sav", "sbm", "snd", "str", "tfr", "wrk"
+];
+const BUILD_COMMAND_PATTERN = new RegExp(`^(${BUILD_COMMAND_PREFIXES.join("|")})[a-z0-9]{1,}$`, "i");
+const GENERIC_UPPERCASE_TERMS = new Set(["API", "CL", "COBOL", "DDS", "IBM", "ILE", "JCL", "RDI", "RPG", "SQL", "XML", "JSON", "HTML", "PDF", "PF", "LF"]);
+
+function extractCanonicalTechnicalTokenForBuild(doc: DocumentRecord): string | undefined {
+  const title = doc.title.trim();
+  const haystack = `${doc.title} ${doc.breadcrumbs.join(" ")} ${doc.category}`;
+  const message = haystack.match(/\b(RNF\d{4}|CPF\d{4}|MCH\d{4}|SQL\d{4,5})\b/i)?.[1];
+  if (message) return message.toLowerCase();
+  const opcode = title.match(/\b[A-Z]{2,}-[A-Z0-9-]+\b/)?.[0];
+  if (opcode) return opcode.toLowerCase();
+
+  const commandContext = /\b(command|commands|description of the .* command|using the .* command)\b/i.test(haystack);
+  const candidates = [...haystack.matchAll(/\b[A-Z][A-Z0-9]{1,11}\b/g)].map((match) => match[0]);
+  for (const candidate of candidates) {
+    if (GENERIC_UPPERCASE_TERMS.has(candidate)) continue;
+    if (BUILD_COMMAND_PATTERN.test(candidate) && commandContext) return candidate.toLowerCase();
+  }
+  return undefined;
 }
 
 function foldBuild(value: string): string {

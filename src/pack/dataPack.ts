@@ -3,7 +3,9 @@ import fsSync from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import * as tar from "tar";
-import { hasPack } from "../util/paths.js";
+import Database from "better-sqlite3";
+import { fetchBufferWithTimeout } from "../util/fetch.js";
+import { hasPack, resolveContainedPath } from "../util/paths.js";
 
 export interface InstallDataPackOptions {
   from: string;
@@ -32,21 +34,39 @@ export interface DataPackInfo {
 export const DEFAULT_PACK_RELEASE_URL =
   "https://github.com/h0w4r/MCP-IBMiDocs/releases/latest/download/ibmi-docs-pack.tgz";
 
+const DEFAULT_PACK_DOWNLOAD_TIMEOUT_MS = Number(process.env.IBMI_DOCS_PACK_DOWNLOAD_TIMEOUT_MS ?? 60_000);
+const DEFAULT_PACK_DOWNLOAD_MAX_BYTES = Number(process.env.IBMI_DOCS_PACK_DOWNLOAD_MAX_BYTES ?? 1024 * 1024 * 1024);
+const REQUIRED_SQLITE_TABLES = ["meta", "documents", "chunks", "chunks_fts", "document_sections"];
+
 export async function installDataPack(options: InstallDataPackOptions): Promise<{ outDir: string; source: string }> {
   const outDir = path.resolve(options.outDir);
-  await fs.mkdir(outDir, { recursive: true });
+  await fs.mkdir(path.dirname(outDir), { recursive: true });
   const source = await materializeSource(options.from);
+  const tempDir = await fs.mkdtemp(path.join(path.dirname(outDir), `.${path.basename(outDir)}-install-`));
 
-  // Si la fuente ya es un directorio de pack, copiamos tal cual; si es tgz/tar, extraemos en el destino.
-  const stat = await fs.stat(source);
-  if (stat.isDirectory()) {
-    if (!hasPack(source)) throw new Error(`El directorio fuente no parece un data pack válido: ${source}`);
-    await fs.cp(source, outDir, { recursive: true, force: true });
-  } else {
-    await tar.x({ file: source, cwd: outDir, gzip: source.endsWith(".tgz") || source.endsWith(".gz") });
+  try {
+    // Si la fuente ya es un directorio de pack, copiamos al temporal; si es tgz/tar,
+    // extraemos al temporal. El destino real se reemplaza solo después de verificar.
+    const stat = await fs.stat(source);
+    if (stat.isDirectory()) {
+      const sourceInfo = await verifyDataPack(source);
+      if (!sourceInfo.ok) throw new Error(`El directorio fuente no parece un data pack válido: ${source}: ${sourceInfo.issues.join("; ")}`);
+      await fs.cp(source, tempDir, { recursive: true, force: true });
+    } else {
+      await extractArchiveSafely(source, tempDir);
+    }
+
+    const installedInfo = await verifyDataPack(tempDir);
+    if (!installedInfo.ok) {
+      throw new Error(`El data pack descargado/extractado no es válido: ${installedInfo.issues.join("; ")}`);
+    }
+
+    await replaceDirectoryAtomically(tempDir, outDir);
+  } catch (error) {
+    await fs.rm(tempDir, { recursive: true, force: true });
+    throw error;
   }
 
-  if (!hasPack(outDir)) throw new Error(`La instalación terminó, pero ${outDir} no contiene manifest.json e ibmi-docs.sqlite.`);
   return { outDir, source };
 }
 
@@ -58,7 +78,8 @@ export async function installLatestDataPack(options: InstallLatestDataPackOption
 
 export async function archiveDataPack(options: ArchiveDataPackOptions): Promise<{ outFile: string }> {
   const packDir = path.resolve(options.packDir);
-  if (!hasPack(packDir)) throw new Error(`No se puede archivar un pack inválido: ${packDir}`);
+  const info = await verifyDataPack(packDir);
+  if (!info.ok) throw new Error(`No se puede archivar un pack inválido: ${packDir}: ${info.issues.join("; ")}`);
   const outFile = path.resolve(options.outFile);
   await fs.mkdir(path.dirname(outFile), { recursive: true });
   await tar.c({ gzip: true, cwd: packDir, file: outFile }, ["."]);
@@ -76,23 +97,35 @@ export async function verifyDataPack(packDir: string): Promise<DataPackInfo> {
   let generatedAt: string | undefined;
   let documents: number | undefined;
   if (fsSync.existsSync(manifestFile)) {
-    const raw = await fs.readFile(manifestFile, "utf8");
-    if (/127\.0\.0\.1|localhost|52070/i.test(raw)) issues.push("El manifest contiene referencias loopback/RDi temporales no aptas para runtime.");
-    const manifest = JSON.parse(raw) as { corpusVersion?: string; generatedAt?: string; documents?: unknown[] };
-    corpusVersion = manifest.corpusVersion;
-    generatedAt = manifest.generatedAt;
-    documents = manifest.documents?.length ?? 0;
-    if (!documents) issues.push("El manifest no contiene documentos.");
-    for (const doc of manifest.documents ?? []) {
-      for (const key of ["rawHtmlPath", "normalizedTextPath"] as const) {
-        const relative = String((doc as any)[key] ?? "");
-        if (!relative) {
-          issues.push(`Documento sin ${key}: ${(doc as any).id ?? "(sin id)"}`);
-          continue;
+    try {
+      const raw = await fs.readFile(manifestFile, "utf8");
+      if (/127\.0\.0\.1|localhost|52070/i.test(raw)) issues.push("El manifest contiene referencias loopback/RDi temporales no aptas para runtime.");
+      const manifest = JSON.parse(raw) as { corpusVersion?: string; generatedAt?: string; documents?: unknown[] };
+      corpusVersion = manifest.corpusVersion;
+      generatedAt = manifest.generatedAt;
+      documents = manifest.documents?.length ?? 0;
+      if (!documents) issues.push("El manifest no contiene documentos.");
+      for (const doc of manifest.documents ?? []) {
+        for (const key of ["rawHtmlPath", "normalizedTextPath"] as const) {
+          const relative = String((doc as any)[key] ?? "");
+          if (!relative) {
+            issues.push(`Documento sin ${key}: ${(doc as any).id ?? "(sin id)"}`);
+            continue;
+          }
+          try {
+            const file = resolveContainedPath(resolved, relative);
+            if (!fsSync.existsSync(file)) issues.push(`Archivo faltante para ${(doc as any).id ?? "(sin id)"}: ${relative}`);
+          } catch (error) {
+            issues.push(`Ruta inválida para ${(doc as any).id ?? "(sin id)"} (${key}): ${error instanceof Error ? error.message : String(error)}`);
+          }
         }
-        if (!fsSync.existsSync(path.join(resolved, relative))) issues.push(`Archivo faltante para ${(doc as any).id ?? "(sin id)"}: ${relative}`);
       }
+    } catch (error) {
+      issues.push(`No se pudo leer/parsear manifest.json: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+  if (fsSync.existsSync(sqliteFile)) {
+    validateSqlitePack(sqliteFile, documents, issues);
   }
   return { packDir: resolved, ok: issues.length === 0, corpusVersion, documents, generatedAt, issues };
 }
@@ -125,7 +158,14 @@ export async function lintContribution(inputDir: string): Promise<{ ok: boolean;
       if (doc.id) ids.add(doc.id);
       for (const key of ["rawHtmlPath", "normalizedTextPath"] as const) {
         const value = doc[key];
-        if (value && !fsSync.existsSync(path.join(resolved, value))) issues.push(`Archivo faltante para ${doc.id}: ${value}`);
+        if (value) {
+          try {
+            const file = resolveContainedPath(resolved, value);
+            if (!fsSync.existsSync(file)) issues.push(`Archivo faltante para ${doc.id}: ${value}`);
+          } catch (error) {
+            issues.push(`Ruta inválida para ${doc.id}: ${error instanceof Error ? error.message : String(error)}`);
+          }
+        }
       }
       if (!doc.sha256) hints.push(`Considera incluir sha256 para ${doc.id ?? doc.title}.`);
     }
@@ -145,9 +185,13 @@ export async function lintContribution(inputDir: string): Promise<{ ok: boolean;
 
 async function materializeSource(source: string): Promise<string> {
   if (/^https?:\/\//i.test(source)) {
-    const response = await fetch(source);
-    if (!response.ok) throw new Error(`No se pudo descargar ${source}: HTTP ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const { buffer, contentType } = await fetchBufferWithTimeout(source, {
+      timeoutMs: DEFAULT_PACK_DOWNLOAD_TIMEOUT_MS,
+      maxBytes: DEFAULT_PACK_DOWNLOAD_MAX_BYTES
+    });
+    if (!isLikelyArchiveDownload(source, contentType)) {
+      throw new Error(`La URL no parece entregar un archivo tar/tgz válido: content-type=${contentType || "n/a"}`);
+    }
     const file = path.join(await fs.mkdtemp(path.join(os.tmpdir(), "ibmi-docs-pack-")), path.basename(new URL(source).pathname) || "pack.tgz");
     await fs.writeFile(file, buffer);
     return file;
@@ -155,4 +199,78 @@ async function materializeSource(source: string): Promise<string> {
   const local = path.resolve(source);
   if (!fsSync.existsSync(local)) throw new Error(`No existe la fuente de data pack: ${local}`);
   return local;
+}
+
+function validateSqlitePack(sqliteFile: string, manifestDocuments: number | undefined, issues: string[]): void {
+  let db: Database.Database | undefined;
+  try {
+    db = new Database(sqliteFile, { readonly: true, fileMustExist: true });
+    const integrity = String(db.pragma("integrity_check", { simple: true }));
+    if (integrity.toLowerCase() !== "ok") issues.push(`SQLite integrity_check falló: ${integrity}`);
+    const tables = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table', 'virtual')").all() as Array<{ name: string }>).map((row) => row.name));
+    for (const table of REQUIRED_SQLITE_TABLES) {
+      if (!tables.has(table)) issues.push(`SQLite sin tabla requerida: ${table}`);
+    }
+    if (tables.has("documents")) {
+      const row = db.prepare("SELECT COUNT(*) AS count FROM documents").get() as { count: number };
+      if (manifestDocuments !== undefined && manifestDocuments !== row.count) {
+        issues.push(`Conteo inconsistente: manifest=${manifestDocuments}, sqlite.documents=${row.count}`);
+      }
+    }
+    if (tables.has("meta")) {
+      const meta = db.prepare("SELECT value FROM meta WHERE key = ?").get("manifest") as { value: string } | undefined;
+      if (!meta?.value) issues.push("SQLite meta no contiene manifest.");
+      else JSON.parse(meta.value);
+    }
+  } catch (error) {
+    issues.push(`SQLite inválido: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    db?.close();
+  }
+}
+
+async function extractArchiveSafely(source: string, outDir: string): Promise<void> {
+  await tar.x({
+    file: source,
+    cwd: outDir,
+    gzip: source.endsWith(".tgz") || source.endsWith(".gz"),
+    filter: (entryPath, entry) => {
+      if (!isSafeArchivePath(entryPath)) throw new Error(`Entrada insegura en archivo tar: ${entryPath}`);
+      const entryType = String((entry as { type?: string }).type ?? "");
+      if (entryType === "SymbolicLink" || entryType === "Link") throw new Error(`Links no permitidos en data pack: ${entryPath}`);
+      return true;
+    }
+  });
+}
+
+function isSafeArchivePath(entryPath: string): boolean {
+  const normalized = entryPath.replace(/\\/g, "/");
+  if (!normalized || normalized === ".") return true;
+  if (path.posix.isAbsolute(normalized) || /^[a-z]:/i.test(normalized)) return false;
+  const clean = path.posix.normalize(normalized);
+  return clean !== ".." && !clean.startsWith("../") && !clean.includes("/../");
+}
+
+async function replaceDirectoryAtomically(sourceDir: string, targetDir: string): Promise<void> {
+  let backupDir: string | undefined;
+  await fs.mkdir(path.dirname(targetDir), { recursive: true });
+  if (fsSync.existsSync(targetDir)) {
+    backupDir = await fs.mkdtemp(path.join(path.dirname(targetDir), `.${path.basename(targetDir)}-backup-`));
+    await fs.rm(backupDir, { recursive: true, force: true });
+    await fs.rename(targetDir, backupDir);
+  }
+  try {
+    await fs.rename(sourceDir, targetDir);
+    if (backupDir) await fs.rm(backupDir, { recursive: true, force: true });
+  } catch (error) {
+    if (backupDir && !fsSync.existsSync(targetDir) && fsSync.existsSync(backupDir)) {
+      await fs.rename(backupDir, targetDir);
+    }
+    throw error;
+  }
+}
+
+function isLikelyArchiveDownload(source: string, contentType: string): boolean {
+  if (/\.(tgz|tar|tar\.gz|gz)$/i.test(new URL(source).pathname)) return true;
+  return /gzip|tar|octet-stream|x-gtar|x-tar/i.test(contentType);
 }

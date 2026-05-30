@@ -182,9 +182,10 @@ describe("capacidades agénticas del repositorio", () => {
   it("emite reporte de calidad y recetas comunitarias", () => {
     const result = withRepo((repo) => ({ quality: repo.qualityReport(), recipes: repo.recipes() }));
 
+    expect(result.quality.ok).toBe(false);
     expect(result.quality.documents).toBeGreaterThan(1000);
     expect(result.quality.documentKinds.topic).toBeGreaterThan(0);
-    expect(result.quality.duplicateCanonicalTopics.length).toBeGreaterThan(0);
+    expect(result.quality.duplicateCanonicalTopics.length).toBe(0);
     expect(result.quality.recommendations.length).toBeGreaterThan(0);
     expect(result.recipes.length).toBeGreaterThan(3);
   });
@@ -270,6 +271,21 @@ describe("capacidades agénticas del repositorio", () => {
     expect(result.stages.map((stage) => stage.tool)).toContain("ibmi_docs_explain_message");
   });
 
+  it("no mezcla evidencia genérica cuando un CPF/MCH no tiene entrada documental de mensaje", () => {
+    const result = withRepo((repo) => repo.resolve({
+      question: "Diagnostica CPF0001 en joblog IBM i",
+      limit: 4
+    }));
+
+    expect(result.intent).toBe("message_diagnostic");
+    expect(result.confidence).toBe("baja");
+    expect(result.messageExplanation?.messageId).toBe("CPF0001");
+    expect(result.messageExplanation?.evidence).toEqual([]);
+    expect(result.evidence).toEqual([]);
+    expect(result.warnings.join(" ")).toMatch(/no se encontró evidencia exacta|No hay evidencia/i);
+    expect(JSON.stringify(result)).not.toMatch(/ILE COBOL|IBM Extensions|Simple Insertion Editing/i);
+  });
+
   it("resuelve guía de compilación SQLRPGLE con contexto y compile guidance", () => {
     const result = withRepo((repo) => repo.resolve({
       question: "Cómo compilo un programa SQLRPGLE con EXEC SQL y /COPY",
@@ -308,6 +324,19 @@ describe("capacidades agénticas del repositorio", () => {
     expect(results[0]?.nextRecommendedArguments).toMatchObject({ id: results[0]?.id });
     expect(results[0]?.autoReadApplied).toBe(true);
     expect(results[0]?.fullContent?.length).toBeGreaterThan(1000);
+  });
+
+  it("detecta comandos CL comunes sin recomendar lenguajes inválidos", () => {
+    const results = withRepo((repo) => repo.search({
+      query: "SBMJOB command",
+      limit: 5
+    }));
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some((hit) => `${hit.title} ${hit.snippet}`.includes("SBMJOB"))).toBe(true);
+    const serializedArgs = JSON.stringify(results.map((hit) => hit.nextRecommendedArguments ?? {}));
+    expect(serializedArgs).not.toContain("SBMJOB COMMAND");
+    expect(serializedArgs).toMatch(/CLLE|ibmi_docs_sections|id/);
   });
 
   it("registra trazas opcionales y calcula tasas de uso", () => {

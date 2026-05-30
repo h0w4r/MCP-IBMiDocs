@@ -3,6 +3,7 @@ import path from "node:path";
 import pLimit from "p-limit";
 import type { CorpusManifest, DocumentRecord } from "../types.js";
 import { ensureSafeFileName, nowIso, sha256, toPosixPath } from "../util/common.js";
+import { fetchTextWithTimeout } from "../util/fetch.js";
 import { extractDocumentContent, inferCategory, foldForSearch } from "../util/html.js";
 
 interface SyncIbmOptions {
@@ -29,6 +30,8 @@ interface PlannedTopic {
 const DEFAULT_VERSIONS = ["7.3.0", "7.4.0", "7.5.0", "7.6.0"];
 const IBM_DOCS_BASE = "https://www.ibm.com/docs";
 const USER_AGENT = "ibmi-docs-mcp-builder/0.4 (+community documentation index)";
+const DEFAULT_HTTP_TIMEOUT_MS = Number(process.env.IBMI_DOCS_HTTP_TIMEOUT_MS ?? 45_000);
+const DEFAULT_HTTP_MAX_BYTES = Number(process.env.IBMI_DOCS_HTTP_MAX_BYTES ?? 25 * 1024 * 1024);
 
 // Raíces técnicas orientadas a desarrolladores IBM i. Excluimos intencionalmente
 // contenido de IDE, Eclipse, instalación de RDi o UI, porque el MCP final será
@@ -360,12 +363,11 @@ async function fetchTextWithRetry(url: string, label: string, attempts = 3): Pro
   let lastError = "";
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-      if (!response.ok) {
-        lastError = `HTTP ${response.status} ${response.statusText}`;
-      } else {
-        return response.text();
-      }
+      return await fetchTextWithTimeout(url, {
+        headers: { "User-Agent": USER_AGENT },
+        timeoutMs: DEFAULT_HTTP_TIMEOUT_MS,
+        maxBytes: DEFAULT_HTTP_MAX_BYTES
+      });
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
     }

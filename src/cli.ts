@@ -153,6 +153,93 @@ program
   }))));
 
 program
+  .command("context")
+  .description("Genera un paquete contextual agéntico equivalente a ibmi_docs_context.")
+  .argument("<task>", "Tarea IBM i a resolver")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--language <language>", "Lenguaje/tecnología")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
+  .option("--limit <n>", "Límite", "8")
+  .action((task, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.context({
+    task,
+    language: opts.language,
+    version: getIbmVersion(opts),
+    limit: Number(opts.limit)
+  }))));
+
+program
+  .command("compile-guidance")
+  .description("Recomienda comandos/opciones de compilación equivalente a ibmi_docs_compile_guidance.")
+  .requiredOption("--language <language>", "Lenguaje/tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--target <target>", "Objetivo: module, program, service-program, file")
+  .option("--embedded-sql", "Indica uso de SQL embebido")
+  .option("--uses-copybook", "Indica uso de /COPY, /INCLUDE o copybooks")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
+  .option("--limit <n>", "Límite", "8")
+  .action((opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.compileGuidance({
+    language: String(opts.language),
+    target: opts.target,
+    usesEmbeddedSql: Boolean(opts.embeddedSql),
+    usesCopybook: Boolean(opts.usesCopybook),
+    version: getIbmVersion(opts),
+    limit: Number(opts.limit)
+  }))));
+
+program
+  .command("explain-message")
+  .description("Explica RNF/SQL/CPF/MCH equivalente a ibmi_docs_explain_message.")
+  .argument("<messageId>", "ID de mensaje, por ejemplo RNF0004, CPF9898, MCH3601")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--limit <n>", "Límite", "6")
+  .action((messageId, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.explainMessage({
+    messageId,
+    limit: Number(opts.limit)
+  }))));
+
+program
+  .command("related")
+  .description("Busca equivalentes por versión y documentos vecinos equivalente a ibmi_docs_related.")
+  .argument("<id>", "ID de documento")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--limit <n>", "Límite", "8")
+  .action((id, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.related(id, { limit: Number(opts.limit) }))));
+
+program
+  .command("compare-versions")
+  .description("Compara un tópico entre releases equivalente a ibmi_docs_compare_versions.")
+  .argument("<query>", "Consulta técnica")
+  .requiredOption("--versions <list>", "Versiones separadas por coma, por ejemplo 7.3,7.4,7.5,7.6")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--category <category>", "Categoría")
+  .option("--limit <n>", "Límite", "5")
+  .action((query, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.compareVersions({
+    query,
+    versions: parseList(String(opts.versions)),
+    category: opts.category,
+    limit: Number(opts.limit)
+  }))));
+
+program
+  .command("validate-code-context")
+  .description("Valida código IBM i contra el corpus equivalente a ibmi_docs_validate_code_context.")
+  .requiredOption("--language <language>", "Lenguaje/tecnología")
+  .option("--code <code>", "Código inline a validar")
+  .option("--code-file <file>", "Archivo de código a validar")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--limit <n>", "Límite", "8")
+  .action(async (opts) => {
+    const code = await readCodeInput(opts);
+    withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.validateCodeContext({
+      language: String(opts.language),
+      code,
+      limit: Number(opts.limit)
+    })));
+  });
+
+program
   .command("explain-ranking")
   .description("Explica por qué ganó cada resultado de búsqueda.")
   .argument("<query>", "Consulta técnica")
@@ -351,6 +438,16 @@ function withRepo<T>(explicitPack: string, callback: (repo: CorpusRepository, re
 
 function getIbmVersion(opts: Record<string, unknown>): string | undefined {
   return (opts.ibmiVersion ?? opts.release) ? String(opts.ibmiVersion ?? opts.release) : undefined;
+}
+
+function parseList(value: string): string[] {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+async function readCodeInput(opts: Record<string, unknown>): Promise<string> {
+  if (opts.codeFile) return fs.readFile(path.resolve(String(opts.codeFile)), "utf8");
+  if (opts.code) return String(opts.code);
+  throw new Error("Indica --code <texto> o --code-file <archivo>.");
 }
 
 function renderCodexConfig(input: { command: string; server: string; cwd: string; pack: string }): string {
