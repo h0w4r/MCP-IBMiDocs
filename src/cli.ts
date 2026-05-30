@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 import path from "node:path";
+import fs from "node:fs/promises";
 import { Command } from "commander";
 import { exportRdiHelp } from "./ingest/rdiExporter.js";
 import { syncIbmDocs } from "./ingest/ibmDocsCrawler.js";
 import { buildDataPack } from "./ingest/packBuilder.js";
 import { CorpusRepository } from "./repository/CorpusRepository.js";
-import { archiveDataPack, installDataPack, lintContribution, listCandidatePacks, verifyDataPack } from "./pack/dataPack.js";
+import { archiveDataPack, installDataPack, installLatestDataPack, lintContribution, listCandidatePacks, verifyDataPack } from "./pack/dataPack.js";
 import { defaultUserPackDir, resolvePackDir } from "./util/paths.js";
 
 const program = new Command();
 program
   .name("ibmi-docs")
   .description("CLI de construcción, validación y consulta del corpus local para MCP IBM i Docs.")
-  .version("0.4.0");
+  .version("0.5.0");
 
 program
   .command("export-rdi")
@@ -36,7 +37,7 @@ program
   .description("Sincroniza documentación pública IBM Docs. No usa RDi ni endpoints locales.")
   .option("--out <dir>", "Directorio de salida", "data/ibm-docs-cache")
   .option("--versions <list>", "Versiones IBM i separadas por coma", "7.3.0,7.4.0,7.5.0,7.6.0")
-  .option("--max-pages-per-version <n>", "Límite de páginas por versión", "160")
+  .option("--max-pages-per-version <n>", "Límite de páginas por versión", "500")
   .option("--concurrency <n>", "Descargas paralelas", "5")
   .action(async (opts) => {
     const versions = String(opts.versions).split(",").map((value) => value.trim()).filter(Boolean);
@@ -71,7 +72,8 @@ program
   .argument("<query>", "Consulta técnica")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--category <category>", "Categoría")
-  .option("--version <version>", "Versión IBM i")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
   .option("--limit <n>", "Límite", "8")
   .option("--mode <mode>", "fts|hybrid", "hybrid")
   .option("--auto-read", "Adjunta contenido completo para resultados fuertes")
@@ -79,7 +81,7 @@ program
   .action((query, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.search({
     query,
     category: opts.category,
-    version: opts.version,
+    version: getIbmVersion(opts),
     limit: Number(opts.limit),
     mode: opts.mode,
     autoRead: Boolean(opts.autoRead),
@@ -110,7 +112,8 @@ program
   .argument("<question>", "Pregunta técnica")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--language <language>", "Lenguaje/tecnología")
-  .option("--version <version>", "Versión IBM i")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
   .option("--category <category>", "Categoría")
   .option("--examples", "Incluye ejemplos si existen")
   .option("--compile", "Incluye comandos/opciones de compilación")
@@ -118,7 +121,7 @@ program
   .action((question, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.answer({
     question,
     language: opts.language,
-    version: opts.version,
+    version: getIbmVersion(opts),
     category: opts.category,
     includeExamples: Boolean(opts.examples),
     includeCompileCommands: Boolean(opts.compile),
@@ -131,7 +134,8 @@ program
   .argument("<question>", "Pregunta técnica")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--language <language>", "Lenguaje/tecnología")
-  .option("--version <version>", "Versión IBM i")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
   .option("--category <category>", "Categoría")
   .option("--code <code>", "Código a validar documentalmente")
   .option("--examples", "Incluye ejemplos si existen")
@@ -140,7 +144,7 @@ program
   .action((question, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.resolve({
     question,
     language: opts.language,
-    version: opts.version,
+    version: getIbmVersion(opts),
     category: opts.category,
     code: opts.code,
     includeExamples: Boolean(opts.examples),
@@ -154,14 +158,46 @@ program
   .argument("<query>", "Consulta técnica")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--category <category>", "Categoría")
-  .option("--version <version>", "Versión IBM i")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
   .option("--top <n>", "Cantidad de resultados", "5")
   .action((query, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.explainRanking({
     query,
     category: opts.category,
-    version: opts.version,
+    version: getIbmVersion(opts),
     top: Number(opts.top)
   }))));
+
+program
+  .command("report-query")
+  .description("Genera un reporte reproducible para depurar búsquedas/ranking y abrir issues de contribución.")
+  .argument("<query>", "Consulta técnica que dio mal resultado")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--category <category>", "Categoría")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
+  .option("--expected-title <title>", "Título esperado o fragmento")
+  .option("--expected-id <id>", "ID esperado")
+  .option("--notes <text>", "Notas del reportante")
+  .option("--limit <n>", "Límite", "8")
+  .option("--out <file>", "Escribe el issue Markdown en un archivo")
+  .action(async (query, opts) => {
+    const report = withRepo(String(opts.pack ?? ""), (repo) => repo.reportQuery({
+      query,
+      category: opts.category,
+      version: getIbmVersion(opts),
+      expectedTitle: opts.expectedTitle,
+      expectedId: opts.expectedId,
+      notes: opts.notes,
+      limit: Number(opts.limit)
+    }));
+    if (opts.out) {
+      const outFile = path.resolve(String(opts.out));
+      await fs.mkdir(path.dirname(outFile), { recursive: true });
+      await fs.writeFile(outFile, report.issueMarkdown, "utf8");
+    }
+    printJson(report);
+  });
 
 program
   .command("validate-pack")
@@ -263,10 +299,23 @@ pack
 pack
   .command("install")
   .description("Instala un data pack desde directorio local, .tar/.tgz o URL de release asset.")
-  .requiredOption("--from <source>", "Directorio, .tgz/.tar o URL")
+  .option("--from <source>", "Directorio, .tgz/.tar o URL")
+  .option("--latest", "Instala el data pack del release público más reciente")
   .option("--out <dir>", "Destino", defaultUserPackDir())
   .action(async (opts) => {
-    const result = await installDataPack({ from: String(opts.from), outDir: String(opts.out) });
+    if (!opts.from && !opts.latest) throw new Error("Indica --from <source> o --latest.");
+    const result = opts.latest
+      ? await installLatestDataPack({ outDir: String(opts.out) })
+      : await installDataPack({ from: String(opts.from), outDir: String(opts.out) });
+    printJson(result);
+  });
+
+pack
+  .command("update")
+  .description("Actualiza el data pack local desde el release público más reciente o desde IBMI_DOCS_PACK_LATEST_URL.")
+  .option("--out <dir>", "Destino", defaultUserPackDir())
+  .action(async (opts) => {
+    const result = await installLatestDataPack({ outDir: String(opts.out) });
     printJson(result);
   });
 
@@ -298,6 +347,10 @@ function withRepo<T>(explicitPack: string, callback: (repo: CorpusRepository, re
   } finally {
     repo.close();
   }
+}
+
+function getIbmVersion(opts: Record<string, unknown>): string | undefined {
+  return (opts.ibmiVersion ?? opts.release) ? String(opts.ibmiVersion ?? opts.release) : undefined;
 }
 
 function renderCodexConfig(input: { command: string; server: string; cwd: string; pack: string }): string {

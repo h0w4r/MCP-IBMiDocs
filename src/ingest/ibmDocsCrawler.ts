@@ -28,17 +28,34 @@ interface PlannedTopic {
 
 const DEFAULT_VERSIONS = ["7.3.0", "7.4.0", "7.5.0", "7.6.0"];
 const IBM_DOCS_BASE = "https://www.ibm.com/docs";
-const USER_AGENT = "ibmi-docs-mcp-builder/0.1 (+community documentation index)";
+const USER_AGENT = "ibmi-docs-mcp-builder/0.4 (+community documentation index)";
 
 // Raíces técnicas orientadas a desarrolladores IBM i. Excluimos intencionalmente
 // contenido de IDE, Eclipse, instalación de RDi o UI, porque el MCP final será
 // consumido desde Codex/otros IDEs y no debe enseñar workflows propios de RDi.
 const CORE_PATH_PREFIXES = [
   "ibm i > programming > control language > cl programming",
+  "ibm i > programming > commands",
+  "ibm i > programming > programming concepts",
   "ibm i > programming > dds",
   "ibm i > programming > ile languages > rpg",
+  "ibm i > programming > ile languages > cobol",
+  "ibm i > programming > apis",
+  "ibm i > programming > messages",
+  "ibm i > security > reference",
   "ibm i > database > reference > sql reference",
-  "ibm i > database > reference > sql messages and codes"
+  "ibm i > database > reference > sql messages and codes",
+  "ibm i > database > programming",
+  "ibm i > database > performance and query optimization"
+];
+
+const CORE_TOPIC_PATTERNS = [
+  /\b(command|commands|cl command|crt[a-z0-9]+|chg[a-z0-9]+|dsp[a-z0-9]+|wrk[a-z0-9]+|snd[a-z0-9-]+)\b/i,
+  /\b(rpg|rpgle|ile rpg|operation code|built-in function|%[a-z][a-z0-9_-]+)\b/i,
+  /\b(clle|control language|monmsg|sndpgmmsg|rtvjoba|crtbndcl)\b/i,
+  /\b(dds|physical file|logical file|display file|printer file|keyword)\b/i,
+  /\b(sqlrpgle|embedded sql|db2 for i|sql messages|sql codes|crt(sql)?rpgi)\b/i,
+  /\b(rnf\d{4}|cpf\d{4}|mch\d{4}|message id|compiler message)\b/i
 ];
 
 const IMPORTANT_TOPIC_IDS = new Set([
@@ -52,6 +69,18 @@ const IMPORTANT_TOPIC_IDS = new Set([
   "reference-sql-messages-codes",
   "commands-crtrpgmod-command",
   "command-description-crtrpgmod",
+  "commands-crtbndrpg-command",
+  "commands-crtsqlrpgi-command",
+  "commands-crtbndcl-command",
+  "commands-crtpf-command",
+  "commands-crtlf-command",
+  "commands-sndpgmmsg-command",
+  "message-snd-msg-send-message-joblog",
+  "operation-code-snd-msg-send-message-joblog",
+  "built-in-function-msg-message",
+  "built-in-function-target",
+  "rpg-messages",
+  "cl-command-finder",
   "object-using-crtrpgmod-command",
   "strategies-strategy-3-ile-application-using-crtrpgmod"
 ]);
@@ -152,9 +181,7 @@ async function crawlVersion(
 
 async function fetchIbmToc(version: string, rawDir: string): Promise<IbmTocNode> {
   const tocUrl = `${IBM_DOCS_BASE}/api/v1/toc/i/${version}`;
-  const response = await fetch(tocUrl, { headers: { "User-Agent": USER_AGENT } });
-  if (!response.ok) throw new Error(`No se pudo leer TOC IBM Docs ${version}: HTTP ${response.status} ${response.statusText}`);
-  const text = await response.text();
+  const text = await fetchTextWithRetry(tocUrl, `TOC IBM Docs ${version}`);
 
   // Guardamos el TOC bruto como evidencia de cobertura y reproducibilidad del snapshot.
   await fs.writeFile(path.join(rawDir, `toc-i-${version}.json`), text, "utf8");
@@ -189,7 +216,9 @@ function selectDeveloperTopics(root: IbmTocNode): PlannedTopic[] {
 
 function isCoreDeveloperPath(pathText: string, topicId: string): boolean {
   if (IMPORTANT_TOPIC_IDS.has(topicId)) return true;
-  return CORE_PATH_PREFIXES.some((prefix) => pathText.startsWith(prefix));
+  const haystack = `${pathText} ${foldForSearch(topicId)}`;
+  return CORE_PATH_PREFIXES.some((prefix) => pathText.startsWith(prefix))
+    || CORE_TOPIC_PATTERNS.some((pattern) => pattern.test(haystack));
 }
 
 function isExcludedDoc(breadcrumbs: string[], href: string, topicId: string): boolean {
@@ -273,12 +302,7 @@ async function fetchIbmTopic(
 
   for (const url of candidateUrls) {
     try {
-      const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-      if (!response.ok) {
-        lastError = `HTTP ${response.status} ${response.statusText}`;
-        continue;
-      }
-      const text = await response.text();
+      const text = await fetchTextWithRetry(url, publicTopicUrl(topic, version), 2);
       if (looksLikeIbm404Shell(text)) {
         lastError = "IBM Docs devolvió shell 404";
         continue;
@@ -332,6 +356,24 @@ async function fetchIbmTopic(
   };
 }
 
+async function fetchTextWithRetry(url: string, label: string, attempts = 3): Promise<string> {
+  let lastError = "";
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+      if (!response.ok) {
+        lastError = `HTTP ${response.status} ${response.statusText}`;
+      } else {
+        return response.text();
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+  }
+  throw new Error(`No se pudo leer ${label}: ${lastError || "sin respuesta"}`);
+}
+
 function buildContentUrls(topic: PlannedTopic, version: string): string[] {
   const urls: string[] = [];
   if (topic.href) {
@@ -372,9 +414,12 @@ function looksLikeIbm404Shell(html: string): boolean {
 function summarizeCoverage(documents: DocumentRecord[], failedCount: number, tocStats: Record<string, unknown>): Record<string, unknown> {
   const byCategory: Record<string, number> = {};
   const byVersion: Record<string, number> = {};
+  const byDocumentKind: Record<string, number> = {};
   for (const doc of documents) {
     byCategory[doc.category] = (byCategory[doc.category] ?? 0) + 1;
     byVersion[doc.version] = (byVersion[doc.version] ?? 0) + 1;
+    const kind = doc.textLength < 300 ? "stub" : /what'?s new|contents|index|overview/i.test(doc.title) ? "index" : "topic";
+    byDocumentKind[kind] = (byDocumentKind[kind] ?? 0) + 1;
   }
-  return { documentCount: documents.length, failedCount, byCategory, byVersion, tocStats };
+  return { documentCount: documents.length, failedCount, byCategory, byVersion, byDocumentKind, tocStats };
 }

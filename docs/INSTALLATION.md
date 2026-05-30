@@ -27,7 +27,7 @@ git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
 $env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 ibmi-docs doctor
 ibmi-docs validate-pack
-ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 3
+ibmi-docs search "CRTRPGMOD" --category ile-rpg --ibmi-version 7.5 --limit 3
 ```
 
 ### macOS/Linux
@@ -38,13 +38,14 @@ git clone https://github.com/h0w4r/MCP-IBMiDocs.git ~/MCP-IBMiDocs
 export IBMI_DOCS_PACK_DIR="$HOME/MCP-IBMiDocs/data/pack"
 ibmi-docs doctor
 ibmi-docs validate-pack
-ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 3
+ibmi-docs search "CRTRPGMOD" --category ile-rpg --ibmi-version 7.5 --limit 3
 ```
 
 ## Instalar una versión específica
 
 ```powershell
-npm install -g @ckirsch94/ibmi-docs-mcp@0.4.0
+npm view @ckirsch94/ibmi-docs-mcp versions
+npm install -g @ckirsch94/ibmi-docs-mcp@<version-publicada>
 ```
 
 ## Configurar Codex
@@ -100,6 +101,8 @@ ibmi-docs doctor
 
 Actualizar npm cambia el servidor/CLI, no el corpus documental.
 
+> `ibmi-docs --version` muestra la versión del CLI. Para filtrar documentación por release IBM i usa `--ibmi-version` o `--release`, por ejemplo `ibmi-docs search "CRTRPGMOD" --ibmi-version 7.6`.
+
 ### Repo/data pack incluido
 
 ```powershell
@@ -123,6 +126,18 @@ npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
 node dist/src/cli.js pack install --from D:\MCP-IBMiDocs\dist\ibmi-docs-pack.tgz --out <ruta-del-pack-en-uso>
 node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 ```
+
+### Data pack desde release asset
+
+El comando existe para cuando el proyecto publique un release asset `ibmi-docs-pack.tgz` o cuando tú definas una URL autorizada:
+
+```powershell
+$env:IBMI_DOCS_PACK_LATEST_URL = 'https://tu-host/ibmi-docs-pack.tgz'
+ibmi-docs pack update --out <ruta-del-pack-en-uso>
+ibmi-docs pack verify --pack <ruta-del-pack-en-uso>
+```
+
+Si no defines `IBMI_DOCS_PACK_LATEST_URL`, el CLI intentará usar el release público más reciente de GitHub. Si ese asset aún no existe, usa el flujo local con `pack archive` + `pack install --from`.
 
 ## Desinstalar
 
@@ -177,9 +192,10 @@ node dist/src/cli.js doctor
 ```powershell
 ibmi-docs doctor
 ibmi-docs diagnostics
-ibmi-docs resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --version 7.6 --examples
+ibmi-docs resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples
 ibmi-docs resolve "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE
 ibmi-docs resolve "Compara CRTRPGMOD entre IBM i 7.3 y 7.6"
 ibmi-docs search "DDS UNIQUE physical logical file" --category dds --limit 3
+ibmi-docs report-query "SND-MSG Send a Message to the Joblog" --category ile-rpg --expected-title "SND-MSG" --out snd-msg-ranking.md
 ibmi-docs validate-pack
 ```

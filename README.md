@@ -58,12 +58,29 @@ En macOS/Linux puedes usar `~/MCP-IBMiDocs`.
 ```powershell
 $env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 ibmi-docs doctor
-ibmi-docs search "CRTRPGMOD" --category ile-rpg --limit 3
+ibmi-docs search "CRTRPGMOD" --category ile-rpg --ibmi-version 7.5 --limit 3
 ```
 
 Si `doctor` muestra `Sin RDi, sin Eclipse Help, sin endpoint local de RDi`, vas bien.
 
 Más opciones: [instalación, actualización y desinstalación](docs/INSTALLATION.md).
+
+### Actualizar o eliminar
+
+```powershell
+# Actualizar runtime npm
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+
+# Actualizar repo/data pack clonado
+cd D:\MCP-IBMiDocs
+git pull --ff-only
+ibmi-docs doctor
+
+# Eliminar runtime npm
+npm uninstall -g @ckirsch94/ibmi-docs-mcp
+```
+
+Cuando exista un release asset público de data pack, podrás usar `ibmi-docs pack update`. Mientras tanto, el camino legítimo y reproducible sigue siendo usar el `data/pack` versionado en este repo o un `.tgz` que tú generes con `ibmi-docs pack archive`.
 
 ## Configuración rápida en Codex
 
@@ -116,8 +133,12 @@ Necesito un PF DDS con claves únicas. Busca la documentación de DDS PF y UNIQU
 ibmi-docs resolve "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --examples
 ibmi-docs answer "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
 ibmi-docs search "RNF0004" --category mensajes-rnf --limit 3
+ibmi-docs explain-ranking "SND-MSG Send a Message to the Joblog" --category ile-rpg --ibmi-version 7.5
+ibmi-docs report-query "SND-MSG Send a Message to the Joblog" --category ile-rpg --expected-title "SND-MSG" --out snd-msg-ranking.md
 ibmi-docs doctor
 ```
+
+> Nota CLI: `--version` queda reservado para mostrar la versión de `ibmi-docs`. Para filtrar release IBM i usa `--ibmi-version` o su alias `--release`.
 
 ## Herramientas MCP principales
 
@@ -139,7 +160,9 @@ Regla práctica para agentes: empieza por `ibmi_docs_resolve`. Si usas `ibmi_doc
 - CLI `ibmi-docs`.
 - Corpus local versionado como data pack (`manifest.json`, `raw/`, `normalized/`, `ibmi-docs.sqlite`).
 - Índice SQLite FTS5 con ranking para comandos, mensajes, DDS, SQLRPGLE, CLLE y RPGLE.
-- Tests golden de recuperación documental.
+- Ranking exacto/version-aware con guardrails para no citar evidencia irrelevante cuando buscas comandos, opcodes, BIFs o mensajes.
+- Clasificación de documentos (`topic`, `reference`, `index`, `landing`, `stub`), claves canónicas, secciones estructurales y reportes reproducibles de ranking.
+- Tests golden de recuperación documental y benchmark ampliado.
 - Workflows de CI para build, tests, smoke, validación de pack y verificación anti dependencia RDi.
 
 ## Data pack y fuentes

@@ -12,7 +12,13 @@ concurrency:
 
 jobs:
   build-test-smoke:
-    runs-on: windows-latest
+    name: ${{ matrix.os }} / node-${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        node: [22]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -20,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - name: Install dependencies
@@ -34,6 +40,9 @@ jobs:
 
       - name: Smoke corpus
         run: npm run smoke
+
+      - name: Golden benchmark
+        run: npm run bench:golden
 
       - name: Validate data pack
         run: npm run pack:validate
@@ -57,9 +66,11 @@ jobs:
           }
 
       - name: Create data pack archive artifact
+        if: matrix.os == 'windows-latest'
         run: npm run pack:archive -- data/pack dist/ibmi-docs-pack.tgz
 
       - name: Upload data pack artifact
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v7
         with:
           name: ibmi-docs-pack

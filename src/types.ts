@@ -26,6 +26,8 @@ export interface DocumentRecord {
   sha256: string;
   textLength: number;
   collectedAt: string;
+  documentKind?: DocumentKind;
+  canonicalTopicKey?: string;
 }
 
 export interface SourceManifest {
@@ -69,6 +71,8 @@ export interface TopicTaxonomy {
 }
 
 export type TopicSectionKind = "syntax" | "parameters" | "description" | "examples" | "notes" | "restrictions" | "messages" | "recovery" | "related" | "generic";
+
+export type DocumentKind = "topic" | "reference" | "index" | "landing" | "stub";
 
 export interface TopicSection {
   kind: TopicSectionKind;
@@ -135,6 +139,10 @@ export interface SearchHit {
   nextRecommendedReason?: string;
   nextRecommendedArguments?: Record<string, unknown>;
   workflowHints?: string[];
+  documentKind?: DocumentKind;
+  canonicalTopicKey?: string;
+  relevanceWarnings?: string[];
+  requestedVersionFallback?: boolean;
 }
 
 export interface ReadResult extends SearchHit {
@@ -353,6 +361,9 @@ export interface RankingExplanationItem {
   reasons: string[];
   taxonomy: TopicTaxonomy;
   semanticScore: number;
+  documentKind?: DocumentKind;
+  canonicalTopicKey?: string;
+  relevanceWarnings?: string[];
 }
 
 export interface RankingExplanation {
@@ -372,9 +383,34 @@ export interface QualityReport {
   coverage: CategoryDiagnostics;
   shortDocuments: Array<{ id: string; title: string; textLength: number; category: string; version: string }>;
   duplicateTitles: Array<{ title: string; count: number; versions: string[] }>;
+  duplicateCanonicalTopics: Array<{ canonicalTopicKey: string; count: number; titles: string[]; versions: string[] }>;
+  documentKinds: Record<DocumentKind, number>;
   sparseCategories: Array<{ category: string; count: number }>;
   benchmarkHints: string[];
   recommendations: string[];
+}
+
+export interface QueryReportOptions extends SearchOptions {
+  expectedTitle?: string;
+  expectedId?: string;
+  notes?: string;
+}
+
+export interface QueryReport {
+  generatedAt: string;
+  query: string;
+  options: QueryReportOptions;
+  diagnostics: {
+    topResultTitle?: string;
+    topResultId?: string;
+    exactTerms: string[];
+    ftsQuery: string;
+    pass: boolean;
+    warnings: string[];
+  };
+  results: SearchHit[];
+  ranking: RankingExplanation;
+  issueMarkdown: string;
 }
 
 export interface SetupCheck {

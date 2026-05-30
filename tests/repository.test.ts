@@ -183,8 +183,24 @@ describe("capacidades agénticas del repositorio", () => {
     const result = withRepo((repo) => ({ quality: repo.qualityReport(), recipes: repo.recipes() }));
 
     expect(result.quality.documents).toBeGreaterThan(1000);
+    expect(result.quality.documentKinds.topic).toBeGreaterThan(0);
+    expect(result.quality.duplicateCanonicalTopics.length).toBeGreaterThan(0);
     expect(result.quality.recommendations.length).toBeGreaterThan(0);
     expect(result.recipes.length).toBeGreaterThan(3);
+  });
+
+  it("genera reportes reproducibles para feedback de ranking", () => {
+    const report = withRepo((repo) => repo.reportQuery({
+      query: "SND-MSG Send a Message to the Joblog",
+      category: "ile-rpg",
+      expectedTitle: "SND-MSG",
+      limit: 5,
+      notes: "Caso de prueba de ranking exacto."
+    }));
+
+    expect(report.diagnostics.exactTerms).toContain("snd-msg");
+    expect(report.results[0]?.title).toContain("SND-MSG");
+    expect(report.issueMarkdown).toContain("Reporte de búsqueda IBM i Docs");
   });
 
   it("valida código RPGLE/SQLRPGLE contra contexto documental", () => {
@@ -197,6 +213,34 @@ describe("capacidades agénticas del repositorio", () => {
     expect(result.language).toBe("SQLRPGLE");
     expect(result.findings.length).toBeGreaterThan(0);
     expect(result.evidence.length).toBeGreaterThan(0);
+  });
+
+  it("usa fallback canónico version-aware antes que comandos no relacionados", () => {
+    const results = withRepo((repo) => repo.search({
+      query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
+      category: "ile-rpg",
+      version: "7.5",
+      limit: 5,
+      includeSections: true
+    }));
+
+    expect(results[0]?.title).toContain("SND-MSG");
+    expect(results[0]?.requestedVersionFallback).toBe(true);
+    expect(results.slice(0, 3).map((hit) => hit.title).join("\n")).not.toMatch(/CRTRPGMOD/i);
+    expect(results[0]?.relevanceWarnings?.join(" ")).toMatch(/fallback|No se encontró/i);
+  });
+
+  it("no usa evidencia irrelevante al responder consultas exactas", () => {
+    const answer = withRepo((repo) => repo.answer({
+      question: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
+      language: "RPGLE",
+      version: "7.5",
+      limit: 5
+    }));
+
+    expect(answer.citations[0]?.title).toContain("SND-MSG");
+    expect(answer.citations.map((citation) => citation.title).join("\n")).not.toMatch(/CRTRPGMOD/i);
+    expect(answer.warnings.join(" ")).toMatch(/fallback|versión solicitada/i);
   });
 
   it("resuelve consultas de sintaxis con workflow search-read-sections-answer", () => {

@@ -49,10 +49,44 @@ export function extractDocumentContent(html: string): ExtractedDocumentContent {
     .filter(Boolean)
     .slice(0, 12);
 
-  const bodyText = collapseWhitespace($("body").text() || $.root().text());
+  const bodyText = normalizeBodyText($);
   const text = collapseWhitespace([title, breadcrumbs.join(" > "), bodyText].filter(Boolean).join("\n\n"));
 
   return { title, breadcrumbs, product, version, language, text };
+}
+
+function normalizeBodyText($: ReturnType<typeof load>): string {
+  const root = ($("body").length ? $("body") : $("html")) as any;
+
+  // Mantener estructura semántica antes de pedir texto plano a Cheerio. IBM Docs
+  // usa tablas y bloques pre/code para sintaxis de comandos, parámetros y
+  // ejemplos; si los aplastamos a un párrafo, FTS y los agentes pierden contexto.
+  root.find("br").replaceWith("\n");
+  root.find("h1,h2,h3,h4,h5,h6").each((_: number, el: any) => {
+    const text = collapseWhitespace($(el).text());
+    if (text) $(el).replaceWith(`\n\n${text}\n\n`);
+  });
+  root.find("li").each((_: number, el: any) => {
+    const text = collapseWhitespace($(el).text());
+    if (text) $(el).replaceWith(`\n- ${text}\n`);
+  });
+  root.find("pre").each((_: number, el: any) => {
+    const text = $(el).text().replace(/\r/g, "\n").trimEnd();
+    if (text) $(el).replaceWith(`\n\n${text}\n\n`);
+  });
+  root.find("code").each((_: number, el: any) => {
+    const text = $(el).text().trim();
+    if (text) $(el).replaceWith(` ${text} `);
+  });
+  root.find("table").each((_: number, table: any) => {
+    const rows = $(table).find("tr").map((__, tr) => {
+      const cells = $(tr).find("th,td").map((___, cell) => collapseWhitespace($(cell).text())).get().filter(Boolean);
+      return cells.length ? cells.join(" | ") : "";
+    }).get().filter(Boolean);
+    if (rows.length) $(table).replaceWith(`\n\n${rows.join("\n")}\n\n`);
+  });
+
+  return collapseWhitespace(root.text() || $.root().text());
 }
 
 export function inferCategory(input: { title: string; path?: string[]; url?: string; text?: string }): string {

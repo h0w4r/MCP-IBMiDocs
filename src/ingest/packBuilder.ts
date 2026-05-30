@@ -48,11 +48,16 @@ function withPortablePackPaths(doc: DocumentRecord): DocumentRecord {
 
 function sanitizeDocumentForRuntime(doc: DocumentRecord): DocumentRecord {
   const normalizedVersion = normalizeDocumentVersion(doc);
-  if (doc.sourceKind !== "rdi-local-export") return { ...doc, version: normalizedVersion };
-  const provenanceUrl = `rdi-help-bootstrap://topic/${encodeURIComponent(doc.id)}`;
-  return {
+  const classified = {
     ...doc,
     version: normalizedVersion,
+    documentKind: classifyDocumentKindForBuild(doc),
+    canonicalTopicKey: canonicalTopicKeyForBuild(doc)
+  };
+  if (doc.sourceKind !== "rdi-local-export") return classified;
+  const provenanceUrl = `rdi-help-bootstrap://topic/${encodeURIComponent(doc.id)}`;
+  return {
+    ...classified,
     // La exportación desde Eclipse/RDi Help ocurre una sola vez durante build.
     // En el paquete runtime no dejamos URLs 127.0.0.1 para evitar que clientes
     // o modelos las interpreten como endpoint disponible o requisito.
@@ -102,11 +107,18 @@ async function loadInputManifests(inputDir: string): Promise<CorpusManifest[]> {
 function dedupeDocuments(documents: DocumentRecord[]): DocumentRecord[] {
   const byHash = new Map<string, DocumentRecord>();
   for (const doc of documents) {
-    const key = doc.sha256 || doc.canonicalUrl;
+    const key = buildDocumentDedupeKey(doc);
     const existing = byHash.get(key);
     if (!existing || sourcePriority(doc.sourceKind) < sourcePriority(existing.sourceKind)) byHash.set(key, doc);
   }
   return [...byHash.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+function buildDocumentDedupeKey(doc: DocumentRecord): string {
+  if (doc.sha256) return `sha:${doc.sha256}`;
+  const canonical = doc.canonicalTopicKey ?? canonicalTopicKeyForBuild(doc);
+  if (canonical && canonical !== "ibm-i-general:topic") return `topic:${doc.version}:${doc.category}:${canonical}`;
+  return `url:${doc.canonicalUrl}`;
 }
 
 function sourcePriority(kind: string): number {
@@ -173,7 +185,9 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       normalized_text_path TEXT NOT NULL,
       sha256 TEXT NOT NULL,
       text_length INTEGER NOT NULL,
-      collected_at TEXT NOT NULL
+      collected_at TEXT NOT NULL,
+      document_kind TEXT NOT NULL DEFAULT 'topic',
+      canonical_topic_key TEXT NOT NULL DEFAULT ''
     );
     CREATE TABLE chunks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -203,14 +217,15 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
     );
     CREATE INDEX idx_documents_category ON documents(category);
     CREATE INDEX idx_documents_version ON documents(version);
+    CREATE INDEX idx_documents_canonical_topic ON documents(canonical_topic_key, version, category);
     CREATE INDEX idx_sections_document ON document_sections(document_id, section_index);
   `);
 
   const insertMeta = db.prepare("INSERT INTO meta(key, value) VALUES (?, ?)");
   const insertDoc = db.prepare(`INSERT INTO documents(
     id, source_kind, source_id, original_url, canonical_url, title, breadcrumbs_json, product, version, language,
-    category, raw_html_path, normalized_text_path, sha256, text_length, collected_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    category, raw_html_path, normalized_text_path, sha256, text_length, collected_at, document_kind, canonical_topic_key
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const insertChunk = db.prepare("INSERT INTO chunks(document_id, chunk_index, title, body, token_hint) VALUES (?, ?, ?, ?, ?)");
   const insertFts = db.prepare("INSERT INTO chunks_fts(rowid, title, body, document_id, category, version) VALUES (?, ?, ?, ?, ?, ?)");
   const insertSection = db.prepare("INSERT INTO document_sections(document_id, section_index, kind, title, body, start_line, end_line) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -235,7 +250,9 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
         doc.normalizedTextPath,
         doc.sha256,
         doc.textLength,
-        doc.collectedAt
+        doc.collectedAt,
+        doc.documentKind ?? classifyDocumentKindForBuild(doc),
+        doc.canonicalTopicKey ?? canonicalTopicKeyForBuild(doc)
       );
       const textPath = path.join(packRoot, doc.normalizedTextPath);
       const text = readTextIfExists(textPath);
@@ -354,26 +371,63 @@ function buildCoverage(documents: DocumentRecord[], manifests: CorpusManifest[])
   const byCategory: Record<string, number> = {};
   const bySource: Record<string, number> = {};
   const byVersion: Record<string, number> = {};
+  const byDocumentKind: Record<string, number> = {};
+  const canonicalCounts: Record<string, number> = {};
   const versionAnomalies: Array<{ id: string; version: string }> = [];
   const allowedVersions = new Set(["7.3", "7.4", "7.5", "7.6", "RDi-local"]);
   for (const doc of documents) {
     byCategory[doc.category] = (byCategory[doc.category] ?? 0) + 1;
     bySource[doc.sourceKind] = (bySource[doc.sourceKind] ?? 0) + 1;
     byVersion[doc.version] = (byVersion[doc.version] ?? 0) + 1;
+    byDocumentKind[doc.documentKind ?? classifyDocumentKindForBuild(doc)] = (byDocumentKind[doc.documentKind ?? classifyDocumentKindForBuild(doc)] ?? 0) + 1;
+    const canonical = doc.canonicalTopicKey ?? canonicalTopicKeyForBuild(doc);
+    canonicalCounts[`${doc.version}:${doc.category}:${canonical}`] = (canonicalCounts[`${doc.version}:${doc.category}:${canonical}`] ?? 0) + 1;
     if (!allowedVersions.has(doc.version)) versionAnomalies.push({ id: doc.id, version: doc.version });
   }
+  const duplicateCanonicalCount = Object.values(canonicalCounts).filter((count) => count > 1).length;
   return {
     documentCount: documents.length,
     sourceCount: manifests.length,
     byCategory,
     bySource,
     byVersion,
+    byDocumentKind,
     quality: {
       allowedVersions: [...allowedVersions],
       versionAnomalies: versionAnomalies.slice(0, 50),
-      versionAnomalyCount: versionAnomalies.length
+      versionAnomalyCount: versionAnomalies.length,
+      duplicateCanonicalCount
     }
   };
+}
+
+function classifyDocumentKindForBuild(doc: DocumentRecord): NonNullable<DocumentRecord["documentKind"]> {
+  const title = foldBuild(doc.title);
+  const breadcrumbs = foldBuild(doc.breadcrumbs.join(" "));
+  const haystack = `${title} ${breadcrumbs}`;
+  if (doc.textLength > 0 && doc.textLength < 300) return "stub";
+  if (/^(ibm rational developer|ibm i documentation|welcome|home)$/.test(title)) return "landing";
+  if (/\b(what'?s new|contents|table of contents|appendix|appendixes|index|overview)\b/.test(haystack)) return "index";
+  if (/\b(reference|programmer'?s guide|language reference|messages and codes|keyword finder)\b/.test(title)) return "reference";
+  return "topic";
+}
+
+function canonicalTopicKeyForBuild(doc: DocumentRecord): string {
+  const command = doc.title.match(/\b[A-Z]{2,}[A-Z0-9]*(?:-[A-Z0-9]+)?\b/)?.[0]?.toLowerCase();
+  const bif = doc.title.match(/%[A-Z][A-Z0-9_-]+/i)?.[0]?.toLowerCase();
+  const title = foldBuild(doc.title)
+    .replace(/\b(description of the|using the|command|keyword|operation code|built-in function|send a message to the joblog)\b/g, " ")
+    .replace(/[()%]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  return `${doc.category}:${bif ?? command ?? title ?? "topic"}`;
+}
+
+function foldBuild(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}+/gu, "").toLowerCase();
 }
 
 

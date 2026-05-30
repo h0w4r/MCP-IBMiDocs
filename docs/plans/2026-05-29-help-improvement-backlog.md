@@ -4,6 +4,23 @@ Fecha de investigación: 29/05/2026
 Repositorio auditado: `D:\MCP-IBMiDocs`  
 Objetivo: detectar mejoras grandes, bugs y capacidades nuevas para mejorar la ayuda IBM i expuesta por el MCP.
 
+## Estado de implementación
+
+Actualizado: 30/05/2026.
+
+Los 10 puntos de este backlog quedaron implementados en el runtime/código fuente:
+
+1. CLI usa `--ibmi-version` / `--release` para filtrar release IBM i y reserva `--version` para la versión del programa.
+2. Ranking exacto/version-aware agrega fallback canónico cuando la versión solicitada no contiene tópico exacto.
+3. Crawler IBM Docs público amplía rutas técnicas, patrones de comandos/lenguajes/mensajes y eleva el límite por versión.
+4. Runtime clasifica documentos como `topic`, `reference`, `index`, `landing` o `stub`.
+5. Build del data pack genera `canonicalTopicKey`, dedupe por clave canónica y métricas de duplicados.
+6. Normalización HTML preserva headings, listas, tablas y bloques `pre/code` para mejorar sintaxis/parámetros/ejemplos.
+7. `answer`/`resolve` aplican guardrails de relevancia para no citar evidencia sin términos exactos.
+8. CLI agrega `pack update`, `pack install --latest` y verificación más estricta de archivos del pack.
+9. CLI/MCP agregan `report-query` / `ibmi_docs_report_query` para reproducir y reportar mal ranking.
+10. Tests, benchmark golden y CI quedan reforzados con regresiones CLI, ranking SND-MSG 7.5, report-query y matriz Windows/Linux/macOS.
+
 ## Resumen ejecutivo
 
 El MCP ya tiene una base sólida: data pack local, SQLite FTS5, runtime sin dependencia de RDi, CLI, herramientas MCP agénticas, smoke tests y benchmark golden. La auditoría encontró que los principales riesgos no están en que el MCP “no funcione”, sino en calidad de recuperación, completitud documental, empaquetado del corpus y fuerza de las pruebas.

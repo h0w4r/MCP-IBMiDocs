@@ -19,6 +19,24 @@ describe("normalización documental", () => {
     expect(inferCategory({ title: "Control language", text: "CLLE command" })).toBe("cl-clle");
     expect(inferCategory({ title: "DDS physical file", text: "PF LF" })).toBe("dds");
   });
+
+  it("preserva estructura útil de tablas, listas y bloques de código", () => {
+    const html = `
+      <html><head><meta name="DC.title" content="CRTRPGMOD Command"></head>
+      <body>
+        <h1>CRTRPGMOD Command</h1>
+        <p>Creates an RPG module.</p>
+        <table><tr><th>Parameter</th><th>Description</th></tr><tr><td>SRCFILE</td><td>Source file</td></tr></table>
+        <ul><li>Use DBGVIEW for debugging.</li></ul>
+        <pre>CRTRPGMOD MODULE(MYLIB/HELLO) SRCFILE(MYLIB/QRPGLESRC)</pre>
+      </body></html>`;
+    const doc = extractDocumentContent(html);
+
+    expect(doc.text).toContain("Parameter | Description");
+    expect(doc.text).toContain("SRCFILE | Source file");
+    expect(doc.text).toContain("- Use DBGVIEW for debugging.");
+    expect(doc.text).toContain("CRTRPGMOD MODULE(MYLIB/HELLO)");
+  });
 });
 
 describe("seguridad de búsqueda FTS", () => {

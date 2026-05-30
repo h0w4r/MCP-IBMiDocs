@@ -28,13 +28,14 @@ function withRepository<T>(callback: (repo: CorpusRepository) => T): T {
 
 export function createServer(): McpServer {
   const server = new McpServer(
-    { name: "ibmi-docs-mcp", version: "0.4.0" },
+    { name: "ibmi-docs-mcp", version: "0.5.0" },
     {
       instructions:
         [
           "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial.",
           "Para preguntas normales usa primero ibmi_docs_resolve o ibmi_docs_answer; ibmi_docs_search es una herramienta de descubrimiento de bajo nivel y no debe ser el último paso cuando se requiere una respuesta técnica.",
           "Workflow recomendado: resolve/answer -> read -> sections cuando haya comandos, opcodes, BIFs, DDS keywords o mensajes; compile_guidance/context para desarrollo; explain_message para RNF/SQL/CPF/MCH; compare_versions para releases; explain_ranking para depurar resultados raros.",
+          "Si un ranking parece incorrecto, usa ibmi_docs_report_query para generar evidencia reproducible lista para issue.",
           "El runtime no depende de RDi ni Eclipse Help y nunca consulta el endpoint local de bootstrap."
         ].join(" ")
     }
@@ -305,6 +306,28 @@ export function createServer(): McpServer {
   );
 
   server.registerTool(
+    "ibmi_docs_report_query",
+    {
+      title: "Reportar búsqueda/ranking IBM i Docs",
+      description: "Genera un reporte reproducible para depurar una búsqueda mala: ranking, warnings, términos exactos y Markdown listo para issue.",
+      inputSchema: z.object({
+        query: z.string().min(1),
+        version: z.string().optional(),
+        category: z.string().optional(),
+        expectedTitle: z.string().optional(),
+        expectedId: z.string().optional(),
+        notes: z.string().optional(),
+        limit: z.number().int().min(1).max(20).optional()
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
+    },
+    async (input) => {
+      const report = withRepository((repo) => repo.reportQuery(input));
+      return { content: [{ type: "text" as const, text: report.issueMarkdown }], structuredContent: structured(report) };
+    }
+  );
+
+  server.registerTool(
     "ibmi_docs_recipes",
     {
       title: "Recetas de uso IBM i Docs",
@@ -364,7 +387,7 @@ export function createServer(): McpServer {
         };
       }
       const cacheDir = path.resolve("data", "ibm-docs-cache");
-      await syncIbmDocs({ outDir: cacheDir, versions, maxPagesPerVersion: maxPagesPerVersion ?? 160 });
+      await syncIbmDocs({ outDir: cacheDir, versions, maxPagesPerVersion: maxPagesPerVersion ?? 500 });
       const manifest = await buildDataPack({ inputDir: path.resolve("data"), outDir: packDir });
       return {
         content: [{ type: "text" as const, text: `Sync IBM Docs completado. Documentos: ${manifest.documents.length}. Fuente: IBM Docs público; RDi local no usado.` }],
@@ -428,7 +451,10 @@ function renderSearchResults(query: string, results: Array<any>): string {
     `   ID: ${result.id}`,
     `   Score: ${result.score}`,
     `   Versión/Categoría: ${result.version} / ${result.category}`,
+    `   Tipo documental: ${result.documentKind ?? "n/a"} · Clave: ${result.canonicalTopicKey ?? "n/a"}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
+    result.requestedVersionFallback ? "   Aviso: fallback exacto fuera de la versión solicitada." : "",
+    result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     // La búsqueda entrega evidencia resumida; esta pista evita que el agente confunda el snippet con el tópico completo.
     `   Lectura completa: usa ibmi_docs_read con id="${result.id}"${result.textLength ? ` (${result.textLength} caracteres)` : ""}`,
     result.nextRecommendedTool ? `   Siguiente tool recomendada: ${result.nextRecommendedTool} · ${result.nextRecommendedReason}` : "",
@@ -521,8 +547,9 @@ function renderRankingExplanation(explanation: any): string {
     `Términos exactos: ${(explanation.exactTerms as string[]).join(", ") || "n/a"}`,
     "",
     ...(explanation.results as Array<any>).map((item, index) => [
-      `${index + 1}. ${item.hit.title} · score=${item.hit.score} · ${item.taxonomy.kind}`,
-      ...item.reasons.map((reason: string) => `   - ${reason}`)
+      `${index + 1}. ${item.hit.title} · score=${item.hit.score} · ${item.taxonomy.kind} · ${item.documentKind ?? item.hit.documentKind ?? "n/a"}`,
+      ...item.reasons.map((reason: string) => `   - ${reason}`),
+      ...((item.relevanceWarnings as string[] | undefined) ?? item.hit.relevanceWarnings ?? []).map((warning: string) => `   - guardrail: ${warning}`)
     ].join("\n"))
   ].join("\n");
 }
@@ -536,8 +563,14 @@ function renderQualityReport(report: any): string {
     "Categorías:",
     JSON.stringify(report.coverage.byCategory, null, 2),
     "",
+    "Tipos documentales:",
+    JSON.stringify(report.documentKinds, null, 2),
+    "",
     "Tópicos cortos destacados:",
     bullet((report.shortDocuments as Array<any>).slice(0, 10).map((doc) => `${doc.title} (${doc.id}) · ${doc.textLength} chars`)),
+    "",
+    "Duplicados canónicos destacados:",
+    bullet((report.duplicateCanonicalTopics as Array<any>).slice(0, 10).map((item) => `${item.canonicalTopicKey} · ${item.count} docs · ${item.versions.join(", ")}`)),
     "",
     "Recomendaciones:",
     bullet(report.recommendations)

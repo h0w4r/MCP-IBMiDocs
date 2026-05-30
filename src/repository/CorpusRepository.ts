@@ -22,6 +22,8 @@ import type {
   NextToolRecommendation,
   PackDiagnostics,
   QualityReport,
+  QueryReport,
+  QueryReportOptions,
   ReadResult,
   RankingExplanation,
   RankingExplanationOptions,
@@ -318,16 +320,36 @@ export class CorpusRepository {
       // MATCH sigue parametrizado; las expansiones solo cambian el recall, no concatenan SQL.
       rows.push(...(stmt.all({ ...baseParams, fts }) as Array<Record<string, unknown>>));
     }
-    rows.push(...this.findExactTechnicalRows(exactTerms, options));
+    const exactRows = this.findExactTechnicalRows(exactTerms, options);
+    rows.push(...exactRows);
+    if (options.version && exactTerms.length && !exactRows.length) {
+      // Si la versión pedida no tiene un tópico exacto, agregamos candidatos
+      // canónicos de otras fuentes/versiones como fallback explícito. Esto evita
+      // que una página "What's New" o un comando no relacionado gane solo por
+      // compartir palabras genéricas como RPG/message/command.
+      rows.push(...this.findExactTechnicalRows(exactTerms, { ...options, version: undefined }).map((row) => ({ ...row, requested_version_fallback: 1 })));
+    }
     const bestByDocument = new Map<string, SearchHit>();
     for (const row of rows) {
+      const body = String(row.body ?? "");
       const hit = rowToHit(row, options.query);
-      hit.taxonomy = classifyTaxonomy(hit, String(row.body ?? ""));
+      hit.documentKind = classifyDocumentKind(hit, body);
+      hit.canonicalTopicKey = canonicalTopicKey(hit);
+      hit.taxonomy = classifyTaxonomy(hit, body);
       hit.semanticScore = semanticScore(hit, options.query, semantic);
-      hit.matchReasons = buildMatchReasons(hit, String(row.body ?? ""), options.query, semantic);
-      hit.score = scoreHit(hit, String(row.body), Number(row.rank ?? 0), options, Number(row.chunk_index ?? 0)) + hit.semanticScore;
+      hit.requestedVersionFallback = Boolean(row.requested_version_fallback);
+      hit.matchReasons = buildMatchReasons(hit, body, options.query, semantic);
+      hit.relevanceWarnings = buildRelevanceWarnings(hit, body, options);
+      hit.score = scoreHit(hit, body, Number(row.rank ?? 0), options, Number(row.chunk_index ?? 0)) + hit.semanticScore;
+      hit.score += documentKindScoreAdjustment(hit);
+      if (hit.requestedVersionFallback) {
+        hit.score += 22;
+        hit.matchReasons.push(`fallback exacto fuera de la versión solicitada ${normalizeVersionInput(options.version ?? "")}`);
+        hit.relevanceWarnings.push(`No se encontró tópico canónico exacto en IBM i ${normalizeVersionInput(options.version ?? "")}; este resultado es fallback desde ${hit.version}.`);
+      }
+      if (hit.relevanceWarnings.some((warning) => warning.includes("sin términos exactos"))) hit.score -= 85;
       applyNextToolRecommendation(hit, options);
-      if (options.includeSections) hit.sectionsPreview = extractTopicSections(String(row.body ?? "")).slice(0, 4);
+      if (options.includeSections) hit.sectionsPreview = extractTopicSections(body).slice(0, 4);
       if ((options.autoRead || shouldAutoReadSearchHit(hit, options)) && hit.score >= 50) {
         const read = this.read(hit.id);
         if (read) {
@@ -339,7 +361,11 @@ export class CorpusRepository {
       const existing = bestByDocument.get(hit.id);
       if (!existing || hit.score > existing.score) bestByDocument.set(hit.id, hit);
     }
-    const results = [...bestByDocument.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title)).slice(0, limit);
+    const sortedResults = [...bestByDocument.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+    const guardedResults = exactTerms.length
+      ? sortedResults.filter((hit) => hit.score >= 0 && !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("sin términos exactos")))
+      : sortedResults;
+    const results = (guardedResults.length ? guardedResults : sortedResults).slice(0, limit);
     this.recordTrace("ibmi_docs_search", started, {
       query: options.query,
       resultCount: results.length,
@@ -377,6 +403,8 @@ export class CorpusRepository {
       sha256: String(row.sha256),
       sections
     };
+    result.documentKind = classifyDocumentKind(result, content);
+    result.canonicalTopicKey = canonicalTopicKey(result);
     result.taxonomy = classifyTaxonomy(result, content);
     result.sectionsPreview = sections.slice(0, 6);
     this.recordTrace("ibmi_docs_read", started, { id, topResultId: result.id, topResultTitle: result.title, resultCount: 1 });
@@ -403,7 +431,8 @@ export class CorpusRepository {
       mode: "hybrid",
       includeSections: true
     });
-    const reads = hits.slice(0, Math.min(3, hits.length)).map((hit) => this.read(hit.id)).filter((value): value is ReadResult => Boolean(value));
+    const evidenceHits = selectAnswerEvidence(hits, options.question);
+    const reads = evidenceHits.slice(0, Math.min(3, evidenceHits.length)).map((hit) => this.read(hit.id)).filter((value): value is ReadResult => Boolean(value));
     const citations: AnswerCitation[] = reads.map((read) => ({
       id: read.id,
       title: read.title,
@@ -417,14 +446,17 @@ export class CorpusRepository {
       : undefined;
     const warnings: string[] = [];
     if (!hits.length) warnings.push("No se encontró evidencia documental suficiente; evita afirmar detalles no sustentados.");
+    if (hits.length && !evidenceHits.length) warnings.push("Se encontraron candidatos, pero ninguno supera los guardrails de relevancia exacta; evita responder con documentos no relacionados.");
+    if (hits.some((hit) => hit.requestedVersionFallback)) warnings.push("Se usó al menos un fallback fuera de la versión solicitada porque no hubo tópico canónico exacto en esa versión.");
+    for (const warning of hits.flatMap((hit) => hit.relevanceWarnings ?? []).slice(0, 4)) warnings.push(warning);
     if (hits.length && hits[0].score < 20) warnings.push("La evidencia existe, pero el score principal es bajo; conviene leer los tópicos antes de responder con seguridad.");
 
     const result: AnswerResult = {
       question: options.question,
       answer: buildExtractiveAnswer(options, reads, compile),
-      confidence: hits[0]?.score >= 60 ? "alta" : hits.length >= 2 ? "media" : "baja",
+      confidence: evidenceHits[0]?.score >= 60 && !warnings.length ? "alta" : evidenceHits.length >= 2 ? "media" : "baja",
       citations,
-      evidence: hits,
+      evidence: evidenceHits.length ? evidenceHits : hits,
       warnings,
       suggestedTools: hits.length ? ["ibmi_docs_read", "ibmi_docs_sections", "ibmi_docs_explain_ranking"] : ["ibmi_docs_search"]
     };
@@ -451,7 +483,10 @@ export class CorpusRepository {
         hit,
         reasons: hit.matchReasons ?? [],
         taxonomy: hit.taxonomy ?? classifyTaxonomy(hit, hit.snippet),
-        semanticScore: hit.semanticScore ?? 0
+        semanticScore: hit.semanticScore ?? 0,
+        documentKind: hit.documentKind,
+        canonicalTopicKey: hit.canonicalTopicKey,
+        relevanceWarnings: hit.relevanceWarnings ?? []
       }))
     };
     this.recordTrace("ibmi_docs_explain_ranking", started, {
@@ -624,6 +659,46 @@ export class CorpusRepository {
       count: Number(row.count),
       versions: String(row.versions ?? "").split(",").filter(Boolean).sort(naturalVersionSort)
     }));
+    const docRows = this.db.prepare(`
+      SELECT id, title, category, version, text_length AS textLength, breadcrumbs_json
+      FROM documents
+    `).all() as Array<Record<string, unknown>>;
+    const documentKinds = Object.fromEntries(["topic", "reference", "index", "landing", "stub"].map((kind) => [kind, 0])) as QualityReport["documentKinds"];
+    const duplicateCanonicalMap = new Map<string, { canonicalTopicKey: string; count: number; titles: Set<string>; versions: Set<string> }>();
+    for (const row of docRows) {
+      const hit: SearchHit = {
+        id: String(row.id),
+        title: String(row.title),
+        snippet: "",
+        score: 0,
+        sourceKind: "manual-pack",
+        sourceId: "",
+        version: String(row.version),
+        category: String(row.category),
+        canonicalUrl: "",
+        breadcrumbs: JSON.parse(String(row.breadcrumbs_json || "[]")) as string[],
+        textLength: Number(row.textLength ?? 0)
+      };
+      const kind = classifyDocumentKind(hit, "") ?? "topic";
+      documentKinds[kind] += 1;
+      const key = canonicalTopicKey(hit);
+      const bucketKey = `${hit.version}:${hit.category}:${key}`;
+      const bucket = duplicateCanonicalMap.get(bucketKey) ?? { canonicalTopicKey: key, count: 0, titles: new Set<string>(), versions: new Set<string>() };
+      bucket.count += 1;
+      bucket.titles.add(hit.title);
+      bucket.versions.add(hit.version);
+      duplicateCanonicalMap.set(bucketKey, bucket);
+    }
+    const duplicateCanonicalTopics = [...duplicateCanonicalMap.values()]
+      .filter((item) => item.count > 1)
+      .map((item) => ({
+        canonicalTopicKey: item.canonicalTopicKey,
+        count: item.count,
+        titles: [...item.titles].sort().slice(0, 8),
+        versions: [...item.versions].sort(naturalVersionSort)
+      }))
+      .sort((a, b) => b.count - a.count || a.canonicalTopicKey.localeCompare(b.canonicalTopicKey))
+      .slice(0, 40);
     const sparseCategories = Object.entries(coverage.byCategory)
       .filter(([, count]) => count < 50)
       .map(([category, count]) => ({ category, count }))
@@ -637,6 +712,8 @@ export class CorpusRepository {
       coverage,
       shortDocuments,
       duplicateTitles,
+      duplicateCanonicalTopics,
+      documentKinds,
       sparseCategories,
       benchmarkHints: [
         "Agregar golden queries para comandos CRT*, DSP*, WRK*, opcodes RPG, BIFs %, DDS keywords y mensajes RNF/SQL.",
@@ -653,6 +730,46 @@ export class CorpusRepository {
 
   recipes(): DocsRecipe[] {
     return RECIPES;
+  }
+
+  reportQuery(options: QueryReportOptions): QueryReport {
+    const started = Date.now();
+    const results = this.search({ ...options, limit: options.limit ?? 8, mode: options.mode ?? "hybrid", includeSections: true });
+    const ranking = this.explainRanking({ ...options, top: Math.min(options.limit ?? 8, 12), mode: options.mode ?? "hybrid" });
+    const exactTerms = extractExactTechnicalTerms(options.query);
+    const warnings = [
+      ...results.flatMap((hit) => hit.relevanceWarnings ?? []),
+      ...(results[0]?.requestedVersionFallback ? [`El top result usa fallback desde ${results[0].version} para una consulta versionada.`] : []),
+      ...(!results.length ? ["Sin resultados para la consulta."] : [])
+    ];
+    const pass = Boolean(results.length)
+      && (!options.expectedTitle || results.some((hit) => hit.title.toLowerCase().includes(options.expectedTitle!.toLowerCase())))
+      && (!options.expectedId || results.some((hit) => hit.id === options.expectedId))
+      && !results[0]?.relevanceWarnings?.some((warning) => warning.includes("sin términos exactos"));
+    const report: QueryReport = {
+      generatedAt: new Date().toISOString(),
+      query: options.query,
+      options,
+      diagnostics: {
+        topResultTitle: results[0]?.title,
+        topResultId: results[0]?.id,
+        exactTerms,
+        ftsQuery: toFtsQuery(options.query),
+        pass,
+        warnings: [...new Set(warnings)].slice(0, 12)
+      },
+      results,
+      ranking,
+      issueMarkdown: ""
+    };
+    report.issueMarkdown = renderQueryIssueMarkdown(report);
+    this.recordTrace("ibmi_docs_report_query", started, {
+      query: options.query,
+      resultCount: results.length,
+      topResultId: results[0]?.id,
+      topResultTitle: results[0]?.title
+    });
+    return report;
   }
 
   workflowPolicy(intent: DocsIntent): WorkflowPolicy {
@@ -1145,7 +1262,7 @@ function expandIbmiTerms(tokens: string[]): string[] {
 
 function rowToHit(row: Record<string, unknown>, query: string): SearchHit {
   const id = String(row.id);
-  return {
+  const hit: SearchHit = {
     id,
     title: String(row.title),
     snippet: makeSnippet(String(row.body ?? ""), query, 520),
@@ -1159,6 +1276,75 @@ function rowToHit(row: Record<string, unknown>, query: string): SearchHit {
     textLength: Number(row.text_length ?? 0),
     readHint: `Para obtener la ayuda completa llama ibmi_docs_read con id="${id}".`
   };
+  hit.documentKind = classifyDocumentKind(hit, String(row.body ?? ""));
+  hit.canonicalTopicKey = canonicalTopicKey(hit);
+  return hit;
+}
+
+function classifyDocumentKind(hit: Pick<SearchHit, "title" | "breadcrumbs" | "textLength" | "category">, body: string): SearchHit["documentKind"] {
+  const title = fold(hit.title);
+  const breadcrumbs = fold(hit.breadcrumbs?.join(" ") ?? "");
+  const haystack = `${title} ${breadcrumbs}`;
+  const textLength = hit.textLength ?? body.length;
+  if (textLength > 0 && textLength < 300) return "stub";
+  if (/^(ibm rational developer|ibm i documentation|welcome|home)$/.test(title)) return "landing";
+  if (/\b(what'?s new|contents|table of contents|appendix|appendixes|index|overview)\b/.test(haystack)) return "index";
+  if (/\b(reference|programmer'?s guide|language reference|messages and codes|keyword finder)\b/.test(title)) return "reference";
+  return "topic";
+}
+
+function canonicalTopicKey(hit: Pick<SearchHit, "title" | "category" | "breadcrumbs">): string {
+  const title = fold(hit.title)
+    .replace(/\b(description of the|using the|command|keyword|operation code|built-in function|send a message to the joblog)\b/g, " ")
+    .replace(/[()%]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const technical = extractExactTechnicalTerms(hit.title)[0] ?? extractPrimaryTechnicalTerm(hit.title);
+  const category = fold(hit.category ?? "general").replace(/[^a-z0-9]+/g, "-");
+  const breadcrumbTail = fold(hit.breadcrumbs?.slice(-2).join(" ") ?? "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  const base = technical ? technical.replace(/[^a-z0-9%_-]+/g, "-") : title.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+  return [category, base || breadcrumbTail || "topic"].filter(Boolean).join(":");
+}
+
+function documentKindScoreAdjustment(hit: SearchHit): number {
+  switch (hit.documentKind) {
+    case "topic":
+      return 8;
+    case "reference":
+      return 2;
+    case "index":
+      return -18;
+    case "landing":
+      return -45;
+    case "stub":
+      return -35;
+    default:
+      return 0;
+  }
+}
+
+function buildRelevanceWarnings(hit: SearchHit, body: string, options: SearchOptions): string[] {
+  const warnings: string[] = [];
+  const exactTerms = extractExactTechnicalTerms(options.query);
+  const haystack = fold([hit.title, hit.breadcrumbs.join(" "), body.slice(0, 4000)].join(" "));
+  if (exactTerms.length && !exactTerms.some((term) => haystack.includes(fold(term)))) {
+    warnings.push(`Resultado penalizado: sin términos exactos (${exactTerms.join(", ")}) en título, ruta ni contenido principal.`);
+  }
+  if (hit.documentKind === "stub") warnings.push("Documento clasificado como stub/corto; úsalo solo como pista, no como evidencia principal.");
+  if (hit.documentKind === "index") warnings.push("Documento clasificado como índice/novedades; puede mencionar el término sin ser el tópico canónico.");
+  return [...new Set(warnings)];
+}
+
+function selectAnswerEvidence(hits: SearchHit[], query: string): SearchHit[] {
+  const exactTerms = extractExactTechnicalTerms(query);
+  const filtered = hits.filter((hit) => {
+    if (hit.documentKind === "stub" || hit.documentKind === "landing") return false;
+    if (!exactTerms.length) return true;
+    return !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("sin términos exactos"));
+  });
+  // Si solo hay índices, conservamos el mejor índice antes que devolver nada,
+  // pero la respuesta quedará con advertencias y confianza baja/media.
+  return filtered.length ? filtered : hits.filter((hit) => hit.documentKind !== "landing").slice(0, 1);
 }
 
 function scoreHit(hit: SearchHit, body: string, rank: number, options: SearchOptions, chunkIndex: number): number {
@@ -1447,6 +1633,40 @@ function buildResolvedAnswer(input: {
     lines.push("Lecturas completas usadas:", ...input.reads.map((read) => `- ${read.id}: ${read.title} (${read.version}, ${read.textLength} caracteres)`), "");
   }
   lines.push("Siguiente acción recomendada: si necesitas citar detalles finos, usa ibmi_docs_read con los IDs anteriores o ibmi_docs_sections para saltar directo a sintaxis/parámetros/ejemplos.");
+  return lines.join("\n");
+}
+
+function renderQueryIssueMarkdown(report: QueryReport): string {
+  const lines = [
+    "## Reporte de búsqueda IBM i Docs",
+    "",
+    `- **Fecha:** ${report.generatedAt}`,
+    `- **Query:** \`${report.query}\``,
+    `- **Categoría:** ${report.options.category ?? "n/a"}`,
+    `- **Versión:** ${report.options.version ?? "n/a"}`,
+    `- **Top result:** ${report.diagnostics.topResultTitle ?? "sin resultado"} (${report.diagnostics.topResultId ?? "n/a"})`,
+    `- **FTS:** \`${report.diagnostics.ftsQuery || "n/a"}\``,
+    `- **Términos exactos:** ${report.diagnostics.exactTerms.join(", ") || "n/a"}`,
+    `- **Resultado esperado:** ${report.options.expectedTitle ?? report.options.expectedId ?? "n/a"}`,
+    `- **Estado automático:** ${report.diagnostics.pass ? "pasa" : "revisar"}`,
+    "",
+    "### Advertencias",
+    ...(report.diagnostics.warnings.length ? report.diagnostics.warnings.map((warning) => `- ${warning}`) : ["- n/a"]),
+    "",
+    "### Top resultados",
+    ...report.results.slice(0, 8).map((hit, index) => [
+      `${index + 1}. **${hit.title}**`,
+      `   - ID: \`${hit.id}\``,
+      `   - Score: ${hit.score}`,
+      `   - Versión/Categoría/Fuente: ${hit.version} / ${hit.category} / ${hit.sourceKind}`,
+      `   - Tipo/Clave: ${hit.documentKind ?? "n/a"} / ${hit.canonicalTopicKey ?? "n/a"}`,
+      `   - Razones: ${(hit.matchReasons ?? []).join("; ") || "n/a"}`,
+      `   - Warnings: ${(hit.relevanceWarnings ?? []).join("; ") || "n/a"}`
+    ].join("\n")),
+    "",
+    "### Notas del reportante",
+    report.options.notes ?? "_Describe aquí qué resultado esperabas y por qué el ranking actual no ayuda._"
+  ];
   return lines.join("\n");
 }
 

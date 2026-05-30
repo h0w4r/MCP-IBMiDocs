@@ -10,6 +10,11 @@ export interface InstallDataPackOptions {
   outDir: string;
 }
 
+export interface InstallLatestDataPackOptions {
+  outDir: string;
+  url?: string;
+}
+
 export interface ArchiveDataPackOptions {
   packDir: string;
   outFile: string;
@@ -23,6 +28,9 @@ export interface DataPackInfo {
   generatedAt?: string;
   issues: string[];
 }
+
+export const DEFAULT_PACK_RELEASE_URL =
+  "https://github.com/h0w4r/MCP-IBMiDocs/releases/latest/download/ibmi-docs-pack.tgz";
 
 export async function installDataPack(options: InstallDataPackOptions): Promise<{ outDir: string; source: string }> {
   const outDir = path.resolve(options.outDir);
@@ -40,6 +48,12 @@ export async function installDataPack(options: InstallDataPackOptions): Promise<
 
   if (!hasPack(outDir)) throw new Error(`La instalación terminó, pero ${outDir} no contiene manifest.json e ibmi-docs.sqlite.`);
   return { outDir, source };
+}
+
+export async function installLatestDataPack(options: InstallLatestDataPackOptions): Promise<{ outDir: string; source: string; latestUrl: string }> {
+  const latestUrl = options.url ?? process.env.IBMI_DOCS_PACK_LATEST_URL ?? DEFAULT_PACK_RELEASE_URL;
+  const result = await installDataPack({ from: latestUrl, outDir: options.outDir });
+  return { ...result, latestUrl };
 }
 
 export async function archiveDataPack(options: ArchiveDataPackOptions): Promise<{ outFile: string }> {
@@ -69,6 +83,16 @@ export async function verifyDataPack(packDir: string): Promise<DataPackInfo> {
     generatedAt = manifest.generatedAt;
     documents = manifest.documents?.length ?? 0;
     if (!documents) issues.push("El manifest no contiene documentos.");
+    for (const doc of manifest.documents ?? []) {
+      for (const key of ["rawHtmlPath", "normalizedTextPath"] as const) {
+        const relative = String((doc as any)[key] ?? "");
+        if (!relative) {
+          issues.push(`Documento sin ${key}: ${(doc as any).id ?? "(sin id)"}`);
+          continue;
+        }
+        if (!fsSync.existsSync(path.join(resolved, relative))) issues.push(`Archivo faltante para ${(doc as any).id ?? "(sin id)"}: ${relative}`);
+      }
+    }
   }
   return { packDir: resolved, ok: issues.length === 0, corpusVersion, documents, generatedAt, issues };
 }

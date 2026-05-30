@@ -44,7 +44,7 @@ Campos útiles de salida:
 Ejemplo:
 
 ```powershell
-node dist/src/cli.js resolve "Explica la sintaxis de SND-MSG con %MSG y %TARGET" --language RPGLE --version 7.6 --examples
+node dist/src/cli.js resolve "Explica la sintaxis de SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples
 ```
 
 ## Recomendaciones dentro de `ibmi_docs_search`
@@ -79,7 +79,7 @@ Cuando el resultado superior es fuerte, el runtime puede adjuntar contenido comp
 Ejemplo:
 
 ```powershell
-node dist/src/cli.js search "CRTRPGMOD command" --version 7.6 --limit 1
+node dist/src/cli.js search "CRTRPGMOD command" --ibmi-version 7.6 --limit 1
 ```
 
 El resultado debería priorizar un tópico tipo `CRTRPGMOD Command` y sugerir lectura/sections como siguiente paso.
@@ -135,7 +135,7 @@ Las trazas son opcionales y locales. No se envían a ningún servicio externo.
 ```powershell
 $env:IBMI_DOCS_TRACE = "1"
 $env:IBMI_DOCS_TRACE_FILE = "D:\MCP-IBMiDocs\data\ibmi-docs-trace.ndjson"
-node dist/src/cli.js resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --version 7.6
+node dist/src/cli.js resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6
 node dist/src/cli.js trace-report --limit 30
 ```
 
