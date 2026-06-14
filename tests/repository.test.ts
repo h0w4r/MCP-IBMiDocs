@@ -360,6 +360,20 @@ describe("capacidades agénticas del repositorio", () => {
     expect(serializedArgs).toMatch(/CLLE|ibmi_docs_sections|id/);
   });
 
+  it("genera entrada sintética para comandos CL mencionados por descripción larga", () => {
+    const results = withRepo((repo) => repo.search({
+      query: "RTVJOBA command",
+      category: "cl-clle",
+      limit: 5
+    }));
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]?.title).toContain("RTVJOBA command");
+    expect(results[0]?.synthetic).toBe(true);
+    expect(results[0]?.taxonomy?.kind).toBe("command");
+    expect(`${results[0]?.title} ${results[0]?.snippet}`).toMatch(/RTVJOBA|Retrieve Job Attributes|Job Attributes/i);
+  });
+
   it("prioriza evidencia de compilación SQLRPGLE sobre catálogos Db2 genéricos", () => {
     const results = withRepo((repo) => repo.search({
       query: "SQLRPGLE",

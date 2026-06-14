@@ -463,8 +463,12 @@ export class CorpusRepository {
     if (!command || options.strictCategory) return results;
     const foldedCommand = fold(command);
     if (results.some((hit) => isExactCommandTitle(hit.title, foldedCommand))) return results;
+    const needles = commandFallbackNeedles(foldedCommand);
     const candidate = [...results]
-      .filter((hit) => fold(`${hit.title} ${hit.snippet} ${hit.breadcrumbs.join(" ")}`).includes(foldedCommand))
+      .filter((hit) => {
+        const haystack = fold(`${hit.title} ${hit.snippet} ${hit.breadcrumbs.join(" ")}`);
+        return needles.some((needle) => haystack.includes(needle));
+      })
       .sort((a, b) => commandFallbackPriority(b, foldedCommand) - commandFallbackPriority(a, foldedCommand))[0];
     if (!candidate) return results;
     const synthetic: SearchHit = {
@@ -2251,6 +2255,16 @@ function isExactCommandTitle(title: string, foldedCommand: string): boolean {
   return foldedTitle === `${foldedCommand} command`
     || foldedTitle.startsWith(`${foldedCommand} command `)
     || foldedTitle === `description of the ${foldedCommand} command`;
+}
+
+function commandFallbackNeedles(foldedCommand: string): string[] {
+  // Algunos comandos CL aparecen en el corpus por su descripción larga, no por el nombre corto del comando.
+  const aliases: Record<string, string[]> = {
+    dspfd: ["display file description", "database files and device files"],
+    rtvjoba: ["retrieve job attributes", "job attributes"],
+    sbmjob: ["submit job", "submitted job"]
+  };
+  return [foldedCommand, ...(aliases[foldedCommand] ?? [])].map((needle) => fold(needle));
 }
 
 function commandFallbackPriority(hit: SearchHit, foldedCommand: string): number {
