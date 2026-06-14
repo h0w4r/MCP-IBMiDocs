@@ -1742,7 +1742,8 @@ function classifyTaxonomy(hit: Pick<SearchHit, "title" | "category" | "breadcrum
 }
 
 function extractTopicSections(content: string): TopicSection[] {
-  const lines = content.split(/\r?\n/);
+  const normalizedContent = normalizeLineEndings(content);
+  const lines = normalizedContent.split("\n");
   const headingIndexes: Array<{ index: number; title: string; kind: TopicSection["kind"] }> = [];
   lines.forEach((line, index) => {
     const trimmed = line.trim();
@@ -1752,7 +1753,7 @@ function extractTopicSections(content: string): TopicSection[] {
     if (looksHeading) headingIndexes.push({ index, title: trimmed, kind });
   });
   if (!headingIndexes.length) {
-    return augmentCommandSections(content, [{ kind: "description", title: "Contenido", content: content.trim(), startLine: 1, endLine: lines.length }]);
+    return augmentCommandSections(normalizedContent, [{ kind: "description", title: "Contenido", content: normalizedContent.trim(), startLine: 1, endLine: lines.length }]);
   }
   const sections: TopicSection[] = [];
   for (let i = 0; i < headingIndexes.length; i += 1) {
@@ -1768,7 +1769,13 @@ function extractTopicSections(content: string): TopicSection[] {
       endLine: next
     });
   }
-  return augmentCommandSections(content, sections).slice(0, 80);
+  return augmentCommandSections(normalizedContent, sections).slice(0, 80);
+}
+
+function normalizeLineEndings(content: string): string {
+  // GitHub Actions en Windows puede convertir el corpus versionado a CRLF; normalizamos
+  // antes de aplicar regex de documentación para que la extracción sea cross-platform.
+  return content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
 function augmentCommandSections(content: string, sections: TopicSection[]): TopicSection[] {
