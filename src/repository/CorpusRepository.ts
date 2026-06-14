@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { resolveContainedPath } from "../util/paths.js";
+import { appendTraceEvent, buildTraceReport, defaultTraceFile, isTraceEnabled } from "./trace/traceStore.js";
 import type {
   AnswerCitation,
   AnswerOptions,
@@ -204,6 +205,13 @@ const WORKFLOW_POLICIES: Record<DocsIntent, WorkflowPolicy> = {
     defaultLimit: 6,
     description: "Consulta explicativa general: responder con citas y leer los tópicos principales antes de concluir."
   },
+  multi_intent: {
+    intent: "multi_intent",
+    preferredTools: ["ibmi_docs_search", "ibmi_docs_answer", "ibmi_docs_explain_message", "ibmi_docs_compile_guidance"],
+    requiredEvidence: ["evidencia por cada intención detectada", "advertencias si una familia técnica no tiene ID exacto", "lectura de los tópicos principales"],
+    defaultLimit: 8,
+    description: "Consulta mixta: separar comandos, mensajes, compilación o versiones y advertir si algún eje no queda cubierto por evidencia."
+  },
   syntax_lookup: {
     intent: "syntax_lookup",
     preferredTools: ["ibmi_docs_search", "ibmi_docs_read", "ibmi_docs_sections"],
@@ -340,7 +348,7 @@ export class CorpusRepository {
     }
     const exactRows = this.findExactTechnicalRows(exactTerms, options);
     rows.push(...exactRows);
-    if (options.category && exactTerms.length && !exactRows.length) {
+    if (options.category && !options.strictCategory && exactTerms.length && !exactRows.length) {
       rows.push(...this.findExactTechnicalRows(exactTerms, { ...options, category: undefined }).map((row) => ({ ...row, requested_category_fallback: 1 })));
     }
     if (options.version && exactTerms.length && !exactRows.length) {
@@ -359,6 +367,7 @@ export class CorpusRepository {
       hit.taxonomy = classifyTaxonomy(hit, body);
       hit.semanticScore = semanticScore(hit, options.query, semantic);
       hit.requestedVersionFallback = Boolean(row.requested_version_fallback);
+      hit.requestedCategoryFallback = Boolean(row.requested_category_fallback);
       hit.matchReasons = buildMatchReasons(hit, body, options.query, semantic);
       hit.relevanceWarnings = buildRelevanceWarnings(hit, body, options);
       if (row.requested_category_fallback) {
@@ -388,17 +397,25 @@ export class CorpusRepository {
       if (!existing || hit.score > existing.score) bestByDocument.set(hit.id, hit);
     }
     const sortedResults = [...bestByDocument.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
-    const guardedResults = exactTerms.length
-      ? sortedResults.filter((hit) => hit.score >= 0 && !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("Resultado penalizado")))
+    const rankedResults = sortedResults.some((hit) => hit.documentKind !== "stub" && hit.documentKind !== "landing")
+      ? sortedResults.filter((hit) => hit.documentKind !== "stub" && hit.documentKind !== "landing")
       : sortedResults;
-    let results = (exactTerms.length ? guardedResults : sortedResults).slice(0, limit);
-    if (!results.length && options.category && exactTerms.length) {
+    const guardedResults = exactTerms.length
+      ? rankedResults.filter((hit) => hit.score >= 0 && !(hit.relevanceWarnings ?? []).some((warning) => warning.includes("Resultado penalizado")))
+      : rankedResults;
+    let results = (exactTerms.length ? guardedResults : rankedResults).slice(0, limit);
+    if (!results.length && options.category && exactTerms.length && !options.strictCategory) {
       results = this.search({ ...options, category: undefined, limit }).map((hit) => ({
         ...hit,
+        requestedCategoryFallback: true,
         matchReasons: [...(hit.matchReasons ?? []), `fallback exacto fuera de la categoría solicitada ${options.category}`],
         relevanceWarnings: [...(hit.relevanceWarnings ?? []), `No se encontró tópico exacto en categoría ${options.category}; este resultado es fallback desde ${hit.category}.`]
       }));
     }
+    if (!results.length) {
+      results = this.messageFamilyFallbackResults(options, limit);
+    }
+    results = this.commandFallbackResults(results, options, limit);
     this.recordTrace("ibmi_docs_search", started, {
       query: options.query,
       resultCount: results.length,
@@ -408,6 +425,73 @@ export class CorpusRepository {
       followedReadCandidateIds: results.slice(0, 3).map((hit) => hit.id)
     });
     return results;
+  }
+
+  private messageFamilyFallbackResults(options: SearchOptions, limit: number): SearchHit[] {
+    const messageId = extractMessageId(options.query);
+    if (!messageId) return [];
+    const fallbackQuery = messageFamilyFallbackQuery(messageId);
+    if (!fallbackQuery) return [];
+    const candidateLimit = clamp(limit * 8, 24, limit, 80);
+    return this.search({
+      ...options,
+      query: fallbackQuery,
+      category: undefined,
+      strictCategory: false,
+      limit: candidateLimit,
+      mode: options.mode ?? "hybrid"
+    }).filter((hit) => !hit.synthetic)
+      .map((hit) => ({
+        ...hit,
+        score: messageFamilyFallbackScore(hit),
+        messageFamilyFallback: true,
+        matchReasons: [
+          ...(hit.matchReasons ?? []),
+          `fallback documental por familia ${messageId.match(/^[A-Z]+/)?.[0] ?? "MESSAGE"} para ${messageId}`
+        ],
+        relevanceWarnings: [
+          ...(hit.relevanceWarnings ?? []),
+          `No se encontró entrada exacta para ${messageId}; este resultado es evidencia de familia/manejo de mensajes, no descripción exacta del ID.`
+        ]
+      }))
+      .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+      .slice(0, limit);
+  }
+
+  private commandFallbackResults(results: SearchHit[], options: SearchOptions, limit: number): SearchHit[] {
+    const command = extractCommandQueryTerm(options.query);
+    if (!command || options.strictCategory) return results;
+    const foldedCommand = fold(command);
+    if (results.some((hit) => isExactCommandTitle(hit.title, foldedCommand))) return results;
+    const candidate = [...results]
+      .filter((hit) => fold(`${hit.title} ${hit.snippet} ${hit.breadcrumbs.join(" ")}`).includes(foldedCommand))
+      .sort((a, b) => commandFallbackPriority(b, foldedCommand) - commandFallbackPriority(a, foldedCommand))[0];
+    if (!candidate) return results;
+    const synthetic: SearchHit = {
+      ...candidate,
+      title: `${command.toUpperCase()} command (entrada desde ${candidate.title})`,
+      snippet: makeSnippet(candidate.snippet || candidate.title, command, 520),
+      score: Math.round((candidate.score + 28) * 100000) / 100000,
+      synthetic: true,
+      canonicalTopicKey: `${candidate.category}:${foldedCommand}`,
+      taxonomy: { kind: "command", label: "Comando IBM i", confidence: 0.72, signals: ["synthetic-command-index"] },
+      matchReasons: [
+        `entrada sintética para comando exacto: ${foldedCommand}`,
+        ...(candidate.matchReasons ?? []).slice(0, 4)
+      ],
+      relevanceWarnings: [
+        ...(candidate.relevanceWarnings ?? []),
+        `Entrada generada desde un índice/tópico relacionado porque el corpus no contiene una página canónica separada para ${command.toUpperCase()}.`
+      ],
+      nextRecommendedTool: "ibmi_docs_read",
+      nextRecommendedReason: "Lee el tópico fuente para revisar el contexto donde aparece el comando; el corpus todavía no tiene página canónica granular para este comando.",
+      nextRecommendedArguments: { id: candidate.id, then: "ibmi_docs_sections", focus: ["syntax", "parameters", "examples", "notes"] },
+      workflowHints: [
+        "Entrada sintética de comando: úsala como pista de navegación, no como descripción exhaustiva.",
+        "Siguiente paso recomendado: ibmi_docs_read sobre el ID fuente."
+      ]
+    };
+    return [synthetic, ...results.filter((hit) => hit.id !== candidate.id)].slice(0, limit);
   }
 
   read(id: string): ReadResult | null {
@@ -572,8 +656,12 @@ export class CorpusRepository {
       ...preset.compileCommands.map((command) => `${command} command`)
     ].filter(Boolean);
     const category = options.usesEmbeddedSql ? "sql-db2-for-i" : preset.category;
-    const evidence = this.searchMany(queries, { category, version: options.version, limit: options.limit ?? 8 });
+    let evidence = this.searchMany(queries, { category, version: options.version, limit: options.limit ?? 8 });
     const recommendedCommands = options.usesEmbeddedSql || preset.language === "SQLRPGLE" ? ["CRTSQLRPGI"] : preset.compileCommands;
+    if (preset.language === "SQLRPGLE" || options.usesEmbeddedSql) {
+      const commandEvidence = this.search({ query: "CRTSQLRPGI command", category: "sql-db2-for-i", version: options.version, limit: 4 });
+      evidence = prioritizeCompileEvidence([...commandEvidence, ...evidence], "SQLRPGLE", options.limit ?? 8);
+    }
     const optionsToReview = [...new Set([...preset.optionsToReview, ...(options.usesCopybook ? ["RPGPPOPT"] : []), ...(options.usesEmbeddedSql ? ["COMMIT"] : [])])];
     const result: CompileGuidance = {
       language: preset.language,
@@ -609,20 +697,31 @@ export class CorpusRepository {
     const searchCategory = family === "RNF" || family === "SQL" ? category : undefined;
     const evidence = this.search({ query: messageId, category: searchCategory, limit: options.limit ?? 6 })
       .filter((hit) => isMessageEvidenceHit(hit, messageId, family));
+    const exactMatch = evidence.some((hit) => messageHitContainsExactId(hit, messageId));
+    const coverageStatus: MessageExplanation["coverageStatus"] = exactMatch ? "exact" : evidence.length ? "family" : "unsupported";
+    const warnings = [
+      ...(!exactMatch && evidence.length ? [`No se encontró una entrada exacta para ${messageId}; se entrega evidencia documental de familia/manejo de mensajes.`] : []),
+      ...(!evidence.length ? [`No hay evidencia documental en el corpus para ${messageId}.`] : [])
+    ];
     const result: MessageExplanation = {
       messageId,
       family,
       category,
-      summary: evidence.length
-        ? `Se encontró evidencia documental para ${messageId} en ${evidence[0].title}.`
-        : `No se encontró una entrada exacta para ${messageId}; revisar listado de compilación o joblog completo.`,
+      summary: exactMatch
+        ? `Se encontró evidencia documental exacta para ${messageId} en ${evidence[0].title}.`
+        : evidence.length
+          ? `No se encontró entrada exacta para ${messageId}; se adjunta evidencia de familia/manejo de mensajes en ${evidence[0].title}.`
+          : `No se encontró una entrada exacta para ${messageId}; revisar listado de compilación o joblog completo.`,
       recoveryChecklist: [
         "Confirmar el mensaje exacto, severidad y texto de segundo nivel en el listado/joblog.",
         "Corregir primero mensajes anteriores que puedan provocar errores derivados.",
         "Recompilar y validar que el mensaje desaparezca o cambie de severidad.",
         "Si aplica, contrastar opciones de compilación y miembros /COPY o /INCLUDE referenciados."
       ],
-      evidence
+      evidence,
+      exactMatch,
+      coverageStatus,
+      warnings
     };
     this.recordTrace("ibmi_docs_explain_message", started, {
       query: messageId,
@@ -635,6 +734,9 @@ export class CorpusRepository {
 
   categories(): CategoryDiagnostics {
     const byCategory = queryCounts(this.db, "category");
+    for (const virtualCategory of ["mensajes-cpf", "mensajes-mch"]) {
+      byCategory[virtualCategory] ??= 0;
+    }
     const byVersion = queryCounts(this.db, "version");
     const bySource = queryCounts(this.db, "source_kind");
     return {
@@ -709,6 +811,20 @@ export class CorpusRepository {
       count: Number(row.count),
       versions: String(row.versions ?? "").split(",").filter(Boolean).sort(naturalVersionSort)
     }));
+    const duplicateTitlesSameVersion = this.db.prepare(`
+      SELECT title, version, COUNT(*) AS count, GROUP_CONCAT(DISTINCT category) AS categories
+      FROM documents
+      GROUP BY lower(title), version
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC, title ASC
+      LIMIT 40
+    `).all().map((row: any) => ({
+      title: String(row.title),
+      version: String(row.version),
+      count: Number(row.count),
+      categories: String(row.categories ?? "").split(",").filter(Boolean).sort()
+    }));
+    const duplicateTitlesCrossVersionExpected = duplicateTitles.filter((item) => item.versions.length > 1);
     const canonicalColumnSql = hasColumn(this.db, "documents", "canonical_topic_key") ? "canonical_topic_key" : "'' AS canonical_topic_key";
     const docRows = this.db.prepare(`
       SELECT id, title, category, version, text_length AS textLength, breadcrumbs_json, ${canonicalColumnSql}
@@ -754,10 +870,10 @@ export class CorpusRepository {
       .filter(([, count]) => count < 50)
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => a.count - b.count);
-    const criticalSparseCategories = sparseCategories.filter((item) => ["ibm-i-general", "cl-clle", "ile-rpg", "dds", "sql-db2-for-i", "mensajes-rnf"].includes(item.category));
+    const criticalSparseCategories = sparseCategories.filter((item) => ["cl-clle", "ile-rpg", "dds", "sql-db2-for-i", "mensajes-rnf"].includes(item.category));
     const worstDuplicateCount = duplicateCanonicalTopics[0]?.count ?? 0;
     return {
-      ok: pack.ok && shortDocuments.length < 100 && documentKinds.stub < 100 && criticalSparseCategories.length === 0 && worstDuplicateCount < 100,
+      ok: pack.ok && shortDocuments.length < 100 && documentKinds.stub < 100 && criticalSparseCategories.length === 0 && worstDuplicateCount < 100 && duplicateTitlesSameVersion.every((item) => item.count < 20),
       generatedAt: new Date().toISOString(),
       corpusVersion: manifest.corpusVersion,
       documents: pack.documents,
@@ -765,6 +881,8 @@ export class CorpusRepository {
       coverage,
       shortDocuments,
       duplicateTitles,
+      duplicateTitlesSameVersion,
+      duplicateTitlesCrossVersionExpected,
       duplicateCanonicalTopics,
       documentKinds,
       sparseCategories,
@@ -886,6 +1004,7 @@ export class CorpusRepository {
     const messageId = extractMessageId(options.question);
     const versions = extractVersions(options.question);
     const preset = resolvePreset(options.language ?? options.question ?? options.code);
+    const intentAxes = detectIntentAxes([options.question, options.language, options.code].filter(Boolean).join("\n"));
 
     // En guía de compilación el resumen final se arma desde context + compileGuidance;
     // ejecutar answer además duplica búsquedas/lecturas y vuelve el workflow innecesariamente pesado.
@@ -911,7 +1030,9 @@ export class CorpusRepository {
       });
     }
 
-    const context = intent === "compile_guidance" || intent === "code_review"
+    const shouldBuildCompileAxis = intent === "compile_guidance" || intent === "code_review" || (intent === "multi_intent" && intentAxes.has("compile"));
+
+    const context = shouldBuildCompileAxis
       ? this.context({ task: options.question, language: options.language ?? preset?.language, version: options.version, limit })
       : undefined;
     if (context) {
@@ -925,7 +1046,7 @@ export class CorpusRepository {
       });
     }
 
-    const compileGuidance = intent === "compile_guidance" || intent === "code_review"
+    const compileGuidance = shouldBuildCompileAxis
       ? this.compileGuidance({
           language: options.language ?? preset?.language ?? "RPGLE",
           version: options.version,
@@ -945,7 +1066,7 @@ export class CorpusRepository {
       });
     }
 
-    const messageExplanation = intent === "message_diagnostic" && messageId
+    const messageExplanation = (intent === "message_diagnostic" || intent === "multi_intent") && messageId
       ? this.explainMessage({ messageId, limit })
       : undefined;
     if (messageExplanation) {
@@ -1025,6 +1146,7 @@ export class CorpusRepository {
     const warnings = [
       ...(answerResult?.warnings ?? []),
       ...requiredEvidenceWarnings,
+      ...mixedIntentWarnings(intent, intentAxes, messageId),
       ...(!evidence.length ? ["No se encontró evidencia documental suficiente; no inventar detalles fuera del corpus."] : []),
       ...(intent === "search_discovery" ? ["Esta resolución es exploratoria: lee los IDs recomendados antes de citar detalles finos."] : [])
     ];
@@ -1188,6 +1310,48 @@ export class CorpusRepository {
         evidenceIds: evidence.map((hit) => hit.id).slice(0, 3)
       });
     }
+    if (/monmsg/i.test(options.code)) {
+      findings.push({
+        severity: /monmsg\s+msgid\s*\(\s*cpf0000\s*\)/i.test(options.code) ? "warning" : "info",
+        title: "MONMSG detectado en CL",
+        detail: /cpf0000/i.test(options.code)
+          ? "Se detectó MONMSG con CPF0000; revisar alcance para no ocultar errores no esperados y confirmar recuperación por mensaje específico."
+          : "Se detectó MONMSG; validar que el mensaje cubierto y el alcance del manejador sean intencionales.",
+        evidenceIds: evidence.map((hit) => hit.id).slice(0, 3)
+      });
+    }
+    if (/sbmjob/i.test(options.code)) {
+      findings.push({
+        severity: "info",
+        title: "SBMJOB detectado",
+        detail: "Revisar JOB, JOBQ, USER, CURLIB/INLLIBL y el contexto de ejecución del trabajo sometido.",
+        evidenceIds: evidence.map((hit) => hit.id).slice(0, 3)
+      });
+    }
+    if (/sndpgmmsg/i.test(options.code)) {
+      findings.push({
+        severity: /cpf9898/i.test(options.code) ? "warning" : "info",
+        title: "SNDPGMMSG detectado",
+        detail: "Validar MSGID, MSGF, MSGDTA y cola destino. Si se usa CPF9898, confirmar texto de sustitución y severidad esperada.",
+        evidenceIds: evidence.map((hit) => hit.id).slice(0, 3)
+      });
+    }
+    if (/rtvjoba/i.test(options.code)) {
+      findings.push({
+        severity: "info",
+        title: "RTVJOBA detectado",
+        detail: "Validar variables receptoras y atributos de trabajo recuperados antes de usarlos en decisiones de flujo.",
+        evidenceIds: evidence.map((hit) => hit.id).slice(0, 3)
+      });
+    }
+    if (/\bcall\s+pgm\s*\(/i.test(options.code)) {
+      findings.push({
+        severity: "info",
+        title: "CALL PGM detectado",
+        detail: "Revisar compatibilidad de parámetros CL con la firma del programa llamado y manejo de escape messages.",
+        evidenceIds: evidence.map((hit) => hit.id).slice(0, 3)
+      });
+    }
     if (!findings.length) {
       findings.push({
         severity: "info",
@@ -1207,9 +1371,7 @@ export class CorpusRepository {
   }
 
   private traceFile(): string {
-    return process.env.IBMI_DOCS_TRACE_FILE
-      ? path.resolve(process.env.IBMI_DOCS_TRACE_FILE)
-      : path.resolve("data", "ibmi-docs-trace.ndjson");
+    return defaultTraceFile();
   }
 
   private recordTrace(tool: string, started: number, event: Omit<TraceEvent, "timestamp" | "tool" | "durationMs">): void {
@@ -1349,6 +1511,9 @@ function classifyDocumentKind(hit: Pick<SearchHit, "title" | "breadcrumbs" | "te
   const textLength = hit.textLength ?? body.length;
   if (textLength > 0 && textLength < 300) return "stub";
   if (/^(ibm rational developer|ibm i documentation|welcome|home)$/.test(title)) return "landing";
+  if (/^[a-z0-9]{3,12}\s+command$/.test(title) || /^description of the .+ command$/.test(title)) return "reference";
+  if (/\b(snd-msg|chain|reade|readp|monitor|on-error)\b/.test(title) && /\b(operation|opcode)\b/.test(haystack)) return "reference";
+  if (/^%[a-z][a-z0-9_-]+/.test(title) && /built-in function/.test(haystack)) return "reference";
   if (/\b(what'?s new|contents|table of contents|appendix|appendixes|index|overview)\b/.test(haystack)) return "index";
   if (/\b(reference|programmer'?s guide|language reference|messages and codes|keyword finder)\b/.test(title)) return "reference";
   return "topic";
@@ -1443,6 +1608,19 @@ function scoreHit(hit: SearchHit, body: string, rank: number, options: SearchOpt
   if (/crtrpgmod/i.test(options.query) && /crtrpgmod command/i.test(hit.title)) score += 25;
   if (/crtrpgmod/i.test(options.query) && /^crtrpgmod command$/i.test(hit.title.trim())) score += 30;
   if (/copy|include|sqlrpgle|embedded sql/i.test(options.query) && /copy.*include|embedded sql/i.test(hit.title)) score += 15;
+  if (/\bsqlrpgle\b|embedded sql|crt(sql)?rpgi|precompiler/i.test(options.query)) {
+    if (/crtsqlrpgi|embedded sql|sql\s*rpg|precompiler|rpgppopt/i.test(`${hit.title} ${hit.breadcrumbs.join(" ")}`)) score += 45;
+    if (/sysindexstat|sys.*stat|catalog tables|catalog views/i.test(hit.title)) score -= 70;
+    if (hit.category === "mensajes-rnf" && !/rnf\d{4}/i.test(options.query)) score -= 45;
+  }
+  const commandTerm = extractCommandQueryTerm(options.query);
+  if (commandTerm) {
+    const foldedCommand = fold(commandTerm);
+    if (title.includes(foldedCommand)) score += 45;
+    if (breadcrumbs.includes(foldedCommand)) score += 16;
+    if (!title.includes(foldedCommand) && bodyFold.includes(foldedCommand)) score += 5;
+    if (/cl command finder|ibm i commands|alphabetic list of cl commands/i.test(`${hit.title} ${hit.breadcrumbs.join(" ")}`)) score += 12;
+  }
   if (exactTerms.length) {
     const hitPrimaryTerm = extractPrimaryTechnicalTerm(hit.title);
     const matchedInTitle = exactTerms.some((term) => title.includes(term));
@@ -1520,22 +1698,47 @@ function buildMatchReasons(hit: SearchHit, body: string, query: string, semantic
 }
 
 function classifyTaxonomy(hit: Pick<SearchHit, "title" | "category" | "breadcrumbs">, content: string): TopicTaxonomy {
-  const haystack = fold([hit.title, hit.category, hit.breadcrumbs?.join(" ") ?? "", content.slice(0, 1200)].join(" "));
-  const signals: string[] = [];
-  const match = (kind: TopicTaxonomy["kind"], label: string, checks: Array<[RegExp, string]>): TopicTaxonomy | undefined => {
-    for (const [pattern, signal] of checks) if (pattern.test(haystack)) signals.push(signal);
-    if (!signals.length) return undefined;
-    return { kind, label, confidence: Math.min(1, 0.45 + signals.length * 0.18), signals: [...new Set(signals)] };
-  };
-  return match("rpg-bif", "Built-in function RPG", [[/%[a-z][a-z0-9_-]+/, "percent-bif"], [/built-in function/, "built-in function"]])
-    ?? match("rpg-opcode", "Operation code RPG", [[/\bsnd-msg\b|\bchain\b|\breade\b|\bmonitor\b|\bon-error\b/, "rpg opcode"], [/operation codes?/, "operation code"]])
-    ?? match("message", "Mensaje IBM i/RNF/SQL", [[/\brnf\d{4}\b/, "RNF"], [/\bsql\d{4,5}\b/, "SQL message"], [/\bcpf\d{4}\b/, "CPF"], [/\bmch\d{4}\b/, "MCH"], [/messages?/, "message"]])
-    ?? match("command", "Comando IBM i", [[IBM_I_COMMAND_TOKEN_PATTERN, "command prefix"], [/\bcommand\b/, "command"]])
-    ?? match("dds-keyword", "DDS/keyword", [[/\bdds\b|\bphysical file\b|\blogical file\b|\bkeyword\b/, "dds keyword"], [/\b(unique|reffld|edtcde|dspatr)\b/, "dds keyword name"]])
-    ?? match("sql", "Db2 for i / SQL", [[/\bsqlrpgle\b|embedded sql|exec sql|db2 for i/, "sql"], [/\bselect\b|\bcommit\b|\bcursor\b/, "sql statement"]])
-    ?? match("api", "API IBM i", [[/\bq[a-z0-9]{6,}\b/, "qsys api"], [/\bapi\b/, "api"]])
-    ?? match("language-guide", "Guía de lenguaje", [[/ile rpg|cl programs|cobol|control language/, "language guide"]])
-    ?? { kind: "general", label: "General IBM i", confidence: 0.2, signals: [] };
+  const title = fold(hit.title);
+  const category = fold(hit.category ?? "");
+  const breadcrumbs = fold(hit.breadcrumbs?.join(" ") ?? "");
+  const body = fold(content.slice(0, 1200));
+  const haystack = [title, category, breadcrumbs, body].join(" ");
+  const make = (kind: TopicTaxonomy["kind"], label: string, signals: string[], confidence = 0.63, relatedKinds?: TopicTaxonomy["relatedKinds"]): TopicTaxonomy => ({
+    kind,
+    label,
+    confidence: Math.min(1, confidence),
+    signals: [...new Set(signals)],
+    ...(relatedKinds?.length ? { relatedKinds: [...new Set(relatedKinds)] } : {})
+  });
+
+  if (/\bsnd-msg\b/.test(title)) return make("rpg-opcode", "Operation code RPG", ["title opcode", "snd-msg"], 0.9, /%[a-z]/.test(haystack) ? ["rpg-bif"] : undefined);
+  if (/^%[a-z][a-z0-9_-]+/.test(title)) return make("rpg-bif", "Built-in function RPG", ["title percent-bif"], 0.9);
+  if (category === "cl-clle" && (IBM_I_COMMAND_TOKEN_PATTERN.test(title) || /\bcommand\b/.test(title) || IBM_I_COMMAND_TOKEN_PATTERN.test(breadcrumbs))) {
+    return make("command", "Comando IBM i", ["cl category", "command"], 0.82);
+  }
+  if (/\b(rnf\d{4}|sql\d{4,5}|cpf\d{4}|mch\d{4})\b/.test(haystack) || /messages and codes|message descriptions|rpg messages|sql messages|system messages/.test(`${title} ${breadcrumbs}`)) {
+    const signals = [
+      ...(/\brnf\d{4}\b/.test(haystack) ? ["RNF"] : []),
+      ...(/\bsql\d{4,5}\b/.test(haystack) ? ["SQL message"] : []),
+      ...(/\bcpf\d{4}\b/.test(haystack) ? ["CPF"] : []),
+      ...(/\bmch\d{4}\b/.test(haystack) ? ["MCH"] : []),
+      ...(/message/.test(`${title} ${breadcrumbs}`) ? ["message"] : [])
+    ];
+    return make("message", "Mensaje IBM i/RNF/SQL", signals.length ? signals : ["message"], 0.72);
+  }
+  if (category === "sql-db2-for-i" && (/\bsqlrpgle\b|embedded sql|exec sql|db2 for i|precompiler|rpgppopt/.test(haystack) || /\bselect\b|\bcommit\b|\bcursor\b/.test(haystack))) {
+    return make("sql", "Db2 for i / SQL", ["sql"], 0.74);
+  }
+  if (/\b(chain|reade|readp|monitor|on-error)\b/.test(title) || /\boperation codes?\b/.test(`${title} ${breadcrumbs}`)) {
+    return make("rpg-opcode", "Operation code RPG", ["rpg opcode"], 0.68);
+  }
+  if (IBM_I_COMMAND_TOKEN_PATTERN.test(haystack) || /\bcommand\b/.test(`${title} ${breadcrumbs}`)) return make("command", "Comando IBM i", ["command prefix"], 0.68);
+  if (/%[a-z][a-z0-9_-]+/.test(haystack) || /built-in function/.test(haystack)) return make("rpg-bif", "Built-in function RPG", ["percent-bif"], 0.63);
+  if (/\bdds\b|\bphysical file\b|\blogical file\b|\bkeyword\b/.test(haystack) || /\b(unique|reffld|edtcde|dspatr)\b/.test(haystack)) return make("dds-keyword", "DDS/keyword", ["dds keyword"], 0.63);
+  if (/\bsqlrpgle\b|embedded sql|exec sql|db2 for i/.test(haystack) || /\bselect\b|\bcommit\b|\bcursor\b/.test(haystack)) return make("sql", "Db2 for i / SQL", ["sql"], 0.63);
+  if (/\bq[a-z0-9]{6,}\b/.test(haystack) || /\bapi\b/.test(haystack)) return make("api", "API IBM i", ["api"], 0.63);
+  if (/ile rpg|cl programs|cobol|control language/.test(haystack)) return make("language-guide", "Guía de lenguaje", ["language guide"], 0.63);
+  return { kind: "general", label: "General IBM i", confidence: 0.2, signals: [] };
 }
 
 function extractTopicSections(content: string): TopicSection[] {
@@ -1549,7 +1752,7 @@ function extractTopicSections(content: string): TopicSection[] {
     if (looksHeading) headingIndexes.push({ index, title: trimmed, kind });
   });
   if (!headingIndexes.length) {
-    return [{ kind: "description", title: "Contenido", content: content.trim(), startLine: 1, endLine: lines.length }];
+    return augmentCommandSections(content, [{ kind: "description", title: "Contenido", content: content.trim(), startLine: 1, endLine: lines.length }]);
   }
   const sections: TopicSection[] = [];
   for (let i = 0; i < headingIndexes.length; i += 1) {
@@ -1565,7 +1768,87 @@ function extractTopicSections(content: string): TopicSection[] {
       endLine: next
     });
   }
-  return sections.slice(0, 80);
+  return augmentCommandSections(content, sections).slice(0, 80);
+}
+
+function augmentCommandSections(content: string, sections: TopicSection[]): TopicSection[] {
+  const lines = content.split(/\r?\n/);
+  const title = lines.find((line) => /\b[A-Z0-9]{3,12}\s+Command\b/.test(line))?.trim() ?? "";
+  const command = title.match(/\b([A-Z0-9]{3,12})\s+Command\b/)?.[1];
+  if (!command) return sections;
+  const synthetic: TopicSection[] = [];
+  const normalizedSections = normalizeCommandSectionTitles(sections, command);
+  const description = content.match(/Last Updated:[^\n]*\n\n([\s\S]{40,700}?)(?:\nJob:|\n[A-Z0-9]{3,12}[A-Z0-9]+?\()/i)?.[1]?.trim();
+  if (description && !normalizedSections.some((section) => section.kind === "description" && /descrip|description|contenido/i.test(section.title))) {
+    synthetic.push({ kind: "description", title: `Descripción de ${command}`, content: description, startLine: 1, endLine: Math.min(lines.length, 8) });
+  }
+  const syntaxSource = selectCommandSyntaxSource(content, normalizedSections, command);
+  if (syntaxSource && !normalizedSections.some((section) => section.kind === "syntax" && fold(section.content).includes(fold(command)))) {
+    synthetic.push({ kind: "syntax", title: `Sintaxis de ${command}`, content: normalizeCommandSyntax(syntaxSource, command), startLine: 1, endLine: Math.min(lines.length, 25) });
+  }
+  const parameters = extractCommandParameters(syntaxSource ?? "", command);
+  if (parameters && !normalizedSections.some((section) => section.kind === "parameters")) {
+    synthetic.push({ kind: "parameters", title: `Parámetros detectados de ${command}`, content: parameters, startLine: 1, endLine: Math.min(lines.length, 25) });
+  }
+  const notes = extractCommandNotes(content, command);
+  if (notes && !normalizedSections.some((section) => section.kind === "notes")) {
+    synthetic.push({ kind: "notes", title: `Notas de ${command}`, content: notes, startLine: 1, endLine: Math.min(lines.length, 40) });
+  }
+  return [...synthetic, ...normalizedSections];
+}
+
+function normalizeCommandSectionTitles(sections: TopicSection[], command: string): TopicSection[] {
+  return sections.map((section) => {
+    if (section.kind !== "syntax" || !fold(section.content).includes(fold(command))) return section;
+    // IBM Docs a veces pierde el encabezado real y convierte una frase de la descripción en "título".
+    // Si ya detectamos que la sección contiene el comando, exponemos un nombre estable para agentes MCP.
+    return {
+      ...section,
+      title: /^sintaxis|^syntax/i.test(section.title) ? section.title : `Sintaxis de ${command}`,
+      content: normalizeCommandSyntax(section.content, command)
+    };
+  });
+}
+
+function selectCommandSyntaxSource(content: string, sections: TopicSection[], command: string): string | undefined {
+  const sourceFromContent = extractCommandSyntaxSource(content, command);
+  if (sourceFromContent && sourceFromContent.includes("(")) return sourceFromContent;
+  // Si el primer match fue solo el título "CRTRPGMOD Command", reutilizamos la sección syntax ya detectada.
+  return sections.find((section) => section.kind === "syntax" && fold(section.content).includes(fold(command)))?.content;
+}
+
+function extractCommandSyntaxSource(content: string, command: string): string | undefined {
+  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = content.match(new RegExp(`(${escaped}[A-Z0-9_/*().,'\\-\\s]+?)(?:\\n\\n|OPTION Details|Notes:)`, "i"));
+  return match?.[1]?.trim();
+}
+
+function normalizeCommandSyntax(syntax: string, command: string): string {
+  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return syntax
+    .replace(new RegExp(`^${escaped}`, "i"), command)
+    .replace(/([A-Z][A-Z0-9]{2,})(\()/g, "\n$1$2")
+    .replace(/\)(?=[A-Z][A-Z0-9]{2,}\()/g, ")\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function extractCommandParameters(syntax: string, command: string): string {
+  const normalized = normalizeCommandSyntax(syntax, command);
+  const params = [...new Set((normalized.match(/\b[A-Z][A-Z0-9]{2,}\(/g) ?? [])
+    .map((item) => item.slice(0, -1).replace(new RegExp(`^${command}`, "i"), ""))
+    .filter((item) => item && item !== command && item.length <= 12))];
+  return params.map((param) => `- ${param}`).join("\n");
+}
+
+function extractCommandNotes(content: string, command: string): string {
+  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const notes = content.match(/Notes:\s*([\s\S]{10,700}?)(?:\n\n[A-Z][A-Z0-9 ]{3,}:|\n\n[A-Z][A-Za-z ]{3,}:|$)/i)?.[1]?.trim();
+  const optionDetails = content.match(new RegExp(`OPTION Details([\\s\\S]{10,700}?)(?:\\n\\n|$)`, "i"))?.[1]?.trim();
+  return [
+    notes ? `Notes:\n${notes.replace(new RegExp(escaped, "gi"), command)}` : "",
+    optionDetails ? `OPTION Details:\n${normalizeCommandSyntax(optionDetails, command)}` : ""
+  ].filter(Boolean).join("\n\n");
 }
 
 function detectSectionKind(title: string): TopicSection["kind"] {
@@ -1713,6 +1996,9 @@ function buildRequiredEvidenceWarnings(input: {
   if (input.intent === "message_diagnostic" && !input.messageExplanation?.evidence.length) {
     warnings.push("La intención exige diagnóstico de mensaje, pero no se encontró evidencia exacta para el mensaje solicitado.");
   }
+  if (input.intent === "message_diagnostic" && input.messageExplanation?.coverageStatus === "family") {
+    warnings.push(...(input.messageExplanation.warnings ?? []));
+  }
   if (input.intent === "compile_guidance" && !input.compileGuidance?.evidence.length) {
     warnings.push("La intención exige guía de compilación, pero no se encontró evidencia documental suficiente para comandos/opciones.");
   }
@@ -1733,6 +2019,7 @@ function computeResolveConfidence(input: {
   warnings: string[];
 }): "alta" | "media" | "baja" {
   if (input.intent === "message_diagnostic" && !input.messageExplanation?.evidence.length) return "baja";
+  if (input.intent === "message_diagnostic" && input.messageExplanation?.coverageStatus === "family") return "media";
   if (input.intent === "compile_guidance" && !input.compileGuidance?.evidence.length) return "baja";
   if (input.intent === "version_question" && !input.versionComparison?.evidence.length) return "baja";
   if (input.warnings.some((warning) => /no se encontr[oó]|no hay evidencia|sin evidencia|no inventar/i.test(warning))) return "baja";
@@ -1777,6 +2064,8 @@ function renderQueryIssueMarkdown(report: QueryReport): string {
 function classifyResolveIntent(options: ResolveOptions): DocsIntent {
   const haystack = [options.question, options.language, options.code].filter(Boolean).join("\n");
   if (options.code?.trim()) return "code_review";
+  const axes = detectIntentAxes(haystack);
+  if (axes.size > 1 && axes.has("message") && (axes.has("command") || axes.has("syntax"))) return "multi_intent";
   if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4})\b/i.test(haystack)) return "message_diagnostic";
   if (/ranking|rank|por qu[eé].*(resultado|sale|aparece)|explain.?ranking|score|b[uú]squeda.*mal/i.test(haystack)) return "ranking_debug";
   if (/(7\.[3456]).*(7\.[3456])|compar(a|ar|aci[oó]n)|diferencia|entre versiones|release/i.test(haystack)) return "version_question";
@@ -1784,6 +2073,27 @@ function classifyResolveIntent(options: ResolveOptions): DocsIntent {
   if (/sintaxis|syntax|par[aá]metro|parameter|operand|opcode|operation code|ejemplo|example|%[a-z][a-z0-9_-]+|\b[A-Z]{2,}-[A-Z]{2,}\b/i.test(haystack)) return "syntax_lookup";
   if (/buscar|busca|lista|encuentra|find|search|documentos?|t[oó]picos?/i.test(haystack)) return "search_discovery";
   return "explain_topic";
+}
+
+function detectIntentAxes(haystack: string): Set<"message" | "command" | "compile" | "syntax" | "version" | "search"> {
+  const axes = new Set<"message" | "command" | "compile" | "syntax" | "version" | "search">();
+  if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|RNF|CPF|MCH|SQLCODE|SQLSTATE)\b/i.test(haystack)) axes.add("message");
+  if (extractExactTechnicalTerms(haystack).some((term) => IBM_I_COMMAND_PREFIX_PATTERN.test(term) && !isMessageIdTerm(term))) axes.add("command");
+  if (/comandos?\s+CL|CL commands?|DSPFD|SBMJOB|RTVJOBA/i.test(haystack)) axes.add("command");
+  if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|sqlrpgle|copybook|\/\s*(copy|include)\b/i.test(haystack)) axes.add("compile");
+  if (/sintaxis|syntax|par[aá]metro|parameter|operand|opcode|operation code|%[a-z][a-z0-9_-]+|\b[A-Z]{2,}-[A-Z]{2,}\b/i.test(haystack)) axes.add("syntax");
+  if (/(7\.[3456]).*(7\.[3456])|compar(a|ar|aci[oó]n)|entre versiones|release/i.test(haystack)) axes.add("version");
+  if (/buscar|busca|lista|encuentra|find|search|documentos?|t[oó]picos?/i.test(haystack)) axes.add("search");
+  return axes;
+}
+
+function mixedIntentWarnings(intent: DocsIntent, axes: Set<string>, messageId?: string): string[] {
+  if (intent !== "multi_intent") return [];
+  return [
+    `Consulta mixta detectada: ${[...axes].sort().join(", ")}.`,
+    ...(!messageId && axes.has("message") ? ["Se mencionan familias de mensajes sin ID concreto; para diagnóstico exacto usa RNF0004, CPF9898, MCH3601 o SQLnnnnn."] : []),
+    "La evidencia se debe leer por eje técnico; no asumir que un único tópico cubre comandos, mensajes y compilación a la vez."
+  ];
 }
 
 function buildNextToolRecommendation(hit: SearchHit, options: SearchOptions): NextToolRecommendation {
@@ -1916,8 +2226,88 @@ function isMessageEvidenceHit(hit: Pick<SearchHit, "title" | "category" | "bread
   return /^mensajes/.test(category) || /messages and codes|message descriptions/.test(titleAndPath);
 }
 
+function messageHitContainsExactId(hit: Pick<SearchHit, "title" | "breadcrumbs" | "snippet">, messageId: string): boolean {
+  const exact = fold(messageId);
+  return fold([hit.title, hit.breadcrumbs?.join(" ") ?? "", hit.snippet ?? ""].join(" ")).includes(exact);
+}
+
 function isLikelyIbmCommandQuery(query: string): boolean {
   return extractExactTechnicalTerms(query).some((term) => IBM_I_COMMAND_PREFIX_PATTERN.test(term));
+}
+
+function extractCommandQueryTerm(query: string): string | undefined {
+  return extractExactTechnicalTerms(query).find((term) => IBM_I_COMMAND_PREFIX_PATTERN.test(term) && !isMessageIdTerm(term));
+}
+
+function isExactCommandTitle(title: string, foldedCommand: string): boolean {
+  const foldedTitle = fold(title);
+  return foldedTitle === `${foldedCommand} command`
+    || foldedTitle.startsWith(`${foldedCommand} command `)
+    || foldedTitle === `description of the ${foldedCommand} command`;
+}
+
+function commandFallbackPriority(hit: SearchHit, foldedCommand: string): number {
+  const haystack = fold([hit.title, hit.breadcrumbs.join(" "), hit.snippet].join(" "));
+  let score = hit.score;
+  if (/cl command finder|alphabetic list of cl commands/.test(haystack)) score += 80;
+  if (/ibm i commands/.test(haystack)) score += 55;
+  if (fold(hit.title).includes(foldedCommand)) score += 45;
+  if (/example: using the retrieve job attributes command/.test(haystack)) score += 40;
+  if (hit.category === "cl-clle") score += 15;
+  return score;
+}
+
+function messageFamilyEvidencePriority(hit: SearchHit): number {
+  const haystack = fold([hit.title, hit.breadcrumbs.join(" "), hit.snippet].join(" "));
+  let score = 0;
+
+  // Para familias CPF/MCH sin página exacta en el corpus, priorizamos evidencia
+  // de manejo/descripción de mensajes sobre índices genéricos de comandos CL.
+  if (/message descriptions|defining message descriptions|retrieving message descriptions/.test(haystack)) score += 45;
+  if (/\bmessages\b/.test(haystack)) score += 20;
+  if (/qcpfmsg|sndpgmmsg|message file|joblog|job log/.test(haystack)) score += 15;
+  if (/cl command finder|ibm i commands|alphabetic list of cl commands/.test(haystack)) score -= 35;
+  if (/^example:/.test(fold(hit.title)) && !/message descriptions|message file/.test(haystack)) score -= 25;
+
+  return score;
+}
+
+function messageFamilyFallbackScore(hit: SearchHit): number {
+  const priority = messageFamilyEvidencePriority(hit);
+  const boundedFts = Math.max(0, Math.min(hit.score, 99)) / 100;
+  return Math.round((priority * 10 + boundedFts) * 100000) / 100000;
+}
+
+function prioritizeCompileEvidence(hits: SearchHit[], language: string, limit: number): SearchHit[] {
+  const seen = new Map<string, SearchHit>();
+  for (const hit of hits) {
+    const current = seen.get(hit.id);
+    if (!current || compileEvidenceScore(hit, language) > compileEvidenceScore(current, language)) seen.set(hit.id, hit);
+  }
+  return [...seen.values()]
+    .sort((a, b) => compileEvidenceScore(b, language) - compileEvidenceScore(a, language) || b.score - a.score || a.title.localeCompare(b.title))
+    .slice(0, clamp(limit, 8, 1, 50));
+}
+
+function compileEvidenceScore(hit: SearchHit, language: string): number {
+  const haystack = fold([hit.title, hit.breadcrumbs.join(" "), hit.snippet].join(" "));
+  let score = hit.score;
+  if (language === "SQLRPGLE") {
+    if (/crtsqlrpgi/.test(haystack)) score += 120;
+    if (/embedded sql|sql rpg|precompiler|rpgppopt/.test(haystack)) score += 70;
+    if (/copy|include/.test(haystack)) score += 25;
+    if (/sysindexstat|catalog table|catalog view/.test(haystack)) score -= 120;
+  }
+  return score;
+}
+
+function messageFamilyFallbackQuery(messageId: string): string | undefined {
+  const family = messageId.match(/^[A-Z]+/)?.[0]?.toUpperCase();
+  if (family === "CPF") return "message descriptions message file QCPFMSG SNDPGMMSG joblog";
+  if (family === "MCH") return "machine messages message descriptions joblog";
+  if (family === "SQL") return "SQL messages SQLCODE SQLSTATE Db2 for i";
+  if (family === "RNF") return "RPG Messages compiler messages RNF";
+  return undefined;
 }
 
 function escapeLike(value: string): string {
@@ -1957,6 +2347,11 @@ function detectSignals(task: string, language?: string, preset?: LanguagePreset)
   if (/\/\s*(copy|include)|copybook|include/i.test(haystack)) signals.add("/COPY /INCLUDE");
   if (/rnf\d{4}/i.test(haystack)) signals.add("RNF message");
   if (/\bdds\b|\bpf\b|physical file|logical file/i.test(haystack)) signals.add("DDS/PF/LF");
+  if (/monmsg/i.test(haystack)) signals.add("MONMSG");
+  if (/sndpgmmsg/i.test(haystack)) signals.add("SNDPGMMSG");
+  if (/sbmjob/i.test(haystack)) signals.add("SBMJOB");
+  if (/rtvjoba/i.test(haystack)) signals.add("RTVJOBA");
+  if (/cpf\d{4}/i.test(haystack)) signals.add("CPF message");
   return [...signals];
 }
 
@@ -1991,61 +2386,4 @@ function normalizeVersionInput(version: string): string {
   if (match) return match[0];
   if (/rdi/i.test(version)) return "RDi-local";
   return version;
-}
-
-function isTraceEnabled(): boolean {
-  return /^(1|true|yes|on)$/i.test(process.env.IBMI_DOCS_TRACE ?? "");
-}
-
-function appendTraceEvent(file: string, event: TraceEvent): void {
-  try {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.appendFileSync(file, `${JSON.stringify(event)}\n`, "utf8");
-  } catch {
-    // La traza es diagnóstica y opcional: nunca debe romper una consulta documental.
-  }
-}
-
-function readTraceEvents(file: string, limit = 500): TraceEvent[] {
-  if (!fs.existsSync(file)) return [];
-  const lines = fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean).slice(-limit);
-  const events: TraceEvent[] = [];
-  for (const line of lines) {
-    try {
-      events.push(JSON.parse(line) as TraceEvent);
-    } catch {
-      // Ignorar líneas corruptas o truncadas; el reporte debe seguir siendo útil.
-    }
-  }
-  return events;
-}
-
-function buildTraceReport(file: string, limit: number): TraceReport {
-  const events = readTraceEvents(file, Math.max(limit, 500));
-  const byTool: Record<string, number> = {};
-  for (const event of events) byTool[event.tool] = (byTool[event.tool] ?? 0) + 1;
-  const searchEvents = events.filter((event) => event.tool === "ibmi_docs_search");
-  const readEvents = events.filter((event) => event.tool === "ibmi_docs_read");
-  const readIds = new Set(readEvents.map((event) => event.id ?? event.topResultId).filter(Boolean));
-  const searchThenRead = searchEvents.filter((event) => (event.followedReadCandidateIds ?? []).some((id) => readIds.has(id)));
-  const answerEvents = events.filter((event) => event.tool === "ibmi_docs_answer");
-  const resolveEvents = events.filter((event) => event.tool === "ibmi_docs_resolve");
-  const denominator = events.length || 1;
-  const searchDenominator = searchEvents.length || 1;
-  return {
-    enabled: isTraceEnabled(),
-    traceFile: file,
-    events: events.length,
-    byTool,
-    searchEvents: searchEvents.length,
-    searchOnlyRate: roundRate((searchEvents.length - searchThenRead.length) / searchDenominator),
-    searchThenReadRate: roundRate(searchThenRead.length / searchDenominator),
-    answerUsageRate: roundRate(answerEvents.length / denominator),
-    resolveUsageRate: roundRate(resolveEvents.length / denominator),
-    recent: events.slice(-limit)
-  };
-}
-
-function roundRate(value: number): number {
-  return Math.round(value * 10000) / 100;
 }

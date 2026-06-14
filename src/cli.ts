@@ -2,7 +2,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { Command } from "commander";
-import { exportRdiHelp } from "./ingest/rdiExporter.js";
 import { syncIbmDocs } from "./ingest/ibmDocsCrawler.js";
 import { buildDataPack } from "./ingest/packBuilder.js";
 import { CorpusRepository } from "./repository/CorpusRepository.js";
@@ -16,14 +15,14 @@ program
   .version("0.5.0");
 
 program
-  .command("export-rdi")
+  .command("export-rdi", { hidden: process.env.IBMI_DOCS_ENABLE_INTERNAL !== "1" })
   .description("Exporta contenido completo desde un endpoint Eclipse/RDi Help temporal. Uso interno de construcción, no runtime.")
   .requiredOption("--base-url <url>", "Base URL temporal de Eclipse/RDi Help, por ejemplo http://<host>:<puerto>/help")
   .option("--out <dir>", "Directorio de salida", "data/rdi-export")
   .option("--max-topics <n>", "Máximo de nodos/tópicos de TOC a recorrer", "30000")
   .option("--concurrency <n>", "Descargas paralelas", "8")
   .action(async (opts) => {
-    const manifest = await exportRdiHelp({
+    const manifest = await exportRdiInternal({
       baseUrl: String(opts.baseUrl),
       outDir: String(opts.out),
       maxTopics: Number(opts.maxTopics),
@@ -78,6 +77,7 @@ program
   .option("--mode <mode>", "fts|hybrid", "hybrid")
   .option("--auto-read", "Adjunta contenido completo para resultados fuertes")
   .option("--sections", "Incluye vista previa de secciones")
+  .option("--strict-category", "No permite fallback fuera de --category")
   .action((query, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.search({
     query,
     category: opts.category,
@@ -85,7 +85,8 @@ program
     limit: Number(opts.limit),
     mode: opts.mode,
     autoRead: Boolean(opts.autoRead),
-    includeSections: Boolean(opts.sections)
+    includeSections: Boolean(opts.sections),
+    strictCategory: Boolean(opts.strictCategory)
   }))));
 
 program
@@ -310,7 +311,12 @@ program
   .command("quality-report")
   .description("Reporte de calidad del corpus: tópicos cortos, duplicados, cobertura y recomendaciones.")
   .option("--pack <dir>", "Ruta explícita del data pack")
-  .action((opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.qualityReport())));
+  .option("--fail-on-not-ok", "Termina con exit code 1 si qualityReport.ok=false")
+  .action((opts) => withRepo(String(opts.pack ?? ""), (repo) => {
+    const report = repo.qualityReport();
+    printJson(report);
+    if (opts.failOnNotOk && !report.ok) process.exitCode = 1;
+  }));
 
 program
   .command("recipes")
@@ -330,6 +336,7 @@ program
   .description("Wizard no interactivo: valida instalación, pack, smoke queries y genera config Codex opcional.")
   .option("--pack <dir>", "Ruta del data pack", defaultUserPackDir())
   .option("--print-codex", "Incluye bloque TOML para Codex")
+  .option("--quality-gate <mode>", "Control de quality-report: off|warn|fail", "warn")
   .action(async (opts) => {
     const packDir = String(opts.pack);
     const verified = await verifyDataPack(packDir);
@@ -339,9 +346,20 @@ program
     ];
     if (verified.ok) {
       withRepo(packDir, (repo) => {
-        for (const query of ["CRTRPGMOD", "RNF0004", "SND-MSG", "SQLRPGLE"]) {
-          const hits = repo.search({ query, limit: 1 });
-          checks.push({ name: `smoke:${query}`, ok: hits.length > 0, detail: hits[0]?.title ?? "sin resultado" });
+        for (const smoke of smokeCases()) {
+          const hits = repo.search({ query: smoke.query, category: smoke.category, limit: 3 });
+          const top = hits[0];
+          const ok = Boolean(top) && smoke.ok(hits);
+          checks.push({ name: `smoke:${smoke.query}`, ok, detail: top ? `${top.title} (${top.category}/${top.version})` : "sin resultado" });
+        }
+        const quality = repo.qualityReport();
+        const qualityMode = String(opts.qualityGate ?? "warn").toLowerCase();
+        if (qualityMode !== "off") {
+          checks.push({
+            name: "quality-report",
+            ok: quality.ok || qualityMode === "warn",
+            detail: quality.ok ? "ok" : `warning: quality-report ok=false; stubs=${quality.documentKinds.stub}; sparse=${quality.sparseCategories.map((item) => item.category).join(",") || "n/a"}`
+          });
         }
       });
     }
@@ -391,10 +409,14 @@ pack
   .option("--out <dir>", "Destino", defaultUserPackDir())
   .action(async (opts) => {
     if (!opts.from && !opts.latest) throw new Error("Indica --from <source> o --latest.");
-    const result = opts.latest
-      ? await installLatestDataPack({ outDir: String(opts.out) })
-      : await installDataPack({ from: String(opts.from), outDir: String(opts.out) });
-    printJson(result);
+    try {
+      const result = opts.latest
+        ? await installLatestDataPack({ outDir: String(opts.out) })
+        : await installDataPack({ from: String(opts.from), outDir: String(opts.out) });
+      printJson(result);
+    } catch (error) {
+      throw new Error(formatPackInstallError(error));
+    }
   });
 
 pack
@@ -442,6 +464,45 @@ function getIbmVersion(opts: Record<string, unknown>): string | undefined {
 
 function parseList(value: string): string[] {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+async function exportRdiInternal(options: { baseUrl: string; outDir: string; maxTopics: number; concurrency: number }) {
+  if (process.env.IBMI_DOCS_ENABLE_INTERNAL !== "1") {
+    throw new Error("export-rdi es una herramienta interna de bootstrap. Define IBMI_DOCS_ENABLE_INTERNAL=1 si estás construyendo el corpus del proyecto.");
+  }
+  const { exportRdiHelp } = await import("./ingest/rdiExporter.js");
+  return exportRdiHelp(options);
+}
+
+function smokeCases(): Array<{ query: string; category?: string; ok: (hits: Array<{ title: string; snippet?: string; category: string }>) => boolean }> {
+  return [
+    { query: "CRTRPGMOD", category: "ile-rpg", ok: (hits) => /CRTRPGMOD/i.test(hits[0]?.title ?? "") && hits[0]?.category === "ile-rpg" },
+    { query: "RNF0004", category: "mensajes-rnf", ok: (hits) => hits.some((hit) => hit.category === "mensajes-rnf" && /RPG Messages/i.test(hit.title)) },
+    { query: "SND-MSG", category: "ile-rpg", ok: (hits) => /SND-MSG/i.test(hits[0]?.title ?? "") && hits[0]?.category === "ile-rpg" },
+    {
+      query: "SQLRPGLE",
+      category: "sql-db2-for-i",
+      ok: (hits) => {
+        const top = hits[0];
+        if (!top || top.category !== "sql-db2-for-i") return false;
+        // Guardrail semántico: un tópico de catálogo como SYSINDEXSTAT no debe validar el setup.
+        if (/SYSINDEXSTAT/i.test(`${top.title} ${top.snippet ?? ""}`)) return false;
+        return /CRTSQLRPGI|embedded SQL|SQL RPG|precompiler|RPGPPOPT|\/COPY|\/INCLUDE/i.test(`${top.title} ${top.snippet ?? ""}`);
+      }
+    }
+  ];
+}
+
+function formatPackInstallError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/HTTP 404|Not Found/i.test(message)) {
+    return [
+      message,
+      "No se encontró el release asset público ibmi-docs-pack.tgz.",
+      "Alternativas: publica el asset con el workflow de release, usa --from <directorio|tgz>, o define IBMI_DOCS_PACK_LATEST_URL con una URL válida."
+    ].join("\n");
+  }
+  return message;
 }
 
 async function readCodeInput(opts: Record<string, unknown>): Promise<string> {

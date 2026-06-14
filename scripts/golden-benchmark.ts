@@ -9,6 +9,8 @@ interface BenchmarkQuery {
   mustBeFirstTitle?: string;
   mustContainTitle?: string;
   mustContainTitlePattern?: string;
+  mustHaveResults?: boolean;
+  required?: boolean;
 }
 
 const coreFixture = new URL("../tests/fixtures/golden-queries.json", import.meta.url);
@@ -56,6 +58,13 @@ const report = {
   failures
 };
 console.log(JSON.stringify(report, null, 2));
+
+const requiredFailures = failures.filter((failure) => queries.some((query) => query.name === failure.name && (query.required || query.mustHaveResults)));
+
+if (requiredFailures.length) {
+  console.error(`Benchmark golden falló en ${requiredFailures.length} query(s) obligatoria(s).`);
+  process.exit(1);
+}
 
 if (passRate < 0.95) {
   console.error(`Benchmark golden bajo umbral: ${report.passRate}% < 95%`);

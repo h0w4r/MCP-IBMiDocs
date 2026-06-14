@@ -68,6 +68,7 @@ export interface TopicTaxonomy {
   label: string;
   confidence: number;
   signals: string[];
+  relatedKinds?: TaxonomyKind[];
 }
 
 export type TopicSectionKind = "syntax" | "parameters" | "description" | "examples" | "notes" | "restrictions" | "messages" | "recovery" | "related" | "generic";
@@ -90,10 +91,12 @@ export interface SearchOptions {
   mode?: "fts" | "hybrid";
   autoRead?: boolean;
   includeSections?: boolean;
+  strictCategory?: boolean;
 }
 
 export type DocsIntent =
   | "explain_topic"
+  | "multi_intent"
   | "syntax_lookup"
   | "compile_guidance"
   | "message_diagnostic"
@@ -143,6 +146,9 @@ export interface SearchHit {
   canonicalTopicKey?: string;
   relevanceWarnings?: string[];
   requestedVersionFallback?: boolean;
+  requestedCategoryFallback?: boolean;
+  messageFamilyFallback?: boolean;
+  synthetic?: boolean;
 }
 
 export interface ReadResult extends SearchHit {
@@ -206,6 +212,9 @@ export interface MessageExplanation {
   summary: string;
   recoveryChecklist: string[];
   evidence: SearchHit[];
+  exactMatch?: boolean;
+  coverageStatus?: "exact" | "family" | "unsupported";
+  warnings?: string[];
 }
 
 export interface RelatedOptions {
@@ -383,6 +392,8 @@ export interface QualityReport {
   coverage: CategoryDiagnostics;
   shortDocuments: Array<{ id: string; title: string; textLength: number; category: string; version: string }>;
   duplicateTitles: Array<{ title: string; count: number; versions: string[] }>;
+  duplicateTitlesSameVersion?: Array<{ title: string; count: number; version: string; categories: string[] }>;
+  duplicateTitlesCrossVersionExpected?: Array<{ title: string; count: number; versions: string[] }>;
   duplicateCanonicalTopics: Array<{ canonicalTopicKey: string; count: number; titles: string[]; versions: string[] }>;
   documentKinds: Record<DocumentKind, number>;
   sparseCategories: Array<{ category: string; count: number }>;
@@ -451,6 +462,11 @@ export interface TraceEvent {
 export interface TraceReport {
   enabled: boolean;
   traceFile: string;
+  traceFileSizeBytes: number;
+  maxBytes: number;
+  rotatedFiles: string[];
+  omittedEvents: number;
+  corruptLines: number;
   events: number;
   byTool: Record<string, number>;
   searchEvents: number;

@@ -12,6 +12,8 @@ interface GoldenQuery {
   mustBeFirstTitle?: string;
   mustContainTitle?: string;
   mustContainTitlePattern?: string;
+  mustHaveResults?: boolean;
+  required?: boolean;
 }
 
 const fixturePath = new URL("./fixtures/golden-queries.json", import.meta.url);
@@ -131,7 +133,8 @@ describe("capacidades agénticas del repositorio", () => {
     expect(results[0]?.title).toBe("SND-MSG (Send a Message to the Joblog)");
     expect(results[0]?.textLength).toBeGreaterThan(results[0]?.snippet.length ?? 0);
     expect(results[0]?.readHint).toContain("ibmi_docs_read");
-    expect(results[0]?.taxonomy?.kind).toMatch(/rpg-opcode|rpg-bif|message/);
+    expect(results[0]?.taxonomy?.kind).toBe("rpg-opcode");
+    expect(results[0]?.taxonomy?.relatedKinds).toContain("rpg-bif");
     expect(results[0]?.sectionsPreview?.length).toBeGreaterThan(0);
   });
 
@@ -179,13 +182,28 @@ describe("capacidades agénticas del repositorio", () => {
     expect(sections.sections.some((section) => section.kind === "syntax")).toBe(true);
   });
 
+  it("extrae sintaxis, parámetros y notas desde comandos IBM i compactados", () => {
+    const sections = withRepo((repo) => {
+      const hit = repo.search({ query: "CRTRPGMOD", limit: 1 })[0];
+      return repo.sections(hit.id);
+    });
+
+    const kinds = sections.sections.map((section) => section.kind);
+    expect(sections.topic?.title).toContain("CRTRPGMOD");
+    expect(kinds).toEqual(expect.arrayContaining(["description", "syntax", "parameters", "notes"]));
+    expect(sections.sections.find((section) => section.kind === "syntax")?.title).toMatch(/Sintaxis de CRTRPGMOD/i);
+    expect(sections.sections.find((section) => section.kind === "parameters")?.content).toMatch(/SRCFILE|SRCMBR|MODULE/i);
+    expect(sections.sections.find((section) => section.kind === "notes")?.content).toMatch(/parameters preceding this point/i);
+  });
+
   it("emite reporte de calidad y recetas comunitarias", () => {
     const result = withRepo((repo) => ({ quality: repo.qualityReport(), recipes: repo.recipes() }));
 
-    expect(result.quality.ok).toBe(false);
+    expect(result.quality.ok).toBe(true);
     expect(result.quality.documents).toBeGreaterThan(1000);
     expect(result.quality.documentKinds.topic).toBeGreaterThan(0);
     expect(result.quality.duplicateCanonicalTopics.length).toBe(0);
+    expect(result.quality.duplicateTitlesSameVersion).toBeDefined();
     expect(result.quality.recommendations.length).toBeGreaterThan(0);
     expect(result.recipes.length).toBeGreaterThan(3);
   });
@@ -278,11 +296,12 @@ describe("capacidades agénticas del repositorio", () => {
     }));
 
     expect(result.intent).toBe("message_diagnostic");
-    expect(result.confidence).toBe("baja");
+    expect(result.confidence).toBe("media");
     expect(result.messageExplanation?.messageId).toBe("CPF0001");
-    expect(result.messageExplanation?.evidence).toEqual([]);
-    expect(result.evidence).toEqual([]);
-    expect(result.warnings.join(" ")).toMatch(/no se encontró evidencia exacta|No hay evidencia/i);
+    expect(result.messageExplanation?.coverageStatus).toBe("family");
+    expect(result.messageExplanation?.exactMatch).toBe(false);
+    expect(result.messageExplanation?.evidence.length).toBeGreaterThan(0);
+    expect(result.warnings.join(" ")).toMatch(/familia|entrada exacta/i);
     expect(JSON.stringify(result)).not.toMatch(/ILE COBOL|IBM Extensions|Simple Insertion Editing/i);
   });
 
@@ -333,10 +352,71 @@ describe("capacidades agénticas del repositorio", () => {
     }));
 
     expect(results.length).toBeGreaterThan(0);
+    expect(results[0]?.title).toContain("SBMJOB command");
+    expect(results[0]?.synthetic).toBe(true);
     expect(results.some((hit) => `${hit.title} ${hit.snippet}`.includes("SBMJOB"))).toBe(true);
     const serializedArgs = JSON.stringify(results.map((hit) => hit.nextRecommendedArguments ?? {}));
     expect(serializedArgs).not.toContain("SBMJOB COMMAND");
     expect(serializedArgs).toMatch(/CLLE|ibmi_docs_sections|id/);
+  });
+
+  it("prioriza evidencia de compilación SQLRPGLE sobre catálogos Db2 genéricos", () => {
+    const results = withRepo((repo) => repo.search({
+      query: "SQLRPGLE",
+      category: "sql-db2-for-i",
+      limit: 5
+    }));
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0]?.title).toMatch(/CRTSQLRPGI|embedded SQL|SQL RPG|precompiler|RPGPPOPT/i);
+    expect(results[0]?.title).not.toMatch(/SYSINDEXSTAT/i);
+  });
+
+  it("permite categoría estricta sin fallback fuera de la categoría solicitada", () => {
+    const loose = withRepo((repo) => repo.search({ query: "DSPFD command", category: "dds", limit: 3 }));
+    const strict = withRepo((repo) => repo.search({ query: "DSPFD command", category: "dds", strictCategory: true, limit: 3 }));
+
+    expect(loose.some((hit) => hit.requestedCategoryFallback)).toBe(true);
+    expect(strict.every((hit) => hit.category === "dds")).toBe(true);
+  });
+
+  it("detecta señales CLLE de jobs y mensajes programáticos", () => {
+    const result = withRepo((repo) => repo.validateCodeContext({
+      language: "CLLE",
+      code: "PGM\nSBMJOB CMD(CALL PGM(MYLIB/MYPGM)) JOB(TESTJOB)\nMONMSG MSGID(CPF0000) EXEC(DO)\nSNDPGMMSG MSGID(CPF9898) MSGF(QCPFMSG) MSGDTA('Falló')\nENDDO\nENDPGM",
+      limit: 5
+    }));
+
+    expect(result.detectedSignals).toEqual(expect.arrayContaining(["CLLE", "MONMSG", "SBMJOB", "SNDPGMMSG", "CPF message"]));
+    expect(result.findings.map((finding) => finding.title)).toEqual(expect.arrayContaining(["MONMSG detectado en CL", "SBMJOB detectado", "SNDPGMMSG detectado"]));
+    expect(result.findings.some((finding) => finding.severity === "warning")).toBe(true);
+  });
+
+  it("clasifica consultas mixtas como multi_intent con advertencias por eje", () => {
+    const result = withRepo((repo) => repo.resolve({
+      question: "Para auditar comandos CL como DSPFD y SBMJOB y mensajes CPF MCH RNF, qué evidencia debe priorizar",
+      limit: 4
+    }));
+
+    expect(result.intent).toBe("multi_intent");
+    expect(result.confidence).not.toBe("alta");
+    expect(result.warnings.join(" ")).toMatch(/Consulta mixta|familias de mensajes/i);
+  });
+
+  it("resuelve intención mixta de mensaje RNF y compilación SQLRPGLE", () => {
+    const result = withRepo((repo) => repo.resolve({
+      question: "Diagnostica RNF0004 y revisa CRTSQLRPGI para SQLRPGLE",
+      language: "SQLRPGLE",
+      limit: 4
+    }));
+
+    expect(result.intent).toBe("multi_intent");
+    expect(result.messageExplanation?.messageId).toBe("RNF0004");
+    expect(result.compileGuidance?.recommendedCommands).toContain("CRTSQLRPGI");
+    expect(result.stages.map((stage) => stage.tool)).toEqual(expect.arrayContaining([
+      "ibmi_docs_explain_message",
+      "ibmi_docs_compile_guidance"
+    ]));
   });
 
   it("registra trazas opcionales y calcula tasas de uso", () => {

@@ -76,12 +76,13 @@ export function createServer(): McpServer {
         limit: z.number().int().min(1).max(50).optional(),
         mode: z.enum(["fts", "hybrid"]).optional().describe("Modo fts puro o híbrido con expansión semántica local."),
         autoRead: z.boolean().optional().describe("Si true, adjunta contenido completo cuando el resultado es fuerte."),
-        includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas.")
+        includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas."),
+        strictCategory: z.boolean().optional().describe("Si true, no permite fallback fuera de la categoría solicitada.")
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ query, version, category, limit, mode, autoRead, includeSections }) => {
-      const results = withRepository((repo) => repo.search({ query, version, category, limit, mode, autoRead, includeSections }));
+    async ({ query, version, category, limit, mode, autoRead, includeSections, strictCategory }) => {
+      const results = withRepository((repo) => repo.search({ query, version, category, limit, mode, autoRead, includeSections, strictCategory }));
       return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results }) };
     }
   );
@@ -523,7 +524,18 @@ function renderCompileGuidance(guidance: any): string {
 }
 
 function renderMessageExplanation(explanation: any): string {
-  return [`Mensaje: ${explanation.messageId}`, `Familia/Categoría: ${explanation.family} / ${explanation.category}`, `Resumen: ${explanation.summary}`, "", "Recovery checklist:", bullet(explanation.recoveryChecklist), "", renderSearchResults(String(explanation.messageId), explanation.evidence as Array<any>)].join("\n");
+  return [
+    `Mensaje: ${explanation.messageId}`,
+    `Familia/Categoría: ${explanation.family} / ${explanation.category}`,
+    `Cobertura: ${explanation.coverageStatus ?? "n/a"}${explanation.exactMatch === false ? " (sin entrada exacta)" : ""}`,
+    `Resumen: ${explanation.summary}`,
+    ...(explanation.warnings?.length ? ["", "Advertencias:", bullet(explanation.warnings)] : []),
+    "",
+    "Recovery checklist:",
+    bullet(explanation.recoveryChecklist),
+    "",
+    renderSearchResults(String(explanation.messageId), explanation.evidence as Array<any>)
+  ].join("\n");
 }
 
 function renderRelated(related: any): string {
