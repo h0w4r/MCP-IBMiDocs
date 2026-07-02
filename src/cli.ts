@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 import path from "node:path";
-import { existsSync, readFileSync } from "node:fs";
 import fs from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { syncIbmDocs } from "./ingest/ibmDocsCrawler.js";
 import { buildDataPack } from "./ingest/packBuilder.js";
 import { CorpusRepository } from "./repository/CorpusRepository.js";
 import { archiveDataPack, installDataPack, installLatestDataPack, lintContribution, listCandidatePacks, verifyDataPack } from "./pack/dataPack.js";
+import { loadPackageVersion } from "./util/packageVersion.js";
 import { defaultUserPackDir, resolvePackDir } from "./util/paths.js";
 
 const program = new Command();
@@ -494,29 +493,6 @@ function getIbmVersion(opts: Record<string, unknown>): string | undefined {
 
 function parseList(value: string): string[] {
   return value.split(",").map((item) => item.trim()).filter(Boolean);
-}
-
-function loadPackageVersion(): string {
-  // El CLI debe reportar la versión real del paquete publicado/instalado.
-  // Se busca hacia arriba para funcionar igual desde src/ con tsx y desde dist/src/ en npm.
-  let currentDir = path.dirname(fileURLToPath(import.meta.url));
-  for (let depth = 0; depth < 6; depth += 1) {
-    const packageJsonPath = path.join(currentDir, "package.json");
-    if (existsSync(packageJsonPath)) {
-      try {
-        const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { name?: string; version?: string };
-        if (packageJson.name === "@ckirsch94/ibmi-docs-mcp" && typeof packageJson.version === "string") {
-          return packageJson.version;
-        }
-      } catch {
-        // Si el package.json encontrado no es legible, continuamos subiendo directorios.
-      }
-    }
-    const parentDir = path.dirname(currentDir);
-    if (parentDir === currentDir) break;
-    currentDir = parentDir;
-  }
-  return "0.0.0-dev";
 }
 
 async function exportRdiInternal(options: { baseUrl: string; outDir: string; maxTopics: number; concurrency: number }) {

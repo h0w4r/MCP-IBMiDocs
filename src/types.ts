@@ -411,6 +411,37 @@ export interface AssistCoverage {
   warnings: string[];
 }
 
+export type AssistRetrievalAxis =
+  | "primary"
+  | "syntax"
+  | "compile"
+  | "message"
+  | "version"
+  | "code"
+  | "related"
+  | "gap-followup";
+
+export interface AssistRetrievalHop {
+  axis: AssistRetrievalAxis;
+  query: string;
+  reason: string;
+  status: "executed" | "skipped";
+  resultCount: number;
+  readCount: number;
+  sectionCount: number;
+  evidenceIds: string[];
+  warnings: string[];
+}
+
+export interface AssistRetrievalPlan {
+  strategy: "single-pass" | "multi-hop";
+  axes: AssistRetrievalAxis[];
+  initialQueries: string[];
+  followUpQueries: string[];
+  hops: AssistRetrievalHop[];
+  coverageGaps: string[];
+}
+
 export interface AssistResult {
   question: string;
   intent: DocsIntent;
@@ -421,6 +452,7 @@ export interface AssistResult {
   implementationSteps: string[];
   validationChecklist: string[];
   coverage: AssistCoverage;
+  retrievalPlan: AssistRetrievalPlan;
   workflow: WorkflowStage[];
   evidence: SearchHit[];
   reads: ContextReadSummary[];

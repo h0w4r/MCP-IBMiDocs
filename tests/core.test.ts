@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { extractDocumentContent, inferCategory } from "../src/util/html.js";
 import { toFtsQuery } from "../src/repository/CorpusRepository.js";
+import { loadPackageVersion } from "../src/util/packageVersion.js";
 import fs from "node:fs";
 
 // Regresión: el HTML de ayuda trae scripts/frames de Eclipse, pero el corpus debe quedarse con texto útil.
@@ -67,7 +68,17 @@ describe("anti dependencia runtime RDi", () => {
     const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
       bin: Record<string, string>;
     };
-    expect(packageJson.bin["ibmi-docs-mcp"]).toBe("./dist/src/server.js");
-    expect(packageJson.bin["ibmi-docs"]).toBe("./dist/src/cli.js");
+    expect(packageJson.bin["ibmi-docs-mcp"].replace(/^\.\//, "")).toBe("dist/src/server.js");
+    expect(packageJson.bin["ibmi-docs"].replace(/^\.\//, "")).toBe("dist/src/cli.js");
+  });
+
+  it("el runtime reporta la versión real del paquete y no un literal obsoleto", () => {
+    const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+      version: string;
+    };
+    expect(loadPackageVersion()).toBe(packageJson.version);
+
+    const server = fs.readFileSync(new URL("../src/server.ts", import.meta.url), "utf8");
+    expect(server).not.toContain('version: "0.6.0"');
   });
 });

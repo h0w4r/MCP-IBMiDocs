@@ -46,7 +46,14 @@ Cuando un agente llama a `ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_ans
 - `implementationSteps`: pasos concretos para aplicar o diagnosticar.
 - `validationChecklist`: cómo comprobar que la respuesta/corrección quedó bien.
 - `coverage`: estado `complete`, `partial` o `thin`, con términos técnicos cubiertos/faltantes.
+- `retrievalPlan`: plan agéntico ejecutado por el MCP; incluye `strategy`, `axes`, `initialQueries`, `followUpQueries`, `hops` y `coverageGaps`.
 - `evidence`, `reads`, `sections`, `citations`: material ya recuperado, sin pedir sub-tools.
+
+El flujo interno ya no es “busca una palabra y cruza los dedos”. Para consultas complejas,
+`ibmi_docs_assist` arma ejes de intención como `primary`, `syntax`, `compile`, `message`,
+`version`, `code` o `gap-followup`; ejecuta búsquedas focalizadas, materializa lecturas y
+secciones, detecta gaps de cobertura y lanza follow-ups acotados antes de sintetizar la
+respuesta final.
 
 Ejemplo:
 

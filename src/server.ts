@@ -7,6 +7,7 @@ import { z } from "zod";
 import { CorpusRepository } from "./repository/CorpusRepository.js";
 import { syncIbmDocs } from "./ingest/ibmDocsCrawler.js";
 import { buildDataPack } from "./ingest/packBuilder.js";
+import { loadPackageVersion } from "./util/packageVersion.js";
 import { resolvePackDir } from "./util/paths.js";
 
 const moduleFile = fileURLToPath(import.meta.url);
@@ -28,7 +29,7 @@ function withRepository<T>(callback: (repo: CorpusRepository) => T): T {
 
 export function createServer(): McpServer {
   const server = new McpServer(
-    { name: "ibmi-docs-mcp", version: "0.6.0" },
+    { name: "ibmi-docs-mcp", version: loadPackageVersion(import.meta.url) },
     {
       instructions:
         [
@@ -47,7 +48,7 @@ export function createServer(): McpServer {
     "ibmi_docs_assist",
     {
       title: "Asistente IBM i one-shot",
-      description: "Herramienta principal para agentes y usuarios: recibe la tarea completa y devuelve una respuesta final autocontenida con evidencia, lecturas, secciones, pasos de implementación, validación, cobertura y citas. No pide llamadas adicionales.",
+      description: "Herramienta principal para agentes y usuarios: recibe la tarea completa y ejecuta internamente un motor multi-hop de intención -> búsqueda -> lectura -> secciones -> follow-ups por gaps -> síntesis. Devuelve respuesta final autocontenida con evidencia, lecturas, secciones, pasos, validación, cobertura, citas y retrievalPlan; no pide llamadas adicionales.",
       inputSchema: z.object({
         question: z.string().min(1).describe("Pregunta o tarea completa del usuario sobre IBM i/AS400."),
         language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
@@ -509,6 +510,7 @@ function renderAssist(assist: any): string {
     "Resumen estructurado:",
     `- Intención: ${assist.intent}`,
     `- Confianza: ${assist.confidence}`,
+    `- Plan agéntico: ${assist.retrievalPlan?.strategy ?? "n/a"}; ejes=${assist.retrievalPlan?.axes?.join(", ") ?? "n/a"}; hops=${assist.retrievalPlan?.hops?.length ?? 0}; follow-ups=${assist.retrievalPlan?.followUpQueries?.length ?? 0}`,
     `- Cobertura: ${assist.coverage?.status ?? "n/a"} (${assist.coverage?.evidenceCount ?? 0} evidencias, ${assist.coverage?.readCount ?? 0} lecturas, ${assist.coverage?.sectionCount ?? 0} secciones)`,
     assist.warnings?.length ? `- Advertencias: ${assist.warnings.slice(0, 4).join(" | ")}` : "- Advertencias: n/a"
   ].join("\n");

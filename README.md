@@ -30,7 +30,7 @@ Sirve para:
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
 - El paquete npm instala el servidor y la CLI.
 - El corpus documental vive en un **data pack local** con SQLite FTS5.
-- La tool recomendada para agentes es `ibmi_docs_assist`: una sola llamada con respuesta final, pasos, validación, cobertura y citas.
+- La tool recomendada para agentes es `ibmi_docs_assist`: una sola llamada con respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
 - Por ahora, el data pack público disponible está en este repositorio bajo `data/pack`.
 
 ## Instalación rápida
@@ -146,7 +146,7 @@ ibmi-docs doctor
 
 | Tool | Para qué usarla |
 | --- | --- |
-| `ibmi_docs_assist` | Punto de entrada recomendado. Una sola llamada: respuesta final, evidencia, lecturas, secciones, pasos, validación, cobertura y citas. |
+| `ibmi_docs_assist` | Punto de entrada recomendado. Una sola llamada: plan agéntico multi-hop, respuesta final, evidencia, lecturas, secciones, pasos, validación, cobertura y citas. |
 | `ibmi_docs_resolve` | Orquestador especializado para clasificar intención y auto-orquestar búsqueda, lectura, secciones, síntesis y evidencia. |
 | `ibmi_docs_answer` | Respuestas extractivas autocontenidas con citas y evidencia ya leída. |
 | `ibmi_docs_context` | Contexto autocontenido para desarrollo o revisión de código: incluye lecturas, secciones, acciones y advertencias. |
@@ -155,13 +155,13 @@ ibmi-docs doctor
 | `ibmi_docs_compare_versions` | Comparación entre releases IBM i. |
 | `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Tools de bajo nivel para exploración manual, auditoría o debugging de ranking. |
 
-Regla práctica para agentes: si dudas, empieza por `ibmi_docs_assist`. Para flujos más especializados usa `ibmi_docs_resolve` o `ibmi_docs_context`. Las tools de alto nivel ya hacen internamente el flujo `search/read/sections` cuando aplica, así que no deberían responder con “llama otra tool para completar”. `ibmi_docs_search` queda para exploración manual; search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+Regla práctica para agentes: si dudas, empieza por `ibmi_docs_assist`. Para flujos más especializados usa `ibmi_docs_resolve` o `ibmi_docs_context`. Las tools de alto nivel ya hacen internamente el flujo `intent -> search -> read -> sections -> follow-ups por gaps -> síntesis`, así que no deberían responder con “llama otra tool para completar”. `ibmi_docs_search` queda para exploración manual; search-only como respuesta final es “te traje el índice, suerte con el dragón”.
 
 ## Qué incluye el proyecto
 
 - Servidor MCP TypeScript por stdio.
 - CLI `ibmi-docs`.
-- Tool one-shot `ibmi_docs_assist` para respuestas finales más autónomas y menos dependientes del criterio del agente cliente.
+- Tool one-shot `ibmi_docs_assist` con motor agéntico multi-hop para respuestas finales más autónomas y menos dependientes del criterio del agente cliente.
 - Corpus local versionado como data pack (`manifest.json`, `raw/`, `normalized/`, `ibmi-docs.sqlite`).
 - Índice SQLite FTS5 con ranking para comandos, mensajes, DDS, SQLRPGLE, CLLE y RPGLE.
 - Ranking exacto/version-aware con guardrails para no citar evidencia irrelevante cuando buscas comandos, opcodes, BIFs o mensajes.

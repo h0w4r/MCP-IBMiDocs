@@ -175,6 +175,67 @@ describe("capacidades agénticas del repositorio", () => {
     expect(assist.specificFindings.join(" ")).toMatch(/RTVJOBA|MONMSG/i);
   });
 
+  it("assist planifica y ejecuta recuperación multi-hop para una petición compleja SQLRPGLE/RNF", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Necesito corregir SQLRPGLE con EXEC SQL y /COPY que falla RNF0004; además quiero validar opciones de compilación como RPGPPOPT y el comando CRTSQLRPGI en IBM i 7.6.",
+      language: "SQLRPGLE",
+      version: "7.6",
+      depth: "deep",
+      audience: "agent",
+      includeCompileCommands: true,
+      includeExamples: true,
+      limit: 8
+    })) as any;
+
+    expect(assist.retrievalPlan).toBeDefined();
+    expect(assist.retrievalPlan.strategy).toBe("multi-hop");
+    expect(assist.retrievalPlan.axes).toEqual(expect.arrayContaining(["primary", "compile", "message", "syntax"]));
+    expect(assist.retrievalPlan.hops.length).toBeGreaterThanOrEqual(4);
+    expect(assist.retrievalPlan.hops.map((hop: { status: string }) => hop.status)).not.toContain("planned");
+    expect(assist.retrievalPlan.hops.some((hop: { query: string }) => /RNF0004/i.test(hop.query))).toBe(true);
+    expect(assist.retrievalPlan.hops.some((hop: { query: string }) => /CRTSQLRPGI/i.test(hop.query))).toBe(true);
+    expect(assist.retrievalPlan.hops.some((hop: { query: string }) => /RPGPPOPT|COPY|INCLUDE/i.test(hop.query))).toBe(true);
+    expect(assist.workflow.map((stage: { tool: string }) => stage.tool)).toEqual(expect.arrayContaining([
+      "ibmi_docs_agentic_plan",
+      "ibmi_docs_search",
+      "ibmi_docs_read",
+      "ibmi_docs_sections",
+      "ibmi_docs_compile_guidance",
+      "ibmi_docs_explain_message"
+    ]));
+    expect(assist.answer).toMatch(/RNF0004|CRTSQLRPGI|RPGPPOPT|\/COPY|\/INCLUDE|EXEC SQL/i);
+    expect(assist.coverage.evidenceCount).toBeGreaterThan(0);
+    expect(assist.coverage.readCount).toBeGreaterThan(0);
+    expect(assist.coverage.sectionCount).toBeGreaterThan(0);
+    expect(assist.coverage.status).not.toBe("thin");
+
+    const serializedAssist = JSON.stringify(assist);
+    expect(serializedAssist).not.toMatch(/nextRecommendedTool|nextRecommendedArguments|readHint|workflowHints/i);
+    expect(serializedAssist).not.toMatch(/Para obtener la ayuda completa|Siguiente acción recomendada|Si necesitas sintaxis|llama ibmi_docs_read|usa ibmi_docs_sections/i);
+  });
+
+  it("assist ejecuta follow-ups por gaps y separa términos cubiertos de términos inexistentes", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Explica MONMSG y ZZZNOEXIST999 en CLLE; necesito saber qué sí está documentado y qué no debo inventar.",
+      language: "CLLE",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      limit: 6
+    })) as any;
+
+    expect(assist.retrievalPlan).toBeDefined();
+    expect(assist.retrievalPlan.strategy).toBe("multi-hop");
+    expect(assist.retrievalPlan.axes).toContain("gap-followup");
+    expect(assist.retrievalPlan.followUpQueries.some((query: string) => /ZZZNOEXIST999/i.test(query))).toBe(true);
+    expect(assist.retrievalPlan.coverageGaps.join(" ")).toMatch(/ZZZNOEXIST999/i);
+    expect(assist.coverage.matchedTechnicalTerms.join(" ")).toMatch(/MONMSG/i);
+    expect(assist.coverage.missingTechnicalTerms.join(" ")).toMatch(/ZZZNOEXIST999/i);
+    expect(assist.answer).toMatch(/MONMSG|Monitor Message/i);
+    expect(assist.answer).toMatch(/ZZZNOEXIST999/i);
+    expect(assist.answer).not.toMatch(/ZZZNOEXIST999 permite|ZZZNOEXIST999 sirve para|parámetro obligatorio de ZZZNOEXIST999/i);
+  });
+
   it("entrega guía de compilación SQLRPGLE con evidencia trazable", () => {
     const guidance = withRepo((repo) => repo.compileGuidance({
       language: "SQLRPGLE",

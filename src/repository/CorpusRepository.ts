@@ -6,6 +6,8 @@ import { appendTraceEvent, buildTraceReport, defaultTraceFile, isTraceEnabled } 
 import type {
   AssistCoverage,
   AssistOptions,
+  AssistRetrievalAxis,
+  AssistRetrievalPlan,
   AssistResult,
   AnswerCitation,
   AnswerOptions,
@@ -150,6 +152,16 @@ const RECIPES: DocsRecipe[] = [
     expectedOutcome: "Sintaxis, operandos, notas y referencias como QMHSNDPM."
   }
 ];
+
+interface AssistRetrievalExecution {
+  plan: AssistRetrievalPlan;
+  evidence: SearchHit[];
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  citations: AnswerCitation[];
+  workflow: WorkflowStage[];
+  warnings: string[];
+}
 
 type LanguagePreset = {
   language: string;
@@ -775,6 +787,14 @@ export class CorpusRepository {
       version: options.version,
       limit
     });
+    const agenticRetrieval = this.runAssistRetrievalPlan({
+      options,
+      resolved,
+      context,
+      depth,
+      limit,
+      preset
+    });
 
     const evidence = mergeSearchEvidence([
       resolved.evidence,
@@ -782,11 +802,13 @@ export class CorpusRepository {
       resolved.compileGuidance?.evidence ?? [],
       resolved.messageExplanation?.evidence ?? [],
       resolved.versionComparison?.evidence ?? [],
-      resolved.codeValidation?.evidence ?? []
+      resolved.codeValidation?.evidence ?? [],
+      agenticRetrieval.evidence
     ]).map(sanitizeContextHit);
     const reads = mergeContextReads([
       context.reads,
-      resolved.reads.map((read) => toContextReadSummary(read, options.question))
+      resolved.reads.map((read) => toContextReadSummary(read, options.question)),
+      agenticRetrieval.reads
     ]);
     const sections = mergeSectionTopics([
       context.sections,
@@ -794,10 +816,11 @@ export class CorpusRepository {
         id: topic.id,
         title: topic.title,
         sections: selectFocusedSections(topic.sections, options.question, depth === "deep" ? 8 : 5)
-      }))
+      })),
+      agenticRetrieval.sections
     ]);
-    const citations = mergeCitations([context.citations, resolved.citations]);
-    const baseWarnings = [...new Set([...resolved.warnings, ...context.warnings])];
+    const citations = mergeCitations([context.citations, resolved.citations, agenticRetrieval.citations]);
+    const baseWarnings = [...new Set([...resolved.warnings, ...context.warnings, ...agenticRetrieval.warnings])];
     const coverage = buildAssistCoverage({
       question: options.question,
       evidence,
@@ -806,6 +829,10 @@ export class CorpusRepository {
       confidence: resolved.confidence,
       warnings: baseWarnings
     });
+    agenticRetrieval.plan.coverageGaps = [...new Set([
+      ...agenticRetrieval.plan.coverageGaps,
+      ...coverage.missingTechnicalTerms
+    ])];
     const warnings = [...new Set([...baseWarnings, ...coverage.warnings])];
     const executiveSummary = buildAssistExecutiveSummary({ options, resolved, context, coverage });
     const specificFindings = buildAssistSpecificFindings({ question: options.question, reads, sections, evidence, depth });
@@ -835,7 +862,8 @@ export class CorpusRepository {
       implementationSteps,
       validationChecklist,
       coverage,
-      workflow: resolved.stages,
+      retrievalPlan: agenticRetrieval.plan,
+      workflow: mergeWorkflowStages([agenticRetrieval.workflow, resolved.stages]),
       evidence,
       reads,
       sections,
@@ -850,6 +878,253 @@ export class CorpusRepository {
       topResultTitle: evidence[0]?.title
     });
     return result;
+  }
+
+  private runAssistRetrievalPlan(input: {
+    options: AssistOptions;
+    resolved: ResolveResult;
+    context: ContextPackage;
+    depth: AssistOptions["depth"];
+    limit: number;
+    preset?: LanguagePreset;
+  }): AssistRetrievalExecution {
+    const { options, resolved, context, depth, limit, preset } = input;
+    const axes = buildAssistRetrievalAxes(options, resolved, context);
+    const initialQueries = buildAssistInitialQueries(options, preset, axes);
+    const maxSearchHops = depth === "deep" ? 7 : depth === "concise" ? 4 : 6;
+    const hopLimit = depth === "deep" ? 5 : Math.max(Math.min(limit, 5), 3);
+    const readLimit = depth === "deep" ? 1 : 1;
+    const sectionLimit = depth === "deep" ? 8 : 5;
+
+    const hops: AssistRetrievalPlan["hops"] = [];
+    const evidence: SearchHit[] = [];
+    const reads: ContextReadSummary[] = [];
+    const sections: Array<{ id: string; title: string; sections: TopicSection[] }> = [];
+    const citations: AnswerCitation[] = [];
+    const warnings: string[] = [];
+    const workflow: WorkflowStage[] = [{
+      tool: "ibmi_docs_agentic_plan",
+      reason: "Planificar recuperación multi-hop dentro del MCP para no delegar llamadas adicionales al agente cliente.",
+      status: "executed",
+      outputSummary: `ejes=${[...axes].join(", ")}; consultas iniciales=${initialQueries.length}`
+    }];
+    const executedQueries = new Set<string>();
+
+    const materializeHits = (axis: AssistRetrievalAxis, query: string, hits: SearchHit[]): {
+      readCount: number;
+      sectionCount: number;
+      evidenceIds: string[];
+    } => {
+      let readCount = 0;
+      let sectionCount = 0;
+      const selectedHits = selectContextReadEvidence(hits, `${options.question} ${query}`).slice(0, readLimit);
+      for (const hit of selectedHits) {
+        const read = this.read(hit.id);
+        if (!read) continue;
+        readCount += 1;
+        const task = `${options.question} ${query}`;
+        const focusedSections = selectFocusedSections(read.sections ?? [], task, sectionLimit);
+        sectionCount += focusedSections.length;
+        reads.push(toContextReadSummary(read, task, hit));
+        sections.push({
+          id: read.id,
+          title: contextDisplayTitle(read, hit),
+          sections: focusedSections
+        });
+        citations.push(readToCitation(read, contextDisplayTitle(read, hit), focusedSections[0]?.title));
+      }
+      return { readCount, sectionCount, evidenceIds: hits.map((hit) => hit.id) };
+    };
+
+    const executeSearchHop = (axis: AssistRetrievalAxis, query: string, reason: string): void => {
+      const normalizedQuery = query.trim();
+      const queryKey = `${axis}:${fold(normalizedQuery)}`;
+      if (!normalizedQuery || executedQueries.has(queryKey) || hops.length >= maxSearchHops) return;
+      executedQueries.add(queryKey);
+      const category = buildAssistSearchCategory(axis, normalizedQuery, options, preset);
+      const version = axis === "message" ? undefined : options.version;
+      const hits = this.search({
+        query: normalizedQuery,
+        category,
+        version,
+        limit: hopLimit,
+        mode: "hybrid",
+        autoRead: false,
+        includeSections: true
+      }).map(sanitizeContextHit);
+      evidence.push(...hits);
+      const materialized = materializeHits(axis, normalizedQuery, hits);
+      const hopWarnings = [
+        ...(hits.length ? [] : [`Sin resultados documentales para '${normalizedQuery}'.`]),
+        ...hits.flatMap((hit) => hit.relevanceWarnings ?? []).slice(0, 4)
+      ];
+      hops.push({
+        axis,
+        query: normalizedQuery,
+        reason,
+        status: "executed",
+        resultCount: hits.length,
+        readCount: materialized.readCount,
+        sectionCount: materialized.sectionCount,
+        evidenceIds: materialized.evidenceIds.slice(0, 8),
+        warnings: [...new Set(hopWarnings)]
+      });
+    };
+
+    for (const query of initialQueries) {
+      const axis = inferAssistAxisForQuery(query, axes);
+      executeSearchHop(axis, query, `Consulta inicial generada para el eje ${axis}.`);
+    }
+
+    if (axes.has("compile")) {
+      const language = normalizeLanguage(options.language ?? options.question) ?? preset?.language ?? "RPGLE";
+      const compileGuidance = resolved.compileGuidance ?? this.compileGuidance({
+        language,
+        version: options.version,
+        usesEmbeddedSql: /exec\s+sql|sqlrpgle|embedded\s+sql/i.test([options.question, options.code].filter(Boolean).join("\n")),
+        usesCopybook: /\/\s*(copy|include)\b|copybook/i.test([options.question, options.code].filter(Boolean).join("\n")),
+        limit
+      });
+      evidence.push(...compileGuidance.evidence);
+      workflow.push({
+        tool: "ibmi_docs_compile_guidance",
+        reason: "La intención incluye compilación/construcción; se recuperan comandos, opciones y pitfalls dentro de assist.",
+        status: "executed",
+        evidenceIds: compileGuidance.evidence.map((hit) => hit.id).slice(0, 8),
+        outputSummary: `comandos=${compileGuidance.recommendedCommands.join(", ") || "n/a"}; opciones=${compileGuidance.optionsToReview.join(", ") || "n/a"}`
+      });
+      for (const query of buildAssistCompileFollowUpQueries(options, compileGuidance)) {
+        executeSearchHop("compile", query, "Follow-up de compilación derivado de lenguaje/opciones detectadas.");
+      }
+    }
+
+    const messageId = extractMessageId([options.question, options.code].filter(Boolean).join("\n"));
+    if (messageId) {
+      const messageExplanation = resolved.messageExplanation ?? this.explainMessage({ messageId, limit });
+      evidence.push(...messageExplanation.evidence);
+      warnings.push(...(messageExplanation.warnings ?? []));
+      workflow.push({
+        tool: "ibmi_docs_explain_message",
+        reason: "La consulta contiene un mensaje IBM i; se genera diagnóstico/recovery sin pedir otra llamada al agente.",
+        status: "executed",
+        evidenceIds: messageExplanation.evidence.map((hit) => hit.id).slice(0, 8),
+        outputSummary: messageExplanation.summary
+      });
+      executeSearchHop("message", messageId, "Follow-up de mensaje exacto o familia de mensajes.");
+    }
+
+    if (options.code?.trim()) {
+      const codeValidation = resolved.codeValidation ?? this.validateCodeContext({
+        code: options.code,
+        language: options.language ?? preset?.language ?? "IBM i",
+        limit
+      });
+      evidence.push(...codeValidation.evidence);
+      workflow.push({
+        tool: "ibmi_docs_validate_code_context",
+        reason: "La petición incluye código; se contrastan señales del fuente contra documentación recuperada.",
+        status: "executed",
+        evidenceIds: codeValidation.evidence.map((hit) => hit.id).slice(0, 8),
+        outputSummary: `hallazgos=${codeValidation.findings.length}`
+      });
+    }
+
+    if (axes.has("version")) {
+      const versions = extractVersions(options.question);
+      if (versions.length >= 2) {
+        const comparison = resolved.versionComparison ?? this.compareVersions({
+          query: options.question,
+          versions,
+          category: options.category,
+          limit
+        });
+        evidence.push(...comparison.evidence);
+        workflow.push({
+          tool: "ibmi_docs_compare_versions",
+          reason: "La consulta menciona releases; se compara disponibilidad por versión dentro de assist.",
+          status: "executed",
+          evidenceIds: comparison.evidence.map((hit) => hit.id).slice(0, 8),
+          outputSummary: `${comparison.versions.length} versión(es) comparadas`
+        });
+      }
+    }
+
+    const interimCoverage = buildAssistCoverage({
+      question: options.question,
+      evidence: mergeSearchEvidence([resolved.evidence, context.evidence, evidence]).map(sanitizeContextHit),
+      reads: mergeContextReads([context.reads, resolved.reads.map((read) => toContextReadSummary(read, options.question)), reads]),
+      sections: mergeSectionTopics([
+        context.sections,
+        resolved.sections.map((topic) => ({
+          id: topic.id,
+          title: topic.title,
+          sections: selectFocusedSections(topic.sections, options.question, sectionLimit)
+        })),
+        sections
+      ]),
+      confidence: resolved.confidence,
+      warnings: [...resolved.warnings, ...context.warnings, ...warnings]
+    });
+    const followUpQueries = buildAssistGapFollowUpQueries(options, interimCoverage, axes)
+      .filter((query) => !initialQueries.some((initialQuery) => fold(initialQuery) === fold(query)))
+      .slice(0, depth === "deep" ? 6 : 3);
+    if (followUpQueries.length) axes.add("gap-followup");
+    for (const query of followUpQueries) {
+      executeSearchHop("gap-followup", query, "Follow-up automático generado por gap de cobertura o término sin evidencia fuerte.");
+    }
+
+    if (hops.length) {
+      workflow.push({
+        tool: "ibmi_docs_search",
+        reason: "Ejecutar búsquedas híbridas por ejes de intención, términos exactos y gaps detectados.",
+        status: "executed",
+        evidenceIds: hops.flatMap((hop) => hop.evidenceIds).slice(0, 12),
+        outputSummary: `${hops.length} hop(s) de búsqueda ejecutados.`
+      });
+    }
+    if (reads.length) {
+      workflow.push({
+        tool: "ibmi_docs_read",
+        reason: "Materializar contenido completo de los tópicos candidatos fuertes dentro de assist.",
+        status: "executed",
+        evidenceIds: reads.map((read) => read.id).slice(0, 12),
+        outputSummary: `${reads.length} lectura(s) completas materializadas.`
+      });
+    }
+    const sectionCount = sections.reduce((total, topic) => total + topic.sections.length, 0);
+    if (sectionCount) {
+      workflow.push({
+        tool: "ibmi_docs_sections",
+        reason: "Extraer secciones enfocadas de sintaxis, parámetros, ejemplos, mensajes y recovery.",
+        status: "executed",
+        evidenceIds: sections.map((topic) => topic.id).slice(0, 12),
+        outputSummary: `${sectionCount} sección(es) enfocadas.`
+      });
+    }
+
+    const uniqueAxes = [...axes];
+    const plan: AssistRetrievalPlan = {
+      strategy: uniqueAxes.length > 1 || hops.length > 1 || followUpQueries.length > 0 ? "multi-hop" : "single-pass",
+      axes: uniqueAxes,
+      initialQueries,
+      followUpQueries,
+      hops,
+      coverageGaps: interimCoverage.missingTechnicalTerms
+    };
+
+    return {
+      plan,
+      evidence: mergeSearchEvidence([evidence]).map(sanitizeContextHit),
+      reads: mergeContextReads([reads]),
+      sections: mergeSectionTopics([sections]),
+      citations: mergeCitations([citations]),
+      workflow,
+      warnings: [...new Set([
+        ...warnings,
+        ...hops.flatMap((hop) => hop.warnings),
+        ...(followUpQueries.length ? [`Se ejecutaron ${followUpQueries.length} follow-up(s) automáticos por gaps de cobertura.`] : [])
+      ])]
+    };
   }
 
   compileGuidance(options: CompileGuidanceOptions): CompileGuidance {
@@ -1818,6 +2093,148 @@ function buildContextQueries(task: string, preset?: LanguagePreset): string[] {
   ].filter(Boolean))].slice(0, 18);
 }
 
+function buildAssistRetrievalAxes(options: AssistOptions, resolved: ResolveResult, context: ContextPackage): Set<AssistRetrievalAxis> {
+  const haystack = [options.question, options.language, options.code, context.intent.detectedSignals.join(" ")].filter(Boolean).join("\n");
+  const detected = detectIntentAxes(haystack);
+  const axes = new Set<AssistRetrievalAxis>(["primary"]);
+  if (detected.has("syntax") || detected.has("command") || extractExactTechnicalTerms(haystack).length) axes.add("syntax");
+  if (detected.has("compile") || resolved.compileGuidance || /crt(sqlrpgi|rpgmod|bndrpg|bndcl|pf|lf)|RPGPPOPT|DBGVIEW|copybook|\/\s*(copy|include)\b/i.test(haystack)) axes.add("compile");
+  if (detected.has("message") || resolved.messageExplanation) axes.add("message");
+  if (detected.has("version") || resolved.versionComparison) axes.add("version");
+  if (options.code?.trim() || resolved.codeValidation) axes.add("code");
+  if (resolved.related) axes.add("related");
+  return axes;
+}
+
+function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePreset | undefined, axes: Set<AssistRetrievalAxis>): string[] {
+  const haystack = [options.question, options.language, options.code].filter(Boolean).join("\n");
+  const technicalTerms = extractAssistTechnicalTerms(haystack);
+  const exactTerms = extractExactTechnicalTerms(haystack);
+  const messageId = extractMessageId(haystack);
+  const queries: string[] = [];
+  if (messageId) {
+    queries.push(messageId);
+    queries.push(`${messageId.slice(0, 3)} messages`);
+  }
+  if (axes.has("compile")) {
+    const language = normalizeLanguage(options.language ?? options.question) ?? preset?.language;
+    if (language) queries.push(`${language} compile options`);
+    if (/sqlrpgle|exec\s+sql|embedded\s+sql/i.test(haystack) || language === "SQLRPGLE") {
+      queries.push("CRTSQLRPGI command");
+      queries.push("RPGPPOPT SQLRPGLE /COPY /INCLUDE");
+      queries.push("Using /COPY /INCLUDE in Source Files with Embedded SQL");
+    }
+    for (const command of preset?.compileCommands ?? []) queries.push(`${command} command`);
+  }
+  if (axes.has("syntax")) {
+    for (const term of exactTerms) {
+      const upper = term.toUpperCase();
+      if (isMessageIdTerm(term)) continue;
+      if (IBM_I_COMMAND_PREFIX_PATTERN.test(term)) {
+        queries.push(`${upper} command`);
+        queries.push(`${upper} command parameters`);
+        queries.push(`${upper} syntax`);
+        for (const alias of IBM_I_COMMAND_ALIASES[fold(term)] ?? []) queries.push(alias);
+        continue;
+      }
+      if (term.startsWith("%")) {
+        queries.push(`${upper} built-in function`);
+        continue;
+      }
+      queries.push(upper);
+    }
+  }
+  for (const term of technicalTerms) {
+    if (!queries.some((query) => fold(query).includes(fold(term)))) queries.push(term);
+  }
+  queries.push(options.question);
+  if (axes.has("version")) {
+    const versions = extractVersions(options.question);
+    if (versions.length >= 2) queries.push(`${options.question} ${versions.join(" ")}`);
+  }
+  queries.push(...buildContextQueries(options.question, preset));
+  return [...new Map(queries.filter(Boolean).map((query) => [fold(query), query.trim()])).values()].slice(0, 22);
+}
+
+function inferAssistAxisForQuery(query: string, axes: Set<AssistRetrievalAxis>): AssistRetrievalAxis {
+  if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|RNF|CPF|MCH|SQLCODE|SQLSTATE)\b/i.test(query)) return "message";
+  if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|RPGPPOPT|DBGVIEW|COMMIT|\/\s*(copy|include)\b|copybook|sqlrpgle|embedded\s+sql/i.test(query)) return "compile";
+  if (/(7\.[3456]).*(7\.[3456])|compar|release|versi[oó]n/i.test(query)) return "version";
+  if (/sintaxis|syntax|par[aá]metro|parameter|operand|opcode|operation code|%[a-z][a-z0-9_-]+|\b[A-Z]{2,}-[A-Z]{2,}\b/i.test(query)) return "syntax";
+  if (axes.has("syntax") && extractExactTechnicalTerms(query).length) return "syntax";
+  return "primary";
+}
+
+function buildAssistSearchCategory(axis: AssistRetrievalAxis, query: string, options: AssistOptions, preset?: LanguagePreset): string | undefined {
+  if (options.category && axis !== "message") return options.category;
+  if (axis === "message") {
+    const messageId = extractMessageId(query);
+    if (!messageId) return undefined;
+    if (messageId.startsWith("SQL")) return "sql-db2-for-i";
+    if (messageId.startsWith("RNF")) return "mensajes-rnf";
+    return undefined;
+  }
+  if (axis === "compile" && /sqlrpgle|exec\s+sql|crt(sqlrpgi)|RPGPPOPT|embedded\s+sql/i.test([query, options.language, options.question].filter(Boolean).join(" "))) return "sql-db2-for-i";
+  if (axis === "syntax" && /dds|crtp[fl]|physical file|logical file/i.test([query, options.language].filter(Boolean).join(" "))) return "dds";
+  return preset?.category;
+}
+
+function buildAssistCompileFollowUpQueries(options: AssistOptions, guidance: CompileGuidance): string[] {
+  const haystack = [options.question, options.language, options.code].filter(Boolean).join("\n");
+  const queries = [
+    ...guidance.recommendedCommands.map((command) => `${command} command`),
+    ...guidance.optionsToReview.map((option) => `${option} compile option`),
+    ...(/\/\s*(copy|include)\b|copybook/i.test(haystack) ? ["Using /COPY /INCLUDE in Source Files with Embedded SQL", "RPGPPOPT SQLRPGLE /COPY /INCLUDE"] : []),
+    ...(/exec\s+sql|sqlrpgle|embedded\s+sql/i.test(haystack) ? ["SQLRPGLE embedded SQL RPG", "CRTSQLRPGI command parameters"] : [])
+  ];
+  return [...new Map(queries.filter(Boolean).map((query) => [fold(query), query])).values()].slice(0, 8);
+}
+
+function buildAssistGapFollowUpQueries(options: AssistOptions, coverage: AssistCoverage, axes: Set<AssistRetrievalAxis>): string[] {
+  const queries: string[] = [];
+  for (const term of coverage.missingTechnicalTerms) {
+    const folded = fold(term);
+    if (isMessageIdTerm(folded)) {
+      queries.push(term.toUpperCase());
+      queries.push(`${term.slice(0, 3).toUpperCase()} messages`);
+      continue;
+    }
+    if (term.startsWith("%")) {
+      queries.push(`${term.toUpperCase()} built-in function`);
+      queries.push(`${term.toUpperCase()} examples`);
+      continue;
+    }
+    if (IBM_I_COMMAND_PREFIX_PATTERN.test(folded)) {
+      queries.push(`${term.toUpperCase()} command`);
+      queries.push(`${term.toUpperCase()} command parameters`);
+      queries.push(`${term.toUpperCase()} syntax`);
+      for (const alias of IBM_I_COMMAND_ALIASES[folded] ?? []) queries.push(alias);
+      continue;
+    }
+    queries.push(term.toUpperCase());
+    queries.push(`${term.toUpperCase()} IBM i`);
+    if (axes.has("compile")) queries.push(`${term.toUpperCase()} compile option`);
+  }
+  if (coverage.warnings.some((warning) => /sintaxis|par[aá]metros|secci[oó]n fuerte/i.test(warning))) {
+    for (const term of coverage.matchedTechnicalTerms) {
+      queries.push(`${term} syntax`);
+      queries.push(`${term} parameters`);
+    }
+  }
+  return [...new Map(queries.filter(Boolean).map((query) => [fold(query), query.trim()])).values()].slice(0, 12);
+}
+
+function readToCitation(read: ReadResult, title: string, section?: string): AnswerCitation {
+  return {
+    id: read.id,
+    title,
+    version: read.version,
+    sourceKind: read.sourceKind,
+    canonicalUrl: read.canonicalUrl,
+    section
+  };
+}
+
 function selectContextReadEvidence(hits: SearchHit[], task: string): SearchHit[] {
   const exactTerms = extractExactTechnicalTerms(task).map(fold);
   const candidates = selectAnswerEvidence(hits, task).length ? selectAnswerEvidence(hits, task) : hits;
@@ -2427,6 +2844,18 @@ function mergeCitations(groups: AnswerCitation[][]): AnswerCitation[] {
     byKey.set(`${citation.id}:${citation.section ?? ""}`, citation);
   }
   return [...byKey.values()];
+}
+
+function mergeWorkflowStages(groups: WorkflowStage[][]): WorkflowStage[] {
+  const seen = new Set<string>();
+  const stages: WorkflowStage[] = [];
+  for (const stage of groups.flat()) {
+    const key = `${stage.tool}:${stage.reason}:${stage.outputSummary ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    stages.push(stage);
+  }
+  return stages;
 }
 
 function buildAssistCoverage(input: {
