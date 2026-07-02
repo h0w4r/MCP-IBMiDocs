@@ -1,5 +1,8 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+
+const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
 function runCli(args: string[]): { stdout: string; stderr: string; status: number | null } {
   const result = spawnSync(process.execPath, ["--import", "tsx", "src/cli.ts", ...args], {
@@ -15,7 +18,7 @@ describe("CLI ibmi-docs", () => {
     const result = runCli(["--version"]);
 
     expect(result.status).toBe(0);
-    expect(result.stdout.trim()).toBe("0.5.0");
+    expect(result.stdout.trim()).toBe(packageJson.version);
   });
 
   it("usa --ibmi-version para filtrar release IBM i sin chocar con Commander", () => {

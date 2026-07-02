@@ -75,6 +75,41 @@ describe("capacidades agénticas del repositorio", () => {
     expect(context.evidence.length).toBeGreaterThan(0);
   });
 
+  it("context auto-orquesta lectura y secciones sin delegar siguientes llamadas al agente", () => {
+    const context = withRepo((repo) => repo.context({
+      task: "Corregir un programa CLLE que usa RTVJOBA y MONMSG para recuperar atributos del trabajo y manejar errores CPF/MCH. Necesito sintaxis, parámetros relevantes y pasos concretos para modificar el código.",
+      language: "CLLE",
+      version: "7.5",
+      limit: 5
+    })) as any;
+
+    expect(context.intent.language).toBe("CLLE");
+    expect(context.appliedWorkflow.map((stage: { tool: string }) => stage.tool)).toEqual(expect.arrayContaining([
+      "ibmi_docs_search",
+      "ibmi_docs_read",
+      "ibmi_docs_sections"
+    ]));
+    expect(context.reads.length).toBeGreaterThan(0);
+    expect(context.sections.some((topic: { sections: unknown[] }) => topic.sections.length > 0)).toBe(true);
+    expect(context.answer).toMatch(/RTVJOBA|MONMSG|CLLE|par[aá]metros|sintaxis/i);
+
+    const materializedTitles = [
+      ...context.recommendedDocs.map((doc: { title: string }) => doc.title),
+      ...context.reads.map((read: { title: string }) => read.title),
+      ...context.sections.map((topic: { title: string }) => topic.title)
+    ].join("\n");
+    expect(materializedTitles).toMatch(/RTVJOBA/i);
+    expect(materializedTitles).toMatch(/MONMSG|Monitor Message/i);
+    expect(materializedTitles).not.toMatch(/MONITOR command/i);
+    expect(context.intent.queries.join("\n")).not.toMatch(/RELEVANTES command|MONITOR command/i);
+
+    const serializedContext = JSON.stringify(context);
+    expect(serializedContext).not.toContain("nextRecommendedTool");
+    expect(serializedContext).not.toContain("nextRecommendedArguments");
+    expect(serializedContext).not.toContain("readHint");
+    expect(serializedContext).not.toMatch(/Para obtener la ayuda completa llama|Si necesitas sintaxis|Siguiente paso recomendado/i);
+  });
+
   it("entrega guía de compilación SQLRPGLE con evidencia trazable", () => {
     const guidance = withRepo((repo) => repo.compileGuidance({
       language: "SQLRPGLE",
@@ -160,7 +195,8 @@ describe("capacidades agénticas del repositorio", () => {
 
     expect(answer.answer).toContain("Respuesta basada");
     expect(answer.citations.length).toBeGreaterThan(0);
-    expect(answer.suggestedTools).toContain("ibmi_docs_read");
+    expect(answer.suggestedTools).toEqual([]);
+    expect(JSON.stringify(answer)).not.toMatch(/nextRecommendedTool|readHint|Para obtener la ayuda completa|Siguiente paso recomendado|Si necesitas sintaxis/i);
   });
 
   it("explica ranking con FTS, expansión semántica y razones", () => {
@@ -274,7 +310,9 @@ describe("capacidades agénticas del repositorio", () => {
     expect(result.stages.map((stage) => stage.tool)).toEqual(expect.arrayContaining(["ibmi_docs_search", "ibmi_docs_read", "ibmi_docs_sections", "ibmi_docs_answer"]));
     expect(result.reads.length).toBeGreaterThan(0);
     expect(result.sections.some((topic) => topic.sections.length > 0)).toBe(true);
-    expect(result.suggestedTools).toContain("ibmi_docs_read");
+    expect(result.suggestedTools).toEqual([]);
+    expect(result.answer).not.toMatch(/Siguiente acción recomendada|usa ibmi_docs_read|ibmi_docs_sections para/i);
+    expect(JSON.stringify(result)).not.toMatch(/nextRecommendedTool|readHint|nextRecommendedArguments|workflowHints|Para obtener la ayuda completa llama|Si necesitas sintaxis|Siguiente paso recomendado/i);
   });
 
   it("resuelve diagnósticos de mensajes con explain_message", () => {

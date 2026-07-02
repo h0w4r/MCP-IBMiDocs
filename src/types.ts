@@ -165,6 +165,21 @@ export interface ContextOptions {
   version?: string;
 }
 
+export interface ContextReadSummary {
+  id: string;
+  title: string;
+  version: string;
+  category: string;
+  sourceKind: SourceKind;
+  canonicalUrl: string;
+  documentKind?: DocumentKind;
+  canonicalTopicKey?: string;
+  taxonomy?: TopicTaxonomy;
+  textLength: number;
+  excerpt: string;
+  focusedSections: TopicSection[];
+}
+
 export interface ContextPackage {
   task: string;
   intent: {
@@ -173,12 +188,19 @@ export interface ContextPackage {
     detectedSignals: string[];
     queries: string[];
   };
+  answer: string;
+  appliedWorkflow: WorkflowStage[];
   recommendedDocs: SearchHit[];
   compileCommands: string[];
   optionsToReview: string[];
   pitfalls: string[];
+  actionItems: string[];
   versionNotes: string[];
   evidence: SearchHit[];
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  citations: AnswerCitation[];
+  warnings: string[];
 }
 
 export interface CompileGuidanceOptions {

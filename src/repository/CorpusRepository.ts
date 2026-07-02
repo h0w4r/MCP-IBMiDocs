@@ -16,6 +16,7 @@ import type {
   CompileGuidanceOptions,
   ContextOptions,
   ContextPackage,
+  ContextReadSummary,
   CorpusManifest,
   DocsIntent,
   ExplainMessageOptions,
@@ -55,6 +56,24 @@ const IBM_I_COMMAND_PREFIXES = [
 ];
 const IBM_I_COMMAND_PREFIX_PATTERN = new RegExp(`^(${IBM_I_COMMAND_PREFIXES.join("|")})[a-z0-9]{1,}$`, "i");
 const IBM_I_COMMAND_TOKEN_PATTERN = new RegExp(`\\b(${IBM_I_COMMAND_PREFIXES.join("|")})[a-z0-9]{1,}\\b`, "i");
+const IBM_I_COMMAND_FALSE_POSITIVES = new Set([
+  // Alias descriptivo de MONMSG; no debe convertirse en el comando ficticio MONITOR.
+  "monitor",
+  "monitoring",
+  "relevante",
+  "relevantes",
+  "relacionado",
+  "relacionados",
+  "relacionada",
+  "relacionadas"
+]);
+const IBM_I_COMMAND_ALIASES: Record<string, string[]> = {
+  dspfd: ["display file description", "database files and device files"],
+  monmsg: ["monitor message", "monitor message command"],
+  rtvjoba: ["retrieve job attributes", "retrieve job attributes command", "job attributes"],
+  sbmjob: ["submit job", "submit job command", "submitted job"],
+  sndpgmmsg: ["send program message", "send program message command"]
+};
 
 // Expansiones semánticas locales: no dependen de embeddings externos ni red.
 // Funcionan como una capa de "recall" para prompts naturales de agentes.
@@ -200,66 +219,66 @@ const LANGUAGE_PRESETS: LanguagePreset[] = [
 const WORKFLOW_POLICIES: Record<DocsIntent, WorkflowPolicy> = {
   explain_topic: {
     intent: "explain_topic",
-    preferredTools: ["ibmi_docs_answer", "ibmi_docs_read", "ibmi_docs_sections"],
+    preferredTools: [],
     requiredEvidence: ["respuesta extractiva", "lectura completa de los tópicos principales", "citas auditables"],
     defaultLimit: 6,
     description: "Consulta explicativa general: responder con citas y leer los tópicos principales antes de concluir."
   },
   multi_intent: {
     intent: "multi_intent",
-    preferredTools: ["ibmi_docs_search", "ibmi_docs_answer", "ibmi_docs_explain_message", "ibmi_docs_compile_guidance"],
+    preferredTools: [],
     requiredEvidence: ["evidencia por cada intención detectada", "advertencias si una familia técnica no tiene ID exacto", "lectura de los tópicos principales"],
     defaultLimit: 8,
     description: "Consulta mixta: separar comandos, mensajes, compilación o versiones y advertir si algún eje no queda cubierto por evidencia."
   },
   syntax_lookup: {
     intent: "syntax_lookup",
-    preferredTools: ["ibmi_docs_search", "ibmi_docs_read", "ibmi_docs_sections"],
+    preferredTools: [],
     requiredEvidence: ["tópico exacto", "secciones de sintaxis/parámetros/ejemplos", "lectura completa"],
     defaultLimit: 6,
     description: "Consulta de sintaxis, comandos, opcodes o BIFs: resolver el tópico exacto y extraer secciones relevantes."
   },
   compile_guidance: {
     intent: "compile_guidance",
-    preferredTools: ["ibmi_docs_context", "ibmi_docs_compile_guidance", "ibmi_docs_read"],
+    preferredTools: [],
     requiredEvidence: ["comandos de compilación", "opciones/pitfalls", "evidencia por lenguaje"],
     defaultLimit: 8,
     description: "Guía de compilación/desarrollo: combinar contexto por lenguaje con comandos y opciones documentadas."
   },
   message_diagnostic: {
     intent: "message_diagnostic",
-    preferredTools: ["ibmi_docs_explain_message", "ibmi_docs_read", "ibmi_docs_sections"],
+    preferredTools: [],
     requiredEvidence: ["mensaje exacto o familia", "checklist de recuperación", "lectura del tópico de mensajes"],
     defaultLimit: 6,
     description: "Diagnóstico RNF/SQL/CPF/MCH: explicar familia, evidencia y recuperación."
   },
   code_review: {
     intent: "code_review",
-    preferredTools: ["ibmi_docs_validate_code_context", "ibmi_docs_answer", "ibmi_docs_compile_guidance"],
+    preferredTools: [],
     requiredEvidence: ["señales detectadas en código", "hallazgos", "documentos relacionados"],
     defaultLimit: 8,
     description: "Revisión documental de código IBM i: detectar señales y contrastarlas con documentación."
   },
   version_question: {
     intent: "version_question",
-    preferredTools: ["ibmi_docs_compare_versions", "ibmi_docs_read"],
+    preferredTools: [],
     requiredEvidence: ["comparación por release", "deltas estructurales", "citas por versión"],
     defaultLimit: 5,
     description: "Pregunta entre versiones IBM i: buscar cada release y comparar cobertura/estructura."
   },
   ranking_debug: {
     intent: "ranking_debug",
-    preferredTools: ["ibmi_docs_explain_ranking", "ibmi_docs_search", "ibmi_docs_read"],
+    preferredTools: [],
     requiredEvidence: ["razones de ranking", "query FTS", "expansiones semánticas"],
     defaultLimit: 5,
     description: "Depuración de búsqueda/ranking: explicar por qué ganó cada resultado."
   },
   search_discovery: {
     intent: "search_discovery",
-    preferredTools: ["ibmi_docs_search", "ibmi_docs_read"],
-    requiredEvidence: ["candidatos de búsqueda", "siguiente lectura recomendada"],
+    preferredTools: [],
+    requiredEvidence: ["candidatos de búsqueda", "IDs auditables", "evidencia resumida"],
     defaultLimit: 8,
-    description: "Exploración amplia: descubrir documentos candidatos y recomendar lectura posterior."
+    description: "Exploración amplia: descubrir documentos candidatos y entregar evidencia resumida trazable."
   }
 };
 
@@ -578,9 +597,9 @@ export class CorpusRepository {
       answer: buildExtractiveAnswer(options, reads, compile),
       confidence: evidenceHits[0]?.score >= 60 && !warnings.length ? "alta" : evidenceHits.length >= 2 ? "media" : "baja",
       citations,
-      evidence: evidenceHits.length || exactTerms.length ? evidenceHits : hits,
+      evidence: (evidenceHits.length || exactTerms.length ? evidenceHits : hits).map(sanitizeContextHit),
       warnings,
-      suggestedTools: hits.length ? ["ibmi_docs_read", "ibmi_docs_sections", "ibmi_docs_explain_ranking"] : ["ibmi_docs_search"]
+      suggestedTools: []
     };
     this.recordTrace("ibmi_docs_answer", started, {
       query: options.question,
@@ -602,7 +621,7 @@ export class CorpusRepository {
       semanticQueries: semantic.queries,
       exactTerms: extractExactTechnicalTerms(options.query),
       results: hits.map((hit) => ({
-        hit,
+        hit: sanitizeContextHit(hit),
         reasons: hit.matchReasons ?? [],
         taxonomy: hit.taxonomy ?? classifyTaxonomy(hit, hit.snippet),
         semanticScore: hit.semanticScore ?? 0,
@@ -624,8 +643,67 @@ export class CorpusRepository {
     const started = Date.now();
     const preset = resolvePreset(options.language ?? options.task);
     const detectedSignals = detectSignals(options.task, options.language, preset);
-    const queries = [...new Set([options.task, ...(preset?.queries ?? [])].filter(Boolean))];
-    const hits = this.searchMany(queries, { category: preset?.category, version: options.version, limit: options.limit ?? 8 });
+    const queries = buildContextQueries(options.task, preset);
+    const limit = clamp(options.limit, 8, 1, 20);
+    const retrievalLimit = clamp(Math.max(limit * 3, 16), 16, 1, 50);
+    const appliedWorkflow: WorkflowStage[] = [];
+    const hits = this.searchMany(queries, {
+      category: preset?.category,
+      version: options.version,
+      limit: retrievalLimit,
+      includeSections: true
+    });
+    appliedWorkflow.push({
+      tool: "ibmi_docs_search",
+      reason: "Descubrir evidencia contextual y consultas técnicas exactas derivadas de la tarea.",
+      status: "executed",
+      evidenceIds: hits.slice(0, 5).map((hit) => hit.id),
+      outputSummary: `${hits.length} candidato(s); top=${hits[0]?.title ?? "sin resultado"}`
+    });
+
+    const evidenceForRead = selectContextReadEvidence(hits, options.task);
+    const readPairs = evidenceForRead
+      .slice(0, Math.min(6, evidenceForRead.length))
+      .map((hit) => ({ hit, read: this.read(hit.id) }))
+      .filter((value): value is { hit: SearchHit; read: ReadResult } => Boolean(value.read));
+    const rawReads = readPairs.map((pair) => pair.read);
+    appliedWorkflow.push({
+      tool: "ibmi_docs_read",
+      reason: "Materializar texto normalizado de los tópicos principales dentro del propio paquete contextual.",
+      status: rawReads.length ? "executed" : "skipped",
+      evidenceIds: rawReads.map((read) => read.id),
+      outputSummary: rawReads.length ? `${rawReads.length} tópico(s) leídos.` : "Sin tópico legible."
+    });
+
+    const sectionTopics = readPairs.map(({ hit, read }) => ({
+      id: read.id,
+      title: contextDisplayTitle(read, hit),
+      sections: selectFocusedSections(read.sections ?? [], options.task, 6)
+    }));
+    appliedWorkflow.push({
+      tool: "ibmi_docs_sections",
+      reason: "Adjuntar secciones útiles de sintaxis, parámetros, ejemplos, notas, mensajes y recovery sin pedir otra llamada al agente.",
+      status: sectionTopics.some((topic) => topic.sections.length) ? "executed" : "skipped",
+      evidenceIds: sectionTopics.map((topic) => topic.id),
+      outputSummary: `${sectionTopics.reduce((total, topic) => total + topic.sections.length, 0)} sección(es) enfocadas.`
+    });
+
+    const reads = readPairs.map(({ hit, read }) => toContextReadSummary(read, options.task, hit));
+    const safeHits = hits.map(sanitizeContextHit);
+    const citations: AnswerCitation[] = readPairs.map(({ hit, read }) => ({
+      id: read.id,
+      title: contextDisplayTitle(read, hit),
+      version: read.version,
+      sourceKind: read.sourceKind,
+      canonicalUrl: read.canonicalUrl,
+      section: pickBestSection(read.sections ?? [], options.task)?.title
+    }));
+    const actionItems = buildContextActionItems(options, preset, reads, sectionTopics);
+    const warnings = [
+      ...(!hits.length ? ["No se encontró evidencia documental suficiente; evita inventar detalles fuera del corpus."] : []),
+      ...(hits.some((hit) => hit.requestedVersionFallback) ? ["Se usó fallback fuera de la versión solicitada para al menos un tópico."] : []),
+      ...hits.flatMap((hit) => hit.relevanceWarnings ?? []).slice(0, 5)
+    ];
     const result: ContextPackage = {
       task: options.task,
       intent: {
@@ -634,12 +712,30 @@ export class CorpusRepository {
         detectedSignals,
         queries
       },
-      recommendedDocs: hits.slice(0, options.limit ?? 8),
+      answer: buildContextAnswer({
+        task: options.task,
+        language: preset?.language ?? normalizeLanguage(options.language) ?? "IBM i",
+        detectedSignals,
+        compileCommands: preset?.compileCommands ?? [],
+        optionsToReview: preset?.optionsToReview ?? [],
+        pitfalls: preset?.pitfalls ?? [],
+        reads,
+        sections: sectionTopics,
+        actionItems,
+        warnings
+      }),
+      appliedWorkflow,
+      recommendedDocs: safeHits.slice(0, limit),
       compileCommands: preset?.compileCommands ?? [],
       optionsToReview: preset?.optionsToReview ?? [],
       pitfalls: preset?.pitfalls ?? [],
+      actionItems,
       versionNotes: buildVersionNotes(hits),
-      evidence: hits
+      evidence: safeHits,
+      reads,
+      sections: sectionTopics,
+      citations,
+      warnings
     };
     this.recordTrace("ibmi_docs_context", started, {
       query: options.task,
@@ -674,7 +770,7 @@ export class CorpusRepository {
       relatedCommands: preset.relatedCommands,
       optionsToReview,
       pitfalls: preset.pitfalls,
-      evidence
+      evidence: evidence.map(sanitizeContextHit)
     };
     this.recordTrace("ibmi_docs_compile_guidance", started, {
       query: `${preset.language} ${options.target ?? "program"}`,
@@ -722,7 +818,7 @@ export class CorpusRepository {
         "Recompilar y validar que el mensaje desaparezca o cambie de severidad.",
         "Si aplica, contrastar opciones de compilación y miembros /COPY o /INCLUDE referenciados."
       ],
-      evidence,
+      evidence: evidence.map(sanitizeContextHit),
       exactMatch,
       coverageStatus,
       warnings
@@ -1139,7 +1235,9 @@ export class CorpusRepository {
       });
     }
 
-    const evidence = [...evidenceById.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+    const evidence = [...evidenceById.values()]
+      .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+      .map(sanitizeContextHit);
     const requiredEvidenceWarnings = buildRequiredEvidenceWarnings({
       intent,
       messageExplanation,
@@ -1152,13 +1250,9 @@ export class CorpusRepository {
       ...requiredEvidenceWarnings,
       ...mixedIntentWarnings(intent, intentAxes, messageId),
       ...(!evidence.length ? ["No se encontró evidencia documental suficiente; no inventar detalles fuera del corpus."] : []),
-      ...(intent === "search_discovery" ? ["Esta resolución es exploratoria: lee los IDs recomendados antes de citar detalles finos."] : [])
+      ...(intent === "search_discovery" ? ["Esta resolución es exploratoria: la evidencia se entrega resumida y los IDs quedan como trazabilidad de auditoría."] : [])
     ];
-    const suggestedTools = [...new Set([
-      ...policy.preferredTools,
-      ...(searchHits[0]?.nextRecommendedTool ? [searchHits[0].nextRecommendedTool] : []),
-      "ibmi_docs_explain_ranking"
-    ])];
+    const suggestedTools: string[] = [];
 
     const result: ResolveResult = {
       question: options.question,
@@ -1224,9 +1318,9 @@ export class CorpusRepository {
       this.recordTrace("ibmi_docs_related", started, { id, resultCount: 0 });
       return { topic: null, equivalentVersions: [], related: [] };
     }
-    const equivalentVersions = this.findEquivalentVersions(topic).filter((hit) => hit.id !== id);
+    const equivalentVersions = this.findEquivalentVersions(topic).filter((hit) => hit.id !== id).map(sanitizeContextHit);
     const relatedQuery = [topic.title, topic.breadcrumbs.slice(-3).join(" ")].filter(Boolean).join(" ");
-    const related = this.search({ query: relatedQuery, category: topic.category, limit: options.limit ?? 8 }).filter((hit) => hit.id !== id);
+    const related = this.search({ query: relatedQuery, category: topic.category, limit: options.limit ?? 8 }).filter((hit) => hit.id !== id).map(sanitizeContextHit);
     const result = { topic, equivalentVersions, related };
     this.recordTrace("ibmi_docs_related", started, {
       id,
@@ -1250,7 +1344,7 @@ export class CorpusRepository {
       return {
         version,
         found: Boolean(result),
-        result,
+        result: result ? sanitizeContextHit(result) : undefined,
         notes: result ? [
           `Encontrado: ${result.title} (${result.sourceKind})`,
           `Longitud normalizada: ${read?.textLength ?? result.textLength ?? 0} caracteres.`,
@@ -1273,7 +1367,7 @@ export class CorpusRepository {
         if (missing.length) entry.notes.push(`Secciones presentes en baseline y ausentes aquí: ${missing.join(", ")}.`);
       }
     }
-    const result: VersionComparison = { query: options.query, versions: entries, evidence };
+    const result: VersionComparison = { query: options.query, versions: entries, evidence: evidence.map(sanitizeContextHit) };
     this.recordTrace("ibmi_docs_compare_versions", started, {
       query: options.query,
       resultCount: evidence.length,
@@ -1364,7 +1458,12 @@ export class CorpusRepository {
         evidenceIds: evidence.map((hit) => hit.id).slice(0, 3)
       });
     }
-    const result: CodeValidationResult = { language: preset?.language ?? normalizeLanguage(options.language) ?? options.language, detectedSignals, findings, evidence };
+    const result: CodeValidationResult = {
+      language: preset?.language ?? normalizeLanguage(options.language) ?? options.language,
+      detectedSignals,
+      findings,
+      evidence: evidence.map(sanitizeContextHit)
+    };
     this.recordTrace("ibmi_docs_validate_code_context", started, {
       query: options.language,
       resultCount: evidence.length,
@@ -1580,6 +1679,183 @@ function selectAnswerEvidence(hits: SearchHit[], query: string): SearchHit[] {
   // Si solo hay índices, conservamos el mejor índice antes que devolver nada,
   // pero la respuesta quedará con advertencias y confianza baja/media.
   return filtered.length ? filtered : hits.filter((hit) => hit.documentKind !== "landing").slice(0, 1);
+}
+
+function buildContextQueries(task: string, preset?: LanguagePreset): string[] {
+  const exactTerms = extractExactTechnicalTerms(task);
+  const technicalQueries = exactTerms.flatMap((term) => {
+    if (isMessageIdTerm(term)) return [term.toUpperCase()];
+    if (IBM_I_COMMAND_PREFIX_PATTERN.test(term)) {
+      const aliases = IBM_I_COMMAND_ALIASES[fold(term)] ?? [];
+      return [
+        term.toUpperCase(),
+        `${term.toUpperCase()} command`,
+        ...aliases,
+        ...aliases.map((alias) => `${alias} ${term.toUpperCase()}`)
+      ];
+    }
+    if (term.startsWith("%")) return [`${term.toUpperCase()} built-in function`, term.toUpperCase()];
+    if (term.includes("-")) return [term.toUpperCase()];
+    return [term];
+  });
+  const familyQueries = [
+    ...(/\bCPF\b/i.test(task) && !/\bCPF\d{4}\b/i.test(task) ? ["CPF messages", "MONMSG command CPF"] : []),
+    ...(/\bMCH\b/i.test(task) && !/\bMCH\d{4}\b/i.test(task) ? ["MCH messages", "MONMSG command MCH"] : []),
+    ...(/\bRNF\b/i.test(task) && !/\bRNF\d{4}\b/i.test(task) ? ["RPG Messages RNF"] : [])
+  ];
+  return [...new Set([
+    task,
+    ...technicalQueries,
+    ...familyQueries,
+    ...(preset?.queries ?? []),
+    ...(preset?.compileCommands.map((command) => `${command} command`) ?? [])
+  ].filter(Boolean))].slice(0, 18);
+}
+
+function selectContextReadEvidence(hits: SearchHit[], task: string): SearchHit[] {
+  const exactTerms = extractExactTechnicalTerms(task).map(fold);
+  const candidates = selectAnswerEvidence(hits, task).length ? selectAnswerEvidence(hits, task) : hits;
+  return [...candidates]
+    .sort((a, b) => contextEvidenceScore(b, exactTerms) - contextEvidenceScore(a, exactTerms) || b.score - a.score || a.title.localeCompare(b.title));
+}
+
+function contextEvidenceScore(hit: SearchHit, exactTerms: string[]): number {
+  const haystack = fold([hit.title, hit.snippet, hit.breadcrumbs.join(" "), hit.canonicalTopicKey ?? ""].join(" "));
+  let score = hit.score;
+  for (const term of exactTerms) {
+    if (fold(hit.title).includes(term)) score += 70;
+    else if (haystack.includes(term)) score += 35;
+  }
+  if (hit.synthetic) score += 20;
+  if (hit.documentKind === "topic" || hit.documentKind === "reference") score += 12;
+  if (hit.documentKind === "index") score -= 15;
+  if ((hit.relevanceWarnings ?? []).some((warning) => warning.includes("sin términos exactos"))) score -= 40;
+  return score;
+}
+
+function sanitizeContextHit(hit: SearchHit): SearchHit {
+  const {
+    readHint: _readHint,
+    nextRecommendedTool: _nextRecommendedTool,
+    nextRecommendedReason: _nextRecommendedReason,
+    nextRecommendedArguments: _nextRecommendedArguments,
+    workflowHints: _workflowHints,
+    fullContent: _fullContent,
+    autoReadApplied: _autoReadApplied,
+    sectionsPreview: _sectionsPreview,
+    ...safeHit
+  } = hit;
+  return safeHit;
+}
+
+function contextDisplayTitle(read: ReadResult, hit?: SearchHit): string {
+  if (hit?.synthetic && hit.title !== read.title) return `${hit.title} / fuente: ${read.title}`;
+  return hit?.title ?? read.title;
+}
+
+function toContextReadSummary(read: ReadResult, task: string, hit?: SearchHit): ContextReadSummary {
+  const focusedSections = selectFocusedSections(read.sections ?? [], task, 5);
+  return {
+    id: read.id,
+    title: contextDisplayTitle(read, hit),
+    version: read.version,
+    category: read.category,
+    sourceKind: read.sourceKind,
+    canonicalUrl: read.canonicalUrl,
+    documentKind: read.documentKind,
+    canonicalTopicKey: read.canonicalTopicKey,
+    taxonomy: read.taxonomy,
+    textLength: read.textLength,
+    excerpt: makeSnippet(read.content, task, 1400),
+    focusedSections
+  };
+}
+
+function selectFocusedSections(sections: TopicSection[], task: string, limit: number): TopicSection[] {
+  if (!sections.length) return [];
+  const queryTokens = tokenize(task).filter((token) => token.length > 2).map(fold);
+  const scored = sections.map((section, index) => {
+    const haystack = fold(`${section.title} ${section.content}`);
+    const tokenScore = queryTokens.reduce((sum, token) => sum + (haystack.includes(token) ? 1 : 0), 0);
+    const kindScore = section.kind === "syntax" ? 9
+      : section.kind === "parameters" ? 8
+        : section.kind === "examples" ? 7
+          : section.kind === "description" ? 6
+            : ["notes", "messages", "recovery", "restrictions"].includes(section.kind) ? 5
+              : 1;
+    return { section, index, score: tokenScore + kindScore };
+  }).sort((a, b) => b.score - a.score || a.index - b.index);
+  return scored.slice(0, limit).map(({ section }) => ({
+    ...section,
+    content: makeSnippet(section.content, task, 1200)
+  }));
+}
+
+function buildContextActionItems(
+  options: ContextOptions,
+  preset: LanguagePreset | undefined,
+  reads: ContextReadSummary[],
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>
+): string[] {
+  const haystack = [options.task, options.language].filter(Boolean).join(" ");
+  const items = new Set<string>();
+  if (preset?.compileCommands.length) items.add(`Compilar/revisar con ${preset.compileCommands.join(" o ")} según el tipo de objeto y release objetivo.`);
+  if (/rtvjoba/i.test(haystack)) items.add("Para RTVJOBA, validar variables CL receptoras y atributos de trabajo requeridos antes de modificar el fuente.");
+  if (/monmsg/i.test(haystack)) items.add("Para MONMSG, confirmar el alcance exacto del manejador y evitar capturar CPF0000/MCH0000 si ocultaría fallos reales.");
+  if (/\b(CPF|MCH|RNF|SQL)\d{0,5}\b/i.test(haystack)) items.add("Tratar los mensajes por ID/familia: documentar recuperación esperada y no asumir causa raíz sin evidencia del joblog/listado.");
+  for (const section of sections.flatMap((topic) => topic.sections)) {
+    if (section.kind === "syntax") items.add(`Usar la sección de sintaxis detectada (${section.title}) como base para ajustar formato y orden de parámetros.`);
+    if (section.kind === "parameters") items.add(`Cruzar parámetros contra la sección detectada (${section.title}) antes de cambiar nombres, tipos o longitudes.`);
+    if (section.kind === "examples") items.add(`Tomar ejemplos documentales (${section.title}) como patrón, adaptando bibliotecas/objetos al ambiente real.`);
+  }
+  if (!items.size && reads.length) items.add("Aplicar la evidencia leída en el orden de prioridad mostrado y mantener trazabilidad por ID de documento.");
+  if (!items.size) items.add("No hay evidencia suficiente; acotar la tarea con comando, mensaje, lenguaje o versión antes de afirmar detalles técnicos.");
+  return [...items].slice(0, 8);
+}
+
+function buildContextAnswer(input: {
+  task: string;
+  language: string;
+  detectedSignals: string[];
+  compileCommands: string[];
+  optionsToReview: string[];
+  pitfalls: string[];
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  actionItems: string[];
+  warnings: string[];
+}): string {
+  const lines: string[] = [
+    `Contexto documental autocontenido para ${input.language}: ${input.task}`,
+    `Señales detectadas: ${input.detectedSignals.join(", ") || "sin señales específicas"}.`
+  ];
+  if (input.compileCommands.length) lines.push(`Comandos de compilación/build relevantes: ${input.compileCommands.join(", ")}.`);
+  if (input.optionsToReview.length) lines.push(`Opciones a revisar: ${input.optionsToReview.join(", ")}.`);
+  if (input.pitfalls.length) {
+    lines.push("Riesgos técnicos documentales:");
+    lines.push(...input.pitfalls.slice(0, 4).map((pitfall) => `- ${pitfall}`));
+  }
+  if (input.reads.length) {
+    lines.push("", "Evidencia ya leída y resumida:");
+    for (const read of input.reads) {
+      lines.push(`- ${read.title} [${read.version}/${read.category}] (${read.id})`);
+      lines.push(`  Extracto: ${read.excerpt}`);
+      const focused = read.focusedSections.slice(0, 3);
+      if (focused.length) {
+        lines.push("  Sintaxis/parámetros/secciones útiles:");
+        for (const section of focused) lines.push(`  - [${section.kind}] ${section.title}: ${section.content}`);
+      }
+    }
+  } else {
+    lines.push("", "No se pudo leer evidencia suficiente en el corpus local para esta tarea.");
+  }
+  lines.push("", "Acciones técnicas sugeridas para resolver la tarea:");
+  lines.push(...input.actionItems.map((item) => `- ${item}`));
+  if (input.warnings.length) {
+    lines.push("", "Advertencias de cobertura:");
+    lines.push(...[...new Set(input.warnings)].slice(0, 5).map((warning) => `- ${warning}`));
+  }
+  return lines.join("\n");
 }
 
 function scoreHit(hit: SearchHit, body: string, rank: number, options: SearchOptions, chunkIndex: number): number {
@@ -1890,7 +2166,7 @@ function buildExtractiveAnswer(options: AnswerOptions, reads: ReadResult[], comp
   if (!reads.length) {
     return [
       "No encontré evidencia suficiente en el corpus local para responder con seguridad.",
-      "Siguiente paso recomendado: ampliar la consulta con nombre de comando, mensaje RNF/SQL, lenguaje o versión IBM i."
+      "La consulta puede ampliarse con nombre de comando, mensaje RNF/SQL, lenguaje o versión IBM i; esta respuesta no inventa detalles fuera del corpus."
     ].join("\n");
   }
   const lines: string[] = [`Respuesta basada en ${reads.length} tópico(s) del corpus local:`];
@@ -1908,7 +2184,7 @@ function buildExtractiveAnswer(options: AnswerOptions, reads: ReadResult[], comp
     lines.push(`- Comandos: ${compile.recommendedCommands.join(", ") || "n/a"}`);
     lines.push(`- Opciones a revisar: ${compile.optionsToReview.join(", ") || "n/a"}`);
   }
-  lines.push("", "Citas: usa los IDs devueltos en structuredContent con ibmi_docs_read para auditar el texto completo.");
+  lines.push("", "Citas: los IDs devueltos en structuredContent identifican la evidencia ya leída y sirven para auditoría del texto completo.");
   return lines.join("\n");
 }
 
@@ -1992,7 +2268,7 @@ function buildResolvedAnswer(input: {
   if (input.reads.length) {
     lines.push("Lecturas completas usadas:", ...input.reads.map((read) => `- ${read.id}: ${read.title} (${read.version}, ${read.textLength} caracteres)`), "");
   }
-  lines.push("Siguiente acción recomendada: si necesitas citar detalles finos, usa ibmi_docs_read con los IDs anteriores o ibmi_docs_sections para saltar directo a sintaxis/parámetros/ejemplos.");
+  lines.push("Evidencia materializada: las lecturas, secciones y citas relevantes ya se incluyen en structuredContent; los IDs quedan como trazabilidad para auditoría, no como tarea pendiente para el agente.");
   return lines.join("\n");
 }
 
@@ -2212,6 +2488,8 @@ function extractPrimaryTechnicalTerm(title: string): string | undefined {
 }
 
 function isCommandOrOpcodeTerm(token: string): boolean {
+  const foldedToken = fold(token);
+  if (IBM_I_COMMAND_FALSE_POSITIVES.has(foldedToken)) return false;
   return /-/.test(token)
     || /^%[a-z][a-z0-9_-]+$/.test(token)
     || IBM_I_COMMAND_PREFIX_PATTERN.test(token)
@@ -2259,20 +2537,18 @@ function isExactCommandTitle(title: string, foldedCommand: string): boolean {
 
 function commandFallbackNeedles(foldedCommand: string): string[] {
   // Algunos comandos CL aparecen en el corpus por su descripción larga, no por el nombre corto del comando.
-  const aliases: Record<string, string[]> = {
-    dspfd: ["display file description", "database files and device files"],
-    rtvjoba: ["retrieve job attributes", "job attributes"],
-    sbmjob: ["submit job", "submitted job"]
-  };
-  return [foldedCommand, ...(aliases[foldedCommand] ?? [])].map((needle) => fold(needle));
+  return [foldedCommand, ...(IBM_I_COMMAND_ALIASES[foldedCommand] ?? [])].map((needle) => fold(needle));
 }
 
 function commandFallbackPriority(hit: SearchHit, foldedCommand: string): number {
   const haystack = fold([hit.title, hit.breadcrumbs.join(" "), hit.snippet].join(" "));
+  const aliases = IBM_I_COMMAND_ALIASES[foldedCommand] ?? [];
   let score = hit.score;
   if (/cl command finder|alphabetic list of cl commands/.test(haystack)) score += 80;
   if (/ibm i commands/.test(haystack)) score += 55;
   if (fold(hit.title).includes(foldedCommand)) score += 45;
+  if (aliases.some((alias) => fold(hit.title).includes(fold(alias)))) score += 90;
+  if (aliases.some((alias) => haystack.includes(fold(alias)))) score += 35;
   if (/example: using the retrieve job attributes command/.test(haystack)) score += 40;
   if (hit.category === "cl-clle") score += 15;
   return score;

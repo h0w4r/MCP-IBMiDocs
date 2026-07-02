@@ -144,15 +144,15 @@ ibmi-docs doctor
 
 | Tool | Para qué usarla |
 | --- | --- |
-| `ibmi_docs_resolve` | Punto de entrada recomendado para preguntas normales. Clasifica intención, busca, lee y sugiere siguientes pasos. |
-| `ibmi_docs_answer` | Respuestas extractivas con citas. |
-| `ibmi_docs_context` | Contexto compacto para desarrollo o revisión de código. |
+| `ibmi_docs_resolve` | Punto de entrada recomendado para preguntas normales. Clasifica intención y auto-orquesta búsqueda, lectura, secciones, síntesis y evidencia. |
+| `ibmi_docs_answer` | Respuestas extractivas autocontenidas con citas y evidencia ya leída. |
+| `ibmi_docs_context` | Contexto autocontenido para desarrollo o revisión de código: incluye lecturas, secciones, acciones y advertencias. |
 | `ibmi_docs_compile_guidance` | Evidencia y comandos de compilación. |
 | `ibmi_docs_explain_message` | Diagnóstico de mensajes como `RNF0004`. |
 | `ibmi_docs_compare_versions` | Comparación entre releases IBM i. |
-| `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Búsqueda, lectura completa y extracción de secciones. |
+| `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Tools de bajo nivel para exploración manual, auditoría o debugging de ranking. |
 
-Regla práctica para agentes: empieza por `ibmi_docs_resolve`. Si usas `ibmi_docs_search`, normalmente continúa con `ibmi_docs_read` antes de responder. Search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+Regla práctica para agentes: empieza por `ibmi_docs_resolve`; para tareas de desarrollo/corrección usa `ibmi_docs_context`. Estas tools ya hacen internamente el flujo `search/read/sections` cuando aplica, así que no deberían responder con “llama otra tool para completar”. `ibmi_docs_search` queda para exploración manual; search-only como respuesta final es “te traje el índice, suerte con el dragón”.
 
 ## Qué incluye el proyecto
 

@@ -28,13 +28,14 @@ function withRepository<T>(callback: (repo: CorpusRepository) => T): T {
 
 export function createServer(): McpServer {
   const server = new McpServer(
-    { name: "ibmi-docs-mcp", version: "0.5.0" },
+    { name: "ibmi-docs-mcp", version: "0.5.1" },
     {
       instructions:
         [
           "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial.",
-          "Para preguntas normales usa primero ibmi_docs_resolve o ibmi_docs_answer; ibmi_docs_search es una herramienta de descubrimiento de bajo nivel y no debe ser el último paso cuando se requiere una respuesta técnica.",
-          "Workflow recomendado: resolve/answer -> read -> sections cuando haya comandos, opcodes, BIFs, DDS keywords o mensajes; compile_guidance/context para desarrollo; explain_message para RNF/SQL/CPF/MCH; compare_versions para releases; explain_ranking para depurar resultados raros.",
+          "Para preguntas normales usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context: estas tools auto-orquestan búsqueda, lectura, secciones y síntesis dentro del MCP, y devuelven evidencia ya materializada.",
+          "ibmi_docs_search, ibmi_docs_read e ibmi_docs_sections son herramientas de bajo nivel para auditoría manual o depuración; no son requisito posterior cuando una tool de alto nivel ya respondió.",
+          "Las tools de alto nivel no deben delegar trabajo adicional al agente: si la consulta requiere sintaxis, parámetros, ejemplos, mensajes, compilación o comparación por versión, la tool debe incorporar ese flujo en su propia salida.",
           "Si un ranking parece incorrecto, usa ibmi_docs_report_query para generar evidencia reproducible lista para issue.",
           "El runtime no depende de RDi ni Eclipse Help y nunca consulta el endpoint local de bootstrap."
         ].join(" ")
@@ -45,7 +46,7 @@ export function createServer(): McpServer {
     "ibmi_docs_resolve",
     {
       title: "Resolver consulta IBM i con workflow agéntico",
-      description: "Herramienta principal para agentes: clasifica la intención y orquesta search -> read -> sections -> answer/context/compile/message/version/ranking según corresponda. Úsala antes que ibmi_docs_search para preguntas normales.",
+      description: "Herramienta principal para agentes: clasifica la intención y auto-orquesta búsqueda, lectura, secciones, respuesta, contexto, compilación, mensajes, versiones o ranking según corresponda. Devuelve una respuesta autocontenida; no pide llamadas adicionales.",
       inputSchema: z.object({
         question: z.string().min(1).describe("Consulta completa del usuario sobre IBM i/AS400."),
         language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
@@ -68,7 +69,7 @@ export function createServer(): McpServer {
     "ibmi_docs_search",
     {
       title: "Buscar documentación IBM i",
-      description: "Descubrimiento de documentos candidatos con SQLite FTS5, ranking heurístico y evidencia trazable. No lo uses como respuesta final: después llama ibmi_docs_read/sections o usa ibmi_docs_resolve.",
+      description: "Descubrimiento de documentos candidatos con SQLite FTS5, ranking heurístico y evidencia trazable. Es bajo nivel; para una respuesta final usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context.",
       inputSchema: z.object({
         query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF0004, CLLE, DDS PF, SQLRPGLE, etc."),
         version: z.string().optional().describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
@@ -83,7 +84,7 @@ export function createServer(): McpServer {
     },
     async ({ query, version, category, limit, mode, autoRead, includeSections, strictCategory }) => {
       const results = withRepository((repo) => repo.search({ query, version, category, limit, mode, autoRead, includeSections, strictCategory }));
-      return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results }) };
+      return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results: results.map(sanitizeAgentHit) }) };
     }
   );
 
@@ -91,7 +92,7 @@ export function createServer(): McpServer {
     "ibmi_docs_read",
     {
       title: "Leer tópico IBM i",
-      description: "Lee el contenido completo normalizado de un tópico. Debe seguir a ibmi_docs_search cuando el agente necesita responder con detalles, sintaxis o parámetros.",
+      description: "Lee el contenido completo normalizado de un tópico por ID. Útil para auditoría manual; las tools de alto nivel ya realizan esta lectura internamente cuando la necesitan.",
       inputSchema: z.object({ id: z.string().min(1).describe("ID de documento devuelto por ibmi_docs_search.") }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
@@ -121,7 +122,7 @@ export function createServer(): McpServer {
     "ibmi_docs_answer",
     {
       title: "Responder con evidencia IBM i",
-      description: "Respuesta recomendada para preguntas directas: construye una respuesta extractiva y trazable usando búsqueda híbrida, lectura de tópicos, citas y comandos cuando aplica.",
+      description: "Respuesta recomendada para preguntas directas: auto-orquesta búsqueda híbrida, lectura de tópicos, selección de secciones, citas y comandos cuando aplica. Devuelve una respuesta autocontenida.",
       inputSchema: z.object({
         question: z.string().min(1),
         language: z.string().optional(),
@@ -143,7 +144,7 @@ export function createServer(): McpServer {
     "ibmi_docs_context",
     {
       title: "Resolver contexto IBM i",
-      description: "Genera un paquete contextual agéntico con intención, docs, comandos, riesgos, notas de versión y evidencia.",
+      description: "Genera un paquete contextual agéntico autocontenido: intención, respuesta, lecturas, secciones enfocadas, comandos, riesgos, notas de versión, acciones y evidencia ya materializada.",
       inputSchema: z.object({
         task: z.string().min(1).describe("Tarea del usuario: crear programa RPG, corregir RNFxxxx, escribir CLLE, etc."),
         language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
@@ -421,19 +422,19 @@ export function createServer(): McpServer {
     title: "Consultar documentación IBM i",
     description: "Prompt para resolver una consulta IBM i con workflow agéntico y evidencia antes de responder.",
     argsSchema: { consulta: z.string().min(1) }
-  }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para: ${consulta}. Si por alguna razón usas ibmi_docs_search, después debes llamar ibmi_docs_read y, si aplica, ibmi_docs_sections antes de responder citando título, versión y fuente.` } }] }));
+  }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para: ${consulta}. La respuesta debe salir autocontenida con evidencia, citas, lecturas y secciones relevantes ya materializadas por el MCP.` } }] }));
 
   server.registerPrompt("revisar-codigo-rpgle-con-docs", {
     title: "Revisar RPGLE con documentación",
     description: "Prompt para revisar código RPGLE con ayuda IBM i.",
     argsSchema: { codigo: z.string().min(1) }
-  }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve con language=RPGLE y code para revisar este código contra documentación oficial. Complementa con ibmi_docs_validate_code_context y compile_guidance si detectas SQL embebido o /COPY:\n\n${codigo}` } }] }));
+  }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve con language=RPGLE y code para revisar este código contra documentación oficial. La tool debe orquestar internamente validación documental y guía de compilación cuando detecte SQL embebido o /COPY:\n\n${codigo}` } }] }));
 
   server.registerPrompt("diagnosticar-error-rnf", {
     title: "Diagnosticar RNF",
     description: "Prompt para diagnosticar mensajes RNF con causa y recovery.",
     argsSchema: { mensaje: z.string().min(1) }
-  }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para diagnosticar ${mensaje}; si el intent es message_diagnostic, complementa con ibmi_docs_explain_message y lee la evidencia principal antes de resumir causa, recovery y acciones de validación.` } }] }));
+  }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para diagnosticar ${mensaje}; la salida debe incluir diagnóstico, evidencia principal, recovery y acciones de validación sin delegar llamadas posteriores al agente.` } }] }));
 
   return server;
 }
@@ -456,10 +457,22 @@ function renderSearchResults(query: string, results: Array<any>): string {
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
     result.requestedVersionFallback ? "   Aviso: fallback exacto fuera de la versión solicitada." : "",
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
-    // La búsqueda entrega evidencia resumida; esta pista evita que el agente confunda el snippet con el tópico completo.
-    `   Lectura completa: usa ibmi_docs_read con id="${result.id}"${result.textLength ? ` (${result.textLength} caracteres)` : ""}`,
-    result.nextRecommendedTool ? `   Siguiente tool recomendada: ${result.nextRecommendedTool} · ${result.nextRecommendedReason}` : "",
-    result.nextRecommendedArguments ? `   Args sugeridos: ${JSON.stringify(result.nextRecommendedArguments)}` : "",
+    `   Texto completo auto-adjunto: ${result.autoReadApplied ? `sí (${String(result.fullContent ?? "").length} caracteres)` : "no"}${result.textLength ? ` · tópico=${result.textLength} caracteres` : ""}`,
+    result.sectionsPreview?.length ? `   Secciones previas: ${result.sectionsPreview.map((section: any) => section.kind).join(", ")}` : "",
+    `   Evidencia: ${result.snippet}`
+  ].filter(Boolean).join("\n"))].join("\n");
+}
+
+function renderEvidenceList(label: string, results: Array<any>): string {
+  if (!results.length) return `Sin evidencia para: ${label}`;
+  return [`Evidencia IBM i Docs para: ${label}`, "", ...results.map((result, index) => [
+    `${index + 1}. ${result.title}`,
+    `   ID: ${result.id}`,
+    `   Score: ${result.score}`,
+    `   Versión/Categoría: ${result.version} / ${result.category}`,
+    `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
+    result.requestedVersionFallback ? "   Aviso: fallback exacto fuera de la versión solicitada." : "",
+    result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Evidencia: ${result.snippet}`
   ].filter(Boolean).join("\n"))].join("\n");
 }
@@ -478,9 +491,6 @@ function renderResolve(resolved: any): string {
     "",
     "Citas:",
     bullet((resolved.citations as Array<any>).map((citation) => `${citation.title} (${citation.id}, ${citation.version}, ${citation.sourceKind})`)),
-    "",
-    "Tools sugeridas:",
-    bullet(resolved.suggestedTools),
     "",
     "Advertencias:",
     bullet(resolved.warnings)
@@ -516,11 +526,44 @@ function renderAnswer(answer: any): string {
 }
 
 function renderContext(context: any): string {
-  return [`Contexto IBM i para: ${context.task}`, "", "Intención:", JSON.stringify(context.intent, null, 2), "", "Comandos sugeridos:", bullet(context.compileCommands), "", "Opciones a revisar:", bullet(context.optionsToReview), "", "Riesgos/pitfalls:", bullet(context.pitfalls), "", renderSearchResults("evidencia contextual", context.evidence as Array<any>)].join("\n");
+  return [
+    `Contexto IBM i para: ${context.task}`,
+    "",
+    context.answer,
+    "",
+    "Intención:",
+    JSON.stringify(context.intent, null, 2),
+    "",
+    "Workflow interno ejecutado:",
+    bullet((context.appliedWorkflow as Array<any>).map((stage) => `[${stage.status}] ${stage.reason}${stage.outputSummary ? ` (${stage.outputSummary})` : ""}`)),
+    "",
+    "Acciones técnicas sugeridas:",
+    bullet(context.actionItems),
+    "",
+    "Comandos sugeridos:",
+    bullet(context.compileCommands),
+    "",
+    "Opciones a revisar:",
+    bullet(context.optionsToReview),
+    "",
+    "Lecturas materializadas:",
+    bullet((context.reads as Array<any>).map((read) => `${read.title} (${read.id}, ${read.version}, ${read.textLength} caracteres)`)),
+    "",
+    "Secciones enfocadas:",
+    bullet((context.sections as Array<any>).flatMap((topic) => (topic.sections as Array<any>).map((section) => `${topic.title} > ${section.title} [${section.kind}]`))),
+    "",
+    "Riesgos/pitfalls:",
+    bullet(context.pitfalls),
+    "",
+    renderEvidenceList("evidencia contextual", context.evidence as Array<any>),
+    "",
+    "Advertencias:",
+    bullet(context.warnings)
+  ].join("\n");
 }
 
 function renderCompileGuidance(guidance: any): string {
-  return [`Guía de compilación ${guidance.language} -> ${guidance.target}`, "", "Comandos recomendados:", bullet(guidance.recommendedCommands), "", "Comandos relacionados:", bullet(guidance.relatedCommands), "", "Opciones a revisar:", bullet(guidance.optionsToReview), "", "Pitfalls:", bullet(guidance.pitfalls), "", renderSearchResults("evidencia de compilación", guidance.evidence as Array<any>)].join("\n");
+  return [`Guía de compilación ${guidance.language} -> ${guidance.target}`, "", "Comandos recomendados:", bullet(guidance.recommendedCommands), "", "Comandos relacionados:", bullet(guidance.relatedCommands), "", "Opciones a revisar:", bullet(guidance.optionsToReview), "", "Pitfalls:", bullet(guidance.pitfalls), "", renderEvidenceList("evidencia de compilación", guidance.evidence as Array<any>)].join("\n");
 }
 
 function renderMessageExplanation(explanation: any): string {
@@ -534,13 +577,13 @@ function renderMessageExplanation(explanation: any): string {
     "Recovery checklist:",
     bullet(explanation.recoveryChecklist),
     "",
-    renderSearchResults(String(explanation.messageId), explanation.evidence as Array<any>)
+    renderEvidenceList(String(explanation.messageId), explanation.evidence as Array<any>)
   ].join("\n");
 }
 
 function renderRelated(related: any): string {
   const topic = related.topic as { title?: string; id?: string } | null;
-  return [`Tópico base: ${topic?.title ?? "no encontrado"} (${topic?.id ?? "sin id"})`, "", "Equivalentes por versión:", renderSearchResults("equivalentes", related.equivalentVersions as Array<any>), "", "Relacionados:", renderSearchResults("relacionados", related.related as Array<any>)].join("\n");
+  return [`Tópico base: ${topic?.title ?? "no encontrado"} (${topic?.id ?? "sin id"})`, "", "Equivalentes por versión:", renderEvidenceList("equivalentes", related.equivalentVersions as Array<any>), "", "Relacionados:", renderEvidenceList("relacionados", related.related as Array<any>)].join("\n");
 }
 
 function renderVersionComparison(comparison: any): string {
@@ -548,7 +591,7 @@ function renderVersionComparison(comparison: any): string {
   return [`Comparación de versiones para: ${comparison.query}`, "", ...entries.map((entry) => [
     `- ${entry.version}: ${entry.found ? `${entry.result?.title} (${entry.result?.id})` : "sin resultado"}`,
     ...entry.notes.map((note) => `  - ${note}`)
-  ].join("\n")), "", renderSearchResults("evidencia comparativa", comparison.evidence as Array<any>)].join("\n");
+  ].join("\n")), "", renderEvidenceList("evidencia comparativa", comparison.evidence as Array<any>)].join("\n");
 }
 
 function renderRankingExplanation(explanation: any): string {
@@ -600,7 +643,7 @@ function renderRecipes(recipes: Array<any>): string {
 
 function renderCodeValidation(validation: any): string {
   const findings = validation.findings as Array<{ severity: string; title: string; detail: string }>;
-  return [`Validación documental para ${validation.language}`, `Señales: ${(validation.detectedSignals as string[]).join(", ") || "sin señales"}`, "", "Hallazgos:", ...findings.map((finding) => `- [${finding.severity}] ${finding.title}: ${finding.detail}`), "", renderSearchResults("evidencia de validación", validation.evidence as Array<any>)].join("\n");
+  return [`Validación documental para ${validation.language}`, `Señales: ${(validation.detectedSignals as string[]).join(", ") || "sin señales"}`, "", "Hallazgos:", ...findings.map((finding) => `- [${finding.severity}] ${finding.title}: ${finding.detail}`), "", renderEvidenceList("evidencia de validación", validation.evidence as Array<any>)].join("\n");
 }
 
 function renderTraceReport(report: any): string {
@@ -620,6 +663,19 @@ function renderTraceReport(report: any): string {
     "Recientes:",
     ...((report.recent as Array<any>) ?? []).slice(-10).map((event) => `- ${event.timestamp} ${event.tool} ${event.query ?? event.id ?? ""} (${event.durationMs} ms)`)
   ].join("\n");
+}
+
+function sanitizeAgentHit(hit: any): any {
+  if (!hit || typeof hit !== "object") return hit;
+  const {
+    readHint: _readHint,
+    nextRecommendedTool: _nextRecommendedTool,
+    nextRecommendedReason: _nextRecommendedReason,
+    nextRecommendedArguments: _nextRecommendedArguments,
+    workflowHints: _workflowHints,
+    ...safeHit
+  } = hit;
+  return safeHit;
 }
 
 function structured(value: unknown): Record<string, unknown> {
