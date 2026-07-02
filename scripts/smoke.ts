@@ -44,6 +44,31 @@ try {
   console.log("Answer SND-MSG:", JSON.stringify({ confidence: answer.confidence, citations: answer.citations.length }, null, 2));
   if (!answer.citations.length || !answer.answer.includes("Respuesta basada")) process.exitCode = 1;
 
+  const assisted = repo.assist({
+    question: "Corregir CLLE con RTVJOBA y MONMSG; necesito pasos y validación",
+    language: "CLLE",
+    version: "7.5",
+    depth: "deep",
+    includeCompileCommands: true,
+    limit: 4
+  });
+  console.log("Assist CLLE:", JSON.stringify({
+    intent: assisted.intent,
+    confidence: assisted.confidence,
+    coverage: assisted.coverage.status,
+    evidence: assisted.coverage.evidenceCount,
+    reads: assisted.coverage.readCount,
+    sections: assisted.coverage.sectionCount
+  }, null, 2));
+  if (
+    assisted.coverage.status === "thin"
+    || assisted.implementationSteps.length < 3
+    || assisted.validationChecklist.length < 3
+    || /llama ibmi_docs_read|usa ibmi_docs_sections|Siguiente paso recomendado|Para obtener la ayuda completa/i.test(JSON.stringify(assisted))
+  ) {
+    process.exitCode = 1;
+  }
+
   // Valida el workflow agéntico principal: resolve debe leer evidencia y extraer secciones útiles.
   const resolvedSyntax = repo.resolve({
     question: "Explica la sintaxis de SND-MSG con %MSG y %TARGET",

@@ -6,34 +6,59 @@ Este documento define cómo debe usar un agente el MCP IBM i Docs para responder
 
 Las tools de alto nivel son **orquestadores autocontenidos**.
 
-Cuando un agente llama a `ibmi_docs_resolve`, `ibmi_docs_answer` o `ibmi_docs_context`, el MCP no debe devolver tareas pendientes del tipo “llama `ibmi_docs_read`” o “usa `ibmi_docs_sections` si necesitas sintaxis”. La tool que recibió la tarea debe materializar internamente la evidencia necesaria: búsqueda, lectura de tópicos, secciones enfocadas, citas, advertencias y acciones sugeridas.
+Cuando un agente llama a `ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_answer` o `ibmi_docs_context`, el MCP no debe devolver tareas pendientes del tipo “llama `ibmi_docs_read`” o “usa `ibmi_docs_sections` si necesitas sintaxis”. La tool que recibió la tarea debe materializar internamente la evidencia necesaria: búsqueda, lectura de tópicos, secciones enfocadas, citas, advertencias y acciones sugeridas.
 
 `ibmi_docs_search` sigue existiendo, pero es una tool de bajo nivel para exploración, auditoría o debugging de ranking. No es la respuesta final para un usuario que pidió sintaxis, corrección, diagnóstico o implementación.
 
 ## Orden recomendado
 
-1. Usar `ibmi_docs_resolve` para preguntas normales o ambiguas.
-2. Usar `ibmi_docs_context` para desarrollo, corrección de bugs, revisión de código o tareas donde el agente necesita contexto operativo.
-3. Usar `ibmi_docs_answer` para respuestas extractivas directas con citas.
-4. Usar tools específicas cuando el usuario ya pide una acción concreta:
+1. Usar `ibmi_docs_assist` como entrada por defecto cuando el agente/cliente no está seguro de qué tool conviene.
+2. Usar `ibmi_docs_resolve` para preguntas normales o ambiguas cuando se necesita ver la política/workflow interno.
+3. Usar `ibmi_docs_context` para desarrollo, corrección de bugs, revisión de código o tareas donde el agente necesita contexto operativo.
+4. Usar `ibmi_docs_answer` para respuestas extractivas directas con citas.
+5. Usar tools específicas cuando el usuario ya pide una acción concreta:
    - `ibmi_docs_compile_guidance`
    - `ibmi_docs_explain_message`
    - `ibmi_docs_compare_versions`
    - `ibmi_docs_validate_code_context`
-5. Usar `ibmi_docs_search`, `ibmi_docs_read` y `ibmi_docs_sections` solo para exploración manual, auditoría, pruebas o debugging.
+6. Usar `ibmi_docs_search`, `ibmi_docs_read` y `ibmi_docs_sections` solo para exploración manual, auditoría, pruebas o debugging.
 
 ## Matriz de políticas internas
 
 | Intención | Cuándo aplica | Tool recomendada | Qué debe entregar |
 | --- | --- | --- | --- |
-| `explain_topic` | Explicar un tópico, comando, concepto, API o guía IBM i. | `ibmi_docs_resolve` o `ibmi_docs_answer` | Respuesta con evidencia leída, citas y advertencias. |
-| `syntax_lookup` | Sintaxis de comandos, opcodes RPG, BIFs, keywords DDS o sentencias SQL. | `ibmi_docs_resolve` | Sintaxis/secciones/parámetros ya materializados. |
-| `compile_guidance` | Cómo compilar RPGLE, SQLRPGLE, CLLE, COBOL o programas con `/COPY`/SQL embebido. | `ibmi_docs_resolve` o `ibmi_docs_compile_guidance` | Comandos, opciones, pitfalls y evidencia. |
-| `message_diagnostic` | Mensajes `RNFxxxx`, `SQLxxxx`, `CPFxxxx` o `MCHxxxx`. | `ibmi_docs_resolve` o `ibmi_docs_explain_message` | Explicación, recuperación, cobertura y evidencia. |
-| `code_review` | Revisar snippet o fuente contra documentación IBM i. | `ibmi_docs_resolve` con `code` o `ibmi_docs_context` | Señales detectadas, contexto, hallazgos y pasos. |
-| `version_question` | Comparar disponibilidad o cambios entre IBM i 7.3/7.4/7.5/7.6. | `ibmi_docs_resolve` o `ibmi_docs_compare_versions` | Comparación por release y evidencia. |
+| `explain_topic` | Explicar un tópico, comando, concepto, API o guía IBM i. | `ibmi_docs_assist` o `ibmi_docs_resolve` | Respuesta con evidencia leída, citas y advertencias. |
+| `syntax_lookup` | Sintaxis de comandos, opcodes RPG, BIFs, keywords DDS o sentencias SQL. | `ibmi_docs_assist` o `ibmi_docs_resolve` | Sintaxis/secciones/parámetros ya materializados. |
+| `compile_guidance` | Cómo compilar RPGLE, SQLRPGLE, CLLE, COBOL o programas con `/COPY`/SQL embebido. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_compile_guidance` | Comandos, opciones, pitfalls y evidencia. |
+| `message_diagnostic` | Mensajes `RNFxxxx`, `SQLxxxx`, `CPFxxxx` o `MCHxxxx`. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_explain_message` | Explicación, recuperación, cobertura y evidencia. |
+| `code_review` | Revisar snippet o fuente contra documentación IBM i. | `ibmi_docs_assist` con `code`, `ibmi_docs_resolve` con `code` o `ibmi_docs_context` | Señales detectadas, contexto, hallazgos y pasos. |
+| `version_question` | Comparar disponibilidad o cambios entre IBM i 7.3/7.4/7.5/7.6. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_compare_versions` | Comparación por release y evidencia. |
 | `ranking_debug` | Entender por qué aparece un resultado o depurar ranking. | `ibmi_docs_explain_ranking` | Razones de ranking, FTS query y señales semánticas. |
 | `search_discovery` | Exploración abierta de documentación. | `ibmi_docs_search` | Candidatos trazables; no usar como respuesta final si falta lectura. |
+
+## `ibmi_docs_assist`
+
+`ibmi_docs_assist` es el camino feliz para clientes MCP y agentes que no conocen la arquitectura interna del servidor. Recibe la tarea completa y devuelve una salida final lista para usar:
+
+- `answer`: respuesta redactada con resumen, evidencia específica, pasos, validación, cobertura y citas.
+- `executiveSummary`: resumen corto para que el agente pueda decidir rápido.
+- `specificFindings`: extractos enfocados por término técnico y por sección.
+- `implementationSteps`: pasos concretos para aplicar o diagnosticar.
+- `validationChecklist`: cómo comprobar que la respuesta/corrección quedó bien.
+- `coverage`: estado `complete`, `partial` o `thin`, con términos técnicos cubiertos/faltantes.
+- `evidence`, `reads`, `sections`, `citations`: material ya recuperado, sin pedir sub-tools.
+
+Ejemplo:
+
+```powershell
+node dist/src/cli.js assist "Corregir CLLE con RTVJOBA y MONMSG; necesito sintaxis, parámetros y validación" --language CLLE --ibmi-version 7.5 --depth deep
+```
+
+Usa `coverage.status` así:
+
+- `complete`: puedes usar la respuesta como base fuerte.
+- `partial`: hay evidencia útil, pero revisa advertencias por release, término o sección débil.
+- `thin`: no hay evidencia suficiente; el agente no debe inventar parámetros ni sintaxis.
 
 ## `ibmi_docs_resolve`
 
@@ -155,13 +180,13 @@ El reporte incluye:
 ### Pregunta normal
 
 ```text
-Usa ibmi_docs_resolve como tool principal. Trata su respuesta como autocontenida: incluye búsqueda, lectura, secciones, citas y advertencias cuando aplica.
+Usa ibmi_docs_assist como tool principal. Trata su respuesta como autocontenida: incluye búsqueda, lectura, secciones, citas, pasos, validación y advertencias cuando aplica.
 ```
 
 ### Revisión de código
 
 ```text
-Usa ibmi_docs_context o ibmi_docs_resolve con language y code. No esperes que el agente encadene manualmente read/sections: el MCP debe devolver contexto materializado.
+Usa ibmi_docs_assist con language y code. Si necesitas depurar el workflow interno, usa ibmi_docs_context o ibmi_docs_resolve. No esperes que el agente encadene manualmente read/sections: el MCP debe devolver contexto materializado.
 ```
 
 ### Diagnóstico de errores
@@ -172,7 +197,8 @@ Usa ibmi_docs_resolve. Si detectas RNF/SQL/CPF/MCH, la respuesta debe incluir ev
 
 ## Checklist antes de responder
 
-- ¿La respuesta salió de una tool de alto nivel (`resolve`, `answer`, `context`, `compile_guidance`, `explain_message`, `compare_versions`)?
+- ¿La respuesta salió de una tool de alto nivel (`assist`, `resolve`, `answer`, `context`, `compile_guidance`, `explain_message`, `compare_versions`)?
+- Si el agente no conocía el flujo, ¿usó primero `ibmi_docs_assist`?
 - ¿Incluye evidencia ya materializada, no solo IDs?
 - Si el usuario pidió sintaxis, ¿hay secciones o extractos útiles?
 - Si la consulta menciona versión, ¿se filtró o comparó por versión?

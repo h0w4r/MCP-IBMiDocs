@@ -27,7 +27,7 @@ git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
 $env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 ibmi-docs doctor
 ibmi-docs validate-pack
-ibmi-docs search "CRTRPGMOD" --category ile-rpg --ibmi-version 7.5 --limit 3
+ibmi-docs assist "Explica CRTRPGMOD y cuándo conviene frente a CRTBNDRPG" --language RPGLE --ibmi-version 7.5
 ```
 
 ### macOS/Linux
@@ -38,7 +38,7 @@ git clone https://github.com/h0w4r/MCP-IBMiDocs.git ~/MCP-IBMiDocs
 export IBMI_DOCS_PACK_DIR="$HOME/MCP-IBMiDocs/data/pack"
 ibmi-docs doctor
 ibmi-docs validate-pack
-ibmi-docs search "CRTRPGMOD" --category ile-rpg --ibmi-version 7.5 --limit 3
+ibmi-docs assist "Explica CRTRPGMOD y cuándo conviene frente a CRTBNDRPG" --language RPGLE --ibmi-version 7.5
 ```
 
 ## Instalar una versión específica
@@ -192,6 +192,7 @@ node dist/src/cli.js doctor
 ```powershell
 ibmi-docs doctor
 ibmi-docs diagnostics
+ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; necesito pasos y validación" --language CLLE --ibmi-version 7.5 --depth deep
 ibmi-docs resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples
 ibmi-docs resolve "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE
 ibmi-docs resolve "Compara CRTRPGMOD entre IBM i 7.3 y 7.6"

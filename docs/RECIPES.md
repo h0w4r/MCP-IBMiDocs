@@ -2,7 +2,7 @@
 
 Estas recetas están pensadas para agentes en Codex, VS Code u otros clientes MCP. La idea es que el agente no use el corpus como un simple buscador, sino como evidencia técnica para responder, corregir y comparar.
 
-Regla base: **empieza con `ibmi_docs_resolve`**. Usa `ibmi_docs_search` solo para exploración o depuración de ranking y continúa con `ibmi_docs_read`/`ibmi_docs_sections` antes de responder.
+Regla base: **empieza con `ibmi_docs_assist`** si quieres una respuesta final lista para usar. Usa `ibmi_docs_resolve` cuando necesites inspeccionar el workflow interno y `ibmi_docs_search` solo para exploración o depuración de ranking.
 
 ## 1. Diagnosticar RNF
 
@@ -14,14 +14,14 @@ Usa IBM i Docs para explicar RNF0004, causa probable, mensajes relacionados y ch
 
 Tools recomendadas:
 
-1. `ibmi_docs_resolve`
-2. `ibmi_docs_explain_message`
-3. `ibmi_docs_read`
+1. `ibmi_docs_assist`
+2. `ibmi_docs_resolve`
+3. `ibmi_docs_explain_message`
 
 CLI:
 
 ```powershell
-node dist/src/cli.js resolve "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE --limit 3
+node dist/src/cli.js assist "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE --limit 3
 ```
 
 Resultado esperado: intención `message_diagnostic`, lectura del tópico `RPG Messages`, explicación del mensaje y checklist de recuperación.
@@ -34,6 +34,7 @@ Necesito un programa SQLRPGLE con EXEC SQL y /COPY. Contrasta comandos y opcione
 
 Tools:
 
+- `ibmi_docs_assist`
 - `ibmi_docs_resolve`
 - `ibmi_docs_context`
 - `ibmi_docs_compile_guidance`
@@ -42,7 +43,7 @@ Tools:
 CLI:
 
 ```powershell
-node dist/src/cli.js resolve "Cómo compilo un SQLRPGLE con EXEC SQL y /COPY" --language SQLRPGLE --compile --limit 5
+node dist/src/cli.js assist "Cómo compilo un SQLRPGLE con EXEC SQL y /COPY" --language SQLRPGLE --compile --limit 5
 ```
 
 Resultado esperado: guía con `CRTSQLRPGI`, `RPGPPOPT`, `COMMIT`, `DBGVIEW`, riesgos de precompilador/includes y evidencia trazable.
@@ -55,6 +56,7 @@ Explica SND-MSG, %MSG y %TARGET con sintaxis, operandos, notas y ejemplos.
 
 Tools:
 
+- `ibmi_docs_assist`
 - `ibmi_docs_resolve`
 - `ibmi_docs_sections`
 - `ibmi_docs_read`
@@ -63,7 +65,7 @@ Tools:
 CLI:
 
 ```powershell
-node dist/src/cli.js resolve "Explica la sintaxis de SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples
+node dist/src/cli.js assist "Explica la sintaxis de SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples --depth deep
 ```
 
 Resultado esperado: intención `syntax_lookup`, lectura automática de tópico fuerte, secciones `syntax`/`parameters`/`messages` y citas.
@@ -76,6 +78,7 @@ Compara CRTRPGMOD entre IBM i 7.3, 7.4, 7.5 y 7.6.
 
 Tools:
 
+- `ibmi_docs_assist`
 - `ibmi_docs_resolve`
 - `ibmi_docs_compare_versions`
 - `ibmi_docs_read`
@@ -83,7 +86,7 @@ Tools:
 CLI:
 
 ```powershell
-node dist/src/cli.js resolve "Compara CRTRPGMOD entre IBM i 7.3, 7.4, 7.5 y 7.6" --limit 4
+node dist/src/cli.js assist "Compara CRTRPGMOD entre IBM i 7.3, 7.4, 7.5 y 7.6" --limit 4
 ```
 
 La comparación incluye disponibilidad por versión, longitud del tópico, secciones detectadas y notas estructurales.

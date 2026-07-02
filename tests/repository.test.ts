@@ -110,6 +110,71 @@ describe("capacidades agénticas del repositorio", () => {
     expect(serializedContext).not.toMatch(/Para obtener la ayuda completa llama|Si necesitas sintaxis|Siguiente paso recomendado/i);
   });
 
+  it("assist entrega una respuesta final específica y no delega llamadas adicionales al agente", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Corregir un programa CLLE que usa RTVJOBA para recuperar atributos del trabajo y MONMSG para manejar CPF/MCH. Necesito sintaxis, parámetros relevantes, pasos de cambio y validación.",
+      language: "CLLE",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      includeExamples: true,
+      includeCompileCommands: true,
+      limit: 6
+    }));
+
+    expect(assist.intent).toMatch(/compile_guidance|code_review|multi_intent|syntax_lookup|explain_topic/);
+    expect(assist.answer).toMatch(/Resumen directo/i);
+    expect(assist.answer).toMatch(/Evidencia específica/i);
+    expect(assist.answer).toMatch(/Qué hacer/i);
+    expect(assist.answer).toMatch(/Validación/i);
+    expect(assist.answer).toMatch(/Cobertura/i);
+    expect(assist.answer).toMatch(/RTVJOBA/i);
+    expect(assist.answer).toMatch(/MONMSG|Monitor Message/i);
+    expect(assist.executiveSummary.join(" ")).toMatch(/CLLE|RTVJOBA|MONMSG/i);
+    expect(assist.specificFindings.join(" ")).toMatch(/RTVJOBA|MONMSG|par[aá]metro|sintaxis/i);
+    expect(assist.implementationSteps.length).toBeGreaterThanOrEqual(3);
+    expect(assist.validationChecklist.length).toBeGreaterThanOrEqual(3);
+    expect(assist.coverage.evidenceCount).toBeGreaterThan(0);
+    expect(assist.coverage.readCount).toBeGreaterThan(0);
+    expect(assist.coverage.sectionCount).toBeGreaterThan(0);
+    expect(assist.coverage.status).not.toBe("thin");
+    expect(assist.citations.length).toBeGreaterThan(0);
+
+    const serializedAssist = JSON.stringify(assist);
+    expect(serializedAssist).not.toMatch(/nextRecommendedTool|nextRecommendedArguments|readHint|workflowHints/i);
+    expect(serializedAssist).not.toMatch(/Para obtener la ayuda completa|Siguiente paso recomendado|Si necesitas sintaxis|llama ibmi_docs_read|usa ibmi_docs_sections/i);
+  });
+
+  it("assist reporta cobertura débil sin inventar cuando no existe evidencia suficiente", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Comando ficticio ZZZNOEXIST999 para teletransportar bibliotecas cuánticas en IBM i",
+      language: "CLLE",
+      version: "7.5",
+      depth: "standard",
+      limit: 3
+    }));
+
+    expect(assist.coverage.status).toBe("thin");
+    expect(assist.confidence).toBe("baja");
+    expect(assist.warnings.join(" ")).toMatch(/evidencia|corpus|relevancia/i);
+    expect(assist.answer).toMatch(/No encontré evidencia suficiente|cobertura.*débil|no invent/i);
+    expect(assist.answer).not.toMatch(/teletransportar bibliotecas cuánticas es|ZZZNOEXIST999 permite|parámetro obligatorio/i);
+  });
+
+  it("assist trata comandos CL exactos como lookup técnico aunque el prompt sea natural", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Corregir CLLE con RTVJOBA y MONMSG; necesito pasos y validación",
+      language: "CLLE",
+      version: "7.5",
+      depth: "standard",
+      limit: 4
+    }));
+
+    expect(assist.intent).toBe("syntax_lookup");
+    expect(assist.coverage.status).not.toBe("thin");
+    expect(assist.specificFindings.join(" ")).toMatch(/RTVJOBA|MONMSG/i);
+  });
+
   it("entrega guía de compilación SQLRPGLE con evidencia trazable", () => {
     const guidance = withRepo((repo) => repo.compileGuidance({
       language: "SQLRPGLE",

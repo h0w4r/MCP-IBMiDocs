@@ -30,6 +30,7 @@ Sirve para:
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
 - El paquete npm instala el servidor y la CLI.
 - El corpus documental vive en un **data pack local** con SQLite FTS5.
+- La tool recomendada para agentes es `ibmi_docs_assist`: una sola llamada con respuesta final, pasos, validación, cobertura y citas.
 - Por ahora, el data pack público disponible está en este repositorio bajo `data/pack`.
 
 ## Instalación rápida
@@ -58,7 +59,7 @@ En macOS/Linux puedes usar `~/MCP-IBMiDocs`.
 ```powershell
 $env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 ibmi-docs doctor
-ibmi-docs search "CRTRPGMOD" --category ile-rpg --ibmi-version 7.5 --limit 3
+ibmi-docs assist "Explica CRTRPGMOD y cuándo conviene frente a CRTBNDRPG" --language RPGLE --ibmi-version 7.5
 ```
 
 Si `doctor` muestra `Sin RDi, sin Eclipse Help, sin endpoint local de RDi`, vas bien.
@@ -130,6 +131,7 @@ Necesito un PF DDS con claves únicas. Busca la documentación de DDS PF y UNIQU
 ### Desde la CLI
 
 ```powershell
+ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; dame pasos y validación" --language CLLE --ibmi-version 7.5 --depth deep
 ibmi-docs resolve "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --examples
 ibmi-docs answer "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
 ibmi-docs search "RNF0004" --category mensajes-rnf --limit 3
@@ -144,7 +146,8 @@ ibmi-docs doctor
 
 | Tool | Para qué usarla |
 | --- | --- |
-| `ibmi_docs_resolve` | Punto de entrada recomendado para preguntas normales. Clasifica intención y auto-orquesta búsqueda, lectura, secciones, síntesis y evidencia. |
+| `ibmi_docs_assist` | Punto de entrada recomendado. Una sola llamada: respuesta final, evidencia, lecturas, secciones, pasos, validación, cobertura y citas. |
+| `ibmi_docs_resolve` | Orquestador especializado para clasificar intención y auto-orquestar búsqueda, lectura, secciones, síntesis y evidencia. |
 | `ibmi_docs_answer` | Respuestas extractivas autocontenidas con citas y evidencia ya leída. |
 | `ibmi_docs_context` | Contexto autocontenido para desarrollo o revisión de código: incluye lecturas, secciones, acciones y advertencias. |
 | `ibmi_docs_compile_guidance` | Evidencia y comandos de compilación. |
@@ -152,12 +155,13 @@ ibmi-docs doctor
 | `ibmi_docs_compare_versions` | Comparación entre releases IBM i. |
 | `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Tools de bajo nivel para exploración manual, auditoría o debugging de ranking. |
 
-Regla práctica para agentes: empieza por `ibmi_docs_resolve`; para tareas de desarrollo/corrección usa `ibmi_docs_context`. Estas tools ya hacen internamente el flujo `search/read/sections` cuando aplica, así que no deberían responder con “llama otra tool para completar”. `ibmi_docs_search` queda para exploración manual; search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+Regla práctica para agentes: si dudas, empieza por `ibmi_docs_assist`. Para flujos más especializados usa `ibmi_docs_resolve` o `ibmi_docs_context`. Las tools de alto nivel ya hacen internamente el flujo `search/read/sections` cuando aplica, así que no deberían responder con “llama otra tool para completar”. `ibmi_docs_search` queda para exploración manual; search-only como respuesta final es “te traje el índice, suerte con el dragón”.
 
 ## Qué incluye el proyecto
 
 - Servidor MCP TypeScript por stdio.
 - CLI `ibmi-docs`.
+- Tool one-shot `ibmi_docs_assist` para respuestas finales más autónomas y menos dependientes del criterio del agente cliente.
 - Corpus local versionado como data pack (`manifest.json`, `raw/`, `normalized/`, `ibmi-docs.sqlite`).
 - Índice SQLite FTS5 con ranking para comandos, mensajes, DDS, SQLRPGLE, CLLE y RPGLE.
 - Ranking exacto/version-aware con guardrails para no citar evidencia irrelevante cuando buscas comandos, opcodes, BIFs o mensajes.

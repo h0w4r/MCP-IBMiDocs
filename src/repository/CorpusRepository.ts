@@ -4,6 +4,9 @@ import Database from "better-sqlite3";
 import { resolveContainedPath } from "../util/paths.js";
 import { appendTraceEvent, buildTraceReport, defaultTraceFile, isTraceEnabled } from "./trace/traceStore.js";
 import type {
+  AssistCoverage,
+  AssistOptions,
+  AssistResult,
   AnswerCitation,
   AnswerOptions,
   AnswerResult,
@@ -742,6 +745,109 @@ export class CorpusRepository {
       resultCount: hits.length,
       topResultId: hits[0]?.id,
       topResultTitle: hits[0]?.title
+    });
+    return result;
+  }
+
+  assist(options: AssistOptions): AssistResult {
+    const started = Date.now();
+    const depth = options.depth ?? "standard";
+    const defaultLimit = depth === "deep" ? 8 : depth === "concise" ? 4 : 6;
+    const limit = clamp(options.limit, defaultLimit, 1, 12);
+    const preset = resolvePreset(options.language ?? options.question ?? options.code);
+
+    const resolved = this.resolve({
+      question: options.question,
+      language: options.language,
+      version: options.version,
+      category: options.category,
+      code: options.code,
+      includeExamples: options.includeExamples ?? depth !== "concise",
+      includeCompileCommands: options.includeCompileCommands ?? depth !== "concise",
+      limit
+    });
+
+    // Assist es la herramienta "one-shot": aunque resolve ya orqueste, materializamos
+    // contexto enfocado para que el cliente no tenga que decidir otra tool manualmente.
+    const context = resolved.context ?? this.context({
+      task: options.question,
+      language: options.language ?? preset?.language,
+      version: options.version,
+      limit
+    });
+
+    const evidence = mergeSearchEvidence([
+      resolved.evidence,
+      context.evidence,
+      resolved.compileGuidance?.evidence ?? [],
+      resolved.messageExplanation?.evidence ?? [],
+      resolved.versionComparison?.evidence ?? [],
+      resolved.codeValidation?.evidence ?? []
+    ]).map(sanitizeContextHit);
+    const reads = mergeContextReads([
+      context.reads,
+      resolved.reads.map((read) => toContextReadSummary(read, options.question))
+    ]);
+    const sections = mergeSectionTopics([
+      context.sections,
+      resolved.sections.map((topic) => ({
+        id: topic.id,
+        title: topic.title,
+        sections: selectFocusedSections(topic.sections, options.question, depth === "deep" ? 8 : 5)
+      }))
+    ]);
+    const citations = mergeCitations([context.citations, resolved.citations]);
+    const baseWarnings = [...new Set([...resolved.warnings, ...context.warnings])];
+    const coverage = buildAssistCoverage({
+      question: options.question,
+      evidence,
+      reads,
+      sections,
+      confidence: resolved.confidence,
+      warnings: baseWarnings
+    });
+    const warnings = [...new Set([...baseWarnings, ...coverage.warnings])];
+    const executiveSummary = buildAssistExecutiveSummary({ options, resolved, context, coverage });
+    const specificFindings = buildAssistSpecificFindings({ question: options.question, reads, sections, evidence, depth });
+    const implementationSteps = buildAssistImplementationSteps({ options, resolved, context, coverage, depth });
+    const validationChecklist = buildAssistValidationChecklist({ options, resolved, context, coverage, depth });
+    const answer = buildAssistAnswer({
+      options,
+      intent: resolved.intent,
+      confidence: coverage.status === "thin" ? "baja" : resolved.confidence,
+      executiveSummary,
+      specificFindings,
+      implementationSteps,
+      validationChecklist,
+      coverage,
+      citations,
+      warnings,
+      depth
+    });
+
+    const result: AssistResult = {
+      question: options.question,
+      intent: resolved.intent,
+      confidence: coverage.status === "thin" ? "baja" : resolved.confidence,
+      answer,
+      executiveSummary,
+      specificFindings,
+      implementationSteps,
+      validationChecklist,
+      coverage,
+      workflow: resolved.stages,
+      evidence,
+      reads,
+      sections,
+      citations,
+      warnings
+    };
+    this.recordTrace("ibmi_docs_assist", started, {
+      query: options.question,
+      intent: resolved.intent,
+      resultCount: evidence.length,
+      topResultId: evidence[0]?.id,
+      topResultTitle: evidence[0]?.title
     });
     return result;
   }
@@ -2272,6 +2378,322 @@ function buildResolvedAnswer(input: {
   return lines.join("\n");
 }
 
+function mergeSearchEvidence(groups: SearchHit[][]): SearchHit[] {
+  const byId = new Map<string, SearchHit>();
+  for (const hit of groups.flat()) {
+    const existing = byId.get(hit.id);
+    if (!existing || hit.score > existing.score) byId.set(hit.id, hit);
+  }
+  return [...byId.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+}
+
+function mergeContextReads(groups: ContextReadSummary[][]): ContextReadSummary[] {
+  const byId = new Map<string, ContextReadSummary>();
+  for (const read of groups.flat()) {
+    const existing = byId.get(read.id);
+    if (!existing || read.focusedSections.length > existing.focusedSections.length) byId.set(read.id, read);
+  }
+  return [...byId.values()];
+}
+
+function mergeSectionTopics(groups: Array<Array<{ id: string; title: string; sections: TopicSection[] }>>): Array<{ id: string; title: string; sections: TopicSection[] }> {
+  const byId = new Map<string, { id: string; title: string; sections: TopicSection[] }>();
+  for (const topic of groups.flat()) {
+    const existing = byId.get(topic.id);
+    if (!existing) {
+      byId.set(topic.id, { ...topic, sections: [...topic.sections] });
+      continue;
+    }
+    existing.sections = mergeTopicSections(existing.sections, topic.sections);
+  }
+  return [...byId.values()];
+}
+
+function mergeTopicSections(left: TopicSection[], right: TopicSection[]): TopicSection[] {
+  const seen = new Set<string>();
+  const result: TopicSection[] = [];
+  for (const section of [...left, ...right]) {
+    const key = `${section.kind}:${section.title}:${section.startLine}:${section.endLine}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(section);
+  }
+  return result;
+}
+
+function mergeCitations(groups: AnswerCitation[][]): AnswerCitation[] {
+  const byKey = new Map<string, AnswerCitation>();
+  for (const citation of groups.flat()) {
+    byKey.set(`${citation.id}:${citation.section ?? ""}`, citation);
+  }
+  return [...byKey.values()];
+}
+
+function buildAssistCoverage(input: {
+  question: string;
+  evidence: SearchHit[];
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  confidence: "alta" | "media" | "baja";
+  warnings: string[];
+}): AssistCoverage {
+  const technicalTerms = extractAssistTechnicalTerms(input.question);
+  const searchable = fold([
+    ...input.evidence.flatMap((hit) => [hit.title, hit.snippet, hit.breadcrumbs.join(" "), hit.canonicalTopicKey ?? ""]),
+    ...input.reads.flatMap((read) => [read.title, read.excerpt, read.focusedSections.map((section) => `${section.title} ${section.content}`).join(" ")]),
+    ...input.sections.flatMap((topic) => [topic.title, topic.sections.map((section) => `${section.title} ${section.content}`).join(" ")])
+  ].join(" "));
+  const matchedTechnicalTerms = technicalTerms.filter((term) => searchable.includes(fold(term)));
+  const missingTechnicalTerms = technicalTerms.filter((term) => !matchedTechnicalTerms.includes(term));
+  const primaryTechnicalTerms = technicalTerms.filter((term) => !isAssistMessageFamilyTerm(term));
+  const matchedPrimaryTerms = primaryTechnicalTerms.filter((term) => matchedTechnicalTerms.includes(term));
+  const weakSectionTerms = matchedPrimaryTerms.filter((term) => !hasFocusedSectionForTerm(input.sections, term));
+  const evidenceCount = input.evidence.length;
+  const readCount = input.reads.length;
+  const sectionCount = input.sections.reduce((total, topic) => total + topic.sections.length, 0);
+  const coverageWarnings = [
+    ...(missingTechnicalTerms.length ? [`No se encontró evidencia textual específica para: ${missingTechnicalTerms.join(", ")}.`] : []),
+    ...(weakSectionTerms.length ? [`La evidencia para ${weakSectionTerms.join(", ")} existe, pero no trae una sección fuerte de sintaxis/parámetros; tratarla como referencia parcial.`] : []),
+    ...(evidenceCount === 0 ? ["No hay resultados documentales utilizables para la consulta."] : []),
+    ...(readCount === 0 ? ["No se pudo materializar lectura completa de tópicos para la consulta."] : []),
+    ...(sectionCount === 0 ? ["No se detectaron secciones enfocadas de sintaxis/parámetros/ejemplos/recovery."] : [])
+  ];
+  const status: AssistCoverage["status"] = evidenceCount === 0
+    || readCount === 0
+    || (primaryTechnicalTerms.length > 0 && matchedPrimaryTerms.length === 0)
+    ? "thin"
+    : missingTechnicalTerms.length || weakSectionTerms.length || sectionCount === 0 || input.confidence === "baja" || input.warnings.length
+      ? "partial"
+      : "complete";
+  const summary = status === "complete"
+    ? "Cobertura completa para la consulta: hay evidencia, lecturas y secciones enfocadas suficientes."
+    : status === "partial"
+      ? "Cobertura parcial: hay evidencia útil, pero algún término, release o eje técnico no quedó completamente cubierto."
+      : "Cobertura débil: no hay evidencia suficientemente específica para responder sin riesgo de inventar detalles.";
+  return {
+    status,
+    summary,
+    evidenceCount,
+    readCount,
+    sectionCount,
+    matchedTechnicalTerms,
+    missingTechnicalTerms,
+    warnings: [...new Set(coverageWarnings)]
+  };
+}
+
+function hasFocusedSectionForTerm(sections: Array<{ id: string; title: string; sections: TopicSection[] }>, term: string): boolean {
+  const foldedTerm = fold(term);
+  return sections.some((topic) => topic.sections.some((section) => {
+    if (!["syntax", "parameters", "examples"].includes(section.kind)) return false;
+    return fold(`${topic.title} ${section.title} ${section.content}`).includes(foldedTerm);
+  }));
+}
+
+function extractAssistTechnicalTerms(question: string): string[] {
+  const exact = extractExactTechnicalTerms(question).map((term) => term.toUpperCase());
+  const uppercase = question.match(/\b[A-Z%][A-Z0-9_%/-]{2,}\b/g) ?? [];
+  return [...new Set([...exact, ...uppercase]
+    .map((term) => term.replace(/[.,;:()[\]{}]+$/g, "").trim().toUpperCase())
+    .filter((term) => term.length >= 3 || term.startsWith("%"))
+    .filter((term) => !isAssistGenericTerm(term)))];
+}
+
+function isAssistGenericTerm(term: string): boolean {
+  return new Set(["IBM", "IBMI", "AS400", "ILE", "CL", "CLLE", "RPG", "RPGLE", "SQLRPGLE", "DDS", "COBOL", "JOB", "JOBLOG"]).has(term);
+}
+
+function isAssistMessageFamilyTerm(term: string): boolean {
+  return /^(CPF|MCH|RNF|SQL)$/.test(term);
+}
+
+function buildAssistExecutiveSummary(input: {
+  options: AssistOptions;
+  resolved: ResolveResult;
+  context: ContextPackage;
+  coverage: AssistCoverage;
+}): string[] {
+  if (input.coverage.status === "thin") {
+    return [
+      "No hay base documental suficiente para responder con precisión; el MCP evita fabricar sintaxis, parámetros o comportamiento no sustentado.",
+      `Intención detectada: ${input.resolved.intent}; confianza: baja; cobertura: ${input.coverage.status}.`,
+      input.coverage.missingTechnicalTerms.length ? `Términos sin evidencia: ${input.coverage.missingTechnicalTerms.join(", ")}.` : "La consulta no ancló términos técnicos recuperables en el corpus."
+    ];
+  }
+  const signals = input.context.intent.detectedSignals.join(", ") || "sin señales específicas";
+  const matched = input.coverage.matchedTechnicalTerms.join(", ") || "términos generales de IBM i";
+  return [
+    `La consulta se resolvió como ${input.resolved.intent} con confianza ${input.resolved.confidence}.`,
+    `Lenguaje/categoría detectados: ${input.context.intent.language}${input.context.intent.category ? ` / ${input.context.intent.category}` : ""}; señales: ${signals}.`,
+    `Evidencia materializada: ${input.coverage.evidenceCount} resultado(s), ${input.coverage.readCount} lectura(s), ${input.coverage.sectionCount} sección(es); términos cubiertos: ${matched}.`
+  ];
+}
+
+function buildAssistSpecificFindings(input: {
+  question: string;
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  evidence: SearchHit[];
+  depth: AssistOptions["depth"];
+}): string[] {
+  const maxItems = input.depth === "deep" ? 10 : input.depth === "concise" ? 4 : 6;
+  const technicalTerms = extractAssistTechnicalTerms(input.question);
+  const termFindings = technicalTerms.flatMap((term) => {
+    const foldedTerm = fold(term);
+    const sectionMatch = input.sections
+      .flatMap((topic) => topic.sections.map((section) => ({ topic, section })))
+      .find(({ topic, section }) => fold(`${topic.title} ${section.title} ${section.content}`).includes(foldedTerm));
+    if (sectionMatch) {
+      return [`${term}: ${sectionMatch.topic.title} — ${sectionKindLabel(sectionMatch.section.kind)}: ${makeSnippet(sectionMatch.section.content, term, input.depth === "deep" ? 620 : 420)}`];
+    }
+    const readMatch = input.reads.find((read) => fold(`${read.title} ${read.excerpt}`).includes(foldedTerm));
+    if (readMatch) return [`${term}: ${readMatch.title} [${readMatch.version}/${readMatch.category}]: ${makeSnippet(readMatch.excerpt, term, input.depth === "deep" ? 620 : 420)}`];
+    const hitMatch = input.evidence.find((hit) => fold(`${hit.title} ${hit.snippet}`).includes(foldedTerm));
+    if (hitMatch) return [`${term}: ${hitMatch.title} [${hitMatch.version}/${hitMatch.category}]: ${makeSnippet(hitMatch.snippet, term, 360)}`];
+    return [];
+  });
+  const sectionFindings = input.sections
+    .flatMap((topic) => topic.sections.map((section) => ({ topic, section })))
+    .filter(({ section }) => ["syntax", "parameters", "description", "examples", "notes", "restrictions", "messages", "recovery"].includes(section.kind))
+    .filter(({ topic, section }, index, array) => array.findIndex((item) => item.topic.id === topic.id && item.section.kind === section.kind) === index)
+    .map(({ topic, section }) => `${topic.title} — ${sectionKindLabel(section.kind)}: ${makeSnippet(section.content, input.question, input.depth === "deep" ? 760 : 460)}`);
+  const readFindings = input.reads.map((read) => `${read.title} [${read.version}/${read.category}]: ${makeSnippet(read.excerpt, input.question, input.depth === "deep" ? 760 : 460)}`);
+  const evidenceFindings = input.evidence.slice(0, maxItems).map((hit) => `${hit.title} [${hit.version}/${hit.category}]: ${makeSnippet(hit.snippet, input.question, 360)}`);
+  return [...new Set([...termFindings, ...sectionFindings, ...readFindings, ...evidenceFindings])].slice(0, maxItems);
+}
+
+function sectionKindLabel(kind: TopicSection["kind"]): string {
+  const labels: Record<TopicSection["kind"], string> = {
+    syntax: "sintaxis",
+    parameters: "parámetros",
+    description: "descripción",
+    examples: "ejemplos",
+    notes: "notas",
+    restrictions: "restricciones",
+    messages: "mensajes",
+    recovery: "recuperación",
+    related: "relacionado",
+    generic: "sección"
+  };
+  return labels[kind];
+}
+
+function buildAssistImplementationSteps(input: {
+  options: AssistOptions;
+  resolved: ResolveResult;
+  context: ContextPackage;
+  coverage: AssistCoverage;
+  depth: AssistOptions["depth"];
+}): string[] {
+  const steps: string[] = [];
+  if (input.coverage.status === "thin") {
+    return [
+      "No aplicar cambios basados únicamente en esta consulta: primero confirma el nombre exacto del comando, mensaje, opcode, BIF o tópico IBM i.",
+      "Reducir la consulta a un término técnico verificable y repetir la búsqueda documental antes de tocar código productivo.",
+      "Si el término pertenece a un producto/extensión no incluido en el corpus, agregar un data pack o abrir un reporte de cobertura."
+    ];
+  }
+  steps.push(...input.context.actionItems);
+  if (/rtvjoba/i.test(input.options.question)) {
+    steps.push("En CLLE, revisar la sentencia RTVJOBA y declarar variables receptoras con tipo/longitud compatibles con los atributos de trabajo que se van a recuperar.");
+  }
+  if (/monmsg/i.test(input.options.question)) {
+    steps.push("Colocar MONMSG en el alcance correcto inmediatamente después del comando que quieres proteger, evitando un monitor demasiado amplio que esconda fallos no relacionados.");
+  }
+  if (input.resolved.messageExplanation?.recoveryChecklist.length) {
+    steps.push(...input.resolved.messageExplanation.recoveryChecklist.map((item) => `Para el mensaje detectado: ${item}`));
+  }
+  if (input.resolved.compileGuidance?.recommendedCommands.length) {
+    steps.push(`Compilar/recompilar con ${input.resolved.compileGuidance.recommendedCommands.join(" o ")} según el tipo de objeto y revisar ${input.resolved.compileGuidance.optionsToReview.join(", ") || "las opciones relevantes"}.`);
+  }
+  if (input.resolved.codeValidation?.findings.length) {
+    steps.push(...input.resolved.codeValidation.findings.map((finding) => `Corregir hallazgo documental [${finding.severity}] ${finding.title}: ${finding.detail}`));
+  }
+  steps.push("Aplicar el cambio mínimo en el fuente y conservar trazabilidad del tópico/documento usado para justificar la decisión técnica.");
+  steps.push("Revisar joblog/listado de compilación después del cambio para confirmar que no aparecen mensajes nuevos derivados.");
+  return [...new Set(steps)].slice(0, input.depth === "deep" ? 12 : input.depth === "concise" ? 5 : 8);
+}
+
+function buildAssistValidationChecklist(input: {
+  options: AssistOptions;
+  resolved: ResolveResult;
+  context: ContextPackage;
+  coverage: AssistCoverage;
+  depth: AssistOptions["depth"];
+}): string[] {
+  if (input.coverage.status === "thin") {
+    return [
+      "Validar que el término técnico exista en IBM Docs, RDi exportado o un data pack autorizado.",
+      "Confirmar versión IBM i objetivo antes de aceptar cualquier sintaxis sugerida.",
+      "No marcar la tarea como resuelta hasta tener evidencia con lectura o sección específica."
+    ];
+  }
+  const commands = input.resolved.compileGuidance?.recommendedCommands.length
+    ? input.resolved.compileGuidance.recommendedCommands
+    : input.context.compileCommands;
+  const checks = [
+    ...(commands.length ? [`Compilar con ${commands.join(" o ")} y revisar que el listado/joblog no contenga mensajes RNF/CPF/MCH inesperados.`] : []),
+    input.options.version ? `Verificar en IBM i ${input.options.version} que la sintaxis/opciones usadas existen para ese release.` : "Confirmar el release IBM i real antes de cerrar la corrección.",
+    "Ejecutar un caso positivo y uno negativo para comprobar tanto el flujo normal como el manejo por MONMSG/errores.",
+    "Validar que las variables CL/RPG receptoras tengan longitud/tipo compatible con la documentación consultada.",
+    "Revisar joblog con el mensaje completo de segundo nivel si la compilación o ejecución falla.",
+    "Conservar IDs/citas del corpus usados como evidencia de auditoría técnica."
+  ];
+  return [...new Set(checks)].slice(0, input.depth === "deep" ? 10 : input.depth === "concise" ? 4 : 6);
+}
+
+function buildAssistAnswer(input: {
+  options: AssistOptions;
+  intent: DocsIntent;
+  confidence: "alta" | "media" | "baja";
+  executiveSummary: string[];
+  specificFindings: string[];
+  implementationSteps: string[];
+  validationChecklist: string[];
+  coverage: AssistCoverage;
+  citations: AnswerCitation[];
+  warnings: string[];
+  depth: AssistOptions["depth"];
+}): string {
+  const citationLimit = input.depth === "deep" ? 8 : input.depth === "concise" ? 3 : 5;
+  const lines: string[] = [
+    "# Respuesta asistida IBM i",
+    "",
+    `Consulta: ${input.options.question}`,
+    `Intención: ${input.intent}`,
+    `Confianza: ${input.confidence}`,
+    "",
+    "## Resumen directo",
+    ...input.executiveSummary.map((item) => `- ${item}`),
+    "",
+    "## Evidencia específica usada"
+  ];
+  if (input.specificFindings.length) lines.push(...input.specificFindings.map((item) => `- ${item}`));
+  else lines.push("- No encontré evidencia suficiente para afirmar sintaxis, parámetros o comportamiento con seguridad.");
+
+  lines.push("", "## Qué hacer");
+  lines.push(...input.implementationSteps.map((item, index) => `${index + 1}. ${item}`));
+
+  lines.push("", "## Validación");
+  lines.push(...input.validationChecklist.map((item) => `- ${item}`));
+
+  lines.push("", "## Cobertura y límites");
+  lines.push(`- Estado: ${input.coverage.status}. ${input.coverage.summary}`);
+  lines.push(`- Evidencia/lecturas/secciones: ${input.coverage.evidenceCount}/${input.coverage.readCount}/${input.coverage.sectionCount}.`);
+  if (input.coverage.matchedTechnicalTerms.length) lines.push(`- Términos cubiertos: ${input.coverage.matchedTechnicalTerms.join(", ")}.`);
+  if (input.coverage.missingTechnicalTerms.length) lines.push(`- Términos sin evidencia específica: ${input.coverage.missingTechnicalTerms.join(", ")}.`);
+  for (const warning of [...new Set([...input.coverage.warnings, ...input.warnings])].slice(0, 6)) lines.push(`- Advertencia: ${warning}`);
+
+  lines.push("", "## Citas");
+  if (input.citations.length) {
+    lines.push(...input.citations.slice(0, citationLimit).map((citation) => `- ${citation.id}: ${citation.title} (${citation.version}, ${citation.sourceKind})${citation.section ? ` — sección: ${citation.section}` : ""}`));
+  } else {
+    lines.push("- Sin citas suficientes para esta consulta.");
+  }
+  lines.push("", "Nota: la respuesta anterior ya incluye búsqueda, lectura, secciones enfocadas, síntesis y validación documental dentro del MCP.");
+  return lines.join("\n");
+}
+
 function buildRequiredEvidenceWarnings(input: {
   intent: DocsIntent;
   evidence: SearchHit[];
@@ -2358,6 +2780,7 @@ function classifyResolveIntent(options: ResolveOptions): DocsIntent {
   if (/(7\.[3456]).*(7\.[3456])|compar(a|ar|aci[oó]n)|diferencia|entre versiones|release/i.test(haystack)) return "version_question";
   if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|crear.*(programa|m[oó]dulo|servicio)|sqlrpgle|copybook|\/\s*(copy|include)\b/i.test(haystack)) return "compile_guidance";
   if (/sintaxis|syntax|par[aá]metro|parameter|operand|opcode|operation code|ejemplo|example|%[a-z][a-z0-9_-]+|\b[A-Z]{2,}-[A-Z]{2,}\b/i.test(haystack)) return "syntax_lookup";
+  if (axes.has("command")) return "syntax_lookup";
   if (/buscar|busca|lista|encuentra|find|search|documentos?|t[oó]picos?/i.test(haystack)) return "search_discovery";
   return "explain_topic";
 }

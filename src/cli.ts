@@ -132,6 +132,34 @@ program
   }))));
 
 program
+  .command("assist")
+  .description("Tool/CLI principal de una sola llamada: devuelve respuesta final, pasos, validación, cobertura y citas sin pedir sub-tools manuales.")
+  .argument("<question>", "Pregunta o tarea técnica IBM i")
+  .option("--pack <dir>", "Ruta explícita del data pack")
+  .option("--language <language>", "Lenguaje/tecnología")
+  .option("--ibmi-version <version>", "Versión IBM i")
+  .option("--release <version>", "Alias de --ibmi-version")
+  .option("--category <category>", "Categoría")
+  .option("--code <code>", "Código a validar documentalmente")
+  .option("--depth <depth>", "concise|standard|deep", "standard")
+  .option("--audience <audience>", "agent|developer|maintainer", "developer")
+  .option("--examples", "Incluye ejemplos si existen")
+  .option("--compile", "Incluye comandos/opciones de compilación")
+  .option("--limit <n>", "Límite", "6")
+  .action((question, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.assist({
+    question,
+    language: opts.language,
+    version: getIbmVersion(opts),
+    category: opts.category,
+    code: opts.code,
+    depth: opts.depth,
+    audience: opts.audience,
+    includeExamples: Boolean(opts.examples),
+    includeCompileCommands: Boolean(opts.compile),
+    limit: Number(opts.limit)
+  }))));
+
+program
   .command("resolve")
   .description("Resuelve una consulta con workflow agéntico: search -> read -> sections -> answer/context/diagnóstico según intención.")
   .argument("<question>", "Pregunta técnica")

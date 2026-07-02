@@ -28,17 +28,42 @@ function withRepository<T>(callback: (repo: CorpusRepository) => T): T {
 
 export function createServer(): McpServer {
   const server = new McpServer(
-    { name: "ibmi-docs-mcp", version: "0.5.1" },
+    { name: "ibmi-docs-mcp", version: "0.6.0" },
     {
       instructions:
         [
           "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial.",
-          "Para preguntas normales usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context: estas tools auto-orquestan búsqueda, lectura, secciones y síntesis dentro del MCP, y devuelven evidencia ya materializada.",
+          "Si el cliente o agente no sabe qué herramienta elegir, usa primero ibmi_docs_assist: es la tool one-shot y devuelve respuesta final, pasos, validación, cobertura y citas sin delegar sub-tools.",
+          "Para flujos especializados usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context: estas tools auto-orquestan búsqueda, lectura, secciones y síntesis dentro del MCP, y devuelven evidencia ya materializada.",
           "ibmi_docs_search, ibmi_docs_read e ibmi_docs_sections son herramientas de bajo nivel para auditoría manual o depuración; no son requisito posterior cuando una tool de alto nivel ya respondió.",
           "Las tools de alto nivel no deben delegar trabajo adicional al agente: si la consulta requiere sintaxis, parámetros, ejemplos, mensajes, compilación o comparación por versión, la tool debe incorporar ese flujo en su propia salida.",
           "Si un ranking parece incorrecto, usa ibmi_docs_report_query para generar evidencia reproducible lista para issue.",
           "El runtime no depende de RDi ni Eclipse Help y nunca consulta el endpoint local de bootstrap."
         ].join(" ")
+    }
+  );
+
+  server.registerTool(
+    "ibmi_docs_assist",
+    {
+      title: "Asistente IBM i one-shot",
+      description: "Herramienta principal para agentes y usuarios: recibe la tarea completa y devuelve una respuesta final autocontenida con evidencia, lecturas, secciones, pasos de implementación, validación, cobertura y citas. No pide llamadas adicionales.",
+      inputSchema: z.object({
+        question: z.string().min(1).describe("Pregunta o tarea completa del usuario sobre IBM i/AS400."),
+        language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
+        version: z.string().optional().describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
+        category: z.string().optional().describe("Categoría opcional del corpus."),
+        code: z.string().optional().describe("Código opcional para validación documental."),
+        depth: z.enum(["concise", "standard", "deep"]).optional().describe("Nivel de detalle de la respuesta."),
+        audience: z.enum(["agent", "developer", "maintainer"]).optional().describe("Audiencia principal de la salida."),
+        includeExamples: z.boolean().optional().describe("Incluir ejemplos/secciones de ejemplo cuando existan."),
+        includeCompileCommands: z.boolean().optional().describe("Incluir guía de compilación cuando aplique."),
+        limit: z.number().int().min(1).max(12).optional()
+      })
+    },
+    async (input) => {
+      const assisted = withRepository((repo) => repo.assist(input));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -69,7 +94,7 @@ export function createServer(): McpServer {
     "ibmi_docs_search",
     {
       title: "Buscar documentación IBM i",
-      description: "Descubrimiento de documentos candidatos con SQLite FTS5, ranking heurístico y evidencia trazable. Es bajo nivel; para una respuesta final usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context.",
+      description: "Descubrimiento de documentos candidatos con SQLite FTS5, ranking heurístico y evidencia trazable. Es bajo nivel; para una respuesta final usa ibmi_docs_assist, ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context.",
       inputSchema: z.object({
         query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF0004, CLLE, DDS PF, SQLRPGLE, etc."),
         version: z.string().optional().describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
@@ -422,19 +447,19 @@ export function createServer(): McpServer {
     title: "Consultar documentación IBM i",
     description: "Prompt para resolver una consulta IBM i con workflow agéntico y evidencia antes de responder.",
     argsSchema: { consulta: z.string().min(1) }
-  }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para: ${consulta}. La respuesta debe salir autocontenida con evidencia, citas, lecturas y secciones relevantes ya materializadas por el MCP.` } }] }));
+  }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para: ${consulta}. La respuesta debe salir autocontenida con evidencia, citas, lecturas, secciones relevantes, pasos y validación ya materializados por el MCP.` } }] }));
 
   server.registerPrompt("revisar-codigo-rpgle-con-docs", {
     title: "Revisar RPGLE con documentación",
     description: "Prompt para revisar código RPGLE con ayuda IBM i.",
     argsSchema: { codigo: z.string().min(1) }
-  }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve con language=RPGLE y code para revisar este código contra documentación oficial. La tool debe orquestar internamente validación documental y guía de compilación cuando detecte SQL embebido o /COPY:\n\n${codigo}` } }] }));
+  }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist con language=RPGLE y code para revisar este código contra documentación oficial. La tool debe orquestar internamente validación documental y guía de compilación cuando detecte SQL embebido o /COPY:\n\n${codigo}` } }] }));
 
   server.registerPrompt("diagnosticar-error-rnf", {
     title: "Diagnosticar RNF",
     description: "Prompt para diagnosticar mensajes RNF con causa y recovery.",
     argsSchema: { mensaje: z.string().min(1) }
-  }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_resolve para diagnosticar ${mensaje}; la salida debe incluir diagnóstico, evidencia principal, recovery y acciones de validación sin delegar llamadas posteriores al agente.` } }] }));
+  }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para diagnosticar ${mensaje}; la salida debe incluir diagnóstico, evidencia principal, recovery y acciones de validación sin delegar llamadas posteriores al agente.` } }] }));
 
   return server;
 }
@@ -475,6 +500,18 @@ function renderEvidenceList(label: string, results: Array<any>): string {
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Evidencia: ${result.snippet}`
   ].filter(Boolean).join("\n"))].join("\n");
+}
+
+function renderAssist(assist: any): string {
+  return [
+    assist.answer,
+    "",
+    "Resumen estructurado:",
+    `- Intención: ${assist.intent}`,
+    `- Confianza: ${assist.confidence}`,
+    `- Cobertura: ${assist.coverage?.status ?? "n/a"} (${assist.coverage?.evidenceCount ?? 0} evidencias, ${assist.coverage?.readCount ?? 0} lecturas, ${assist.coverage?.sectionCount ?? 0} secciones)`,
+    assist.warnings?.length ? `- Advertencias: ${assist.warnings.slice(0, 4).join(" | ")}` : "- Advertencias: n/a"
+  ].join("\n");
 }
 
 function renderResolve(resolved: any): string {

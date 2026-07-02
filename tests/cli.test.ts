@@ -43,6 +43,7 @@ describe("CLI ibmi-docs", () => {
     const help = runCli(["--help"]);
 
     expect(help.status).toBe(0);
+    expect(help.stdout).toContain("assist");
     expect(help.stdout).toContain("context");
     expect(help.stdout).toContain("compile-guidance");
     expect(help.stdout).toContain("explain-message");
@@ -67,5 +68,39 @@ describe("CLI ibmi-docs", () => {
     const validation = runCli(["validate-code-context", "--language", "SQLRPGLE", "--code", "exec sql select 1 from sysibm.sysdummy1;", "--limit", "2"]);
     expect(validation.status).toBe(0);
     expect(JSON.parse(validation.stdout).findings.length).toBeGreaterThan(0);
+  });
+
+  it("assist entrega salida JSON final para agentes sin pedir sub-tools manuales", () => {
+    const result = runCli([
+      "assist",
+      "Corregir CLLE con RTVJOBA y MONMSG; necesito sintaxis, parámetros y validación",
+      "--language",
+      "CLLE",
+      "--ibmi-version",
+      "7.5",
+      "--depth",
+      "deep",
+      "--compile",
+      "--examples",
+      "--limit",
+      "4"
+    ]);
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout) as {
+      answer: string;
+      coverage: { status: string; evidenceCount: number; readCount: number; sectionCount: number };
+      implementationSteps: string[];
+      validationChecklist: string[];
+    };
+    expect(parsed.answer).toMatch(/Resumen directo|Qué hacer|Validación/i);
+    expect(parsed.answer).toMatch(/RTVJOBA|MONMSG/i);
+    expect(parsed.coverage.status).not.toBe("thin");
+    expect(parsed.coverage.evidenceCount).toBeGreaterThan(0);
+    expect(parsed.coverage.readCount).toBeGreaterThan(0);
+    expect(parsed.coverage.sectionCount).toBeGreaterThan(0);
+    expect(parsed.implementationSteps.length).toBeGreaterThanOrEqual(3);
+    expect(parsed.validationChecklist.length).toBeGreaterThanOrEqual(3);
+    expect(JSON.stringify(parsed)).not.toMatch(/llama ibmi_docs_read|usa ibmi_docs_sections|Siguiente paso recomendado|Para obtener la ayuda completa/i);
   });
 });

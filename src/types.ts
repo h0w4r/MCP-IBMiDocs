@@ -383,6 +383,52 @@ export interface ResolveResult {
   warnings: string[];
 }
 
+export type AssistDepth = "concise" | "standard" | "deep";
+
+export type AssistAudience = "agent" | "developer" | "maintainer";
+
+export interface AssistOptions {
+  question: string;
+  language?: string;
+  version?: string;
+  category?: string;
+  code?: string;
+  depth?: AssistDepth;
+  audience?: AssistAudience;
+  includeExamples?: boolean;
+  includeCompileCommands?: boolean;
+  limit?: number;
+}
+
+export interface AssistCoverage {
+  status: "complete" | "partial" | "thin";
+  summary: string;
+  evidenceCount: number;
+  readCount: number;
+  sectionCount: number;
+  matchedTechnicalTerms: string[];
+  missingTechnicalTerms: string[];
+  warnings: string[];
+}
+
+export interface AssistResult {
+  question: string;
+  intent: DocsIntent;
+  confidence: "alta" | "media" | "baja";
+  answer: string;
+  executiveSummary: string[];
+  specificFindings: string[];
+  implementationSteps: string[];
+  validationChecklist: string[];
+  coverage: AssistCoverage;
+  workflow: WorkflowStage[];
+  evidence: SearchHit[];
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  citations: AnswerCitation[];
+  warnings: string[];
+}
+
 export interface RankingExplanationOptions extends SearchOptions {
   top?: number;
 }
