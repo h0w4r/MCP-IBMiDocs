@@ -12,22 +12,49 @@ Cuando un agente llama a `ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_ans
 
 Las tools de mantenimiento/build no forman parte del flujo de consulta de usuario. En particular,
 `ibmi_docs_sync` no se registra en el MCP público por defecto; solo aparece si el operador arranca
-el servidor con `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`. Un agente que quiere documentación debe usar
-`ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_context` o tools de lectura/respuesta, nunca
-sincronización como prerequisito de una tarea.
+el servidor con un perfil avanzado y `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`. Un agente que quiere
+documentación debe usar `ibmi_docs_assist` como entrada principal, nunca sincronización como
+prerequisito de una tarea.
+
+## Perfil `agent` por defecto
+
+El runtime está diseñado para que el usuario real sea un agente IA. Por eso el perfil por defecto no
+expone todo el panel de control; expone solo lo que reduce ambigüedad:
+
+| Tool | Rol desde la perspectiva del agente |
+| --- | --- |
+| `ibmi_docs_assist` | Entrada universal para preguntas, desarrollo, corrección, diagnóstico, sintaxis, comandos, mensajes y comparación de versiones. |
+| `ibmi_docs_categories` | Descubrir categorías del corpus si la consulta viene muy abierta. |
+| `ibmi_docs_diagnostics` | Ver salud del corpus, pack activo, perfil MCP y tools registradas. |
+
+Esto resuelve el fallo típico donde el agente llamaba `ibmi_docs_search`, recibía IDs o hints y no
+continuaba con `read/sections`. En perfil `agent`, el camino feliz queda forzado por diseño:
+
+```text
+humano -> agente -> ibmi_docs_assist -> resolve/context/search/read/sections/follow-ups internos -> respuesta final
+```
+
+Los perfiles avanzados siguen disponibles para operadores:
+
+- `IBMI_DOCS_TOOL_PROFILE=standard`: expone tools de alto nivel especializadas.
+- `IBMI_DOCS_TOOL_PROFILE=full`: expone también tools de bajo nivel y debugging.
+- `IBMI_DOCS_TOOL_PROFILE=maintainer`: reservado para operación avanzada.
+
+Un agente de uso diario no necesita esos perfiles. Menos botones, menos accidentes: el 5250 ya tuvo
+suficiente sufrimiento visual por una generación.
 
 ## Orden recomendado
 
-1. Usar `ibmi_docs_assist` como entrada por defecto cuando el agente/cliente no está seguro de qué tool conviene.
-2. Usar `ibmi_docs_resolve` para preguntas normales o ambiguas cuando se necesita ver la política/workflow interno.
-3. Usar `ibmi_docs_context` para desarrollo, corrección de bugs, revisión de código o tareas donde el agente necesita contexto operativo.
-4. Usar `ibmi_docs_answer` para respuestas extractivas directas con citas.
-5. Usar tools específicas cuando el usuario ya pide una acción concreta:
+1. En perfil `agent`, usar siempre `ibmi_docs_assist` como entrada por defecto.
+2. En perfiles avanzados, usar `ibmi_docs_resolve` para preguntas normales o ambiguas cuando se necesita ver la política/workflow interno.
+3. En perfiles avanzados, usar `ibmi_docs_context` para desarrollo, corrección de bugs, revisión de código o tareas donde el agente necesita contexto operativo.
+4. En perfiles avanzados, usar `ibmi_docs_answer` para respuestas extractivas directas con citas.
+5. En perfiles avanzados, usar tools específicas cuando el usuario ya pide una acción concreta:
    - `ibmi_docs_compile_guidance`
    - `ibmi_docs_explain_message`
    - `ibmi_docs_compare_versions`
    - `ibmi_docs_validate_code_context`
-6. Usar `ibmi_docs_search`, `ibmi_docs_read` y `ibmi_docs_sections` solo para exploración manual, auditoría, pruebas o debugging.
+6. Usar `ibmi_docs_search`, `ibmi_docs_read` y `ibmi_docs_sections` solo para exploración manual, auditoría, pruebas o debugging en perfil `full`.
 7. No usar `ibmi_docs_sync` para responder usuarios. Si no aparece, es correcto: es mantenimiento explícito fuera del runtime normal.
 
 ## Matriz de políticas internas
@@ -188,6 +215,20 @@ El reporte incluye:
 - `recentEvents`
 
 Úsalo para detectar clientes o prompts que abusan de `ibmi_docs_search` y no consumen evidencia completa. Si el reporte muestra mucha búsqueda sin lectura, el prompt del cliente necesita una nalgada documental, no más incienso.
+
+## Skill opcional
+
+El MCP no debe depender de un skill para funcionar bien. La autonomía principal vive en
+`ibmi_docs_assist` y en el perfil `agent`. Aun así, el repositorio incluye
+`skills/ibmi-docs/SKILL.md` como ayuda para clientes que soportan skills: sirve para enseñar al
+agente cuándo invocar el MCP, qué argumentos pasar y por qué no debe encadenar manualmente
+`search/read/sections` salvo debugging.
+
+Recomendación práctica:
+
+- instala/configura el MCP siempre;
+- usa el skill solo como mejora de comportamiento del agente cliente;
+- no trates el skill como requisito de runtime ni como reemplazo de la orquestación interna.
 
 ## Prompts recomendados para clientes MCP
 

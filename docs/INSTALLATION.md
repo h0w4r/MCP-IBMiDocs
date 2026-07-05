@@ -17,9 +17,10 @@ Esto instala dos binarios:
 
 El paquete npm **no** incluye `data/pack` ni `ibmi-docs.sqlite`.
 
-El servidor MCP público no expone tools de mantenimiento por defecto. La sincronización de IBM Docs
-queda para operación explícita por CLI o para un servidor arrancado deliberadamente con
-`IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
+El servidor MCP público arranca por defecto en perfil `agent`: expone una entrada principal
+(`ibmi_docs_assist`) y oculta tools avanzadas o de mantenimiento para que el agente no se distraiga
+con flujos internos. La sincronización de IBM Docs queda para operación explícita por CLI o para un
+servidor arrancado deliberadamente con perfil avanzado y `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
 
 ## Instalación recomendada
 
@@ -74,6 +75,7 @@ tool_timeout_sec = 120.0
 
 [mcp_servers.ibmi-docs.env]
 IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+IBMI_DOCS_TOOL_PROFILE = 'agent'
 ```
 
 macOS/Linux:
@@ -83,6 +85,21 @@ command -v ibmi-docs-mcp
 ```
 
 Usa esa ruta absoluta como `command` y apunta `IBMI_DOCS_PACK_DIR` al data pack.
+
+## Perfiles de tools MCP
+
+`IBMI_DOCS_TOOL_PROFILE` controla qué herramientas ve el agente:
+
+| Perfil | Uso recomendado | Tools visibles |
+| --- | --- | --- |
+| `agent` | Usuario final y agentes genéricos. Es el valor por defecto. | `ibmi_docs_assist`, `ibmi_docs_categories`, `ibmi_docs_diagnostics`. |
+| `standard` | Agentes o clientes que sí entienden tools documentales especializadas. | `agent` + `resolve`, `answer`, `context`, `compile_guidance`, `explain_message`, `compare_versions`, `validate_code_context`. |
+| `full` | Mantenedores, debugging de ranking y auditoría manual. | Todas las tools documentales de lectura, búsqueda, ranking, reportes y trazas. |
+| `maintainer` | Igual que `full`; reservado para operación avanzada del proyecto. | Todas las tools disponibles para mantenimiento. |
+
+Recomendación: deja `agent` para uso diario. Si activas `full`, el agente vuelve a ver herramientas
+de bajo nivel como `ibmi_docs_search`, `ibmi_docs_read` e `ibmi_docs_sections`; eso es útil para
+debugging, pero puede empeorar la experiencia de agentes que no conocen la arquitectura del MCP.
 
 ### Instalación desde fuente
 
@@ -205,12 +222,13 @@ node dist/src/cli.js pack archive --pack data/pack --out dist/ibmi-docs-pack.tgz
 Si realmente necesitas exponer sincronización como tool MCP, arranca el servidor con:
 
 ```powershell
+$env:IBMI_DOCS_TOOL_PROFILE = 'full'
 $env:IBMI_DOCS_ALLOW_NETWORK_SYNC = '1'
 ibmi-docs-mcp
 ```
 
-Sin esa variable, `ibmi_docs_sync` no existe para el agente. Esto evita que un cliente confunda una
-acción de mantenimiento con una consulta documental normal.
+Sin ambas variables, `ibmi_docs_sync` no existe para el agente. Esto evita que un cliente confunda
+una acción de mantenimiento con una consulta documental normal.
 
 ## Comandos útiles
 

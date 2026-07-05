@@ -551,7 +551,8 @@ function renderCodexConfig(input: { command: string; server: string; cwd: string
     "tool_timeout_sec = 120.0",
     "",
     "[mcp_servers.ibmi-docs.env]",
-    `IBMI_DOCS_PACK_DIR = '${input.pack}'`
+    `IBMI_DOCS_PACK_DIR = '${input.pack}'`,
+    "IBMI_DOCS_TOOL_PROFILE = 'agent'"
   ].join("\n");
 }
 

@@ -14,6 +14,46 @@ const moduleFile = fileURLToPath(import.meta.url);
 const packResolution = resolvePackDir(import.meta.url);
 const packDir = packResolution.packDir;
 
+type McpToolProfile = "agent" | "standard" | "full" | "maintainer";
+
+const AGENT_PROFILE_TOOLS = new Set([
+  "ibmi_docs_assist",
+  "ibmi_docs_categories",
+  "ibmi_docs_diagnostics"
+]);
+
+const STANDARD_PROFILE_TOOLS = new Set([
+  ...AGENT_PROFILE_TOOLS,
+  "ibmi_docs_resolve",
+  "ibmi_docs_answer",
+  "ibmi_docs_context",
+  "ibmi_docs_compile_guidance",
+  "ibmi_docs_explain_message",
+  "ibmi_docs_compare_versions",
+  "ibmi_docs_validate_code_context"
+]);
+
+function resolveMcpToolProfile(): McpToolProfile {
+  const rawProfile = String(process.env.IBMI_DOCS_TOOL_PROFILE ?? "agent").trim().toLowerCase();
+  if (rawProfile === "standard" || rawProfile === "full" || rawProfile === "maintainer") {
+    return rawProfile;
+  }
+  return "agent";
+}
+
+function shouldRegisterMcpTool(name: string, profile: McpToolProfile): boolean {
+  // Sync es mantenimiento explícito: ni el perfil agent ni una variable de red aislada
+  // deben exponerlo al agente usuario. Evita que el agente se bloquee llamando tools
+  // operativas cuando solo necesitaba documentación.
+  if (name === "ibmi_docs_sync") {
+    return process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC === "1" && (profile === "full" || profile === "maintainer");
+  }
+
+  if (profile === "agent") return AGENT_PROFILE_TOOLS.has(name);
+  if (profile === "standard") return STANDARD_PROFILE_TOOLS.has(name);
+  return true;
+}
+
 function createRepository(): CorpusRepository {
   return new CorpusRepository(packDir);
 }
@@ -28,15 +68,17 @@ function withRepository<T>(callback: (repo: CorpusRepository) => T): T {
 }
 
 export function createServer(): McpServer {
+  const toolProfile = resolveMcpToolProfile();
   const server = new McpServer(
     { name: "ibmi-docs-mcp", version: loadPackageVersion(import.meta.url) },
     {
       instructions:
         [
           "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial.",
-          "Si el cliente o agente no sabe qué herramienta elegir, usa primero ibmi_docs_assist: es la tool one-shot y devuelve respuesta final, pasos, validación, cobertura y citas sin delegar sub-tools.",
-          "Para flujos especializados usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context: estas tools auto-orquestan búsqueda, lectura, secciones y síntesis dentro del MCP, y devuelven evidencia ya materializada.",
-          "ibmi_docs_search, ibmi_docs_read e ibmi_docs_sections son herramientas de bajo nivel para auditoría manual o depuración; no son requisito posterior cuando una tool de alto nivel ya respondió.",
+          `Perfil MCP activo: ${toolProfile}. En el perfil agent, la herramienta documental principal para cualquier tarea IBM i es ibmi_docs_assist.`,
+          "Si el cliente o agente no sabe qué herramienta elegir, usa ibmi_docs_assist: es la tool one-shot y devuelve respuesta final, pasos, validación, cobertura y citas sin delegar sub-tools.",
+          "Para flujos especializados en perfiles avanzados usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context: estas tools auto-orquestan búsqueda, lectura, secciones y síntesis dentro del MCP, y devuelven evidencia ya materializada.",
+          "ibmi_docs_search, ibmi_docs_read e ibmi_docs_sections son herramientas de bajo nivel para auditoría manual o depuración en perfiles full/maintainer; no son requisito posterior cuando una tool de alto nivel ya respondió.",
           "Las tools de alto nivel no deben delegar trabajo adicional al agente: si la consulta requiere sintaxis, parámetros, ejemplos, mensajes, compilación o comparación por versión, la tool debe incorporar ese flujo en su propia salida.",
           "Si un ranking parece incorrecto, usa ibmi_docs_report_query para generar evidencia reproducible lista para issue.",
           "El runtime no depende de RDi ni Eclipse Help y nunca consulta el endpoint local de bootstrap."
@@ -44,7 +86,11 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  const registerTool = ((name: string, config: any, handler: any) => {
+    if (shouldRegisterMcpTool(name, toolProfile)) server.registerTool(name, config, handler);
+  }) as McpServer["registerTool"];
+
+  registerTool(
     "ibmi_docs_assist",
     {
       title: "Asistente IBM i one-shot",
@@ -68,7 +114,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_resolve",
     {
       title: "Resolver consulta IBM i con workflow agéntico",
@@ -91,7 +137,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_search",
     {
       title: "Buscar documentación IBM i",
@@ -114,7 +160,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_read",
     {
       title: "Leer tópico IBM i",
@@ -129,7 +175,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_sections",
     {
       title: "Secciones de tópico IBM i",
@@ -144,7 +190,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_answer",
     {
       title: "Responder con evidencia IBM i",
@@ -166,7 +212,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_context",
     {
       title: "Resolver contexto IBM i",
@@ -185,7 +231,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_compile_guidance",
     {
       title: "Guía de compilación IBM i",
@@ -206,7 +252,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_explain_message",
     {
       title: "Explicar mensaje IBM i",
@@ -220,7 +266,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_related",
     {
       title: "Documentos relacionados IBM i",
@@ -234,7 +280,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_compare_versions",
     {
       title: "Comparar versiones IBM i",
@@ -253,7 +299,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_explain_ranking",
     {
       title: "Explicar ranking IBM i Docs",
@@ -273,7 +319,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_validate_code_context",
     {
       title: "Validar código contra docs IBM i",
@@ -291,7 +337,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_categories",
     {
       title: "Categorías IBM i Docs",
@@ -305,7 +351,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_pack_diagnostics",
     {
       title: "Diagnóstico de integridad del data pack",
@@ -319,7 +365,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_quality_report",
     {
       title: "Reporte de calidad del corpus IBM i",
@@ -333,7 +379,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_report_query",
     {
       title: "Reportar búsqueda/ranking IBM i Docs",
@@ -355,7 +401,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_recipes",
     {
       title: "Recetas de uso IBM i Docs",
@@ -369,7 +415,7 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_diagnostics",
     {
       title: "Diagnóstico del corpus IBM i",
@@ -378,12 +424,19 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async () => {
-      const diagnostics = withRepository((repo) => ({ ...repo.diagnostics(), packResolution }));
+      const registeredTools = Object.keys((server as unknown as { _registeredTools?: Record<string, unknown> })._registeredTools ?? {});
+      const diagnostics = withRepository((repo) => ({
+        ...repo.diagnostics(),
+        packResolution,
+        mcpToolProfile: toolProfile,
+        recommendedEntrypoint: "ibmi_docs_assist",
+        registeredTools
+      }));
       return { content: [{ type: "text" as const, text: JSON.stringify(diagnostics, null, 2) }], structuredContent: structured(diagnostics) };
     }
   );
 
-  server.registerTool(
+  registerTool(
     "ibmi_docs_trace_report",
     {
       title: "Reporte de trazas de uso IBM i Docs",
@@ -398,7 +451,7 @@ export function createServer(): McpServer {
   );
 
   if (process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC === "1") {
-    server.registerTool(
+    registerTool(
       "ibmi_docs_sync",
       {
         title: "Sincronizar IBM Docs público",

@@ -30,7 +30,9 @@ Sirve para:
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
 - El paquete npm instala el servidor y la CLI.
 - El corpus documental vive en un **data pack local** con SQLite FTS5.
-- La tool recomendada para agentes es `ibmi_docs_assist`: una sola llamada con respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
+- El perfil MCP por defecto es **agent-first**: el agente ve pocas tools y debe empezar por `ibmi_docs_assist`.
+- `ibmi_docs_assist` hace una sola llamada con respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
+- Las tools avanzadas/de auditoría existen, pero se ocultan salvo que actives un perfil explícito.
 - Las tools de mantenimiento, como sincronización de IBM Docs público, **no se exponen al agente en runtime normal**.
 - Por ahora, el data pack público disponible está en este repositorio bajo `data/pack`.
 
@@ -104,6 +106,7 @@ tool_timeout_sec = 120.0
 
 [mcp_servers.ibmi-docs.env]
 IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
+IBMI_DOCS_TOOL_PROFILE = 'agent'
 ```
 
 Reinicia Codex y prueba algo como:
@@ -111,6 +114,13 @@ Reinicia Codex y prueba algo como:
 ```text
 Usa IBM i Docs para explicar CRTRPGMOD y cuándo conviene frente a CRTBNDRPG.
 ```
+
+### Skill opcional para Codex
+
+El MCP debe funcionar sin skill, pero el repo incluye un skill opcional en `skills/ibmi-docs/SKILL.md`
+para clientes que soportan skills. Úsalo como una capa de onboarding: le recuerda al agente que la
+entrada principal es `ibmi_docs_assist`, que debe pasar la tarea completa/código/contexto y que no
+debe usar tools de mantenimiento para responder usuarios.
 
 ## Ejemplos de uso
 
@@ -143,22 +153,42 @@ ibmi-docs doctor
 
 > Nota CLI: `--version` queda reservado para mostrar la versión de `ibmi-docs`. Para filtrar release IBM i usa `--ibmi-version` o su alias `--release`.
 
-## Herramientas MCP principales
+## Herramientas MCP
 
-| Tool | Para qué usarla |
+### Perfil recomendado para agentes
+
+Por defecto el servidor arranca con `IBMI_DOCS_TOOL_PROFILE=agent`. En ese modo el agente no tiene que decidir entre veinte herramientas: ve una entrada principal, una de diagnóstico y una de categorías.
+
+| Tool visible por defecto | Para qué sirve |
 | --- | --- |
 | `ibmi_docs_assist` | Punto de entrada recomendado. Una sola llamada: plan agéntico multi-hop, respuesta final, evidencia, lecturas, secciones, pasos, validación, cobertura y citas. |
-| `ibmi_docs_resolve` | Orquestador especializado para clasificar intención y auto-orquestar búsqueda, lectura, secciones, síntesis y evidencia. |
+| `ibmi_docs_categories` | Lista categorías disponibles del corpus para orientar consultas. |
+| `ibmi_docs_diagnostics` | Muestra versión, corpus, pack resuelto, perfil MCP activo y tools registradas. |
+
+Regla práctica para agentes: si dudas, usa `ibmi_docs_assist` con la tarea completa, código si existe, lenguaje y versión. Esa tool ya ejecuta internamente el flujo `intent -> search -> read -> sections -> follow-ups por gaps -> síntesis`, así que no debería responder con “llama otra tool para completar”. Search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+
+### Perfiles avanzados
+
+Si eres mantenedor, auditor del corpus o estás depurando ranking, puedes arrancar el servidor con:
+
+```powershell
+$env:IBMI_DOCS_TOOL_PROFILE = 'full'
+ibmi-docs-mcp
+```
+
+En `standard` o `full` aparecen tools como:
+
+| Tool avanzada | Uso |
+| --- | --- |
+| `ibmi_docs_resolve` | Orquestador especializado para clasificar intención y mostrar workflow interno. |
 | `ibmi_docs_answer` | Respuestas extractivas autocontenidas con citas y evidencia ya leída. |
-| `ibmi_docs_context` | Contexto autocontenido para desarrollo o revisión de código: incluye lecturas, secciones, acciones y advertencias. |
+| `ibmi_docs_context` | Contexto autocontenido para desarrollo o revisión de código. |
 | `ibmi_docs_compile_guidance` | Evidencia y comandos de compilación. |
 | `ibmi_docs_explain_message` | Diagnóstico de mensajes como `RNF0004`. |
 | `ibmi_docs_compare_versions` | Comparación entre releases IBM i. |
-| `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Tools de bajo nivel para exploración manual, auditoría o debugging de ranking. |
+| `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Bajo nivel para exploración manual, auditoría o debugging de ranking. |
 
-Regla práctica para agentes: si dudas, empieza por `ibmi_docs_assist`. Para flujos más especializados usa `ibmi_docs_resolve` o `ibmi_docs_context`. Las tools de alto nivel ya hacen internamente el flujo `intent -> search -> read -> sections -> follow-ups por gaps -> síntesis`, así que no deberían responder con “llama otra tool para completar”. `ibmi_docs_search` queda para exploración manual; search-only como respuesta final es “te traje el índice, suerte con el dragón”.
-
-Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por defecto. Solo se registra si arrancas el servidor con `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`; para usuarios finales y agentes normales no aparece como tool invocable. El flujo recomendado para mantener corpus sigue estando en la CLI (`sync-ibm`, `build-pack`, `pack archive/install`) y no debe confundirse con consulta documental en runtime.
+Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por defecto. Solo se registra si arrancas el servidor con `IBMI_DOCS_TOOL_PROFILE=full` o `maintainer` **y además** `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`; para usuarios finales y agentes normales no aparece como tool invocable. El flujo recomendado para mantener corpus sigue estando en la CLI (`sync-ibm`, `build-pack`, `pack archive/install`) y no debe confundirse con consulta documental en runtime.
 
 ## Qué incluye el proyecto
 

@@ -85,22 +85,53 @@ describe("anti dependencia runtime RDi", () => {
 
   it("no expone tools de mantenimiento o sincronización en runtime de usuario", () => {
     const previousAllowNetworkSync = process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+    const previousToolProfile = process.env.IBMI_DOCS_TOOL_PROFILE;
     delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+    delete process.env.IBMI_DOCS_TOOL_PROFILE;
+    try {
+      const server = createServer() as unknown as { _registeredTools: Record<string, unknown> };
+      const tools = Object.keys(server._registeredTools);
+
+      expect(tools).toContain("ibmi_docs_assist");
+      expect(tools).toContain("ibmi_docs_diagnostics");
+      expect(tools).toContain("ibmi_docs_categories");
+      expect(tools).not.toContain("ibmi_docs_context");
+      expect(tools).not.toContain("ibmi_docs_search");
+      expect(tools).not.toContain("ibmi_docs_read");
+      expect(tools).not.toContain("ibmi_docs_sync");
+      expect(tools.sort()).toEqual(["ibmi_docs_assist", "ibmi_docs_categories", "ibmi_docs_diagnostics"].sort());
+    } finally {
+      if (previousAllowNetworkSync === undefined) delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+      else process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = previousAllowNetworkSync;
+      if (previousToolProfile === undefined) delete process.env.IBMI_DOCS_TOOL_PROFILE;
+      else process.env.IBMI_DOCS_TOOL_PROFILE = previousToolProfile;
+    }
+  });
+
+  it("expone tools avanzadas cuando el operador usa perfil full", () => {
+    const previousToolProfile = process.env.IBMI_DOCS_TOOL_PROFILE;
+    process.env.IBMI_DOCS_TOOL_PROFILE = "full";
     try {
       const server = createServer() as unknown as { _registeredTools: Record<string, unknown> };
       const tools = Object.keys(server._registeredTools);
 
       expect(tools).toContain("ibmi_docs_assist");
       expect(tools).toContain("ibmi_docs_context");
+      expect(tools).toContain("ibmi_docs_resolve");
+      expect(tools).toContain("ibmi_docs_search");
+      expect(tools).toContain("ibmi_docs_read");
+      expect(tools).toContain("ibmi_docs_sections");
       expect(tools).not.toContain("ibmi_docs_sync");
     } finally {
-      if (previousAllowNetworkSync === undefined) delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
-      else process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = previousAllowNetworkSync;
+      if (previousToolProfile === undefined) delete process.env.IBMI_DOCS_TOOL_PROFILE;
+      else process.env.IBMI_DOCS_TOOL_PROFILE = previousToolProfile;
     }
   });
 
-  it("expone ibmi_docs_sync solo cuando el operador habilita sincronización de red explícitamente", () => {
+  it("expone ibmi_docs_sync solo cuando el operador habilita perfil full y sincronización de red", () => {
     const previousAllowNetworkSync = process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+    const previousToolProfile = process.env.IBMI_DOCS_TOOL_PROFILE;
+    process.env.IBMI_DOCS_TOOL_PROFILE = "full";
     process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = "1";
     try {
       const server = createServer() as unknown as { _registeredTools: Record<string, unknown> };
@@ -108,6 +139,24 @@ describe("anti dependencia runtime RDi", () => {
     } finally {
       if (previousAllowNetworkSync === undefined) delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
       else process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = previousAllowNetworkSync;
+      if (previousToolProfile === undefined) delete process.env.IBMI_DOCS_TOOL_PROFILE;
+      else process.env.IBMI_DOCS_TOOL_PROFILE = previousToolProfile;
+    }
+  });
+
+  it("no expone sync aunque haya red habilitada si el perfil sigue siendo agent", () => {
+    const previousAllowNetworkSync = process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+    const previousToolProfile = process.env.IBMI_DOCS_TOOL_PROFILE;
+    process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = "1";
+    delete process.env.IBMI_DOCS_TOOL_PROFILE;
+    try {
+      const server = createServer() as unknown as { _registeredTools: Record<string, unknown> };
+      expect(Object.keys(server._registeredTools)).not.toContain("ibmi_docs_sync");
+    } finally {
+      if (previousAllowNetworkSync === undefined) delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+      else process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = previousAllowNetworkSync;
+      if (previousToolProfile === undefined) delete process.env.IBMI_DOCS_TOOL_PROFILE;
+      else process.env.IBMI_DOCS_TOOL_PROFILE = previousToolProfile;
     }
   });
 });

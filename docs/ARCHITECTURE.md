@@ -11,7 +11,8 @@ flowchart LR
   S --> MCP[Servidor MCP stdio]
   M --> MCP
   N --> MCP
-  MCP --> T[Tools: search/read/context/compile/related/compare]
+  MCP --> P1[Perfil agent: assist/categories/diagnostics]
+  MCP --> P2[Perfiles avanzados: resolve/search/read/sections/compile/ranking]
 ```
 
 ## Componentes principales
@@ -27,6 +28,12 @@ flowchart LR
 El endpoint RDi solo sirve para bootstrap durante desarrollo. No es dependencia de runtime, instalación ni sync público.
 
 `sync-ibm` es un comando de CLI/build para mantenedores. La tool MCP `ibmi_docs_sync` no se registra
-en runtime de usuario salvo que el operador defina explícitamente `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
-Las consultas de agentes deben entrar por `ibmi_docs_assist`, `ibmi_docs_resolve`,
-`ibmi_docs_context` o tools de lectura/respuesta sobre el data pack local ya instalado.
+en runtime de usuario salvo que el operador defina explícitamente `IBMI_DOCS_TOOL_PROFILE=full` o
+`maintainer` y además `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
+
+El perfil runtime por defecto es `agent`, que registra solo `ibmi_docs_assist`,
+`ibmi_docs_categories` e `ibmi_docs_diagnostics`. Las consultas de agentes deben entrar por
+`ibmi_docs_assist`; esa tool orquesta internamente intención, búsqueda, lectura, secciones,
+follow-ups por gaps, síntesis y citas sobre el data pack local ya instalado. Los perfiles `standard`,
+`full` y `maintainer` existen para clientes especializados o mantenedores que necesitan inspeccionar
+el corpus y depurar ranking.
