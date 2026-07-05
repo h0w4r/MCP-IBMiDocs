@@ -25,3 +25,8 @@ flowchart LR
 ## Política de independencia
 
 El endpoint RDi solo sirve para bootstrap durante desarrollo. No es dependencia de runtime, instalación ni sync público.
+
+`sync-ibm` es un comando de CLI/build para mantenedores. La tool MCP `ibmi_docs_sync` no se registra
+en runtime de usuario salvo que el operador defina explícitamente `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
+Las consultas de agentes deben entrar por `ibmi_docs_assist`, `ibmi_docs_resolve`,
+`ibmi_docs_context` o tools de lectura/respuesta sobre el data pack local ya instalado.

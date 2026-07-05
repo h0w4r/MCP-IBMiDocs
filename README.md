@@ -31,6 +31,7 @@ Sirve para:
 - El paquete npm instala el servidor y la CLI.
 - El corpus documental vive en un **data pack local** con SQLite FTS5.
 - La tool recomendada para agentes es `ibmi_docs_assist`: una sola llamada con respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
+- Las tools de mantenimiento, como sincronización de IBM Docs público, **no se exponen al agente en runtime normal**.
 - Por ahora, el data pack público disponible está en este repositorio bajo `data/pack`.
 
 ## Instalación rápida
@@ -156,6 +157,8 @@ ibmi-docs doctor
 | `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Tools de bajo nivel para exploración manual, auditoría o debugging de ranking. |
 
 Regla práctica para agentes: si dudas, empieza por `ibmi_docs_assist`. Para flujos más especializados usa `ibmi_docs_resolve` o `ibmi_docs_context`. Las tools de alto nivel ya hacen internamente el flujo `intent -> search -> read -> sections -> follow-ups por gaps -> síntesis`, así que no deberían responder con “llama otra tool para completar”. `ibmi_docs_search` queda para exploración manual; search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+
+Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por defecto. Solo se registra si arrancas el servidor con `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`; para usuarios finales y agentes normales no aparece como tool invocable. El flujo recomendado para mantener corpus sigue estando en la CLI (`sync-ibm`, `build-pack`, `pack archive/install`) y no debe confundirse con consulta documental en runtime.
 
 ## Qué incluye el proyecto
 

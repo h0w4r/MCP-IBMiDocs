@@ -397,32 +397,28 @@ export function createServer(): McpServer {
     }
   );
 
-  server.registerTool(
-    "ibmi_docs_sync",
-    {
-      title: "Sincronizar IBM Docs público",
-      description: "Refresca el data pack solo desde IBM Docs público. Nunca usa RDi local ni Eclipse Help.",
-      inputSchema: z.object({
-        maxPagesPerVersion: z.number().int().min(1).max(2000).optional(),
-        versions: z.array(z.string()).optional()
-      })
-    },
-    async ({ maxPagesPerVersion, versions }) => {
-      if (process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC !== "1") {
+  if (process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC === "1") {
+    server.registerTool(
+      "ibmi_docs_sync",
+      {
+        title: "Sincronizar IBM Docs público",
+        description: "Tool de mantenimiento: refresca el data pack solo desde IBM Docs público. No se registra en runtime de usuario salvo que IBMI_DOCS_ALLOW_NETWORK_SYNC=1. Nunca usa RDi local ni Eclipse Help.",
+        inputSchema: z.object({
+          maxPagesPerVersion: z.number().int().min(1).max(2000).optional(),
+          versions: z.array(z.string()).optional()
+        })
+      },
+      async ({ maxPagesPerVersion, versions }) => {
+        const cacheDir = path.resolve("data", "ibm-docs-cache");
+        await syncIbmDocs({ outDir: cacheDir, versions, maxPagesPerVersion: maxPagesPerVersion ?? 500 });
+        const manifest = await buildDataPack({ inputDir: path.resolve("data"), outDir: packDir });
         return {
-          content: [{ type: "text" as const, text: "Sync público deshabilitado por defecto. Define IBMI_DOCS_ALLOW_NETWORK_SYNC=1 para permitir descarga desde IBM Docs. No se usará RDi local." }],
-          structuredContent: structured({ enabled: false, sourcePolicy: "ibm-docs-only" })
+          content: [{ type: "text" as const, text: `Sync IBM Docs completado. Documentos: ${manifest.documents.length}. Fuente: IBM Docs público; RDi local no usado.` }],
+          structuredContent: structured({ enabled: true, documents: manifest.documents.length, sourcePolicy: "ibm-docs-only", maintenanceTool: true })
         };
       }
-      const cacheDir = path.resolve("data", "ibm-docs-cache");
-      await syncIbmDocs({ outDir: cacheDir, versions, maxPagesPerVersion: maxPagesPerVersion ?? 500 });
-      const manifest = await buildDataPack({ inputDir: path.resolve("data"), outDir: packDir });
-      return {
-        content: [{ type: "text" as const, text: `Sync IBM Docs completado. Documentos: ${manifest.documents.length}. Fuente: IBM Docs público; RDi local no usado.` }],
-        structuredContent: structured({ enabled: true, documents: manifest.documents.length, sourcePolicy: "ibm-docs-only" })
-      };
-    }
-  );
+    );
+  }
 
   server.registerResource("ibmi-docs-manifest", "ibmi-docs://manifest", { title: "Manifest del corpus IBM i", mimeType: "application/json" }, async (uri) => ({
     contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(withRepository((repo) => repo.manifest()), null, 2) }]

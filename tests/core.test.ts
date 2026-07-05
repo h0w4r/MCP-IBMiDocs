@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { extractDocumentContent, inferCategory } from "../src/util/html.js";
 import { toFtsQuery } from "../src/repository/CorpusRepository.js";
+import { createServer } from "../src/server.js";
 import { loadPackageVersion } from "../src/util/packageVersion.js";
 import fs from "node:fs";
 
@@ -80,5 +81,33 @@ describe("anti dependencia runtime RDi", () => {
 
     const server = fs.readFileSync(new URL("../src/server.ts", import.meta.url), "utf8");
     expect(server).not.toContain('version: "0.6.0"');
+  });
+
+  it("no expone tools de mantenimiento o sincronización en runtime de usuario", () => {
+    const previousAllowNetworkSync = process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+    delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+    try {
+      const server = createServer() as unknown as { _registeredTools: Record<string, unknown> };
+      const tools = Object.keys(server._registeredTools);
+
+      expect(tools).toContain("ibmi_docs_assist");
+      expect(tools).toContain("ibmi_docs_context");
+      expect(tools).not.toContain("ibmi_docs_sync");
+    } finally {
+      if (previousAllowNetworkSync === undefined) delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+      else process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = previousAllowNetworkSync;
+    }
+  });
+
+  it("expone ibmi_docs_sync solo cuando el operador habilita sincronización de red explícitamente", () => {
+    const previousAllowNetworkSync = process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+    process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = "1";
+    try {
+      const server = createServer() as unknown as { _registeredTools: Record<string, unknown> };
+      expect(Object.keys(server._registeredTools)).toContain("ibmi_docs_sync");
+    } finally {
+      if (previousAllowNetworkSync === undefined) delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
+      else process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = previousAllowNetworkSync;
+    }
   });
 });

@@ -10,6 +10,12 @@ Cuando un agente llama a `ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_ans
 
 `ibmi_docs_search` sigue existiendo, pero es una tool de bajo nivel para exploración, auditoría o debugging de ranking. No es la respuesta final para un usuario que pidió sintaxis, corrección, diagnóstico o implementación.
 
+Las tools de mantenimiento/build no forman parte del flujo de consulta de usuario. En particular,
+`ibmi_docs_sync` no se registra en el MCP público por defecto; solo aparece si el operador arranca
+el servidor con `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`. Un agente que quiere documentación debe usar
+`ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_context` o tools de lectura/respuesta, nunca
+sincronización como prerequisito de una tarea.
+
 ## Orden recomendado
 
 1. Usar `ibmi_docs_assist` como entrada por defecto cuando el agente/cliente no está seguro de qué tool conviene.
@@ -22,6 +28,7 @@ Cuando un agente llama a `ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_ans
    - `ibmi_docs_compare_versions`
    - `ibmi_docs_validate_code_context`
 6. Usar `ibmi_docs_search`, `ibmi_docs_read` y `ibmi_docs_sections` solo para exploración manual, auditoría, pruebas o debugging.
+7. No usar `ibmi_docs_sync` para responder usuarios. Si no aparece, es correcto: es mantenimiento explícito fuera del runtime normal.
 
 ## Matriz de políticas internas
 

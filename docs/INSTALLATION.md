@@ -17,6 +17,10 @@ Esto instala dos binarios:
 
 El paquete npm **no** incluye `data/pack` ni `ibmi-docs.sqlite`.
 
+El servidor MCP público no expone tools de mantenimiento por defecto. La sincronización de IBM Docs
+queda para operación explícita por CLI o para un servidor arrancado deliberadamente con
+`IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
+
 ## Instalación recomendada
 
 ### Windows PowerShell
@@ -186,6 +190,27 @@ npm run pack:validate
 npm run smoke
 node dist/src/cli.js doctor
 ```
+
+## Mantenimiento del corpus
+
+Estos comandos son para mantenedores del proyecto o para usuarios avanzados que construyen su propio
+data pack. No son parte del flujo normal de un agente MCP:
+
+```powershell
+node dist/src/cli.js sync-ibm --out data/ibm-docs-cache
+node dist/src/cli.js build-pack --input data --out data/pack
+node dist/src/cli.js pack archive --pack data/pack --out dist/ibmi-docs-pack.tgz
+```
+
+Si realmente necesitas exponer sincronización como tool MCP, arranca el servidor con:
+
+```powershell
+$env:IBMI_DOCS_ALLOW_NETWORK_SYNC = '1'
+ibmi-docs-mcp
+```
+
+Sin esa variable, `ibmi_docs_sync` no existe para el agente. Esto evita que un cliente confunda una
+acción de mantenimiento con una consulta documental normal.
 
 ## Comandos útiles
 
