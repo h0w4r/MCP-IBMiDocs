@@ -33,7 +33,11 @@ en runtime de usuario salvo que el operador defina explícitamente `IBMI_DOCS_TO
 
 El perfil runtime por defecto es `agent`, que registra solo `ibmi_docs_assist`,
 `ibmi_docs_categories` e `ibmi_docs_diagnostics`. Las consultas de agentes deben entrar por
-`ibmi_docs_assist`; esa tool orquesta internamente intención, búsqueda, lectura, secciones,
-follow-ups por gaps, síntesis y citas sobre el data pack local ya instalado. Los perfiles `standard`,
-`full` y `maintainer` existen para clientes especializados o mantenedores que necesitan inspeccionar
-el corpus y depurar ranking.
+`ibmi_docs_assist`; esa tool orquesta internamente `taskPlan`, intención, búsqueda, lectura,
+secciones, follow-ups por gaps, síntesis y citas sobre el data pack local ya instalado.
+
+El `taskPlan` clasifica familias de trabajo como creación de programas, diseño DDS, administración
+de trabajos/locks, catálogo Db2 for i, diagnóstico de mensajes y revisión de código. Esa capa evita
+que el agente cliente tenga que saber qué tool secundaria invocar o en qué orden. Los perfiles
+`standard`, `full` y `maintainer` existen para clientes especializados o mantenedores que necesitan
+inspeccionar el corpus y depurar ranking.

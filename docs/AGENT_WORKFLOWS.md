@@ -66,6 +66,8 @@ suficiente sufrimiento visual por una generación.
 | `compile_guidance` | Cómo compilar RPGLE, SQLRPGLE, CLLE, COBOL o programas con `/COPY`/SQL embebido. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_compile_guidance` | Comandos, opciones, pitfalls y evidencia. |
 | `message_diagnostic` | Mensajes `RNFxxxx`, `SQLxxxx`, `CPFxxxx` o `MCHxxxx`. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_explain_message` | Explicación, recuperación, cobertura y evidencia. |
 | `code_review` | Revisar snippet o fuente contra documentación IBM i. | `ibmi_docs_assist` con `code`, `ibmi_docs_resolve` con `code` o `ibmi_docs_context` | Señales detectadas, contexto, hallazgos y pasos. |
+| `work_management` | Trabajos activos, joblogs, estados, locks, objetos o miembros. | `ibmi_docs_assist` | Runbook con `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB`, `WRKJOB` y validación operacional si aplican. |
+| `db2_catalog_query` | Catálogos Db2 for i, columnas, tablas, vistas QSYS2/SYS*. | `ibmi_docs_assist` | Guía SQL de solo lectura, vistas/campos esperados y validaciones. |
 | `version_question` | Comparar disponibilidad o cambios entre IBM i 7.3/7.4/7.5/7.6. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_compare_versions` | Comparación por release y evidencia. |
 | `ranking_debug` | Entender por qué aparece un resultado o depurar ranking. | `ibmi_docs_explain_ranking` | Razones de ranking, FTS query y señales semánticas. |
 | `search_discovery` | Exploración abierta de documentación. | `ibmi_docs_search` | Candidatos trazables; no usar como respuesta final si falta lectura. |
@@ -75,6 +77,7 @@ suficiente sufrimiento visual por una generación.
 `ibmi_docs_assist` es el camino feliz para clientes MCP y agentes que no conocen la arquitectura interna del servidor. Recibe la tarea completa y devuelve una salida final lista para usar:
 
 - `answer`: respuesta redactada con resumen, evidencia específica, pasos, validación, cobertura y citas.
+- `taskPlan`: familia detectada, lenguaje principal, evidencia mínima, ejes de recuperación y plantilla de respuesta.
 - `executiveSummary`: resumen corto para que el agente pueda decidir rápido.
 - `specificFindings`: extractos enfocados por término técnico y por sección.
 - `implementationSteps`: pasos concretos para aplicar o diagnosticar.
@@ -84,10 +87,45 @@ suficiente sufrimiento visual por una generación.
 - `evidence`, `reads`, `sections`, `citations`: material ya recuperado, sin pedir sub-tools.
 
 El flujo interno ya no es “busca una palabra y cruza los dedos”. Para consultas complejas,
-`ibmi_docs_assist` arma ejes de intención como `primary`, `syntax`, `compile`, `message`,
-`version`, `code` o `gap-followup`; ejecuta búsquedas focalizadas, materializa lecturas y
-secciones, detecta gaps de cobertura y lanza follow-ups acotados antes de sintetizar la
-respuesta final.
+`ibmi_docs_assist` arma primero un `taskPlan` y después ejes de intención como `primary`, `syntax`,
+`compile`, `message`, `version`, `code`, `administration`, `database` o `gap-followup`; ejecuta
+búsquedas focalizadas, materializa lecturas y secciones, detecta gaps de cobertura y lanza follow-ups
+acotados antes de sintetizar la respuesta final.
+
+### Familias `taskPlan`
+
+`taskPlan.family` ayuda al agente a entender qué clase de respuesta recibió sin conocer la arquitectura
+interna del MCP:
+
+| Familia | Cuándo aparece | Plantilla esperada |
+| --- | --- | --- |
+| `create_program` | Crear o modificar RPGLE, SQLRPGLE, CLLE o COBOL. | Plan de implementación con compilación y validación. |
+| `fix_compile_error` | Error/listado de compilación real, por ejemplo RNF. | Runbook de compilación. |
+| `fix_runtime_error` | Fallo runtime/joblog/CPF/MCH. | Runbook runtime. |
+| `design_dds_file` | PF/LF DDS, claves, keywords o `CRTPF`/`CRTLF`. | Plan DDS. |
+| `design_display_or_report` | DSPF/PRTF, pantallas, subfiles o reportes. | Plan de pantalla/reporte. |
+| `work_management` | Trabajos activos, `DSPJOB`, `WRKJOB`, joblogs y locks. | Runbook de trabajos y locks. |
+| `object_lock_analysis` | Locks de objeto/miembro con foco en `WRKOBJLCK`. | Análisis de locks. |
+| `db2_catalog_query` | Catálogos Db2 for i, QSYS2/SYS*, columnas/tablas. | Guía Db2 for i. |
+| `message_diagnostic` | RNF/CPF/MCH/SQL. | Diagnóstico de mensaje. |
+| `version_check` | Comparación entre releases IBM i. | Comparación por versión. |
+
+No uses `taskPlan` para delegar más trabajo al usuario. Úsalo para consumir la respuesta correcta:
+pasos, validación, evidencias y advertencias ya vienen preparados.
+
+### Administración IBM i y comandos sin página canónica
+
+Algunos comandos operativos aparecen en el corpus como secciones procedurales o entradas de índice,
+no como una página `WRKACTJOB command` perfecta. `ibmi_docs_assist` maneja esto internamente:
+
+- expande consultas naturales como “trabajos activos” o “bloqueos” hacia aliases documentales;
+- no aplica un filtro de release rígido cuando la mejor evidencia viene del export RDi local del data pack;
+- lee tópicos como “Debugging a job that is running”, “Displaying the lock states for objects” o
+  “Displaying a job log” cuando contienen el comando exacto;
+- considera secciones `description`, `notes`, `generic` o `related` como evidencia fuerte si mencionan
+  el comando IBM i exacto.
+
+Esto evita falsos huecos de cobertura para `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB` y `WRKJOB`.
 
 Ejemplo:
 

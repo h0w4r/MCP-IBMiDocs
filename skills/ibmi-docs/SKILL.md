@@ -33,6 +33,20 @@ pidas al usuario ni al agente que llame manualmente `ibmi_docs_read`, `ibmi_docs
 
 Las tools de bajo nivel solo son para auditoría o debugging si el operador activó un perfil avanzado.
 
+## Leer el `taskPlan`
+
+`ibmi_docs_assist` devuelve `taskPlan`. Úsalo para entender la familia de tarea sin llamar otra tool:
+
+- `create_program`: crear RPGLE/SQLRPGLE/CLLE/COBOL; usa pasos, comandos de compilación y validación.
+- `design_dds_file`: diseñar PF/LF DDS; revisa keywords, claves y `CRTPF`/`CRTLF`.
+- `work_management`: trabajos activos, joblogs, `WRKACTJOB`, `DSPJOB`, `WRKJOB` y locks.
+- `object_lock_analysis`: bloqueos de objetos o miembros con `WRKOBJLCK`.
+- `db2_catalog_query`: catálogos Db2 for i/QSYS2/SYS*.
+- `message_diagnostic`: RNF/CPF/MCH/SQL.
+
+No conviertas `taskPlan` en más tareas para el usuario. La respuesta ya trae evidencia, pasos,
+validación, citas y límites.
+
 ## No usar sync para responder
 
 No llames `ibmi_docs_sync` para resolver una consulta de usuario. Sincronizar o reconstruir el corpus
@@ -75,6 +89,11 @@ Usa la evidencia para no inventar keywords, niveles de registro, claves, indicad
 
 Llama a `ibmi_docs_assist` con el comando o necesidad completa. Si el usuario pregunta “cómo veo
 trabajos activos” o “cómo reviso bloqueos”, pide evidencia documental y pasos de validación.
+
+Para administración IBM i, incluye los comandos o conceptos conocidos en la pregunta si están
+disponibles: `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB`, `WRKJOB`, joblog, objeto, miembro, biblioteca,
+subsystem/job queue. El MCP expande estos términos y recupera tópicos procedurales aunque no exista
+una página canónica perfecta por comando.
 
 ### Mensajes RNF/CPF/MCH/SQL
 

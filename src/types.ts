@@ -419,7 +419,34 @@ export type AssistRetrievalAxis =
   | "version"
   | "code"
   | "related"
+  | "administration"
+  | "database"
   | "gap-followup";
+
+export type AssistTaskFamily =
+  | "create_program"
+  | "fix_compile_error"
+  | "fix_runtime_error"
+  | "code_review"
+  | "design_dds_file"
+  | "design_display_or_report"
+  | "command_lookup"
+  | "work_management"
+  | "object_lock_analysis"
+  | "db2_catalog_query"
+  | "message_diagnostic"
+  | "version_check"
+  | "general_explanation";
+
+export interface AssistTaskPlan {
+  family: AssistTaskFamily;
+  summary: string;
+  primaryLanguage?: string;
+  requiredEvidence: string[];
+  retrievalAxes: AssistRetrievalAxis[];
+  responseTemplate: string;
+  minimumCoverage: "strong" | "moderate" | "exploratory";
+}
 
 export interface AssistRetrievalHop {
   axis: AssistRetrievalAxis;
@@ -446,6 +473,7 @@ export interface AssistResult {
   question: string;
   intent: DocsIntent;
   confidence: "alta" | "media" | "baja";
+  taskPlan: AssistTaskPlan;
   answer: string;
   executiveSummary: string[];
   specificFindings: string[];

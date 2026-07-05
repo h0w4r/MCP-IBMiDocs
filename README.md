@@ -31,7 +31,8 @@ Sirve para:
 - El paquete npm instala el servidor y la CLI.
 - El corpus documental vive en un **data pack local** con SQLite FTS5.
 - El perfil MCP por defecto es **agent-first**: el agente ve pocas tools y debe empezar por `ibmi_docs_assist`.
-- `ibmi_docs_assist` hace una sola llamada con respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
+- `ibmi_docs_assist` hace una sola llamada con `taskPlan`, respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
+- El planner interno distingue familias como creación RPGLE/CLLE, diseño DDS, diagnóstico de mensajes, Db2 for i y administración de trabajos/locks.
 - Las tools avanzadas/de auditoría existen, pero se ocultan salvo que actives un perfil explícito.
 - Las tools de mantenimiento, como sincronización de IBM Docs público, **no se exponen al agente en runtime normal**.
 - Por ahora, el data pack público disponible está en este repositorio bajo `data/pack`.
@@ -143,6 +144,7 @@ Necesito un PF DDS con claves únicas. Busca la documentación de DDS PF y UNIQU
 
 ```powershell
 ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; dame pasos y validación" --language CLLE --ibmi-version 7.5 --depth deep
+ibmi-docs assist "Cómo reviso trabajos activos y bloqueos de un objeto o miembro? Usa WRKACTJOB, WRKOBJLCK, DSPJOB y WRKJOB si aplican" --language "IBM i administration" --depth deep
 ibmi-docs resolve "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --examples
 ibmi-docs answer "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
 ibmi-docs search "RNF0004" --category mensajes-rnf --limit 3
@@ -161,11 +163,11 @@ Por defecto el servidor arranca con `IBMI_DOCS_TOOL_PROFILE=agent`. En ese modo 
 
 | Tool visible por defecto | Para qué sirve |
 | --- | --- |
-| `ibmi_docs_assist` | Punto de entrada recomendado. Una sola llamada: plan agéntico multi-hop, respuesta final, evidencia, lecturas, secciones, pasos, validación, cobertura y citas. |
+| `ibmi_docs_assist` | Punto de entrada recomendado. Una sola llamada: `taskPlan`, plan agéntico multi-hop, respuesta final, evidencia, lecturas, secciones, pasos, validación, cobertura y citas. |
 | `ibmi_docs_categories` | Lista categorías disponibles del corpus para orientar consultas. |
 | `ibmi_docs_diagnostics` | Muestra versión, corpus, pack resuelto, perfil MCP activo y tools registradas. |
 
-Regla práctica para agentes: si dudas, usa `ibmi_docs_assist` con la tarea completa, código si existe, lenguaje y versión. Esa tool ya ejecuta internamente el flujo `intent -> search -> read -> sections -> follow-ups por gaps -> síntesis`, así que no debería responder con “llama otra tool para completar”. Search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+Regla práctica para agentes: si dudas, usa `ibmi_docs_assist` con la tarea completa, código si existe, lenguaje y versión. Esa tool ya ejecuta internamente el flujo `taskPlan -> intent -> search -> read -> sections -> follow-ups por gaps -> síntesis`, así que no debería responder con “llama otra tool para completar”. Search-only como respuesta final es “te traje el índice, suerte con el dragón”.
 
 ### Perfiles avanzados
 
@@ -195,6 +197,8 @@ Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por d
 - Servidor MCP TypeScript por stdio.
 - CLI `ibmi-docs`.
 - Tool one-shot `ibmi_docs_assist` con motor agéntico multi-hop para respuestas finales más autónomas y menos dependientes del criterio del agente cliente.
+- Planner interno con plantillas por familia de tarea: `create_program`, `design_dds_file`, `work_management`, `object_lock_analysis`, `db2_catalog_query`, diagnósticos y revisión de código.
+- Recuperación mejorada para comandos administrativos que no siempre tienen página canónica propia en IBM Docs/RDi, como `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB` y `WRKJOB`.
 - Corpus local versionado como data pack (`manifest.json`, `raw/`, `normalized/`, `ibmi-docs.sqlite`).
 - Índice SQLite FTS5 con ranking para comandos, mensajes, DDS, SQLRPGLE, CLLE y RPGLE.
 - Ranking exacto/version-aware con guardrails para no citar evidencia irrelevante cuando buscas comandos, opcodes, BIFs o mensajes.

@@ -236,6 +236,95 @@ describe("capacidades agénticas del repositorio", () => {
     expect(assist.answer).not.toMatch(/ZZZNOEXIST999 permite|ZZZNOEXIST999 sirve para|parámetro obligatorio de ZZZNOEXIST999/i);
   });
 
+  it("assist usa un planner explícito para creación de RPGLE y devuelve plantilla de implementación", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Créame un programa RPGLE free-form que lea un archivo físico, valide errores y dime cómo compilarlo como módulo ILE.",
+      language: "RPGLE",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      includeCompileCommands: true,
+      includeExamples: true,
+      limit: 8
+    }));
+
+    expect(assist.taskPlan.family).toBe("create_program");
+    expect(assist.taskPlan.primaryLanguage).toBe("RPGLE");
+    expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["syntax", "compile"]));
+    expect(assist.taskPlan.requiredEvidence.join(" ")).toMatch(/RPGLE|compil|CRTRPGMOD|CRTBNDRPG/i);
+    expect(assist.answer).toMatch(/Plan de implementación|RPGLE|CRTRPGMOD|CRTBNDRPG|Validación/i);
+    expect(assist.implementationSteps.join(" ")).toMatch(/fuente|compil|m[oó]dulo|valid/i);
+    expect(assist.coverage.status).not.toBe("thin");
+  });
+
+  it("assist usa plantilla DDS cuando el agente debe diseñar archivo físico o reporte", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Diseña un PF DDS con clave única y dame validaciones antes de compilarlo.",
+      language: "DDS",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      includeExamples: true,
+      includeCompileCommands: true,
+      limit: 8
+    }));
+
+    expect(assist.taskPlan.family).toBe("design_dds_file");
+    expect(assist.taskPlan.primaryLanguage).toBe("DDS");
+    expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["syntax", "compile"]));
+    expect(assist.answer).toMatch(/Plan DDS|DDS|PF|CRTPF|UNIQUE|clave/i);
+    expect(assist.validationChecklist.join(" ")).toMatch(/DDS|CRTPF|clave|unique|joblog/i);
+    expect(assist.coverage.status).not.toBe("thin");
+  });
+
+  it("assist madura consultas administrativas IBM i sin perder WRKACTJOB ni locks en índices genéricos", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Cómo reviso trabajos activos y bloqueos de un objeto o miembro en IBM i? Usa WRKACTJOB, WRKOBJLCK, DSPJOB y WRKJOB si aplican.",
+      language: "IBM i administration",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      includeExamples: true,
+      limit: 10
+    }));
+
+    expect(assist.taskPlan.family).toBe("work_management");
+    expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["administration", "syntax"]));
+    expect(assist.coverage.status).not.toBe("thin");
+    expect(assist.coverage.matchedTechnicalTerms).toEqual(expect.arrayContaining(["WRKACTJOB", "WRKOBJLCK", "DSPJOB", "WRKJOB"]));
+    expect(assist.coverage.missingTechnicalTerms).not.toContain("WRKACTJOB");
+    expect(assist.specificFindings.join(" ")).toMatch(/WRKACTJOB|Work with Active Jobs/i);
+    expect(assist.specificFindings.join(" ")).toMatch(/WRKOBJLCK|Work with Object Locks|lock/i);
+    expect(assist.answer).toMatch(/Trabajos y locks|WRKACTJOB|WRKOBJLCK|DSPJOB|WRKJOB|Validación/i);
+    expect(assist.answer).not.toMatch(/Listing of SQL messages|XPath expression|CUSTOMER FILE ADD\/UPDATE|DDS information/i);
+    expect(assist.implementationSteps.join(" ")).not.toMatch(/XPath|QINSTAPP|CUSTOMER FILE|DDS/i);
+    expect(assist.citations.map((citation) => `${citation.title} ${citation.section ?? ""}`).join(" ")).not.toMatch(/Listing of SQL messages|DDS|XPath/i);
+    expect(assist.retrievalPlan.hops.length).toBeGreaterThanOrEqual(6);
+    expect(assist.retrievalPlan.hops.some((hop) => /Work with Active Jobs|WRKACTJOB/i.test(hop.query))).toBe(true);
+  });
+
+  it("search promueve secciones y chunks administrativos cuando no hay página canónica de comando", () => {
+    const activeJobs = withRepo((repo) => repo.search({
+      query: "WRKACTJOB Work with Active Jobs command",
+      category: "cl-clle",
+      limit: 5,
+      includeSections: true
+    }));
+    const objectLocks = withRepo((repo) => repo.search({
+      query: "WRKOBJLCK Work with Object Locks command",
+      category: "cl-clle",
+      limit: 5,
+      includeSections: true
+    }));
+
+    expect(activeJobs.length).toBeGreaterThan(0);
+    expect(objectLocks.length).toBeGreaterThan(0);
+    expect(activeJobs[0].title).toMatch(/WRKACTJOB|Work with Active Jobs|Debugging a job that is running/i);
+    expect(`${activeJobs[0].title} ${activeJobs[0].snippet}`).toMatch(/WRKACTJOB|Work with Active Jobs/i);
+    expect(objectLocks[0].title).toMatch(/WRKOBJLCK|Work with Object Locks|Displaying the lock states/i);
+    expect(`${objectLocks[0].title} ${objectLocks[0].snippet}`).toMatch(/WRKOBJLCK|Work with Object Locks|Lock/i);
+  });
+
   it("entrega guía de compilación SQLRPGLE con evidencia trazable", () => {
     const guidance = withRepo((repo) => repo.compileGuidance({
       language: "SQLRPGLE",

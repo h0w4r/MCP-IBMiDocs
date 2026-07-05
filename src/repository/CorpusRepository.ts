@@ -9,6 +9,7 @@ import type {
   AssistRetrievalAxis,
   AssistRetrievalPlan,
   AssistResult,
+  AssistTaskPlan,
   AnswerCitation,
   AnswerOptions,
   AnswerResult,
@@ -77,7 +78,14 @@ const IBM_I_COMMAND_ALIASES: Record<string, string[]> = {
   monmsg: ["monitor message", "monitor message command"],
   rtvjoba: ["retrieve job attributes", "retrieve job attributes command", "job attributes"],
   sbmjob: ["submit job", "submit job command", "submitted job"],
-  sndpgmmsg: ["send program message", "send program message command"]
+  sndpgmmsg: ["send program message", "send program message command"],
+  wrkactjob: ["work with active jobs", "active jobs", "debugging a job that is running"],
+  wrkobjlck: ["work with object locks", "object locks", "displaying the lock states for objects"],
+  dspjob: ["display job", "job parameter", "display job command"],
+  wrkjob: ["work with job", "job parameter", "work with job command"],
+  wrkjoblog: ["work with job logs", "displaying a job log", "job log"],
+  dspjoblog: ["display job log", "displaying a job log", "job log"],
+  wrkmbrpdm: ["work with members using pdm", "work with members", "rational development studio commands"]
 };
 
 // Expansiones semánticas locales: no dependen de embeddings externos ni red.
@@ -112,6 +120,19 @@ const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: 
     pattern: /\brpgle\b|ile rpg|crtrpgmod|crtbndrpg|free[- ]form/i,
     queries: ["ILE RPG Reference", "CRTRPGMOD Command", "CRTBNDRPG Command", "ILE RPG free form"],
     signals: ["rpgle", "ile-rpg"]
+  },
+  {
+    pattern: /wrkactjob|wrkobjlck|dspjob\b|wrkjob\b|wrkjoblog|dspjoblog|trabajos?\s+activos?|active\s+jobs?|bloqueos?|locks?|object\s+locks?|job\s+locks?/i,
+    queries: [
+      "WRKACTJOB Work with Active Jobs",
+      "Debugging a job that is running WRKACTJOB",
+      "WRKOBJLCK Work with Object Locks",
+      "Displaying the lock states for objects WRKOBJLCK",
+      "DSPJOB Display Job",
+      "WRKJOB Work with Job",
+      "JOB parameter DSPJOB WRKJOB"
+    ],
+    signals: ["ibm-i-administration", "work-management", "object-locks"]
   }
 ];
 
@@ -821,7 +842,7 @@ export class CorpusRepository {
     ]);
     const citations = mergeCitations([context.citations, resolved.citations, agenticRetrieval.citations]);
     const baseWarnings = [...new Set([...resolved.warnings, ...context.warnings, ...agenticRetrieval.warnings])];
-    const coverage = buildAssistCoverage({
+    const rawCoverage = buildAssistCoverage({
       question: options.question,
       evidence,
       reads,
@@ -829,25 +850,52 @@ export class CorpusRepository {
       confidence: resolved.confidence,
       warnings: baseWarnings
     });
+    const taskPlan = buildAssistTaskPlan({ options, resolved, context, coverage: rawCoverage, retrievalAxes: agenticRetrieval.plan.axes });
+    const responseMaterial = filterAssistResponseMaterial({
+      taskPlan,
+      question: options.question,
+      evidence,
+      reads,
+      sections,
+      citations
+    });
+    const coverage = usesTaskScopedMaterial(taskPlan)
+      ? buildAssistCoverage({
+        question: options.question,
+        evidence: responseMaterial.evidence,
+        reads: responseMaterial.reads,
+        sections: responseMaterial.sections,
+        confidence: resolved.confidence,
+        warnings: baseWarnings
+      })
+      : rawCoverage;
     agenticRetrieval.plan.coverageGaps = [...new Set([
       ...agenticRetrieval.plan.coverageGaps,
+      ...rawCoverage.missingTechnicalTerms,
       ...coverage.missingTechnicalTerms
     ])];
     const warnings = [...new Set([...baseWarnings, ...coverage.warnings])];
-    const executiveSummary = buildAssistExecutiveSummary({ options, resolved, context, coverage });
-    const specificFindings = buildAssistSpecificFindings({ question: options.question, reads, sections, evidence, depth });
-    const implementationSteps = buildAssistImplementationSteps({ options, resolved, context, coverage, depth });
-    const validationChecklist = buildAssistValidationChecklist({ options, resolved, context, coverage, depth });
+    const executiveSummary = buildAssistExecutiveSummary({ options, resolved, context, coverage, taskPlan });
+    const specificFindings = buildAssistSpecificFindings({
+      question: options.question,
+      reads: responseMaterial.reads,
+      sections: responseMaterial.sections,
+      evidence: responseMaterial.evidence,
+      depth
+    });
+    const implementationSteps = buildAssistImplementationSteps({ options, resolved, context, coverage, taskPlan, depth });
+    const validationChecklist = buildAssistValidationChecklist({ options, resolved, context, coverage, taskPlan, depth });
     const answer = buildAssistAnswer({
       options,
       intent: resolved.intent,
       confidence: coverage.status === "thin" ? "baja" : resolved.confidence,
+      taskPlan,
       executiveSummary,
       specificFindings,
       implementationSteps,
       validationChecklist,
       coverage,
-      citations,
+      citations: responseMaterial.citations,
       warnings,
       depth
     });
@@ -856,6 +904,7 @@ export class CorpusRepository {
       question: options.question,
       intent: resolved.intent,
       confidence: coverage.status === "thin" ? "baja" : resolved.confidence,
+      taskPlan,
       answer,
       executiveSummary,
       specificFindings,
@@ -864,10 +913,10 @@ export class CorpusRepository {
       coverage,
       retrievalPlan: agenticRetrieval.plan,
       workflow: mergeWorkflowStages([agenticRetrieval.workflow, resolved.stages]),
-      evidence,
-      reads,
-      sections,
-      citations,
+      evidence: responseMaterial.evidence,
+      reads: responseMaterial.reads,
+      sections: responseMaterial.sections,
+      citations: responseMaterial.citations,
       warnings
     };
     this.recordTrace("ibmi_docs_assist", started, {
@@ -891,9 +940,10 @@ export class CorpusRepository {
     const { options, resolved, context, depth, limit, preset } = input;
     const axes = buildAssistRetrievalAxes(options, resolved, context);
     const initialQueries = buildAssistInitialQueries(options, preset, axes);
-    const maxSearchHops = depth === "deep" ? 7 : depth === "concise" ? 4 : 6;
-    const hopLimit = depth === "deep" ? 5 : Math.max(Math.min(limit, 5), 3);
-    const readLimit = depth === "deep" ? 1 : 1;
+    const hasAdministrationAxis = axes.has("administration");
+    const maxSearchHops = hasAdministrationAxis ? (depth === "deep" ? 13 : depth === "concise" ? 7 : 10) : depth === "deep" ? 7 : depth === "concise" ? 4 : 6;
+    const hopLimit = hasAdministrationAxis ? Math.max(Math.min(limit, depth === "deep" ? 8 : 6), 5) : depth === "deep" ? 5 : Math.max(Math.min(limit, 5), 3);
+    const readLimit = hasAdministrationAxis && depth === "deep" ? 2 : 1;
     const sectionLimit = depth === "deep" ? 8 : 5;
 
     const hops: AssistRetrievalPlan["hops"] = [];
@@ -942,7 +992,7 @@ export class CorpusRepository {
       if (!normalizedQuery || executedQueries.has(queryKey) || hops.length >= maxSearchHops) return;
       executedQueries.add(queryKey);
       const category = buildAssistSearchCategory(axis, normalizedQuery, options, preset);
-      const version = axis === "message" ? undefined : options.version;
+      const version = axis === "message" || axis === "administration" ? undefined : options.version;
       const hits = this.search({
         query: normalizedQuery,
         category,
@@ -2093,6 +2143,45 @@ function buildContextQueries(task: string, preset?: LanguagePreset): string[] {
   ].filter(Boolean))].slice(0, 18);
 }
 
+function isAdministrationQuery(haystack: string): boolean {
+  return /wrkactjob|wrkobjlck|dspjob\b|wrkjob\b|wrkjoblog|dspjoblog|wrkjobq|sbmjob|jobq|trabajos?\s+activos?|active\s+jobs?|running\s+job|bloqueos?|locks?|object\s+locks?|job\s+locks?|subsystem|subsistema|joblog/i.test(haystack);
+}
+
+function isDb2CatalogQuery(haystack: string): boolean {
+  return /syscolumns|systables|sysindexes|qsys2\.|cat[aá]logo|catalog|metadata|metadatos|columnas?|tablas?|vistas?\s+de\s+cat[aá]logo/i.test(haystack);
+}
+
+function buildAdministrationQueries(haystack: string): string[] {
+  const queries: string[] = [];
+  const wantsActiveJobs = /wrkactjob|trabajos?\s+activos?|active\s+jobs?|running\s+job/i.test(haystack);
+  const wantsLocks = /wrkobjlck|bloqueos?|locks?|object\s+locks?|job\s+locks?/i.test(haystack);
+  const wantsJob = /dspjob\b|wrkjob\b|job\s+parameter|display\s+job|work\s+with\s+job/i.test(haystack);
+  if (wantsActiveJobs || isAdministrationQuery(haystack)) {
+    queries.push("WRKACTJOB Work with Active Jobs");
+    queries.push("Debugging a job that is running WRKACTJOB");
+    queries.push("active jobs WRKACTJOB command");
+  }
+  if (wantsLocks || isAdministrationQuery(haystack)) {
+    queries.push("WRKOBJLCK Work with Object Locks");
+    queries.push("Displaying the lock states for objects WRKOBJLCK");
+    queries.push("object locks WRKOBJLCK command");
+  }
+  if (wantsJob || isAdministrationQuery(haystack)) {
+    queries.push("DSPJOB Display Job");
+    queries.push("WRKJOB Work with Job");
+    queries.push("JOB parameter DSPJOB WRKJOB");
+    queries.push("Displaying a job log DSPJOBLOG WRKJOBLOG");
+  }
+  return [...new Set(queries)];
+}
+
+function buildDb2CatalogQueries(haystack: string): string[] {
+  const queries = ["Db2 for i catalog views", "QSYS2 catalog views", "SYSCOLUMNS catalog view", "SYSTABLES catalog view"];
+  if (/columnas?|syscolumns/i.test(haystack)) queries.unshift("QSYS2 SYSCOLUMNS column metadata");
+  if (/tablas?|systables/i.test(haystack)) queries.unshift("QSYS2 SYSTABLES table metadata");
+  return [...new Set(queries)];
+}
+
 function buildAssistRetrievalAxes(options: AssistOptions, resolved: ResolveResult, context: ContextPackage): Set<AssistRetrievalAxis> {
   const haystack = [options.question, options.language, options.code, context.intent.detectedSignals.join(" ")].filter(Boolean).join("\n");
   const detected = detectIntentAxes(haystack);
@@ -2102,6 +2191,8 @@ function buildAssistRetrievalAxes(options: AssistOptions, resolved: ResolveResul
   if (detected.has("message") || resolved.messageExplanation) axes.add("message");
   if (detected.has("version") || resolved.versionComparison) axes.add("version");
   if (options.code?.trim() || resolved.codeValidation) axes.add("code");
+  if (isAdministrationQuery(haystack)) axes.add("administration");
+  if (isDb2CatalogQuery(haystack)) axes.add("database");
   if (resolved.related) axes.add("related");
   return axes;
 }
@@ -2115,6 +2206,9 @@ function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePrese
   if (messageId) {
     queries.push(messageId);
     queries.push(`${messageId.slice(0, 3)} messages`);
+  }
+  if (axes.has("administration")) {
+    queries.push(...buildAdministrationQueries(haystack));
   }
   if (axes.has("compile")) {
     const language = normalizeLanguage(options.language ?? options.question) ?? preset?.language;
@@ -2144,6 +2238,9 @@ function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePrese
       queries.push(upper);
     }
   }
+  if (axes.has("database")) {
+    queries.push(...buildDb2CatalogQueries(haystack));
+  }
   for (const term of technicalTerms) {
     if (!queries.some((query) => fold(query).includes(fold(term)))) queries.push(term);
   }
@@ -2157,6 +2254,8 @@ function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePrese
 }
 
 function inferAssistAxisForQuery(query: string, axes: Set<AssistRetrievalAxis>): AssistRetrievalAxis {
+  if (isAdministrationQuery(query)) return "administration";
+  if (isDb2CatalogQuery(query)) return "database";
   if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|RNF|CPF|MCH|SQLCODE|SQLSTATE)\b/i.test(query)) return "message";
   if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|RPGPPOPT|DBGVIEW|COMMIT|\/\s*(copy|include)\b|copybook|sqlrpgle|embedded\s+sql/i.test(query)) return "compile";
   if (/(7\.[3456]).*(7\.[3456])|compar|release|versi[oó]n/i.test(query)) return "version";
@@ -2175,6 +2274,8 @@ function buildAssistSearchCategory(axis: AssistRetrievalAxis, query: string, opt
     return undefined;
   }
   if (axis === "compile" && /sqlrpgle|exec\s+sql|crt(sqlrpgi)|RPGPPOPT|embedded\s+sql/i.test([query, options.language, options.question].filter(Boolean).join(" "))) return "sql-db2-for-i";
+  if (axis === "administration") return "cl-clle";
+  if (axis === "database") return "sql-db2-for-i";
   if (axis === "syntax" && /dds|crtp[fl]|physical file|logical file/i.test([query, options.language].filter(Boolean).join(" "))) return "dds";
   return preset?.category;
 }
@@ -2269,6 +2370,76 @@ function sanitizeContextHit(hit: SearchHit): SearchHit {
     ...safeHit
   } = hit;
   return safeHit;
+}
+
+function filterAssistResponseMaterial(input: {
+  taskPlan: AssistTaskPlan;
+  question: string;
+  evidence: SearchHit[];
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  citations: AnswerCitation[];
+}): {
+  evidence: SearchHit[];
+  reads: ContextReadSummary[];
+  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
+  citations: AnswerCitation[];
+} {
+  const isRelevant = (text: string): boolean => isRelevantForTaskPlan(input.taskPlan, text);
+  const evidence = input.evidence.filter((hit) => isRelevant([hit.title, hit.snippet, hit.breadcrumbs.join(" "), hit.category, hit.canonicalTopicKey ?? ""].join(" ")));
+  const reads = input.reads.filter((read) => isRelevant([
+    read.title,
+    read.category,
+    read.excerpt,
+    read.focusedSections.map((section) => `${section.kind} ${section.title} ${section.content}`).join(" ")
+  ].join(" ")));
+  const sections = input.sections
+    .map((topic) => {
+      const topicRelevant = isRelevant(`${topic.title} ${topic.id}`);
+      const topicSections = topic.sections.filter((section) => topicRelevant || isRelevant(`${section.kind} ${section.title} ${section.content}`));
+      return { ...topic, sections: topicSections };
+    })
+    .filter((topic) => topic.sections.length > 0 || isRelevant(`${topic.title} ${topic.id}`));
+  const citations = input.citations.filter((citation) => isRelevant([
+    citation.title,
+    citation.section ?? "",
+    citation.sourceKind,
+    citation.version,
+    citation.canonicalUrl ?? ""
+  ].join(" ")));
+
+  // Para familias generales no filtramos. Para familias especializadas, si el filtro queda vacío,
+  // devolvemos el material original para evitar una respuesta sin evidencia; el coverage/warnings
+  // seguirá avisando. En los casos maduros esperados el filtro debe conservar material suficiente.
+  if (usesTaskScopedMaterial(input.taskPlan) && (evidence.length || reads.length || sections.length || citations.length)) {
+    return { evidence, reads, sections, citations };
+  }
+  return input;
+}
+
+function usesTaskScopedMaterial(taskPlan: AssistTaskPlan): boolean {
+  return ["work_management", "object_lock_analysis", "db2_catalog_query", "design_dds_file", "design_display_or_report", "create_program"].includes(taskPlan.family);
+}
+
+function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean {
+  if (!usesTaskScopedMaterial(taskPlan)) return true;
+  const haystack = fold(text);
+  switch (taskPlan.family) {
+    case "work_management":
+      return /wrkactjob|work with active jobs|active jobs|active job|wrkobjlck|work with object locks|object locks|lock state|locks?|dspjob|display job|wrkjob|work with job|job log|joblog|job parameter|request processor|call stack|debugging a job|qualified job|strsrvjob|strdbg|subsystem|job queue/.test(haystack);
+    case "object_lock_analysis":
+      return /wrkobjlck|work with object locks|object locks|lock state|locks?|object|member|library|wrkjob|work with job|job log|joblog|active job/.test(haystack);
+    case "db2_catalog_query":
+      return /db2|qsys2|syscolumns|systables|sysindexes|catalog|cat[aá]logo|metadata|metadatos|column|table|view|sql/.test(haystack);
+    case "design_dds_file":
+      return /dds|physical file|logical file|archivo fisico|archivo logico|\bpf\b|\blf\b|crtp[fl]|unique|key|clave|record format|field/.test(haystack);
+    case "design_display_or_report":
+      return /dds|display file|printer file|dspf|prtf|subfile|pantalla|reporte|spool|indicator|indicador|record format/.test(haystack);
+    case "create_program":
+      return /rpgle|sqlrpgle|clle|cobol|ile rpg|program|programa|module|modulo|crtrpgmod|crtbndrpg|crtsqlrpgi|crtbndcl|compile|compil/.test(haystack);
+    default:
+      return true;
+  }
 }
 
 function contextDisplayTitle(read: ReadResult, hit?: SearchHit): string {
@@ -2913,9 +3084,16 @@ function buildAssistCoverage(input: {
 
 function hasFocusedSectionForTerm(sections: Array<{ id: string; title: string; sections: TopicSection[] }>, term: string): boolean {
   const foldedTerm = fold(term);
+  const isCommand = IBM_I_COMMAND_PREFIX_PATTERN.test(term);
   return sections.some((topic) => topic.sections.some((section) => {
-    if (!["syntax", "parameters", "examples"].includes(section.kind)) return false;
-    return fold(`${topic.title} ${section.title} ${section.content}`).includes(foldedTerm);
+    const sectionText = fold(`${topic.title} ${section.title} ${section.content}`);
+    if (!sectionText.includes(foldedTerm)) return false;
+    if (["syntax", "parameters", "examples"].includes(section.kind)) return true;
+    // Muchos comandos operativos exportados desde la ayuda RDi aparecen en notas,
+    // secciones genéricas o temas procedurales sin una página canónica "Command".
+    // Si la sección menciona el comando exacto, cuenta como evidencia fuerte para
+    // evitar falsos huecos de cobertura por forma documental, no por falta real.
+    return isCommand && ["description", "notes", "generic", "related"].includes(section.kind);
   }));
 }
 
@@ -2929,11 +3107,123 @@ function extractAssistTechnicalTerms(question: string): string[] {
 }
 
 function isAssistGenericTerm(term: string): boolean {
-  return new Set(["IBM", "IBMI", "AS400", "ILE", "CL", "CLLE", "RPG", "RPGLE", "SQLRPGLE", "DDS", "COBOL", "JOB", "JOBLOG"]).has(term);
+  return new Set(["IBM", "IBMI", "AS400", "ILE", "CL", "CLLE", "RPG", "RPGLE", "SQLRPGLE", "DDS", "COBOL", "JOB", "JOBLOG", "APLICA", "APLICAN"]).has(term);
 }
 
 function isAssistMessageFamilyTerm(term: string): boolean {
   return /^(CPF|MCH|RNF|SQL)$/.test(term);
+}
+
+function buildAssistTaskPlan(input: {
+  options: AssistOptions;
+  resolved: ResolveResult;
+  context: ContextPackage;
+  coverage: AssistCoverage;
+  retrievalAxes: AssistRetrievalAxis[];
+}): AssistTaskPlan {
+  const haystack = [input.options.question, input.options.language, input.options.code, input.context.intent.detectedSignals.join(" ")].filter(Boolean).join("\n");
+  const language = normalizeLanguage(input.options.language ?? input.options.question ?? input.options.code) ?? input.context.intent.language;
+  const axes = new Set<AssistRetrievalAxis>(input.retrievalAxes);
+  const hasCompile = axes.has("compile") || input.resolved.compileGuidance?.recommendedCommands.length;
+  const hasSyntax = axes.has("syntax");
+  const programLanguage = /^(RPGLE|SQLRPGLE|CLLE|COBOL)$/i.test(language ?? "");
+  const explicitProgramCreation = /crear|create|generar|implementar|nuevo|programa|m[oó]dulo|module/i.test(haystack)
+    && /rpgle|sqlrpgle|rpg|clle|cobol|programa|m[oó]dulo/i.test(haystack);
+  const explicitDdsDesign = /(?:diseñ|design|model|defin|crear|create|generar).{0,80}(?:dds|archivo\s+f[ií]sico|physical\s+file|\bpf\b|archivo\s+l[oó]gico|logical\s+file|\blf\b|clave|key|unique)|\bdds\b/i.test(haystack);
+  const ddsCanOwnTask = language === "DDS" || (explicitDdsDesign && !(programLanguage && explicitProgramCreation));
+  const explicitCompileFix = /(corr(e|i)g|fix|bug|falla|fallo|rnf\d{4}|error\s+(?:de\s+)?compilaci[oó]n|compile\s+error|compilation\s+error|listado\s+de\s+compilaci[oó]n)/i.test(haystack)
+    && /compil|compile|rnf\d{4}/i.test(haystack)
+    && !explicitProgramCreation;
+  const explicitRuntimeFix = /(corr(e|i)g|fix|bug|falla|fallo|runtime|joblog|cpf\d{4}|mch\d{4})/i.test(haystack)
+    && !/compil|compile|rnf\d{4}/i.test(haystack)
+    && !explicitProgramCreation;
+
+  let family: AssistTaskPlan["family"] = "general_explanation";
+  if (input.options.code?.trim()) family = "code_review";
+  if (explicitProgramCreation) family = "create_program";
+  if (explicitCompileFix) family = "fix_compile_error";
+  if (explicitRuntimeFix) family = "fix_runtime_error";
+  if (ddsCanOwnTask) family = "design_dds_file";
+  if (/dspf|display\s+file|pantalla|subfile|reporte|printer\s+file|prtf/i.test(haystack)) family = "design_display_or_report";
+  if (isAdministrationQuery(haystack) && /lock|bloqueo|wrkobjlck|object\s+locks?/i.test(haystack) && !/wrkactjob|trabajos?\s+activos?|active\s+jobs?/i.test(haystack)) family = "object_lock_analysis";
+  if (isAdministrationQuery(haystack)) family = "work_management";
+  if (isDb2CatalogQuery(haystack)) family = "db2_catalog_query";
+  if (input.resolved.intent === "message_diagnostic") family = "message_diagnostic";
+  if (input.resolved.intent === "version_question") family = "version_check";
+  if (input.resolved.intent === "syntax_lookup" && /^general_explanation$/.test(family)) family = "command_lookup";
+
+  if (family === "work_management" || family === "object_lock_analysis") axes.add("administration");
+  if (family === "db2_catalog_query") axes.add("database");
+  if (hasCompile || family === "create_program" || family === "design_dds_file") axes.add("compile");
+  if (hasSyntax || family !== "general_explanation") axes.add("syntax");
+
+  const requiredEvidence = requiredEvidenceForTaskFamily(family, language);
+  return {
+    family,
+    summary: taskFamilySummary(family),
+    primaryLanguage: language === "IBM i" ? undefined : language,
+    requiredEvidence,
+    retrievalAxes: [...axes],
+    responseTemplate: responseTemplateForTaskFamily(family),
+    minimumCoverage: family === "general_explanation" ? "exploratory" : family === "command_lookup" ? "moderate" : "strong"
+  };
+}
+
+function requiredEvidenceForTaskFamily(family: AssistTaskPlan["family"], language?: string): string[] {
+  const byFamily: Record<AssistTaskPlan["family"], string[]> = {
+    create_program: [`Guía de lenguaje ${language ?? "IBM i"}`, "comando de compilación aplicable", "opciones/pitfalls", "validación posterior"],
+    fix_compile_error: ["mensaje/listado de compilación", "comando de compilación", "opciones relevantes", "recovery checklist"],
+    fix_runtime_error: ["joblog o mensaje CPF/MCH", "comando/contexto de ejecución", "recovery checklist", "validación positiva/negativa"],
+    code_review: ["señales del código", "tópicos de lenguaje", "comandos/opciones si aplica", "hallazgos documentados"],
+    design_dds_file: ["sintaxis DDS", "keywords PF/LF", "comando CRTPF/CRTLF", "validaciones de claves/registros"],
+    design_display_or_report: ["sintaxis DDS DSPF/PRTF", "keywords de pantalla/reporte", "comando de creación", "validación visual/spool"],
+    command_lookup: ["tópico o sección del comando", "parámetros/sintaxis", "ejemplo o nota", "cita auditable"],
+    work_management: ["WRKACTJOB/DSPJOB/WRKJOB cuando aplique", "JOB parameter", "joblog", "acciones de validación operativa"],
+    object_lock_analysis: ["WRKOBJLCK", "lock states", "objeto/miembro", "trabajo propietario del lock"],
+    db2_catalog_query: ["vistas de catálogo Db2 for i", "columnas/tablas relevantes", "limitaciones de consulta", "validación SQL"],
+    message_diagnostic: ["mensaje exacto o familia", "causa/recovery", "evidencia de mensajes", "validación en joblog/listado"],
+    version_check: ["evidencia por release", "diferencias", "fallbacks declarados", "citas comparables"],
+    general_explanation: ["evidencia principal", "lectura materializada", "citas", "advertencias de cobertura"]
+  };
+  return byFamily[family];
+}
+
+function taskFamilySummary(family: AssistTaskPlan["family"]): string {
+  const labels: Record<AssistTaskPlan["family"], string> = {
+    create_program: "Crear o modificar un programa/fuente IBM i con guía documental y validación.",
+    fix_compile_error: "Corregir error de compilación con evidencia de mensajes, opciones y comando de compilación.",
+    fix_runtime_error: "Corregir fallo runtime apoyándose en joblog, mensajes y contexto de ejecución.",
+    code_review: "Revisar código contra documentación IBM i y devolver hallazgos accionables.",
+    design_dds_file: "Diseñar archivo DDS PF/LF con sintaxis, keywords y comando de creación.",
+    design_display_or_report: "Diseñar display/printer file o reporte con DDS y validación visual/spool.",
+    command_lookup: "Resolver comando/tópico IBM i con sintaxis, parámetros y citas.",
+    work_management: "Resolver administración de trabajos, joblogs, jobs activos y navegación operacional.",
+    object_lock_analysis: "Diagnosticar locks de objetos/miembros y trabajos propietarios.",
+    db2_catalog_query: "Guiar consulta de catálogo Db2 for i con vistas y columnas verificables.",
+    message_diagnostic: "Diagnosticar mensaje IBM i con causa/recovery y cobertura.",
+    version_check: "Comparar disponibilidad o cambios entre releases IBM i.",
+    general_explanation: "Explicar tópico IBM i con evidencia y advertencias."
+  };
+  return labels[family];
+}
+
+function responseTemplateForTaskFamily(family: AssistTaskPlan["family"]): string {
+  const templates: Record<AssistTaskPlan["family"], string> = {
+    create_program: "implementation-plan",
+    fix_compile_error: "compile-fix-runbook",
+    fix_runtime_error: "runtime-fix-runbook",
+    code_review: "code-review-findings",
+    design_dds_file: "dds-file-plan",
+    design_display_or_report: "display-report-plan",
+    command_lookup: "command-reference",
+    work_management: "work-management-runbook",
+    object_lock_analysis: "object-lock-runbook",
+    db2_catalog_query: "db2-catalog-guidance",
+    message_diagnostic: "message-diagnostic",
+    version_check: "version-comparison",
+    general_explanation: "documented-explanation"
+  };
+  return templates[family];
 }
 
 function buildAssistExecutiveSummary(input: {
@@ -2941,6 +3231,7 @@ function buildAssistExecutiveSummary(input: {
   resolved: ResolveResult;
   context: ContextPackage;
   coverage: AssistCoverage;
+  taskPlan: AssistTaskPlan;
 }): string[] {
   if (input.coverage.status === "thin") {
     return [
@@ -2952,6 +3243,7 @@ function buildAssistExecutiveSummary(input: {
   const signals = input.context.intent.detectedSignals.join(", ") || "sin señales específicas";
   const matched = input.coverage.matchedTechnicalTerms.join(", ") || "términos generales de IBM i";
   return [
+    `Plan detectado: ${input.taskPlan.summary}`,
     `La consulta se resolvió como ${input.resolved.intent} con confianza ${input.resolved.confidence}.`,
     `Lenguaje/categoría detectados: ${input.context.intent.language}${input.context.intent.category ? ` / ${input.context.intent.category}` : ""}; señales: ${signals}.`,
     `Evidencia materializada: ${input.coverage.evidenceCount} resultado(s), ${input.coverage.readCount} lectura(s), ${input.coverage.sectionCount} sección(es); términos cubiertos: ${matched}.`
@@ -3007,11 +3299,112 @@ function sectionKindLabel(kind: TopicSection["kind"]): string {
   return labels[kind];
 }
 
+function taskPlanImplementationSteps(taskPlan: AssistTaskPlan): string[] {
+  switch (taskPlan.family) {
+    case "create_program":
+      return [
+        "Plan de implementación: crear o ajustar el fuente con una estructura mínima verificable antes de añadir lógica secundaria.",
+        "Definir interfaz, archivos usados, parámetros y manejo de errores antes de elegir si compilar como módulo ILE o programa bound.",
+        "Seleccionar CRTRPGMOD/CRTBNDRPG/CRTSQLRPGI/CRTBNDCL según lenguaje y estrategia de enlace documentada."
+      ];
+    case "design_dds_file":
+      return [
+        "Plan DDS: definir formato de registro, campos, claves y keywords antes de generar el fuente.",
+        "Validar si corresponde PF o LF, y si UNIQUE/FIFO/LIFO/FCFO aplica a la semántica de claves.",
+        "Preparar comando de creación CRTPF/CRTLF con SRCFILE, SRCMBR y biblioteca objetivo."
+      ];
+    case "design_display_or_report":
+      return [
+        "Plan DDS de pantalla/reporte: separar formatos, indicadores, keywords y pruebas visuales/spool.",
+        "Validar DSPF/PRTF y comando de creación antes de proponer código definitivo."
+      ];
+    case "work_management":
+      return [
+        "Trabajos y locks: ubicar primero el trabajo con WRKACTJOB/DSPJOB/WRKJOB según el dato disponible.",
+        "Para bloqueos de objetos o miembros, usar WRKOBJLCK y luego navegar al trabajo propietario antes de terminar o cambiar procesos.",
+        "Cruzar JOB parameter, joblog y estado del trabajo antes de proponer acciones operativas."
+      ];
+    case "object_lock_analysis":
+      return [
+        "Diagnóstico de locks: identificar objeto, biblioteca, tipo y miembro antes de revisar WRKOBJLCK.",
+        "Determinar trabajo/usuario/lock state y validar impacto antes de liberar o finalizar trabajos."
+      ];
+    case "db2_catalog_query":
+      return [
+        "Diseñar consulta de catálogo Db2 for i con vistas QSYS2/SYS* y columnas explícitas.",
+        "Mantener la consulta en modo lectura y validar esquema/biblioteca antes de sugerir automatización."
+      ];
+    case "fix_compile_error":
+      return ["Leer mensaje/listado de compilación, aislar línea/opción afectada y recompilar con el comando documentado más específico."];
+    case "fix_runtime_error":
+      return ["Leer joblog y segundo nivel del mensaje antes de cambiar código; reproducir caso mínimo y validar recovery."];
+    case "code_review":
+      return ["Revisar señales del código contra documentación, proponer cambios mínimos y conservar evidencia por hallazgo."];
+    default:
+      return [];
+  }
+}
+
+function filterAssistActionItems(actionItems: string[], taskPlan: AssistTaskPlan): string[] {
+  if (!usesTaskScopedMaterial(taskPlan)) return actionItems;
+  const filtered = actionItems.filter((item) => isRelevantForTaskPlan(taskPlan, item));
+  return filtered.length ? filtered : [];
+}
+
+function taskPlanValidationChecks(taskPlan: AssistTaskPlan): string[] {
+  switch (taskPlan.family) {
+    case "create_program":
+      return ["Validar que el fuente compile y que el joblog/listado no tenga RNF/CPF/MCH inesperados.", "Ejecutar prueba mínima del programa con datos válidos e inválidos."];
+    case "design_dds_file":
+      return ["Validar DDS con CRTPF/CRTLF y revisar errores de keywords/campos/claves en el listado.", "Probar claves únicas o reglas de duplicados con datos de ejemplo antes de cerrar."];
+    case "design_display_or_report":
+      return ["Compilar DSPF/PRTF y validar layout/indicadores/spool con un caso mínimo."];
+    case "work_management":
+      return ["Confirmar trabajo por nombre calificado job-number/user/job antes de actuar.", "Validar locks con WRKOBJLCK y revisar joblog del trabajo propietario si hay errores o esperas."];
+    case "object_lock_analysis":
+      return ["Confirmar objeto/biblioteca/tipo/miembro antes de interpretar locks.", "No finalizar trabajos sin validar impacto y propietario del bloqueo."];
+    case "db2_catalog_query":
+      return ["Ejecutar consulta inicialmente con FETCH FIRST o equivalente y validar columnas retornadas.", "Confirmar autoridad de solo lectura y biblioteca/esquema objetivo."];
+    default:
+      return [];
+  }
+}
+
+function answerTemplateHeading(taskPlan: AssistTaskPlan): string {
+  switch (taskPlan.family) {
+    case "create_program":
+      return "Plan de implementación";
+    case "design_dds_file":
+      return "Plan DDS";
+    case "design_display_or_report":
+      return "Plan de pantalla/reporte";
+    case "work_management":
+      return "Trabajos y locks";
+    case "object_lock_analysis":
+      return "Análisis de locks";
+    case "db2_catalog_query":
+      return "Guía Db2 for i";
+    case "fix_compile_error":
+      return "Runbook de compilación";
+    case "fix_runtime_error":
+      return "Runbook runtime";
+    case "code_review":
+      return "Revisión documental de código";
+    case "message_diagnostic":
+      return "Diagnóstico de mensaje";
+    case "version_check":
+      return "Comparación por versión";
+    default:
+      return "Respuesta documentada";
+  }
+}
+
 function buildAssistImplementationSteps(input: {
   options: AssistOptions;
   resolved: ResolveResult;
   context: ContextPackage;
   coverage: AssistCoverage;
+  taskPlan: AssistTaskPlan;
   depth: AssistOptions["depth"];
 }): string[] {
   const steps: string[] = [];
@@ -3022,7 +3415,8 @@ function buildAssistImplementationSteps(input: {
       "Si el término pertenece a un producto/extensión no incluido en el corpus, agregar un data pack o abrir un reporte de cobertura."
     ];
   }
-  steps.push(...input.context.actionItems);
+  steps.push(...taskPlanImplementationSteps(input.taskPlan));
+  steps.push(...filterAssistActionItems(input.context.actionItems, input.taskPlan));
   if (/rtvjoba/i.test(input.options.question)) {
     steps.push("En CLLE, revisar la sentencia RTVJOBA y declarar variables receptoras con tipo/longitud compatibles con los atributos de trabajo que se van a recuperar.");
   }
@@ -3048,6 +3442,7 @@ function buildAssistValidationChecklist(input: {
   resolved: ResolveResult;
   context: ContextPackage;
   coverage: AssistCoverage;
+  taskPlan: AssistTaskPlan;
   depth: AssistOptions["depth"];
 }): string[] {
   if (input.coverage.status === "thin") {
@@ -3061,6 +3456,7 @@ function buildAssistValidationChecklist(input: {
     ? input.resolved.compileGuidance.recommendedCommands
     : input.context.compileCommands;
   const checks = [
+    ...taskPlanValidationChecks(input.taskPlan),
     ...(commands.length ? [`Compilar con ${commands.join(" o ")} y revisar que el listado/joblog no contenga mensajes RNF/CPF/MCH inesperados.`] : []),
     input.options.version ? `Verificar en IBM i ${input.options.version} que la sintaxis/opciones usadas existen para ese release.` : "Confirmar el release IBM i real antes de cerrar la corrección.",
     "Ejecutar un caso positivo y uno negativo para comprobar tanto el flujo normal como el manejo por MONMSG/errores.",
@@ -3075,6 +3471,7 @@ function buildAssistAnswer(input: {
   options: AssistOptions;
   intent: DocsIntent;
   confidence: "alta" | "media" | "baja";
+  taskPlan: AssistTaskPlan;
   executiveSummary: string[];
   specificFindings: string[];
   implementationSteps: string[];
@@ -3091,6 +3488,11 @@ function buildAssistAnswer(input: {
     `Consulta: ${input.options.question}`,
     `Intención: ${input.intent}`,
     `Confianza: ${input.confidence}`,
+    `Plan MCP: ${input.taskPlan.family} / plantilla ${input.taskPlan.responseTemplate}`,
+    "",
+    `## ${answerTemplateHeading(input.taskPlan)}`,
+    `- ${input.taskPlan.summary}`,
+    `- Evidencia mínima requerida: ${input.taskPlan.requiredEvidence.join("; ")}.`,
     "",
     "## Resumen directo",
     ...input.executiveSummary.map((item) => `- ${item}`),
