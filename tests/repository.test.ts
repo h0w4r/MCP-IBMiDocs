@@ -221,6 +221,85 @@ describe("capacidades agénticas del repositorio", () => {
     expect(assist.answer).not.toMatch(/Free-Form Named Constant Definition|Free-Form Enumeration Definition|Free-Form Parameter Definition/i);
   });
 
+  it("assist responde conceptualmente preguntas de banco sobre library list inicial", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Which library gets loaded first when we login to IBM i?",
+      language: "CLLE",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    const answer = assist.answer + "\n" + assist.specificFindings.join("\n");
+    expect(answer).toMatch(/library list|initial library list|Displaying a library list/i);
+    expect(answer).toMatch(/QSYS|system library|current library|user portion|job description|QGPL|QTEMP/i);
+    expect(answer).not.toMatch(/CRTRPGMOD Command|teletransport/i);
+  });
+
+  it("assist responde conceptualmente preguntas de banco sobre miembros de archivo", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "How to check all members of a file in IBM i?",
+      language: "CLLE",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    const answer = assist.answer + "\n" + assist.specificFindings.join("\n");
+    expect(answer).toMatch(/WRKMBRPDM|Work with Members/i);
+    expect(answer).toMatch(/DSPFD|Display File Description|member/i);
+    expect(answer).not.toMatch(/%TIME|SND-MSG/i);
+  });
+
+  it("assist responde conceptualmente preguntas de banco sobre depuración de batch jobs", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "How do you debug a batch job in IBM i?",
+      language: "CLLE",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    const answer = assist.answer + "\n" + assist.specificFindings.join("\n") + "\n" + assist.implementationSteps.join("\n");
+    expect(answer).toMatch(/HOLD\(\*YES\)|hold/i);
+    expect(answer).toMatch(/WRKSBMJOB|Work with Submitted Jobs/i);
+    expect(answer).toMatch(/STRSRVJOB|Start Service Job/i);
+    expect(answer).toMatch(/STRDBG|Start Debug/i);
+    expect(answer).toMatch(/ENDDBG|ENDSRVJOB|End Debug|End Servicing Job/i);
+    expect(answer).not.toMatch(/%DEC|DDS UNIQUE/i);
+  });
+
+  it("assist responde conceptualmente preguntas de banco sobre record locks RPGLE", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "How to check if a record is locked in RPGLE?",
+      language: "RPGLE",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    const answer = assist.answer + "\n" + assist.specificFindings.join("\n") + "\n" + assist.validationChecklist.join("\n");
+    expect(answer).toMatch(/record-lock|record lock|locked record/i);
+    expect(answer).toMatch(/1218|%STATUS|%ERROR|CHAIN|READ/i);
+    expect(answer).not.toMatch(/SFLDSP|QSYS/i);
+  });
+
+  it("assist responde conceptualmente preguntas de banco sobre comandos de línea SEU", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "What are common SEU line commands for copying, deleting, inserting and moving source lines?",
+      language: "CLLE",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    const answer = assist.answer + "\n" + assist.specificFindings.join("\n");
+    expect(answer).toMatch(/SEU|Source Entry Utility/i);
+    expect(answer).toMatch(/line command|copy|delete|insert|move/i);
+    expect(answer).toMatch(/\bC\b|CC|Cn|D\b|DD|I\b|M\b|MM/i);
+    expect(answer).not.toMatch(/SQLCODE|RTVJOBA command/i);
+  });
+
   it("search recupera documentación RPG de ISO0 y HHMMSS desde tipos date-time y %DEC", () => {
     const iso0 = withRepo((repo) => repo.search({
       query: "ISO0 time format RPG Time Data Type",
@@ -549,7 +628,7 @@ describe("capacidades agénticas del repositorio", () => {
     expect(result.evidence.length).toBeGreaterThan(0);
   });
 
-  it("usa fallback canónico version-aware antes que comandos no relacionados", () => {
+  it("usa ampliación de alcance version-aware antes que comandos no relacionados", () => {
     const results = withRepo((repo) => repo.search({
       query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
       category: "ile-rpg",
@@ -559,9 +638,9 @@ describe("capacidades agénticas del repositorio", () => {
     }));
 
     expect(results[0]?.title).toContain("SND-MSG");
-    expect(results[0]?.requestedVersionFallback).toBe(true);
+    expect(results[0]?.requestedVersionScopeExpansion).toBe(true);
     expect(results.slice(0, 3).map((hit) => hit.title).join("\n")).not.toMatch(/CRTRPGMOD/i);
-    expect(results[0]?.relevanceWarnings?.join(" ")).toMatch(/fallback|No se encontró/i);
+    expect(results[0]?.relevanceWarnings?.join(" ")).toMatch(/No se encontró|versión solicitada/i);
   });
 
   it("no usa evidencia irrelevante al responder consultas específicas", () => {
@@ -574,7 +653,7 @@ describe("capacidades agénticas del repositorio", () => {
 
     expect(answer.citations[0]?.title).toContain("SND-MSG");
     expect(answer.citations.map((citation) => citation.title).join("\n")).not.toMatch(/CRTRPGMOD/i);
-    expect(answer.warnings.join(" ")).toMatch(/fallback|versión solicitada/i);
+    expect(answer.warnings.join(" ")).toMatch(/ampliación de alcance|versión solicitada/i);
   });
 
   it("resuelve consultas de sintaxis con workflow search-read-sections-answer", () => {
@@ -703,11 +782,11 @@ describe("capacidades agénticas del repositorio", () => {
     expect(results[0]?.title).not.toMatch(/SYSINDEXSTAT/i);
   });
 
-  it("permite categoría estricta sin fallback fuera de la categoría solicitada", () => {
+  it("permite categoría estricta sin ampliación de alcance fuera de la categoría solicitada", () => {
     const loose = withRepo((repo) => repo.search({ query: "DSPFD command", category: "dds", limit: 3 }));
     const strict = withRepo((repo) => repo.search({ query: "DSPFD command", category: "dds", strictCategory: true, limit: 3 }));
 
-    expect(loose.some((hit) => hit.requestedCategoryFallback)).toBe(true);
+    expect(loose.some((hit) => hit.requestedCategoryScopeExpansion)).toBe(true);
     expect(strict.every((hit) => hit.category === "dds")).toBe(true);
   });
 
@@ -761,6 +840,7 @@ describe("capacidades agénticas del repositorio", () => {
       const report = withRepo((repo) => {
         const hits = repo.search({ query: "SND-MSG", version: "7.6", limit: 1 });
         if (hits[0]) repo.read(hits[0].id);
+        repo.search({ query: "DSPFD command", category: "dds", limit: 3 });
         repo.answer({ question: "Explica SND-MSG", language: "RPGLE", limit: 2 });
         repo.resolve({ question: "Explica RNF0004", language: "RPGLE", limit: 2 });
         return repo.traceReport(20);
@@ -772,6 +852,10 @@ describe("capacidades agénticas del repositorio", () => {
       expect(report.byTool.ibmi_docs_answer).toBeGreaterThan(0);
       expect(report.byTool.ibmi_docs_resolve).toBeGreaterThan(0);
       expect(report.searchThenReadRate).toBeGreaterThanOrEqual(0);
+      expect(report.scopeExpansionCount).toBeGreaterThan(0);
+      expect(report.scopeExpansionByKind.category).toBeGreaterThan(0);
+      expect(report.scopeExpansionFeedback.some((item) => item.kind === "category" && item.requestedScope === "dds" && item.usedScope === "cl-clle")).toBe(true);
+      expect(report.scopeExpansionFeedback.map((item) => item.improvementHint).join(" ")).toMatch(/mapearse directamente|falta una entrada|alias/i);
     } finally {
       if (previousTrace === undefined) delete process.env.IBMI_DOCS_TRACE;
       else process.env.IBMI_DOCS_TRACE = previousTrace;

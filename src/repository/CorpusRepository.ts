@@ -4,6 +4,13 @@ import Database from "better-sqlite3";
 import { resolveContainedPath } from "../util/paths.js";
 import { appendTraceEvent, buildTraceReport, defaultTraceFile, isTraceEnabled } from "./trace/traceStore.js";
 import { buildSemanticProfile, buildSemanticVector, bufferToVector, cosineSimilarity, explainSemanticMatch } from "./semanticVector.js";
+import {
+  bufferToVector as bufferToNeuralVector,
+  cosineSimilarity as neuralCosineSimilarity,
+  embedTexts,
+  embeddingModelDiagnostics,
+  semanticQueryText
+} from "./neuralEmbeddings.js";
 import type {
   AssistCoverage,
   AssistOptions,
@@ -45,6 +52,7 @@ import type {
   SearchOptions,
   TraceEvent,
   TraceReport,
+  TraceScopeExpansion,
   TopicSection,
   TopicTaxonomy,
   VersionComparison,
@@ -74,18 +82,23 @@ const IBM_I_COMMAND_FALSE_POSITIVES = new Set([
   "relacionadas"
 ]);
 const IBM_I_COMMAND_ALIASES: Record<string, string[]> = {
-  dspfd: ["display file description", "database files and device files"],
+  dspfd: ["display file description", "database files and device files", "member list", "TYPE(*MBRLIST)", "file members"],
   monmsg: ["monitor message", "monitor message command"],
   rtvjoba: ["retrieve job attributes", "retrieve job attributes command", "job attributes"],
   sbmjob: ["submit job", "submit job command", "submitted job"],
   sndpgmmsg: ["send program message", "send program message command"],
+  strdbg: ["start debug", "start debug command", "debugging batch jobs"],
+  strsrvjob: ["start service job", "start service job command", "debugging batch jobs"],
+  enddbg: ["end debug", "end debug command", "debugging batch jobs"],
+  endsrvjob: ["end servicing job", "end service job", "debugging batch jobs"],
   wrkactjob: ["work with active jobs", "active jobs", "debugging a job that is running"],
+  wrksbmjob: ["work with submitted jobs", "submitted jobs", "debugging batch jobs"],
   wrkobjlck: ["work with object locks", "object locks", "displaying the lock states for objects"],
   dspjob: ["display job", "job parameter", "display job command"],
   wrkjob: ["work with job", "job parameter", "work with job command"],
   wrkjoblog: ["work with job logs", "displaying a job log", "job log"],
   dspjoblog: ["display job log", "displaying a job log", "job log"],
-  wrkmbrpdm: ["work with members using pdm", "work with members", "rational development studio commands"]
+  wrkmbrpdm: ["work with members using pdm", "work with members", "source members", "file members", "rational development studio commands"]
 };
 
 interface CachedSearchCandidate {
@@ -130,6 +143,58 @@ const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: 
     pattern: /set\s+option|sqlcode|sqlstate|\b(insert|update|select|delete|merge|open|fetch|close)\b/i,
     queries: ["SET OPTION SQL", "SQLCODE SQLSTATE embedded SQL RPG", "SQL statements in ILE RPG applications", "SQLRPGLE embedded SQL RPG", "INSERT UPDATE SELECT embedded SQL RPG"],
     signals: ["sql-control", "sqlcode", "embedded-sql"]
+  },
+  {
+    pattern: /library\s+list|initial\s+library|loaded\s+first.*login|login.*librar|lista\s+de\s+bibliotecas|biblioteca\s+inicial/i,
+    queries: [
+      "Displaying a library list",
+      "Initial library list IBM i",
+      "library list QSYS QGPL QTEMP job description",
+      "current library user portion system library library list"
+    ],
+    signals: ["library-list", "initial-library-list", "job-description", "qsys-qgpl-qtemp"]
+  },
+  {
+    pattern: /members?\s+of\s+(?:a\s+)?file|file\s+members?|source\s+members?|miembros?\s+de\s+(?:un\s+)?archivo|listar\s+miembros?|all\s+members/i,
+    queries: [
+      "WRKMBRPDM Work with Members using PDM",
+      "DSPFD TYPE(*MBRLIST) member list",
+      "Display File Description member list",
+      "source physical file members IBM i"
+    ],
+    signals: ["file-members", "source-members", "wrkmbrpdm", "dspfd-mbrlist"]
+  },
+  {
+    pattern: /debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i,
+    queries: [
+      "Debugging batch jobs",
+      "SBMJOB HOLD(*YES) debugging batch job",
+      "WRKSBMJOB Work with Submitted Jobs",
+      "STRSRVJOB Start Service Job",
+      "STRDBG Start Debug",
+      "ENDDBG ENDSRVJOB end debug service job"
+    ],
+    signals: ["batch-debug", "submitted-job", "service-job", "strsrvjob-strdbg"]
+  },
+  {
+    pattern: /\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i,
+    queries: [
+      "Source Entry Utility line commands",
+      "SEU line commands copy delete insert move",
+      "copy delete insert move source lines SEU",
+      "Using SEU line commands"
+    ],
+    signals: ["seu", "source-entry-utility", "line-commands"]
+  },
+  {
+    pattern: /record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i,
+    queries: [
+      "RPG record lock status 1218",
+      "record lock %STATUS %ERROR RPG",
+      "CHAIN READ record lock RPGLE",
+      "Releasing record locks"
+    ],
+    signals: ["record-lock", "rpg-status-1218", "chain-read-error"]
   },
   {
     pattern: /\b(joblog|mensaje|message|snd-msg|%msg|%target|qmhsndpm)\b/i,
@@ -386,6 +451,13 @@ export class CorpusRepository {
     const manifest = this.manifest();
     const counts = this.db.prepare("SELECT COUNT(*) AS documents FROM documents").get() as { documents: number };
     const chunks = this.db.prepare("SELECT COUNT(*) AS chunks FROM chunks").get() as { chunks: number };
+    const embedding = {
+      provider: this.getMetaValue("embedding_provider") ?? "legacy-local-profile",
+      model: this.getMetaValue("embedding_model") ?? "legacy-deterministic-profile",
+      dimensions: Number(this.getMetaValue("embedding_dimensions") ?? 0),
+      runtimePolicy: this.getMetaValue("embedding_runtime_policy") ?? "legacy",
+      modelInstall: embeddingModelDiagnostics()
+    };
     return {
       corpusVersion: manifest.corpusVersion,
       generatedAt: manifest.generatedAt,
@@ -393,8 +465,33 @@ export class CorpusRepository {
       coverage: manifest.coverage,
       documents: counts.documents,
       chunks: chunks.chunks,
+      embedding,
       runtimeDependency: "Sin RDi, sin Eclipse Help, sin endpoint local de RDi"
     };
+  }
+
+  async searchSmart(options: SearchOptions): Promise<SearchHit[]> {
+    const started = Date.now();
+    options = {
+      ...options,
+      query: normalizeQuestionInput(options as unknown as Record<string, unknown>, "query"),
+      version: normalizeVersionOption(options as unknown as Record<string, unknown>)
+    };
+    if (!options.query) {
+      this.recordTrace("ibmi_docs_search", started, { query: "", resultCount: 0 });
+      return [];
+    }
+    this.assertNeuralDataPackReady();
+    const [queryVector] = await embedTexts([semanticQueryText(options.query)], { localOnly: true, kind: "query" });
+    if (!queryVector) return [];
+    const results = this.rankSearchCandidates(options, queryVector, {
+      started,
+      engine: "transformers-js",
+      similarity: neuralCosineSimilarity,
+      vectorReader: bufferToNeuralVector,
+      broaderSearch: (broaderOptions) => this.searchSmart(broaderOptions)
+    });
+    return results;
   }
 
   search(options: SearchOptions): SearchHit[] {
@@ -480,20 +577,22 @@ export class CorpusRepository {
       if (shouldPreferBroaderSemanticScope(results, broaderResults)) {
         results = broaderResults.slice(0, limit).map((hit) => ({
           ...hit,
+          requestedVersionScopeExpansion: true,
           requestedVersionFallback: true,
-          matchReasons: [...(hit.matchReasons ?? []), `recuperación semántica fuera de IBM i ${normalizeVersionInput(options.version ?? "")}`],
+          matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de IBM i ${normalizeVersionInput(options.version ?? "")}`],
           relevanceWarnings: [...(hit.relevanceWarnings ?? []), `No se encontró evidencia semántica suficientemente fuerte en la versión solicitada IBM i ${normalizeVersionInput(options.version ?? "")}; se usó evidencia de ${hit.version}.`]
         }));
       }
     }
 
     if (options.category && !options.strictCategory) {
-      const broaderResults = this.search({ ...options, category: undefined, strictCategory: true, limit });
+      const broaderResults = this.search({ ...options, category: undefined, strictCategory: false, limit });
       if (shouldPreferBroaderSemanticScope(results, broaderResults)) {
         results = broaderResults.slice(0, limit).map((hit) => ({
           ...hit,
+          requestedCategoryScopeExpansion: true,
           requestedCategoryFallback: true,
-          matchReasons: [...(hit.matchReasons ?? []), `recuperación semántica fuera de la categoría ${options.category}`],
+          matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de la categoría ${options.category}`],
           relevanceWarnings: [...(hit.relevanceWarnings ?? []), `La categoría ${options.category} no produjo evidencia semántica suficientemente fuerte; se usó evidencia de ${hit.category}.`]
         }));
       }
@@ -507,7 +606,113 @@ export class CorpusRepository {
       topResultId: results[0]?.id,
       topResultTitle: results[0]?.title,
       autoReadApplied: results.some((hit) => hit.autoReadApplied),
-      followedReadCandidateIds: results.slice(0, 3).map((hit) => hit.id)
+      followedReadCandidateIds: results.slice(0, 3).map((hit) => hit.id),
+      scopeExpansions: buildScopeExpansionTraceFeedback(options, results)
+    });
+    return results;
+  }
+
+  private async rankSearchCandidates(
+    options: SearchOptions,
+    queryVector: Float32Array,
+    runtime: {
+      started: number;
+      engine: string;
+      similarity: (a: Float32Array, b: Float32Array) => number;
+      vectorReader: (value: Buffer | Uint8Array) => Float32Array;
+      broaderSearch?: (options: SearchOptions) => Promise<SearchHit[]>;
+    }
+  ): Promise<SearchHit[]> {
+    const limit = clamp(options.limit, 8, 1, 50);
+    const queryProfile = buildSemanticProfile(options.query);
+    const normalizedVersion = options.version ? normalizeVersionInput(options.version) : undefined;
+    const rows = this.getSearchCandidates(runtime.vectorReader).filter((candidate) => {
+      if (normalizedVersion && candidate.version !== normalizedVersion) return false;
+      if (options.category && candidate.category !== options.category) return false;
+      return true;
+    });
+
+    const bestByDocument = new Map<string, {
+      row: Record<string, unknown>;
+      body: string;
+      score: number;
+      semanticScore: number;
+      documentKind: SearchHit["documentKind"];
+      canonicalTopicKey: string;
+      title: string;
+    }>();
+    for (const candidate of rows) {
+      const body = candidate.body;
+      const breadcrumbs = candidate.breadcrumbs;
+      const title = candidate.title;
+      const category = candidate.category;
+      const similarity = runtime.similarity(queryVector, candidate.vector);
+      const documentKind = candidate.documentKind;
+      const canonicalKey = candidate.canonicalTopicKey;
+      const semanticScoreValue = Math.round(similarity * 100000) / 100000;
+      const score = Math.round((
+        similarity * 100
+        + semanticIntentBoostFromConcepts(queryProfile.concepts, candidate.concepts)
+        + semanticTitleIntentBoost(queryProfile.concepts, options.query, { title, category, breadcrumbs, snippet: "", score: 0, id: candidate.id, sourceKind: String(candidate.row.source_kind) as SearchHit["sourceKind"], sourceId: String(candidate.row.source_id), version: candidate.version, canonicalUrl: String(candidate.row.canonical_url), documentKind }, body)
+        + documentKindScoreAdjustment({ title, documentKind } as SearchHit)
+      ) * 100000) / 100000;
+      const existing = bestByDocument.get(candidate.id);
+      if (!existing || score > existing.score) {
+        bestByDocument.set(candidate.id, { row: candidate.row, body, score, semanticScore: semanticScoreValue, documentKind, canonicalTopicKey: canonicalKey, title });
+      }
+    }
+
+    const sortedResults = [...bestByDocument.values()]
+      .filter((candidate) => candidate.documentKind !== "stub" && candidate.documentKind !== "landing")
+      .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+      .slice(0, limit)
+      .map((candidate) => {
+        const hit = rowToHit({ ...candidate.row, rank: candidate.semanticScore }, options.query);
+        hit.documentKind = candidate.documentKind;
+        hit.canonicalTopicKey = candidate.canonicalTopicKey;
+        hit.semanticScore = candidate.semanticScore;
+        hit.score = candidate.score;
+        hit.relevanceWarnings = [];
+        return hit;
+      });
+    let results = projectSemanticCommandTopic(sortedResults, options, limit);
+
+    if (options.version && runtime.broaderSearch) {
+      const broaderResults = await runtime.broaderSearch({ ...options, version: undefined, limit });
+      if (shouldPreferBroaderSemanticScope(results, broaderResults)) {
+        results = broaderResults.slice(0, limit).map((hit) => ({
+          ...hit,
+          requestedVersionScopeExpansion: true,
+          requestedVersionFallback: true,
+          matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de IBM i ${normalizeVersionInput(options.version ?? "")}`],
+          relevanceWarnings: [...(hit.relevanceWarnings ?? []), `No se encontró evidencia semántica suficientemente fuerte en la versión solicitada IBM i ${normalizeVersionInput(options.version ?? "")}; se usó evidencia de ${hit.version}.`]
+        }));
+      }
+    }
+
+    if (options.category && !options.strictCategory && runtime.broaderSearch) {
+      const broaderResults = await runtime.broaderSearch({ ...options, category: undefined, strictCategory: false, limit });
+      if (shouldPreferBroaderSemanticScope(results, broaderResults)) {
+        results = broaderResults.slice(0, limit).map((hit) => ({
+          ...hit,
+          requestedCategoryScopeExpansion: true,
+          requestedCategoryFallback: true,
+          matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de la categoría ${options.category}`],
+          relevanceWarnings: [...(hit.relevanceWarnings ?? []), `La categoría ${options.category} no produjo evidencia semántica suficientemente fuerte; se usó evidencia de ${hit.category}.`]
+        }));
+      }
+    }
+
+    results = results.map((hit) => this.materializeSearchHit(hit, options));
+
+    this.recordTrace("ibmi_docs_search", runtime.started, {
+      query: options.query,
+      resultCount: results.length,
+      topResultId: results[0]?.id,
+      topResultTitle: results[0]?.title,
+      autoReadApplied: results.some((hit) => hit.autoReadApplied),
+      followedReadCandidateIds: results.slice(0, 3).map((hit) => hit.id),
+      scopeExpansions: buildScopeExpansionTraceFeedback(options, results)
     });
     return results;
   }
@@ -532,7 +737,7 @@ export class CorpusRepository {
     return hit;
   }
 
-  private getSearchCandidates(): CachedSearchCandidate[] {
+  private getSearchCandidates(vectorReader: (value: Buffer | Uint8Array) => Float32Array = bufferToVector): CachedSearchCandidate[] {
     const cacheKey = path.resolve(this.packDir, "ibmi-docs.sqlite");
     const cached = CorpusRepository.searchCandidateCache.get(cacheKey);
     if (cached) return cached;
@@ -561,7 +766,7 @@ export class CorpusRepository {
       const version = String(row.version ?? "");
       const input = { title, body, category, breadcrumbs, version };
       const vector = row.vector
-        ? bufferToVector(row.vector as Buffer)
+        ? vectorReader(row.vector as Buffer)
         : buildSemanticVector(input);
       const concepts = row.concepts_json
         ? safeJsonArray(String(row.concepts_json))
@@ -591,6 +796,27 @@ export class CorpusRepository {
   private hasTable(tableName: string): boolean {
     const row = this.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(tableName) as { name: string } | undefined;
     return Boolean(row);
+  }
+
+  private getMetaValue(key: string): string | undefined {
+    try {
+      const row = this.db.prepare("SELECT value FROM meta WHERE key = ?").get(key) as { value: string } | undefined;
+      return row?.value;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private assertNeuralDataPackReady(): void {
+    const provider = this.getMetaValue("embedding_provider");
+    const model = this.getMetaValue("embedding_model");
+    if (provider !== "transformers-js" || !model) {
+      throw new Error("El data pack actual no contiene embeddings neuronales Transformers.js. Reconstruye el corpus con `npm run build:pack`; el runtime no usará búsqueda legacy ni FTS.");
+    }
+    const marker = embeddingModelDiagnostics();
+    if (!marker.markerExists) {
+      throw new Error(`El modelo semántico local no está instalado en ${marker.cacheDir}. Reinstala/actualiza el paquete npm para ejecutar postinstall o ejecuta \`node postinstall.cjs\`; el runtime no descarga modelos durante consultas.`);
+    }
   }
 
   read(id: string): ReadResult | null {
@@ -784,7 +1010,7 @@ export class CorpusRepository {
     const actionItems = buildContextActionItems(options, preset, reads, sectionTopics);
     const warnings = [
       ...(!hits.length ? ["No se encontró evidencia documental suficiente; evita inventar detalles fuera del corpus."] : []),
-      ...(hits.some((hit) => hit.requestedVersionFallback) ? ["Se usó fallback fuera de la versión solicitada para al menos un tópico."] : []),
+      ...(hits.some((hit) => hit.requestedVersionScopeExpansion || hit.requestedVersionFallback) ? ["Se usó ampliación de alcance fuera de la versión solicitada para al menos un tópico."] : []),
       ...hits.flatMap((hit) => hit.relevanceWarnings ?? []).slice(0, 5)
     ];
     const result: ContextPackage = {
@@ -979,6 +1205,386 @@ export class CorpusRepository {
       topResultTitle: evidence[0]?.title
     });
     return result;
+  }
+
+  async assistSmart(options: AssistOptions): Promise<AssistResult> {
+    const started = Date.now();
+    options = {
+      ...options,
+      question: normalizeQuestionInput(options as unknown as Record<string, unknown>, "question"),
+      version: normalizeVersionOption(options as unknown as Record<string, unknown>)
+    };
+    const depth = options.depth ?? "standard";
+    const defaultLimit = depth === "deep" ? 8 : depth === "concise" ? 4 : 6;
+    const limit = clamp(options.limit, defaultLimit, 1, 12);
+    const preset = resolvePreset(options.language ?? options.question ?? options.code);
+    const intent = classifyResolveIntent({
+      question: options.question,
+      language: options.language,
+      version: options.version,
+      category: options.category,
+      code: options.code,
+      limit
+    });
+    const detectedSignals = [...new Set([
+      ...buildSemanticExpansion(options.question).signals,
+      ...(preset?.language ? [preset.language] : []),
+      ...(options.category ? [options.category] : [])
+    ])];
+    const context: ContextPackage = {
+      task: options.question,
+      intent: {
+        language: preset?.language ?? normalizeLanguage(options.language ?? options.question ?? options.code) ?? "IBM i",
+        category: options.category ?? preset?.category,
+        detectedSignals,
+        queries: []
+      },
+      answer: "",
+      appliedWorkflow: [{
+        tool: "ibmi_docs_assist",
+        reason: "Construir contexto base para recuperación semántica multi-hop dentro del MCP.",
+        status: "executed"
+      }],
+      recommendedDocs: [],
+      compileCommands: preset?.compileCommands ?? [],
+      optionsToReview: preset?.optionsToReview ?? [],
+      pitfalls: preset?.pitfalls ?? [],
+      actionItems: [],
+      versionNotes: [],
+      evidence: [],
+      reads: [],
+      sections: [],
+      citations: [],
+      warnings: []
+    };
+    const resolved: ResolveResult = {
+      question: options.question,
+      intent,
+      policy: WORKFLOW_POLICIES[intent],
+      answer: "",
+      confidence: "media",
+      stages: [{
+        tool: "ibmi_docs_assist_planner",
+        reason: "Clasificar intención y dejar que assist ejecute internamente búsqueda, lectura y secciones; no se delegan tools al agente cliente.",
+        status: "executed",
+        outputSummary: `intent=${intent}; depth=${depth}; limit=${limit}`
+      }],
+      evidence: [],
+      reads: [],
+      sections: [],
+      citations: [],
+      context,
+      suggestedTools: [],
+      warnings: []
+    };
+
+    const agenticRetrieval = await this.runAssistRetrievalPlanSmart({
+      options,
+      resolved,
+      context,
+      depth,
+      limit,
+      preset
+    });
+
+    const evidence = mergeSearchEvidence([agenticRetrieval.evidence]).map(sanitizeContextHit);
+    const reads = mergeContextReads([agenticRetrieval.reads]);
+    const sections = mergeSectionTopics([agenticRetrieval.sections]);
+    const citations = mergeCitations([agenticRetrieval.citations]);
+    const baseWarnings = [...new Set([...agenticRetrieval.warnings])];
+    const rawCoverage = buildAssistCoverage({
+      question: options.question,
+      evidence,
+      reads,
+      sections,
+      confidence: resolved.confidence,
+      warnings: baseWarnings
+    });
+    resolved.confidence = rawCoverage.status === "thin" ? "baja" : rawCoverage.status === "complete" ? "alta" : "media";
+
+    const hydratedContext: ContextPackage = {
+      ...context,
+      intent: {
+        ...context.intent,
+        queries: agenticRetrieval.plan.initialQueries
+      },
+      recommendedDocs: evidence.slice(0, limit),
+      evidence,
+      reads,
+      sections,
+      citations,
+      warnings: baseWarnings,
+      versionNotes: buildVersionNotes(evidence),
+      answer: buildContextAnswer({
+        task: options.question,
+        language: context.intent.language,
+        detectedSignals,
+        compileCommands: context.compileCommands,
+        optionsToReview: context.optionsToReview,
+        pitfalls: context.pitfalls,
+        reads,
+        sections,
+        actionItems: [],
+        warnings: baseWarnings
+      }),
+      appliedWorkflow: agenticRetrieval.workflow
+    };
+    resolved.context = hydratedContext;
+    resolved.evidence = evidence;
+    resolved.citations = citations;
+    resolved.stages = agenticRetrieval.workflow;
+
+    const taskPlan = buildAssistTaskPlan({
+      options,
+      resolved,
+      context: hydratedContext,
+      coverage: rawCoverage,
+      retrievalAxes: agenticRetrieval.plan.axes
+    });
+    const responseMaterial = filterAssistResponseMaterial({
+      taskPlan,
+      question: options.question,
+      evidence,
+      reads,
+      sections,
+      citations
+    });
+    const hasFilteredMaterial = responseMaterial.evidence.length || responseMaterial.reads.length || responseMaterial.sections.length;
+    const material = hasFilteredMaterial ? responseMaterial : { evidence, reads, sections, citations };
+    const coverage = buildAssistCoverage({
+      question: options.question,
+      evidence: material.evidence,
+      reads: material.reads,
+      sections: material.sections,
+      confidence: resolved.confidence,
+      warnings: baseWarnings
+    });
+    agenticRetrieval.plan.coverageGaps = [...new Set([
+      ...agenticRetrieval.plan.coverageGaps,
+      ...rawCoverage.missingTechnicalTerms,
+      ...coverage.missingTechnicalTerms
+    ])];
+    const confidence = coverage.status === "thin" ? "baja" : coverage.status === "complete" ? "alta" : "media";
+    resolved.confidence = confidence;
+    const warnings = [...new Set([...baseWarnings, ...coverage.warnings])];
+    const executiveSummary = buildAssistExecutiveSummary({ options, resolved, context: hydratedContext, coverage, taskPlan });
+    const specificFindings = buildAssistSpecificFindings({
+      question: options.question,
+      reads: material.reads,
+      sections: material.sections,
+      evidence: material.evidence,
+      depth
+    });
+    const implementationSteps = buildAssistImplementationSteps({ options, resolved, context: hydratedContext, coverage, taskPlan, depth });
+    const validationChecklist = buildAssistValidationChecklist({ options, resolved, context: hydratedContext, coverage, taskPlan, depth });
+    const answer = buildAssistAnswer({
+      options,
+      intent,
+      confidence,
+      taskPlan,
+      executiveSummary,
+      specificFindings,
+      implementationSteps,
+      validationChecklist,
+      coverage,
+      citations: material.citations,
+      warnings,
+      depth
+    });
+
+    const result: AssistResult = {
+      question: options.question,
+      intent,
+      confidence,
+      taskPlan,
+      answer,
+      executiveSummary,
+      specificFindings,
+      implementationSteps,
+      validationChecklist,
+      coverage,
+      retrievalPlan: agenticRetrieval.plan,
+      workflow: agenticRetrieval.workflow,
+      evidence: material.evidence,
+      reads: material.reads,
+      sections: material.sections,
+      citations: material.citations,
+      warnings
+    };
+    this.recordTrace("ibmi_docs_assist", started, {
+      query: options.question,
+      intent,
+      resultCount: evidence.length,
+      topResultId: evidence[0]?.id,
+      topResultTitle: evidence[0]?.title
+    });
+    return result;
+  }
+
+  private async runAssistRetrievalPlanSmart(input: {
+    options: AssistOptions;
+    resolved: ResolveResult;
+    context: ContextPackage;
+    depth: AssistOptions["depth"];
+    limit: number;
+    preset?: LanguagePreset;
+  }): Promise<AssistRetrievalExecution> {
+    const { options, resolved, context, depth, limit, preset } = input;
+    const axes = buildAssistRetrievalAxes(options, resolved, context);
+    const initialQueries = buildAssistInitialQueries(options, preset, axes);
+    const hasAdministrationAxis = axes.has("administration");
+    const maxSearchHops = hasAdministrationAxis ? (depth === "deep" ? 13 : depth === "concise" ? 7 : 10) : depth === "deep" ? 18 : depth === "concise" ? 5 : 10;
+    const hopLimit = hasAdministrationAxis ? Math.max(Math.min(limit, depth === "deep" ? 8 : 6), 5) : depth === "deep" ? 5 : Math.max(Math.min(limit, 5), 3);
+    const readLimit = hasAdministrationAxis && depth === "deep" ? 2 : 1;
+    const sectionLimit = depth === "deep" ? 8 : 5;
+
+    const hops: AssistRetrievalPlan["hops"] = [];
+    const evidence: SearchHit[] = [];
+    const reads: ContextReadSummary[] = [];
+    const sections: Array<{ id: string; title: string; sections: TopicSection[] }> = [];
+    const citations: AnswerCitation[] = [];
+    const warnings: string[] = [];
+    const workflow: WorkflowStage[] = [{
+      tool: "ibmi_docs_agentic_plan",
+      reason: "Planificar recuperación semántica multi-hop dentro del MCP para no delegar llamadas adicionales al agente cliente.",
+      status: "executed",
+      outputSummary: `ejes=${[...axes].join(", ")}; consultas iniciales=${initialQueries.length}`
+    }];
+    const executedQueries = new Set<string>();
+
+    const materializeHits = (axis: AssistRetrievalAxis, query: string, hits: SearchHit[]): {
+      readCount: number;
+      sectionCount: number;
+      evidenceIds: string[];
+    } => {
+      let readCount = 0;
+      let sectionCount = 0;
+      const selectedHits = selectContextReadEvidence(hits, `${options.question} ${query}`).slice(0, readLimit);
+      for (const hit of selectedHits) {
+        const read = this.read(hit.id);
+        if (!read) continue;
+        readCount += 1;
+        const task = `${options.question} ${query}`;
+        const focusedSections = selectFocusedSections(read.sections ?? [], task, sectionLimit);
+        sectionCount += focusedSections.length;
+        reads.push(toContextReadSummary(read, task, hit));
+        sections.push({
+          id: read.id,
+          title: contextDisplayTitle(read, hit),
+          sections: focusedSections
+        });
+        citations.push(readToCitation(read, contextDisplayTitle(read, hit), focusedSections[0]?.title));
+      }
+      return { readCount, sectionCount, evidenceIds: hits.map((hit) => hit.id) };
+    };
+
+    const executeSearchHop = async (axis: AssistRetrievalAxis, query: string, reason: string): Promise<void> => {
+      const normalizedQuery = query.trim();
+      const queryKey = `${axis}:${fold(normalizedQuery)}`;
+      if (!normalizedQuery || executedQueries.has(queryKey) || hops.length >= maxSearchHops) return;
+      executedQueries.add(queryKey);
+      const category = buildAssistSearchCategory(axis, normalizedQuery, options, preset);
+      const version = axis === "message" || axis === "administration" ? undefined : options.version;
+      const hits = (await this.searchSmart({
+        query: normalizedQuery,
+        category,
+        version,
+        limit: hopLimit,
+        autoRead: false,
+        includeSections: true
+      })).map(sanitizeContextHit);
+      evidence.push(...hits);
+      const materialized = materializeHits(axis, normalizedQuery, hits);
+      const hopWarnings = [
+        ...(hits.length ? [] : [`Sin resultados documentales para '${normalizedQuery}'.`]),
+        ...hits.flatMap((hit) => hit.relevanceWarnings ?? []).slice(0, 4)
+      ];
+      hops.push({
+        axis,
+        query: normalizedQuery,
+        reason,
+        status: "executed",
+        resultCount: hits.length,
+        readCount: materialized.readCount,
+        sectionCount: materialized.sectionCount,
+        evidenceIds: materialized.evidenceIds.slice(0, 8),
+        warnings: [...new Set(hopWarnings)]
+      });
+    };
+
+    for (const query of initialQueries) {
+      const axis = inferAssistAxisForQuery(query, axes);
+      await executeSearchHop(axis, query, `Consulta inicial generada para el eje ${axis}.`);
+    }
+
+    const interimCoverage = buildAssistCoverage({
+      question: options.question,
+      evidence: mergeSearchEvidence([evidence]).map(sanitizeContextHit),
+      reads: mergeContextReads([reads]),
+      sections: mergeSectionTopics([sections]),
+      confidence: evidence.length >= 2 ? "media" : "baja",
+      warnings
+    });
+    const followUpQueries = buildAssistGapFollowUpQueries(options, interimCoverage, axes)
+      .filter((query) => !initialQueries.some((initialQuery) => fold(initialQuery) === fold(query)))
+      .slice(0, depth === "deep" ? 6 : 3);
+    if (followUpQueries.length) axes.add("gap-followup");
+    for (const query of followUpQueries) {
+      await executeSearchHop("gap-followup", query, "Follow-up automático generado por gap de cobertura o término sin evidencia fuerte.");
+    }
+
+    if (hops.length) {
+      workflow.push({
+        tool: "ibmi_docs_search",
+        reason: "Ejecutar recuperación semántica vectorial por ejes de intención y gaps detectados.",
+        status: "executed",
+        evidenceIds: hops.flatMap((hop) => hop.evidenceIds).slice(0, 12),
+        outputSummary: `${hops.length} hop(s) de búsqueda ejecutados.`
+      });
+    }
+    if (reads.length) {
+      workflow.push({
+        tool: "ibmi_docs_read",
+        reason: "Materializar contenido completo de los tópicos candidatos fuertes dentro de assist.",
+        status: "executed",
+        evidenceIds: reads.map((read) => read.id).slice(0, 12),
+        outputSummary: `${reads.length} lectura(s) completas materializadas.`
+      });
+    }
+    const sectionCount = sections.reduce((total, topic) => total + topic.sections.length, 0);
+    if (sectionCount) {
+      workflow.push({
+        tool: "ibmi_docs_sections",
+        reason: "Extraer secciones enfocadas de sintaxis, parámetros, ejemplos, mensajes y recovery.",
+        status: "executed",
+        evidenceIds: sections.map((topic) => topic.id).slice(0, 12),
+        outputSummary: `${sectionCount} sección(es) enfocadas.`
+      });
+    }
+
+    const uniqueAxes = [...axes];
+    const plan: AssistRetrievalPlan = {
+      strategy: uniqueAxes.length > 1 || hops.length > 1 || followUpQueries.length > 0 ? "multi-hop" : "single-pass",
+      axes: uniqueAxes,
+      initialQueries,
+      followUpQueries,
+      hops,
+      coverageGaps: interimCoverage.missingTechnicalTerms
+    };
+
+    return {
+      plan,
+      evidence: mergeSearchEvidence([evidence]).map(sanitizeContextHit),
+      reads: mergeContextReads([reads]),
+      sections: mergeSectionTopics([sections]),
+      citations: mergeCitations([citations]),
+      workflow,
+      warnings: [...new Set([
+        ...warnings,
+        ...hops.flatMap((hop) => hop.warnings),
+        ...(followUpQueries.length ? [`Se ejecutaron ${followUpQueries.length} follow-up(s) automáticos por gaps de cobertura.`] : [])
+      ])]
+    };
   }
 
   private runAssistRetrievalPlan(input: {
@@ -2098,6 +2704,15 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
     if (/crtsqlrpgi|embedded sql|sql rpg|precompiler|rpgppopt/.test(haystack)) score += 34;
     if (/^wrap$|sysindexstat|catalog table|catalog view|^create trigger$/.test(title)) score -= 42;
   }
+  if (queryConcepts.includes("ibmi.rpg.datetime") || queryConcepts.includes("ibmi.rpg.time-format.iso")) {
+    if (/time data type|date,?\s*time\s*or\s*timestamp\s*expression|time\s*\(retrieve time and date\)|%time|%timestamp|timfmt|external format/.test(haystack)) score += 42;
+    if (/\bmove\b/.test(title) && !/\bmove\b/i.test(query)) score -= 24;
+  }
+  if (queryConcepts.includes("ibmi.rpg.packed-decimal") || queryConcepts.includes("ibmi.rpg.conversion")) {
+    if (/%dec|convert to packed decimal|date,?\s*time\s*or\s*timestamp\s*expression|packed decimal|built-in functions/.test(haystack)) score += 44;
+    if (/determining the common type|data types supported by expression operands/.test(title)) score -= 10;
+    if (/\bmove\b/.test(title) && !/\bmove\b/i.test(query)) score -= 28;
+  }
   if (queryConcepts.includes("ibmi.message.rnf")) {
     if (/rpg messages/.test(title)) score += 42;
     if (/sev parameter|severity code/.test(title)) score -= 18;
@@ -2113,6 +2728,28 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
   }
   if (queryConcepts.includes("ibmi.cl.job.submit")) {
     if (/submit job|submitted job|sbmjob/.test(haystack)) score += 30;
+  }
+  if (queryConcepts.includes("ibmi.library-list.initial")) {
+    if (/displaying a library list|library list|initial library|qsys|qgpl|qtemp|job description/.test(haystack)) score += 38;
+    if (/cl command finder|dds concepts|rpg messages/.test(title)) score -= 18;
+  }
+  if (queryConcepts.includes("ibmi.file-members.discovery")) {
+    if (/work with members|wrkmbrpdm|member list|mbrlist|display file description|dspfd|source physical file/.test(haystack)) score += 42;
+    if (/display file description/.test(title)) score += 14;
+    if (/cl command finder|data type|monitor message/.test(title)) score -= 18;
+  }
+  if (queryConcepts.includes("ibmi.cl.batch-debug")) {
+    if (/debugging batch jobs|strsrvjob|strdbg|wrksbmjob|hold\(\*yes\)|submitted job|start service job|start debug|endsrvjob|enddbg/.test(haystack)) score += 48;
+    if (/debugging a job that is running|wrkactjob/.test(haystack)) score += 8;
+    if (/data type|dds concepts|trailing blanks|monitor message/.test(title)) score -= 24;
+  }
+  if (queryConcepts.includes("ibmi.seu.line-commands")) {
+    if (/source entry utility|seu|line commands?|copy|delete|insert|move/.test(haystack)) score += 40;
+    if (/sqlcode|job attributes|display job/.test(title)) score -= 20;
+  }
+  if (queryConcepts.includes("ibmi.rpg.record-lock-status")) {
+    if (/record[- ]lock|locked record|%status|%error|1218|chain|read|releasing record locks/.test(haystack)) score += 40;
+    if (/display file|printer file|subfile/.test(title)) score -= 14;
   }
   return score;
 }
@@ -2144,6 +2781,47 @@ function shouldPreferBroaderSemanticScope(current: SearchHit[], broader: SearchH
   if (broaderTop.synthetic && !currentTop.synthetic) return true;
   if ((broaderTop.semanticScore ?? 0) >= (currentTop.semanticScore ?? 0) + 0.12) return true;
   return broaderTop.score >= currentTop.score + 12;
+}
+
+function buildScopeExpansionTraceFeedback(options: SearchOptions, results: SearchHit[]): TraceScopeExpansion[] {
+  const expansions: TraceScopeExpansion[] = [];
+  const top = results[0];
+  if (!top) return expansions;
+  if (top.requestedCategoryScopeExpansion || top.requestedCategoryFallback) {
+    expansions.push({
+      kind: "category",
+      requestedScope: String(options.category ?? "n/a"),
+      usedScope: top.category,
+      topResultId: top.id,
+      topResultTitle: top.title,
+      reason: "La categoría solicitada no produjo evidencia semántica suficientemente fuerte y se amplió el alcance documental.",
+      improvementHint: `Revisar si consultas similares a '${options.query}' deben mapearse directamente a la categoría '${top.category}' o si falta una entrada/alias en el corpus para '${options.category}'.`
+    });
+  }
+  if (top.requestedVersionScopeExpansion || top.requestedVersionFallback) {
+    expansions.push({
+      kind: "version",
+      requestedScope: normalizeVersionInput(String(options.version ?? "n/a")),
+      usedScope: top.version,
+      topResultId: top.id,
+      topResultTitle: top.title,
+      reason: "La versión solicitada no produjo evidencia semántica suficientemente fuerte y se amplió el alcance documental a otro release/fuente.",
+      improvementHint: `Revisar cobertura o equivalencias version-aware para '${options.query}' en IBM i ${normalizeVersionInput(String(options.version ?? "n/a"))}.`
+    });
+  }
+  const messageFamily = top.messageFamilyScopeExpansion || top.messageFamilyFallback;
+  if (messageFamily) {
+    expansions.push({
+      kind: "message-family",
+      requestedScope: extractMessageId(options.query) ?? "message-id",
+      usedScope: top.category,
+      topResultId: top.id,
+      topResultTitle: top.title,
+      reason: "No hubo entrada específica de mensaje y se usó evidencia de familia documental.",
+      improvementHint: `Revisar si debe incorporarse una entrada específica de mensaje para '${extractMessageId(options.query) ?? options.query}'.`
+    });
+  }
+  return expansions;
 }
 
 function projectSemanticCommandTopic(results: SearchHit[], options: SearchOptions, limit: number): SearchHit[] {
@@ -2251,7 +2929,7 @@ function buildContextQueries(task: string, preset?: LanguagePreset): string[] {
 }
 
 function isAdministrationQuery(haystack: string): boolean {
-  return /wrkactjob|wrkobjlck|dspjob\b|wrkjob\b|wrkjoblog|dspjoblog|wrkjobq|sbmjob|jobq|trabajos?\s+activos?|active\s+jobs?|running\s+job|bloqueos?|locks?|object\s+locks?|job\s+locks?|subsystem|subsistema|joblog/i.test(haystack);
+  return /wrkactjob|wrkobjlck|dspjob\b|wrkjob\b|wrkjoblog|dspjoblog|wrkjobq|wrksbmjob|strsrvjob|strdbg|enddbg|endsrvjob|sbmjob|jobq|debug.*batch|batch.*debug|submitted\s+job|service\s+job|trabajos?\s+activos?|active\s+jobs?|running\s+job|bloqueos?|locks?|object\s+locks?|job\s+locks?|subsystem|subsistema|joblog/i.test(haystack);
 }
 
 function isDb2CatalogQuery(haystack: string): boolean {
@@ -2263,6 +2941,15 @@ function buildAdministrationQueries(haystack: string): string[] {
   const wantsActiveJobs = /wrkactjob|trabajos?\s+activos?|active\s+jobs?|running\s+job/i.test(haystack);
   const wantsLocks = /wrkobjlck|bloqueos?|locks?|object\s+locks?|job\s+locks?/i.test(haystack);
   const wantsJob = /dspjob\b|wrkjob\b|job\s+parameter|display\s+job|work\s+with\s+job/i.test(haystack);
+  const wantsBatchDebug = /debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i.test(haystack);
+  if (wantsBatchDebug) {
+    queries.push("Debugging batch jobs");
+    queries.push("SBMJOB HOLD(*YES) debugging batch job");
+    queries.push("WRKSBMJOB Work with Submitted Jobs");
+    queries.push("STRSRVJOB Start Service Job");
+    queries.push("STRDBG Start Debug");
+    queries.push("ENDDBG ENDSRVJOB end debug service job");
+  }
   if (wantsActiveJobs || isAdministrationQuery(haystack)) {
     queries.push("WRKACTJOB Work with Active Jobs");
     queries.push("Debugging a job that is running WRKACTJOB");
@@ -2301,6 +2988,8 @@ function buildAssistRetrievalAxes(options: AssistOptions, resolved: ResolveResul
   if (detected.has("message") || resolved.messageExplanation) axes.add("message");
   if (detected.has("version") || resolved.versionComparison) axes.add("version");
   if (options.code?.trim() || resolved.codeValidation) axes.add("code");
+  if (intentProfile.libraryList || intentProfile.fileMembers || intentProfile.seuLineCommands || intentProfile.recordLock) axes.add("syntax");
+  if (intentProfile.batchDebug || intentProfile.recordLock) axes.add("administration");
   if (isAdministrationQuery(haystack)) axes.add("administration");
   if (isDb2CatalogQuery(haystack)) axes.add("database");
   if (resolved.related) axes.add("related");
@@ -2313,13 +3002,23 @@ function buildAssistIntentProfile(haystack: string): {
   sqlControl: boolean;
   embeddedSql: boolean;
   rpgContext: boolean;
+  libraryList: boolean;
+  fileMembers: boolean;
+  batchDebug: boolean;
+  seuLineCommands: boolean;
+  recordLock: boolean;
 } {
   return {
     dateTimeConversion: /%\s*(time|date|timestamp)\b|\*iso0|\*hms|hhmmss|timfmt|datfmt|time[- ]format|date[- ]time|timestamp|fecha|hora|horario/i.test(haystack),
     packedNumericConversion: /packed\s+decimal|decimal\s+empaquetad|\bpacket\b|%\s*dec\b|\bp\s*\d+\s*[,.]?\s*\d*\b|numeric[ao]?|num[eé]ric[ao]?/i.test(haystack),
     sqlControl: /set\s+option|sqlcode|sqlstate|\b(insert|update|select|delete|merge|open|fetch|close|commit|rollback)\b/i.test(haystack),
     embeddedSql: /sql\s*(embebido|embedded)|sqlrpgle|exec\s+sql|precompil/i.test(haystack),
-    rpgContext: /rpgle|sqlrpgle|ile\s+rpg|free[- ]form|%\s*(time|date|timestamp|dec)\b/i.test(haystack)
+    rpgContext: /rpgle|sqlrpgle|ile\s+rpg|free[- ]form|%\s*(time|date|timestamp|dec)\b/i.test(haystack),
+    libraryList: /library\s+list|initial\s+library|loaded\s+first.*login|login.*librar|lista\s+de\s+bibliotecas|biblioteca\s+inicial/i.test(haystack),
+    fileMembers: /members?\s+of\s+(?:a\s+)?file|file\s+members?|source\s+members?|miembros?\s+de\s+(?:un\s+)?archivo|listar\s+miembros?|all\s+members/i.test(haystack),
+    batchDebug: /debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i.test(haystack),
+    seuLineCommands: /\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i.test(haystack),
+    recordLock: /record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i.test(haystack)
   };
 }
 
@@ -2352,6 +3051,44 @@ function buildSqlControlQueries(haystack: string): string[] {
   return [...new Map(queries.map((query) => [fold(query), query])).values()];
 }
 
+function buildNaturalIntentQueries(haystack: string): string[] {
+  const intentProfile = buildAssistIntentProfile(haystack);
+  const queries: string[] = [];
+  if (intentProfile.libraryList) {
+    queries.push("Displaying a library list");
+    queries.push("Initial library list IBM i");
+    queries.push("library list QSYS QGPL QTEMP job description");
+    queries.push("current library user portion system library library list");
+  }
+  if (intentProfile.fileMembers) {
+    queries.push("WRKMBRPDM Work with Members using PDM");
+    queries.push("DSPFD TYPE(*MBRLIST) member list");
+    queries.push("Display File Description member list");
+    queries.push("source physical file members IBM i");
+  }
+  if (intentProfile.batchDebug) {
+    queries.push("Debugging batch jobs");
+    queries.push("SBMJOB HOLD(*YES) debugging batch job");
+    queries.push("WRKSBMJOB Work with Submitted Jobs");
+    queries.push("STRSRVJOB Start Service Job");
+    queries.push("STRDBG Start Debug");
+    queries.push("ENDDBG ENDSRVJOB end debug service job");
+  }
+  if (intentProfile.seuLineCommands) {
+    queries.push("Source Entry Utility line commands");
+    queries.push("SEU line commands copy delete insert move");
+    queries.push("copy delete insert move source lines SEU");
+    queries.push("Using SEU line commands");
+  }
+  if (intentProfile.recordLock) {
+    queries.push("RPG record lock status 1218");
+    queries.push("record lock %STATUS %ERROR RPG");
+    queries.push("CHAIN READ record lock RPGLE");
+    queries.push("Releasing record locks");
+  }
+  return [...new Map(queries.map((query) => [fold(query), query])).values()];
+}
+
 function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePreset | undefined, axes: Set<AssistRetrievalAxis>): string[] {
   const haystack = [options.question, options.language, options.code].filter(Boolean).join("\n");
   const intentProfile = buildAssistIntentProfile(haystack);
@@ -2367,6 +3104,7 @@ function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePrese
   if (intentProfile.sqlControl || intentProfile.embeddedSql) {
     queries.push(...buildSqlControlQueries(haystack));
   }
+  queries.push(...buildNaturalIntentQueries(haystack));
   if (messageId) {
     queries.push(messageId);
     queries.push(`${messageId.slice(0, 3)} messages`);
@@ -2423,6 +3161,7 @@ function extractSemanticEntityAnchors(haystack: string): string[] {
 function inferAssistAxisForQuery(query: string, axes: Set<AssistRetrievalAxis>): AssistRetrievalAxis {
   if (isAdministrationQuery(query)) return "administration";
   if (isDb2CatalogQuery(query)) return "database";
+  if (/%\s*(time|date|timestamp|dec)\b|time\s+(data\s+type|format)|date\s+time|timestamp\s+expression|hhmmss|packed\s+decimal|decimal\s+empaquetad|timfmt|date[- ]time|numeric\s+time/i.test(query)) return "datatype";
   if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|RNF|CPF|MCH|SQLCODE|SQLSTATE)\b/i.test(query)) return "message";
   if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|RPGPPOPT|DBGVIEW|COMMIT|\/\s*(copy|include)\b|copybook|sqlrpgle|embedded\s+sql/i.test(query)) return "compile";
   if (/(7\.[3456]).*(7\.[3456])|compar|release|versi[oó]n/i.test(query)) return "version";
@@ -2441,8 +3180,10 @@ function buildAssistSearchCategory(axis: AssistRetrievalAxis, query: string, opt
     return undefined;
   }
   if (axis === "compile" && /sqlrpgle|exec\s+sql|crt(sqlrpgi)|RPGPPOPT|embedded\s+sql/i.test([query, options.language, options.question].filter(Boolean).join(" "))) return "sql-db2-for-i";
+  if (axis === "datatype") return "ile-rpg";
   if (axis === "administration") return "cl-clle";
   if (axis === "database") return "sql-db2-for-i";
+  if (axis === "syntax" && /%\s*(time|date|timestamp|dec)\b|time\s+(data\s+type|format)|date\s+time|timestamp\s+expression|hhmmss|packed\s+decimal|timfmt|date[- ]time/i.test(query)) return "ile-rpg";
   if (axis === "syntax" && /dds|crtp[fl]|physical file|logical file/i.test([query, options.language].filter(Boolean).join(" "))) return "dds";
   return preset?.category;
 }
@@ -2591,7 +3332,7 @@ function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean 
     case "work_management":
       return /wrkactjob|work with active jobs|active jobs|active job|wrkobjlck|work with object locks|object locks|lock state|locks?|dspjob|display job|wrkjob|work with job|job log|joblog|job parameter|request processor|call stack|debugging a job|qualified job|strsrvjob|strdbg|subsystem|job queue/.test(haystack);
     case "object_lock_analysis":
-      return /wrkobjlck|work with object locks|object locks|lock state|locks?|object|member|library|wrkjob|work with job|job log|joblog|active job/.test(haystack);
+      return /wrkobjlck|work with object locks|object locks|lock state|locks?|record lock|locked record|1218|%status|%error|chain|read|object|member|library|wrkjob|work with job|job log|joblog|active job/.test(haystack);
     case "db2_catalog_query":
       return /db2|qsys2|syscolumns|systables|sysindexes|catalog|cat[aá]logo|metadata|metadatos|column|table|view|sql/.test(haystack);
     case "date_time_conversion":
@@ -3201,6 +3942,11 @@ function assistCoverageNeedles(term: string): string[] {
   if (foldedTerm === "%timestamp") return ["%timestamp", "timestamp data type"];
   if (foldedTerm === "time format") return ["time format", "timfmt", "*iso0", "hhmmss"];
   if (foldedTerm === "embedded sql") return ["embedded sql", "sqlrpgle", "exec sql", "crtsqlrpgi"];
+  if (foldedTerm === "library list") return ["library list", "displaying a library list", "initial library list", "qsys", "qgpl", "qtemp", "job description"];
+  if (foldedTerm === "file members") return ["work with members", "wrkmbrpdm", "member list", "type(*mbrlist)", "dspfd", "display file description"];
+  if (foldedTerm === "batch debug") return ["debugging batch jobs", "hold(*yes)", "wrksbmjob", "strsrvjob", "strdbg", "enddbg", "endsrvjob"];
+  if (foldedTerm === "seu line commands") return ["source entry utility", "seu", "line commands", "copy", "delete", "insert", "move"];
+  if (foldedTerm === "record lock") return ["record lock", "locked record", "1218", "%status", "%error", "chain", "read"];
   if (foldedTerm === "set option") return ["set option"];
   if (foldedTerm === "sqlcode") return ["sqlcode", "get diagnostics"];
   if (foldedTerm === "sqlstate") return ["sqlstate", "get diagnostics"];
@@ -3228,6 +3974,11 @@ function extractAssistTechnicalTerms(question: string): string[] {
   addIf(/\binsert\b/i.test(haystack), "INSERT");
   addIf(/\bupdate\b/i.test(haystack), "UPDATE");
   addIf(/\bselect\b/i.test(haystack), "SELECT");
+  addIf(/library\s+list|initial\s+library|loaded\s+first.*login|login.*librar|lista\s+de\s+bibliotecas|biblioteca\s+inicial/i.test(haystack), "library list");
+  addIf(/members?\s+of\s+(?:a\s+)?file|file\s+members?|source\s+members?|miembros?\s+de\s+(?:un\s+)?archivo|listar\s+miembros?|all\s+members/i.test(haystack), "file members");
+  addIf(/debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i.test(haystack), "batch debug");
+  addIf(/\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i.test(haystack), "SEU line commands");
+  addIf(/record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i.test(haystack), "record lock");
 
   for (const opaque of question.match(/\b[A-Z]{3,}[A-Z0-9]{3,}\b/g) ?? []) {
     if (!isAssistGenericTerm(opaque)) terms.add(opaque);
@@ -3256,6 +4007,7 @@ function buildAssistTaskPlan(input: {
   retrievalAxes: AssistRetrievalAxis[];
 }): AssistTaskPlan {
   const haystack = [input.options.question, input.options.language, input.options.code, input.context.intent.detectedSignals.join(" ")].filter(Boolean).join("\n");
+  const rawRequest = [input.options.question, input.options.language, input.options.code].filter(Boolean).join("\n");
   const language = normalizeLanguage(input.options.language ?? input.options.question ?? input.options.code) ?? input.context.intent.language;
   const axes = new Set<AssistRetrievalAxis>(input.retrievalAxes);
   const hasCompile = axes.has("compile") || input.resolved.compileGuidance?.recommendedCommands.length;
@@ -3265,24 +4017,28 @@ function buildAssistTaskPlan(input: {
     && /rpgle|sqlrpgle|rpg|clle|cobol|programa|m[oó]dulo/i.test(haystack);
   const explicitDdsDesign = /(?:diseñ|design|model|defin|crear|create|generar).{0,80}(?:dds|archivo\s+f[ií]sico|physical\s+file|\bpf\b|archivo\s+l[oó]gico|logical\s+file|\blf\b|clave|key|unique)|\bdds\b/i.test(haystack);
   const ddsCanOwnTask = language === "DDS" || (explicitDdsDesign && !(programLanguage && explicitProgramCreation));
-  const explicitCompileFix = /(corr(e|i)g|fix|bug|falla|fallo|rnf\d{4}|error\s+(?:de\s+)?compilaci[oó]n|compile\s+error|compilation\s+error|listado\s+de\s+compilaci[oó]n)/i.test(haystack)
-    && /compil|compile|rnf\d{4}/i.test(haystack)
+  const explicitCompileFix = /(corr(e|i)g|fix|bug|falla|fallo|rnf\d{4}|error\s+(?:de\s+)?compilaci[oó]n|compile\s+error|compilation\s+error|listado\s+de\s+compilaci[oó]n)/i.test(rawRequest)
+    && /compil|compile|rnf\d{4}/i.test(rawRequest)
     && !explicitProgramCreation;
-  const explicitRuntimeFix = /(corr(e|i)g|fix|bug|falla|fallo|runtime|joblog|cpf\d{4}|mch\d{4})/i.test(haystack)
-    && !/compil|compile|rnf\d{4}/i.test(haystack)
+  const explicitRuntimeFix = /(corr(e|i)g|fix|bug|falla|fallo|runtime|joblog|cpf\d{4}|mch\d{4})/i.test(rawRequest)
+    && !/compil|compile|rnf\d{4}/i.test(rawRequest)
     && !explicitProgramCreation;
 
   let family: AssistTaskPlan["family"] = "general_explanation";
   const intentProfile = buildAssistIntentProfile(haystack);
-  if (intentProfile.dateTimeConversion || intentProfile.packedNumericConversion) family = "date_time_conversion";
+  const conversionIntent = intentProfile.dateTimeConversion || intentProfile.packedNumericConversion;
+  if (conversionIntent) family = "date_time_conversion";
   if (input.options.code?.trim()) family = "code_review";
   if (explicitProgramCreation) family = "create_program";
-  if (explicitCompileFix) family = "fix_compile_error";
-  if (explicitRuntimeFix) family = "fix_runtime_error";
+  if (explicitCompileFix && !conversionIntent) family = "fix_compile_error";
+  if (explicitRuntimeFix && !conversionIntent) family = "fix_runtime_error";
   if (ddsCanOwnTask) family = "design_dds_file";
   if (/dspf|display\s+file|pantalla|subfile|reporte|printer\s+file|prtf/i.test(haystack)) family = "design_display_or_report";
+  if (intentProfile.libraryList || intentProfile.fileMembers || intentProfile.seuLineCommands) family = "command_lookup";
+  if (intentProfile.batchDebug) family = "work_management";
+  if (intentProfile.recordLock) family = "object_lock_analysis";
   if (isAdministrationQuery(haystack) && /lock|bloqueo|wrkobjlck|object\s+locks?/i.test(haystack) && !/wrkactjob|trabajos?\s+activos?|active\s+jobs?/i.test(haystack)) family = "object_lock_analysis";
-  if (isAdministrationQuery(haystack)) family = "work_management";
+  if (isAdministrationQuery(haystack) && family !== "object_lock_analysis") family = "work_management";
   if (isDb2CatalogQuery(haystack)) family = "db2_catalog_query";
   if (input.resolved.intent === "message_diagnostic") family = "message_diagnostic";
   if (input.resolved.intent === "version_question") family = "version_check";
@@ -3320,7 +4076,7 @@ function requiredEvidenceForTaskFamily(family: AssistTaskPlan["family"], languag
     db2_catalog_query: ["vistas de catálogo Db2 for i", "columnas/tablas relevantes", "limitaciones de consulta", "validación SQL"],
     date_time_conversion: ["tipo date/time/timestamp", "BIF o expresión de conversión RPG", "formato externo/interno", "validación SQLRPGLE si aplica"],
     message_diagnostic: ["mensaje o familia documental", "causa/recovery", "evidencia de mensajes", "validación en joblog/listado"],
-    version_check: ["evidencia por release", "diferencias", "fallbacks declarados", "citas comparables"],
+    version_check: ["evidencia por release", "diferencias", "ampliaciones de alcance declaradas", "citas comparables"],
     general_explanation: ["evidencia principal", "lectura materializada", "citas", "advertencias de cobertura"]
   };
   return byFamily[family];
@@ -3566,6 +4322,35 @@ function buildAssistImplementationSteps(input: {
     ];
   }
   steps.push(...taskPlanImplementationSteps(input.taskPlan));
+  const requestIntent = buildAssistIntentProfile([input.options.question, input.options.language, input.options.code].filter(Boolean).join("\n"));
+  if (requestIntent.libraryList) {
+    steps.push("Para una pregunta de inicio de sesión/library list, responder por estructura documental: la library list del job tiene parte de sistema, product libraries, current library y user part; la parte de sistema siempre existe y, en valores shipped, QSYSLIBL incluye QSYS, QSYS2, QHLPSYS y QUSRSYS.");
+    steps.push("Distinguir el orden de carga: el current library puede definirse para el job/perfil y si *CURLIB no existe se usa QGPL; la user portion se toma de la job description, SBMJOB/BCHJOB o del system value QUSRLIBL cuando aplica *SYSVAL.");
+    steps.push("Para validar en una sesión real, usar DSPLIBL o DSPJOB opción 13 y revisar el orden mostrado antes de asumir qué biblioteca resuelve un objeto por *LIBL.");
+  }
+  if (requestIntent.batchDebug) {
+    steps.push("Para depurar batch, someter o preparar el job retenido cuando sea posible: SBMJOB con HOLD(*YES) o mantenerlo en una job queue antes de que ejecute la lógica problemática.");
+    steps.push("Ubicar el trabajo con WRKSBMJOB/Work with Submitted Jobs o WRKACTJOB según su estado, identificar job-number/user/job y arrancar servicio con STRSRVJOB sobre ese job calificado.");
+    steps.push("Iniciar depuración con STRDBG antes de liberar el job retenido; después de reproducir el caso, cerrar con ENDDBG y ENDSRVJOB para no dejar la sesión de servicio colgada como fantasma administrativo.");
+  }
+  if (input.taskPlan.family === "date_time_conversion") {
+    const request = input.options.question;
+    if (/packed\s+decimal|decimal\s+empaquetad|\bp\s*5\s*[,.]\s*3\b|\bp\s*\(\s*5\s*[:,]\s*3\s*\)/i.test(request)) {
+      steps.push("Para packed decimal/decimal empaquetado, validar precisión y escala antes de transformar el dato: una definición P(5,3) representa 5 dígitos totales con 3 posiciones decimales; un valor 1.50 debe tratarse como 1.500 y no como 150 ni como 0.015 salvo que el modelo físico haya sido diseñado explícitamente en centésimos.");
+    }
+    if (/hhmmss|hora|time/i.test(request)) {
+      steps.push("Para horas HHMMSS sin separadores, separar la validación de formato de la conversión: comprobar longitud 6, rango de hora/minuto/segundo, y luego convertir con BIF/operación documentada para TIME usando el formato esperado en vez de hacer aritmética sobre el entero.");
+    }
+    if (/%\s*time/i.test(request)) {
+      steps.push("Usar %TIME para obtener un valor de tipo time a partir del valor/formato soportado; si la entrada viene como numérico HHMMSS, convertir primero a una representación aceptada o validar con una ruta documentada antes de asignar a TIME.");
+    }
+    if (/%\s*dec/i.test(request)) {
+      steps.push("Usar %DEC solo cuando la expresión de entrada y el formato documentado correspondan al tipo esperado; para date/time/timestamp, conservar explícitamente el formato para evitar conversiones ambiguas.");
+    }
+    if (/set\s+option|sqlcode|sqlstate/i.test(request)) {
+      steps.push("En SQLRPGLE, dejar SET OPTION para opciones del precompilador/SQL embebido y capturar SQLCODE/SQLSTATE después de la operación SQL relevante; no mezclar esa validación con la conversión RPG salvo como control de error posterior.");
+    }
+  }
   steps.push(...filterAssistActionItems(input.context.actionItems, input.taskPlan));
   if (/rtvjoba/i.test(input.options.question)) {
     steps.push("En CLLE, revisar la sentencia RTVJOBA y declarar variables receptoras con tipo/longitud compatibles con los atributos de trabajo que se van a recuperar.");
@@ -3911,7 +4696,11 @@ function inferProjectableCommand(query: string): string | undefined {
     { command: "sbmjob", concept: "ibmi.cl.job.submit" },
     { command: "rtvjoba", concept: "ibmi.cl.job.attributes" },
     { command: "wrkactjob", concept: "ibmi.cl.job.active" },
-    { command: "wrkobjlck", concept: "ibmi.cl.object-locks" }
+    { command: "wrkobjlck", concept: "ibmi.cl.object-locks" },
+    { command: "wrkmbrpdm", concept: "ibmi.file-members.discovery" },
+    { command: "strsrvjob", concept: "ibmi.cl.batch-debug" },
+    { command: "wrksbmjob", concept: "ibmi.cl.batch-debug" },
+    { command: "strdbg", concept: "ibmi.cl.batch-debug" }
   ].find((entry) => profile.concepts.includes(entry.concept));
   if (preferred) return preferred.command;
   return extractTechnicalEntities(query)

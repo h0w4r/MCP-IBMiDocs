@@ -77,8 +77,8 @@ program
   .option("--limit <n>", "Límite", "8")
   .option("--auto-read", "Adjunta contenido completo para resultados fuertes")
   .option("--sections", "Incluye vista previa de secciones")
-  .option("--strict-category", "No permite fallback fuera de --category")
-  .action((query, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.search({
+  .option("--strict-category", "No permite ampliación de alcance fuera de --category")
+  .action(async (query, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.searchSmart({
     query,
     category: opts.category,
     version: getIbmVersion(opts),
@@ -143,7 +143,7 @@ program
   .option("--examples", "Incluye ejemplos si existen")
   .option("--compile", "Incluye comandos/opciones de compilación")
   .option("--limit <n>", "Límite", "6")
-  .action((question, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.assist({
+  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
     question,
     language: opts.language,
     version: getIbmVersion(opts),
@@ -356,7 +356,20 @@ program
   .description("Resume trazas opcionales de uso activadas con IBMI_DOCS_TRACE=1.")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--limit <n>", "Eventos recientes", "30")
-  .action((opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.traceReport(Number(opts.limit)))));
+  .option("--format <format>", "json|markdown", "json")
+  .option("--out <file>", "Escribe el reporte en archivo")
+  .action(async (opts) => {
+    const report = withRepo(String(opts.pack ?? ""), (repo) => repo.traceReport(Number(opts.limit)));
+    const format = String(opts.format ?? "json").toLowerCase();
+    const payload = format === "markdown" ? renderTraceReportMarkdown(report) : JSON.stringify(report, null, 2);
+    if (opts.out) {
+      const outFile = path.resolve(String(opts.out));
+      await fs.mkdir(path.dirname(outFile), { recursive: true });
+      await fs.writeFile(outFile, payload, "utf8");
+    }
+    if (format === "markdown") console.log(payload);
+    else console.log(payload);
+  });
 
 program
   .command("setup")
@@ -485,6 +498,16 @@ function withRepo<T>(explicitPack: string, callback: (repo: CorpusRepository, re
   }
 }
 
+async function withRepoAsync<T>(explicitPack: string, callback: (repo: CorpusRepository, resolution: ReturnType<typeof resolvePackDir>) => Promise<T>): Promise<T> {
+  const resolution = resolvePackDir(import.meta.url, explicitPack || undefined);
+  const repo = new CorpusRepository(resolution.packDir);
+  try {
+    return await callback(repo, resolution);
+  } finally {
+    repo.close();
+  }
+}
+
 function getIbmVersion(opts: Record<string, unknown>): string | undefined {
   return (opts.ibmiVersion ?? opts.release) ? String(opts.ibmiVersion ?? opts.release) : undefined;
 }
@@ -551,6 +574,46 @@ function renderCodexConfig(input: { command: string; server: string; cwd: string
     "[mcp_servers.ibmi-docs.env]",
     `IBMI_DOCS_PACK_DIR = '${input.pack}'`,
     "IBMI_DOCS_TOOL_PROFILE = 'agent'"
+  ].join("\n");
+}
+
+function renderTraceReportMarkdown(report: any): string {
+  const feedback = Array.isArray(report.scopeExpansionFeedback) ? report.scopeExpansionFeedback : [];
+  const recent = Array.isArray(report.recent) ? report.recent : [];
+  return [
+    "# IBM i Docs MCP - feedback de ampliación de alcance",
+    "",
+    "Este reporte fue generado localmente por `ibmi-docs trace-report --format markdown`.",
+    "No se envía automáticamente a ningún servicio. Revisa nombres internos antes de publicarlo.",
+    "",
+    "## Resumen",
+    "",
+    `- Trace activo: ${report.enabled ? "sí" : "no"}`,
+    `- Archivo de traza: ${report.traceFile}`,
+    `- Eventos analizados: ${report.events}`,
+    `- Ampliaciones de alcance: ${report.scopeExpansionCount ?? 0}`,
+    `- Por tipo: ${JSON.stringify(report.scopeExpansionByKind ?? {})}`,
+    `- Por scope solicitado: ${JSON.stringify(report.scopeExpansionByRequestedScope ?? {})}`,
+    "",
+    "## Feedback accionable",
+    "",
+    ...(feedback.length
+      ? feedback.map((item: any, index: number) => [
+        `### ${index + 1}. ${item.kind}: ${item.requestedScope} -> ${item.usedScope}`,
+        "",
+        `- Consulta: \`${item.query ?? "n/a"}\``,
+        `- Top result: ${item.topResultTitle ?? "n/a"} (${item.topResultId ?? "sin-id"})`,
+        `- Motivo: ${item.reason}`,
+        `- Pista de mejora: ${item.improvementHint}`,
+        `- Timestamp: ${item.timestamp}`,
+        ""
+      ].join("\n"))
+      : ["Sin ampliaciones de alcance registradas en el rango solicitado.", ""]),
+    "## Eventos recientes",
+    "",
+    "```json",
+    JSON.stringify(recent.slice(-10), null, 2),
+    "```"
   ].join("\n");
 }
 

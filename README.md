@@ -1,7 +1,7 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Release 1.0.1.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
+> **Release 1.0.2.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
@@ -154,6 +154,23 @@ ibmi-docs doctor
 ```
 
 > Nota CLI: `--version` queda reservado para mostrar la versión de `ibmi-docs`. Para filtrar release IBM i usa `--ibmi-version` o su alias `--release`.
+
+### Feedback local para mejorar rankings y categorías
+
+Cuando una consulta llega con una categoría o versión demasiado estrecha, el MCP puede hacer una **ampliación de alcance documental** para encontrar evidencia correcta sin inventar. Esa ampliación queda marcada en el resultado como `requestedCategoryScopeExpansion` o `requestedVersionScopeExpansion`.
+
+El proyecto **no recolecta telemetría automáticamente**. Las trazas viven en la máquina del usuario. Para convertir esos casos en mejoras del proyecto, el usuario debe activar trazas locales durante una sesión de prueba y exportar un reporte sanitizado:
+
+```powershell
+$env:IBMI_DOCS_TRACE = '1'
+$env:IBMI_DOCS_TRACE_FILE = 'D:\MCP-IBMiDocs\data\trace-feedback.ndjson'
+
+ibmi-docs search "DSPFD command" --category dds --limit 3
+ibmi-docs trace-report --limit 20
+ibmi-docs trace-report --limit 20 --format markdown --out scope-feedback.md
+```
+
+El reporte muestra `scopeExpansionFeedback`: consulta, scope solicitado, scope usado y una pista accionable. Si una persona ve tres ampliaciones en una versión, puede pegar ese Markdown en un issue; esos tres registros son candidatos directos para ajustar categorías, aliases, golden tests o corpus en la siguiente versión.
 
 ## Herramientas MCP
 

@@ -67,6 +67,15 @@ function withRepository<T>(callback: (repo: CorpusRepository) => T): T {
   }
 }
 
+async function withRepositoryAsync<T>(callback: (repo: CorpusRepository) => Promise<T>): Promise<T> {
+  const repo = createRepository();
+  try {
+    return await callback(repo);
+  } finally {
+    repo.close();
+  }
+}
+
 export function createServer(): McpServer {
   const toolProfile = resolveMcpToolProfile();
   const server = new McpServer(
@@ -109,7 +118,7 @@ export function createServer(): McpServer {
       })
     },
     async (input) => {
-      const assisted = withRepository((repo) => repo.assist(input));
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
       return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
@@ -149,12 +158,12 @@ export function createServer(): McpServer {
         limit: z.number().int().min(1).max(50).optional(),
         autoRead: z.boolean().optional().describe("Si true, adjunta contenido completo cuando el resultado es fuerte."),
         includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas."),
-        strictCategory: z.boolean().optional().describe("Si true, no permite fallback fuera de la categoría solicitada.")
+        strictCategory: z.boolean().optional().describe("Si true, no permite ampliación de alcance fuera de la categoría solicitada.")
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ query, version, category, limit, autoRead, includeSections, strictCategory }) => {
-      const results = withRepository((repo) => repo.search({ query, version, category, limit, autoRead, includeSections, strictCategory }));
+      const results = await withRepositoryAsync((repo) => repo.searchSmart({ query, version, category, limit, autoRead, includeSections, strictCategory }));
       return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results: results.map(sanitizeAgentHit) }) };
     }
   );
@@ -528,7 +537,7 @@ function renderSearchResults(query: string, results: Array<any>): string {
     `   Versión/Categoría: ${result.version} / ${result.category}`,
     `   Tipo documental: ${result.documentKind ?? "n/a"} · Clave: ${result.canonicalTopicKey ?? "n/a"}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
-    result.requestedVersionFallback ? "   Aviso: fallback semántico fuera de la versión solicitada." : "",
+    result.requestedVersionScopeExpansion || result.requestedVersionFallback ? "   Aviso: ampliación de alcance semántico fuera de la versión solicitada." : "",
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Texto completo auto-adjunto: ${result.autoReadApplied ? `sí (${String(result.fullContent ?? "").length} caracteres)` : "no"}${result.textLength ? ` · tópico=${result.textLength} caracteres` : ""}`,
     result.sectionsPreview?.length ? `   Secciones previas: ${result.sectionsPreview.map((section: any) => section.kind).join(", ")}` : "",
@@ -544,7 +553,7 @@ function renderEvidenceList(label: string, results: Array<any>): string {
     `   Score: ${result.score}`,
     `   Versión/Categoría: ${result.version} / ${result.category}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
-    result.requestedVersionFallback ? "   Aviso: fallback semántico fuera de la versión solicitada." : "",
+    result.requestedVersionScopeExpansion || result.requestedVersionFallback ? "   Aviso: ampliación de alcance semántico fuera de la versión solicitada." : "",
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Evidencia: ${result.snippet}`
   ].filter(Boolean).join("\n"))].join("\n");
@@ -741,6 +750,10 @@ function renderTraceReport(report: any): string {
     `Search->read rate: ${report.searchThenReadRate}%`,
     `Answer usage rate: ${report.answerUsageRate}%`,
     `Resolve usage rate: ${report.resolveUsageRate}%`,
+    `Scope expansions: ${report.scopeExpansionCount ?? 0}`,
+    "",
+    "Feedback de ampliación de alcance:",
+    bullet(((report.scopeExpansionFeedback as Array<any>) ?? []).map((item) => `${item.kind} ${item.requestedScope} -> ${item.usedScope}: ${item.improvementHint}`)),
     "",
     "Por tool:",
     JSON.stringify(report.byTool, null, 2),

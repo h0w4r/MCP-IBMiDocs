@@ -27,6 +27,11 @@ const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]
   { concept: "ibmi.cl.job.attributes", weight: 11, patterns: [/\brtvjoba\b|retrieve\s+job\s+attributes|job\s+attributes/i], related: ["ibmi.cl.command", "ibmi.work-management"] },
   { concept: "ibmi.cl.job.active", weight: 10, patterns: [/\bwrkactjob\b|work\s+with\s+active\s+jobs|active\s+jobs?|trabajos?\s+activos?/i], related: ["ibmi.cl.command", "ibmi.work-management"] },
   { concept: "ibmi.cl.object-locks", weight: 10, patterns: [/\bwrkobjlck\b|work\s+with\s+object\s+locks?|object\s+locks?|bloqueos?/i], related: ["ibmi.cl.command", "ibmi.object-locks"] },
+  { concept: "ibmi.library-list.initial", weight: 10, patterns: [/library\s+list|initial\s+library|loaded\s+first.*login|login.*librar|lista\s+de\s+bibliotecas|biblioteca\s+inicial/i], related: ["ibmi.work-management", "ibmi.cl.command"] },
+  { concept: "ibmi.file-members.discovery", weight: 10, patterns: [/members?\s+of\s+(?:a\s+)?file|file\s+members?|source\s+members?|miembros?\s+de\s+(?:un\s+)?archivo|listar\s+miembros?|all\s+members/i], related: ["ibmi.cl.command", "ibmi.dds.file"] },
+  { concept: "ibmi.cl.batch-debug", weight: 11, patterns: [/debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i], related: ["ibmi.cl.job.submit", "ibmi.work-management", "ibmi.cl.command"] },
+  { concept: "ibmi.seu.line-commands", weight: 10, patterns: [/\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i], related: ["ibmi.source-editing"] },
+  { concept: "ibmi.rpg.record-lock-status", weight: 10, patterns: [/record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i], related: ["ibmi.object-locks", "ibmi.ile-rpg"] },
   { concept: "ibmi.rpg.datetime", weight: 7, patterns: [/%\s*(time|date|timestamp)\b/i, /time\s+data\s+type/i, /date[- ]time|timestamp/i, /\b(timfmt|datfmt)\b/i, /hora|fecha|horario/i], related: ["ibmi.rpg.bif", "ibmi.datatype.time"] },
   { concept: "ibmi.rpg.time-format.iso", weight: 7, patterns: [/\*iso0?|iso0|\*hms|hhmmss|time[- ]format/i], related: ["ibmi.rpg.datetime", "ibmi.datatype.time"] },
   { concept: "ibmi.rpg.packed-decimal", weight: 7, patterns: [/%\s*dec\b/i, /packed\s+decimal/i, /decimal\s+empaquetad/i, /\bpacket\b/i, /num[eé]ric|numeric/i], related: ["ibmi.rpg.conversion", "ibmi.datatype.numeric"] },
@@ -74,6 +79,8 @@ export function buildSemanticProfile(input: SemanticVectorInput | string): Seman
   if ([...concepts].some((concept) => concept.includes("datetime") || concept.includes("packed-decimal"))) intentHints.add("date_time_conversion");
   if ([...concepts].some((concept) => concept.startsWith("ibmi.sql"))) intentHints.add("embedded_sql_or_db2");
   if ([...concepts].some((concept) => concept.includes("work-management") || concept.includes("object-locks"))) intentHints.add("administration");
+  if ([...concepts].some((concept) => concept.includes("batch-debug"))) intentHints.add("batch_debug");
+  if ([...concepts].some((concept) => concept.includes("library-list") || concept.includes("file-members") || concept.includes("source-editing"))) intentHints.add("guided_discovery");
   if ([...concepts].some((concept) => concept.includes("message"))) intentHints.add("message_diagnostic");
   return { concepts: [...concepts].sort(), intentHints: [...intentHints].sort() };
 }

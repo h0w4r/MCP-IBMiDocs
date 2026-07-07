@@ -47,6 +47,19 @@ export function buildTraceReport(file: string, limit: number): TraceReport {
   const searchThenRead = searchEvents.filter((event) => (event.followedReadCandidateIds ?? []).some((id) => readIds.has(id)));
   const answerEvents = events.filter((event) => event.tool === "ibmi_docs_answer");
   const resolveEvents = events.filter((event) => event.tool === "ibmi_docs_resolve");
+  const scopeExpansionFeedback = events.flatMap((event) => (event.scopeExpansions ?? []).map((expansion) => ({
+    ...expansion,
+    query: event.query,
+    timestamp: event.timestamp,
+    tool: event.tool
+  })));
+  const scopeExpansionByKind: Record<string, number> = {};
+  const scopeExpansionByRequestedScope: Record<string, number> = {};
+  for (const expansion of scopeExpansionFeedback) {
+    scopeExpansionByKind[expansion.kind] = (scopeExpansionByKind[expansion.kind] ?? 0) + 1;
+    const requestedKey = `${expansion.kind}:${expansion.requestedScope}`;
+    scopeExpansionByRequestedScope[requestedKey] = (scopeExpansionByRequestedScope[requestedKey] ?? 0) + 1;
+  }
   const denominator = events.length || 1;
   const searchDenominator = searchEvents.length || 1;
 
@@ -65,6 +78,10 @@ export function buildTraceReport(file: string, limit: number): TraceReport {
     searchThenReadRate: roundRate(searchThenRead.length / searchDenominator),
     answerUsageRate: roundRate(answerEvents.length / denominator),
     resolveUsageRate: roundRate(resolveEvents.length / denominator),
+    scopeExpansionCount: scopeExpansionFeedback.length,
+    scopeExpansionByKind,
+    scopeExpansionByRequestedScope,
+    scopeExpansionFeedback: scopeExpansionFeedback.slice(-limit),
     recent: events.slice(-limit)
   };
 }

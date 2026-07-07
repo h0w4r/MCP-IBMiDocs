@@ -145,8 +145,14 @@ export interface SearchHit {
   documentKind?: DocumentKind;
   canonicalTopicKey?: string;
   relevanceWarnings?: string[];
+  requestedVersionScopeExpansion?: boolean;
+  requestedCategoryScopeExpansion?: boolean;
+  messageFamilyScopeExpansion?: boolean;
+  /** @deprecated Use requestedVersionScopeExpansion. */
   requestedVersionFallback?: boolean;
+  /** @deprecated Use requestedCategoryScopeExpansion. */
   requestedCategoryFallback?: boolean;
+  /** @deprecated Use messageFamilyScopeExpansion. */
   messageFamilyFallback?: boolean;
   synthetic?: boolean;
 }
@@ -597,6 +603,17 @@ export interface TraceEvent {
   durationMs: number;
   autoReadApplied?: boolean;
   followedReadCandidateIds?: string[];
+  scopeExpansions?: TraceScopeExpansion[];
+}
+
+export interface TraceScopeExpansion {
+  kind: "version" | "category" | "message-family";
+  requestedScope: string;
+  usedScope: string;
+  topResultId?: string;
+  topResultTitle?: string;
+  reason: string;
+  improvementHint: string;
 }
 
 export interface TraceReport {
@@ -614,5 +631,9 @@ export interface TraceReport {
   searchThenReadRate: number;
   answerUsageRate: number;
   resolveUsageRate: number;
+  scopeExpansionCount: number;
+  scopeExpansionByKind: Record<string, number>;
+  scopeExpansionByRequestedScope: Record<string, number>;
+  scopeExpansionFeedback: Array<TraceScopeExpansion & { query?: string; timestamp: string; tool: string }>;
   recent: TraceEvent[];
 }
