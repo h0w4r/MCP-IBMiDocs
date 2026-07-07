@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { buildSemanticVector, vectorToBuffer } from "../repository/semanticVector.js";
 import type { CorpusManifest, DocumentRecord, SourceManifest } from "../types.js";
 import { nowIso } from "../util/common.js";
 import { resolveContainedPath } from "../util/paths.js";
@@ -231,18 +232,18 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       start_line INTEGER NOT NULL,
       end_line INTEGER NOT NULL
     );
-    CREATE VIRTUAL TABLE chunks_fts USING fts5(
-      title,
-      body,
-      document_id UNINDEXED,
-      category UNINDEXED,
-      version UNINDEXED,
-      tokenize = 'unicode61 remove_diacritics 2'
+    CREATE TABLE chunk_vectors (
+      chunk_id INTEGER PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
+      document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+      dimensions INTEGER NOT NULL,
+      vector BLOB NOT NULL,
+      concepts_json TEXT NOT NULL DEFAULT '[]'
     );
     CREATE INDEX idx_documents_category ON documents(category);
     CREATE INDEX idx_documents_version ON documents(version);
     CREATE INDEX idx_documents_canonical_topic ON documents(canonical_topic_key, version, category);
     CREATE INDEX idx_sections_document ON document_sections(document_id, section_index);
+    CREATE INDEX idx_chunk_vectors_document ON chunk_vectors(document_id);
   `);
 
   const insertMeta = db.prepare("INSERT INTO meta(key, value) VALUES (?, ?)");
@@ -251,7 +252,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
     category, raw_html_path, normalized_text_path, sha256, text_length, collected_at, document_kind, canonical_topic_key
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const insertChunk = db.prepare("INSERT INTO chunks(document_id, chunk_index, title, body, token_hint) VALUES (?, ?, ?, ?, ?)");
-  const insertFts = db.prepare("INSERT INTO chunks_fts(rowid, title, body, document_id, category, version) VALUES (?, ?, ?, ?, ?, ?)");
+  const insertVector = db.prepare("INSERT INTO chunk_vectors(chunk_id, document_id, dimensions, vector, concepts_json) VALUES (?, ?, ?, ?, ?)");
   const insertSection = db.prepare("INSERT INTO document_sections(document_id, section_index, kind, title, body, start_line, end_line) VALUES (?, ?, ?, ?, ?, ?, ?)");
 
   const tx = db.transaction(() => {
@@ -286,12 +287,19 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       const chunks = splitIntoChunks(text, 3200);
       chunks.forEach((chunk, index) => {
         const result = insertChunk.run(doc.id, index, doc.title, chunk, Math.ceil(chunk.length / 4));
-        insertFts.run(result.lastInsertRowid, doc.title, chunk, doc.id, doc.category, doc.version);
+        const vector = buildSemanticVector({
+          title: doc.title,
+          body: chunk,
+          category: doc.category,
+          language: doc.language,
+          breadcrumbs: doc.breadcrumbs,
+          version: doc.version
+        });
+        insertVector.run(result.lastInsertRowid, doc.id, vector.length, vectorToBuffer(vector), JSON.stringify([]));
       });
     }
   });
   tx();
-  db.exec("INSERT INTO chunks_fts(chunks_fts) VALUES('optimize')");
   db.pragma("wal_checkpoint(TRUNCATE)");
   db.pragma("journal_mode = DELETE");
   db.close();
@@ -342,8 +350,8 @@ function splitIntoStructuralBlocks(text: string): string[] {
       continue;
     }
     // Muchas páginas IBM llegan como texto plano: detectamos títulos/secciones
-    // cortas para que FTS indexe comandos, keywords y apartados sin mezclarlos
-    // en chunks gigantes que degradan el ranking.
+    // cortas para que el motor semántico vectorial conserve contexto por apartado
+    // sin mezclar secciones grandes que degradan la similitud conceptual.
     const looksLikeHeading =
       trimmed.length <= 120 &&
       (/(command|keyword|example|syntax|messages?|reference|guide|concepts?|programming)$/i.test(trimmed) ||

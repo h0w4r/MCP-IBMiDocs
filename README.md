@@ -1,7 +1,7 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Versión beta.** MCP IBM i Docs está en construcción activa y puede tener fallos, resultados incompletos o cambios incompatibles entre versiones. Úsalo, pruébalo y reporta cualquier caso raro: el feedback de la comunidad IBM i es justamente lo que lo va a hacer mejorar.
+> **Release 1.0.1.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
@@ -29,7 +29,7 @@ Sirve para:
 - **No usa Eclipse Help en runtime**.
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
 - El paquete npm instala el servidor y la CLI.
-- El corpus documental vive en un **data pack local** con SQLite FTS5.
+- El corpus documental vive en un **data pack local** con SQLite y vectores semánticos (`chunk_vectors`).
 - El perfil MCP por defecto es **agent-first**: el agente ve pocas tools y debe empezar por `ibmi_docs_assist`.
 - `ibmi_docs_assist` hace una sola llamada con `taskPlan`, respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
 - El planner interno distingue familias como creación RPGLE/CLLE, diseño DDS, diagnóstico de mensajes, Db2 for i y administración de trabajos/locks.
@@ -171,7 +171,7 @@ Regla práctica para agentes: si dudas, usa `ibmi_docs_assist` con la tarea comp
 
 ### Perfiles avanzados
 
-Si eres mantenedor, auditor del corpus o estás depurando ranking, puedes arrancar el servidor con:
+Si eres mantenedor, auditor del corpus o estás depurando recuperación semántica, puedes arrancar el servidor con:
 
 ```powershell
 $env:IBMI_DOCS_TOOL_PROFILE = 'full'
@@ -188,7 +188,7 @@ En `standard` o `full` aparecen tools como:
 | `ibmi_docs_compile_guidance` | Evidencia y comandos de compilación. |
 | `ibmi_docs_explain_message` | Diagnóstico de mensajes como `RNF0004`. |
 | `ibmi_docs_compare_versions` | Comparación entre releases IBM i. |
-| `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Bajo nivel para exploración manual, auditoría o debugging de ranking. |
+| `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Bajo nivel para exploración manual, auditoría o debugging de recuperación semántica. |
 
 Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por defecto. Solo se registra si arrancas el servidor con `IBMI_DOCS_TOOL_PROFILE=full` o `maintainer` **y además** `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`; para usuarios finales y agentes normales no aparece como tool invocable. El flujo recomendado para mantener corpus sigue estando en la CLI (`sync-ibm`, `build-pack`, `pack archive/install`) y no debe confundirse con consulta documental en runtime.
 
@@ -200,9 +200,9 @@ Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por d
 - Planner interno con plantillas por familia de tarea: `create_program`, `design_dds_file`, `work_management`, `object_lock_analysis`, `db2_catalog_query`, diagnósticos y revisión de código.
 - Recuperación mejorada para comandos administrativos que no siempre tienen página canónica propia en IBM Docs/RDi, como `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB` y `WRKJOB`.
 - Corpus local versionado como data pack (`manifest.json`, `raw/`, `normalized/`, `ibmi-docs.sqlite`).
-- Índice SQLite FTS5 con ranking para comandos, mensajes, DDS, SQLRPGLE, CLLE y RPGLE.
-- Ranking exacto/version-aware con guardrails para no citar evidencia irrelevante cuando buscas comandos, opcodes, BIFs o mensajes.
-- Clasificación de documentos (`topic`, `reference`, `index`, `landing`, `stub`), claves canónicas, secciones estructurales y reportes reproducibles de ranking.
+- Índice vectorial semántico local en SQLite para comandos, mensajes, DDS, SQLRPGLE, CLLE y RPGLE.
+- Recuperación semántica version-aware con guardrails para no citar evidencia irrelevante cuando buscas comandos, opcodes, BIFs o mensajes.
+- Clasificación de documentos (`topic`, `reference`, `index`, `landing`, `stub`), claves canónicas, secciones estructurales y reportes reproducibles de recuperación semántica.
 - Tests golden de recuperación documental y benchmark ampliado.
 - Workflows de CI para build, tests, smoke, validación de pack y verificación anti dependencia RDi.
 

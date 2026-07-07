@@ -60,7 +60,7 @@ function normalizeBodyText($: ReturnType<typeof load>): string {
 
   // Mantener estructura semántica antes de pedir texto plano a Cheerio. IBM Docs
   // usa tablas y bloques pre/code para sintaxis de comandos, parámetros y
-  // ejemplos; si los aplastamos a un párrafo, FTS y los agentes pierden contexto.
+  // ejemplos; si los aplastamos a un párrafo, el motor semántico y los agentes pierden contexto.
   root.find("br").replaceWith("\n");
   root.find("h1,h2,h3,h4,h5,h6").each((_: number, el: any) => {
     const text = collapseWhitespace($(el).text());

@@ -94,7 +94,7 @@ Usa esa ruta absoluta como `command` y apunta `IBMI_DOCS_PACK_DIR` al data pack.
 | --- | --- | --- |
 | `agent` | Usuario final y agentes genéricos. Es el valor por defecto. | `ibmi_docs_assist`, `ibmi_docs_categories`, `ibmi_docs_diagnostics`. |
 | `standard` | Agentes o clientes que sí entienden tools documentales especializadas. | `agent` + `resolve`, `answer`, `context`, `compile_guidance`, `explain_message`, `compare_versions`, `validate_code_context`. |
-| `full` | Mantenedores, debugging de ranking y auditoría manual. | Todas las tools documentales de lectura, búsqueda, ranking, reportes y trazas. |
+| `full` | Mantenedores, debugging de recuperación semántica y auditoría manual. | Todas las tools documentales de lectura, búsqueda, recuperación, reportes y trazas. |
 | `maintainer` | Igual que `full`; reservado para operación avanzada del proyecto. | Todas las tools disponibles para mantenimiento. |
 
 Recomendación: deja `agent` para uso diario. Si activas `full`, el agente vuelve a ver herramientas

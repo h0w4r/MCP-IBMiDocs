@@ -107,7 +107,7 @@ try {
     process.exitCode = 1;
   }
 
-  // Los comandos IBM i exactos deben activar auto-read para evitar respuestas basadas solo en snippets.
+  // Los comandos IBM i específicos deben activar auto-read para evitar respuestas basadas solo en snippets.
   const commandAutoRead = repo.search({ query: "CRTRPGMOD command", version: "7.6", limit: 1 });
   console.log("Command auto-read:", JSON.stringify({
     title: commandAutoRead[0]?.title,

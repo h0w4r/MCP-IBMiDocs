@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { extractDocumentContent, inferCategory } from "../src/util/html.js";
-import { toFtsQuery } from "../src/repository/CorpusRepository.js";
 import { createServer } from "../src/server.js";
 import { loadPackageVersion } from "../src/util/packageVersion.js";
 import fs from "node:fs";
@@ -38,15 +37,6 @@ describe("normalización documental", () => {
     expect(doc.text).toContain("SRCFILE | Source file");
     expect(doc.text).toContain("- Use DBGVIEW for debugging.");
     expect(doc.text).toContain("CRTRPGMOD MODULE(MYLIB/HELLO)");
-  });
-});
-
-describe("seguridad de búsqueda FTS", () => {
-  it("parametriza por tokens y expande sinónimos IBM i", () => {
-    const query = toFtsQuery("CRTRPGMOD '; DROP TABLE documents; --");
-    expect(query).toContain('"crtrpgmod"');
-    expect(query).toContain('"rpgle"');
-    expect(query).not.toContain("DROP TABLE");
   });
 });
 

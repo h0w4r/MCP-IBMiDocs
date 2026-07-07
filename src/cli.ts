@@ -52,7 +52,7 @@ program
 
 program
   .command("build-pack")
-  .description("Construye data/pack con HTML, texto normalizado, manifest y SQLite FTS5.")
+  .description("Construye data/pack con HTML, texto normalizado, manifest y vectores semánticos locales.")
   .option("--input <dir>", "Directorio base con rdi-export e ibm-docs-cache", "data")
   .option("--out <dir>", "Directorio final del data pack", "data/pack")
   .action(async (opts) => {
@@ -75,7 +75,6 @@ program
   .option("--ibmi-version <version>", "Versión IBM i")
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--limit <n>", "Límite", "8")
-  .option("--mode <mode>", "fts|hybrid", "hybrid")
   .option("--auto-read", "Adjunta contenido completo para resultados fuertes")
   .option("--sections", "Incluye vista previa de secciones")
   .option("--strict-category", "No permite fallback fuera de --category")
@@ -84,7 +83,6 @@ program
     category: opts.category,
     version: getIbmVersion(opts),
     limit: Number(opts.limit),
-    mode: opts.mode,
     autoRead: Boolean(opts.autoRead),
     includeSections: Boolean(opts.sections),
     strictCategory: Boolean(opts.strictCategory)

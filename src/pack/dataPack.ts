@@ -36,7 +36,7 @@ export const DEFAULT_PACK_RELEASE_URL =
 
 const DEFAULT_PACK_DOWNLOAD_TIMEOUT_MS = Number(process.env.IBMI_DOCS_PACK_DOWNLOAD_TIMEOUT_MS ?? 60_000);
 const DEFAULT_PACK_DOWNLOAD_MAX_BYTES = Number(process.env.IBMI_DOCS_PACK_DOWNLOAD_MAX_BYTES ?? 1024 * 1024 * 1024);
-const REQUIRED_SQLITE_TABLES = ["meta", "documents", "chunks", "chunks_fts", "document_sections"];
+const REQUIRED_SQLITE_TABLES = ["meta", "documents", "chunks", "chunk_vectors", "document_sections"];
 
 export async function installDataPack(options: InstallDataPackOptions): Promise<{ outDir: string; source: string }> {
   const outDir = path.resolve(options.outDir);

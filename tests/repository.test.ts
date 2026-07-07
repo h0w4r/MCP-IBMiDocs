@@ -161,7 +161,7 @@ describe("capacidades agénticas del repositorio", () => {
     expect(assist.answer).not.toMatch(/teletransportar bibliotecas cuánticas es|ZZZNOEXIST999 permite|parámetro obligatorio/i);
   });
 
-  it("assist trata comandos CL exactos como lookup técnico aunque el prompt sea natural", () => {
+  it("assist trata comandos CL específicos como lookup técnico aunque el prompt sea natural", () => {
     const assist = withRepo((repo) => repo.assist({
       question: "Corregir CLLE con RTVJOBA y MONMSG; necesito pasos y validación",
       language: "CLLE",
@@ -173,6 +173,70 @@ describe("capacidades agénticas del repositorio", () => {
     expect(assist.intent).toBe("syntax_lookup");
     expect(assist.coverage.status).not.toBe("thin");
     expect(assist.specificFindings.join(" ")).toMatch(/RTVJOBA|MONMSG/i);
+  });
+
+
+  it("assist responde conversiones date-time SQLRPGLE sin inventar evidencia free-form irrelevante", () => {
+    const assist = withRepo((repo) => repo.assist({
+      question: "Necesito validar en IBM i/RPGLE free-form el uso de %Time con formato *ISO0 para obtener una hora HHMMSS numerica, y confirmar buenas practicas de SQLRPGLE embedded SQL con SET OPTION y verificacion de SQLCODE en operaciones INSERT/UPDATE/SELECT.",
+      language: "SQLRPGLE",
+      version: "7.6",
+      depth: "deep",
+      audience: "agent",
+      includeExamples: true,
+      includeCompileCommands: true,
+      limit: 10
+    }));
+
+    expect(assist.taskPlan.family).toBe("date_time_conversion");
+    expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["syntax", "compile", "database"]));
+    expect(assist.coverage.status).not.toBe("thin");
+    expect(assist.coverage.matchedTechnicalTerms).toEqual(expect.arrayContaining(["%TIME", "SET OPTION", "SQLCODE"]));
+    expect(assist.answer).toMatch(/%TIME|Time Data Type|time-format|TIMFMT/i);
+    expect(assist.answer).toMatch(/%DEC|Packed Decimal|Date, time or timestamp expression|HHMMSS/i);
+    expect(assist.answer).toMatch(/SET OPTION|SQLCODE|SQLSTATE|embedded SQL|SQLRPGLE/i);
+    expect(assist.answer).not.toMatch(/Free-Form Named Constant Definition|Free-Form Enumeration Definition|Free-Form Parameter Definition/i);
+    expect(assist.specificFindings.join(" ")).not.toMatch(/Free-Form Named Constant Definition|Free-Form Enumeration Definition|Free-Form Parameter Definition/i);
+    expect(assist.retrievalPlan.hops.some((hop) => /%TIME|Time Data Type|%DEC|SET OPTION|SQLCODE/i.test(hop.query))).toBe(true);
+  });
+
+  it("assist normaliza aliases de agentes como query e ibmiVersion sin explotar ni responder tangentes", () => {
+    const assist = withRepo((repo) => repo.assist({
+      query: "En SQLRPGLE necesito validar si un campo packed decimal 5,3 puede almacenar 1.50 y convertir una hora HHMMSS sin separadores usando %TIME, %DEC o SET OPTION; si falla SQL, revisar SQLCODE SQLSTATE.",
+      language: "SQLRPGLE",
+      ibmiVersion: "7.6",
+      depth: "deep",
+      audience: "agent",
+      includeExamples: true,
+      includeCompileCommands: true,
+      limit: 10
+    } as any));
+
+    expect(assist.question).toMatch(/packed decimal 5,3/i);
+    expect(assist.coverage.status).not.toBe("thin");
+    expect(assist.coverage.matchedTechnicalTerms).toEqual(expect.arrayContaining(["%TIME", "%DEC", "SET OPTION", "SQLCODE", "SQLSTATE"]));
+    expect(assist.answer).toMatch(/%TIME|Time Data Type|TIMFMT/i);
+    expect(assist.answer).toMatch(/%DEC|Packed Decimal|HHMMSS/i);
+    expect(assist.answer).toMatch(/SET OPTION|SQLCODE|SQLSTATE/i);
+    expect(assist.answer).not.toMatch(/Free-Form Named Constant Definition|Free-Form Enumeration Definition|Free-Form Parameter Definition/i);
+  });
+
+  it("search recupera documentación RPG de ISO0 y HHMMSS desde tipos date-time y %DEC", () => {
+    const iso0 = withRepo((repo) => repo.search({
+      query: "ISO0 time format RPG Time Data Type",
+      category: "ile-rpg",
+      limit: 8,
+      includeSections: true
+    }));
+    const hhmmss = withRepo((repo) => repo.search({
+      query: "HHMMSS numeric time RPG %DEC packed decimal",
+      category: "ile-rpg",
+      limit: 8,
+      includeSections: true
+    }));
+
+    expect(iso0.map((hit) => hit.title).join(" ")).toMatch(/Time Data Type|TIME\{\(format|External Format|%TIME|%TIMESTAMP|TEST|MOVE/i);
+    expect(hhmmss.map((hit) => hit.title).join(" ")).toMatch(/%DEC|Date, time or timestamp expression|Time Data Type/i);
   });
 
   it("assist planifica y ejecuta recuperación multi-hop para una petición compleja SQLRPGLE/RNF", () => {
@@ -414,14 +478,14 @@ describe("capacidades agénticas del repositorio", () => {
     expect(JSON.stringify(answer)).not.toMatch(/nextRecommendedTool|readHint|Para obtener la ayuda completa|Siguiente paso recomendado|Si necesitas sintaxis/i);
   });
 
-  it("explica ranking con FTS, expansión semántica y razones", () => {
+  it("explica recuperación semántica vectorial con conceptos y razones", () => {
     const explanation = withRepo((repo) => repo.explainRanking({
       query: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
       category: "ile-rpg",
       top: 3
     }));
 
-    expect(explanation.ftsQuery).toContain("snd");
+    expect(explanation.semanticProfile.concepts.length + explanation.semanticProfile.intentHints.length).toBeGreaterThan(0);
     expect(explanation.semanticQueries.length).toBeGreaterThan(0);
     expect(explanation.results[0]?.reasons.length).toBeGreaterThan(0);
   });
@@ -465,10 +529,10 @@ describe("capacidades agénticas del repositorio", () => {
       category: "ile-rpg",
       expectedTitle: "SND-MSG",
       limit: 5,
-      notes: "Caso de prueba de ranking exacto."
+      notes: "Caso de prueba de recuperación semántica."
     }));
 
-    expect(report.diagnostics.exactTerms).toContain("snd-msg");
+    expect(report.diagnostics.semanticConcepts.length + report.diagnostics.semanticIntentHints.length).toBeGreaterThan(0);
     expect(report.results[0]?.title).toContain("SND-MSG");
     expect(report.issueMarkdown).toContain("Reporte de búsqueda IBM i Docs");
   });
@@ -500,7 +564,7 @@ describe("capacidades agénticas del repositorio", () => {
     expect(results[0]?.relevanceWarnings?.join(" ")).toMatch(/fallback|No se encontró/i);
   });
 
-  it("no usa evidencia irrelevante al responder consultas exactas", () => {
+  it("no usa evidencia irrelevante al responder consultas específicas", () => {
     const answer = withRepo((repo) => repo.answer({
       question: "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET",
       language: "RPGLE",
@@ -552,9 +616,9 @@ describe("capacidades agénticas del repositorio", () => {
     expect(result.confidence).toBe("media");
     expect(result.messageExplanation?.messageId).toBe("CPF0001");
     expect(result.messageExplanation?.coverageStatus).toBe("family");
-    expect(result.messageExplanation?.exactMatch).toBe(false);
+    expect(result.messageExplanation?.specificMatch).toBe(false);
     expect(result.messageExplanation?.evidence.length).toBeGreaterThan(0);
-    expect(result.warnings.join(" ")).toMatch(/familia|entrada exacta/i);
+    expect(result.warnings.join(" ")).toMatch(/familia|entrada específica/i);
     expect(JSON.stringify(result)).not.toMatch(/ILE COBOL|IBM Extensions|Simple Insertion Editing/i);
   });
 
@@ -583,7 +647,7 @@ describe("capacidades agénticas del repositorio", () => {
     expect(result.stages.map((stage) => stage.tool)).toContain("ibmi_docs_compare_versions");
   });
 
-  it("search recomienda siguiente tool y auto-lee comandos exactos fuertes", () => {
+  it("search recomienda siguiente tool y auto-lee comandos específicos fuertes", () => {
     const results = withRepo((repo) => repo.search({
       query: "CRTRPGMOD command",
       version: "7.6",

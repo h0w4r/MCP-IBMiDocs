@@ -34,8 +34,8 @@ describe("CLI ibmi-docs", () => {
     const result = runCli(["report-query", "SND-MSG", "--category", "ile-rpg", "--expected-title", "SND-MSG", "--limit", "3"]);
 
     expect(result.status).toBe(0);
-    const parsed = JSON.parse(result.stdout) as { diagnostics: { exactTerms: string[] }; issueMarkdown: string };
-    expect(parsed.diagnostics.exactTerms).toContain("snd-msg");
+    const parsed = JSON.parse(result.stdout) as { diagnostics: { semanticConcepts: string[]; semanticIntentHints: string[] }; issueMarkdown: string };
+    expect(parsed.diagnostics.semanticConcepts.length + parsed.diagnostics.semanticIntentHints.length).toBeGreaterThan(0);
     expect(parsed.issueMarkdown).toContain("Reporte de búsqueda IBM i Docs");
   });
 

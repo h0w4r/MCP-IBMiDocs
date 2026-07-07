@@ -86,9 +86,9 @@ export interface TopicSection {
 export interface SearchOptions {
   query: string;
   version?: string;
+  ibmiVersion?: string;
   category?: string;
   limit?: number;
-  mode?: "fts" | "hybrid";
   autoRead?: boolean;
   includeSections?: boolean;
   strictCategory?: boolean;
@@ -160,9 +160,11 @@ export interface ReadResult extends SearchHit {
 
 export interface ContextOptions {
   task: string;
+  query?: string;
   language?: string;
   limit?: number;
   version?: string;
+  ibmiVersion?: string;
 }
 
 export interface ContextReadSummary {
@@ -234,8 +236,8 @@ export interface MessageExplanation {
   summary: string;
   recoveryChecklist: string[];
   evidence: SearchHit[];
-  exactMatch?: boolean;
-  coverageStatus?: "exact" | "family" | "unsupported";
+  specificMatch?: boolean;
+  coverageStatus?: "specific" | "family" | "unsupported";
   warnings?: string[];
 }
 
@@ -314,8 +316,10 @@ export interface PackDiagnostics {
 
 export interface AnswerOptions {
   question: string;
+  query?: string;
   language?: string;
   version?: string;
+  ibmiVersion?: string;
   category?: string;
   includeExamples?: boolean;
   includeCompileCommands?: boolean;
@@ -351,8 +355,10 @@ export interface WorkflowPolicy {
 
 export interface ResolveOptions {
   question: string;
+  query?: string;
   language?: string;
   version?: string;
+  ibmiVersion?: string;
   category?: string;
   code?: string;
   includeExamples?: boolean;
@@ -389,8 +395,10 @@ export type AssistAudience = "agent" | "developer" | "maintainer";
 
 export interface AssistOptions {
   question: string;
+  query?: string;
   language?: string;
   version?: string;
+  ibmiVersion?: string;
   category?: string;
   code?: string;
   depth?: AssistDepth;
@@ -421,6 +429,7 @@ export type AssistRetrievalAxis =
   | "related"
   | "administration"
   | "database"
+  | "datatype"
   | "gap-followup";
 
 export type AssistTaskFamily =
@@ -434,6 +443,7 @@ export type AssistTaskFamily =
   | "work_management"
   | "object_lock_analysis"
   | "db2_catalog_query"
+  | "date_time_conversion"
   | "message_diagnostic"
   | "version_check"
   | "general_explanation";
@@ -505,9 +515,11 @@ export interface RankingExplanationItem {
 
 export interface RankingExplanation {
   query: string;
-  ftsQuery: string;
+  semanticProfile: {
+    concepts: string[];
+    intentHints: string[];
+  };
   semanticQueries: string[];
-  exactTerms: string[];
   results: RankingExplanationItem[];
 }
 
@@ -542,8 +554,8 @@ export interface QueryReport {
   diagnostics: {
     topResultTitle?: string;
     topResultId?: string;
-    exactTerms: string[];
-    ftsQuery: string;
+    semanticConcepts: string[];
+    semanticIntentHints: string[];
     pass: boolean;
     warnings: string[];
   };

@@ -141,21 +141,20 @@ export function createServer(): McpServer {
     "ibmi_docs_search",
     {
       title: "Buscar documentación IBM i",
-      description: "Descubrimiento de documentos candidatos con SQLite FTS5, ranking heurístico y evidencia trazable. Es bajo nivel; para una respuesta final usa ibmi_docs_assist, ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context.",
+      description: "Descubrimiento de documentos candidatos con recuperación semántica vectorial local y evidencia trazable. Es bajo nivel; para una respuesta final usa ibmi_docs_assist, ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context.",
       inputSchema: z.object({
         query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF0004, CLLE, DDS PF, SQLRPGLE, etc."),
         version: z.string().optional().describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
         category: z.string().optional().describe("Categoría opcional: ile-rpg, cl-clle, dds, sql-db2-for-i, mensajes-rnf."),
         limit: z.number().int().min(1).max(50).optional(),
-        mode: z.enum(["fts", "hybrid"]).optional().describe("Modo fts puro o híbrido con expansión semántica local."),
         autoRead: z.boolean().optional().describe("Si true, adjunta contenido completo cuando el resultado es fuerte."),
         includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas."),
         strictCategory: z.boolean().optional().describe("Si true, no permite fallback fuera de la categoría solicitada.")
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ query, version, category, limit, mode, autoRead, includeSections, strictCategory }) => {
-      const results = withRepository((repo) => repo.search({ query, version, category, limit, mode, autoRead, includeSections, strictCategory }));
+    async ({ query, version, category, limit, autoRead, includeSections, strictCategory }) => {
+      const results = withRepository((repo) => repo.search({ query, version, category, limit, autoRead, includeSections, strictCategory }));
       return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results: results.map(sanitizeAgentHit) }) };
     }
   );
@@ -303,13 +302,12 @@ export function createServer(): McpServer {
     "ibmi_docs_explain_ranking",
     {
       title: "Explicar ranking IBM i Docs",
-      description: "Explica FTS, expansión semántica local, términos exactos, taxonomía y razones de ranking para depurar búsquedas.",
+      description: "Explica perfil semántico, conceptos, similitud vectorial, taxonomía y razones de recuperación para depurar búsquedas.",
       inputSchema: z.object({
         query: z.string().min(1),
         version: z.string().optional(),
         category: z.string().optional(),
         top: z.number().int().min(1).max(20).optional(),
-        mode: z.enum(["fts", "hybrid"]).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
@@ -383,7 +381,7 @@ export function createServer(): McpServer {
     "ibmi_docs_report_query",
     {
       title: "Reportar búsqueda/ranking IBM i Docs",
-      description: "Genera un reporte reproducible para depurar una búsqueda mala: ranking, warnings, términos exactos y Markdown listo para issue.",
+      description: "Genera un reporte reproducible para depurar una búsqueda mala: ranking, warnings, conceptos semánticos y Markdown listo para issue.",
       inputSchema: z.object({
         query: z.string().min(1),
         version: z.string().optional(),
@@ -530,7 +528,7 @@ function renderSearchResults(query: string, results: Array<any>): string {
     `   Versión/Categoría: ${result.version} / ${result.category}`,
     `   Tipo documental: ${result.documentKind ?? "n/a"} · Clave: ${result.canonicalTopicKey ?? "n/a"}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
-    result.requestedVersionFallback ? "   Aviso: fallback exacto fuera de la versión solicitada." : "",
+    result.requestedVersionFallback ? "   Aviso: fallback semántico fuera de la versión solicitada." : "",
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Texto completo auto-adjunto: ${result.autoReadApplied ? `sí (${String(result.fullContent ?? "").length} caracteres)` : "no"}${result.textLength ? ` · tópico=${result.textLength} caracteres` : ""}`,
     result.sectionsPreview?.length ? `   Secciones previas: ${result.sectionsPreview.map((section: any) => section.kind).join(", ")}` : "",
@@ -546,7 +544,7 @@ function renderEvidenceList(label: string, results: Array<any>): string {
     `   Score: ${result.score}`,
     `   Versión/Categoría: ${result.version} / ${result.category}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
-    result.requestedVersionFallback ? "   Aviso: fallback exacto fuera de la versión solicitada." : "",
+    result.requestedVersionFallback ? "   Aviso: fallback semántico fuera de la versión solicitada." : "",
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Evidencia: ${result.snippet}`
   ].filter(Boolean).join("\n"))].join("\n");
@@ -658,7 +656,7 @@ function renderMessageExplanation(explanation: any): string {
   return [
     `Mensaje: ${explanation.messageId}`,
     `Familia/Categoría: ${explanation.family} / ${explanation.category}`,
-    `Cobertura: ${explanation.coverageStatus ?? "n/a"}${explanation.exactMatch === false ? " (sin entrada exacta)" : ""}`,
+    `Cobertura: ${explanation.coverageStatus ?? "n/a"}${explanation.specificMatch === false ? " (sin entrada específica)" : ""}`,
     `Resumen: ${explanation.summary}`,
     ...(explanation.warnings?.length ? ["", "Advertencias:", bullet(explanation.warnings)] : []),
     "",
@@ -685,10 +683,9 @@ function renderVersionComparison(comparison: any): string {
 function renderRankingExplanation(explanation: any): string {
   return [
     `Ranking para: ${explanation.query}`,
-    `FTS: ${explanation.ftsQuery}`,
+    `Perfil semántico: ${JSON.stringify(explanation.semanticProfile)}`,
     `Expansiones: ${(explanation.semanticQueries as string[]).join(" | ") || "n/a"}`,
-    `Términos exactos: ${(explanation.exactTerms as string[]).join(", ") || "n/a"}`,
-    "",
+        "",
     ...(explanation.results as Array<any>).map((item, index) => [
       `${index + 1}. ${item.hit.title} · score=${item.hit.score} · ${item.taxonomy.kind} · ${item.documentKind ?? item.hit.documentKind ?? "n/a"}`,
       ...item.reasons.map((reason: string) => `   - ${reason}`),

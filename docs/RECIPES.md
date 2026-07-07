@@ -2,7 +2,7 @@
 
 Estas recetas están pensadas para agentes en Codex, VS Code u otros clientes MCP. La idea es que el agente no use el corpus como un simple buscador, sino como evidencia técnica para responder, corregir y comparar.
 
-Regla base: **empieza con `ibmi_docs_assist`** si quieres una respuesta final lista para usar. Usa `ibmi_docs_resolve` cuando necesites inspeccionar el workflow interno y `ibmi_docs_search` solo para exploración o depuración de ranking.
+Regla base: **empieza con `ibmi_docs_assist`** si quieres una respuesta final lista para usar. Usa `ibmi_docs_resolve` cuando necesites inspeccionar el workflow interno y `ibmi_docs_search` solo para exploración o depuración de recuperación semántica.
 
 ## 1. Diagnosticar RNF
 
@@ -60,7 +60,7 @@ Tools:
 - `ibmi_docs_resolve`
 - `ibmi_docs_sections`
 - `ibmi_docs_read`
-- `ibmi_docs_explain_ranking` si el ranking sorprende
+- `ibmi_docs_explain_ranking` si el recuperación sorprende
 
 CLI:
 
@@ -91,10 +91,10 @@ node dist/src/cli.js assist "Compara CRTRPGMOD entre IBM i 7.3, 7.4, 7.5 y 7.6" 
 
 La comparación incluye disponibilidad por versión, longitud del tópico, secciones detectadas y notas estructurales.
 
-## 5. Depurar ranking
+## 5. Depurar recuperación semántica
 
 ```text
-El resultado para SND-MSG no parece el tópico principal. Explica por qué ganó ese ranking.
+El resultado para SND-MSG no parece el tópico principal. Explica por qué ganó ese ordenamiento semántico.
 ```
 
 Tools:

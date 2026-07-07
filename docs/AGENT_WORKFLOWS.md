@@ -8,7 +8,7 @@ Las tools de alto nivel son **orquestadores autocontenidos**.
 
 Cuando un agente llama a `ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_answer` o `ibmi_docs_context`, el MCP no debe devolver tareas pendientes del tipo “llama `ibmi_docs_read`” o “usa `ibmi_docs_sections` si necesitas sintaxis”. La tool que recibió la tarea debe materializar internamente la evidencia necesaria: búsqueda, lectura de tópicos, secciones enfocadas, citas, advertencias y acciones sugeridas.
 
-`ibmi_docs_search` sigue existiendo, pero es una tool de bajo nivel para exploración, auditoría o debugging de ranking. No es la respuesta final para un usuario que pidió sintaxis, corrección, diagnóstico o implementación.
+`ibmi_docs_search` sigue existiendo, pero es una tool de bajo nivel para exploración, auditoría o debugging de recuperación semántica. No es la respuesta final para un usuario que pidió sintaxis, corrección, diagnóstico o implementación.
 
 Las tools de mantenimiento/build no forman parte del flujo de consulta de usuario. En particular,
 `ibmi_docs_sync` no se registra en el MCP público por defecto; solo aparece si el operador arranca
@@ -69,7 +69,7 @@ suficiente sufrimiento visual por una generación.
 | `work_management` | Trabajos activos, joblogs, estados, locks, objetos o miembros. | `ibmi_docs_assist` | Runbook con `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB`, `WRKJOB` y validación operacional si aplican. |
 | `db2_catalog_query` | Catálogos Db2 for i, columnas, tablas, vistas QSYS2/SYS*. | `ibmi_docs_assist` | Guía SQL de solo lectura, vistas/campos esperados y validaciones. |
 | `version_question` | Comparar disponibilidad o cambios entre IBM i 7.3/7.4/7.5/7.6. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_compare_versions` | Comparación por release y evidencia. |
-| `ranking_debug` | Entender por qué aparece un resultado o depurar ranking. | `ibmi_docs_explain_ranking` | Razones de ranking, FTS query y señales semánticas. |
+| `ranking_debug` | Entender por qué aparece un resultado o depurar ranking. | `ibmi_docs_explain_ranking` | Razones de ranking, perfil semántico, conceptos, similitud vectorial y señales documentales. |
 | `search_discovery` | Exploración abierta de documentación. | `ibmi_docs_search` | Candidatos trazables; no usar como respuesta final si falta lectura. |
 
 ## `ibmi_docs_assist`
@@ -121,9 +121,9 @@ no como una página `WRKACTJOB command` perfecta. `ibmi_docs_assist` maneja esto
 - expande consultas naturales como “trabajos activos” o “bloqueos” hacia aliases documentales;
 - no aplica un filtro de release rígido cuando la mejor evidencia viene del export RDi local del data pack;
 - lee tópicos como “Debugging a job that is running”, “Displaying the lock states for objects” o
-  “Displaying a job log” cuando contienen el comando exacto;
+  “Displaying a job log” cuando contienen el comando específico;
 - considera secciones `description`, `notes`, `generic` o `related` como evidencia fuerte si mencionan
-  el comando IBM i exacto.
+  el comando IBM i específico.
 
 Esto evita falsos huecos de cobertura para `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB` y `WRKJOB`.
 
@@ -195,7 +195,7 @@ Ese flujo es válido para auditoría humana, debugging o tests, pero no debe ser
 
 ## Auto-read y secciones enfocadas
 
-El repositorio detecta consultas con comandos IBM i exactos, por ejemplo:
+El repositorio detecta consultas con comandos IBM i específicos, por ejemplo:
 
 - `CRTRPGMOD command`
 - `SND-MSG`
@@ -213,7 +213,7 @@ Para mensajes como `RNF0004`, `CPF0001` o familias `MCH`, evita responder solo d
 node dist/src/cli.js resolve "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE
 ```
 
-La respuesta debe incluir evidencia, causa/recuperación cuando esté disponible, cobertura exacta o por familia y validaciones sugeridas.
+La respuesta debe incluir evidencia, causa/recuperación cuando esté disponible, cobertura específica o por familia y validaciones sugeridas.
 
 ## Guía de compilación
 
