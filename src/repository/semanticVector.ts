@@ -38,6 +38,9 @@ const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]
   { concept: "ibmi.security.authority", weight: 11, patterns: [/grant\s+authority|object\s+right|data\s+right|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref)\b/i], related: ["ibmi.security.user-profile", "ibmi.cl.command", "ibmi.administration"] },
   { concept: "ibmi.dds.subfile", weight: 11, patterns: [/sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i], related: ["ibmi.dds.display-file", "ibmi.dds.file"] },
   { concept: "ibmi.dds.display-file", weight: 9, patterns: [/display\s+file|\bdspf\b|\bworkstn\b|\bexfmt\b|navigation\s+between\s+two\s+screens|pantallas?|screen\s+navigation/i], related: ["ibmi.dds.subfile", "ibmi.ile-rpg"] },
+  { concept: "ibmi.cl.display-file-io", weight: 10, patterns: [/\bexfmt\b.*\b(cl|command|equivalent)|\b(cl|command|equivalent).*\bexfmt\b|\bsndrcvf\b|send\/receive\s+file|send\s+receive\s+file|display\s+file.*\bcl\b/i], related: ["ibmi.cl.command", "ibmi.dds.display-file", "ibmi.command"] },
+  { concept: "ibmi.rds.rlu", weight: 9, patterns: [/\brlu\b|\bstrrlu\b|report\s+layout\s+utility|invoke\s+rlu/i], related: ["ibmi.cl.command", "ibmi.command"] },
+  { concept: "ibmi.work-management.prestart", weight: 8, patterns: [/prestart\s+job|prestart\s+job\s+entry|prestart/i], related: ["ibmi.work-management", "ibmi.cl.command"] },
   { concept: "ibmi.cl.message.types", weight: 10, patterns: [/types?\s+of\s+message|message\s+available\s+in\s+cl|\bsndusrmsg\b|\bsndpgmmsg\b|\bsndmsg\b|\bsndbrkmsg\b|\brtvmsg\b|message\s+queue|inquiry|informational|completion|diagnostic/i], related: ["ibmi.cl.command", "ibmi.message.runtime"] },
   { concept: "ibmi.synon.functions", weight: 8, patterns: [/\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i], related: ["ibmi.third-party", "ibmi.ile-rpg"] },
   { concept: "ibmi.rpg.datetime", weight: 7, patterns: [/%\s*(time|date|timestamp)\b/i, /time\s+data\s+type/i, /date[- ]time|timestamp/i, /\b(timfmt|datfmt)\b/i, /hora|fecha|horario/i], related: ["ibmi.rpg.bif", "ibmi.datatype.time"] },
@@ -61,7 +64,7 @@ const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]
 const CATEGORY_CONCEPTS: Record<string, string[]> = {
   "ile-rpg": ["ibmi.ile-rpg", "ibmi.rpg.bif"],
   "sql-db2-for-i": ["ibmi.sql.embedded", "ibmi.sql.control"],
-  "cl-clle": ["ibmi.cl.command", "ibmi.command", "ibmi.cl.message.types"],
+  "cl-clle": ["ibmi.cl.command", "ibmi.command", "ibmi.cl.message.types", "ibmi.cl.display-file-io"],
   dds: ["ibmi.dds.file", "ibmi.dds.display-file", "ibmi.dds.subfile", "ibmi.datatype"],
   "mensajes-rnf": ["ibmi.message.rnf", "ibmi.compile"],
   "ile-cobol": ["ibmi.cobol"]
@@ -87,6 +90,8 @@ export function buildSemanticProfile(input: SemanticVectorInput | string): Seman
   if ([...concepts].some((concept) => concept.includes("datetime") || concept.includes("packed-decimal"))) intentHints.add("date_time_conversion");
   if ([...concepts].some((concept) => concept.startsWith("ibmi.sql"))) intentHints.add("embedded_sql_or_db2");
   if ([...concepts].some((concept) => concept.includes("work-management") || concept.includes("object-locks"))) intentHints.add("administration");
+  if ([...concepts].some((concept) => concept.includes("display-file-io"))) intentHints.add("cl_display_file_io");
+  if ([...concepts].some((concept) => concept.includes("rds.rlu"))) intentHints.add("rds_tooling");
   if ([...concepts].some((concept) => concept.includes("batch-debug"))) intentHints.add("batch_debug");
   if ([...concepts].some((concept) => concept.includes("library-list") || concept.includes("file-members") || concept.includes("source-editing"))) intentHints.add("guided_discovery");
   if ([...concepts].some((concept) => concept.includes("message"))) intentHints.add("message_diagnostic");

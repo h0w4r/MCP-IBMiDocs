@@ -17,6 +17,7 @@ interface QuestionBankCase {
   answerMustContainAny: string[];
   evidenceMustContainAny: string[];
   forbiddenAny?: string[];
+  evaluationEligible?: boolean;
 }
 
 interface CaseResult {
@@ -42,13 +43,17 @@ interface EvalOptions {
   out?: string;
   sampleSize: number;
   sampleSeed?: number;
+  randomSample: boolean;
+  randomSeed?: number;
+  includeNonEvaluable: boolean;
   rotateStateFile: string;
   noRotate: boolean;
   serverCommand: string;
   serverArgs: string[];
 }
 
-const DEFAULT_FIXTURE = path.resolve("tests", "fixtures", "dev-question-bank.extended.json");
+const GLOBAL_FIXTURE = path.resolve("tests", "fixtures", "dev-question-bank.global.json");
+const EXTENDED_FIXTURE = path.resolve("tests", "fixtures", "dev-question-bank.extended.json");
 const LEGACY_FIXTURE = path.resolve("tests", "fixtures", "dev-question-bank.sample.json");
 const DEFAULT_PACK = path.resolve("data", "pack");
 const DEFAULT_ROTATE_STATE = path.resolve(".tmp", "question-bank-eval-state.json");
@@ -57,10 +62,12 @@ const DEFAULT_MIN_PASS_RATE = 0.9;
 
 function parseArgs(argv: string[]): EvalOptions {
   const options: EvalOptions = {
-    fixture: fs.existsSync(DEFAULT_FIXTURE) ? DEFAULT_FIXTURE : LEGACY_FIXTURE,
+    fixture: resolveDefaultFixture(),
     pack: process.env.IBMI_DOCS_PACK_DIR || DEFAULT_PACK,
     minPassRate: DEFAULT_MIN_PASS_RATE,
     sampleSize: 100,
+    randomSample: false,
+    includeNonEvaluable: false,
     rotateStateFile: DEFAULT_ROTATE_STATE,
     noRotate: false,
     serverCommand: process.execPath,
@@ -89,6 +96,16 @@ function parseArgs(argv: string[]): EvalOptions {
       options.sampleSeed = Number(next);
       options.noRotate = true;
       index += 1;
+    } else if (arg === "--random-sample") {
+      options.randomSample = true;
+      options.noRotate = true;
+    } else if (arg === "--random-seed" && next) {
+      options.randomSeed = Number(next);
+      options.randomSample = true;
+      options.noRotate = true;
+      index += 1;
+    } else if (arg === "--include-non-evaluable") {
+      options.includeNonEvaluable = true;
     } else if (arg === "--rotate-state" && next) {
       options.rotateStateFile = path.resolve(next);
       index += 1;
@@ -105,6 +122,12 @@ function parseArgs(argv: string[]): EvalOptions {
   return options;
 }
 
+function resolveDefaultFixture(): string {
+  if (fs.existsSync(GLOBAL_FIXTURE)) return GLOBAL_FIXTURE;
+  if (fs.existsSync(EXTENDED_FIXTURE)) return EXTENDED_FIXTURE;
+  return LEGACY_FIXTURE;
+}
+
 function splitServerArgs(value: string): string[] {
   return value
     .split(" ")
@@ -112,17 +135,33 @@ function splitServerArgs(value: string): string[] {
     .filter(Boolean);
 }
 
-function loadCases(fixturePath: string): QuestionBankCase[] {
+function loadCases(fixturePath: string, options: EvalOptions): { all: QuestionBankCase[]; selectedPool: QuestionBankCase[] } {
   const raw = fs.readFileSync(fixturePath, "utf8");
   const parsed = JSON.parse(raw) as QuestionBankCase[];
   if (!Array.isArray(parsed) || !parsed.length) {
     throw new Error(`Fixture sin casos evaluables: ${fixturePath}`);
   }
-  return parsed;
+  const hasEligibilityMetadata = parsed.some((item) => Object.prototype.hasOwnProperty.call(item, "evaluationEligible"));
+  const selectedPool = !options.includeNonEvaluable && hasEligibilityMetadata
+    ? parsed.filter((item) => item.evaluationEligible !== false)
+    : parsed;
+  if (!selectedPool.length) throw new Error(`Fixture sin casos elegibles para evaluar: ${fixturePath}`);
+  return { all: parsed, selectedPool };
 }
 
-function selectRotatingSample(cases: QuestionBankCase[], options: EvalOptions): { selected: QuestionBankCase[]; start: number; nextStart: number } {
+function selectRotatingSample(cases: QuestionBankCase[], options: EvalOptions): { selected: QuestionBankCase[]; start: number; nextStart: number; strategy: string; randomSeed?: number } {
   const sampleSize = clampInt(options.sampleSize, Math.min(100, cases.length), 1, cases.length);
+  if (options.randomSample) {
+    const seed = Number.isFinite(options.randomSeed) ? Math.trunc(options.randomSeed as number) : Date.now();
+    const shuffled = seededShuffle(cases, seed);
+    return {
+      selected: shuffled.slice(0, sampleSize),
+      start: 0,
+      nextStart: 0,
+      strategy: "random",
+      randomSeed: seed
+    };
+  }
   const start = options.sampleSeed !== undefined
     ? positiveModulo(options.sampleSeed, cases.length)
     : options.noRotate
@@ -131,7 +170,22 @@ function selectRotatingSample(cases: QuestionBankCase[], options: EvalOptions): 
   const selected = Array.from({ length: sampleSize }, (_, index) => cases[(start + index) % cases.length]);
   const nextStart = (start + sampleSize) % cases.length;
   if (!options.noRotate && options.sampleSeed === undefined) writeRotationStart(options.rotateStateFile, nextStart);
-  return { selected, start, nextStart };
+  return { selected, start, nextStart, strategy: options.noRotate || options.sampleSeed !== undefined ? "fixed" : "stateful" };
+}
+
+function seededShuffle<T>(items: T[], seed: number): T[] {
+  const shuffled = [...items];
+  let state = positiveModulo(seed, 2_147_483_647);
+  if (state <= 0) state += 2_147_483_646;
+  const nextRandom = (): number => {
+    state = (state * 16_807) % 2_147_483_647;
+    return (state - 1) / 2_147_483_646;
+  };
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(nextRandom() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex] as T, shuffled[index] as T];
+  }
+  return shuffled;
 }
 
 function readRotationStart(stateFile: string, modulo: number): number {
@@ -292,8 +346,8 @@ async function evaluateWithMcp(cases: QuestionBankCase[], options: EvalOptions):
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  const cases = loadCases(options.fixture);
-  const sample = selectRotatingSample(cases, options);
+  const loaded = loadCases(options.fixture, options);
+  const sample = selectRotatingSample(loaded.selectedPool, options);
   const started = Date.now();
   const results = await evaluateWithMcp(sample.selected, options);
   const passed = results.filter((result) => result.passed).length;
@@ -311,11 +365,14 @@ async function main(): Promise<void> {
       minPassRate: options.minPassRate
     },
     corpus: {
-      totalCasesInFixture: cases.length,
+      totalCasesInFixture: loaded.all.length,
+      totalCasesInEvaluationPool: loaded.selectedPool.length,
+      includeNonEvaluable: options.includeNonEvaluable,
       sampleSize: sample.selected.length,
       sampleStart: sample.start,
       nextSampleStart: sample.nextStart,
-      rotation: options.noRotate || options.sampleSeed !== undefined ? "fixed" : "stateful"
+      rotation: sample.strategy,
+      randomSeed: sample.randomSeed
     },
     total: sample.selected.length,
     passed,

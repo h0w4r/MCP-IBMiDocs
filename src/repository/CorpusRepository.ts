@@ -98,7 +98,9 @@ const IBM_I_COMMAND_ALIASES: Record<string, string[]> = {
   wrkjob: ["work with job", "job parameter", "work with job command"],
   wrkjoblog: ["work with job logs", "displaying a job log", "job log"],
   dspjoblog: ["display job log", "displaying a job log", "job log"],
-  wrkmbrpdm: ["work with members using pdm", "work with members", "source members", "file members", "rational development studio commands"]
+  wrkmbrpdm: ["work with members using pdm", "work with members", "source members", "file members", "rational development studio commands"],
+  sndrcvf: ["send receive file", "send/receive file", "display file input output in CL", "EXFMT equivalent in CL", "working with multiple device display files"],
+  strrlu: ["start report layout utility", "report layout utility", "RLU", "IBM Rational Development Studio for i commands", "rational development studio commands"]
 };
 
 interface CachedSearchCandidate {
@@ -260,6 +262,35 @@ const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: 
     pattern: /sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i,
     queries: ["DDS subfile display files", "SFLSIZ SFLPAG keyword for display files", "SFLRCDNBR Subfile Record Number keyword", "Example message subfile using DDS", "ALTPAGEDWN ALTPAGEUP keyword for display files"],
     signals: ["subfile", "sflsiz", "sflpag", "display-file"]
+  },
+  {
+    pattern: /\bexfmt\b.*\b(cl|command|equivalent)|\b(cl|command|equivalent).*\bexfmt\b|\bsndrcvf\b|send\/receive\s+file|send\s+receive\s+file|display\s+file.*\bcl\b/i,
+    queries: [
+      "SNDRCVF Send Receive File command",
+      "Working with multiple device display files SNDRCVF",
+      "Common commands used in CL programs and procedures SNDRCVF RCVF",
+      "Overriding display files in a CL procedure or program SNDRCVF"
+    ],
+    signals: ["cl-display-file-io", "sndrcvf", "exfmt-equivalent"]
+  },
+  {
+    pattern: /\brlu\b|\bstrrlu\b|report\s+layout\s+utility|invoke\s+rlu/i,
+    queries: [
+      "STRRLU Start Report Layout Utility command",
+      "IBM Rational Development Studio for i commands STRRLU",
+      "CL command finder STRRLU RLU",
+      "report layout utility RLU"
+    ],
+    signals: ["rds-command", "rlu", "strrlu"]
+  },
+  {
+    pattern: /prestart\s+job|prestart\s+job\s+entry|prestart/i,
+    queries: [
+      "prestart jobs IBM i",
+      "prestart job entries subsystem",
+      "prestart job command IBM i"
+    ],
+    signals: ["prestart-job", "work-management"]
   },
   {
     pattern: /built[- ]in\s+function|build\s+in\s+function|%\s*(subst|abs|editc)\b/i,
@@ -1553,7 +1584,11 @@ export class CorpusRepository {
     } => {
       let readCount = 0;
       let sectionCount = 0;
-      const selectedHits = selectContextReadEvidence(hits, `${options.question} ${query}`).slice(0, readLimit);
+      const selectedHits = selectContextReadEvidence(hits, `${options.question} ${query}`)
+        // Las entradas sintéticas sirven como puente semántico en evidence, pero no
+        // existen como documentos físicos. No deben consumir el cupo de lectura.
+        .filter((hit) => !hit.synthetic)
+        .slice(0, readLimit);
       for (const hit of selectedHits) {
         const read = this.read(hit.id);
         if (!read) continue;
@@ -1719,7 +1754,11 @@ export class CorpusRepository {
     } => {
       let readCount = 0;
       let sectionCount = 0;
-      const selectedHits = selectContextReadEvidence(hits, `${options.question} ${query}`).slice(0, readLimit);
+      const selectedHits = selectContextReadEvidence(hits, `${options.question} ${query}`)
+        // Las entradas sintéticas sirven como puente semántico en evidence, pero no
+        // existen como documentos físicos. No deben consumir el cupo de lectura.
+        .filter((hit) => !hit.synthetic)
+        .slice(0, readLimit);
       for (const hit of selectedHits) {
         const read = this.read(hit.id);
         if (!read) continue;
@@ -2892,6 +2931,19 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
   if (queryConcepts.includes("ibmi.dds.display-file")) {
     if (/display file|workstn|exfmt|cfnn|command function|command attention|window|subfile/.test(haystack)) score += 34;
   }
+  if (queryConcepts.includes("ibmi.cl.display-file-io")) {
+    if (/sndrcvf|send\/receive file|send receive file|rcvf|sndf|working with multiple device display files|working with files in cl|overriding display files/.test(haystack)) score += 72;
+    if (/exfmt|display file|workstn/.test(haystack)) score += 18;
+    if (/wdwborder|mnubarsep|sngchcfld|window border|menu-bar separator|single-choice/.test(title)) score -= 54;
+  }
+  if (queryConcepts.includes("ibmi.rds.rlu")) {
+    if (/strrlu|report layout utility|rational development studio for i commands|rds commands|cl command finder/.test(haystack)) score += 82;
+    if (/prepare|program activations|variables in cl commands|changing command defaults/.test(title)) score -= 42;
+  }
+  if (queryConcepts.includes("ibmi.work-management.prestart")) {
+    if (/prestart job|prestart job entry|subsystem/.test(haystack)) score += 58;
+    if (/prepare|program initialization/.test(title)) score -= 36;
+  }
   if (queryConcepts.includes("ibmi.rpg.bif")) {
     if (/built-in functions|%subst|%abs|%editc|edit value using an editcode/.test(haystack)) score += 48;
     if (/built-in functions/.test(title) && /ile-rpg/.test(fold(hit.category))) score += 16;
@@ -3832,7 +3884,7 @@ function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean 
     case "design_dds_file":
       return /dds|physical file|logical file|archivo fisico|archivo logico|\bpf\b|\blf\b|crtp[fl]|unique|key|clave|record format|field/.test(haystack);
     case "design_display_or_report":
-      return /dds|display file|printer file|dspf|prtf|subfile|pantalla|reporte|spool|indicator|indicador|record format/.test(haystack);
+      return /dds|display file|printer file|dspf|prtf|subfile|pantalla|reporte|spool|indicator|indicador|record format|exfmt|sndrcvf|rcvf|sndf|send\/receive file|send receive file|working with multiple device display files/.test(haystack);
     case "create_program":
       return /rpgle|sqlrpgle|clle|cobol|ile rpg|program|programa|module|modulo|crtrpgmod|crtbndrpg|crtsqlrpgi|crtbndcl|compile|compil/.test(haystack);
     default:
@@ -5306,7 +5358,9 @@ function inferProjectableCommand(query: string): string | undefined {
     { command: "wrkmbrpdm", concept: "ibmi.file-members.discovery" },
     { command: "strsrvjob", concept: "ibmi.cl.batch-debug" },
     { command: "wrksbmjob", concept: "ibmi.cl.batch-debug" },
-    { command: "strdbg", concept: "ibmi.cl.batch-debug" }
+    { command: "strdbg", concept: "ibmi.cl.batch-debug" },
+    { command: "sndrcvf", concept: "ibmi.cl.display-file-io" },
+    { command: "strrlu", concept: "ibmi.rds.rlu" }
   ].find((entry) => profile.concepts.includes(entry.concept));
   if (preferred) return preferred.command;
   return extractTechnicalEntities(query)
