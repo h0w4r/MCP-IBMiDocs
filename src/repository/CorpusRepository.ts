@@ -116,6 +116,21 @@ interface CachedSearchCandidate {
   canonicalTopicKey: string;
 }
 
+interface SemanticCategoryPrediction {
+  category: string;
+  score: number;
+  semanticScore: number;
+  evidenceId: string;
+  evidenceTitle: string;
+}
+
+interface SemanticCategoryScope {
+  requestedCategory?: string;
+  categories?: string[];
+  predictions: SemanticCategoryPrediction[];
+  expanded: boolean;
+}
+
 // Expansiones semánticas locales: no dependen de embeddings externos ni red.
 // Funcionan como una capa de "recall" para prompts naturales de agentes.
 const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: string[] }> = [
@@ -198,7 +213,7 @@ const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: 
   },
   {
     pattern: /\b(joblog|mensaje|message|snd-msg|%msg|%target|qmhsndpm)\b/i,
-    queries: ["SND-MSG Send a Message to the Joblog", "%MSG built-in function", "%TARGET built-in function", "QMHSNDPM API"],
+    queries: ["SND-MSG Send a Message to the Joblog", "%MSG built-in function", "%TARGET built-in function", "QMHSNDPM API", "Commands used to send messages from a CL program", "Commands used to send messages to a system user"],
     signals: ["joblog-message", "rpg-message-operation"]
   },
   {
@@ -220,6 +235,46 @@ const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: 
     pattern: /\brpgle\b|ile rpg|crtrpgmod|crtbndrpg|free[- ]form/i,
     queries: ["ILE RPG Reference", "CRTRPGMOD Command", "CRTBNDRPG Command", "ILE RPG free form"],
     signals: ["rpgle", "ile-rpg"]
+  },
+  {
+    pattern: /debug(?:ging)?\s+(?:for\s+)?ile|ile\s+debug|source\s+debugger|\bdbgview\b|\bcrt(?:bndrpg|rpgmod)\b.*\bdebug|\*(?:stmt|source|copy|list|all|none)\b/i,
+    queries: ["Debugging ILE programs", "DBGVIEW parameter CRTBNDRPG CRTRPGMOD", "CRTBNDRPG DBGVIEW command", "CRTRPGMOD DBGVIEW command", "source debugger ILE RPG"],
+    signals: ["ile-debug", "dbgview", "source-debugger"]
+  },
+  {
+    pattern: /journal(?:ing)?|journal\s+receiver|\bcrt(?:jrn|jrnrcv)\b|\bstrjrnpf\b|\bendjrnpf\b|\bdlt(?:jrn|jrnrcv)\b|\bchgjrn\b/i,
+    queries: ["CRTJRNRCV command", "CRTJRN command", "STRJRNPF command", "ENDJRNPF command", "DLTJRN command", "DLTJRNRCV command", "CHGJRN command", "IBM i journaling physical file journal receiver"],
+    signals: ["journaling", "journal-receiver", "cl-commands"]
+  },
+  {
+    pattern: /user\s+profile|group\s+profile|\bdspusrprf\b|\bchgusrprf\b|\bedtobjaut\b|\*(?:secofr|secadm|pgmr|sysopr|user|oper)\b/i,
+    queries: ["DSPUSRPRF command", "CHGUSRPRF command", "EDTOBJAUT command", "IBM i user profile group profile user class", "object authority user profile group profile"],
+    signals: ["user-profile", "group-profile", "security"]
+  },
+  {
+    pattern: /grant\s+authority|object\s+right|data\s+right|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref)\b/i,
+    queries: ["Authorization privileges and object ownership", "object authority data rights object rights", "GRTOBJAUT command", "EDTOBJAUT command", "*OBJOPR *READ *OBJMGT *ADD *OBJEXIST *UPD *AUTLMGT *DLT"],
+    signals: ["authority", "object-rights", "data-rights"]
+  },
+  {
+    pattern: /sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i,
+    queries: ["DDS subfile display files", "SFLSIZ SFLPAG keyword for display files", "SFLRCDNBR Subfile Record Number keyword", "Example message subfile using DDS", "ALTPAGEDWN ALTPAGEUP keyword for display files"],
+    signals: ["subfile", "sflsiz", "sflpag", "display-file"]
+  },
+  {
+    pattern: /built[- ]in\s+function|build\s+in\s+function|%\s*(subst|abs|editc)\b/i,
+    queries: ["Built-in Functions ILE RPG", "%SUBST built-in function", "%ABS built-in function", "%EDITC Edit Value Using an Editcode", "ILE RPG built-in functions"],
+    signals: ["rpg-bif", "ile-rpg", "editc-subst-abs"]
+  },
+  {
+    pattern: /navigation\s+between\s+two\s+screens|screen\s+navigation|display\s+file.*screen|\bexfmt\b|\bworkstn\b|\bcf0?[378]\b|\*in0?[378]\b/i,
+    queries: ["DDS display file command function keys", "EXFMT operation display file WORKSTN RPG", "CFnn Command Function keyword for display files", "CA command attention keyword display files", "WINDOW keyword for display files"],
+    signals: ["screen-navigation", "display-file", "workstn"]
+  },
+  {
+    pattern: /\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i,
+    queries: ["Synon CA 2E built in functions IBM i", "Built-in Functions ILE RPG", "RPG built-in functions"],
+    signals: ["synon", "third-party-scope"]
   },
   {
     pattern: /wrkactjob|wrkobjlck|dspjob\b|wrkjob\b|wrkjoblog|dspjoblog|trabajos?\s+activos?|active\s+jobs?|bloqueos?|locks?|object\s+locks?|job\s+locks?/i,
@@ -514,9 +569,19 @@ export class CorpusRepository {
     });
     const queryProfile = buildSemanticProfile(options.query);
     const normalizedVersion = options.version ? normalizeVersionInput(options.version) : undefined;
-    const rows = this.getSearchCandidates().filter((candidate) => {
+    const versionRows = this.getSearchCandidates().filter((candidate) => {
       if (normalizedVersion && candidate.version !== normalizedVersion) return false;
-      if (options.category && candidate.category !== options.category) return false;
+      return true;
+    });
+    const categoryScope = resolveSemanticCategoryScope({
+      options,
+      candidates: versionRows,
+      queryVector,
+      queryProfile,
+      similarity: cosineSimilarity
+    });
+    const rows = versionRows.filter((candidate) => {
+      if (categoryScope.categories && !categoryScope.categories.includes(candidate.category)) return false;
       return true;
     });
 
@@ -570,7 +635,7 @@ export class CorpusRepository {
         hit.relevanceWarnings = [];
         return hit;
       });
-    let results = projectSemanticCommandTopic(sortedResults, options, limit);
+    let results = annotateSemanticCategoryScope(projectSemanticCommandTopic(sortedResults, options, limit), categoryScope);
 
     if (options.version) {
       const broaderResults = this.search({ ...options, version: undefined, limit });
@@ -626,9 +691,19 @@ export class CorpusRepository {
     const limit = clamp(options.limit, 8, 1, 50);
     const queryProfile = buildSemanticProfile(options.query);
     const normalizedVersion = options.version ? normalizeVersionInput(options.version) : undefined;
-    const rows = this.getSearchCandidates(runtime.vectorReader).filter((candidate) => {
+    const versionRows = this.getSearchCandidates(runtime.vectorReader).filter((candidate) => {
       if (normalizedVersion && candidate.version !== normalizedVersion) return false;
-      if (options.category && candidate.category !== options.category) return false;
+      return true;
+    });
+    const categoryScope = resolveSemanticCategoryScope({
+      options,
+      candidates: versionRows,
+      queryVector,
+      queryProfile,
+      similarity: runtime.similarity
+    });
+    const rows = versionRows.filter((candidate) => {
+      if (categoryScope.categories && !categoryScope.categories.includes(candidate.category)) return false;
       return true;
     });
 
@@ -675,7 +750,7 @@ export class CorpusRepository {
         hit.relevanceWarnings = [];
         return hit;
       });
-    let results = projectSemanticCommandTopic(sortedResults, options, limit);
+    let results = annotateSemanticCategoryScope(projectSemanticCommandTopic(sortedResults, options, limit), categoryScope);
 
     if (options.version && runtime.broaderSearch) {
       const broaderResults = await runtime.broaderSearch({ ...options, version: undefined, limit });
@@ -956,12 +1031,23 @@ export class CorpusRepository {
     const limit = clamp(options.limit, 8, 1, 20);
     const retrievalLimit = clamp(Math.max(limit * 3, 16), 16, 1, 50);
     const appliedWorkflow: WorkflowStage[] = [];
-    const hits = this.searchMany(queries, {
+    let hits = this.searchMany(queries, {
       category: preset?.category,
       version: options.version,
       limit: retrievalLimit,
       includeSections: true
     });
+    const anchorQueries = buildContextAnchorQueries(options.task);
+    if (anchorQueries.length) {
+      const anchorHits = this.searchMany(anchorQueries, {
+        category: preset?.category,
+        limit: Math.min(retrievalLimit, Math.max(8, anchorQueries.length * 2)),
+        includeSections: true
+      });
+      hits = mergeSearchEvidence([anchorHits, hits])
+        .sort((a, b) => contextEvidenceScore(b, options.task) - contextEvidenceScore(a, options.task) || b.score - a.score || a.title.localeCompare(b.title))
+        .slice(0, retrievalLimit);
+    }
     appliedWorkflow.push({
       tool: "ibmi_docs_search",
       reason: "Descubrir evidencia contextual mediante consultas semánticas derivadas de la intención.",
@@ -2692,6 +2778,10 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
   }
   if (queryConcepts.includes("ibmi.rpg.opcode.message")) {
     if (/snd-msg/.test(title)) score += 36;
+    if (/\bsnd-msg\b/i.test(query)) {
+      if (/^snd-msg\b/.test(title)) score += 120;
+      if (/^%msg\b|^%target\b|^built-in functions$|^%concat\b/.test(title)) score -= 36;
+    }
     if (/message operation|operation codes|extended-factor/.test(title)) score += 4;
   }
   if (queryConcepts.includes("ibmi.dds.physical-file.definition")) {
@@ -2783,6 +2873,38 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
     if (/record[- ]lock|locked record|%status|%error|1218|chain|read|releasing record locks/.test(haystack)) score += 40;
     if (/display file|printer file|subfile/.test(title)) score -= 14;
   }
+  if (queryConcepts.includes("ibmi.ile.debug")) {
+    if (/debugging ile programs|source debugger|dbgview|crt(?:bndrpg|rpgmod)|\*(?:stmt|source|copy|list|all|none)/.test(haystack)) score += 56;
+    if (/^create command command$|cl command finder|physical file|logical file|dds concepts/.test(title)) score -= 22;
+  }
+  if (queryConcepts.includes("ibmi.journal.management")) {
+    if (/crt(?:jrn|jrnrcv)|strjrnpf|endjrnpf|dlt(?:jrn|jrnrcv)|chgjrn|journal receiver|journaling|physical file journaling/.test(haystack)) score += 58;
+    if (/physical file using dds|unique .*keyword|dds for physical/.test(title)) score -= 32;
+  }
+  if (queryConcepts.includes("ibmi.security.user-profile") || queryConcepts.includes("ibmi.security.authority")) {
+    if (/dspusrprf|chgusrprf|edtobjaut|grtobjaut|user profile|group profile|user class|object authority|authorization|privileges and object ownership|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|secofr|secadm|pgmr|sysopr|user|oper)/.test(haystack)) score += 60;
+    if (/physical file using dds|unique .*keyword|dds for physical/.test(title)) score -= 40;
+  }
+  if (queryConcepts.includes("ibmi.dds.subfile")) {
+    if (/subfile|sflsiz|sflpag|sflrcdnbr|sflmsg|altpagedwn|altpageup|message subfile|display files/.test(haystack)) score += 56;
+    if (/physical file using dds|unique .*keyword/.test(title)) score -= 24;
+  }
+  if (queryConcepts.includes("ibmi.dds.display-file")) {
+    if (/display file|workstn|exfmt|cfnn|command function|command attention|window|subfile/.test(haystack)) score += 34;
+  }
+  if (queryConcepts.includes("ibmi.rpg.bif")) {
+    if (/built-in functions|%subst|%abs|%editc|edit value using an editcode/.test(haystack)) score += 48;
+    if (/built-in functions/.test(title) && /ile-rpg/.test(fold(hit.category))) score += 16;
+    if (/create command command|cl command finder/.test(title)) score -= 28;
+  }
+  if (queryConcepts.includes("ibmi.cl.message.types")) {
+    if (/sndusrmsg|sndpgmmsg|sndmsg|sndbrkmsg|rtvmsg|message queue|commands used to send messages|errmsg|sflmsg|inquiry|informational|completion|diagnostic/.test(haystack)) score += 56;
+    if (/snd-msg/.test(title) && !/snd-msg/i.test(query)) score -= 12;
+  }
+  if (queryConcepts.includes("ibmi.synon.functions")) {
+    if (/synon|ca 2e/.test(haystack)) score += 48;
+    if (/built-in functions/.test(title)) score += 8;
+  }
   return score;
 }
 
@@ -2813,6 +2935,116 @@ function shouldPreferBroaderSemanticScope(current: SearchHit[], broader: SearchH
   if (broaderTop.synthetic && !currentTop.synthetic) return true;
   if ((broaderTop.semanticScore ?? 0) >= (currentTop.semanticScore ?? 0) + 0.12) return true;
   return broaderTop.score >= currentTop.score + 12;
+}
+
+function resolveSemanticCategoryScope(input: {
+  options: SearchOptions;
+  candidates: CachedSearchCandidate[];
+  queryVector: Float32Array;
+  queryProfile: ReturnType<typeof buildSemanticProfile>;
+  similarity: (a: Float32Array, b: Float32Array) => number;
+}): SemanticCategoryScope {
+  const { options, candidates, queryVector, queryProfile, similarity } = input;
+  if (!options.category || options.strictCategory) {
+    return {
+      requestedCategory: options.category,
+      categories: options.category ? [options.category] : undefined,
+      predictions: [],
+      expanded: false
+    };
+  }
+
+  const requestedCategory = options.category;
+  const bestByCategory = new Map<string, SemanticCategoryPrediction>();
+  for (const candidate of candidates) {
+    if (candidate.documentKind === "stub" || candidate.documentKind === "landing") continue;
+    const semanticScore = similarity(queryVector, candidate.vector);
+    const score = Math.round((
+      semanticScore * 100
+      + semanticIntentBoostFromConcepts(queryProfile.concepts, candidate.concepts)
+      + semanticTitleIntentBoost(queryProfile.concepts, options.query, {
+        title: candidate.title,
+        category: candidate.category,
+        breadcrumbs: candidate.breadcrumbs,
+        snippet: "",
+        score: 0,
+        id: candidate.id,
+        sourceKind: String(candidate.row.source_kind) as SearchHit["sourceKind"],
+        sourceId: String(candidate.row.source_id),
+        version: candidate.version,
+        canonicalUrl: String(candidate.row.canonical_url),
+        documentKind: candidate.documentKind
+      }, candidate.body)
+      + documentKindScoreAdjustment({ title: candidate.title, documentKind: candidate.documentKind } as SearchHit)
+    ) * 100000) / 100000;
+    const current = bestByCategory.get(candidate.category);
+    if (!current || score > current.score) {
+      bestByCategory.set(candidate.category, {
+        category: candidate.category,
+        score,
+        semanticScore: Math.round(semanticScore * 100000) / 100000,
+        evidenceId: candidate.id,
+        evidenceTitle: candidate.title
+      });
+    }
+  }
+
+  const predictions = [...bestByCategory.values()].sort((a, b) => b.score - a.score || a.category.localeCompare(b.category));
+  const requested = predictions.find((prediction) => prediction.category === requestedCategory);
+  const best = predictions[0];
+  const requestedScore = requested?.score ?? Number.NEGATIVE_INFINITY;
+  const bestScore = best?.score ?? requestedScore;
+  const categories = new Set<string>([requestedCategory]);
+
+  for (const prediction of predictions.slice(0, 5)) {
+    if (prediction.category === requestedCategory) continue;
+    const closeToBest = prediction.score >= bestScore - 9;
+    const clearlyBetterThanRequested = prediction.score >= requestedScore + 3;
+    const requestedWeakButCandidateUseful = requestedScore < 38 && prediction.score >= 28;
+    if (closeToBest || clearlyBetterThanRequested || requestedWeakButCandidateUseful) categories.add(prediction.category);
+    if (categories.size >= 3) break;
+  }
+
+  return {
+    requestedCategory,
+    categories: [...categories],
+    predictions,
+    expanded: categories.size > 1
+  };
+}
+
+function annotateSemanticCategoryScope(results: SearchHit[], scope: SemanticCategoryScope): SearchHit[] {
+  if (!scope.expanded || !scope.requestedCategory) return results;
+  const requested = scope.requestedCategory;
+  const predictionSummary = scope.predictions
+    .slice(0, 3)
+    .map((prediction) => `${prediction.category}:${Math.round(prediction.score * 100) / 100}`)
+    .join(", ");
+  return results.map((hit) => {
+    if (hit.category === requested) {
+      return {
+        ...hit,
+        matchReasons: [
+          ...(hit.matchReasons ?? []),
+          `categoría solicitada '${requested}' conservada; scope semántico evaluó candidatos: ${predictionSummary}`
+        ]
+      };
+    }
+    return {
+      ...hit,
+      requestedCategoryScopeExpansion: true,
+      requestedCategoryFallback: true,
+      matchReasons: [
+        ...(hit.matchReasons ?? []),
+        `categoría candidata por scope semántico: '${hit.category}' frente a solicitud '${requested}'`,
+        `ranking de categorías: ${predictionSummary}`
+      ],
+      relevanceWarnings: [
+        ...(hit.relevanceWarnings ?? []),
+        `La consulta fue recibida con categoría '${requested}', pero el clasificador semántico también habilitó '${hit.category}' y esta evidencia resultó más fuerte.`
+      ]
+    };
+  });
 }
 
 function buildScopeExpansionTraceFeedback(options: SearchOptions, results: SearchHit[]): TraceScopeExpansion[] {
@@ -2960,8 +3192,32 @@ function buildContextQueries(task: string, preset?: LanguagePreset): string[] {
   ].filter(Boolean))].slice(0, 18);
 }
 
+function buildContextAnchorQueries(task: string): string[] {
+  const queries: string[] = [];
+  for (const term of extractSemanticEntityAnchors(task)) {
+    const folded = fold(term);
+    if (isMessageIdTerm(term)) {
+      queries.push(term.toUpperCase());
+      queries.push(`${term.slice(0, 3).toUpperCase()} messages`);
+      continue;
+    }
+    if (IBM_I_COMMAND_PREFIX_PATTERN.test(folded)) {
+      queries.push(`${term.toUpperCase()} command`);
+      queries.push(`${term.toUpperCase()} command parameters`);
+      queries.push(`${term.toUpperCase()} syntax`);
+      for (const alias of IBM_I_COMMAND_ALIASES[folded] ?? []) queries.push(alias);
+      continue;
+    }
+    if (term.startsWith("%")) {
+      queries.push(`${term.toUpperCase()} built-in function`);
+      queries.push(`${term.toUpperCase()} examples`);
+    }
+  }
+  return [...new Map(queries.filter(Boolean).map((query) => [fold(query), query.trim()])).values()].slice(0, 16);
+}
+
 function isAdministrationQuery(haystack: string): boolean {
-  return /wrkactjob|wrkobjlck|dspjob\b|wrkjob\b|wrkjoblog|dspjoblog|wrkjobq|wrksbmjob|strsrvjob|strdbg|enddbg|endsrvjob|sbmjob|jobq|debug.*batch|batch.*debug|submitted\s+job|service\s+job|trabajos?\s+activos?|active\s+jobs?|running\s+job|bloqueos?|locks?|object\s+locks?|job\s+locks?|subsystem|subsistema|joblog/i.test(haystack);
+  return /wrkactjob|wrkobjlck|dspjob\b|wrkjob\b|wrkjoblog|dspjoblog|wrkjobq|wrksbmjob|strsrvjob|strdbg|enddbg|endsrvjob|sbmjob|jobq|debug.*batch|batch.*debug|submitted\s+job|service\s+job|trabajos?\s+activos?|active\s+jobs?|running\s+job|bloqueos?|locks?|object\s+locks?|job\s+locks?|subsystem|subsistema|joblog|journal(?:ing)?|journal\s+receiver|crt(?:jrn|jrnrcv)|strjrnpf|endjrnpf|dlt(?:jrn|jrnrcv)|chgjrn|user\s+profile|group\s+profile|dspusrprf|chgusrprf|edtobjaut|grant\s+authority|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref|secofr|secadm|pgmr|sysopr|user|oper)\b/i.test(haystack);
 }
 
 function isDb2CatalogQuery(haystack: string): boolean {
@@ -2974,6 +3230,9 @@ function buildAdministrationQueries(haystack: string): string[] {
   const wantsLocks = /wrkobjlck|bloqueos?|locks?|object\s+locks?|job\s+locks?/i.test(haystack);
   const wantsJob = /dspjob\b|wrkjob\b|job\s+parameter|display\s+job|work\s+with\s+job/i.test(haystack);
   const wantsBatchDebug = /debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i.test(haystack);
+  const wantsJournaling = /journal(?:ing)?|journal\s+receiver|\bcrt(?:jrn|jrnrcv)\b|\bstrjrnpf\b|\bendjrnpf\b|\bdlt(?:jrn|jrnrcv)\b|\bchgjrn\b/i.test(haystack);
+  const wantsSecurity = /user\s+profile|group\s+profile|\bdspusrprf\b|\bchgusrprf\b|\bedtobjaut\b|grant\s+authority|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref|secofr|secadm|pgmr|sysopr|user|oper)\b/i.test(haystack);
+  const wantsSpecificAdministrationDomain = wantsJournaling || wantsSecurity;
   if (wantsBatchDebug) {
     queries.push("Debugging batch jobs");
     queries.push("SBMJOB HOLD(*YES) debugging batch job");
@@ -2982,21 +3241,40 @@ function buildAdministrationQueries(haystack: string): string[] {
     queries.push("STRDBG Start Debug");
     queries.push("ENDDBG ENDSRVJOB end debug service job");
   }
-  if (wantsActiveJobs || isAdministrationQuery(haystack)) {
+  if (wantsActiveJobs || (isAdministrationQuery(haystack) && !wantsSpecificAdministrationDomain)) {
     queries.push("WRKACTJOB Work with Active Jobs");
     queries.push("Debugging a job that is running WRKACTJOB");
     queries.push("active jobs WRKACTJOB command");
   }
-  if (wantsLocks || isAdministrationQuery(haystack)) {
+  if (wantsLocks || (isAdministrationQuery(haystack) && !wantsSpecificAdministrationDomain)) {
     queries.push("WRKOBJLCK Work with Object Locks");
     queries.push("Displaying the lock states for objects WRKOBJLCK");
     queries.push("object locks WRKOBJLCK command");
   }
-  if (wantsJob || isAdministrationQuery(haystack)) {
+  if (wantsJob || (isAdministrationQuery(haystack) && !wantsSpecificAdministrationDomain)) {
     queries.push("DSPJOB Display Job");
     queries.push("WRKJOB Work with Job");
     queries.push("JOB parameter DSPJOB WRKJOB");
     queries.push("Displaying a job log DSPJOBLOG WRKJOBLOG");
+  }
+  if (wantsJournaling) {
+    queries.push("CRTJRNRCV command");
+    queries.push("CRTJRN command");
+    queries.push("STRJRNPF command");
+    queries.push("ENDJRNPF command");
+    queries.push("DLTJRN command");
+    queries.push("DLTJRNRCV command");
+    queries.push("CHGJRN command");
+    queries.push("journal receiver physical file journaling");
+  }
+  if (wantsSecurity) {
+    queries.push("DSPUSRPRF command");
+    queries.push("CHGUSRPRF command");
+    queries.push("EDTOBJAUT command");
+    queries.push("GRTOBJAUT command");
+    queries.push("Authorization privileges and object ownership");
+    queries.push("object authority data rights object rights");
+    queries.push("IBM i user profile group profile user class");
   }
   return [...new Set(queries)];
 }
@@ -3020,8 +3298,22 @@ function buildAssistRetrievalAxes(options: AssistOptions, resolved: ResolveResul
   if (detected.has("message") || resolved.messageExplanation) axes.add("message");
   if (detected.has("version") || resolved.versionComparison) axes.add("version");
   if (options.code?.trim() || resolved.codeValidation) axes.add("code");
-  if (intentProfile.libraryList || intentProfile.fileMembers || intentProfile.seuLineCommands || intentProfile.recordLock) axes.add("syntax");
-  if (intentProfile.batchDebug || intentProfile.recordLock) axes.add("administration");
+  if (
+    intentProfile.libraryList
+    || intentProfile.fileMembers
+    || intentProfile.seuLineCommands
+    || intentProfile.recordLock
+    || intentProfile.journaling
+    || intentProfile.userProfileSecurity
+    || intentProfile.authorityRights
+    || intentProfile.subfile
+    || intentProfile.rpgBuiltInFunctions
+    || intentProfile.screenNavigation
+    || intentProfile.clMessageTypes
+  ) axes.add("syntax");
+  if (intentProfile.batchDebug || intentProfile.recordLock || intentProfile.journaling || intentProfile.userProfileSecurity || intentProfile.authorityRights) axes.add("administration");
+  if (intentProfile.ileDebug || intentProfile.rpgBuiltInFunctions) axes.add("compile");
+  if (intentProfile.subfile || intentProfile.screenNavigation) axes.add("code");
   if (isAdministrationQuery(haystack)) axes.add("administration");
   if (isDb2CatalogQuery(haystack)) axes.add("database");
   if (resolved.related) axes.add("related");
@@ -3039,6 +3331,15 @@ function buildAssistIntentProfile(haystack: string): {
   batchDebug: boolean;
   seuLineCommands: boolean;
   recordLock: boolean;
+  ileDebug: boolean;
+  journaling: boolean;
+  userProfileSecurity: boolean;
+  authorityRights: boolean;
+  subfile: boolean;
+  rpgBuiltInFunctions: boolean;
+  screenNavigation: boolean;
+  clMessageTypes: boolean;
+  synonFunctions: boolean;
 } {
   return {
     dateTimeConversion: /%\s*(time|date|timestamp)\b|\*iso0|\*hms|hhmmss|timfmt|datfmt|time[- ]format|date[- ]time|timestamp|fecha|hora|horario/i.test(haystack),
@@ -3050,7 +3351,16 @@ function buildAssistIntentProfile(haystack: string): {
     fileMembers: /members?\s+of\s+(?:a\s+)?file|file\s+members?|source\s+members?|miembros?\s+de\s+(?:un\s+)?archivo|listar\s+miembros?|all\s+members/i.test(haystack),
     batchDebug: /debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i.test(haystack),
     seuLineCommands: /\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i.test(haystack),
-    recordLock: /record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i.test(haystack)
+    recordLock: /record[-\s]+lock|record\s+(?:is\s+)?locked|locked\s+record|registro\s+bloquead|registro\s+est[aá]\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i.test(haystack),
+    ileDebug: /debug(?:ging)?\s+(?:for\s+)?ile|ile\s+debug|source\s+debugger|\bdbgview\b|\bcrt(?:bndrpg|rpgmod)\b.*\bdebug|\*(?:stmt|source|copy|list|all|none)\b/i.test(haystack),
+    journaling: /journal(?:ing)?|journal\s+receiver|\bcrt(?:jrn|jrnrcv)\b|\bstrjrnpf\b|\bendjrnpf\b|\bdlt(?:jrn|jrnrcv)\b|\bchgjrn\b/i.test(haystack),
+    userProfileSecurity: /user\s+profile|group\s+profile|\bdspusrprf\b|\bchgusrprf\b|\bedtobjaut\b|\*(?:secofr|secadm|pgmr|sysopr|user|oper)\b/i.test(haystack),
+    authorityRights: /grant\s+authority|object\s+right|data\s+right|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref)\b/i.test(haystack),
+    subfile: /sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i.test(haystack),
+    rpgBuiltInFunctions: /built[- ]in\s+function|build\s+in\s+function|%\s*(subst|abs|editc)\b/i.test(haystack),
+    screenNavigation: /navigation\s+between\s+two\s+screens|screen\s+navigation|display\s+file.*screen|\bexfmt\b|\bworkstn\b|\bcf0?[378]\b|\*in0?[378]\b/i.test(haystack),
+    clMessageTypes: /types?\s+of\s+message|message\s+available\s+in\s+cl|\bsndusrmsg\b|\bsndpgmmsg\b|\bsndmsg\b|\bsndbrkmsg\b|\brtvmsg\b|message\s+queue|inquiry|informational|completion|diagnostic/i.test(haystack),
+    synonFunctions: /\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i.test(haystack)
   };
 }
 
@@ -3120,6 +3430,69 @@ function buildNaturalIntentQueries(haystack: string): string[] {
     queries.push("record lock %STATUS %ERROR RPG");
     queries.push("CHAIN READ record lock RPGLE");
     queries.push("Releasing record locks");
+  }
+  if (intentProfile.ileDebug) {
+    queries.push("Debugging ILE programs");
+    queries.push("DBGVIEW parameter CRTBNDRPG CRTRPGMOD");
+    queries.push("source debugger ILE RPG");
+    queries.push("CRTBNDRPG DBGVIEW *STMT *SOURCE *COPY *LIST");
+    queries.push("CRTRPGMOD DBGVIEW *STMT *SOURCE *COPY *LIST");
+  }
+  if (intentProfile.journaling) {
+    queries.push("CRTJRNRCV command");
+    queries.push("CRTJRN command");
+    queries.push("STRJRNPF command");
+    queries.push("ENDJRNPF command");
+    queries.push("DLTJRN command");
+    queries.push("DLTJRNRCV command");
+    queries.push("CHGJRN command");
+    queries.push("IBM i journaling physical file journal receiver");
+  }
+  if (intentProfile.userProfileSecurity) {
+    queries.push("DSPUSRPRF command");
+    queries.push("CHGUSRPRF command");
+    queries.push("EDTOBJAUT command");
+    queries.push("IBM i user profile group profile user class");
+    queries.push("special authority user class *SECOFR *SECADM *PGMR *SYSOPR *USER *OPER");
+  }
+  if (intentProfile.authorityRights) {
+    queries.push("Authorization privileges and object ownership");
+    queries.push("object authority data rights object rights");
+    queries.push("GRTOBJAUT command");
+    queries.push("EDTOBJAUT command");
+    queries.push("*OBJOPR *READ *OBJMGT *ADD *OBJEXIST *UPD *AUTLMGT *DLT *OBJALTER *EXECUT");
+  }
+  if (intentProfile.subfile) {
+    queries.push("DDS subfile display files");
+    queries.push("SFLSIZ SFLPAG keyword for display files");
+    queries.push("SFLRCDNBR Subfile Record Number keyword");
+    queries.push("ALTPAGEDWN ALTPAGEUP keyword for display files");
+    queries.push("Example message subfile using DDS");
+  }
+  if (intentProfile.rpgBuiltInFunctions) {
+    queries.push("Built-in Functions ILE RPG");
+    queries.push("%SUBST built-in function");
+    queries.push("%ABS built-in function");
+    queries.push("%EDITC Edit Value Using an Editcode");
+  }
+  if (intentProfile.screenNavigation) {
+    queries.push("EXFMT operation display file WORKSTN RPG");
+    queries.push("CFnn Command Function keyword for display files");
+    queries.push("CA command attention keyword display files");
+    queries.push("DDS display file command function keys");
+  }
+  if (intentProfile.clMessageTypes) {
+    queries.push("Commands used to send messages from a CL program");
+    queries.push("Commands used to send messages to a system user");
+    queries.push("SNDUSRMSG command");
+    queries.push("SNDPGMMSG command");
+    queries.push("SNDMSG SNDBRKMSG message queue");
+    queries.push("ERRMSG SFLMSG DDS display files");
+  }
+  if (intentProfile.synonFunctions) {
+    queries.push("Synon CA 2E built in functions IBM i");
+    queries.push("Built-in Functions ILE RPG");
+    queries.push("RPG built-in functions");
   }
   return [...new Map(queries.map((query) => [fold(query), query])).values()];
 }
@@ -3199,7 +3572,8 @@ function inferAssistAxisForQuery(query: string, axes: Set<AssistRetrievalAxis>):
   if (/set\s+option|sqlca|sqlcode|sqlstate|\b(insert|update|select|delete|merge)\b.*\bsql\b|\bsql\b.*\b(insert|update|select|delete|merge)\b/i.test(query)) return "database";
   if (/%\s*(time|date|timestamp|dec)\b|time\s+(data\s+type|format)|date\s+time|timestamp\s+expression|hhmmss|packed\s+decimal|decimal\s+empaquetad|timfmt|date[- ]time|numeric\s+time/i.test(query)) return "datatype";
   if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|RNF|CPF|MCH|SQLCODE|SQLSTATE)\b/i.test(query)) return "message";
-  if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|RPGPPOPT|DBGVIEW|COMMIT|\/\s*(copy|include)\b|copybook|sqlrpgle|embedded\s+sql/i.test(query)) return "compile";
+  if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|RPGPPOPT|DBGVIEW|COMMIT|\/\s*(copy|include)\b|copybook|sqlrpgle|embedded\s+sql|source\s+debugger|debugging\s+ile|built[- ]in\s+functions?\s+ile\s+rpg|%[a-z][a-z0-9_-]+/i.test(query)) return "compile";
+  if (/subfile|sflsiz|sflpag|sflrcdnbr|display\s+file|workstn|exfmt|command\s+function|command\s+attention|cfnn|cann/i.test(query)) return "code";
   if (/(7\.[3456]).*(7\.[3456])|compar|release|versi[oó]n/i.test(query)) return "version";
   if (/sintaxis|syntax|par[aá]metro|parameter|operand|opcode|operation code|%[a-z][a-z0-9_-]+|\b[A-Z]{2,}-[A-Z]{2,}\b/i.test(query)) return "syntax";
   if (axes.has("syntax") && buildSemanticProfile(query).concepts.length) return "syntax";
@@ -3262,6 +3636,10 @@ function buildAssistSearchCategory(axis: AssistRetrievalAxis, query: string, opt
   }
   if (axis === "compile" && /sqlrpgle|exec\s+sql|crt(sqlrpgi)|RPGPPOPT|embedded\s+sql/i.test([query, options.language, options.question].filter(Boolean).join(" "))) return "sql-db2-for-i";
   if (axis === "datatype") return "ile-rpg";
+  if (
+    axis === "administration"
+    && /journal(?:ing)?|journal\s+receiver|crt(?:jrn|jrnrcv)|strjrnpf|endjrnpf|dlt(?:jrn|jrnrcv)|chgjrn|user\s+profile|group\s+profile|dspusrprf|chgusrprf|edtobjaut|grtobjaut|authorization|privileges|object\s+ownership|object\s+authority|data\s+rights?|object\s+rights?|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref|secofr|secadm|pgmr|sysopr|user|oper)\b/i.test(query)
+  ) return undefined;
   if (axis === "administration") return "cl-clle";
   if (axis === "database") return "sql-db2-for-i";
   if (axis === "syntax" && /%\s*(time|date|timestamp|dec)\b|time\s+(data\s+type|format)|date\s+time|timestamp\s+expression|hhmmss|packed\s+decimal|timfmt|date[- ]time/i.test(query)) return "ile-rpg";
@@ -3336,9 +3714,28 @@ function contextEvidenceScore(hit: SearchHit, task: string): number {
   const hitConcepts = buildSemanticProfile({ title: hit.title, category: hit.category, breadcrumbs: hit.breadcrumbs, body: hit.snippet }).concepts;
   let score = hit.score;
   score += hitConcepts.filter((concept) => queryConcepts.includes(concept)).length * 12;
+  score += explicitEntityCoverageScore(hit, task);
   if (hit.synthetic) score += 8;
   if (hit.documentKind === "topic" || hit.documentKind === "reference") score += 12;
   if (hit.documentKind === "index") score -= 15;
+  return score;
+}
+
+function explicitEntityCoverageScore(hit: SearchHit, task: string): number {
+  const anchors = extractSemanticEntityAnchors(task).filter((term) => !isMessageIdTerm(term));
+  if (!anchors.length) return 0;
+  const title = fold(hit.title);
+  const haystack = fold([hit.title, hit.breadcrumbs.join(" "), hit.snippet, hit.canonicalTopicKey ?? ""].join(" "));
+  let score = 0;
+  for (const term of anchors) {
+    const folded = fold(term);
+    const aliases = IBM_I_COMMAND_ALIASES[folded] ?? [];
+    const needles = [folded, ...aliases.map(fold)];
+    if (title.startsWith(`${folded} command`)) score += 120;
+    else if (title.includes(folded)) score += 90;
+    else if (aliases.some((alias) => title.includes(fold(alias)))) score += 75;
+    else if (needles.some((needle) => haystack.includes(needle))) score += 35;
+  }
   return score;
 }
 
@@ -3371,27 +3768,41 @@ function filterAssistResponseMaterial(input: {
   citations: AnswerCitation[];
 } {
   const isRelevant = (text: string): boolean => isRelevantForTaskPlan(input.taskPlan, text);
-  const evidence = input.evidence.filter((hit) => isRelevant([hit.title, hit.snippet, hit.breadcrumbs.join(" "), hit.category, hit.canonicalTopicKey ?? ""].join(" ")));
-  const reads = input.reads.filter((read) => isRelevant([
-    read.title,
-    read.category,
-    read.excerpt,
-    read.focusedSections.map((section) => `${section.kind} ${section.title} ${section.content}`).join(" ")
-  ].join(" ")));
+  const isDistracting = (text: string): boolean => isDistractingForTaskPlan(input.taskPlan, input.question, text);
+  const evidence = input.evidence.filter((hit) => {
+    const text = [hit.title, hit.snippet, hit.breadcrumbs.join(" "), hit.category, hit.canonicalTopicKey ?? ""].join(" ");
+    return isRelevant(text) && !isDistracting(text);
+  });
+  const reads = input.reads.filter((read) => {
+    const text = [
+      read.title,
+      read.category,
+      read.excerpt,
+      read.focusedSections.map((section) => `${section.kind} ${section.title} ${section.content}`).join(" ")
+    ].join(" ");
+    return isRelevant(text) && !isDistracting(text);
+  });
   const sections = input.sections
     .map((topic) => {
-      const topicRelevant = isRelevant(`${topic.title} ${topic.id}`);
-      const topicSections = topic.sections.filter((section) => topicRelevant || isRelevant(`${section.kind} ${section.title} ${section.content}`));
+      const topicText = `${topic.title} ${topic.id}`;
+      const topicRelevant = isRelevant(topicText) && !isDistracting(topicText);
+      const topicSections = topic.sections.filter((section) => {
+        const sectionText = `${topic.title} ${topic.id} ${section.kind} ${section.title} ${section.content}`;
+        return (topicRelevant || isRelevant(sectionText)) && !isDistracting(sectionText);
+      });
       return { ...topic, sections: topicSections };
     })
-    .filter((topic) => topic.sections.length > 0 || isRelevant(`${topic.title} ${topic.id}`));
-  const citations = input.citations.filter((citation) => isRelevant([
-    citation.title,
-    citation.section ?? "",
-    citation.sourceKind,
-    citation.version,
-    citation.canonicalUrl ?? ""
-  ].join(" ")));
+    .filter((topic) => topic.sections.length > 0 || (isRelevant(`${topic.title} ${topic.id}`) && !isDistracting(`${topic.title} ${topic.id}`)));
+  const citations = input.citations.filter((citation) => {
+    const text = [
+      citation.title,
+      citation.section ?? "",
+      citation.sourceKind,
+      citation.version,
+      citation.canonicalUrl ?? ""
+    ].join(" ");
+    return isRelevant(text) && !isDistracting(text);
+  });
 
   // Para familias generales no filtramos. Para familias especializadas, si el filtro queda vacío,
   // devolvemos el material original para evitar una respuesta sin evidencia; el coverage/warnings
@@ -3413,7 +3824,7 @@ function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean 
     case "work_management":
       return /wrkactjob|work with active jobs|active jobs|active job|wrkobjlck|work with object locks|object locks|lock state|locks?|dspjob|display job|wrkjob|work with job|job log|joblog|job parameter|request processor|call stack|debugging a job|qualified job|strsrvjob|strdbg|subsystem|job queue/.test(haystack);
     case "object_lock_analysis":
-      return /wrkobjlck|work with object locks|object locks|lock state|locks?|record lock|locked record|1218|%status|%error|chain|read|object|member|library|wrkjob|work with job|job log|joblog|active job/.test(haystack);
+      return /wrkobjlck|work with object locks|object locks|object lock|lock state|locks?\b|record lock|record is locked|locked record|record_lock_info|1218|%status|%error|\bchain\b|\bread(e|p|pe)?\b|file status|infds|allocating resources|alco?bj|dlcobj|wrkjob|work with job|job log|joblog|active job/.test(haystack);
     case "db2_catalog_query":
       return /db2|qsys2|syscolumns|systables|sysindexes|catalog|cat[aá]logo|metadata|metadatos|column|table|view|sql/.test(haystack);
     case "date_time_conversion":
@@ -3427,6 +3838,15 @@ function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean 
     default:
       return true;
   }
+}
+
+function isDistractingForTaskPlan(taskPlan: AssistTaskPlan, question: string, text: string): boolean {
+  const request = fold(question);
+  const haystack = fold(text);
+  if (taskPlan.family === "object_lock_analysis" && /rpgle|ile rpg|record\s+(?:is\s+)?locked|record[-\s]+lock|locked record/.test(request)) {
+    return /qsys2|record_lock_info|thread_id\b|curdate\b|curtime\b|\bnow\b|scalar functions|time-of-day clock|date based on|timestamp based on|sql-db2-for-i/.test(haystack);
+  }
+  return false;
 }
 
 function contextDisplayTitle(read: ReadResult, hit?: SearchHit): string {
@@ -3959,7 +4379,7 @@ function buildAssistCoverage(input: {
   const missingTechnicalTerms = technicalTerms.filter((term) => !matchedTechnicalTerms.includes(term));
   const primaryTechnicalTerms = technicalTerms.filter((term) => !isAssistMessageFamilyTerm(term));
   const matchedPrimaryTerms = primaryTechnicalTerms.filter((term) => matchedTechnicalTerms.includes(term));
-  const weakSectionTerms = matchedPrimaryTerms.filter((term) => !hasFocusedSectionForTerm(input.sections, term));
+  const weakSectionTerms = matchedPrimaryTerms.filter((term) => !isAssistDatatypeReferenceTerm(term) && !hasFocusedSectionForTerm(input.sections, term));
   const evidenceCount = input.evidence.length;
   const readCount = input.reads.length;
   const sectionCount = input.sections.reduce((total, topic) => total + topic.sections.length, 0);
@@ -4004,11 +4424,13 @@ function hasFocusedSectionForTerm(sections: Array<{ id: string; title: string; s
   const needles = assistCoverageNeedles(term).map(fold);
   const isCommand = IBM_I_COMMAND_PREFIX_PATTERN.test(term);
   const isSqlReference = isAssistSqlReferenceTerm(term);
+  const isDatatypeReference = isAssistDatatypeReferenceTerm(term);
   return sections.some((topic) => topic.sections.some((section) => {
     const sectionText = fold(`${topic.title} ${section.title} ${section.content}`);
     if (!needles.some((needle) => sectionText.includes(needle))) return false;
     if (["syntax", "parameters", "examples"].includes(section.kind)) return true;
     if (isSqlReference && ["description", "notes", "generic", "related", "messages", "recovery"].includes(section.kind)) return true;
+    if (isDatatypeReference && ["description", "notes", "generic", "related"].includes(section.kind)) return true;
     // Muchos comandos operativos exportados desde la ayuda RDi aparecen en notas,
     // secciones genéricas o temas procedurales sin una página canónica "Command".
     // Si la sección menciona el comando específico, cuenta como evidencia fuerte para
@@ -4019,6 +4441,18 @@ function hasFocusedSectionForTerm(sections: Array<{ id: string; title: string; s
 
 function isAssistSqlReferenceTerm(term: string): boolean {
   return /^(SET OPTION|SQLCODE|SQLSTATE|embedded SQL|INSERT|UPDATE|SELECT)$/i.test(term);
+}
+
+function isAssistDatatypeReferenceTerm(term: string): boolean {
+  const foldedTerm = fold(term);
+  return foldedTerm.includes("%time")
+    || foldedTerm.includes("%date")
+    || foldedTerm.includes("%timestamp")
+    || foldedTerm.includes("%dec")
+    || foldedTerm.includes("packed decimal")
+    || foldedTerm.includes("time format")
+    || foldedTerm.includes("hhmmss")
+    || foldedTerm.includes("iso0");
 }
 
 function isAssistTermCoveredByText(foldedEvidenceText: string, term: string): boolean {
@@ -4034,6 +4468,7 @@ function assistCoverageNeedles(term: string): string[] {
   if (foldedTerm === "%date") return ["%date", "date data type", "datfmt"];
   if (foldedTerm === "%timestamp") return ["%timestamp", "timestamp data type"];
   if (foldedTerm.includes("iso0")) return ["*iso0", "iso0", "timfmt", "time format", "separator", "external format"];
+  if (foldedTerm === "hhmmss") return ["hhmmss", "*iso0", "iso0", "timfmt", "time format", "no separator", "external format", "%time", "%dec", "packed decimal", "date time or timestamp expression"];
   if (foldedTerm === "time format") return ["time format", "timfmt", "*iso0", "hhmmss"];
   if (foldedTerm === "embedded sql") return ["embedded sql", "sqlrpgle", "exec sql", "crtsqlrpgi"];
   if (foldedTerm === "library list") return ["library list", "displaying a library list", "initial library list", "qsys", "qgpl", "qtemp", "job description"];
@@ -4041,6 +4476,15 @@ function assistCoverageNeedles(term: string): string[] {
   if (foldedTerm === "batch debug") return ["debugging batch jobs", "hold(*yes)", "wrksbmjob", "strsrvjob", "strdbg", "enddbg", "endsrvjob"];
   if (foldedTerm === "seu line commands") return ["source entry utility", "seu", "line commands", "copy", "delete", "insert", "move"];
   if (foldedTerm === "record lock") return ["record lock", "locked record", "1218", "%status", "%error", "chain", "read"];
+  if (foldedTerm === "ile debug / dbgview") return ["debugging ile programs", "dbgview", "crtbndrpg", "crtrpgmod", "*stmt", "*source", "*copy", "*list", "source debugger"];
+  if (foldedTerm === "journaling") return ["journal", "journaling", "journal receiver", "crtjrnrcv", "crtjrn", "strjrnpf", "endjrnpf", "dltjrn", "dltjrnrcv", "chgjrn"];
+  if (foldedTerm === "user profile / group profile") return ["user profile", "group profile", "dspusrprf", "chgusrprf", "edtobjaut", "*secofr", "*secadm", "*pgmr", "*sysopr", "*user", "*oper"];
+  if (foldedTerm === "object authority rights") return ["object authority", "authorization", "*objopr", "*read", "*objmgt", "*add", "*objexist", "*upd", "*autlmgt", "*dlt", "*objalter", "*execut"];
+  if (foldedTerm === "subfile") return ["subfile", "sflsiz", "sflpag", "sflrcdnbr", "page up", "page down", "altpagedwn", "altpageup", "message subfile"];
+  if (foldedTerm === "ile rpg built-in functions") return ["built-in functions", "%subst", "%abs", "%editc", "edit value using an editcode"];
+  if (foldedTerm === "display file navigation") return ["display file", "workstn", "exfmt", "command function", "command attention", "cfnn", "cann"];
+  if (foldedTerm === "cl message types") return ["message queue", "sndusrmsg", "sndpgmmsg", "sndmsg", "sndbrkmsg", "rtvmsg", "errmsg", "sflmsg", "inquiry", "informational", "completion", "diagnostic"];
+  if (foldedTerm === "synon / ca 2e") return ["synon", "ca 2e", "built-in functions"];
   if (foldedTerm === "set option") return ["set option"];
   if (foldedTerm === "sqlcode") return ["sqlcode", "sqlca", "sql communication area", "include sqlca declarations", "get diagnostics"];
   if (foldedTerm === "sqlstate") return ["sqlstate", "sqlca", "sql communication area", "include sqlca declarations", "get diagnostics"];
@@ -4074,6 +4518,15 @@ function extractAssistTechnicalTerms(question: string): string[] {
   addIf(/debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i.test(haystack), "batch debug");
   addIf(/\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i.test(haystack), "SEU line commands");
   addIf(/record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i.test(haystack), "record lock");
+  addIf(/debug(?:ging)?\s+(?:for\s+)?ile|ile\s+debug|source\s+debugger|\bdbgview\b|\bcrt(?:bndrpg|rpgmod)\b.*\bdebug|\*(?:stmt|source|copy|list|all|none)\b/i.test(haystack), "ILE debug / DBGVIEW");
+  addIf(/journal(?:ing)?|journal\s+receiver|\bcrt(?:jrn|jrnrcv)\b|\bstrjrnpf\b|\bendjrnpf\b|\bdlt(?:jrn|jrnrcv)\b|\bchgjrn\b/i.test(haystack), "journaling");
+  addIf(/user\s+profile|group\s+profile|\bdspusrprf\b|\bchgusrprf\b|\bedtobjaut\b|\*(?:secofr|secadm|pgmr|sysopr|user|oper)\b/i.test(haystack), "user profile / group profile");
+  addIf(/grant\s+authority|object\s+right|data\s+right|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref)\b/i.test(haystack), "object authority rights");
+  addIf(/sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i.test(haystack), "subfile");
+  addIf(/built[- ]in\s+function|build\s+in\s+function|%\s*(subst|abs|editc)\b/i.test(haystack), "ILE RPG built-in functions");
+  addIf(/navigation\s+between\s+two\s+screens|screen\s+navigation|display\s+file.*screen|\bexfmt\b|\bworkstn\b|\bcf0?[378]\b|\*in0?[378]\b/i.test(haystack), "display file navigation");
+  addIf(/types?\s+of\s+message|message\s+available\s+in\s+cl|\bsndusrmsg\b|\bsndpgmmsg\b|\bsndmsg\b|\bsndbrkmsg\b|\brtvmsg\b|message\s+queue|inquiry|informational|completion|diagnostic/i.test(haystack), "CL message types");
+  addIf(/\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i.test(haystack), "Synon / CA 2E");
 
   for (const opaque of question.match(/\b[A-Z]{3,}[A-Z0-9]{3,}\b/g) ?? []) {
     if (!isAssistGenericTerm(opaque)) terms.add(opaque);
@@ -4128,18 +4581,36 @@ function buildAssistTaskPlan(input: {
   if (explicitCompileFix && !conversionIntent) family = "fix_compile_error";
   if (explicitRuntimeFix && !conversionIntent) family = "fix_runtime_error";
   if (ddsCanOwnTask) family = "design_dds_file";
-  if (/dspf|display\s+file|pantalla|subfile|reporte|printer\s+file|prtf/i.test(haystack)) family = "design_display_or_report";
-  if (intentProfile.libraryList || intentProfile.fileMembers || intentProfile.seuLineCommands) family = "command_lookup";
+  if (/dspf|display\s+file|pantalla|subfile|reporte|printer\s+file|prtf/i.test(haystack) || intentProfile.subfile || intentProfile.screenNavigation) family = "design_display_or_report";
+  if (
+    intentProfile.libraryList
+    || intentProfile.fileMembers
+    || intentProfile.seuLineCommands
+    || intentProfile.journaling
+    || intentProfile.userProfileSecurity
+    || intentProfile.authorityRights
+    || intentProfile.rpgBuiltInFunctions
+    || intentProfile.clMessageTypes
+    || intentProfile.synonFunctions
+  ) family = "command_lookup";
+  if (intentProfile.ileDebug) family = "fix_compile_error";
   if (intentProfile.batchDebug) family = "work_management";
   if (intentProfile.recordLock) family = "object_lock_analysis";
+  const specificAdministrationDomain = intentProfile.journaling
+    || intentProfile.userProfileSecurity
+    || intentProfile.authorityRights
+    || intentProfile.clMessageTypes;
   if (isAdministrationQuery(haystack) && /lock|bloqueo|wrkobjlck|object\s+locks?/i.test(haystack) && !/wrkactjob|trabajos?\s+activos?|active\s+jobs?/i.test(haystack)) family = "object_lock_analysis";
-  if (isAdministrationQuery(haystack) && family !== "object_lock_analysis") family = "work_management";
+  if (isAdministrationQuery(haystack) && family !== "object_lock_analysis" && !specificAdministrationDomain) family = "work_management";
   if (isDb2CatalogQuery(haystack)) family = "db2_catalog_query";
   if (input.resolved.intent === "message_diagnostic") family = "message_diagnostic";
   if (input.resolved.intent === "version_question") family = "version_check";
   if (input.resolved.intent === "syntax_lookup" && /^general_explanation$/.test(family)) family = "command_lookup";
 
   if (family === "work_management" || family === "object_lock_analysis") axes.add("administration");
+  if (intentProfile.journaling || intentProfile.userProfileSecurity || intentProfile.authorityRights || intentProfile.clMessageTypes) axes.add("administration");
+  if (intentProfile.ileDebug || intentProfile.rpgBuiltInFunctions) axes.add("compile");
+  if (intentProfile.subfile || intentProfile.screenNavigation) axes.add("code");
   if (family === "db2_catalog_query" || intentProfile.sqlControl || intentProfile.embeddedSql) axes.add("database");
   if (family === "date_time_conversion") axes.add("datatype");
   if (hasCompile || family === "create_program" || family === "design_dds_file" || intentProfile.embeddedSql) axes.add("compile");
@@ -4427,6 +4898,46 @@ function buildAssistImplementationSteps(input: {
     steps.push("Para depurar batch, someter o preparar el job retenido cuando sea posible: SBMJOB con HOLD(*YES) o mantenerlo en una job queue antes de que ejecute la lógica problemática.");
     steps.push("Ubicar el trabajo con WRKSBMJOB/Work with Submitted Jobs o WRKACTJOB según su estado, identificar job-number/user/job y arrancar servicio con STRSRVJOB sobre ese job calificado.");
     steps.push("Iniciar depuración con STRDBG antes de liberar el job retenido; después de reproducir el caso, cerrar con ENDDBG y ENDSRVJOB para no dejar la sesión de servicio colgada como fantasma administrativo.");
+  }
+  if (requestIntent.recordLock) {
+    steps.push("Para un record lock en RPGLE, tratarlo como bloqueo de registro leído/encadenado: envolver CHAIN/READ/READE/READP con manejo de error, revisar %ERROR y comprobar %STATUS; el estado 1218 es una señal clásica de locked record/record-lock.");
+    steps.push("Si el problema debe diagnosticarse desde sistema, usar WRKOBJLCK sobre archivo/biblioteca/miembro para ubicar el job propietario del lock; desde código, no asumir datos válidos después de CHAIN/READ fallido por lock.");
+  }
+  if (requestIntent.ileDebug) {
+    steps.push("Para debug de programas ILE/RPG, compilar creando vista de depuración con DBGVIEW en CRTBNDRPG o CRTRPGMOD: *STMT permite depurar contra listado, *SOURCE conserva vista fuente, *COPY incluye miembros /COPY, *LIST usa vista de listado, *ALL crea todas y *NONE no genera datos de debug.");
+    steps.push("Si el programa se crea como bound program usa CRTBNDRPG con DBGVIEW adecuado; si se trabaja por módulo ILE usa CRTRPGMOD con DBGVIEW y luego enlaza el objeto según corresponda.");
+    steps.push("Después de compilar con DBGVIEW, iniciar el source debugger/STRDBG sobre el programa o módulo y validar breakpoints/variables en la vista esperada antes de analizar excepciones.");
+  }
+  if (requestIntent.journaling) {
+    steps.push("Flujo típico de journaling para un archivo físico: crear receiver con CRTJRNRCV, crear journal con CRTJRN, iniciar journaling del PF con STRJRNPF y guardar el objeto con SAVOBJ según política de respaldo.");
+    steps.push("Para terminar o mantener journaling: ENDJRNPF detiene el journaling del PF; DLTJRN elimina el journal cuando corresponde; DLTJRNRCV elimina receivers ya no requeridos; CHGJRN se usa para housekeeping/cambio de receiver y SAVOBJ para respaldos.");
+  }
+  if (requestIntent.userProfileSecurity) {
+    steps.push("Para user profile/group profile, ubicar y revisar perfiles con DSPUSRPRF, modificar atributos controlados con CHGUSRPRF y administrar autorizaciones de objetos con EDTOBJAUT/GRTOBJAUT según el caso.");
+    steps.push("Distinguir clases/perfiles de seguridad IBM i: *SECOFR y *SECADM tienen alcance administrativo alto; *PGMR, *SYSOPR, *USER y *OPER limitan capacidades según clase, autoridades especiales y objetos autorizados.");
+  }
+  if (requestIntent.authorityRights) {
+    steps.push("Para authority/object rights, separar derechos de objeto y derechos de datos: *OBJOPR, *OBJMGT, *OBJEXIST, *OBJALTER, *OBJREF frente a *READ, *ADD, *UPD, *DLT, *EXECUTE/*EXECUT y *AUTLMGT según el recurso.");
+    steps.push("Antes de conceder autoridad, validar propietario/autorizador y usar EDTOBJAUT/GRTOBJAUT con el objeto, biblioteca y tipo correctos; no asumir que autoridad sobre biblioteca equivale automáticamente a todos los derechos de datos.");
+  }
+  if (requestIntent.subfile) {
+    steps.push("Para subfiles DDS, tratar el subfile como un conjunto de registros leídos/escritos contra un display file: el programa carga registros y el sistema presenta una página según SFLPAG y capacidad declarada con SFLSIZ.");
+    steps.push("Validar la estrategia de carga: load-all o load-on-demand; si SFLSIZ es mayor que SFLPAG se habilita paginación típica, y PAGEUP/PAGEDOWN/ALTPAGEUP/ALTPAGEDWN dependen de keywords e indicadores del display file.");
+  }
+  if (requestIntent.rpgBuiltInFunctions) {
+    steps.push("Para built-in functions de ILE RPG, revisar la BIF concreta: %SUBST extrae subcadenas, %ABS devuelve valor absoluto y %EDITC formatea numéricos con edit code antes de concatenarlos o mostrarlos.");
+    steps.push("Si el caso mezcla texto y numéricos, convertir/formatear primero con %EDITC o BIF equivalente y luego concatenar; evitar concatenar packed/zoned directamente como si fueran character.");
+  }
+  if (requestIntent.screenNavigation) {
+    steps.push("Para navegación entre pantallas 5250 con RPG/DDS, declarar el display file como WORKSTN, usar EXFMT para mostrar/leer formatos y controlar el estado de pantalla con una variable de flujo; operaciones clásicas usan Z-ADD/EVAL para cambiar de pantalla.");
+    steps.push("Mapear teclas con indicadores o keywords CFnn/CAnn: por ejemplo *IN03 para salir y *IN07/*IN08 o equivalentes para anterior/siguiente; validar que cada EXFMT limpie/actualice indicadores antes de volver al bucle.");
+  }
+  if (requestIntent.clMessageTypes) {
+    steps.push("En CL, diferenciar mensajes inmediatos y predefinidos: SNDUSRMSG/SNDPGMMSG/SNDMSG/SNDBRKMSG envían mensajes a usuario/programa/colas; RTVMSG recupera texto de mensajes predefinidos desde message files.");
+    steps.push("En display files, ERRMSG/ERRMSGID y SFLMSG/SFLMSGID enlazan mensajes con validación de pantalla/subfile; los tipos funcionales incluyen inquiry, informational, completion y diagnostic según el flujo.");
+  }
+  if (requestIntent.synonFunctions) {
+    steps.push("Synon/CA 2E no forma parte del corpus oficial IBM i base; si el data pack no contiene documentación específica de Synon, tratar la respuesta como fuera de cobertura IBM. Como orientación de compatibilidad comunitaria, las acciones suelen aparecer como *ADD, *COMMIT, *COMPUTE, *MOVE, *MULT, *DIV, *CONCAT, *SUBSTRING y *QUIT, pero deben validarse contra documentación Synon/2E autorizada.");
   }
   if (input.taskPlan.family === "date_time_conversion") {
     const request = input.options.question;
