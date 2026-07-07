@@ -1,7 +1,7 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Release 1.0.2.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
+> **Release 1.0.4.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">

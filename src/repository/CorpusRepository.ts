@@ -1431,9 +1431,17 @@ export class CorpusRepository {
   }): Promise<AssistRetrievalExecution> {
     const { options, resolved, context, depth, limit, preset } = input;
     const axes = buildAssistRetrievalAxes(options, resolved, context);
-    const initialQueries = buildAssistInitialQueries(options, preset, axes);
+    const unorderedInitialQueries = buildAssistInitialQueries(options, preset, axes);
     const hasAdministrationAxis = axes.has("administration");
-    const maxSearchHops = hasAdministrationAxis ? (depth === "deep" ? 13 : depth === "concise" ? 7 : 10) : depth === "deep" ? 18 : depth === "concise" ? 5 : 10;
+    const axisCount = Math.max(1, axes.size);
+    const maxSearchHops = hasAdministrationAxis
+      ? (depth === "deep" ? 13 : depth === "concise" ? 7 : 10)
+      : depth === "deep"
+        ? Math.max(18, Math.min(28, axisCount * 5))
+        : depth === "concise"
+          ? Math.max(5, Math.min(9, axisCount * 2))
+          : Math.max(10, Math.min(20, axisCount * 4));
+    const initialQueries = orderAssistInitialQueriesByAxis(unorderedInitialQueries, axes);
     const hopLimit = hasAdministrationAxis ? Math.max(Math.min(limit, depth === "deep" ? 8 : 6), 5) : depth === "deep" ? 5 : Math.max(Math.min(limit, 5), 3);
     const readLimit = hasAdministrationAxis && depth === "deep" ? 2 : 1;
     const sectionLimit = depth === "deep" ? 8 : 5;
@@ -2704,6 +2712,30 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
     if (/crtsqlrpgi|embedded sql|sql rpg|precompiler|rpgppopt/.test(haystack)) score += 34;
     if (/^wrap$|sysindexstat|catalog table|catalog view|^create trigger$/.test(title)) score -= 42;
   }
+  if (queryConcepts.includes("ibmi.sql.control") || queryConcepts.includes("ibmi.sql.diagnostics") || /\bsql\b|sqlrpgle|embedded\s+sql|sql\s+embebido/i.test(query)) {
+    if (/set\s+option/i.test(query)) {
+      if (/^set option$/.test(title)) score += 72;
+      if (/set option statement|processing options|sql statements/.test(haystack)) score += 24;
+      if (/using \/copy, \/include/.test(title) && !/\/\s*(copy|include)|copybook/i.test(query)) score -= 28;
+    }
+    if (/sqlcode|sqlstate|sqlca/i.test(query)) {
+      if (/sqlca|sql communication area|field descriptions|include sqlca declarations|whenever|get diagnostics/.test(haystack)) score += 46;
+      if (/listing of sql messages/.test(title) && !/\bsql\d{4,5}\b/i.test(query)) score -= 18;
+      if (/using \/copy, \/include/.test(title) && !/\/\s*(copy|include)|copybook/i.test(query)) score -= 24;
+    }
+    if (/\binsert\b/i.test(query)) {
+      if (/^insert$|insert statement/.test(title)) score += 58;
+      if (/insert into|values/.test(haystack)) score += 14;
+    }
+    if (/\bupdate\b/i.test(query)) {
+      if (/^update$|update statement/.test(title)) score += 58;
+      if (/positioned update|searched update|set clause/.test(haystack)) score += 14;
+    }
+    if (/\bselect\b/i.test(query)) {
+      if (/^select$|select into|select-statement|static invocation of a select/.test(title)) score += 58;
+      if (/select list|from clause|where clause|cursor/.test(haystack)) score += 14;
+    }
+  }
   if (queryConcepts.includes("ibmi.rpg.datetime") || queryConcepts.includes("ibmi.rpg.time-format.iso")) {
     if (/time data type|date,?\s*time\s*or\s*timestamp\s*expression|time\s*\(retrieve time and date\)|%time|%timestamp|timfmt|external format/.test(haystack)) score += 42;
     if (/\bmove\b/.test(title) && !/\bmove\b/i.test(query)) score -= 24;
@@ -3045,9 +3077,12 @@ function buildSqlControlQueries(haystack: string): string[] {
     "SQL statements in ILE RPG applications",
     "SQLRPGLE embedded SQL RPG"
   ];
-  if (/insert|update|select/i.test(haystack)) queries.push("INSERT UPDATE SELECT embedded SQL RPG", "SQL data change statements embedded SQL RPG");
-  if (/set\s+option/i.test(haystack)) queries.unshift("SET OPTION statement embedded SQL RPG");
-  if (/sqlcode|sqlstate/i.test(haystack)) queries.unshift("SQLCODE SQLSTATE diagnostics embedded SQL RPG");
+  if (/insert/i.test(haystack)) queries.unshift("INSERT statement SQL");
+  if (/update/i.test(haystack)) queries.unshift("UPDATE statement SQL");
+  if (/select/i.test(haystack)) queries.unshift("SELECT statement SQL");
+  if (/insert|update|select/i.test(haystack)) queries.push("SQL data change statements embedded SQL RPG");
+  if (/set\s+option/i.test(haystack)) queries.unshift("SET OPTION SQL processing options", "SET OPTION statement embedded SQL RPG");
+  if (/sqlcode|sqlstate/i.test(haystack)) queries.unshift("SQLCA SQLCODE SQLSTATE embedded SQL RPG", "SQLCODE SQLSTATE diagnostics embedded SQL RPG");
   return [...new Map(queries.map((query) => [fold(query), query])).values()];
 }
 
@@ -3161,6 +3196,7 @@ function extractSemanticEntityAnchors(haystack: string): string[] {
 function inferAssistAxisForQuery(query: string, axes: Set<AssistRetrievalAxis>): AssistRetrievalAxis {
   if (isAdministrationQuery(query)) return "administration";
   if (isDb2CatalogQuery(query)) return "database";
+  if (/set\s+option|sqlca|sqlcode|sqlstate|\b(insert|update|select|delete|merge)\b.*\bsql\b|\bsql\b.*\b(insert|update|select|delete|merge)\b/i.test(query)) return "database";
   if (/%\s*(time|date|timestamp|dec)\b|time\s+(data\s+type|format)|date\s+time|timestamp\s+expression|hhmmss|packed\s+decimal|decimal\s+empaquetad|timfmt|date[- ]time|numeric\s+time/i.test(query)) return "datatype";
   if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|RNF|CPF|MCH|SQLCODE|SQLSTATE)\b/i.test(query)) return "message";
   if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|RPGPPOPT|DBGVIEW|COMMIT|\/\s*(copy|include)\b|copybook|sqlrpgle|embedded\s+sql/i.test(query)) return "compile";
@@ -3168,6 +3204,51 @@ function inferAssistAxisForQuery(query: string, axes: Set<AssistRetrievalAxis>):
   if (/sintaxis|syntax|par[aá]metro|parameter|operand|opcode|operation code|%[a-z][a-z0-9_-]+|\b[A-Z]{2,}-[A-Z]{2,}\b/i.test(query)) return "syntax";
   if (axes.has("syntax") && buildSemanticProfile(query).concepts.length) return "syntax";
   return "primary";
+}
+
+function orderAssistInitialQueriesByAxis(queries: string[], axes: Set<AssistRetrievalAxis>): string[] {
+  const buckets = new Map<AssistRetrievalAxis, string[]>();
+  const register = (axis: AssistRetrievalAxis, query: string) => {
+    const normalized = query.trim();
+    if (!normalized) return;
+    const list = buckets.get(axis) ?? [];
+    if (!list.some((existing) => fold(existing) === fold(normalized))) list.push(normalized);
+    buckets.set(axis, list);
+  };
+
+  for (const query of queries) {
+    register(inferAssistAxisForQuery(query, axes), query);
+  }
+
+  const priority: AssistRetrievalAxis[] = [
+    "datatype",
+    "database",
+    "compile",
+    "message",
+    "syntax",
+    "administration",
+    "version",
+    "code",
+    "related",
+    "primary",
+    "gap-followup"
+  ];
+  const axisOrder = [
+    ...priority.filter((axis) => buckets.has(axis)),
+    ...[...buckets.keys()].filter((axis) => !priority.includes(axis))
+  ];
+  const ordered: string[] = [];
+  let pending = true;
+  while (pending) {
+    pending = false;
+    for (const axis of axisOrder) {
+      const next = buckets.get(axis)?.shift();
+      if (!next) continue;
+      pending = true;
+      if (!ordered.some((existing) => fold(existing) === fold(next))) ordered.push(next);
+    }
+  }
+  return ordered;
 }
 
 function buildAssistSearchCategory(axis: AssistRetrievalAxis, query: string, options: AssistOptions, preset?: LanguagePreset): string | undefined {
@@ -3882,18 +3963,20 @@ function buildAssistCoverage(input: {
   const evidenceCount = input.evidence.length;
   const readCount = input.reads.length;
   const sectionCount = input.sections.reduce((total, topic) => total + topic.sections.length, 0);
+  const blockingInputWarnings = input.warnings.filter(isCoverageBlockingWarning);
   const coverageWarnings = [
     ...(missingTechnicalTerms.length ? [`No se encontró evidencia textual específica para: ${missingTechnicalTerms.join(", ")}.`] : []),
     ...(weakSectionTerms.length ? [`La evidencia para ${weakSectionTerms.join(", ")} existe, pero no trae una sección fuerte de sintaxis/parámetros; tratarla como referencia parcial.`] : []),
     ...(evidenceCount === 0 ? ["No hay resultados documentales utilizables para la consulta."] : []),
     ...(readCount === 0 ? ["No se pudo materializar lectura completa de tópicos para la consulta."] : []),
-    ...(sectionCount === 0 ? ["No se detectaron secciones enfocadas de sintaxis/parámetros/ejemplos/recovery."] : [])
+    ...(sectionCount === 0 ? ["No se detectaron secciones enfocadas de sintaxis/parámetros/ejemplos/recovery."] : []),
+    ...blockingInputWarnings
   ];
   const status: AssistCoverage["status"] = evidenceCount === 0
     || readCount === 0
     || (primaryTechnicalTerms.length > 0 && matchedPrimaryTerms.length === 0)
     ? "thin"
-    : missingTechnicalTerms.length || weakSectionTerms.length || sectionCount === 0 || input.confidence === "baja" || input.warnings.length
+    : missingTechnicalTerms.length || weakSectionTerms.length || sectionCount === 0 || input.confidence === "baja" || blockingInputWarnings.length
       ? "partial"
       : "complete";
   const summary = status === "complete"
@@ -3913,19 +3996,29 @@ function buildAssistCoverage(input: {
   };
 }
 
+function isCoverageBlockingWarning(warning: string): boolean {
+  return /sin resultados|no se encontr[oó]|no hay|no se pudo|insuficient|d[eé]bil|baja confianza|riesgo de inventar|fuera de la versi[oó]n|fuera de la categor/i.test(warning);
+}
+
 function hasFocusedSectionForTerm(sections: Array<{ id: string; title: string; sections: TopicSection[] }>, term: string): boolean {
   const needles = assistCoverageNeedles(term).map(fold);
   const isCommand = IBM_I_COMMAND_PREFIX_PATTERN.test(term);
+  const isSqlReference = isAssistSqlReferenceTerm(term);
   return sections.some((topic) => topic.sections.some((section) => {
     const sectionText = fold(`${topic.title} ${section.title} ${section.content}`);
     if (!needles.some((needle) => sectionText.includes(needle))) return false;
     if (["syntax", "parameters", "examples"].includes(section.kind)) return true;
+    if (isSqlReference && ["description", "notes", "generic", "related", "messages", "recovery"].includes(section.kind)) return true;
     // Muchos comandos operativos exportados desde la ayuda RDi aparecen en notas,
     // secciones genéricas o temas procedurales sin una página canónica "Command".
     // Si la sección menciona el comando específico, cuenta como evidencia fuerte para
     // evitar falsos huecos de cobertura por forma documental, no por falta real.
     return isCommand && ["description", "notes", "generic", "related"].includes(section.kind);
   }));
+}
+
+function isAssistSqlReferenceTerm(term: string): boolean {
+  return /^(SET OPTION|SQLCODE|SQLSTATE|embedded SQL|INSERT|UPDATE|SELECT)$/i.test(term);
 }
 
 function isAssistTermCoveredByText(foldedEvidenceText: string, term: string): boolean {
@@ -3940,6 +4033,7 @@ function assistCoverageNeedles(term: string): string[] {
   if (foldedTerm === "%time") return ["%time", "time data type", "timfmt"];
   if (foldedTerm === "%date") return ["%date", "date data type", "datfmt"];
   if (foldedTerm === "%timestamp") return ["%timestamp", "timestamp data type"];
+  if (foldedTerm.includes("iso0")) return ["*iso0", "iso0", "timfmt", "time format", "separator", "external format"];
   if (foldedTerm === "time format") return ["time format", "timfmt", "*iso0", "hhmmss"];
   if (foldedTerm === "embedded sql") return ["embedded sql", "sqlrpgle", "exec sql", "crtsqlrpgi"];
   if (foldedTerm === "library list") return ["library list", "displaying a library list", "initial library list", "qsys", "qgpl", "qtemp", "job description"];
@@ -3948,8 +4042,8 @@ function assistCoverageNeedles(term: string): string[] {
   if (foldedTerm === "seu line commands") return ["source entry utility", "seu", "line commands", "copy", "delete", "insert", "move"];
   if (foldedTerm === "record lock") return ["record lock", "locked record", "1218", "%status", "%error", "chain", "read"];
   if (foldedTerm === "set option") return ["set option"];
-  if (foldedTerm === "sqlcode") return ["sqlcode", "get diagnostics"];
-  if (foldedTerm === "sqlstate") return ["sqlstate", "get diagnostics"];
+  if (foldedTerm === "sqlcode") return ["sqlcode", "sqlca", "sql communication area", "include sqlca declarations", "get diagnostics"];
+  if (foldedTerm === "sqlstate") return ["sqlstate", "sqlca", "sql communication area", "include sqlca declarations", "get diagnostics"];
   return [term];
 }
 
@@ -3966,6 +4060,7 @@ function extractAssistTechnicalTerms(question: string): string[] {
   addIf(/%\s*date\b/i.test(haystack), "%DATE");
   addIf(/%\s*timestamp\b/i.test(haystack), "%TIMESTAMP");
   addIf(/%\s*dec\b|packed\s+decimal|decimal\s+empaquetad|\bpacket\b|hhmmss|numeric[ao]?|num[eé]ric[ao]?/i.test(haystack), "%DEC / packed decimal");
+  addIf(/\*iso0|iso0/i.test(haystack), "*ISO0 / no-separator time format");
   addIf(/\*iso0|iso0|\*hms|hhmmss|timfmt|datfmt|time[- ]format|hora|horario/i.test(haystack), "time format");
   addIf(/set\s+option/i.test(haystack), "SET OPTION");
   addIf(/sqlcode/i.test(haystack), "SQLCODE");

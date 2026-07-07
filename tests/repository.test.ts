@@ -30,6 +30,15 @@ function withRepo<T>(callback: (repo: CorpusRepository) => T): T {
   }
 }
 
+async function withRepoAsync<T>(callback: (repo: CorpusRepository) => Promise<T>): Promise<T> {
+  const repo = new CorpusRepository(path.resolve("data", "pack"));
+  try {
+    return await callback(repo);
+  } finally {
+    repo.close();
+  }
+}
+
 function titles(results: SearchHit[]): string[] {
   return results.map((result) => result.title);
 }
@@ -176,28 +185,34 @@ describe("capacidades agénticas del repositorio", () => {
   });
 
 
-  it("assist responde conversiones date-time SQLRPGLE sin inventar evidencia free-form irrelevante", () => {
-    const assist = withRepo((repo) => repo.assist({
+  it("assistSmart responde conversiones date-time SQLRPGLE con cobertura técnica y sin tangentes", async () => {
+    const assist = await withRepoAsync((repo) => repo.assistSmart({
       question: "Necesito validar en IBM i/RPGLE free-form el uso de %Time con formato *ISO0 para obtener una hora HHMMSS numerica, y confirmar buenas practicas de SQLRPGLE embedded SQL con SET OPTION y verificacion de SQLCODE en operaciones INSERT/UPDATE/SELECT.",
       language: "SQLRPGLE",
       version: "7.6",
-      depth: "deep",
+      depth: "standard",
       audience: "agent",
       includeExamples: true,
       includeCompileCommands: true,
-      limit: 10
+      limit: 8
     }));
 
     expect(assist.taskPlan.family).toBe("date_time_conversion");
     expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["syntax", "compile", "database"]));
     expect(assist.coverage.status).not.toBe("thin");
-    expect(assist.coverage.matchedTechnicalTerms).toEqual(expect.arrayContaining(["%TIME", "SET OPTION", "SQLCODE"]));
+    expect(assist.coverage.missingTechnicalTerms).toEqual([]);
+    expect(assist.coverage.warnings.join("\n")).not.toMatch(/No se encontró evidencia textual específica|no trae una sección fuerte/i);
+    expect(assist.coverage.matchedTechnicalTerms).toEqual(expect.arrayContaining(["%TIME", "%DEC / packed decimal", "*ISO0 / no-separator time format", "time format", "SET OPTION", "SQLCODE", "embedded SQL", "INSERT", "UPDATE", "SELECT", "HHMMSS"]));
+    expect(assist.reads.map((read) => read.title)).toEqual(expect.arrayContaining(["SET OPTION", "INSERT"]));
     expect(assist.answer).toMatch(/%TIME|Time Data Type|time-format|TIMFMT/i);
     expect(assist.answer).toMatch(/%DEC|Packed Decimal|Date, time or timestamp expression|HHMMSS/i);
     expect(assist.answer).toMatch(/SET OPTION|SQLCODE|SQLSTATE|embedded SQL|SQLRPGLE/i);
+    expect(assist.answer).not.toMatch(/llama a|usa ibmi_docs_read|activa Include Sections|ibmi_docs_sections/i);
     expect(assist.answer).not.toMatch(/Free-Form Named Constant Definition|Free-Form Enumeration Definition|Free-Form Parameter Definition/i);
     expect(assist.specificFindings.join(" ")).not.toMatch(/Free-Form Named Constant Definition|Free-Form Enumeration Definition|Free-Form Parameter Definition/i);
-    expect(assist.retrievalPlan.hops.some((hop) => /%TIME|Time Data Type|%DEC|SET OPTION|SQLCODE/i.test(hop.query))).toBe(true);
+    expect(assist.retrievalPlan.hops.map((hop) => hop.query).join(" ")).toMatch(/%TIME/);
+    expect(assist.retrievalPlan.hops.map((hop) => hop.query).join(" ")).toMatch(/SET OPTION/);
+    expect(assist.retrievalPlan.hops.map((hop) => hop.query).join(" ")).toMatch(/INSERT statement SQL/);
   });
 
   it("assist normaliza aliases de agentes como query e ibmiVersion sin explotar ni responder tangentes", () => {
