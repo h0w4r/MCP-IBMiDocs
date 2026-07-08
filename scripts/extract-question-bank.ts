@@ -7,6 +7,7 @@ import * as cheerio from "cheerio";
 interface ExtractedQuestionBankCase {
   id: string;
   source: string;
+  sourceId?: string;
   licenseNote: string;
   question: string;
   language: string;
@@ -16,7 +17,7 @@ interface ExtractedQuestionBankCase {
   forbiddenAny: string[];
   evaluationEligible: boolean;
   extraction: {
-    sourceKind: "ibmiskills-web" | "pdf";
+    sourceKind: string;
     extractionQuality: "answered" | "question-only" | "multiple-choice" | "partial";
     url?: string;
     page?: number;
@@ -41,16 +42,44 @@ interface ExtractOptions {
   site: string;
   pdf: string;
   out: string;
+  sources?: string;
+  report?: string;
+  includeUnverified: boolean;
   skipWeb: boolean;
   skipPdf: boolean;
+}
+
+interface QuestionBankSource {
+  id: string;
+  kind: "web" | "pdf" | "fixture";
+  enabled?: boolean;
+  sourceKind?: string;
+  licenseStatus: "maintainer-confirmed" | "public-domain" | "open-license" | "unknown" | "restricted";
+  licenseNote: string;
+  redistributable?: boolean;
+  devOnly?: boolean;
+  discover?: boolean;
+  seedUrls?: string[];
+  urls?: string[];
+  path?: string;
+  notes?: string;
+}
+
+interface QuestionBankSourceRegistry {
+  version: number;
+  generatedAt?: string;
+  policy?: string;
+  sources: QuestionBankSource[];
 }
 
 const DEFAULT_SITE = "https://ibmiskills.com/interviewquestions-1";
 const DEFAULT_PDF = "C:\\Users\\azast\\Downloads\\kupdf.net_master-question-bank-as400-iseries.pdf";
 const DEFAULT_OUT = path.resolve("tests", "fixtures", "dev-question-bank.global.json");
+const DEFAULT_SOURCES = path.resolve("tests", "fixtures", "question-bank.sources.json");
 const LICENSE_NOTE = "Fuente comunitaria/educativa indicada por el mantenedor; fixture usado solo para validación de desarrollo, no para runtime del MCP.";
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_WEB_PAGES = 80;
+const BROWSER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 const KNOWN_SITE_PATH_HINTS = [
   "/interviewquestions-1",
@@ -111,6 +140,9 @@ function parseArgs(argv: string[]): ExtractOptions {
     site: DEFAULT_SITE,
     pdf: DEFAULT_PDF,
     out: DEFAULT_OUT,
+    sources: fs.existsSync(DEFAULT_SOURCES) ? DEFAULT_SOURCES : undefined,
+    report: undefined,
+    includeUnverified: false,
     skipWeb: false,
     skipPdf: false
   };
@@ -127,6 +159,14 @@ function parseArgs(argv: string[]): ExtractOptions {
     } else if (arg === "--out" && next) {
       options.out = path.resolve(next);
       index += 1;
+    } else if (arg === "--sources" && next) {
+      options.sources = path.resolve(next);
+      index += 1;
+    } else if (arg === "--report" && next) {
+      options.report = path.resolve(next);
+      index += 1;
+    } else if (arg === "--include-unverified") {
+      options.includeUnverified = true;
     } else if (arg === "--skip-web") {
       options.skipWeb = true;
     } else if (arg === "--skip-pdf") {
@@ -136,21 +176,181 @@ function parseArgs(argv: string[]): ExtractOptions {
   return options;
 }
 
+function loadSourceRegistry(registryPath: string): QuestionBankSourceRegistry {
+  const parsed = JSON.parse(fs.readFileSync(registryPath, "utf8")) as QuestionBankSourceRegistry;
+  if (!Array.isArray(parsed.sources)) throw new Error(`Registry de fuentes inválido: ${registryPath}`);
+  return parsed;
+}
+
+function isSourceAllowed(source: QuestionBankSource, options: ExtractOptions): boolean {
+  if (source.enabled === false) return false;
+  if (source.kind === "web" && options.skipWeb) return false;
+  if (source.kind === "pdf" && options.skipPdf) return false;
+  if (source.licenseStatus === "restricted") return false;
+  if (source.redistributable || source.licenseStatus === "maintainer-confirmed" || source.licenseStatus === "open-license" || source.licenseStatus === "public-domain") {
+    return true;
+  }
+  return options.includeUnverified;
+}
+
+async function extractRegistryCases(registryPath: string, options: ExtractOptions): Promise<ExtractedQuestionBankCase[]> {
+  const registry = loadSourceRegistry(registryPath);
+  const cases: ExtractedQuestionBankCase[] = [];
+  for (const source of registry.sources.filter((item) => isSourceAllowed(item, options))) {
+    if (source.kind === "web") {
+      const urls = await resolveWebSourceUrls(source);
+      for (const url of urls) {
+        try {
+          const html = await fetchText(url);
+          const pageCases = extractCasesFromHtml(url, html, source);
+          cases.push(...pageCases);
+          console.error(`web ${pageCases.length.toString().padStart(3, " ")} casos <- ${source.id} ${url}`);
+        } catch (error) {
+          console.warn(`No se pudo extraer ${source.id} ${url}: ${formatError(error)}`);
+        }
+      }
+    } else if (source.kind === "pdf") {
+      const pdfPath = source.path ? path.resolve(source.path) : options.pdf;
+      if (!pdfPath || !fs.existsSync(pdfPath)) {
+        console.warn(`PDF no disponible para ${source.id}: ${pdfPath || "<sin ruta>"}`);
+        continue;
+      }
+      const pdfCases = extractPdfCases(pdfPath, source);
+      cases.push(...pdfCases);
+      console.error(`pdf ${pdfCases.length.toString().padStart(3, " ")} casos <- ${source.id} ${pdfPath}`);
+    } else if (source.kind === "fixture") {
+      const fixturePath = source.path ? path.resolve(source.path) : "";
+      if (!fixturePath || !fs.existsSync(fixturePath)) {
+        console.warn(`Fixture no disponible para ${source.id}: ${fixturePath || "<sin ruta>"}`);
+        continue;
+      }
+      const fixtureCases = extractFixtureCases(fixturePath, source);
+      cases.push(...fixtureCases);
+      console.error(`fixture ${fixtureCases.length.toString().padStart(3, " ")} casos <- ${source.id} ${fixturePath}`);
+    }
+  }
+  return cases;
+}
+
+function extractFixtureCases(fixturePath: string, source: QuestionBankSource): ExtractedQuestionBankCase[] {
+  const parsed = JSON.parse(fs.readFileSync(fixturePath, "utf8")) as ExtractedQuestionBankCase[];
+  if (!Array.isArray(parsed)) throw new Error(`Fixture de preguntas inválido: ${fixturePath}`);
+  return parsed
+    .filter((item) => item?.question && item?.expectedAnswerSummary)
+    .map((item, index) => ({
+      ...item,
+      id: item.id || `qb-${slugify(source.id)}-${index + 1}`,
+      source: item.source || fixturePath,
+      sourceId: item.sourceId ?? source.id,
+      licenseNote: source.licenseNote || item.licenseNote || LICENSE_NOTE,
+      extraction: {
+        ...item.extraction,
+        sourceKind: item.extraction?.sourceKind || source.sourceKind || "fixture"
+      }
+    }));
+}
+
+async function resolveWebSourceUrls(source: QuestionBankSource): Promise<string[]> {
+  const explicit = [...(source.urls ?? [])];
+  if (source.discover === false) return uniqueStrings(explicit);
+  const seeds = source.seedUrls?.length ? source.seedUrls : explicit;
+  const discovered: string[] = [];
+  for (const seed of seeds) {
+    try {
+      discovered.push(...await discoverWebPages(seed));
+    } catch (error) {
+      console.warn(`No se pudo descubrir enlaces para ${source.id} desde ${seed}: ${formatError(error)}`);
+    }
+  }
+  return uniqueStrings([...explicit, ...discovered]).slice(0, MAX_WEB_PAGES);
+}
+
 async function fetchText(url: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      headers: {
-        "user-agent": "MCP-IBMiDocs-dev-question-bank-extractor/1.0"
-      },
-      signal: controller.signal
-    });
-    if (!response.ok) throw new Error(`HTTP ${response.status} al descargar ${url}`);
-    return await response.text();
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "accept-language": "en-US,en;q=0.9,es;q=0.8",
+          "user-agent": BROWSER_USER_AGENT
+        },
+        signal: controller.signal
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status} al descargar ${url}`);
+      return await response.text();
+    } catch (error) {
+      try {
+        return fetchTextWithCurl(url, error);
+      } catch (curlError) {
+        return fetchTextWithPython(url, error, curlError);
+      }
+    }
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function fetchTextWithCurl(url: string, cause: unknown): string {
+  const executable = process.platform === "win32" ? "curl.exe" : "curl";
+  const result = spawnSync(executable, [
+    "-L",
+    "--silent",
+    "--show-error",
+    "--max-time",
+    String(Math.ceil(REQUEST_TIMEOUT_MS / 1000)),
+    "-H",
+    "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "-H",
+    "Accept-Language: en-US,en;q=0.9,es;q=0.8",
+    "-A",
+    BROWSER_USER_AGENT,
+    url
+  ], {
+    encoding: "utf8",
+    maxBuffer: 40 * 1024 * 1024
+  });
+  if (result.status !== 0 || !result.stdout) {
+    throw new Error(`No se pudo descargar ${url}. fetch=${String(cause)} curl=${result.stderr || `exit ${result.status}`}`);
+  }
+  return result.stdout;
+}
+
+function fetchTextWithPython(url: string, fetchCause: unknown, curlCause: unknown): string {
+  const python = String.raw`
+import sys
+import urllib.request
+
+url = sys.argv[1]
+headers = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+}
+try:
+    import requests
+    response = requests.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    sys.stdout.buffer.write(response.text.encode("utf-8"))
+except Exception as requests_error:
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            charset = response.headers.get_content_charset() or "utf-8"
+            sys.stdout.buffer.write(response.read().decode(charset, errors="replace").encode("utf-8"))
+    except Exception as urllib_error:
+        raise RuntimeError(f"requests={requests_error!r}; urllib={urllib_error!r}")
+`;
+  const result = spawnSync("python", ["-", url], {
+    input: python,
+    encoding: "utf8",
+    maxBuffer: 40 * 1024 * 1024
+  });
+  if (result.status !== 0 || !result.stdout) {
+    throw new Error(`No se pudo descargar ${url}. fetch=${String(fetchCause)} curl=${String(curlCause)} python=${result.stderr || `exit ${result.status}`}`);
+  }
+  return result.stdout;
 }
 
 async function discoverWebPages(seedUrl: string): Promise<string[]> {
@@ -165,7 +365,9 @@ async function discoverWebPages(seedUrl: string): Promise<string[]> {
   };
 
   add(seedUrl);
-  for (const hint of KNOWN_SITE_PATH_HINTS) add(new URL(hint, seed.origin).href);
+  if (/ibmiskills\.com$/i.test(seed.hostname)) {
+    for (const hint of KNOWN_SITE_PATH_HINTS) add(new URL(hint, seed.origin).href);
+  }
 
   try {
     const html = await fetchText(seedUrl);
@@ -178,7 +380,7 @@ async function discoverWebPages(seedUrl: string): Promise<string[]> {
       add(href);
     });
   } catch (error) {
-    console.warn(`No se pudo descubrir enlaces desde ${seedUrl}: ${String(error)}`);
+    console.warn(`No se pudo descubrir enlaces desde ${seedUrl}: ${formatError(error)}`);
   }
 
   return Array.from(urls.values()).slice(0, MAX_WEB_PAGES);
@@ -195,19 +397,29 @@ async function extractWebCases(siteUrl: string): Promise<ExtractedQuestionBankCa
   for (const pageUrl of pages) {
     try {
       const html = await fetchText(pageUrl);
-      const pageCases = extractCasesFromHtml(pageUrl, html);
+      const pageCases = extractCasesFromHtml(pageUrl, html, {
+        id: "legacy-site",
+        kind: "web",
+        sourceKind: "ibmiskills-web",
+        licenseStatus: "maintainer-confirmed",
+        licenseNote: LICENSE_NOTE,
+        redistributable: true
+      });
       cases.push(...pageCases);
       console.error(`web ${pageCases.length.toString().padStart(3, " ")} casos <- ${pageUrl}`);
     } catch (error) {
-      console.warn(`No se pudo extraer ${pageUrl}: ${String(error)}`);
+      console.warn(`No se pudo extraer ${pageUrl}: ${formatError(error)}`);
     }
   }
   return cases;
 }
 
-function extractCasesFromHtml(url: string, html: string): ExtractedQuestionBankCase[] {
+function extractCasesFromHtml(url: string, html: string, source: QuestionBankSource): ExtractedQuestionBankCase[] {
   const $ = cheerio.load(html);
-  $("script,style,svg,nav,footer,form,noscript").remove();
+  $("form").each((_, element) => {
+    $(element).replaceWith($(element).contents());
+  });
+  $("script,style,svg,nav,footer,noscript").remove();
   const cases: ExtractedQuestionBankCase[] = [];
   let ordinal = 0;
 
@@ -220,7 +432,15 @@ function extractCasesFromHtml(url: string, html: string): ExtractedQuestionBankC
     let sibling = heading.next();
     while (sibling.length) {
       const tag = String(sibling.prop("tagName") ?? "").toLowerCase();
-      if (/^h[1-4]$/.test(tag)) break;
+      if (/^h[1-4]$/.test(tag)) {
+        const siblingHeading = cleanInlineText(sibling.text());
+        if (looksLikeQuestion(siblingHeading)) break;
+        if (looksLikeAnswerHeading(siblingHeading)) {
+          sibling = sibling.next();
+          continue;
+        }
+        break;
+      }
       const text = cleanBlockText(sibling.text());
       if (text && !isBoilerplate(text)) answerParts.push(text);
       sibling = sibling.next();
@@ -230,9 +450,11 @@ function extractCasesFromHtml(url: string, html: string): ExtractedQuestionBankC
     if (!answer && question.length < 8) return;
     ordinal += 1;
     cases.push(makeCase({
-      idPrefix: `qb-web-${slugify(new URL(url).pathname)}-${ordinal}`,
+      idPrefix: `qb-${slugify(source.id)}-${slugify(new URL(url).pathname)}-${ordinal}`,
       source: url,
-      sourceKind: "ibmiskills-web",
+      sourceId: source.id,
+      sourceKind: source.sourceKind ?? "web",
+      licenseNote: source.licenseNote,
       question,
       answer,
       ordinal: String(ordinal)
@@ -244,9 +466,11 @@ function extractCasesFromHtml(url: string, html: string): ExtractedQuestionBankC
     for (const item of parseLooseNumberedItems(text)) {
       ordinal += 1;
       cases.push(makeCase({
-        idPrefix: `qb-web-${slugify(new URL(url).pathname)}-${ordinal}`,
+        idPrefix: `qb-${slugify(source.id)}-${slugify(new URL(url).pathname)}-${ordinal}`,
         source: url,
-        sourceKind: "ibmiskills-web",
+        sourceId: source.id,
+        sourceKind: source.sourceKind ?? "web",
+        licenseNote: source.licenseNote,
         question: item.question,
         answer: item.answer,
         ordinal: item.ordinal,
@@ -283,19 +507,22 @@ print(json.dumps(pages, ensure_ascii=False))
   return parsed;
 }
 
-function extractPdfCases(pdfPath: string): ExtractedQuestionBankCase[] {
+function extractPdfCases(pdfPath: string, source?: QuestionBankSource): ExtractedQuestionBankCase[] {
   const pages = extractPdfPages(pdfPath);
   const cases: ExtractedQuestionBankCase[] = [];
   const sourceId = `dev-pdf://${slugify(path.basename(pdfPath, path.extname(pdfPath)))}`;
+  const sourceName = source?.id ?? sourceId;
   for (const page of pages) {
     const items = parseLooseNumberedItems(page.text);
     let ordinalInPage = 0;
     for (const item of items) {
       ordinalInPage += 1;
       cases.push(makeCase({
-        idPrefix: `qb-pdf-p${page.page}-${item.ordinal ?? ordinalInPage}`,
+        idPrefix: `qb-${slugify(sourceName)}-p${page.page}-${item.ordinal ?? ordinalInPage}`,
         source: sourceId,
-        sourceKind: "pdf",
+        sourceId: source?.id,
+        sourceKind: source?.sourceKind ?? "pdf",
+        licenseNote: source?.licenseNote ?? LICENSE_NOTE,
         page: page.page,
         question: item.question,
         answer: item.answer,
@@ -343,10 +570,16 @@ function parseLooseNumberedItems(text: string): ParsedItem[] {
 }
 
 function parseQuestionStart(line: string): { ordinal: string; text: string } | undefined {
-  const numeric = line.match(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,4})[.)]\s+(.+)$/i);
+  const numeric = line.match(/^\s*(?:Q(?:uestion)?\s*)?(\d{1,4})[.):]\s+(.+)$/i);
   if (numeric) {
     const candidate = cleanInlineText(numeric[2] ?? "");
     if (candidate.length >= 4 && !looksLikeOptionLine(candidate)) return { ordinal: numeric[1] ?? "", text: candidate };
+  }
+
+  const questionMarker = line.match(/^\s*(?:Q(?:uestion)?)(?:\s*(\d{1,4}))?\s*[:\-]\s+(.+)$/i);
+  if (questionMarker) {
+    const candidate = cleanInlineText(questionMarker[2] ?? "");
+    if (candidate.length >= 4 && !looksLikeOptionLine(candidate)) return { ordinal: questionMarker[1] ?? "", text: candidate };
   }
 
   const coded = line.match(/^\s*(Q[A-Z0-9]{2,})\s+(.+)$/i);
@@ -359,7 +592,7 @@ function parseQuestionStart(line: string): { ordinal: string; text: string } | u
 
 function splitQuestionAnswer(ordinal: string | undefined, lines: string[]): ParsedItem {
   const joined = cleanBlockText(lines.join("\n"));
-  const answerMatch = joined.match(/\b(?:Ans|Answer)\s*[:\-]+/i);
+  const answerMatch = joined.match(/\b(?:Ans|Answer)(?:\s*\d{1,4})?\s*[:\-]+/i);
   if (answerMatch?.index !== undefined) {
     const question = normalizeQuestion(joined.slice(0, answerMatch.index));
     const answer = cleanAnswer(joined.slice(answerMatch.index + answerMatch[0].length));
@@ -393,7 +626,9 @@ function splitQuestionAnswer(ordinal: string | undefined, lines: string[]): Pars
 function makeCase(input: {
   idPrefix: string;
   source: string;
-  sourceKind: "ibmiskills-web" | "pdf";
+  sourceId?: string;
+  sourceKind: string;
+  licenseNote?: string;
   question: string;
   answer: string;
   ordinal?: string;
@@ -410,7 +645,8 @@ function makeCase(input: {
   return {
     id,
     source: input.source,
-    licenseNote: LICENSE_NOTE,
+    sourceId: input.sourceId,
+    licenseNote: input.licenseNote ?? LICENSE_NOTE,
     question,
     language: inferLanguage(`${question}\n${answer}`),
     expectedAnswerSummary,
@@ -421,7 +657,7 @@ function makeCase(input: {
     extraction: {
       sourceKind: input.sourceKind,
       extractionQuality: quality,
-      url: input.sourceKind === "ibmiskills-web" ? input.source : undefined,
+      url: input.sourceKind !== "pdf" ? input.source : undefined,
       page: input.page,
       ordinal: input.ordinal,
       rawAnswer: answer || undefined
@@ -504,22 +740,27 @@ function looksLikeAnswerLine(text: string): boolean {
   return cleaned.split(" ").length >= 3;
 }
 
+function looksLikeAnswerHeading(text: string): boolean {
+  return /^(?:Ans|Answer)(?:\s*\d{1,4})?\s*[:\-]?$/i.test(cleanInlineText(text));
+}
+
 function looksLikeOptionLine(text: string): boolean {
   return /^[A-E][.)]\s+/.test(text) || /^\([A-E]\)\s+/i.test(text);
 }
 
 function normalizeQuestion(text: string): string {
   return cleanInlineText(text)
-    .replace(/^(?:Question\s*)?\d{1,4}[.)]\s*/i, "")
-    .replace(/^Q[A-Z0-9]{2,}\s+/i, "")
-    .replace(/\b(?:Ans|Answer)\s*[:\-]+.*$/i, "")
+    .replace(/^(?:Q(?:uestion)?\s*)?\d{1,4}[.):]\s*/i, "")
+    .replace(/^(?:Q(?:uestion)?)(?:\s*\d{1,4})?\s*[:\-]\s*/i, "")
+    .replace(/^Q[A-Z0-9]{2,}[:.)]?\s+/i, "")
+    .replace(/\b(?:Ans|Answer)(?:\s*\d{1,4})?\s*[:\-]+.*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function cleanAnswer(text: string): string {
   return cleanBlockText(text)
-    .replace(/^(?:Ans|Answer)\s*[:\-]+\s*/i, "")
+    .replace(/^(?:Ans|Answer)(?:\s*\d{1,4})?\s*[:\-]+\s*/i, "")
     .replace(/\bPost\s+a\s+Comment\b.*$/i, "")
     .replace(/\bComments?\b\s*$/i, "")
     .trim();
@@ -579,6 +820,11 @@ function uniqueStrings(values: string[]): string[] {
   return result;
 }
 
+function formatError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return cleanInlineText(message.split(/\r?\n/)[0] ?? message).slice(0, 260);
+}
+
 function uniquifyIds(cases: ExtractedQuestionBankCase[]): ExtractedQuestionBankCase[] {
   const seen = new Map<string, number>();
   return cases.map((item) => {
@@ -591,27 +837,35 @@ function uniquifyIds(cases: ExtractedQuestionBankCase[]): ExtractedQuestionBankC
 
 function summarize(cases: ExtractedQuestionBankCase[]): Record<string, unknown> {
   const bySourceKind: Record<string, number> = {};
+  const bySourceId: Record<string, number> = {};
   const byQuality: Record<string, number> = {};
   const byLanguage: Record<string, number> = {};
+  let evaluationEligible = 0;
   for (const item of cases) {
     bySourceKind[item.extraction.sourceKind] = (bySourceKind[item.extraction.sourceKind] ?? 0) + 1;
+    bySourceId[item.sourceId ?? item.source] = (bySourceId[item.sourceId ?? item.source] ?? 0) + 1;
     byQuality[item.extraction.extractionQuality] = (byQuality[item.extraction.extractionQuality] ?? 0) + 1;
     byLanguage[item.language] = (byLanguage[item.language] ?? 0) + 1;
+    if (item.evaluationEligible !== false) evaluationEligible += 1;
   }
-  return { total: cases.length, bySourceKind, byQuality, byLanguage };
+  return { total: cases.length, evaluationEligible, bySourceKind, bySourceId, byQuality, byLanguage };
 }
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const cases: ExtractedQuestionBankCase[] = [];
 
-  if (!options.skipWeb) {
-    cases.push(...await extractWebCases(options.site));
-  }
-  if (!options.skipPdf) {
-    const pdfCases = extractPdfCases(options.pdf);
-    console.error(`pdf ${pdfCases.length.toString().padStart(3, " ")} casos <- ${options.pdf}`);
-    cases.push(...pdfCases);
+  if (options.sources && fs.existsSync(options.sources)) {
+    cases.push(...await extractRegistryCases(options.sources, options));
+  } else {
+    if (!options.skipWeb) {
+      cases.push(...await extractWebCases(options.site));
+    }
+    if (!options.skipPdf) {
+      const pdfCases = extractPdfCases(options.pdf);
+      console.error(`pdf ${pdfCases.length.toString().padStart(3, " ")} casos <- ${options.pdf}`);
+      cases.push(...pdfCases);
+    }
   }
 
   const finalCases = uniquifyIds(cases)
@@ -620,7 +874,18 @@ async function main(): Promise<void> {
 
   fs.mkdirSync(path.dirname(options.out), { recursive: true });
   fs.writeFileSync(options.out, `${JSON.stringify(finalCases, null, 2)}\n`, "utf8");
-  console.error(JSON.stringify({ out: options.out, ...summarize(finalCases) }, null, 2));
+  const report = {
+    generatedAt: new Date().toISOString(),
+    out: options.out,
+    sourcesRegistry: options.sources,
+    includeUnverified: options.includeUnverified,
+    ...summarize(finalCases)
+  };
+  if (options.report) {
+    fs.mkdirSync(path.dirname(options.report), { recursive: true });
+    fs.writeFileSync(options.report, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  }
+  console.error(JSON.stringify(report, null, 2));
 }
 
 main().catch((error) => {

@@ -160,3 +160,46 @@ describe("anti dependencia runtime RDi", () => {
     }
   });
 });
+
+describe("dataset de preguntas de desarrollo", () => {
+  it("mantiene un registry auditable y seguro para fuentes Q&A", () => {
+    const registry = JSON.parse(fs.readFileSync(new URL("./fixtures/question-bank.sources.json", import.meta.url), "utf8")) as {
+      sources: Array<{
+        id?: string;
+        kind?: string;
+        licenseStatus?: string;
+        licenseNote?: string;
+        redistributable?: boolean;
+        devOnly?: boolean;
+        urls?: string[];
+        path?: string;
+      }>;
+    };
+
+    expect(Array.isArray(registry.sources)).toBe(true);
+    expect(registry.sources.length).toBeGreaterThanOrEqual(10);
+    for (const source of registry.sources) {
+      expect(source.id).toBeTruthy();
+      expect(["web", "pdf", "fixture"]).toContain(source.kind);
+      expect(source.licenseStatus).toBeTruthy();
+      expect(source.licenseNote).toBeTruthy();
+      expect(source.urls?.length || source.path).toBeTruthy();
+      if (source.licenseStatus === "unknown") {
+        expect(source.devOnly).toBe(true);
+        expect(source.redistributable).not.toBe(true);
+      }
+    }
+  });
+
+  it("conserva el cache curado de IBMiSkills como fixture reproducible", () => {
+    const cache = JSON.parse(fs.readFileSync(new URL("./fixtures/dev-question-bank.ibmiskills-cache.json", import.meta.url), "utf8")) as Array<{
+      question?: string;
+      expectedAnswerSummary?: string;
+      extraction?: { sourceKind?: string };
+    }>;
+
+    expect(cache.length).toBeGreaterThanOrEqual(250);
+    expect(cache.every((item) => item.question && item.expectedAnswerSummary)).toBe(true);
+    expect(cache.every((item) => item.extraction?.sourceKind === "ibmiskills-web")).toBe(true);
+  });
+});
