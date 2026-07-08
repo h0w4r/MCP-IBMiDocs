@@ -173,6 +173,9 @@ describe("dataset de preguntas de desarrollo", () => {
         devOnly?: boolean;
         urls?: string[];
         path?: string;
+        site?: string;
+        tags?: string[];
+        searchQueries?: string[];
       }>;
     };
 
@@ -180,10 +183,15 @@ describe("dataset de preguntas de desarrollo", () => {
     expect(registry.sources.length).toBeGreaterThanOrEqual(10);
     for (const source of registry.sources) {
       expect(source.id).toBeTruthy();
-      expect(["web", "pdf", "fixture"]).toContain(source.kind);
+      expect(["web", "pdf", "fixture", "stackexchange"]).toContain(source.kind);
       expect(source.licenseStatus).toBeTruthy();
       expect(source.licenseNote).toBeTruthy();
-      expect(source.urls?.length || source.path).toBeTruthy();
+      if (source.kind === "stackexchange") {
+        expect(source.site).toBeTruthy();
+        expect((source.tags?.length ?? 0) + (source.searchQueries?.length ?? 0)).toBeGreaterThan(0);
+      } else {
+        expect(source.urls?.length || source.path).toBeTruthy();
+      }
       if (source.licenseStatus === "unknown") {
         expect(source.devOnly).toBe(true);
         expect(source.redistributable).not.toBe(true);

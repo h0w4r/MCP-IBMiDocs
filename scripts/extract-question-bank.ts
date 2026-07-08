@@ -23,6 +23,13 @@ interface ExtractedQuestionBankCase {
     page?: number;
     ordinal?: string;
     rawAnswer?: string;
+    license?: string;
+    tags?: string[];
+    questionId?: number;
+    answerId?: number;
+    answerScore?: number;
+    accepted?: boolean;
+    author?: string;
   };
 }
 
@@ -44,6 +51,8 @@ interface ExtractOptions {
   out: string;
   sources?: string;
   report?: string;
+  cacheDir: string;
+  refreshCache: boolean;
   includeUnverified: boolean;
   skipWeb: boolean;
   skipPdf: boolean;
@@ -51,7 +60,7 @@ interface ExtractOptions {
 
 interface QuestionBankSource {
   id: string;
-  kind: "web" | "pdf" | "fixture";
+  kind: "web" | "pdf" | "fixture" | "stackexchange";
   enabled?: boolean;
   sourceKind?: string;
   licenseStatus: "maintainer-confirmed" | "public-domain" | "open-license" | "unknown" | "restricted";
@@ -62,6 +71,13 @@ interface QuestionBankSource {
   seedUrls?: string[];
   urls?: string[];
   path?: string;
+  site?: string;
+  tags?: string[];
+  searchQueries?: string[];
+  maxPagesPerTag?: number;
+  maxPagesPerQuery?: number;
+  pageSize?: number;
+  minAnswerScore?: number;
   notes?: string;
 }
 
@@ -72,10 +88,48 @@ interface QuestionBankSourceRegistry {
   sources: QuestionBankSource[];
 }
 
+interface StackExchangeQuestion {
+  question_id: number;
+  accepted_answer_id?: number;
+  title: string;
+  body?: string;
+  link: string;
+  tags?: string[];
+  score?: number;
+  is_answered?: boolean;
+  owner?: {
+    display_name?: string;
+    link?: string;
+  };
+}
+
+interface StackExchangeAnswer {
+  answer_id: number;
+  question_id: number;
+  is_accepted?: boolean;
+  score?: number;
+  body?: string;
+  link?: string;
+  owner?: {
+    display_name?: string;
+    link?: string;
+  };
+}
+
+interface StackExchangeApiResponse<T> {
+  items?: T[];
+  has_more?: boolean;
+  backoff?: number;
+  quota_remaining?: number;
+  error_id?: number;
+  error_message?: string;
+}
+
 const DEFAULT_SITE = "https://ibmiskills.com/interviewquestions-1";
 const DEFAULT_PDF = "C:\\Users\\azast\\Downloads\\kupdf.net_master-question-bank-as400-iseries.pdf";
 const DEFAULT_OUT = path.resolve("tests", "fixtures", "dev-question-bank.global.json");
 const DEFAULT_SOURCES = path.resolve("tests", "fixtures", "question-bank.sources.json");
+const DEFAULT_CACHE_DIR = path.resolve("data", "eval", "question-bank", "cache");
 const LICENSE_NOTE = "Fuente comunitaria/educativa indicada por el mantenedor; fixture usado solo para validación de desarrollo, no para runtime del MCP.";
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_WEB_PAGES = 80;
@@ -142,6 +196,8 @@ function parseArgs(argv: string[]): ExtractOptions {
     out: DEFAULT_OUT,
     sources: fs.existsSync(DEFAULT_SOURCES) ? DEFAULT_SOURCES : undefined,
     report: undefined,
+    cacheDir: DEFAULT_CACHE_DIR,
+    refreshCache: false,
     includeUnverified: false,
     skipWeb: false,
     skipPdf: false
@@ -165,6 +221,11 @@ function parseArgs(argv: string[]): ExtractOptions {
     } else if (arg === "--report" && next) {
       options.report = path.resolve(next);
       index += 1;
+    } else if (arg === "--cache-dir" && next) {
+      options.cacheDir = path.resolve(next);
+      index += 1;
+    } else if (arg === "--refresh-cache") {
+      options.refreshCache = true;
     } else if (arg === "--include-unverified") {
       options.includeUnverified = true;
     } else if (arg === "--skip-web") {
@@ -184,7 +245,7 @@ function loadSourceRegistry(registryPath: string): QuestionBankSourceRegistry {
 
 function isSourceAllowed(source: QuestionBankSource, options: ExtractOptions): boolean {
   if (source.enabled === false) return false;
-  if (source.kind === "web" && options.skipWeb) return false;
+  if ((source.kind === "web" || source.kind === "stackexchange") && options.skipWeb) return false;
   if (source.kind === "pdf" && options.skipPdf) return false;
   if (source.licenseStatus === "restricted") return false;
   if (source.redistributable || source.licenseStatus === "maintainer-confirmed" || source.licenseStatus === "open-license" || source.licenseStatus === "public-domain") {
@@ -227,6 +288,10 @@ async function extractRegistryCases(registryPath: string, options: ExtractOption
       const fixtureCases = extractFixtureCases(fixturePath, source);
       cases.push(...fixtureCases);
       console.error(`fixture ${fixtureCases.length.toString().padStart(3, " ")} casos <- ${source.id} ${fixturePath}`);
+    } else if (source.kind === "stackexchange") {
+      const stackExchangeCases = await extractStackExchangeCases(source, options);
+      cases.push(...stackExchangeCases);
+      console.error(`stackexchange ${stackExchangeCases.length.toString().padStart(3, " ")} casos <- ${source.id}`);
     }
   }
   return cases;
@@ -248,6 +313,205 @@ function extractFixtureCases(fixturePath: string, source: QuestionBankSource): E
         sourceKind: item.extraction?.sourceKind || source.sourceKind || "fixture"
       }
     }));
+}
+
+async function extractStackExchangeCases(source: QuestionBankSource, options: ExtractOptions): Promise<ExtractedQuestionBankCase[]> {
+  const cachePath = path.join(options.cacheDir, `${slugify(source.id)}.cases.json`);
+  if (!options.refreshCache && fs.existsSync(cachePath)) {
+    const cached = JSON.parse(fs.readFileSync(cachePath, "utf8")) as ExtractedQuestionBankCase[];
+    if (Array.isArray(cached)) {
+      console.error(`stackexchange cache ${cached.length.toString().padStart(3, " ")} casos <- ${cachePath}`);
+      return cached;
+    }
+  }
+
+  const site = source.site ?? "stackoverflow";
+  const pageSize = Math.max(1, Math.min(source.pageSize ?? 100, 100));
+  const minAnswerScore = source.minAnswerScore ?? 0;
+  const questions = new Map<number, StackExchangeQuestion>();
+
+  for (const tag of source.tags ?? []) {
+    const maxPages = Math.max(1, source.maxPagesPerTag ?? 3);
+    for (let page = 1; page <= maxPages; page += 1) {
+      let response: StackExchangeApiResponse<StackExchangeQuestion>;
+      try {
+        response = await fetchStackExchange<StackExchangeQuestion>("questions", {
+          site,
+          tagged: tag,
+          page: String(page),
+          pagesize: String(pageSize),
+          order: "desc",
+          sort: "activity",
+          filter: "withbody"
+        });
+      } catch (error) {
+        console.warn(`Stack Exchange: se detiene paginación de tag ${tag} en página ${page}: ${formatError(error)}`);
+        break;
+      }
+      for (const question of response.items ?? []) {
+        if (isRelevantStackExchangeQuestion(question)) questions.set(question.question_id, question);
+      }
+      await respectStackExchangeBackoff(response);
+      if (!response.has_more) break;
+    }
+  }
+
+  for (const query of source.searchQueries ?? []) {
+    const maxPages = Math.max(1, source.maxPagesPerQuery ?? 2);
+    for (let page = 1; page <= maxPages; page += 1) {
+      let response: StackExchangeApiResponse<StackExchangeQuestion>;
+      try {
+        response = await fetchStackExchange<StackExchangeQuestion>("search/advanced", {
+          site,
+          q: query,
+          page: String(page),
+          pagesize: String(pageSize),
+          order: "desc",
+          sort: "relevance",
+          filter: "withbody"
+        });
+      } catch (error) {
+        console.warn(`Stack Exchange: se detiene búsqueda "${query}" en página ${page}: ${formatError(error)}`);
+        break;
+      }
+      for (const question of response.items ?? []) {
+        if (isRelevantStackExchangeQuestion(question)) questions.set(question.question_id, question);
+      }
+      await respectStackExchangeBackoff(response);
+      if (!response.has_more) break;
+    }
+  }
+
+  const answersByQuestion = new Map<number, StackExchangeAnswer[]>();
+  for (const ids of chunkArray(Array.from(questions.keys()), 80)) {
+    let response: StackExchangeApiResponse<StackExchangeAnswer>;
+    try {
+      response = await fetchStackExchange<StackExchangeAnswer>(`questions/${ids.join(";")}/answers`, {
+        site,
+        pagesize: "100",
+        order: "desc",
+        sort: "votes",
+        filter: "withbody"
+      });
+    } catch (error) {
+      console.warn(`Stack Exchange: no se pudieron recuperar respuestas para lote ${ids[0]}..${ids[ids.length - 1]}: ${formatError(error)}`);
+      continue;
+    }
+    for (const answer of response.items ?? []) {
+      if ((answer.score ?? 0) < minAnswerScore && !answer.is_accepted) continue;
+      const current = answersByQuestion.get(answer.question_id) ?? [];
+      current.push(answer);
+      answersByQuestion.set(answer.question_id, current);
+    }
+    await respectStackExchangeBackoff(response);
+  }
+
+  const cases: ExtractedQuestionBankCase[] = [];
+  for (const question of Array.from(questions.values()).sort((a, b) => a.question_id - b.question_id)) {
+    const answers = answersByQuestion.get(question.question_id) ?? [];
+    const bestAnswer = chooseBestStackExchangeAnswer(question, answers);
+    if (!bestAnswer?.body) continue;
+
+    const questionTitle = htmlToPlainText(question.title);
+    const questionBody = htmlToPlainText(question.body ?? "");
+    const answerText = htmlToPlainText(bestAnswer.body);
+    const author = bestAnswer.owner?.display_name ?? question.owner?.display_name;
+    const caseItem = makeCase({
+      idPrefix: `qb-${slugify(source.id)}-${question.question_id}-${bestAnswer.answer_id}`,
+      source: bestAnswer.link ?? question.link,
+      sourceId: source.id,
+      sourceKind: source.sourceKind ?? "stackexchange-api",
+      licenseNote: source.licenseNote,
+      question: buildStackExchangeQuestionText(questionTitle, questionBody),
+      answer: answerText,
+      ordinal: String(question.question_id),
+      quality: classifyQuality(answerText, `${questionTitle}\n${questionBody}\n${answerText}`),
+      extractionExtras: {
+        url: bestAnswer.link ?? question.link,
+        license: "Stack Exchange Network content; CC BY-SA family according to Stack Exchange terms. Mantener atribución por URL, questionId, answerId y autor.",
+        tags: question.tags ?? [],
+        questionId: question.question_id,
+        answerId: bestAnswer.answer_id,
+        answerScore: bestAnswer.score,
+        accepted: bestAnswer.is_accepted ?? question.accepted_answer_id === bestAnswer.answer_id,
+        author
+      }
+    });
+    cases.push(caseItem);
+  }
+
+  if (cases.length > 0) {
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+    fs.writeFileSync(cachePath, `${JSON.stringify(cases, null, 2)}\n`, "utf8");
+    console.error(`stackexchange cache escrito ${cases.length.toString().padStart(3, " ")} casos -> ${cachePath}`);
+  }
+
+  return cases;
+}
+
+async function fetchStackExchange<T>(pathName: string, params: Record<string, string>): Promise<StackExchangeApiResponse<T>> {
+  const url = new URL(`https://api.stackexchange.com/2.3/${pathName}`);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  const response = await fetch(url, {
+    headers: {
+      "accept": "application/json",
+      "user-agent": BROWSER_USER_AGENT
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`Stack Exchange API HTTP ${response.status} en ${url.toString()}`);
+  }
+  const parsed = await response.json() as StackExchangeApiResponse<T>;
+  if (parsed.error_id) {
+    throw new Error(`Stack Exchange API error ${parsed.error_id}: ${parsed.error_message ?? "sin detalle"}`);
+  }
+  return parsed;
+}
+
+async function respectStackExchangeBackoff<T>(response: StackExchangeApiResponse<T>): Promise<void> {
+  if (!response.backoff) return;
+  await sleep((response.backoff + 1) * 1000);
+}
+
+function chooseBestStackExchangeAnswer(question: StackExchangeQuestion, answers: StackExchangeAnswer[]): StackExchangeAnswer | undefined {
+  if (!answers.length) return undefined;
+  const accepted = answers.find((answer) => answer.answer_id === question.accepted_answer_id || answer.is_accepted);
+  if (accepted) return accepted;
+  return [...answers].sort((left, right) => (right.score ?? 0) - (left.score ?? 0))[0];
+}
+
+function isRelevantStackExchangeQuestion(question: StackExchangeQuestion): boolean {
+  const haystack = fold(`${question.title}\n${question.body ?? ""}\n${(question.tags ?? []).join(" ")}`);
+  return /\b(as400|iseries|system i|ibm i|ibm-midrange|rpgle|rpg\/400|rpg400|sqlrpgle|db2 for i|db2-400|clle|cl\/400|dds|qsys|qsys2)\b/i.test(haystack);
+}
+
+function buildStackExchangeQuestionText(title: string, body: string): string {
+  const cleanTitle = cleanInlineText(title);
+  const cleanBody = cleanBlockText(body);
+  if (!cleanBody || fold(cleanBody).startsWith(fold(cleanTitle))) return cleanTitle;
+  const bodyExcerpt = cleanBody.split("\n").slice(0, 4).join(" ").slice(0, 700).trim();
+  return `${cleanTitle}\n\nContexto de la pregunta original: ${bodyExcerpt}`;
+}
+
+function htmlToPlainText(html: string): string {
+  if (!html) return "";
+  const $ = cheerio.load(`<main>${html}</main>`);
+  $("script,style,svg,noscript").remove();
+  $("pre,code").each((_, element) => {
+    const codeText = $(element).text();
+    $(element).replaceWith(`\n${codeText}\n`);
+  });
+  return cleanBlockText($("main").text());
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  return chunks;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function resolveWebSourceUrls(source: QuestionBankSource): Promise<string[]> {
@@ -634,6 +898,7 @@ function makeCase(input: {
   ordinal?: string;
   page?: number;
   quality?: ExtractedQuestionBankCase["extraction"]["extractionQuality"];
+  extractionExtras?: Partial<ExtractedQuestionBankCase["extraction"]>;
 }): ExtractedQuestionBankCase {
   const question = normalizeQuestion(input.question);
   const answer = cleanAnswer(input.answer);
@@ -660,7 +925,8 @@ function makeCase(input: {
       url: input.sourceKind !== "pdf" ? input.source : undefined,
       page: input.page,
       ordinal: input.ordinal,
-      rawAnswer: answer || undefined
+      rawAnswer: answer || undefined,
+      ...input.extractionExtras
     }
   };
 }
@@ -728,7 +994,10 @@ function looksLikeQuestion(text: string): boolean {
   const normalized = cleanInlineText(text);
   if (normalized.length < 8) return false;
   if (normalized.includes("?")) return true;
-  return /^(what|how|why|when|where|which|can|do|does|is|are|will|would|explain|describe|define|list|differentiate|difference)\b/i.test(normalized);
+  if (/^(what|how|why|when|where|which|can|do|does|is|are|will|would|explain|describe|define|list|differentiate|difference)\b/i.test(normalized)) return true;
+  const technicalProblemTitle = /\b(AS\/?400|IBM\s+i|iSeries|System\s+i|RPGLE|RPG\/400|SQLRPGLE|DB2\s+for\s+i|DB2-400|CLLE|CL\/400|DDS|QSYS|QSYS2)\b/i.test(normalized)
+    && /\b(error|issue|problem|compile|compiling|convert|conversion|retrieve|read|write|update|lock|locked|job|queue|spool|subfile|program|procedure|service|module|file|table|library|command|message|timestamp|date|time)\b/i.test(normalized);
+  return technicalProblemTitle;
 }
 
 function looksLikeAnswerLine(text: string): boolean {
@@ -878,6 +1147,8 @@ async function main(): Promise<void> {
     generatedAt: new Date().toISOString(),
     out: options.out,
     sourcesRegistry: options.sources,
+    cacheDir: options.cacheDir,
+    refreshCache: options.refreshCache,
     includeUnverified: options.includeUnverified,
     ...summarize(finalCases)
   };
