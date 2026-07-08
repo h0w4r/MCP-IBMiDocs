@@ -741,10 +741,8 @@ export async function classifyAssistIntentNeural(options: AssistOptions): Promis
   const best = ranked[0]?.prototype ?? PROTOTYPES[PROTOTYPES.length - 1];
   const bestScore = ranked[0]?.score ?? 0;
   const confidence: NeuralAssistIntentProfile["confidence"] = bestScore >= 0.72 ? "alta" : bestScore >= 0.58 ? "media" : "baja";
-  const related = ranked.slice(1, 4)
-    .filter((item) => item.prototype.family === best.family || item.prototype.intent === best.intent)
-    .filter((item) => item.score >= bestScore - 0.06)
-    .flatMap((item) => item.prototype.queries.slice(0, 3));
+  const relatedPrototypes = selectRelatedPrototypes(ranked.slice(1), best, bestScore);
+  const related = relatedPrototypes.flatMap((item) => item.prototype.queries.slice(0, 3));
   return {
     intent: best.intent,
     family: best.family,
@@ -754,7 +752,7 @@ export async function classifyAssistIntentNeural(options: AssistOptions): Promis
     confidence,
     score: Math.round(bestScore * 100000) / 100000,
     matchedPrototype: best.id,
-    signals: [...new Set([...best.signals, ...ranked.slice(1, 3).flatMap((item) => item.prototype.signals.slice(0, 2))])],
+    signals: [...new Set([...best.signals, ...relatedPrototypes.flatMap((item) => item.prototype.signals.slice(0, 2))])],
     queries: [...new Map([...best.queries, ...related].map((queryText) => [queryText.toLowerCase(), queryText])).values()].slice(0, 14),
     localArtifacts,
     generalizedQuestion,
@@ -765,6 +763,38 @@ export async function classifyAssistIntentNeural(options: AssistOptions): Promis
       intent: item.prototype.intent
     }))
   };
+}
+
+function selectRelatedPrototypes(
+  candidates: Array<{ prototype: NeuralAssistPrototype; score: number }>,
+  best: NeuralAssistPrototype,
+  bestScore: number
+): Array<{ prototype: NeuralAssistPrototype; score: number }> {
+  // Las familias de comandos comparten mucha superficie semántica genérica
+  // ("command", "CL", "parameters"). Si se mezclan entre sí antes de tener
+  // evidencia documental, aparecen contaminaciones como OPNQRYF -> journaling.
+  // Para comandos, el prototipo ganador aporta las queries iniciales y los
+  // follow-ups posteriores se activan por gaps reales de cobertura.
+  if (best.family === "command_lookup") return [];
+
+  const dynamicMargin = bestScore >= 0.72 ? 0.025 : 0.035;
+  return candidates
+    .filter((item) => item.score >= Math.max(0.62, bestScore - dynamicMargin))
+    .filter((item) => sameSemanticLane(item.prototype, best))
+    .slice(0, 2);
+}
+
+function sameSemanticLane(candidate: NeuralAssistPrototype, best: NeuralAssistPrototype): boolean {
+  const sameFamily = candidate.family === best.family;
+  const sameIntent = candidate.intent === best.intent;
+  const sameCategory = !candidate.category || !best.category || candidate.category === best.category;
+  const sameLanguage = !candidate.language || !best.language || candidate.language === best.language;
+
+  // Un prototipo relacionado solo puede ampliar la recuperación si está en el
+  // mismo carril semántico fuerte. Esto evita que una consulta concreta de
+  // comandos CL arrastre familias genéricas de comandos solo porque el embedding
+  // comparte la palabra "command".
+  return sameFamily && sameIntent && sameCategory && sameLanguage;
 }
 
 export function extractLocalArtifactTermsForAssist(question: string): string[] {
