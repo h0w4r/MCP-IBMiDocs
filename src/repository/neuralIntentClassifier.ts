@@ -378,6 +378,205 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
     ]
   },
   {
+    id: "dds-display-keyword-lookup",
+    title: "DDS display file keyword redisplay subfile message keyword lookup",
+    body: [
+      "The user asks a short interview-style or natural-language question about a DDS display file keyword.",
+      "They may say key word, keyword, screen redisplay, re-display, restore display, subfile control, message subfile, function key, error message or display format without naming DDS explicitly.",
+      "This is not an IBM i message diagnostic. It is a display file DDS keyword lookup.",
+      "Retrieve RSTDSP, USRRSTDSP, SFLDSP, SFLDSPCTL, SFLMSGKEY, SFLPGMQ, SFLMSGRCD, ERRMSG, ERRMSGID, CFxx and CAxx documentation."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "design_display_or_report",
+    axes: ["syntax", "code"],
+    language: "DDS",
+    category: "dds",
+    signals: ["neural-dds-keyword", "display-file-keyword", "screen-redisplay", "subfile-message"],
+    queries: [
+      "DDS display file and subfile keywords",
+      "RSTDSP restore display keyword DDS display file",
+      "USRRSTDSP User Restore Display keyword for display files",
+      "SFLDSPCTL subfile control display keyword",
+      "SFLMSGKEY SFLPGMQ SFLMSGRCD message subfile keywords",
+      "ERRMSG ERRMSGID display file keywords",
+      "CFxx CAxx function key DDS keywords"
+    ]
+  },
+  {
+    id: "rpg-operation-code-lookup",
+    title: "RPG operation code SETLL EXFMT CAT RETURN VARYING lookup",
+    body: [
+      "The user asks what an RPG operation code, indicator or keyword does.",
+      "They may ask interview-style questions about SETLL, EXFMT, CAT, RETURN, LR, SETON LR, VARYING, CHAIN, READE or file positioning.",
+      "This is RPG syntax and language reference lookup, not generic IBM i command lookup.",
+      "Retrieve ILE RPG operation code reference and the derived operation-code semantic bundle."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code"],
+    language: "RPGLE",
+    category: "ile-rpg",
+    signals: ["neural-rpg-opcode", "setll", "exfmt", "varying", "lr-indicator"],
+    queries: [
+      "ILE RPG operation codes indicators string operations",
+      "SETLL Set Lower Limit RPG operation code",
+      "EXFMT Write Then Read Format RPG operation code",
+      "CAT Concatenate Two Strings RPG operation code",
+      "RETURN operation RPG LR indicator",
+      "VARYING keyword RPG variable length field",
+      "%FOUND SETLL CHAIN RPG"
+    ]
+  },
+  {
+    id: "cl-variable-types-lookup",
+    title: "CL variable declaration types character decimal logical lookup",
+    body: [
+      "The user asks which variable types are available in CL or how CL variables are declared.",
+      "This is CL syntax reference for DCL, TYPE(*CHAR), TYPE(*DEC), TYPE(*LGL), integer, pointer and declared variables.",
+      "Retrieve CL variable declarations and examples, not database overrides or message diagnostics."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code"],
+    language: "CLLE",
+    category: "cl-clle",
+    signals: ["neural-cl-variables", "dcl", "cl-variable-types"],
+    queries: [
+      "Declaring variables to a CL program or procedure",
+      "Variables in CL commands",
+      "DCL TYPE(*CHAR) TYPE(*DEC) TYPE(*LGL) CL variables",
+      "CL variable value character packed decimal logical integer pointer",
+      "CL commands variables labels messages database overrides"
+    ]
+  },
+  {
+    id: "cl-send-message-command-lookup",
+    title: "CL send message commands SNDPGMMSG SNDUSRMSG SNDMSG lookup",
+    body: [
+      "The user asks how to code CL to send a message or which CL commands send program, user, informational, completion or escape messages.",
+      "This is CL command reference for SNDPGMMSG, SNDUSRMSG and SNDMSG.",
+      "Do not classify as message diagnostic unless a CPF, RNF, SQL, MCH or CPD message ID is being diagnosed."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code", "message"],
+    language: "CLLE",
+    category: "cl-clle",
+    signals: ["neural-cl-send-message", "sndpgmmsg", "sndusrmsg", "sndmsg"],
+    queries: [
+      "Commands used to send messages to a system user",
+      "SNDPGMMSG Send Program Message command",
+      "SNDUSRMSG Send User Message command",
+      "SNDMSG Send Message command",
+      "CL commands variables labels messages database overrides"
+    ]
+  },
+  {
+    id: "cl-command-label-lookup",
+    title: "CL command label GOTO CMDLBL lookup",
+    body: [
+      "The user asks what a command label is in CL or how GOTO transfers control to a labeled command.",
+      "This is CL syntax reference for command labels, GOTO and CMDLBL."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code"],
+    language: "CLLE",
+    category: "cl-clle",
+    signals: ["neural-cl-command-label", "goto", "cmdlbl"],
+    queries: [
+      "GOTO command and command labels in a CL program or procedure",
+      "GOTO CMDLBL label CL command",
+      "command label CL program procedure",
+      "CL commands variables labels messages database overrides"
+    ]
+  },
+  {
+    id: "cl-override-open-query-message-lookup",
+    title: "CL database file override and open query file OVRDBF OPNQRYF lookup",
+    body: [
+      "The user asks a CL interview-style or natural-language question specifically about database file overrides, OVRDBF, OPNQRYF, open query file or override with database file.",
+      "They may ask what command must be run before OPNQRYF or what OVRDBF stands for.",
+      "This is CL database-file command reference lookup, not CL variables, labels or send-message commands."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code"],
+    language: "CLLE",
+    category: "cl-clle",
+    signals: ["neural-cl-file-override", "opnqryf", "ovrdbf"],
+    queries: [
+      "OVRDBF Override with Database File command",
+      "OPNQRYF Open Query File command",
+      "OVRDBF before OPNQRYF CL",
+      "IBM i database file member dependency commands OVRDBF OPNQRYF",
+      "Opening and closing files in a CL program or procedure"
+    ]
+  },
+  {
+    id: "ile-module-service-program-lookup",
+    title: "ILE module service program binding directory signature lookup",
+    body: [
+      "The user asks about ILE modules, service programs, binding, signatures, exports, CALLP or whether a module can be called directly.",
+      "Explain that modules are bound into programs or service programs, and service programs export reusable procedures.",
+      "Retrieve ILE module and service program documentation."
+    ].join(" "),
+    intent: "explain_topic",
+    family: "create_program",
+    axes: ["syntax", "compile", "code"],
+    language: "RPGLE",
+    category: "ile-rpg",
+    signals: ["neural-ile-module", "service-program", "binding", "signature"],
+    queries: [
+      "ILE modules service programs binding signatures",
+      "Can a module be called directly ILE RPG",
+      "CRTRPGMOD CRTPGM CRTSRVPGM module service program",
+      "Binding directory IBM i ILE RPG",
+      "Binder language service program signature",
+      "CALLP procedure service program"
+    ]
+  },
+  {
+    id: "terminal-emulator-function-key-lookup",
+    title: "IBM i terminal emulator TN5250 function key keyboard map lookup",
+    body: [
+      "The user asks about terminal emulator behavior, F4/PF4 prompt, TN5250/TN3270, keyboard maps or command key mapping.",
+      "Generalize emulator-specific names and retrieve IBM i keyboard mapping or terminal session guidance."
+    ].join(" "),
+    intent: "explain_topic",
+    family: "general_explanation",
+    axes: ["administration", "syntax"],
+    category: "administration",
+    signals: ["neural-terminal-emulator", "function-key", "keyboard-map", "tn5250"],
+    queries: [
+      "IBM i terminal emulation keyboard maps function keys",
+      "TN5250 TN3270 IBM i terminal emulator",
+      "PF4 F4 prompt keyboard mapping IBM i",
+      "CHGKBDMAP DSPKBDMAP SETKBDMAP keyboard map",
+      "CMDKBD keyboard command IBM i"
+    ]
+  },
+  {
+    id: "rpg-language-history-lookup",
+    title: "RPG language versions RPG III RPG IV RPG400 ILE RPG",
+    body: [
+      "The user asks about earlier versions of RPG, historical RPG generations, RPG III, RPG/400, RPG IV, ILE RPG, fixed form or free form.",
+      "Retrieve RPG language evolution documentation and distinguish historical names."
+    ].join(" "),
+    intent: "explain_topic",
+    family: "general_explanation",
+    axes: ["primary", "syntax"],
+    language: "RPGLE",
+    category: "ile-rpg",
+    signals: ["neural-rpg-history", "rpg-iii", "rpg-iv", "ile-rpg"],
+    queries: [
+      "RPG language evolution historical versions",
+      "RPG III RPG IV RPG400 ILE RPG",
+      "ILE RPG language reference fixed form free form",
+      "earlier versions of RPG"
+    ]
+  },
+  {
     id: "message-diagnostic",
     title: "IBM i message diagnostic RNF CPF MCH SQL CPD",
     body: [
@@ -454,6 +653,28 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
     ]
   },
   {
+    id: "journaling-command-family",
+    title: "IBM i journaling journal receiver and journaled changes command family",
+    body: [
+      "The user asks about journaling commands, journal receivers, journal entries, journaled changes, database file journaling or commands to start and end journaling for physical files.",
+      "This is not SQLRPGLE compile guidance even if a language hint is present. It is a command lookup and operational documentation task.",
+      "Retrieve the command family for APYJRNCHG, CHGJRN, CMPJRNIMG, CRTJRN, CRTJRNRCV, DLTJRN, DLTJRNRCV, DSPJRN, DSPJRNRCVA, ENDJRNPF, RCVJRNE, RMVJRNCHG, RTVJRNE, SNDJRNE, STRJRNPF, WRKJRN and WRKJRNA."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["administration", "syntax"],
+    category: "cl-clle",
+    signals: ["neural-journaling", "journal-receiver", "journaled-changes", "command-family"],
+    queries: [
+      "IBM i journaling commands",
+      "journal receiver commands IBM i",
+      "journaled changes commands APYJRNCHG RMVJRNCHG",
+      "CRTJRN CRTJRNRCV DSPJRN STRJRNPF ENDJRNPF commands",
+      "derived semantic command groups journaling",
+      "CL command finder journaling commands"
+    ]
+  },
+  {
     id: "code-review",
     title: "IBM i source code review and bug correction",
     body: [
@@ -505,8 +726,7 @@ export async function classifyAssistIntentNeural(options: AssistOptions): Promis
   const query = [
     "Classify this IBM i / AS400 documentation task.",
     `Question: ${generalizedQuestion}`,
-    options.language ? `Language hint: ${options.language}` : "",
-    options.category ? `Category hint: ${options.category}` : "",
+    "Classify intent from the question first; language/category hints are secondary execution context, not the task itself.",
     options.code ? `Code is present and should be reviewed against documentation.` : ""
   ].filter(Boolean).join("\n");
   const [queryVector] = await embedTexts([semanticQueryText(query)], { localOnly: true, kind: "query" });

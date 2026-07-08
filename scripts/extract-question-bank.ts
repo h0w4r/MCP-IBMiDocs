@@ -1229,7 +1229,9 @@ function parseQuestionStart(line: string): { ordinal: string; text: string } | u
     if (candidate.length >= 4 && !looksLikeOptionLine(candidate)) return { ordinal: questionMarker[1] ?? "", text: candidate };
   }
 
-  const coded = line.match(/^\s*(Q[A-Z0-9]{2,})\s+(.+)$/i);
+  // Los bancos PDF usan tokens como QL40158/QS30001; no debemos confundir
+  // palabras normales como "Questions" con un identificador de pregunta.
+  const coded = line.match(/^\s*(Q(?=[A-Z0-9]*\d)[A-Z0-9]{2,})\s+(.+)$/i);
   if (coded) {
     const candidate = cleanInlineText(coded[2] ?? "");
     if (candidate.length >= 4) return { ordinal: coded[1] ?? "", text: candidate };
@@ -1336,9 +1338,35 @@ function isEvaluationEligible(input: {
 }): boolean {
   if (input.quality === "question-only") return false;
   if (!looksLikeQuestion(input.question)) return false;
+  if (looksLikeQuestionBankNoise(input.question, input.answer)) return false;
   if (!isUsableAnswer(input.answer)) return false;
   const meaningfulTerms = input.answerTerms.filter((term) => !STOPWORDS.has(fold(term)) && term.length >= 3);
   return meaningfulTerms.length > 0 || isConciseTechnicalAnswer(input.answer);
+}
+
+function looksLikeQuestionBankNoise(question: string, answer: string): boolean {
+  const combined = fold(`${question}\n${answer}`);
+  const readMoreCount = (combined.match(/\bread more\b/g) ?? []).length;
+  const unrelatedSignals = [
+    "plumbing code",
+    "managerial economics",
+    "geometry questions",
+    "sap certified",
+    "oracle soa",
+    "social profiles",
+    "citation preview",
+    "full description",
+    "international behaviour"
+  ].filter((signal) => combined.includes(signal)).length;
+  const hasStrongIbmiSignal = /\b(as\/?400|ibm\s+i|iseries|system\s+i|rpgle|rpg\/400|sqlrpgle|db2\s+for\s+i|clle|cl\/400|dds)\b/i.test(`${question}\n${answer}`);
+
+  // Páginas agregadoras tipo preview mezclan títulos/documentos ajenos. Si hay
+  // varias señales no IBM i, el caso no es confiable aunque aparezca "AS400" en
+  // una barra lateral o breadcrumb.
+  if (unrelatedSignals >= 2) return true;
+  if (readMoreCount >= 3 && unrelatedSignals >= 1) return true;
+  if (!hasStrongIbmiSignal && unrelatedSignals >= 1) return true;
+  return false;
 }
 
 function classifyQuality(answer: string, raw: string): ExtractedQuestionBankCase["extraction"]["extractionQuality"] {

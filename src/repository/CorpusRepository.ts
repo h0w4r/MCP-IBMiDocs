@@ -650,7 +650,7 @@ export class CorpusRepository {
         similarity * 100
         + semanticIntentBoostFromConcepts(queryProfile.concepts, candidate.concepts)
         + semanticTitleIntentBoost(queryProfile.concepts, options.query, { title, category, breadcrumbs, snippet: "", score: 0, id: candidate.id, sourceKind: String(candidate.row.source_kind) as SearchHit["sourceKind"], sourceId: String(candidate.row.source_id), version: candidate.version, canonicalUrl: String(candidate.row.canonical_url), documentKind }, body)
-        + documentKindScoreAdjustment({ title, documentKind } as SearchHit)
+        + documentKindScoreAdjustment({ title, documentKind, canonicalTopicKey: canonicalKey } as SearchHit)
       ) * 100000) / 100000;
       const existing = bestByDocument.get(candidate.id);
       if (!existing || score > existing.score) {
@@ -764,7 +764,10 @@ export class CorpusRepository {
         similarity * 100
         + (useNeuralOnlyRanking ? 0 : semanticIntentBoostFromConcepts(queryProfile.concepts, candidate.concepts))
         + (useNeuralOnlyRanking ? 0 : semanticTitleIntentBoost(queryProfile.concepts, options.query, { title, category, breadcrumbs, snippet: "", score: 0, id: candidate.id, sourceKind: String(candidate.row.source_kind) as SearchHit["sourceKind"], sourceId: String(candidate.row.source_id), version: candidate.version, canonicalUrl: String(candidate.row.canonical_url), documentKind }, body))
-        + documentKindScoreAdjustment({ title, documentKind } as SearchHit)
+        + documentKindScoreAdjustment({ title, documentKind, canonicalTopicKey: canonicalKey } as SearchHit)
+        // Prior semántico: solo favorece documentos agregados de comandos cuando
+        // el propio embedding neuronal ya los considera cercanos a la consulta.
+        + neuralSemanticPriorScore({ canonicalTopicKey: canonicalKey, semanticScore: semanticScoreValue })
       ) * 100000) / 100000;
       const existing = bestByDocument.get(candidate.id);
       if (!existing || score > existing.score) {
@@ -860,14 +863,14 @@ export class CorpusRepository {
     const rows = hasVectorTable
       ? this.db.prepare(`
         SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url, d.text_length,
-               d.breadcrumbs_json, c.body, c.chunk_index, v.vector, v.dimensions, v.concepts_json
+               d.breadcrumbs_json, d.document_kind, d.canonical_topic_key, c.body, c.chunk_index, v.vector, v.dimensions, v.concepts_json
         FROM chunks c
         JOIN documents d ON d.id = c.document_id
         JOIN chunk_vectors v ON v.chunk_id = c.id
       `).all() as Array<Record<string, unknown>>
       : this.db.prepare(`
         SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url, d.text_length,
-               d.breadcrumbs_json, c.body, c.chunk_index, NULL AS vector, 0 AS dimensions, NULL AS concepts_json
+               d.breadcrumbs_json, d.document_kind, d.canonical_topic_key, c.body, c.chunk_index, NULL AS vector, 0 AS dimensions, NULL AS concepts_json
         FROM chunks c
         JOIN documents d ON d.id = c.document_id
       `).all() as Array<Record<string, unknown>>;
@@ -886,7 +889,8 @@ export class CorpusRepository {
         ? safeJsonArray(String(row.concepts_json))
         : buildSemanticProfile(input).concepts;
       const textLength = Number(row.text_length ?? body.length);
-      const documentKind = classifyDocumentKind({ title, breadcrumbs, textLength, category }, body);
+      const documentKind = (String(row.document_kind ?? "") as SearchHit["documentKind"]) || classifyDocumentKind({ title, breadcrumbs, textLength, category }, body);
+      const canonicalFromDb = String(row.canonical_topic_key ?? "");
       const candidate: CachedSearchCandidate = {
         row,
         id: String(row.id),
@@ -899,7 +903,7 @@ export class CorpusRepository {
         vector,
         concepts,
         documentKind,
-        canonicalTopicKey: canonicalTopicKey({ title, category, breadcrumbs })
+        canonicalTopicKey: canonicalFromDb || canonicalTopicKey({ title, category, breadcrumbs })
       };
       return candidate;
     });
@@ -2759,8 +2763,8 @@ function rowToHit(row: Record<string, unknown>, query: string): SearchHit {
     textLength: Number(row.text_length ?? 0),
     readHint: `Para obtener la ayuda completa llama ibmi_docs_read con id="${id}".`
   };
-  hit.documentKind = classifyDocumentKind(hit, String(row.body ?? ""));
-  hit.canonicalTopicKey = canonicalTopicKey(hit);
+  hit.documentKind = String(row.document_kind ?? "") as SearchHit["documentKind"] || classifyDocumentKind(hit, String(row.body ?? ""));
+  hit.canonicalTopicKey = String(row.canonical_topic_key ?? "") || canonicalTopicKey(hit);
   return hit;
 }
 
@@ -2959,6 +2963,7 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
 
 function documentKindScoreAdjustment(hit: SearchHit): number {
   const title = fold(hit.title);
+  if (/derived-command-group/.test(hit.canonicalTopicKey ?? "")) return 8;
   if (/^(sql|tables|dds concepts|examples?: dds syntax|cl command finder|ibm i commands)$/.test(title)) return -24;
   switch (hit.documentKind) {
     case "topic":
@@ -2974,6 +2979,14 @@ function documentKindScoreAdjustment(hit: SearchHit): number {
     default:
       return 0;
   }
+}
+
+function neuralSemanticPriorScore(input: { canonicalTopicKey?: string; semanticScore?: number }): number {
+  if (!/derived-command-group/.test(input.canonicalTopicKey ?? "")) return 0;
+  const score = input.semanticScore ?? 0;
+  if (score >= 0.82) return 2;
+  if (score >= 0.76) return 1;
+  return 0;
 }
 
 function shouldPreferBroaderSemanticScope(current: SearchHit[], broader: SearchHit[]): boolean {
@@ -3025,7 +3038,7 @@ function resolveSemanticCategoryScope(input: {
         canonicalUrl: String(candidate.row.canonical_url),
         documentKind: candidate.documentKind
       }, candidate.body)
-      + documentKindScoreAdjustment({ title: candidate.title, documentKind: candidate.documentKind } as SearchHit)
+      + documentKindScoreAdjustment({ title: candidate.title, documentKind: candidate.documentKind, canonicalTopicKey: candidate.canonicalTopicKey } as SearchHit)
     ) * 100000) / 100000;
     const current = bestByCategory.get(candidate.category);
     if (!current || score > current.score) {
