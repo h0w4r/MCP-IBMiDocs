@@ -45,6 +45,7 @@ El registry `tests/fixtures/question-bank.sources.json` separa tres tipos de fue
 | `fixture` | Cache local curado y reproducible | `ibmiskills-curated-cache` |
 | `pdf` | PDF local aportado para QA | `kupdf-master-question-bank` |
 | `web` | Fuente pública candidata | Go4AS400, InterviewBit, Adaface, etc. |
+| `allinterview` | Fuente comunitaria con ranking por votos | ALLInterview IBM AS400/RPG/DB400 |
 | `stackexchange` | Preguntas reales vía API pública | Stack Overflow tags/search IBM i |
 
 Cada fuente declara:
@@ -62,6 +63,14 @@ Cada fuente declara:
 Las fuentes con `licenseStatus: "unknown"` no se extraen por defecto. Requieren `--include-unverified` y sus resultados deben quedarse en `data/eval/`.
 
 La fuente Stack Exchange queda como `open-license` pero `devOnly`; el extractor conserva URL, `questionId`, `answerId`, autor, tags y nota de licencia en cada caso para que podamos auditar atribución.
+
+Política obligatoria para Stack Overflow / Stack Exchange:
+
+- Se prioriza `accepted_answer_id` / `is_accepted` cuando existe.
+- Si no hay respuesta aceptada, se elige la respuesta con mayor score positivo.
+- No se aceptan respuestas no aceptadas con score `0` o negativo.
+- Las caches antiguas sin metadata `selectionPolicy` se filtran por `accepted=true` o `score>=1`, y deben refrescarse con `--refresh-cache` cuando la API deje de aplicar throttle.
+- El extractor escribe `selectionPolicy: "accepted-answer-first-else-top-positive-score"` en nuevas extracciones Stack Exchange.
 
 ## Cache local de fuentes API
 
@@ -151,6 +160,46 @@ bySourceKind:
 Última ejecución local de referencia tras ampliar fuentes externas y cache de Stack Exchange:
 
 ```text
+total: 10416
+evaluationEligible: 8612
+bySourceKind:
+  stackoverflow-api: 2571
+  allinterview-web: 2426
+  pdfcoffee-web: 2066
+  pdf: 1338
+  crowdforgeeks-web: 391
+  as400error-blogspot-web: 330
+  ibmiskills-web: 295
+  go4as400-web: 262
+  aired-web: 170
+  adaface-web: 155
+  multisoftvirtualacademy-web: 114
+  mytectra-web: 61
+  interviewbit-web: 58
+  nick-litten-web: 46
+  finalroundai-web: 46
+  utkrusht-web: 44
+  multisoft-web: 43
+```
+
+Detalle local por fuente de la misma ejecución:
+
+```text
+allinterview-ibm-as400-family-broad   total=2426  eligible=2426
+stackoverflow-ibmi-api                total=2571  eligible=2172
+pdfcoffee-as400-question-previews     total=2066  eligible=1774
+kupdf-master-question-bank            total=1338  eligible=566
+crowdforgeeks-as400-family            total=391   eligible=382
+as400error-blogspot-series            total=330   eligible=302
+ibmiskills-curated-cache              total=295   eligible=295
+aired-as400-series                    total=170   eligible=167
+adaface-ibm-rpg                       total=155   eligible=125
+go4as400-faq                          total=262   eligible=92
+```
+
+Última ejecución histórica antes de la expansión amplia:
+
+```text
 total: 5055
 evaluationEligible: 3330
 bySourceKind:
@@ -172,8 +221,8 @@ bySourceKind:
 
 Lectura honesta del número:
 
-- Ya se supera el mínimo de **5K casos totales**.
-- Aún no se llega a **10K Q/A reales** sin agregar nuevas fuentes externas trazables.
+- Ya se supera el mínimo de **8K casos elegibles** para QA/fine-tuning experimental local.
+- También se supera la meta de **10K casos totales trazables**.
 - No se debe rellenar el faltante con respuestas generadas.
 - Si una fuente pública queda caída, expirada o protegida, se conserva como candidata pero se reporta la brecha.
 
@@ -214,10 +263,12 @@ Fuentes externas actuales ampliadas:
 - PDF local aportado para QA.
 - Go4AS400.
 - AS400 and SQL Tricks, serie ampliada, actualmente puede fallar por disponibilidad/certificado/dominio.
-- Stack Overflow vía Stack Exchange API (`ibm-midrange`, `rpgle`, `as400`, `ibm-i`, `iseries`, `db2-400` + búsquedas IBM i).
-- CrowdforGeeks AS400/RPGLE/CL400 como candidato no verificado.
+- Stack Overflow vía Stack Exchange API (`ibm-midrange`, `rpgle`, `db2-400` + búsquedas IBM i), con política accepted/top-positive.
+- ALLInterview IBM AS400/RPG400/COBOL400/DB400/COOLPLEX como candidato no verificado y devOnly, ordenado por feedback comunitario.
+- CrowdforGeeks AS400/IBM AS400/IBM RPG/RPGLE/CL400 como candidato no verificado, usando HTTP plano porque HTTPS falla por certificado.
 - Nick Litten AS400/CL como candidato no verificado.
-- InterviewBit, Multisoft, Adaface, AS400Error Blogspot, Utkrusht, FinalRoundAI y otros candidatos ya registrados.
+- PDFCoffee previews públicos como candidato no verificado.
+- InterviewBit, Multisoft, Adaface, AS400Error Blogspot, Aired, Utkrusht, FinalRoundAI y otros candidatos ya registrados.
 
 ## Evaluar el MCP con preguntas reales
 

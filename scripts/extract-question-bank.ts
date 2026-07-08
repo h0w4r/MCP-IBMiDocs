@@ -2,7 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import * as cheerio from "cheerio";
+import pLimit from "p-limit";
 
 interface ExtractedQuestionBankCase {
   id: string;
@@ -28,8 +30,13 @@ interface ExtractedQuestionBankCase {
     questionId?: number;
     answerId?: number;
     answerScore?: number;
+    answerRank?: number;
     accepted?: boolean;
+    selectionPolicy?: string;
     author?: string;
+    communityYes?: number;
+    communityNo?: number;
+    communityScore?: number;
   };
 }
 
@@ -60,7 +67,7 @@ interface ExtractOptions {
 
 interface QuestionBankSource {
   id: string;
-  kind: "web" | "pdf" | "fixture" | "stackexchange";
+  kind: "web" | "pdf" | "fixture" | "stackexchange" | "allinterview";
   enabled?: boolean;
   sourceKind?: string;
   licenseStatus: "maintainer-confirmed" | "public-domain" | "open-license" | "unknown" | "restricted";
@@ -76,8 +83,14 @@ interface QuestionBankSource {
   searchQueries?: string[];
   maxPagesPerTag?: number;
   maxPagesPerQuery?: number;
+  maxPages?: number;
+  maxQuestions?: number;
+  maxAnswersPerQuestion?: number;
+  concurrency?: number;
   pageSize?: number;
   minAnswerScore?: number;
+  minAnswerYes?: number;
+  minAnswerNetScore?: number;
   notes?: string;
 }
 
@@ -123,6 +136,15 @@ interface StackExchangeApiResponse<T> {
   quota_remaining?: number;
   error_id?: number;
   error_message?: string;
+}
+
+interface AllInterviewAnswer {
+  text: string;
+  author?: string;
+  yes: number;
+  no: number;
+  score: number;
+  postUrl?: string;
 }
 
 const DEFAULT_SITE = "https://ibmiskills.com/interviewquestions-1";
@@ -245,7 +267,7 @@ function loadSourceRegistry(registryPath: string): QuestionBankSourceRegistry {
 
 function isSourceAllowed(source: QuestionBankSource, options: ExtractOptions): boolean {
   if (source.enabled === false) return false;
-  if ((source.kind === "web" || source.kind === "stackexchange") && options.skipWeb) return false;
+  if ((source.kind === "web" || source.kind === "stackexchange" || source.kind === "allinterview") && options.skipWeb) return false;
   if (source.kind === "pdf" && options.skipPdf) return false;
   if (source.licenseStatus === "restricted") return false;
   if (source.redistributable || source.licenseStatus === "maintainer-confirmed" || source.licenseStatus === "open-license" || source.licenseStatus === "public-domain") {
@@ -271,14 +293,26 @@ async function extractRegistryCases(registryPath: string, options: ExtractOption
         }
       }
     } else if (source.kind === "pdf") {
-      const pdfPath = source.path ? path.resolve(source.path) : options.pdf;
-      if (!pdfPath || !fs.existsSync(pdfPath)) {
-        console.warn(`PDF no disponible para ${source.id}: ${pdfPath || "<sin ruta>"}`);
-        continue;
+      const pdfInputs: Array<{ path: string; url?: string }> = [];
+      if (source.path) pdfInputs.push({ path: path.resolve(source.path) });
+      if (!source.path && !source.urls?.length) pdfInputs.push({ path: options.pdf });
+      for (const pdfUrl of source.urls ?? []) {
+        try {
+          pdfInputs.push({ path: await downloadRemotePdf(pdfUrl, source, options), url: pdfUrl });
+        } catch (error) {
+          console.warn(`PDF remoto no disponible para ${source.id}: ${pdfUrl}. ${formatError(error)}`);
+        }
       }
-      const pdfCases = extractPdfCases(pdfPath, source);
-      cases.push(...pdfCases);
-      console.error(`pdf ${pdfCases.length.toString().padStart(3, " ")} casos <- ${source.id} ${pdfPath}`);
+      for (const pdfInput of pdfInputs) {
+        const pdfPath = pdfInput.path;
+        if (!pdfPath || !fs.existsSync(pdfPath)) {
+          console.warn(`PDF no disponible para ${source.id}: ${pdfPath || "<sin ruta>"}`);
+          continue;
+        }
+        const pdfCases = extractPdfCases(pdfPath, source, pdfInput.url);
+        cases.push(...pdfCases);
+        console.error(`pdf ${pdfCases.length.toString().padStart(3, " ")} casos <- ${source.id} ${pdfInput.url ?? pdfPath}`);
+      }
     } else if (source.kind === "fixture") {
       const fixturePath = source.path ? path.resolve(source.path) : "";
       if (!fixturePath || !fs.existsSync(fixturePath)) {
@@ -292,6 +326,10 @@ async function extractRegistryCases(registryPath: string, options: ExtractOption
       const stackExchangeCases = await extractStackExchangeCases(source, options);
       cases.push(...stackExchangeCases);
       console.error(`stackexchange ${stackExchangeCases.length.toString().padStart(3, " ")} casos <- ${source.id}`);
+    } else if (source.kind === "allinterview") {
+      const allInterviewCases = await extractAllInterviewCases(source, options);
+      cases.push(...allInterviewCases);
+      console.error(`allinterview ${allInterviewCases.length.toString().padStart(3, " ")} casos <- ${source.id}`);
     }
   }
   return cases;
@@ -320,14 +358,15 @@ async function extractStackExchangeCases(source: QuestionBankSource, options: Ex
   if (!options.refreshCache && fs.existsSync(cachePath)) {
     const cached = JSON.parse(fs.readFileSync(cachePath, "utf8")) as ExtractedQuestionBankCase[];
     if (Array.isArray(cached)) {
-      console.error(`stackexchange cache ${cached.length.toString().padStart(3, " ")} casos <- ${cachePath}`);
-      return cached;
+      const filtered = filterStackExchangeCachedCases(cached, source);
+      console.error(`stackexchange cache ${filtered.length.toString().padStart(3, " ")} casos <- ${cachePath}`);
+      return filtered;
     }
   }
 
   const site = source.site ?? "stackoverflow";
   const pageSize = Math.max(1, Math.min(source.pageSize ?? 100, 100));
-  const minAnswerScore = source.minAnswerScore ?? 0;
+  const minAnswerScore = source.minAnswerScore ?? 1;
   const questions = new Map<number, StackExchangeQuestion>();
 
   for (const tag of source.tags ?? []) {
@@ -433,7 +472,9 @@ async function extractStackExchangeCases(source: QuestionBankSource, options: Ex
         questionId: question.question_id,
         answerId: bestAnswer.answer_id,
         answerScore: bestAnswer.score,
+        answerRank: 1,
         accepted: bestAnswer.is_accepted ?? question.accepted_answer_id === bestAnswer.answer_id,
+        selectionPolicy: "accepted-answer-first-else-top-positive-score",
         author
       }
     });
@@ -447,6 +488,15 @@ async function extractStackExchangeCases(source: QuestionBankSource, options: Ex
   }
 
   return cases;
+}
+
+function filterStackExchangeCachedCases(cases: ExtractedQuestionBankCase[], source: QuestionBankSource): ExtractedQuestionBankCase[] {
+  const minUnacceptedScore = source.minAnswerScore ?? 1;
+  const hasPolicyMetadata = cases.every((item) => item.extraction.selectionPolicy === "accepted-answer-first-else-top-positive-score" && item.extraction.answerRank === 1);
+  if (!hasPolicyMetadata) {
+    console.warn(`Stack Exchange cache ${source.id}: cache previo sin metadata completa de política; se filtra por accepted=true o score>=${minUnacceptedScore}, y una futura extracción con --refresh-cache reescribirá selectionPolicy.`);
+  }
+  return cases.filter((item) => item.extraction.accepted || (item.extraction.answerScore ?? Number.NEGATIVE_INFINITY) >= minUnacceptedScore);
 }
 
 async function fetchStackExchange<T>(pathName: string, params: Record<string, string>): Promise<StackExchangeApiResponse<T>> {
@@ -504,6 +554,17 @@ function htmlToPlainText(html: string): string {
   return cleanBlockText($("main").text());
 }
 
+function htmlFragmentToTextWithBreaks(html: string): string {
+  if (!html) return "";
+  const withBreaks = html
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\s*\/\s*(?:p|div|section|article|h[1-6]|li|tr|blockquote|pre|table)\s*>/gi, "\n")
+    .replace(/<\s*(?:p|div|section|article|h[1-6]|li|tr|blockquote|pre|table)\b[^>]*>/gi, "\n");
+  const $ = cheerio.load(`<main>${withBreaks}</main>`);
+  $("script,style,svg,noscript").remove();
+  return cleanBlockText($("main").text());
+}
+
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
@@ -554,6 +615,28 @@ async function fetchText(url: string): Promise<string> {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function downloadRemotePdf(url: string, source: QuestionBankSource, options: ExtractOptions): Promise<string> {
+  const hash = crypto.createHash("sha256").update(url).digest("hex").slice(0, 16);
+  const pdfDir = path.join(options.cacheDir, "pdf");
+  const pdfPath = path.join(pdfDir, `${slugify(source.id)}-${hash}.pdf`);
+  if (!options.refreshCache && fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 0) return pdfPath;
+
+  fs.mkdirSync(pdfDir, { recursive: true });
+  const response = await fetch(url, {
+    headers: {
+      "accept": "application/pdf,*/*;q=0.8",
+      "user-agent": BROWSER_USER_AGENT
+    }
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status} al descargar PDF ${url}`);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length < 5 || buffer.subarray(0, 5).toString("utf8") !== "%PDF-") {
+    throw new Error(`La URL no devolvió un PDF válido (${buffer.length} bytes)`);
+  }
+  fs.writeFileSync(pdfPath, buffer);
+  return pdfPath;
 }
 
 function fetchTextWithCurl(url: string, cause: unknown): string {
@@ -725,25 +808,190 @@ function extractCasesFromHtml(url: string, html: string, source: QuestionBankSou
     }));
   });
 
-  if (cases.length === 0) {
-    const text = cleanBlockText($("body").text());
-    for (const item of parseLooseNumberedItems(text)) {
-      ordinal += 1;
-      cases.push(makeCase({
-        idPrefix: `qb-${slugify(source.id)}-${slugify(new URL(url).pathname)}-${ordinal}`,
-        source: url,
-        sourceId: source.id,
-        sourceKind: source.sourceKind ?? "web",
-        licenseNote: source.licenseNote,
-        question: item.question,
-        answer: item.answer,
-        ordinal: item.ordinal,
-        quality: item.quality
-      }));
-    }
+  const seenQuestions = new Set(cases.map((item) => fold(item.question).replace(/[^a-z0-9]+/g, " ").trim()));
+  const text = htmlFragmentToTextWithBreaks($("body").html() ?? $("body").text());
+  for (const item of parseLooseNumberedItems(text)) {
+    const key = fold(item.question).replace(/[^a-z0-9]+/g, " ").trim();
+    if (!key || seenQuestions.has(key)) continue;
+    seenQuestions.add(key);
+    ordinal += 1;
+    cases.push(makeCase({
+      idPrefix: `qb-${slugify(source.id)}-${slugify(new URL(url).pathname)}-${ordinal}`,
+      source: url,
+      sourceId: source.id,
+      sourceKind: source.sourceKind ?? "web",
+      licenseNote: source.licenseNote,
+      question: item.question,
+      answer: item.answer,
+      ordinal: item.ordinal,
+      quality: item.quality
+    }));
   }
 
   return cases;
+}
+
+async function extractAllInterviewCases(source: QuestionBankSource, options: ExtractOptions): Promise<ExtractedQuestionBankCase[]> {
+  const cachePath = path.join(options.cacheDir, `${slugify(source.id)}.cases.json`);
+  if (!options.refreshCache && fs.existsSync(cachePath)) {
+    const cached = JSON.parse(fs.readFileSync(cachePath, "utf8")) as ExtractedQuestionBankCase[];
+    if (Array.isArray(cached)) {
+      console.error(`allinterview cache ${cached.length.toString().padStart(3, " ")} casos <- ${cachePath}`);
+      return cached;
+    }
+  }
+
+  const categoryPages = await discoverAllInterviewCategoryPages(source);
+  const detailUrls = new Map<string, string>();
+  const maxQuestions = Math.max(1, source.maxQuestions ?? 5_000);
+  for (const pageUrl of categoryPages) {
+    try {
+      const html = await fetchText(pageUrl);
+      for (const detailUrl of extractAllInterviewDetailUrls(pageUrl, html)) {
+        detailUrls.set(detailUrl, detailUrl);
+        if (detailUrls.size >= maxQuestions) break;
+      }
+      if (detailUrls.size >= maxQuestions) break;
+    } catch (error) {
+      console.warn(`AllInterview: no se pudo leer categoría ${pageUrl}: ${formatError(error)}`);
+    }
+  }
+
+  const concurrency = Math.max(1, Math.min(source.concurrency ?? 6, 12));
+  const limit = pLimit(concurrency);
+  const detailUrlList = Array.from(detailUrls.values());
+  const detailResults = await Promise.all(detailUrlList.map((detailUrl, index) => limit(async () => {
+    try {
+      const html = await fetchText(detailUrl);
+      const detailCases = extractAllInterviewDetailCases(detailUrl, html, source);
+      console.error(`allinterview ${detailCases.length.toString().padStart(3, " ")} casos <- ${index + 1}/${detailUrlList.length} ${detailUrl}`);
+      return { index, cases: detailCases };
+    } catch (error) {
+      console.warn(`AllInterview: no se pudo leer detalle ${detailUrl}: ${formatError(error)}`);
+      return { index, cases: [] as ExtractedQuestionBankCase[] };
+    }
+  })));
+  const cases = detailResults
+    .sort((left, right) => left.index - right.index)
+    .flatMap((result) => result.cases);
+
+  if (cases.length > 0) {
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+    fs.writeFileSync(cachePath, `${JSON.stringify(cases, null, 2)}\n`, "utf8");
+    console.error(`allinterview cache escrito ${cases.length.toString().padStart(3, " ")} casos -> ${cachePath}`);
+  }
+  return cases;
+}
+
+async function discoverAllInterviewCategoryPages(source: QuestionBankSource): Promise<string[]> {
+  const seeds = uniqueStrings(source.urls ?? []);
+  const allowedCategoryIds = new Set(seeds.map((url) => new URL(url).pathname.match(/\/interview-questions\/(\d+)/)?.[1]).filter(Boolean) as string[]);
+  const queue = [...seeds];
+  const visited = new Map<string, string>();
+  const maxPages = Math.max(1, source.maxPages ?? 120);
+
+  for (let index = 0; index < queue.length && visited.size < maxPages; index += 1) {
+    const pageUrl = queue[index];
+    if (!pageUrl || visited.has(pageUrl)) continue;
+    visited.set(pageUrl, pageUrl);
+    try {
+      const html = await fetchText(pageUrl);
+      const $ = cheerio.load(html);
+      $("a[href]").each((_, element) => {
+        const href = $(element).attr("href");
+        if (!href) return;
+        const resolved = new URL(href, pageUrl);
+        const match = resolved.pathname.match(/^\/interview-questions\/(\d+)(?:-\d+)?\/[^/]+\.html$/i);
+        if (!match) return;
+        const categoryId = match[1] ?? "";
+        if (allowedCategoryIds.size && !allowedCategoryIds.has(categoryId)) return;
+        resolved.hash = "";
+        if (!visited.has(resolved.href) && !queue.includes(resolved.href) && queue.length < maxPages * 2) queue.push(resolved.href);
+      });
+    } catch (error) {
+      console.warn(`AllInterview: no se pudo descubrir desde ${pageUrl}: ${formatError(error)}`);
+    }
+  }
+  return Array.from(visited.values());
+}
+
+function extractAllInterviewDetailUrls(categoryUrl: string, html: string): string[] {
+  const $ = cheerio.load(html);
+  const urls = new Map<string, string>();
+  $("a[href*='/showanswers/']").each((_, element) => {
+    const href = $(element).attr("href");
+    if (!href) return;
+    const resolved = new URL(href, categoryUrl);
+    resolved.hash = "";
+    urls.set(resolved.href, resolved.href);
+  });
+  return Array.from(urls.values());
+}
+
+function extractAllInterviewDetailCases(url: string, html: string, source: QuestionBankSource): ExtractedQuestionBankCase[] {
+  const $ = cheerio.load(html);
+  $("script,style,svg,nav,footer,noscript,form").remove();
+  const question = normalizeQuestion(
+    $("p.question").first().text()
+    || $("meta[name='description']").attr("content")
+    || $("title").first().text()
+  );
+  if (!looksLikeQuestion(question)) return [];
+
+  const minYes = source.minAnswerYes ?? 1;
+  const minNet = source.minAnswerNetScore ?? 1;
+  const maxAnswers = Math.max(1, source.maxAnswersPerQuestion ?? 1);
+  const answers: AllInterviewAnswer[] = [];
+
+  $("div.panel.panel-default").each((_, panelElement) => {
+    const panel = $(panelElement);
+    const body = panel.find(".panel-body").first();
+    if (!body.length || !body.find("p.name").length) return;
+    const bodyClone = body.clone();
+    const author = cleanInlineText(bodyClone.find("p.name").first().text().replace(/^Answer\s*\/\s*/i, ""));
+    const postUrl = bodyClone.find("p.name a[href*='/viewpost/']").first().attr("href");
+    bodyClone.find("p.name, table.marking, input, button, script, style").remove();
+    let answer = cleanAnswer(bodyClone.text());
+    answer = answer.replace(/\bIs This Answer Correct\b.*$/i, "").trim();
+    if (answer.length < 12 || isBoilerplate(answer)) return;
+
+    const panelText = panel.text();
+    const yes = Number(panelText.match(/(\d+)\s*Yes\b/i)?.[1] ?? 0);
+    const no = Number(panelText.match(/(\d+)\s*No\b/i)?.[1] ?? 0);
+    const score = yes - no;
+    if (yes < minYes || score < minNet) return;
+    answers.push({
+      text: answer,
+      author: author || undefined,
+      yes,
+      no,
+      score,
+      postUrl: postUrl ? new URL(postUrl, url).href : undefined
+    });
+  });
+
+  return answers
+    .sort((left, right) => (right.score - left.score) || (right.yes - left.yes) || (right.text.length - left.text.length))
+    .slice(0, maxAnswers)
+    .map((answer, index) => makeCase({
+      idPrefix: `qb-${slugify(source.id)}-${slugify(new URL(url).pathname)}-a${index + 1}`,
+      source: answer.postUrl ?? url,
+      sourceId: source.id,
+      sourceKind: source.sourceKind ?? "allinterview-web",
+      licenseNote: source.licenseNote,
+      question,
+      answer: answer.text,
+      ordinal: String(index + 1),
+      quality: classifyQuality(answer.text, `${question}\n${answer.text}`),
+      extractionExtras: {
+        url: answer.postUrl ?? url,
+        author: answer.author,
+        answerRank: index + 1,
+        communityYes: answer.yes,
+        communityNo: answer.no,
+        communityScore: answer.score
+      }
+    }));
 }
 
 function extractPdfPages(pdfPath: string): PdfPage[] {
@@ -771,7 +1019,7 @@ print(json.dumps(pages, ensure_ascii=False))
   return parsed;
 }
 
-function extractPdfCases(pdfPath: string, source?: QuestionBankSource): ExtractedQuestionBankCase[] {
+function extractPdfCases(pdfPath: string, source?: QuestionBankSource, sourceUrl?: string): ExtractedQuestionBankCase[] {
   const pages = extractPdfPages(pdfPath);
   const cases: ExtractedQuestionBankCase[] = [];
   const sourceId = `dev-pdf://${slugify(path.basename(pdfPath, path.extname(pdfPath)))}`;
@@ -783,7 +1031,7 @@ function extractPdfCases(pdfPath: string, source?: QuestionBankSource): Extracte
       ordinalInPage += 1;
       cases.push(makeCase({
         idPrefix: `qb-${slugify(sourceName)}-p${page.page}-${item.ordinal ?? ordinalInPage}`,
-        source: sourceId,
+        source: sourceUrl ?? sourceId,
         sourceId: source?.id,
         sourceKind: source?.sourceKind ?? "pdf",
         licenseNote: source?.licenseNote ?? LICENSE_NOTE,
@@ -791,7 +1039,8 @@ function extractPdfCases(pdfPath: string, source?: QuestionBankSource): Extracte
         question: item.question,
         answer: item.answer,
         ordinal: item.ordinal,
-        quality: item.quality
+        quality: item.quality,
+        extractionExtras: sourceUrl ? { url: sourceUrl } : undefined
       }));
     }
   }
@@ -799,8 +1048,13 @@ function extractPdfCases(pdfPath: string, source?: QuestionBankSource): Extracte
 }
 
 function parseLooseNumberedItems(text: string): ParsedItem[] {
-  const lines = text
+  const codedItems = parseCodedQuestionAnswerItems(text);
+  const answerMarkerItems = parseAnswerMarkerItems(text);
+  const prepared = text
     .replace(/\r/g, "\n")
+    .replace(/\s+(?=(?:Q(?:uestion)?\s*)?\d{1,4}[.):]\s+[^.\n]{4,220}\?)/gi, "\n")
+    .replace(/\s+(?=Q\d{1,4}[.):]?\s+[^.\n]{4,220}\?)/gi, "\n");
+  const lines = prepared
     .split("\n")
     .map((line) => cleanInlineText(line))
     .filter((line) => line && !isBoilerplate(line));
@@ -828,9 +1082,138 @@ function parseLooseNumberedItems(text: string): ParsedItem[] {
   }
   pushCurrent();
 
-  return items
+  const looseItems = items
     .map((item) => splitQuestionAnswer(item.ordinal, item.lines))
     .filter((item) => item.question.length >= 8);
+
+  return mergeParsedItems([...codedItems, ...answerMarkerItems], looseItems);
+}
+
+function parseAnswerMarkerItems(text: string): ParsedItem[] {
+  const lines = text
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => cleanInlineText(line))
+    .filter((line) => line && !isBoilerplate(line));
+  const items: ParsedItem[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const questionLine = normalizeQuestion(lines[index] ?? "");
+    if (!looksLikeQuestion(questionLine)) continue;
+
+    let answerStart = -1;
+    for (let cursor = index + 1; cursor < Math.min(lines.length, index + 5); cursor += 1) {
+      if (looksLikeAnswerHeading(lines[cursor] ?? "") || /^(?:Ans|Answer)\b\s*[:\-]?/i.test(lines[cursor] ?? "")) {
+        answerStart = cursor;
+        break;
+      }
+      if (looksLikeQuestion(lines[cursor] ?? "")) break;
+    }
+    if (answerStart < 0) continue;
+
+    const answerParts: string[] = [];
+    const firstAnswerLine = cleanAnswer((lines[answerStart] ?? "").replace(/^(?:Ans|Answer)\b\s*[:\-]?\s*/i, ""));
+    if (firstAnswerLine) answerParts.push(firstAnswerLine);
+
+    for (let cursor = answerStart + 1; cursor < lines.length; cursor += 1) {
+      const line = lines[cursor] ?? "";
+      if (looksLikeQuestion(line)) break;
+      if (/^(?:Related Posts|Posted Under|No comments|Subscribe to|Copyright|Contact Us|About Us)\b/i.test(line)) break;
+      if (looksLikeAnswerHeading(line)) continue;
+      answerParts.push(line);
+    }
+
+    const answer = cleanAnswer(answerParts.join("\n"));
+    if (!isUsableAnswer(answer)) continue;
+    items.push({
+      ordinal: String(items.length + 1),
+      question: questionLine,
+      answer,
+      quality: classifyQuality(answer, `${questionLine}\n${answer}`)
+    });
+  }
+
+  return items;
+}
+
+function parseCodedQuestionAnswerItems(text: string): ParsedItem[] {
+  const normalized = cleanBlockText(text)
+    .replace(/\b([QA][A-Z0-9]{1,3}\d{3,5})\b/g, " $1 ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const questionTokenPattern = /\b(Q[A-Z0-9]{1,3}\d{3,5})\b/gi;
+  const questionMatches = Array.from(normalized.matchAll(questionTokenPattern));
+  if (!questionMatches.length) return [];
+
+  const items: ParsedItem[] = [];
+  for (let index = 0; index < questionMatches.length; index += 1) {
+    const questionMatch = questionMatches[index];
+    const questionToken = questionMatch[1] ?? "";
+    const segmentStart = (questionMatch.index ?? 0) + questionToken.length;
+    const nextQuestionMatch = questionMatches[index + 1];
+    const segmentEnd = nextQuestionMatch?.index ?? normalized.length;
+    const segment = cleanInlineText(normalized.slice(segmentStart, segmentEnd));
+    if (!segment) continue;
+
+    const answerTokenMatch = segment.match(/\b(A[A-Z0-9]{1,3}\d{3,5})\b/i);
+    if (!answerTokenMatch?.index && answerTokenMatch?.index !== 0) continue;
+
+    const beforeAnswerToken = cleanInlineText(segment.slice(0, answerTokenMatch.index));
+    const afterAnswerToken = cleanInlineText(segment.slice(answerTokenMatch.index + answerTokenMatch[0].length));
+    const split = splitCodedQuestionAnswerPayload(beforeAnswerToken, afterAnswerToken);
+    if (!split) continue;
+
+    const question = normalizeQuestion(split.question);
+    const answer = cleanAnswer(split.answer);
+    if (!looksLikeQuestion(question) || answer.length < 2 || isBoilerplate(answer)) continue;
+
+    items.push({
+      ordinal: questionToken,
+      question,
+      answer,
+      quality: classifyQuality(answer, `${question}\n${answer}`)
+    });
+  }
+  return items;
+}
+
+function splitCodedQuestionAnswerPayload(beforeAnswerToken: string, afterAnswerToken: string): { question: string; answer: string } | undefined {
+  if (beforeAnswerToken && looksLikeQuestion(beforeAnswerToken)) {
+    return { question: beforeAnswerToken, answer: afterAnswerToken };
+  }
+
+  const combined = cleanInlineText(`${beforeAnswerToken} ${afterAnswerToken}`);
+  const questionMarkIndex = combined.indexOf("?");
+  if (questionMarkIndex >= 8 && questionMarkIndex <= 320) {
+    return {
+      question: combined.slice(0, questionMarkIndex + 1),
+      answer: combined.slice(questionMarkIndex + 1)
+    };
+  }
+
+  const imperativeMatch = combined.match(/^((?:What|How|Why|When|Where|Which|Can|Do|Does|Is|Are|Will|Would|Explain|Describe|Define|List|Name|Differentiate|Difference)\b.{8,220}?)(?=\s+(?:[A-Z][a-z]{2,}|\*?[A-Z0-9]{2,}|[0-9]))(.+)$/i);
+  if (imperativeMatch) {
+    return {
+      question: imperativeMatch[1] ?? "",
+      answer: imperativeMatch[2] ?? ""
+    };
+  }
+
+  return undefined;
+}
+
+function mergeParsedItems(primary: ParsedItem[], secondary: ParsedItem[]): ParsedItem[] {
+  const result: ParsedItem[] = [];
+  const seen = new Set<string>();
+  for (const item of [...primary, ...secondary]) {
+    const key = fold(item.question)
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
 }
 
 function parseQuestionStart(line: string): { ordinal: string; text: string } | undefined {
@@ -877,6 +1260,20 @@ function splitQuestionAnswer(ordinal: string | undefined, lines: string[]): Pars
       answer: cleanAnswer(rest.join(" ")),
       quality: classifyQuality(rest.join(" "), joined)
     };
+  }
+
+  const questionMarkIndex = joined.indexOf("?");
+  if (questionMarkIndex >= 8 && questionMarkIndex <= 280) {
+    const possibleQuestion = normalizeQuestion(joined.slice(0, questionMarkIndex + 1));
+    const possibleAnswer = cleanAnswer(joined.slice(questionMarkIndex + 1));
+    if (looksLikeQuestion(possibleQuestion) && isUsableAnswer(possibleAnswer)) {
+      return {
+        ordinal,
+        question: possibleQuestion,
+        answer: possibleAnswer,
+        quality: classifyQuality(possibleAnswer, joined)
+      };
+    }
   }
 
   return {
@@ -939,17 +1336,39 @@ function isEvaluationEligible(input: {
 }): boolean {
   if (input.quality === "question-only") return false;
   if (!looksLikeQuestion(input.question)) return false;
-  if (input.answer.length < 4 && !/%[A-Z]|[A-Z]{3,}|\*[A-Z]/.test(input.answer)) return false;
+  if (!isUsableAnswer(input.answer)) return false;
   const meaningfulTerms = input.answerTerms.filter((term) => !STOPWORDS.has(fold(term)) && term.length >= 3);
-  return meaningfulTerms.length > 0;
+  return meaningfulTerms.length > 0 || isConciseTechnicalAnswer(input.answer);
 }
 
 function classifyQuality(answer: string, raw: string): ExtractedQuestionBankCase["extraction"]["extractionQuality"] {
   const cleaned = cleanInlineText(answer);
   if (!cleaned) return "question-only";
   if (/^([A-E](?:\s*,\s*[A-E])*)$/i.test(cleaned) || /\bAnswer\s*:\s*[A-E]\b/i.test(raw)) return "multiple-choice";
+  if (isConciseTechnicalAnswer(cleaned)) return "answered";
   if (cleaned.length < 12) return "partial";
   return "answered";
+}
+
+function isUsableAnswer(answer: string): boolean {
+  const cleaned = cleanInlineText(answer);
+  if (!cleaned) return false;
+  if (cleaned.length >= 12) return true;
+  return isConciseTechnicalAnswer(cleaned);
+}
+
+function isConciseTechnicalAnswer(answer: string): boolean {
+  const cleaned = cleanInlineText(answer).replace(/[.;,]+$/g, "");
+  if (!cleaned) return false;
+  if (/^(?:yes|no|true|false)$/i.test(cleaned)) return true;
+  if (/^\d+(?:\.\d+)?$/.test(cleaned)) return true;
+  if (/^['"]?[\+\-*/=<>]+'?"?$/.test(cleaned)) return true;
+  if (/^%[A-Z][A-Z0-9_-]*$/i.test(cleaned)) return true;
+  if (/^\*[A-Z][A-Z0-9_]*$/i.test(cleaned)) return true;
+  if (/^[A-Z][A-Z0-9_#@$-]{2,}$/i.test(cleaned) && /[A-Z]/.test(cleaned)) return true;
+  if (/^(?:RPG|RPGLE|RPG\/400|CL|CLLE|CL\/400|DDS|DB2|DB2\/400|SQLRPGLE|COBOL|CHAIN|READE?|READP|SETLL|SETGT|SBMJOB|WRKACTJOB|WRKJOB|WRKSPLF|DSPFFD|DSPFD|STRDBG|STRSRVJOB|ENDSRVJOB|MONMSG|OVRDBF|DCLF|RCVF|SNDPGMMSG|QCMDEXC)$/i.test(cleaned)) return true;
+  if (/^[A-Z0-9_#@$%*/+-]{2,}(?:\/[A-Z0-9_#@$%*/+-]{2,})+$/.test(cleaned)) return true;
+  return false;
 }
 
 function inferLanguage(text: string): string {
@@ -994,9 +1413,10 @@ function looksLikeQuestion(text: string): boolean {
   const normalized = cleanInlineText(text);
   if (normalized.length < 8) return false;
   if (normalized.includes("?")) return true;
-  if (/^(what|how|why|when|where|which|can|do|does|is|are|will|would|explain|describe|define|list|differentiate|difference)\b/i.test(normalized)) return true;
-  const technicalProblemTitle = /\b(AS\/?400|IBM\s+i|iSeries|System\s+i|RPGLE|RPG\/400|SQLRPGLE|DB2\s+for\s+i|DB2-400|CLLE|CL\/400|DDS|QSYS|QSYS2)\b/i.test(normalized)
-    && /\b(error|issue|problem|compile|compiling|convert|conversion|retrieve|read|write|update|lock|locked|job|queue|spool|subfile|program|procedure|service|module|file|table|library|command|message|timestamp|date|time)\b/i.test(normalized);
+  if (/^(what|how|why|when|where|which|can|do|does|is|are|will|would|explain|describe|define|list|name|compare|differentiate|difference)\b/i.test(normalized)) return true;
+  const hasIbmiTerm = /\b(AS\/?400|IBM\s+i|iSeries|System\s+i|RPGLE|RPG\/400|RPG400|SQLRPGLE|DB2\s+for\s+i|DB2-400|CLLE|CL\/400|DDS|QSYS|QSYS2|SNDDST|SNDPGMMSG|QCMDEXC|SBMJOB|WRKACTJOB|WRKJOB|DSPFFD|DSPFD|STRDBG|STRSRVJOB|MONMSG|OVRDBF|DCLF|RCVF|CHAIN|SETLL|READE?|READP|%[A-Z][A-Z0-9_-]*|\*[A-Z][A-Z0-9_]*)\b/i.test(normalized);
+  const hasProblemOrAction = /\b(error|issue|problem|compile|compiling|convert|conversion|retrieve|read|write|update|lock|locked|job|queue|spool|subfile|program|procedure|service|module|file|table|library|command|message|timestamp|date|time|send|mail|email|call|access|open|close|debug|submit|copy|move|delete|display|view|monitor|handle|pass|allocate|declare|create|change|set|get|select|insert|run|execute|join|override|format|field|record|parameter|api|contexto de la pregunta original|trying|need|want)\b/i.test(normalized);
+  const technicalProblemTitle = hasIbmiTerm && hasProblemOrAction;
   return technicalProblemTitle;
 }
 
@@ -1104,6 +1524,31 @@ function uniquifyIds(cases: ExtractedQuestionBankCase[]): ExtractedQuestionBankC
   });
 }
 
+function rehydrateCase(item: ExtractedQuestionBankCase): ExtractedQuestionBankCase {
+  const question = normalizeQuestion(item.question);
+  const answer = cleanAnswer(item.extraction.rawAnswer ?? item.expectedAnswerSummary ?? "");
+  const quality = item.extraction.extractionQuality === "question-only" && answer && answer !== question
+    ? classifyQuality(answer, `${question}\n${answer}`)
+    : item.extraction.extractionQuality;
+  const expectedAnswerSummary = answer || question;
+  const answerTerms = extractEvaluationTerms(answer || question, question, 16);
+  const evidenceTerms = uniqueStrings([...extractEvaluationTerms(`${question}\n${answer}`, question, 18), ...answerTerms]).slice(0, 22);
+  return {
+    ...item,
+    question,
+    expectedAnswerSummary,
+    language: inferLanguage(`${question}\n${answer}`),
+    answerMustContainAny: answerTerms,
+    evidenceMustContainAny: evidenceTerms.length ? evidenceTerms : answerTerms,
+    evaluationEligible: isEvaluationEligible({ question, answer, quality, answerTerms }),
+    extraction: {
+      ...item.extraction,
+      extractionQuality: quality,
+      rawAnswer: answer || undefined
+    }
+  };
+}
+
 function summarize(cases: ExtractedQuestionBankCase[]): Record<string, unknown> {
   const bySourceKind: Record<string, number> = {};
   const bySourceId: Record<string, number> = {};
@@ -1137,7 +1582,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const finalCases = uniquifyIds(cases)
+  const finalCases = uniquifyIds(cases.map(rehydrateCase))
     .filter((item) => item.question.length >= 8)
     .sort((a, b) => `${a.extraction.sourceKind}:${a.source}:${a.extraction.page ?? 0}:${a.extraction.ordinal ?? ""}`.localeCompare(`${b.extraction.sourceKind}:${b.source}:${b.extraction.page ?? 0}:${b.extraction.ordinal ?? ""}`));
 

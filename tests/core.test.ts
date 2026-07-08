@@ -183,7 +183,7 @@ describe("dataset de preguntas de desarrollo", () => {
     expect(registry.sources.length).toBeGreaterThanOrEqual(10);
     for (const source of registry.sources) {
       expect(source.id).toBeTruthy();
-      expect(["web", "pdf", "fixture", "stackexchange"]).toContain(source.kind);
+      expect(["web", "pdf", "fixture", "stackexchange", "allinterview"]).toContain(source.kind);
       expect(source.licenseStatus).toBeTruthy();
       expect(source.licenseNote).toBeTruthy();
       if (source.kind === "stackexchange") {
