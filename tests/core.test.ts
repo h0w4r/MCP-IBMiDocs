@@ -47,6 +47,16 @@ describe("anti dependencia runtime RDi", () => {
     expect(server).not.toContain("export-rdi");
   });
 
+  it("el runtime documental no reintroduce terminología de rescate no neuronal", () => {
+    const runtimeSource = [
+      fs.readFileSync(new URL("../src/server.ts", import.meta.url), "utf8"),
+      fs.readFileSync(new URL("../src/repository/CorpusRepository.ts", import.meta.url), "utf8"),
+      fs.readFileSync(new URL("../src/repository/neuralIntentClassifier.ts", import.meta.url), "utf8")
+    ].join("\n");
+
+    expect(runtimeSource).not.toMatch(/\b(fallback|legacy|FTS)\b/i);
+  });
+
   it("el data pack distribuible no publica URLs loopback de bootstrap", () => {
     const manifestUrl = new URL("../data/pack/manifest.json", import.meta.url);
     if (!fs.existsSync(manifestUrl)) return;

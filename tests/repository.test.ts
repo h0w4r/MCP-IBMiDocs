@@ -461,6 +461,73 @@ describe("capacidades agénticas del repositorio", () => {
     expect(assist.retrievalPlan.hops.some((hop) => /Work with Active Jobs|WRKACTJOB/i.test(hop.query))).toBe(true);
   });
 
+  it("assistSmart usa clasificación neuronal para job schedule aunque la consulta traiga nombres locales", async () => {
+    const assist = await withRepoAsync((repo) => repo.assistSmart({
+      question: "Necesito verificar si el programa CL ENCA136 se ejecuta antes o después del proceso de liquidación. Dame evidencia documental de fuentes CL/RPG y, si existe, job scheduler del sistema o comandos/vistas relacionados. No modifiques objetos.",
+      language: "CLLE",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    expect(assist.taskPlan.family).toBe("work_management");
+    expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["administration", "syntax"]));
+    expect(assist.coverage.status).not.toBe("thin");
+    expect(assist.coverage.missingTechnicalTerms).not.toContain("ENCA136");
+    expect(assist.warnings.join(" ")).toMatch(/artefactos?\s+local|generaliz/i);
+    expect(assist.retrievalPlan.initialQueries.join("\n")).toMatch(/WRKJOBSCDE|job schedule|scheduled job|SBMJOB/i);
+    expect(assist.answer).toMatch(/WRKJOBSCDE|job schedule|scheduled job|SBMJOB|planific/i);
+    expect(assist.answer).not.toMatch(/CRTRPGMOD Command|Built-in Functions|\/EOF/i);
+  });
+
+  it("assistSmart generaliza artefactos locales y recupera guía de dependencias fuente/programa", async () => {
+    const assist = await withRepoAsync((repo) => repo.assistSmart({
+      question: "Para la tabla física DDS ENFV069 necesito identificar qué programas la escriben y cómo interpretar RPGLE nativo WRITE/UPDATE contra F-spec, logical files y campos clave. Solo guía documental y catálogo, sin cambios.",
+      language: "RPGLE",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    const queryTrace = assist.retrievalPlan.initialQueries.join("\n");
+    const answerText = [assist.answer, assist.specificFindings.join("\n"), assist.implementationSteps.join("\n")].join("\n");
+
+    expect(assist.taskPlan.family).toBe("db2_catalog_query");
+    expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["database", "code", "syntax"]));
+    expect(assist.coverage.missingTechnicalTerms).not.toContain("ENFV069");
+    expect(assist.warnings.join(" ")).toMatch(/artefactos?\s+local|generaliz/i);
+    expect(queryTrace).toMatch(/DSPPGMREF|Display Program References|program references/i);
+    expect(queryTrace).toMatch(/DSPDBR|database relations|logical file/i);
+    expect(queryTrace).toMatch(/WRITE operation|UPDATE operation|F-spec|file specification/i);
+    expect(answerText).toMatch(/DSPPGMREF|program references|referencias/i);
+    expect(answerText).toMatch(/DSPDBR|logical file|archivo l[oó]gico|relaciones/i);
+    expect(answerText).toMatch(/WRITE|UPDATE|F-spec|file specification/i);
+    expect(answerText).not.toMatch(/Using \/COPY \/INCLUDE|SET OPTION/i);
+  });
+
+  it("assistSmart no trata campos/tablas locales como gaps documentales y consulta catálogo/fuentes", async () => {
+    const assist = await withRepoAsync((repo) => repo.assistSmart({
+      question: "Metodología IBM i para averiguar para qué se usa el campo ECECODE de la tabla ENFT069D: metadatos, dependencias de programas y búsqueda de fuentes RPG/SQLRPGLE/CL.",
+      language: "DDS",
+      version: "7.5",
+      depth: "deep",
+      audience: "agent",
+      limit: 10
+    }));
+
+    const allText = [assist.answer, assist.specificFindings.join("\n"), assist.implementationSteps.join("\n"), assist.retrievalPlan.initialQueries.join("\n")].join("\n");
+
+    expect(assist.taskPlan.family).toBe("db2_catalog_query");
+    expect(assist.taskPlan.retrievalAxes).toEqual(expect.arrayContaining(["database", "code", "syntax"]));
+    expect(assist.coverage.missingTechnicalTerms).not.toEqual(expect.arrayContaining(["ECECODE", "ENFT069D"]));
+    expect(assist.warnings.join(" ")).toMatch(/artefactos?\s+local|generaliz/i);
+    expect(allText).toMatch(/SYSCOLUMNS|QSYS2|cat[aá]logo|metadata|metadatos/i);
+    expect(allText).toMatch(/DSPPGMREF|program references|referencias/i);
+    expect(allText).toMatch(/source physical file|fuentes|RPG|SQLRPGLE|CL/i);
+  });
+
   it("search promueve secciones y chunks administrativos cuando no hay página canónica de comando", () => {
     const activeJobs = withRepo((repo) => repo.search({
       query: "WRKACTJOB Work with Active Jobs command",
@@ -497,12 +564,14 @@ describe("capacidades agénticas del repositorio", () => {
     expect(guidance.evidence.length).toBeGreaterThan(0);
   });
 
-  it("explica mensajes RNF consultando la familia documental correcta", () => {
+  it("explica mensajes RNF solo cuando existe evidencia específica", () => {
     const explanation = withRepo((repo) => repo.explainMessage({ messageId: "RNF0004" }));
 
     expect(explanation.messageId).toBe("RNF0004");
     expect(explanation.category).toBe("mensajes-rnf");
-    expect(explanation.evidence[0]?.title).toContain("RPG Messages");
+    expect(explanation.coverageStatus).toBe("unsupported");
+    expect(explanation.evidence).toHaveLength(0);
+    expect((explanation.warnings ?? []).join(" ")).toMatch(/No hay evidencia documental/i);
   });
 
   it("lista categorías y diagnostica integridad del pack", () => {
@@ -707,12 +776,12 @@ describe("capacidades agénticas del repositorio", () => {
     }));
 
     expect(result.intent).toBe("message_diagnostic");
-    expect(result.confidence).toBe("media");
+    expect(result.confidence).toBe("baja");
     expect(result.messageExplanation?.messageId).toBe("CPF0001");
-    expect(result.messageExplanation?.coverageStatus).toBe("family");
+    expect(result.messageExplanation?.coverageStatus).toBe("unsupported");
     expect(result.messageExplanation?.specificMatch).toBe(false);
-    expect(result.messageExplanation?.evidence.length).toBeGreaterThan(0);
-    expect(result.warnings.join(" ")).toMatch(/familia|entrada específica/i);
+    expect(result.messageExplanation?.evidence.length).toBe(0);
+    expect(result.warnings.join(" ")).toMatch(/no se encontró evidencia específica/i);
     expect(JSON.stringify(result)).not.toMatch(/ILE COBOL|IBM Extensions|Simple Insertion Editing/i);
   });
 
@@ -887,8 +956,8 @@ describe("curación y distribución del data pack", () => {
     expect(Object.keys(diagnostics.coverage.byVersion)).not.toContain("9");
   });
 
-  it("separa el data pack del paquete npm para publicarlo como release asset", () => {
+  it("incluye el data pack en npm para funcionar en máquinas limpias sin RDi", () => {
     const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { files: string[] };
-    expect(packageJson.files).not.toContain("data/pack");
+    expect(packageJson.files).toContain("data/pack");
   });
 });

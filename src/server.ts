@@ -86,7 +86,7 @@ export function createServer(): McpServer {
           "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial.",
           `Perfil MCP activo: ${toolProfile}. En el perfil agent, la herramienta documental principal para cualquier tarea IBM i es ibmi_docs_assist.`,
           "Si el cliente o agente no sabe qué herramienta elegir, usa ibmi_docs_assist: es la tool one-shot y devuelve respuesta final, pasos, validación, cobertura y citas sin delegar sub-tools.",
-          "Para flujos especializados en perfiles avanzados usa ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context: estas tools auto-orquestan búsqueda, lectura, secciones y síntesis dentro del MCP, y devuelven evidencia ya materializada.",
+          "Para flujos especializados en perfiles avanzados, ibmi_docs_resolve, ibmi_docs_answer, ibmi_docs_context, ibmi_docs_compile_guidance, ibmi_docs_explain_message e ibmi_docs_validate_code_context se enrutan al mismo orquestador neuronal de ibmi_docs_assist.",
           "ibmi_docs_search, ibmi_docs_read e ibmi_docs_sections son herramientas de bajo nivel para auditoría manual o depuración en perfiles full/maintainer; no son requisito posterior cuando una tool de alto nivel ya respondió.",
           "Las tools de alto nivel no deben delegar trabajo adicional al agente: si la consulta requiere sintaxis, parámetros, ejemplos, mensajes, compilación o comparación por versión, la tool debe incorporar ese flujo en su propia salida.",
           "Si un ranking parece incorrecto, usa ibmi_docs_report_query para generar evidencia reproducible lista para issue.",
@@ -141,8 +141,8 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const resolved = withRepository((repo) => repo.resolve(input));
-      return { content: [{ type: "text" as const, text: renderResolve(resolved) }], structuredContent: structured(resolved) };
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -202,7 +202,7 @@ export function createServer(): McpServer {
     "ibmi_docs_answer",
     {
       title: "Responder con evidencia IBM i",
-      description: "Respuesta recomendada para preguntas directas: auto-orquesta búsqueda híbrida, lectura de tópicos, selección de secciones, citas y comandos cuando aplica. Devuelve una respuesta autocontenida.",
+      description: "Respuesta recomendada para preguntas directas: se enruta al orquestador neuronal de ibmi_docs_assist y devuelve respuesta autocontenida con evidencia ya materializada.",
       inputSchema: z.object({
         question: z.string().min(1),
         language: z.string().optional(),
@@ -215,8 +215,8 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const answer = withRepository((repo) => repo.answer(input));
-      return { content: [{ type: "text" as const, text: renderAnswer(answer) }], structuredContent: structured(answer) };
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -234,8 +234,8 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ task, language, version, limit }) => {
-      const context = withRepository((repo) => repo.context({ task, language, version, limit }));
-      return { content: [{ type: "text" as const, text: renderContext(context) }], structuredContent: structured(context) };
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({ question: task, language, version, limit }));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -255,8 +255,19 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const guidance = withRepository((repo) => repo.compileGuidance(input));
-      return { content: [{ type: "text" as const, text: renderCompileGuidance(guidance) }], structuredContent: structured(guidance) };
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+        question: [
+          `Necesito guía de compilación IBM i para ${input.language}.`,
+          input.target ? `Target: ${input.target}.` : "",
+          input.usesEmbeddedSql ? "Usa SQL embebido." : "",
+          input.usesCopybook ? "Usa copybooks o /COPY /INCLUDE." : ""
+        ].filter(Boolean).join(" "),
+        language: input.language,
+        version: input.version,
+        includeCompileCommands: true,
+        limit: input.limit
+      }));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -269,8 +280,11 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ messageId, limit }) => {
-      const explanation = withRepository((repo) => repo.explainMessage({ messageId, limit }));
-      return { content: [{ type: "text" as const, text: renderMessageExplanation(explanation) }], structuredContent: structured(explanation) };
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+        question: `Diagnostica el mensaje IBM i ${messageId} con evidencia documental específica.`,
+        limit
+      }));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -339,8 +353,13 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const validation = withRepository((repo) => repo.validateCodeContext(input));
-      return { content: [{ type: "text" as const, text: renderCodeValidation(validation) }], structuredContent: structured(validation) };
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+        question: `Valida este código ${input.language} contra documentación IBM i y reporta hallazgos accionables.`,
+        language: input.language,
+        code: input.code,
+        limit: input.limit
+      }));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -537,7 +556,7 @@ function renderSearchResults(query: string, results: Array<any>): string {
     `   Versión/Categoría: ${result.version} / ${result.category}`,
     `   Tipo documental: ${result.documentKind ?? "n/a"} · Clave: ${result.canonicalTopicKey ?? "n/a"}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
-    result.requestedVersionScopeExpansion || result.requestedVersionFallback ? "   Aviso: ampliación de alcance semántico fuera de la versión solicitada." : "",
+      result.requestedVersionScopeExpansion ? "   Aviso: ampliación de alcance semántico fuera de la versión solicitada." : "",
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Texto completo auto-adjunto: ${result.autoReadApplied ? `sí (${String(result.fullContent ?? "").length} caracteres)` : "no"}${result.textLength ? ` · tópico=${result.textLength} caracteres` : ""}`,
     result.sectionsPreview?.length ? `   Secciones previas: ${result.sectionsPreview.map((section: any) => section.kind).join(", ")}` : "",
@@ -553,7 +572,7 @@ function renderEvidenceList(label: string, results: Array<any>): string {
     `   Score: ${result.score}`,
     `   Versión/Categoría: ${result.version} / ${result.category}`,
     `   Fuente: ${result.sourceKind} · ${result.canonicalUrl}`,
-    result.requestedVersionScopeExpansion || result.requestedVersionFallback ? "   Aviso: ampliación de alcance semántico fuera de la versión solicitada." : "",
+      result.requestedVersionScopeExpansion ? "   Aviso: ampliación de alcance semántico fuera de la versión solicitada." : "",
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Evidencia: ${result.snippet}`
   ].filter(Boolean).join("\n"))].join("\n");

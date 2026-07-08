@@ -148,12 +148,6 @@ export interface SearchHit {
   requestedVersionScopeExpansion?: boolean;
   requestedCategoryScopeExpansion?: boolean;
   messageFamilyScopeExpansion?: boolean;
-  /** @deprecated Use requestedVersionScopeExpansion. */
-  requestedVersionFallback?: boolean;
-  /** @deprecated Use requestedCategoryScopeExpansion. */
-  requestedCategoryFallback?: boolean;
-  /** @deprecated Use messageFamilyScopeExpansion. */
-  messageFamilyFallback?: boolean;
   synthetic?: boolean;
 }
 

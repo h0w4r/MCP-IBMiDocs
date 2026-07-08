@@ -6,9 +6,9 @@ export function sha256(value: string | Buffer): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-export function ensureSafeFileName(value: string, fallback = "document"): string {
+export function ensureSafeFileName(value: string, defaultName = "document"): string {
   const clean = sanitize(value).replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  return clean.length > 0 ? clean.slice(0, 180) : fallback;
+  return clean.length > 0 ? clean.slice(0, 180) : defaultName;
 }
 
 export function projectRoot(): string {
@@ -27,7 +27,7 @@ export function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
 
-export function clamp(value: number | undefined, fallback: number, min: number, max: number): number {
-  const n = typeof value === "number" && Number.isFinite(value) ? value : fallback;
+export function clamp(value: number | undefined, defaultValue: number, min: number, max: number): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : defaultValue;
   return Math.max(min, Math.min(max, Math.trunc(n)));
 }

@@ -11,6 +11,11 @@ import {
   embeddingModelDiagnostics,
   semanticQueryText
 } from "./neuralEmbeddings.js";
+import {
+  classifyAssistIntentNeural,
+  extractLocalArtifactTermsForAssist,
+  type NeuralAssistIntentProfile
+} from "./neuralIntentClassifier.js";
 import type {
   AssistCoverage,
   AssistOptions,
@@ -538,10 +543,10 @@ export class CorpusRepository {
     const counts = this.db.prepare("SELECT COUNT(*) AS documents FROM documents").get() as { documents: number };
     const chunks = this.db.prepare("SELECT COUNT(*) AS chunks FROM chunks").get() as { chunks: number };
     const embedding = {
-      provider: this.getMetaValue("embedding_provider") ?? "legacy-local-profile",
-      model: this.getMetaValue("embedding_model") ?? "legacy-deterministic-profile",
+      provider: this.getMetaValue("embedding_provider") ?? "transformers-js-required",
+      model: this.getMetaValue("embedding_model") ?? "model-not-installed",
       dimensions: Number(this.getMetaValue("embedding_dimensions") ?? 0),
-      runtimePolicy: this.getMetaValue("embedding_runtime_policy") ?? "legacy",
+      runtimePolicy: this.getMetaValue("embedding_runtime_policy") ?? "transformers-required",
       modelInstall: embeddingModelDiagnostics()
     };
     return {
@@ -674,7 +679,6 @@ export class CorpusRepository {
         results = broaderResults.slice(0, limit).map((hit) => ({
           ...hit,
           requestedVersionScopeExpansion: true,
-          requestedVersionFallback: true,
           matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de IBM i ${normalizeVersionInput(options.version ?? "")}`],
           relevanceWarnings: [...(hit.relevanceWarnings ?? []), `No se encontró evidencia semántica suficientemente fuerte en la versión solicitada IBM i ${normalizeVersionInput(options.version ?? "")}; se usó evidencia de ${hit.version}.`]
         }));
@@ -687,7 +691,6 @@ export class CorpusRepository {
         results = broaderResults.slice(0, limit).map((hit) => ({
           ...hit,
           requestedCategoryScopeExpansion: true,
-          requestedCategoryFallback: true,
           matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de la categoría ${options.category}`],
           relevanceWarnings: [...(hit.relevanceWarnings ?? []), `La categoría ${options.category} no produjo evidencia semántica suficientemente fuerte; se usó evidencia de ${hit.category}.`]
         }));
@@ -720,7 +723,8 @@ export class CorpusRepository {
     }
   ): Promise<SearchHit[]> {
     const limit = clamp(options.limit, 8, 1, 50);
-    const queryProfile = buildSemanticProfile(options.query);
+    const useNeuralOnlyRanking = runtime.engine === "transformers-js";
+    const queryProfile = useNeuralOnlyRanking ? { concepts: [], intentHints: [] } : buildSemanticProfile(options.query);
     const normalizedVersion = options.version ? normalizeVersionInput(options.version) : undefined;
     const versionRows = this.getSearchCandidates(runtime.vectorReader).filter((candidate) => {
       if (normalizedVersion && candidate.version !== normalizedVersion) return false;
@@ -758,8 +762,8 @@ export class CorpusRepository {
       const semanticScoreValue = Math.round(similarity * 100000) / 100000;
       const score = Math.round((
         similarity * 100
-        + semanticIntentBoostFromConcepts(queryProfile.concepts, candidate.concepts)
-        + semanticTitleIntentBoost(queryProfile.concepts, options.query, { title, category, breadcrumbs, snippet: "", score: 0, id: candidate.id, sourceKind: String(candidate.row.source_kind) as SearchHit["sourceKind"], sourceId: String(candidate.row.source_id), version: candidate.version, canonicalUrl: String(candidate.row.canonical_url), documentKind }, body)
+        + (useNeuralOnlyRanking ? 0 : semanticIntentBoostFromConcepts(queryProfile.concepts, candidate.concepts))
+        + (useNeuralOnlyRanking ? 0 : semanticTitleIntentBoost(queryProfile.concepts, options.query, { title, category, breadcrumbs, snippet: "", score: 0, id: candidate.id, sourceKind: String(candidate.row.source_kind) as SearchHit["sourceKind"], sourceId: String(candidate.row.source_id), version: candidate.version, canonicalUrl: String(candidate.row.canonical_url), documentKind }, body))
         + documentKindScoreAdjustment({ title, documentKind } as SearchHit)
       ) * 100000) / 100000;
       const existing = bestByDocument.get(candidate.id);
@@ -781,7 +785,8 @@ export class CorpusRepository {
         hit.relevanceWarnings = [];
         return hit;
       });
-    let results = annotateSemanticCategoryScope(projectSemanticCommandTopic(sortedResults, options, limit), categoryScope);
+    const neuralRankedResults = useNeuralOnlyRanking ? sortedResults : projectSemanticCommandTopic(sortedResults, options, limit);
+    let results = annotateSemanticCategoryScope(neuralRankedResults, categoryScope);
 
     if (options.version && runtime.broaderSearch) {
       const broaderResults = await runtime.broaderSearch({ ...options, version: undefined, limit });
@@ -789,7 +794,6 @@ export class CorpusRepository {
         results = broaderResults.slice(0, limit).map((hit) => ({
           ...hit,
           requestedVersionScopeExpansion: true,
-          requestedVersionFallback: true,
           matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de IBM i ${normalizeVersionInput(options.version ?? "")}`],
           relevanceWarnings: [...(hit.relevanceWarnings ?? []), `No se encontró evidencia semántica suficientemente fuerte en la versión solicitada IBM i ${normalizeVersionInput(options.version ?? "")}; se usó evidencia de ${hit.version}.`]
         }));
@@ -802,14 +806,13 @@ export class CorpusRepository {
         results = broaderResults.slice(0, limit).map((hit) => ({
           ...hit,
           requestedCategoryScopeExpansion: true,
-          requestedCategoryFallback: true,
           matchReasons: [...(hit.matchReasons ?? []), `ampliación de alcance semántico fuera de la categoría ${options.category}`],
           relevanceWarnings: [...(hit.relevanceWarnings ?? []), `La categoría ${options.category} no produjo evidencia semántica suficientemente fuerte; se usó evidencia de ${hit.category}.`]
         }));
       }
     }
 
-    results = results.map((hit) => this.materializeSearchHit(hit, options));
+    results = results.map((hit) => this.materializeSearchHit(hit, options, { neuralOnly: useNeuralOnlyRanking }));
 
     this.recordTrace("ibmi_docs_search", runtime.started, {
       query: options.query,
@@ -823,9 +826,14 @@ export class CorpusRepository {
     return results;
   }
 
-  private materializeSearchHit(hit: SearchHit, options: SearchOptions): SearchHit {
+  private materializeSearchHit(hit: SearchHit, options: SearchOptions, runtime?: { neuralOnly?: boolean }): SearchHit {
     hit.taxonomy = hit.taxonomy ?? classifyTaxonomy(hit, hit.snippet);
-    hit.matchReasons = [...new Set([...(hit.matchReasons ?? []), ...explainSemanticMatch(hit, options.query)])];
+    hit.matchReasons = runtime?.neuralOnly
+      ? [...new Set([
+        ...(hit.matchReasons ?? []),
+        `similitud vectorial Transformers.js=${Math.round((hit.semanticScore ?? 0) * 10000) / 10000}`
+      ])]
+      : [...new Set([...(hit.matchReasons ?? []), ...explainSemanticMatch(hit, options.query)])];
     hit.relevanceWarnings = hit.relevanceWarnings ?? [];
     applyNextToolRecommendation(hit, options);
 
@@ -917,7 +925,7 @@ export class CorpusRepository {
     const provider = this.getMetaValue("embedding_provider");
     const model = this.getMetaValue("embedding_model");
     if (provider !== "transformers-js" || !model) {
-      throw new Error("El data pack actual no contiene embeddings neuronales Transformers.js. Reconstruye el corpus con `npm run build:pack`; el runtime no usará búsqueda legacy ni FTS.");
+      throw new Error("El data pack actual no contiene embeddings neuronales Transformers.js. Reconstruye el corpus con `npm run build:pack`; el runtime requiere búsqueda neuronal vectorial.");
     }
     const marker = embeddingModelDiagnostics();
     if (!marker.markerExists) {
@@ -1127,7 +1135,7 @@ export class CorpusRepository {
     const actionItems = buildContextActionItems(options, preset, reads, sectionTopics);
     const warnings = [
       ...(!hits.length ? ["No se encontró evidencia documental suficiente; evita inventar detalles fuera del corpus."] : []),
-      ...(hits.some((hit) => hit.requestedVersionScopeExpansion || hit.requestedVersionFallback) ? ["Se usó ampliación de alcance fuera de la versión solicitada para al menos un tópico."] : []),
+      ...(hits.some((hit) => hit.requestedVersionScopeExpansion) ? ["Se usó ampliación de alcance fuera de la versión solicitada para al menos un tópico."] : []),
       ...hits.flatMap((hit) => hit.relevanceWarnings ?? []).slice(0, 5)
     ];
     const result: ContextPackage = {
@@ -1335,16 +1343,10 @@ export class CorpusRepository {
     const defaultLimit = depth === "deep" ? 8 : depth === "concise" ? 4 : 6;
     const limit = clamp(options.limit, defaultLimit, 1, 12);
     const preset = resolvePreset(options.language ?? options.question ?? options.code);
-    const intent = classifyResolveIntent({
-      question: options.question,
-      language: options.language,
-      version: options.version,
-      category: options.category,
-      code: options.code,
-      limit
-    });
+    const neuralProfile = await classifyAssistIntentNeural(options);
+    const intent = neuralProfile.intent;
     const detectedSignals = [...new Set([
-      ...buildSemanticExpansion(options.question).signals,
+      ...neuralProfile.signals,
       ...(preset?.language ? [preset.language] : []),
       ...(options.category ? [options.category] : [])
     ])];
@@ -1382,9 +1384,9 @@ export class CorpusRepository {
       confidence: "media",
       stages: [{
         tool: "ibmi_docs_assist_planner",
-        reason: "Clasificar intención y dejar que assist ejecute internamente búsqueda, lectura y secciones; no se delegan tools al agente cliente.",
+        reason: "Clasificar intención con embeddings Transformers y dejar que assist ejecute internamente búsqueda, lectura y secciones; no se delegan tools al agente cliente.",
         status: "executed",
-        outputSummary: `intent=${intent}; depth=${depth}; limit=${limit}`
+        outputSummary: `intent=${intent}; familia=${neuralProfile.family}; prototipo=${neuralProfile.matchedPrototype}; score=${neuralProfile.score}; depth=${depth}; limit=${limit}`
       }],
       evidence: [],
       reads: [],
@@ -1392,7 +1394,9 @@ export class CorpusRepository {
       citations: [],
       context,
       suggestedTools: [],
-      warnings: []
+      warnings: neuralProfile.localArtifacts.length
+        ? [`Artefactos locales detectados (${neuralProfile.localArtifacts.join(", ")}); se generaliza la consulta para buscar el patrón documental IBM i aplicable, no esos nombres privados del servidor.`]
+        : []
     };
 
     const agenticRetrieval = await this.runAssistRetrievalPlanSmart({
@@ -1401,14 +1405,15 @@ export class CorpusRepository {
       context,
       depth,
       limit,
-      preset
+      preset,
+      neuralProfile
     });
 
     const evidence = mergeSearchEvidence([agenticRetrieval.evidence]).map(sanitizeContextHit);
     const reads = mergeContextReads([agenticRetrieval.reads]);
     const sections = mergeSectionTopics([agenticRetrieval.sections]);
     const citations = mergeCitations([agenticRetrieval.citations]);
-    const baseWarnings = [...new Set([...agenticRetrieval.warnings])];
+    const baseWarnings = [...new Set([...resolved.warnings, ...context.warnings, ...agenticRetrieval.warnings])];
     const rawCoverage = buildAssistCoverage({
       question: options.question,
       evidence,
@@ -1456,7 +1461,8 @@ export class CorpusRepository {
       resolved,
       context: hydratedContext,
       coverage: rawCoverage,
-      retrievalAxes: agenticRetrieval.plan.axes
+      retrievalAxes: agenticRetrieval.plan.axes,
+      neuralProfile
     });
     const responseMaterial = filterAssistResponseMaterial({
       taskPlan,
@@ -1545,10 +1551,11 @@ export class CorpusRepository {
     depth: AssistOptions["depth"];
     limit: number;
     preset?: LanguagePreset;
+    neuralProfile?: NeuralAssistIntentProfile;
   }): Promise<AssistRetrievalExecution> {
-    const { options, resolved, context, depth, limit, preset } = input;
-    const axes = buildAssistRetrievalAxes(options, resolved, context);
-    const unorderedInitialQueries = buildAssistInitialQueries(options, preset, axes);
+    const { options, resolved, context, depth, limit, preset, neuralProfile } = input;
+    const axes = buildAssistRetrievalAxes(options, resolved, context, neuralProfile);
+    const unorderedInitialQueries = buildAssistInitialQueries(options, preset, axes, neuralProfile);
     const hasAdministrationAxis = axes.has("administration");
     const axisCount = Math.max(1, axes.size);
     const maxSearchHops = hasAdministrationAxis
@@ -1558,7 +1565,7 @@ export class CorpusRepository {
         : depth === "concise"
           ? Math.max(5, Math.min(9, axisCount * 2))
           : Math.max(10, Math.min(20, axisCount * 4));
-    const initialQueries = orderAssistInitialQueriesByAxis(unorderedInitialQueries, axes);
+    const initialQueries = neuralProfile ? unorderedInitialQueries : orderAssistInitialQueriesByAxis(unorderedInitialQueries, axes);
     const hopLimit = hasAdministrationAxis ? Math.max(Math.min(limit, depth === "deep" ? 8 : 6), 5) : depth === "deep" ? 5 : Math.max(Math.min(limit, 5), 3);
     const readLimit = hasAdministrationAxis && depth === "deep" ? 2 : 1;
     const sectionLimit = depth === "deep" ? 8 : 5;
@@ -1612,7 +1619,7 @@ export class CorpusRepository {
       const queryKey = `${axis}:${fold(normalizedQuery)}`;
       if (!normalizedQuery || executedQueries.has(queryKey) || hops.length >= maxSearchHops) return;
       executedQueries.add(queryKey);
-      const category = buildAssistSearchCategory(axis, normalizedQuery, options, preset);
+      const category = neuralProfile ? undefined : buildAssistSearchCategory(axis, normalizedQuery, options, preset);
       const version = axis === "message" || axis === "administration" ? undefined : options.version;
       const hits = (await this.searchSmart({
         query: normalizedQuery,
@@ -1641,8 +1648,9 @@ export class CorpusRepository {
       });
     };
 
-    for (const query of initialQueries) {
-      const axis = inferAssistAxisForQuery(query, axes);
+    const neuralAxisOrder = neuralProfile?.axes.length ? neuralProfile.axes : [...axes];
+    for (const [index, query] of initialQueries.entries()) {
+      const axis = neuralProfile ? neuralAxisOrder[index % neuralAxisOrder.length] : inferAssistAxisForQuery(query, axes);
       await executeSearchHop(axis, query, `Consulta inicial generada para el eje ${axis}.`);
     }
 
@@ -2016,21 +2024,12 @@ export class CorpusRepository {
             ? "mensajes-mch"
             : "ibm-i-general";
     const searchCategory = family === "RNF" || family === "SQL" ? category : undefined;
-    let usedFamilyEvidence = false;
-    let evidence = this.search({ query: messageId, category: searchCategory, limit: options.limit ?? 6 })
-      .filter((hit) => isMessageEvidenceHit(hit, messageId, family));
-    if (!evidence.length) {
-      const familyQuery = messageFamilyFallbackQuery(messageId);
-      if (familyQuery) {
-        evidence = this.search({ query: familyQuery, category: searchCategory, limit: options.limit ?? 6 })
-          .filter((hit) => isMessageEvidenceHit(hit, messageId, family) || isMessageFamilyHandlingEvidence(hit, family));
-        usedFamilyEvidence = evidence.length > 0;
-      }
-    }
-    const specificMatch = !usedFamilyEvidence && evidence.some((hit) => messageHitMentionsSpecificId(hit, messageId));
-    const coverageStatus: MessageExplanation["coverageStatus"] = specificMatch ? "specific" : evidence.length ? "family" : "unsupported";
+    const evidence = this.search({ query: messageId, category: searchCategory, limit: options.limit ?? 6 })
+      .filter((hit) => isMessageEvidenceHit(hit, messageId, family))
+      .filter((hit) => messageHitMentionsSpecificId(hit, messageId));
+    const specificMatch = evidence.length > 0;
+    const coverageStatus: MessageExplanation["coverageStatus"] = specificMatch ? "specific" : "unsupported";
     const warnings = [
-      ...(!specificMatch && evidence.length ? [`No se encontró una entrada específica para ${messageId}; se entrega evidencia documental de familia/manejo de mensajes.`] : []),
       ...(!evidence.length ? [`No hay evidencia documental en el corpus para ${messageId}.`] : [])
     ];
     const result: MessageExplanation = {
@@ -2039,9 +2038,7 @@ export class CorpusRepository {
       category,
       summary: specificMatch
         ? `Se encontró evidencia documental específica para ${messageId} en ${evidence[0].title}.`
-        : evidence.length
-          ? `No se encontró entrada específica para ${messageId}; se adjunta evidencia de familia/manejo de mensajes en ${evidence[0].title}.`
-          : `No se encontró una entrada específica para ${messageId}; revisar listado de compilación o joblog completo.`,
+        : `No se encontró una entrada específica para ${messageId}; revisar listado de compilación o joblog completo.`,
       recoveryChecklist: [
         "Confirmar el mensaje específico, severidad y texto de segundo nivel en el listado/joblog.",
         "Corregir primero mensajes anteriores que puedan provocar errores derivados.",
@@ -2985,6 +2982,7 @@ function shouldPreferBroaderSemanticScope(current: SearchHit[], broader: SearchH
   if (!broaderTop) return false;
   if (!currentTop) return true;
   if (broaderTop.synthetic && !currentTop.synthetic) return true;
+  if ((broaderTop.semanticScore ?? 0) >= (currentTop.semanticScore ?? 0) + 0.02 && broaderTop.score >= currentTop.score + 2) return true;
   if ((broaderTop.semanticScore ?? 0) >= (currentTop.semanticScore ?? 0) + 0.12) return true;
   return broaderTop.score >= currentTop.score + 12;
 }
@@ -3085,7 +3083,6 @@ function annotateSemanticCategoryScope(results: SearchHit[], scope: SemanticCate
     return {
       ...hit,
       requestedCategoryScopeExpansion: true,
-      requestedCategoryFallback: true,
       matchReasons: [
         ...(hit.matchReasons ?? []),
         `categoría candidata por scope semántico: '${hit.category}' frente a solicitud '${requested}'`,
@@ -3103,7 +3100,7 @@ function buildScopeExpansionTraceFeedback(options: SearchOptions, results: Searc
   const expansions: TraceScopeExpansion[] = [];
   const top = results[0];
   if (!top) return expansions;
-  if (top.requestedCategoryScopeExpansion || top.requestedCategoryFallback) {
+  if (top.requestedCategoryScopeExpansion) {
     expansions.push({
       kind: "category",
       requestedScope: String(options.category ?? "n/a"),
@@ -3114,7 +3111,7 @@ function buildScopeExpansionTraceFeedback(options: SearchOptions, results: Searc
       improvementHint: `Revisar si consultas similares a '${options.query}' deben mapearse directamente a la categoría '${top.category}' o si falta una entrada/alias en el corpus para '${options.category}'.`
     });
   }
-  if (top.requestedVersionScopeExpansion || top.requestedVersionFallback) {
+  if (top.requestedVersionScopeExpansion) {
     expansions.push({
       kind: "version",
       requestedScope: normalizeVersionInput(String(options.version ?? "n/a")),
@@ -3125,7 +3122,7 @@ function buildScopeExpansionTraceFeedback(options: SearchOptions, results: Searc
       improvementHint: `Revisar cobertura o equivalencias version-aware para '${options.query}' en IBM i ${normalizeVersionInput(String(options.version ?? "n/a"))}.`
     });
   }
-  const messageFamily = top.messageFamilyScopeExpansion || top.messageFamilyFallback;
+  const messageFamily = top.messageFamilyScopeExpansion;
   if (messageFamily) {
     expansions.push({
       kind: "message-family",
@@ -3338,11 +3335,16 @@ function buildDb2CatalogQueries(haystack: string): string[] {
   return [...new Set(queries)];
 }
 
-function buildAssistRetrievalAxes(options: AssistOptions, resolved: ResolveResult, context: ContextPackage): Set<AssistRetrievalAxis> {
+function buildAssistRetrievalAxes(options: AssistOptions, resolved: ResolveResult, context: ContextPackage, neuralProfile?: NeuralAssistIntentProfile): Set<AssistRetrievalAxis> {
   const haystack = [options.question, options.language, options.code, context.intent.detectedSignals.join(" ")].filter(Boolean).join("\n");
   const detected = detectIntentAxes(haystack);
   const intentProfile = buildAssistIntentProfile(haystack);
-  const axes = new Set<AssistRetrievalAxis>(["primary"]);
+  const axes = new Set<AssistRetrievalAxis>(neuralProfile?.axes.length ? neuralProfile.axes : ["primary"]);
+  axes.add("primary");
+  if (neuralProfile) {
+    if (resolved.related) axes.add("related");
+    return axes;
+  }
   if (detected.has("syntax") || detected.has("command") || intentProfile.dateTimeConversion || intentProfile.rpgContext) axes.add("syntax");
   if (intentProfile.dateTimeConversion || intentProfile.packedNumericConversion) axes.add("datatype");
   if (detected.has("compile") || resolved.compileGuidance || /crt(sqlrpgi|rpgmod|bndrpg|bndcl|pf|lf)|RPGPPOPT|DBGVIEW|copybook|\/\s*(copy|include)\b/i.test(haystack)) axes.add("compile");
@@ -3549,11 +3551,19 @@ function buildNaturalIntentQueries(haystack: string): string[] {
   return [...new Map(queries.map((query) => [fold(query), query])).values()];
 }
 
-function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePreset | undefined, axes: Set<AssistRetrievalAxis>): string[] {
+function buildAssistInitialQueries(options: AssistOptions, preset: LanguagePreset | undefined, axes: Set<AssistRetrievalAxis>, neuralProfile?: NeuralAssistIntentProfile): string[] {
   const haystack = [options.question, options.language, options.code].filter(Boolean).join("\n");
   const intentProfile = buildAssistIntentProfile(haystack);
   const messageId = extractMessageId(haystack);
   const queries: string[] = [];
+  if (neuralProfile) {
+    queries.push(...neuralProfile.queries);
+    if (messageId && neuralProfile.family === "message_diagnostic") {
+      queries.push(messageId);
+      queries.push(`${messageId.slice(0, 3)} messages`);
+    }
+    return [...new Map(queries.filter(Boolean).map((query) => [fold(query), query.trim()])).values()].slice(0, 28);
+  }
 
   // El flujo assist no parte de palabras sueltas: primero descompone la intención
   // en dominios documentales. Esto evita que términos accidentales como free-form
@@ -3762,10 +3772,7 @@ function selectContextReadEvidence(hits: SearchHit[], task: string): SearchHit[]
 }
 
 function contextEvidenceScore(hit: SearchHit, task: string): number {
-  const queryConcepts = buildSemanticProfile(task).concepts;
-  const hitConcepts = buildSemanticProfile({ title: hit.title, category: hit.category, breadcrumbs: hit.breadcrumbs, body: hit.snippet }).concepts;
   let score = hit.score;
-  score += hitConcepts.filter((concept) => queryConcepts.includes(concept)).length * 12;
   score += explicitEntityCoverageScore(hit, task);
   if (hit.synthetic) score += 8;
   if (hit.documentKind === "topic" || hit.documentKind === "reference") score += 12;
@@ -3874,11 +3881,11 @@ function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean 
   const haystack = fold(text);
   switch (taskPlan.family) {
     case "work_management":
-      return /wrkactjob|work with active jobs|active jobs|active job|wrkobjlck|work with object locks|object locks|lock state|locks?|dspjob|display job|wrkjob|work with job|job log|joblog|job parameter|request processor|call stack|debugging a job|qualified job|strsrvjob|strdbg|subsystem|job queue/.test(haystack);
+      return /wrkactjob|work with active jobs|active jobs|active job|wrkobjlck|work with object locks|object locks|lock state|locks?|dspjob|display job|wrkjob|work with job|job log|joblog|job parameter|request processor|call stack|debugging a job|qualified job|strsrvjob|strdbg|subsystem|job queue|job schedule|scheduled job|wrkjobscde|addjobscde|chgjobscde|rmvjobscde|schedule date|schedule time|sbmjob|submitted job|work with submitted jobs/.test(haystack);
     case "object_lock_analysis":
       return /wrkobjlck|work with object locks|object locks|object lock|lock state|locks?\b|record lock|record is locked|locked record|record_lock_info|1218|%status|%error|\bchain\b|\bread(e|p|pe)?\b|file status|infds|allocating resources|alco?bj|dlcobj|wrkjob|work with job|job log|joblog|active job/.test(haystack);
     case "db2_catalog_query":
-      return /db2|qsys2|syscolumns|systables|sysindexes|catalog|cat[aá]logo|metadata|metadatos|column|table|view|sql/.test(haystack);
+      return /db2|qsys2|syscolumns|systables|sysindexes|catalog|cat[aá]logo|metadata|metadatos|column|table|view|sql|dspgmref|display program references|program references|referencias|dspdbr|display database relations|database relations|logical file|physical file|source physical file|fuentes?|rpgle|sqlrpgle|clle|write operation|update operation|file specification|f-spec|dcl-f|key fields|campos clave/.test(haystack);
     case "date_time_conversion":
       return /%time|%date|%timestamp|%dec|time data type|date time|timestamp|timfmt|datfmt|iso0|hms|hhmmss|packed decimal|decimal|numeric|num[eé]ric|sqlrpgle|embedded sql|set option|sqlcode|sqlstate|insert|update|select|ile rpg|built-in function/.test(haystack);
     case "design_dds_file":
@@ -3897,6 +3904,13 @@ function isDistractingForTaskPlan(taskPlan: AssistTaskPlan, question: string, te
   const haystack = fold(text);
   if (taskPlan.family === "object_lock_analysis" && /rpgle|ile rpg|record\s+(?:is\s+)?locked|record[-\s]+lock|locked record/.test(request)) {
     return /qsys2|record_lock_info|thread_id\b|curdate\b|curtime\b|\bnow\b|scalar functions|time-of-day clock|date based on|timestamp based on|sql-db2-for-i/.test(haystack);
+  }
+  if (
+    taskPlan.family === "work_management"
+    && /job schedule|scheduler|scheduled job|wrkjobscde|addjobscde|chgjobscde|rmvjobscde|planific|trabajo programad|antes o despues|antes o después|secuencia/.test(request)
+    && !/lock|bloqueo|wrkobjlck|object locks?/.test(request)
+  ) {
+    return /wrkobjlck|work with object locks|object locks|lock state|bloqueos?/.test(haystack);
   }
   return false;
 }
@@ -4421,7 +4435,10 @@ function buildAssistCoverage(input: {
   confidence: "alta" | "media" | "baja";
   warnings: string[];
 }): AssistCoverage {
-  const technicalTerms = extractAssistTechnicalTerms(input.question);
+  const localArtifacts = extractLocalArtifactTermsForAssist(input.question);
+  const localArtifactSet = new Set(localArtifacts.map((term) => term.toUpperCase()));
+  const technicalTerms = extractAssistTechnicalTerms(input.question)
+    .filter((term) => !localArtifactSet.has(term.toUpperCase()));
   const searchable = fold([
     ...input.evidence.flatMap((hit) => [hit.title, hit.snippet, hit.breadcrumbs.join(" "), hit.canonicalTopicKey ?? ""]),
     ...input.reads.flatMap((read) => [read.title, read.excerpt, read.focusedSections.map((section) => `${section.title} ${section.content}`).join(" ")]),
@@ -4431,12 +4448,13 @@ function buildAssistCoverage(input: {
   const missingTechnicalTerms = technicalTerms.filter((term) => !matchedTechnicalTerms.includes(term));
   const primaryTechnicalTerms = technicalTerms.filter((term) => !isAssistMessageFamilyTerm(term));
   const matchedPrimaryTerms = primaryTechnicalTerms.filter((term) => matchedTechnicalTerms.includes(term));
-  const weakSectionTerms = matchedPrimaryTerms.filter((term) => !isAssistDatatypeReferenceTerm(term) && !hasFocusedSectionForTerm(input.sections, term));
+  const weakSectionTerms = matchedPrimaryTerms.filter((term) => !isAssistDatatypeReferenceTerm(term) && !isAssistSqlReferenceTerm(term) && !hasFocusedSectionForTerm(input.sections, term));
   const evidenceCount = input.evidence.length;
   const readCount = input.reads.length;
   const sectionCount = input.sections.reduce((total, topic) => total + topic.sections.length, 0);
   const blockingInputWarnings = input.warnings.filter(isCoverageBlockingWarning);
   const coverageWarnings = [
+    ...(localArtifacts.length ? [`Artefactos locales detectados (${localArtifacts.join(", ")}); se generaliza la consulta al patrón documental IBM i aplicable y no se tratan como gaps del corpus.`] : []),
     ...(missingTechnicalTerms.length ? [`No se encontró evidencia textual específica para: ${missingTechnicalTerms.join(", ")}.`] : []),
     ...(weakSectionTerms.length ? [`La evidencia para ${weakSectionTerms.join(", ")} existe, pero no trae una sección fuerte de sintaxis/parámetros; tratarla como referencia parcial.`] : []),
     ...(evidenceCount === 0 ? ["No hay resultados documentales utilizables para la consulta."] : []),
@@ -4525,6 +4543,7 @@ function assistCoverageNeedles(term: string): string[] {
   if (foldedTerm === "embedded sql") return ["embedded sql", "sqlrpgle", "exec sql", "crtsqlrpgi"];
   if (foldedTerm === "library list") return ["library list", "displaying a library list", "initial library list", "qsys", "qgpl", "qtemp", "job description"];
   if (foldedTerm === "file members") return ["work with members", "wrkmbrpdm", "member list", "type(*mbrlist)", "dspfd", "display file description"];
+  if (foldedTerm === "job schedule") return ["job schedule", "wrkjobscde", "addjobscde", "chgjobscde", "rmvjobscde", "scheduled job", "sbmjob", "schedule date", "schedule time"];
   if (foldedTerm === "batch debug") return ["debugging batch jobs", "hold(*yes)", "wrksbmjob", "strsrvjob", "strdbg", "enddbg", "endsrvjob"];
   if (foldedTerm === "seu line commands") return ["source entry utility", "seu", "line commands", "copy", "delete", "insert", "move"];
   if (foldedTerm === "record lock") return ["record lock", "locked record", "1218", "%status", "%error", "chain", "read"];
@@ -4546,6 +4565,7 @@ function assistCoverageNeedles(term: string): string[] {
 function extractAssistTechnicalTerms(question: string): string[] {
   const terms = new Set<string>();
   const haystack = question;
+  const localArtifacts = new Set(extractLocalArtifactTermsForAssist(question).map((term) => term.toUpperCase()));
   const addIf = (condition: boolean, term: string) => {
     if (condition) terms.add(term);
   };
@@ -4567,6 +4587,7 @@ function extractAssistTechnicalTerms(question: string): string[] {
   addIf(/\bselect\b/i.test(haystack), "SELECT");
   addIf(/library\s+list|initial\s+library|loaded\s+first.*login|login.*librar|lista\s+de\s+bibliotecas|biblioteca\s+inicial/i.test(haystack), "library list");
   addIf(/members?\s+of\s+(?:a\s+)?file|file\s+members?|source\s+members?|miembros?\s+de\s+(?:un\s+)?archivo|listar\s+miembros?|all\s+members/i.test(haystack), "file members");
+  addIf(/job\s*schedul|scheduler|scheduled\s+job|wrkjobscde|addjobscde|chgjobscde|rmvjobscde|trabajo\s+programad|planificaci[oó]n\s+de\s+trabajos|planificador|antes\s+o\s+despu[eé]s|secuencia\s+de\s+ejecuci[oó]n/i.test(haystack), "job schedule");
   addIf(/debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|trabajo\s+batch.*depur|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i.test(haystack), "batch debug");
   addIf(/\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i.test(haystack), "SEU line commands");
   addIf(/record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i.test(haystack), "record lock");
@@ -4581,6 +4602,7 @@ function extractAssistTechnicalTerms(question: string): string[] {
   addIf(/\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i.test(haystack), "Synon / CA 2E");
 
   for (const opaque of question.match(/\b[A-Z]{3,}[A-Z0-9]{3,}\b/g) ?? []) {
+    if (localArtifacts.has(opaque.toUpperCase())) continue;
     if (!isAssistGenericTerm(opaque)) terms.add(opaque);
   }
 
@@ -4605,11 +4627,26 @@ function buildAssistTaskPlan(input: {
   context: ContextPackage;
   coverage: AssistCoverage;
   retrievalAxes: AssistRetrievalAxis[];
+  neuralProfile?: NeuralAssistIntentProfile;
 }): AssistTaskPlan {
   const haystack = [input.options.question, input.options.language, input.options.code, input.context.intent.detectedSignals.join(" ")].filter(Boolean).join("\n");
   const rawRequest = [input.options.question, input.options.language, input.options.code].filter(Boolean).join("\n");
-  const language = normalizeLanguage(input.options.language ?? input.options.question ?? input.options.code) ?? input.context.intent.language;
+  const language = input.neuralProfile?.language ?? normalizeLanguage(input.options.language ?? input.options.question ?? input.options.code) ?? input.context.intent.language;
   const axes = new Set<AssistRetrievalAxis>(input.retrievalAxes);
+  if (input.neuralProfile) {
+    for (const axis of input.neuralProfile.axes) axes.add(axis);
+    const family = input.neuralProfile.family;
+    const requiredEvidence = requiredEvidenceForTaskFamily(family, language);
+    return {
+      family,
+      summary: taskFamilySummary(family),
+      primaryLanguage: language === "IBM i" ? undefined : language,
+      requiredEvidence,
+      retrievalAxes: [...axes],
+      responseTemplate: responseTemplateForTaskFamily(family),
+      minimumCoverage: family === "general_explanation" ? "exploratory" : family === "command_lookup" ? "moderate" : "strong"
+    };
+  }
   const hasCompile = axes.has("compile") || input.resolved.compileGuidance?.recommendedCommands.length;
   const hasSyntax = axes.has("syntax");
   const programLanguage = /^(RPGLE|SQLRPGLE|CLLE|COBOL)$/i.test(language ?? "");
@@ -4689,9 +4726,9 @@ function requiredEvidenceForTaskFamily(family: AssistTaskPlan["family"], languag
     design_dds_file: ["sintaxis DDS", "keywords PF/LF", "comando CRTPF/CRTLF", "validaciones de claves/registros"],
     design_display_or_report: ["sintaxis DDS DSPF/PRTF", "keywords de pantalla/reporte", "comando de creación", "validación visual/spool"],
     command_lookup: ["tópico o sección del comando", "parámetros/sintaxis", "ejemplo o nota", "cita auditable"],
-    work_management: ["WRKACTJOB/DSPJOB/WRKJOB cuando aplique", "JOB parameter", "joblog", "acciones de validación operativa"],
+    work_management: ["WRKACTJOB/DSPJOB/WRKJOB o WRKJOBSCDE cuando aplique", "JOB parameter/job schedule entries", "joblog", "acciones de validación operativa"],
     object_lock_analysis: ["WRKOBJLCK", "lock states", "objeto/miembro", "trabajo propietario del lock"],
-    db2_catalog_query: ["vistas de catálogo Db2 for i", "columnas/tablas relevantes", "limitaciones de consulta", "validación SQL"],
+    db2_catalog_query: ["vistas de catálogo Db2 for i", "referencias de programa/relaciones de BD cuando aplique", "columnas/tablas/fuentes relevantes", "validación SQL o comandos de solo lectura"],
     date_time_conversion: ["tipo date/time/timestamp", "BIF o expresión de conversión RPG", "formato externo/interno", "validación SQLRPGLE si aplica"],
     message_diagnostic: ["mensaje o familia documental", "causa/recovery", "evidencia de mensajes", "validación en joblog/listado"],
     version_check: ["evidencia por release", "diferencias", "ampliaciones de alcance declaradas", "citas comparables"],
@@ -4709,9 +4746,9 @@ function taskFamilySummary(family: AssistTaskPlan["family"]): string {
     design_dds_file: "Diseñar archivo DDS PF/LF con sintaxis, keywords y comando de creación.",
     design_display_or_report: "Diseñar display/printer file o reporte con DDS y validación visual/spool.",
     command_lookup: "Resolver comando/tópico IBM i con sintaxis, parámetros y citas.",
-    work_management: "Resolver administración de trabajos, joblogs, jobs activos y navegación operacional.",
+    work_management: "Resolver administración de trabajos, scheduler/job schedule, joblogs, jobs activos y navegación operacional.",
     object_lock_analysis: "Diagnosticar locks de objetos/miembros y trabajos propietarios.",
-    db2_catalog_query: "Guiar consulta de catálogo Db2 for i con vistas y columnas verificables.",
+    db2_catalog_query: "Guiar catálogo Db2 for i, dependencias de programas, relaciones de BD y fuentes con evidencia verificable.",
     date_time_conversion: "Resolver conversión de tipos date/time/timestamp/numeric en RPG/SQLRPGLE con evidencia semántica.",
     message_diagnostic: "Diagnosticar mensaje IBM i con causa/recovery y cobertura.",
     version_check: "Comparar disponibilidad o cambios entre releases IBM i.",
@@ -4834,9 +4871,10 @@ function taskPlanImplementationSteps(taskPlan: AssistTaskPlan): string[] {
       ];
     case "work_management":
       return [
-        "Trabajos y locks: ubicar primero el trabajo con WRKACTJOB/DSPJOB/WRKJOB según el dato disponible.",
+        "Trabajos y scheduler: ubicar primero si la evidencia viene de jobs activos, joblog, submitted jobs o job schedule entries.",
+        "Para secuencia planificada, revisar WRKJOBSCDE/entradas de job schedule y contrastar con SBMJOB/CALL en fuentes CL/RPG si el proceso se dispara por código.",
         "Para bloqueos de objetos o miembros, usar WRKOBJLCK y luego navegar al trabajo propietario antes de terminar o cambiar procesos.",
-        "Cruzar JOB parameter, joblog y estado del trabajo antes de proponer acciones operativas."
+        "Cruzar JOB parameter, joblog, scheduler y estado del trabajo antes de proponer acciones operativas."
       ];
     case "object_lock_analysis":
       return [
@@ -4846,7 +4884,9 @@ function taskPlanImplementationSteps(taskPlan: AssistTaskPlan): string[] {
     case "db2_catalog_query":
       return [
         "Diseñar consulta de catálogo Db2 for i con vistas QSYS2/SYS* y columnas explícitas.",
-        "Mantener la consulta en modo lectura y validar esquema/biblioteca antes de sugerir automatización."
+        "Para uso de tablas/campos por programas, complementar catálogo con DSPPGMREF/Display Program References y revisión de fuentes RPG/SQLRPGLE/CL.",
+        "Para PF/LF y caminos de acceso, contrastar relaciones con DSPDBR/Display Database Relations y claves DDS.",
+        "Mantener la consulta o comando en modo lectura y validar esquema/biblioteca antes de sugerir automatización."
       ];
     case "date_time_conversion":
       return [
@@ -4880,11 +4920,11 @@ function taskPlanValidationChecks(taskPlan: AssistTaskPlan): string[] {
     case "design_display_or_report":
       return ["Compilar DSPF/PRTF y validar layout/indicadores/spool con un caso mínimo."];
     case "work_management":
-      return ["Confirmar trabajo por nombre calificado job-number/user/job antes de actuar.", "Validar locks con WRKOBJLCK y revisar joblog del trabajo propietario si hay errores o esperas."];
+      return ["Confirmar trabajo por nombre calificado job-number/user/job antes de actuar.", "Si se analiza planificación, contrastar WRKJOBSCDE/job schedule entries con fuentes CL/RPG y joblogs reales.", "Validar locks con WRKOBJLCK y revisar joblog del trabajo propietario si hay errores o esperas."];
     case "object_lock_analysis":
       return ["Confirmar objeto/biblioteca/tipo/miembro antes de interpretar locks.", "No finalizar trabajos sin validar impacto y propietario del bloqueo."];
     case "db2_catalog_query":
-      return ["Ejecutar consulta inicialmente con FETCH FIRST o equivalente y validar columnas retornadas.", "Confirmar autoridad de solo lectura y biblioteca/esquema objetivo."];
+      return ["Ejecutar consulta inicialmente con FETCH FIRST o equivalente y validar columnas retornadas.", "Para dependencias, validar DSPPGMREF/DSPDBR o fuente equivalente contra biblioteca/esquema objetivo.", "Confirmar autoridad de solo lectura y biblioteca/esquema objetivo."];
     case "date_time_conversion":
       return ["Probar valores límite de hora/fecha y validar representación resultante antes de persistirla.", "Confirmar SQLCODE/SQLSTATE después de cada operación SQL embebida relevante."];
     default:
@@ -4901,7 +4941,7 @@ function answerTemplateHeading(taskPlan: AssistTaskPlan): string {
     case "design_display_or_report":
       return "Plan de pantalla/reporte";
     case "work_management":
-      return "Trabajos y locks";
+      return "Trabajos, scheduler y locks";
     case "object_lock_analysis":
       return "Análisis de locks";
     case "db2_catalog_query":
@@ -5200,7 +5240,7 @@ function classifyResolveIntent(options: ResolveOptions): DocsIntent {
   if (options.code?.trim()) return "code_review";
   const axes = detectIntentAxes(haystack);
   if (axes.size > 1 && axes.has("message") && (axes.has("command") || axes.has("syntax"))) return "multi_intent";
-  if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4})\b/i.test(haystack)) return "message_diagnostic";
+  if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|CPD\d{4})\b/i.test(haystack)) return "message_diagnostic";
   if (/ranking|rank|por qu[eé].*(resultado|sale|aparece)|explain.?ranking|score|b[uú]squeda.*mal/i.test(haystack)) return "ranking_debug";
   if (/(7\.[3456]).*(7\.[3456])|compar(a|ar|aci[oó]n)|diferencia|entre versiones|release/i.test(haystack)) return "version_question";
   if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|crear.*(programa|m[oó]dulo|servicio)|sqlrpgle|copybook|\/\s*(copy|include)\b/i.test(haystack)) return "compile_guidance";
@@ -5212,7 +5252,7 @@ function classifyResolveIntent(options: ResolveOptions): DocsIntent {
 
 function detectIntentAxes(haystack: string): Set<"message" | "command" | "compile" | "syntax" | "version" | "search"> {
   const axes = new Set<"message" | "command" | "compile" | "syntax" | "version" | "search">();
-  if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|RNF|CPF|MCH|SQLCODE|SQLSTATE)\b/i.test(haystack)) axes.add("message");
+  if (/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|CPD\d{4}|RNF|CPF|MCH|CPD|SQLCODE|SQLSTATE)\b/i.test(haystack)) axes.add("message");
   if (extractTechnicalEntities(haystack).some((term) => IBM_I_COMMAND_PREFIX_PATTERN.test(term) && !isMessageIdTerm(term))) axes.add("command");
   if (/comandos?\s+CL|CL commands?|DSPFD|SBMJOB|RTVJOBA/i.test(haystack)) axes.add("command");
   if (/compil|compile|crt(sqlrpgi|rpgmod|bndcl|bndrpg|pf|lf)|sqlrpgle|copybook|\/\s*(copy|include)\b/i.test(haystack)) axes.add("compile");
@@ -5292,7 +5332,7 @@ function shouldAutoReadSearchHit(hit: SearchHit, options: SearchOptions): boolea
 }
 
 function extractMessageId(value: string): string | undefined {
-  return value.match(/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4})\b/i)?.[1]?.toUpperCase();
+  return value.match(/\b(RNF\d{4}|SQL\d{4,5}|CPF\d{4}|MCH\d{4}|CPD\d{4})\b/i)?.[1]?.toUpperCase();
 }
 
 function extractVersions(value: string): string[] {
@@ -5383,11 +5423,12 @@ function isCommandOrOpcodeTerm(token: string): boolean {
     || /^rnf\d{4}$/i.test(token)
     || /^sql\d{4,5}$/i.test(token)
     || /^cpf\d{4}$/i.test(token)
-    || /^mch\d{4}$/i.test(token);
+    || /^mch\d{4}$/i.test(token)
+    || /^cpd\d{4}$/i.test(token);
 }
 
 function isMessageIdTerm(token: string): boolean {
-  return /^(rnf|cpf|mch)\d{4}$/i.test(token) || /^sql\d{4,5}$/i.test(token);
+  return /^(rnf|cpf|mch|cpd)\d{4}$/i.test(token) || /^sql\d{4,5}$/i.test(token);
 }
 
 function isMessageEvidenceHit(hit: Pick<SearchHit, "title" | "category" | "breadcrumbs" | "snippet">, messageId: string, family = messageId.match(/^[A-Z]+/i)?.[0] ?? ""): boolean {
@@ -5424,46 +5465,6 @@ function extractCommandQueryTerm(query: string): string | undefined {
   return extractTechnicalEntities(query).find((term) => IBM_I_COMMAND_PREFIX_PATTERN.test(term) && !isMessageIdTerm(term));
 }
 
-function commandFallbackNeedles(foldedCommand: string): string[] {
-  // Algunos comandos CL aparecen en el corpus por su descripción larga, no por el nombre corto del comando.
-  return [foldedCommand, ...(IBM_I_COMMAND_ALIASES[foldedCommand] ?? [])].map((needle) => fold(needle));
-}
-
-function commandFallbackPriority(hit: SearchHit, foldedCommand: string): number {
-  const haystack = fold([hit.title, hit.breadcrumbs.join(" "), hit.snippet].join(" "));
-  const aliases = IBM_I_COMMAND_ALIASES[foldedCommand] ?? [];
-  let score = hit.score;
-  if (/cl command finder|alphabetic list of cl commands/.test(haystack)) score += 80;
-  if (/ibm i commands/.test(haystack)) score += 55;
-  if (fold(hit.title).includes(foldedCommand)) score += 45;
-  if (aliases.some((alias) => fold(hit.title).includes(fold(alias)))) score += 90;
-  if (aliases.some((alias) => haystack.includes(fold(alias)))) score += 35;
-  if (/example: using the retrieve job attributes command/.test(haystack)) score += 40;
-  if (hit.category === "cl-clle") score += 15;
-  return score;
-}
-
-function messageFamilyEvidencePriority(hit: SearchHit): number {
-  const haystack = fold([hit.title, hit.breadcrumbs.join(" "), hit.snippet].join(" "));
-  let score = 0;
-
-  // Para familias CPF/MCH sin página específica en el corpus, priorizamos evidencia
-  // de manejo/descripción de mensajes sobre índices genéricos de comandos CL.
-  if (/message descriptions|defining message descriptions|retrieving message descriptions/.test(haystack)) score += 45;
-  if (/\bmessages\b/.test(haystack)) score += 20;
-  if (/qcpfmsg|sndpgmmsg|message file|joblog|job log/.test(haystack)) score += 15;
-  if (/cl command finder|ibm i commands|alphabetic list of cl commands/.test(haystack)) score -= 35;
-  if (/^example:/.test(fold(hit.title)) && !/message descriptions|message file/.test(haystack)) score -= 25;
-
-  return score;
-}
-
-function messageFamilyFallbackScore(hit: SearchHit): number {
-  const priority = messageFamilyEvidencePriority(hit);
-  const boundedFts = Math.max(0, Math.min(hit.score, 99)) / 100;
-  return Math.round((priority * 10 + boundedFts) * 100000) / 100000;
-}
-
 function prioritizeCompileEvidence(hits: SearchHit[], language: string, limit: number): SearchHit[] {
   const seen = new Map<string, SearchHit>();
   for (const hit of hits) {
@@ -5485,15 +5486,6 @@ function compileEvidenceScore(hit: SearchHit, language: string): number {
     if (/sysindexstat|catalog table|catalog view/.test(haystack)) score -= 120;
   }
   return score;
-}
-
-function messageFamilyFallbackQuery(messageId: string): string | undefined {
-  const family = messageId.match(/^[A-Z]+/)?.[0]?.toUpperCase();
-  if (family === "CPF") return "message descriptions message file QCPFMSG SNDPGMMSG joblog";
-  if (family === "MCH") return "machine messages message descriptions joblog";
-  if (family === "SQL") return "SQL messages SQLCODE SQLSTATE Db2 for i";
-  if (family === "RNF") return "RPG Messages compiler messages RNF";
-  return undefined;
 }
 
 function escapeLike(value: string): string {
