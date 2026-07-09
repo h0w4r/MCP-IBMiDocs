@@ -255,7 +255,10 @@ export class CorpusRepository {
     const depth = options.depth ?? "standard";
     const defaultLimit = depth === "deep" ? 8 : depth === "concise" ? 4 : 6;
     const limit = clamp(options.limit, defaultLimit, 1, 12);
-    const initialQueries = uniqueNonEmpty([composeNeuralQuestion(question, options.language, options.code)]);
+    const initialQueries = uniqueNonEmpty([
+      question,
+      composeNeuralQuestion(question, options.language, options.code)
+    ]);
     const readLimit = depth === "deep" ? 4 : depth === "concise" ? 1 : 2;
     const sectionLimit = depth === "deep" ? 8 : depth === "concise" ? 3 : 5;
 
@@ -510,7 +513,7 @@ export class CorpusRepository {
   }
 
   explainRanking(options: RankingExplanationOptions): RankingExplanation {
-    return { query: options.query, semanticProfile: { concepts: [], intentHints: [] }, semanticQueries: [options.query], results: [] };
+    return { query: options.query, semanticQueries: [options.query], results: [] };
   }
 
   reportQuery(options: QueryReportOptions): QueryReport {
@@ -522,8 +525,6 @@ export class CorpusRepository {
       diagnostics: {
         topResultTitle: undefined,
         topResultId: undefined,
-        semanticConcepts: [],
-        semanticIntentHints: [],
         pass: false,
         warnings: ["El reporte síncrono no ejecuta recuperación; usa ibmi_docs_assist para evidencia neural."]
       },
@@ -951,11 +952,14 @@ function mergeHits(groups: SearchHit[][]): SearchHit[] {
   const byId = new Map<string, SearchHit>();
   for (const group of groups) {
     for (const hit of group) {
-      const existing = byId.get(hit.id);
-      if (!existing || hit.score > existing.score) byId.set(hit.id, hit);
+      // En assistSmart cada grupo corresponde a un hop neural concreto.
+      // No mezclamos scores absolutos de consultas distintas porque una
+      // reformulación contextual puede inflar similitud y tapar la petición
+      // original. Conservamos prioridad por orden de hop y rank interno.
+      if (!byId.has(hit.id)) byId.set(hit.id, hit);
     }
   }
-  return [...byId.values()].sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
+  return [...byId.values()];
 }
 
 function mergeReads(groups: ContextReadSummary[][]): ContextReadSummary[] {

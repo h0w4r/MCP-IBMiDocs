@@ -3,7 +3,6 @@ import fsSync from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import Database from "better-sqlite3";
-import { buildSemanticProfile } from "../repository/semanticVector.js";
 import {
   configuredEmbeddingModel,
   DEFAULT_EMBEDDING_DIMENSIONS,
@@ -25,29 +24,12 @@ interface PreparedChunk {
   body: string;
   tokenHint: number;
   vector: Float32Array;
-  concepts: string[];
 }
 
 interface PreparedDocument {
   doc: DocumentRecord;
   sections: Array<{ kind: string; title: string; body: string; startLine: number; endLine: number }>;
   chunks: PreparedChunk[];
-}
-
-interface DerivedDocumentPayload {
-  doc: DocumentRecord;
-  html: string;
-  text: string;
-}
-
-interface DerivedReferenceBundleDefinition {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  concepts: string[];
-  intents: string[];
-  entries: Array<{ term: string; meaning: string }>;
 }
 
 export async function buildDataPack(options: BuildPackOptions): Promise<CorpusManifest> {
@@ -57,28 +39,9 @@ export async function buildDataPack(options: BuildPackOptions): Promise<CorpusMa
 
   const manifests = await loadInputManifests(inputDir);
   const sourceDocuments = dedupeDocuments(manifests.flatMap((manifest) => manifest.documents.map(sanitizeDocumentForRuntime)));
-  const derivedDocuments = await buildDerivedSemanticDocuments(inputDir, manifests);
-  const allSourceDocuments = dedupeDocuments([...sourceDocuments, ...derivedDocuments.map((item) => item.doc)]);
-  const documents = allSourceDocuments.map(withPortablePackPaths);
-  const derivedById = new Map(derivedDocuments.map((item) => [item.doc.id, item]));
-  const effectiveSources = [
-    ...manifests.flatMap((manifest) => manifest.sources.map(sanitizeSourceForRuntime)),
-    ...(derivedDocuments.length ? [buildDerivedSourceManifest(derivedDocuments.length)] : [])
-  ];
-  const effectiveManifests = derivedDocuments.length
-    ? [
-      ...manifests,
-      {
-        schemaVersion: 1 as const,
-        corpusVersion: "derived-semantic-docs",
-        generatedAt: nowIso(),
-        description: "Documentos semánticos derivados de índices oficiales incluidos en el data pack.",
-        sources: [buildDerivedSourceManifest(derivedDocuments.length)],
-        documents: derivedDocuments.map((item) => item.doc),
-        coverage: {}
-      }
-    ]
-    : manifests;
+  const documents = sourceDocuments.map(withPortablePackPaths);
+  const effectiveSources = manifests.flatMap((manifest) => manifest.sources.map(sanitizeSourceForRuntime));
+  const effectiveManifests = manifests;
   const merged: CorpusManifest = {
     schemaVersion: 1,
     corpusVersion: `ibmi-docs-pack-${new Date().toISOString().slice(0, 10)}`,
@@ -90,27 +53,9 @@ export async function buildDataPack(options: BuildPackOptions): Promise<CorpusMa
   };
 
   await copyDocumentFiles(manifests, inputDir, outDir, sourceDocuments, documents);
-  await writeDerivedDocumentFiles(outDir, documents, derivedById);
   await fs.writeFile(path.join(outDir, "manifest.json"), JSON.stringify(merged, null, 2), "utf8");
   await buildSqlite(path.join(outDir, "ibmi-docs.sqlite"), outDir, documents, merged);
   return merged;
-}
-
-function buildDerivedSourceManifest(documentCount: number): SourceManifest {
-  return {
-    id: "derived-semantic-docs",
-    kind: "manual-pack",
-    name: "IBM i semantic retrieval bundles derived from official corpus",
-    baseUrl: "ibmi-docs-derived://semantic-bundles",
-    exportedAt: nowIso(),
-    documentCount,
-    failedCount: 0,
-    notes: [
-      "Documentos generados durante build desde textos oficiales ya incluidos en el corpus local.",
-      "No consultan RDi/Eclipse Help ni endpoints externos en runtime.",
-      "Su objetivo es mejorar recuperación semántica vectorial para agentes cuando la ayuda oficial agrupa comandos, opcodes, keywords o conceptos en índices largos."
-    ]
-  };
 }
 
 function withPortablePackPaths(doc: DocumentRecord): DocumentRecord {
@@ -256,607 +201,6 @@ async function copyDocumentFiles(
   }
 }
 
-async function writeDerivedDocumentFiles(
-  outDir: string,
-  targetDocuments: DocumentRecord[],
-  derivedById: Map<string, DerivedDocumentPayload>
-): Promise<void> {
-  for (const targetDoc of targetDocuments) {
-    const derived = derivedById.get(targetDoc.id);
-    if (!derived) continue;
-    const rawTarget = resolveContainedPath(outDir, targetDoc.rawHtmlPath);
-    const normalizedTarget = resolveContainedPath(outDir, targetDoc.normalizedTextPath);
-    await fs.mkdir(path.dirname(rawTarget), { recursive: true });
-    await fs.mkdir(path.dirname(normalizedTarget), { recursive: true });
-    await fs.writeFile(rawTarget, derived.html, "utf8");
-    await fs.writeFile(normalizedTarget, derived.text, "utf8");
-  }
-}
-
-async function buildDerivedSemanticDocuments(inputDir: string, manifests: CorpusManifest[]): Promise<DerivedDocumentPayload[]> {
-  const commandFinder = await loadCommandFinderIndex(inputDir, manifests);
-  const builtAt = nowIso();
-  const commandGroups = commandFinder
-    ? commandGroupDefinitions()
-      .map((group) => buildCommandGroupDocument(group, parseCommandIndex(commandFinder.text), commandFinder, builtAt))
-      .filter((item): item is DerivedDocumentPayload => Boolean(item))
-    : [];
-  const referenceBundles = await buildReferenceBundleDocuments(inputDir, manifests, builtAt);
-  return [...commandGroups, ...referenceBundles];
-}
-
-async function loadCommandFinderIndex(inputDir: string, manifests: CorpusManifest[]): Promise<{ doc: DocumentRecord; text: string } | undefined> {
-  const candidates = manifests
-    .flatMap((manifest) => manifest.documents.map((doc) => ({ manifest, doc })))
-    .filter(({ doc }) => /cl command finder|ibm i commands/i.test(doc.title))
-    .sort((a, b) => {
-      const aScore = /cl command finder/i.test(a.doc.title) ? 0 : 1;
-      const bScore = /cl command finder/i.test(b.doc.title) ? 0 : 1;
-      return aScore - bScore || a.doc.title.localeCompare(b.doc.title);
-    });
-
-  for (const { manifest, doc } of candidates) {
-    const root = sourceRootForDocument(inputDir, doc, manifest);
-    const normalizedPath = resolveContainedPath(root, doc.normalizedTextPath);
-    try {
-      const text = await fs.readFile(normalizedPath, "utf8");
-      if (text.length > 1000) return { doc, text };
-    } catch {
-      // Si un índice candidato no está disponible, probamos el siguiente.
-    }
-  }
-  return undefined;
-}
-
-function parseCommandIndex(text: string): Map<string, { command: string; description: string; raw: string }> {
-  const commands = new Map<string, { command: string; description: string; raw: string }>();
-  const pattern = /\b([A-Z][A-Z0-9]{2,11})\s+\(([^)\n]{3,160})\)\s+command\b/g;
-  for (const match of text.matchAll(pattern)) {
-    const command = (match[1] ?? "").trim().toUpperCase();
-    const description = normalizeWhitespace(match[2] ?? "");
-    if (!command || !description) continue;
-    commands.set(command, { command, description, raw: normalizeWhitespace(match[0] ?? "") });
-  }
-  return commands;
-}
-
-async function buildReferenceBundleDocuments(
-  inputDir: string,
-  manifests: CorpusManifest[],
-  collectedAt: string
-): Promise<DerivedDocumentPayload[]> {
-  const sourceTexts = await loadNormalizedSourceTexts(inputDir, manifests);
-  return referenceBundleDefinitions()
-    .map((bundle) => buildReferenceBundleDocument(bundle, sourceTexts, collectedAt))
-    .filter((item): item is DerivedDocumentPayload => Boolean(item));
-}
-
-async function loadNormalizedSourceTexts(
-  inputDir: string,
-  manifests: CorpusManifest[]
-): Promise<Array<{ doc: DocumentRecord; text: string }>> {
-  const loaded: Array<{ doc: DocumentRecord; text: string }> = [];
-  for (const manifest of manifests) {
-    for (const doc of manifest.documents) {
-      const root = sourceRootForDocument(inputDir, doc, manifest);
-      const normalizedPath = resolveContainedPath(root, doc.normalizedTextPath);
-      try {
-        const text = await fs.readFile(normalizedPath, "utf8");
-        loaded.push({ doc, text });
-      } catch {
-        // Algunos manifests históricos pueden apuntar a documentos auxiliares ausentes.
-        // Se omiten para no romper el build de un pack válido por una referencia secundaria.
-      }
-    }
-  }
-  return loaded;
-}
-
-function referenceBundleDefinitions(): DerivedReferenceBundleDefinition[] {
-  return [
-    {
-      id: "ile-rpg-operation-codes",
-      title: "ILE RPG operation codes, indicators and string operations",
-      description: "Tópico semántico derivado para recuperar opcodes RPG, indicadores y operaciones frecuentes cuando la consulta llega como pregunta natural.",
-      category: "ile-rpg",
-      concepts: [
-        "RPG operation code", "RPG opcode", "fixed form RPG", "free form RPG",
-        "indicator LR", "file positioning", "display file input output", "string concatenation",
-        "variable length field", "program return", "file access opcodes", "array sort",
-        "SORTA", "READP", "READPE", "KLIST", "KFLD", "EXCPT"
-      ],
-      intents: [
-        "What does EXFMT do in RPG?",
-        "What is SETLL used for?",
-        "How do I concatenate strings in RPG?",
-        "What is the difference between RETURN and LR?",
-        "What is VARYING in RPG?",
-        "How does RPG position a file before reading?",
-        "Which RPG operation codes are used for file access?",
-        "How can an RPG array be sorted?"
-      ],
-      entries: [
-        { term: "SETLL", meaning: "Set Lower Limit; positions a file to a key or limit before subsequent read operations." },
-        { term: "SETGT", meaning: "Set Greater Than; positions a keyed file after a key value." },
-        { term: "CHAIN", meaning: "Random retrieval from a file by key or relative record number." },
-        { term: "READP", meaning: "Reads the previous record from a full procedural file." },
-        { term: "READE", meaning: "Read equal key records after file positioning." },
-        { term: "READPE", meaning: "Read prior equal key records after file positioning." },
-        { term: "KLIST", meaning: "Legacy RPG operation code used to define a composite key list." },
-        { term: "KFLD", meaning: "Legacy RPG operation code used to define fields within a KLIST key list." },
-        { term: "EXFMT", meaning: "Write a display format and then read the same format, commonly used for interactive display files." },
-        { term: "WRITE", meaning: "Writes a record or display format." },
-        { term: "READ", meaning: "Reads the next record or input from a format." },
-        { term: "EXCPT", meaning: "Writes exception output records in RPG output specifications." },
-        { term: "CAT", meaning: "Legacy concatenate operation code for joining character strings." },
-        { term: "*CAT", meaning: "CL/RPG-style concatenation operator used to concatenate strings." },
-        { term: "RETURN", meaning: "Returns control from a program or procedure." },
-        { term: "*INLR", meaning: "Last-record indicator commonly used by RPG programs to end and close resources." },
-        { term: "SETON LR", meaning: "Legacy pattern for setting the LR indicator on." },
-        { term: "VARYING", meaning: "Variable-length alphanumeric/graphic field support in RPG definitions." },
-        { term: "SORTA", meaning: "Sorts an RPG array in ascending sequence unless alternate ordering is specified by the language form." },
-        { term: "%FOUND", meaning: "Built-in function used to test whether operations such as SETLL or CHAIN found a record." },
-        { term: "%LEN", meaning: "Built-in function that returns current or maximum length, including varying-length fields." }
-      ]
-    },
-    {
-      id: "cl-commands-variables-messages",
-      title: "CL commands, variables, labels, messages and database overrides",
-      description: "Tópico semántico derivado para consultas CL sobre variables, comandos de mensajes, etiquetas, overrides y apertura lógica de archivos.",
-      category: "cl-clle",
-      concepts: [
-        "CL command", "CL variable declaration", "CL logical variable", "CL decimal variable",
-        "CL character variable", "CL data types", "local data area", "LDA",
-        "CL label", "program message", "user message", "database file override", "open query file"
-      ],
-      intents: [
-        "What variable types are available in CL?",
-        "What are the data types available in CL?",
-        "What is the type and length of an LDA?",
-        "How do I send a message from CL?",
-        "What is a command label?",
-        "What command is required before OPNQRYF?",
-        "What does OVRDBF stand for?",
-        "How do I concatenate strings in CL?"
-      ],
-      entries: [
-        { term: "DCL", meaning: "Declares CL variables and their type, length and optional initial value." },
-        { term: "TYPE(*CHAR)", meaning: "Character CL variable type." },
-        { term: "TYPE(*DEC)", meaning: "Packed decimal CL variable type." },
-        { term: "TYPE(*LGL)", meaning: "Logical CL variable type." },
-        { term: "*CHAR", meaning: "CL character data type, declared with DCL TYPE(*CHAR)." },
-        { term: "*DEC", meaning: "CL packed decimal data type, declared with DCL TYPE(*DEC)." },
-        { term: "*LGL", meaning: "CL logical data type, declared with DCL TYPE(*LGL)." },
-        { term: "*LDA", meaning: "Local Data Area available to a job; commonly treated as a 1024-character local data area." },
-        { term: "LDA length", meaning: "The local data area is commonly described as a character data area of 1024 positions for job-local exchange." },
-        { term: "GOTO CMDLBL", meaning: "Transfers control to a command label inside a CL procedure or program." },
-        { term: "CMDLBL", meaning: "Command label used as a target for GOTO or MONMSG handling." },
-        { term: "SNDPGMMSG", meaning: "Sends a program message, including completion, diagnostic, escape or informational messages." },
-        { term: "SNDUSRMSG", meaning: "Sends a message to a user or message queue." },
-        { term: "SNDMSG", meaning: "Sends a simple message." },
-        { term: "OVRDBF", meaning: "Override with Database File command; temporarily changes file attributes for a job or call level." },
-        { term: "OPNQRYF", meaning: "Open Query File command for query-like access paths in CL-driven processing." },
-        { term: "OVRDBF before OPNQRYF", meaning: "Common CL pattern: override/open scope before opening query file where required by the job flow." },
-        { term: "*CAT", meaning: "Concatenates character operands in CL expressions." },
-        { term: "*BCAT", meaning: "Concatenates strings with one blank separator." },
-        { term: "*TCAT", meaning: "Concatenates strings after trimming trailing blanks." },
-        { term: "QCMDEXC", meaning: "API used to execute CL command strings from programs." }
-      ]
-    },
-    {
-      id: "dds-display-subfile-keywords",
-      title: "DDS display file and subfile keywords",
-      description: "Tópico semántico derivado para recuperar keywords DDS de pantallas, subfiles, mensajes y redisplay.",
-      category: "dds",
-      concepts: [
-        "DDS display file", "subfile control record", "subfile display", "restore display",
-        "message subfile", "function key", "redisplay screen", "display format",
-        "mandatory subfile keywords", "required subfile keywords", "SFL", "SFLCTL",
-        "SFLDSP", "SFLDSPCTL", "SFLSIZ", "SFLPAG"
-      ],
-      intents: [
-        "What keyword is used when a screen is redisplayed?",
-        "What are the required keywords for a message subfile?",
-        "Write down mandatory keywords used when defining a subfile",
-        "Which DDS keywords are mandatory for a subfile?",
-        "How do function keys work in DDS?",
-        "Which keyword controls subfile display?",
-        "What does ERRMSG do in a display file?"
-      ],
-      entries: [
-        { term: "SFL", meaning: "DDS keyword that identifies the record format as the subfile record format." },
-        { term: "RSTDSP", meaning: "Restore display keyword/parameter used to restore the display when returning to a screen." },
-        { term: "USRRSTDSP", meaning: "User Restore Display keyword for display files." },
-        { term: "SFLDSP", meaning: "Subfile display keyword." },
-        { term: "SFLDSPCTL", meaning: "Subfile control display keyword." },
-        { term: "SFLCTL", meaning: "Defines the subfile control record format." },
-        { term: "SFLPAG", meaning: "Specifies records per subfile page." },
-        { term: "SFLSIZ", meaning: "Specifies total subfile size." },
-        { term: "SFLMSGKEY", meaning: "Message key keyword used with message subfiles." },
-        { term: "SFLPGMQ", meaning: "Program message queue keyword used with message subfiles." },
-        { term: "SFLMSGRCD", meaning: "Subfile message record keyword." },
-        { term: "ERRMSG", meaning: "Displays an error message for a field or record condition." },
-        { term: "ERRMSGID", meaning: "Displays an error message by message ID." },
-        { term: "CFxx", meaning: "Command function key keyword." },
-        { term: "CAxx", meaning: "Command attention key keyword." },
-        { term: "INDARA", meaning: "Uses a separate indicator area for display or printer files." }
-      ]
-    },
-    {
-      id: "ile-modules-service-programs",
-      title: "ILE modules, service programs, binding and signatures",
-      description: "Tópico semántico derivado para consultas sobre módulos ILE, service programs, binding directories, exports y firmas.",
-      category: "ile-rpg",
-      concepts: [
-        "ILE module", "service program", "binding directory", "binder language", "program signature",
-        "module cannot be called directly", "procedure export", "activation group"
-      ],
-      intents: [
-        "Can we call a module directly?",
-        "What is a service program?",
-        "What is a signature in a service program?",
-        "How are modules bound into programs?",
-        "How do binding directories help compilation?"
-      ],
-      entries: [
-        { term: "MODULE", meaning: "Compiled object that is bound into a program or service program; it is not normally invoked as a standalone callable program." },
-        { term: "CRTRPGMOD", meaning: "Creates an RPG module object." },
-        { term: "CRTPGM", meaning: "Creates/binds a program from modules and service programs." },
-        { term: "CRTSRVPGM", meaning: "Creates a service program from modules." },
-        { term: "Service program", meaning: "ILE object containing callable procedures exported for reuse by programs or other service programs." },
-        { term: "Binding directory", meaning: "Object listing modules and service programs to search during binding." },
-        { term: "Binder language", meaning: "Defines exports and signature behavior for service programs." },
-        { term: "Signature", meaning: "Compatibility token used by service programs to validate expected exports at bind/runtime." },
-        { term: "EXPORT", meaning: "Makes a procedure or symbol available from a module/service program." },
-        { term: "CALLP", meaning: "Calls a prototyped procedure, including procedures exported by service programs." },
-        { term: "Activation group", meaning: "ILE runtime container controlling activation and resource lifetime." }
-      ]
-    },
-    {
-      id: "terminal-emulator-function-keys",
-      title: "IBM i terminal emulation, keyboard maps and function keys",
-      description: "Tópico semántico derivado para consultas sobre emuladores 5250/3270, teclas PF/F y mapas de teclado.",
-      category: "administration",
-      concepts: [
-        "5250 emulator", "TN5250", "TN3270", "PF key", "F4 prompt", "keyboard map",
-        "command keyboard", "display keyboard map"
-      ],
-      intents: [
-        "Why does F4 or PF4 not prompt in my emulator?",
-        "How do I map function keys for IBM i terminal access?",
-        "Which commands manage keyboard maps?",
-        "What is the difference between TN5250 and TN3270?"
-      ],
-      entries: [
-        { term: "TN5250", meaning: "Terminal emulation protocol commonly used for IBM i 5250 sessions." },
-        { term: "TN3270", meaning: "3270 terminal protocol; not the native 5250 protocol used by IBM i green-screen sessions." },
-        { term: "PF4", meaning: "Program/function key often mapped to prompt/help behavior such as F4 in IBM i command entry." },
-        { term: "F4", meaning: "Keyboard key commonly mapped to IBM i Prompt." },
-        { term: "CMDKBD", meaning: "Command keyboard/map related support." },
-        { term: "CHGKBDMAP", meaning: "Changes a keyboard map." },
-        { term: "DSPKBDMAP", meaning: "Displays keyboard map information." },
-        { term: "SETKBDMAP", meaning: "Sets keyboard map behavior where supported." },
-        { term: "VT100", meaning: "Terminal type that can differ from 5250 expectations." }
-      ]
-    },
-    {
-      id: "rpg-language-evolution",
-      title: "RPG language evolution and historical versions",
-      description: "Tópico semántico derivado para consultas sobre RPG/400, RPG III, RPG IV, ILE RPG y formatos históricos.",
-      category: "ile-rpg",
-      concepts: [
-        "RPG III", "RPG IV", "RPG/400", "ILE RPG", "fixed format RPG", "free form RPG",
-        "historical RPG versions", "RPG language reference"
-      ],
-      intents: [
-        "What are the earlier versions of RPG?",
-        "What changed from RPG III to RPG IV?",
-        "What is RPG/400?",
-        "What is ILE RPG?"
-      ],
-      entries: [
-        { term: "RPG III", meaning: "Earlier RPG language generation used before modern RPG IV/ILE RPG." },
-        { term: "RPG/400", meaning: "AS/400-era RPG implementation." },
-        { term: "RPG IV", meaning: "Modern RPG language generation associated with ILE RPG." },
-        { term: "ILE RPG", meaning: "Integrated Language Environment RPG supporting modules, procedures and service programs." },
-        { term: "Fixed form", meaning: "Column-sensitive RPG source format." },
-        { term: "Free form", meaning: "Modern RPG source style with freer syntax." }
-      ]
-    }
-  ];
-}
-
-function buildReferenceBundleDocument(
-  bundle: DerivedReferenceBundleDefinition,
-  sourceTexts: Array<{ doc: DocumentRecord; text: string }>,
-  collectedAt: string
-): DerivedDocumentPayload | undefined {
-  const anchors = findBundleSourceAnchors(bundle, sourceTexts).slice(0, 10);
-  if (anchors.length < 1) return undefined;
-
-  const entryLines = bundle.entries.map((entry) => `- ${entry.term}: ${entry.meaning}`);
-  const anchorLines = anchors.map((anchor) => `- ${anchor.doc.title} (${anchor.doc.id}) — señales: ${anchor.signals.join(", ")}`);
-  const text = [
-    bundle.title,
-    "",
-    "Descripción",
-    bundle.description,
-    "",
-    "Intenciones cubiertas",
-    ...bundle.intents.map((intent) => `- ${intent}`),
-    "",
-    "Conceptos semánticos",
-    bundle.concepts.join(", "),
-    "",
-    "Entradas técnicas",
-    ...entryLines,
-    "",
-    "Evidencia oficial relacionada encontrada en el corpus",
-    ...anchorLines,
-    "",
-    "Fuente y trazabilidad",
-    "Derivado automáticamente durante build desde documentos oficiales ya incluidos en el corpus local.",
-    "Este documento no reemplaza a la documentación oficial; agrupa señales oficiales para mejorar recuperación vectorial multi-hop."
-  ].join("\n");
-  const id = `derived-reference-bundle-${bundle.id}`;
-  const sha256 = sha256Hex(text);
-  const html = [
-    "<!doctype html>",
-    "<html><head>",
-    `<meta charset="utf-8"><title>${escapeHtml(bundle.title)}</title>`,
-    "</head><body>",
-    `<h1>${escapeHtml(bundle.title)}</h1>`,
-    `<p>${escapeHtml(bundle.description)}</p>`,
-    "<h2>Intenciones cubiertas</h2>",
-    `<ul>${bundle.intents.map((intent) => `<li>${escapeHtml(intent)}</li>`).join("")}</ul>`,
-    "<h2>Entradas técnicas</h2>",
-    `<ul>${bundle.entries.map((entry) => `<li><strong>${escapeHtml(entry.term)}</strong>: ${escapeHtml(entry.meaning)}</li>`).join("")}</ul>`,
-    "<h2>Evidencia oficial relacionada</h2>",
-    `<ul>${anchors.map((anchor) => `<li>${escapeHtml(anchor.doc.title)} (${escapeHtml(anchor.doc.id)}): ${escapeHtml(anchor.signals.join(", "))}</li>`).join("")}</ul>`,
-    "</body></html>"
-  ].join("\n");
-
-  return {
-    html,
-    text,
-    doc: {
-      id,
-      sourceKind: "manual-pack",
-      sourceId: "derived-semantic-docs",
-      originalUrl: `ibmi-docs-derived://semantic-bundles/${bundle.id}`,
-      canonicalUrl: `ibmi-docs-derived://semantic-bundles/${bundle.id}`,
-      title: bundle.title,
-      breadcrumbs: ["IBM i", "Derived semantic retrieval bundles", bundle.title],
-      product: "IBM i",
-      version: "RDi-local",
-      language: "en",
-      category: bundle.category,
-      rawHtmlPath: "",
-      normalizedTextPath: "",
-      sha256,
-      textLength: text.length,
-      collectedAt,
-      documentKind: "reference",
-      canonicalTopicKey: `${bundle.category}:derived-reference-bundle-${bundle.id}`
-    }
-  };
-}
-
-function findBundleSourceAnchors(
-  bundle: DerivedReferenceBundleDefinition,
-  sourceTexts: Array<{ doc: DocumentRecord; text: string }>
-): Array<{ doc: DocumentRecord; signals: string[]; score: number }> {
-  const signals = [...bundle.entries.map((entry) => entry.term), ...bundle.concepts];
-  const scored: Array<{ doc: DocumentRecord; signals: string[]; score: number }> = [];
-  for (const source of sourceTexts) {
-    const haystack = fold(`${source.doc.title}\n${source.doc.breadcrumbs.join(" > ")}\n${source.text.slice(0, 250000)}`);
-    const matched = signals.filter((signal) => haystack.includes(fold(signal)));
-    if (!matched.length) continue;
-    const titleBonus = matched.some((signal) => fold(source.doc.title).includes(fold(signal))) ? 4 : 0;
-    const categoryBonus = source.doc.category === bundle.category ? 3 : 0;
-    scored.push({
-      doc: source.doc,
-      signals: [...new Set(matched)].slice(0, 8),
-      score: matched.length + titleBonus + categoryBonus
-    });
-  }
-  return scored.sort((a, b) => b.score - a.score || a.doc.title.localeCompare(b.doc.title));
-}
-
-function commandGroupDefinitions(): Array<{
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  commands: string[];
-  intents: string[];
-  keywords: string[];
-}> {
-  return [
-    {
-      id: "journaling",
-      title: "IBM i journaling commands",
-      description: "Comandos de IBM i para crear journals y journal receivers, iniciar o finalizar journaling de archivos físicos, visualizar entradas, aplicar/remover cambios y recuperar entradas de journal.",
-      category: "cl-clle",
-      commands: [
-        "APYJRNCHG", "APYJRNCHGX", "CHGJRN", "CHGJRNA", "CMPJRNIMG", "CRTJRN", "CRTJRNRCV", "DLTJRN", "DLTJRNRCV",
-        "DSPJRN", "DSPJRNRCVA", "ENDJRN", "ENDJRNAP", "ENDJRNLIB", "ENDJRNOBJ", "ENDJRNPF", "RCVJRNE", "RMVJRNCHG",
-        "RTVJRNE", "SNDJRNE", "STRJRN", "STRJRNAP", "STRJRNLIB", "STRJRNOBJ", "STRJRNPF", "WRKJRN", "WRKJRNA", "WRKJRNRCV"
-      ],
-      intents: [
-        "What are the journaling commands?",
-        "Which commands manage journal receivers and journal entries?",
-        "How do I start or end journaling for a physical file?",
-        "How do I display, receive, retrieve, apply or remove journaled changes?"
-      ],
-      keywords: ["journal", "journaling", "journal receiver", "journal entries", "physical file", "apply journaled changes", "remove journaled changes"]
-    },
-    {
-      id: "job-scheduler",
-      title: "IBM i job scheduler and scheduled job commands",
-      description: "Comandos de IBM i para trabajar con job schedule entries, planificar trabajos, cambiar/remover entradas planificadas y revisar jobs sometidos o scheduler avanzado.",
-      category: "cl-clle",
-      commands: [
-        "ADDJOBSCDE", "CHGJOBSCDE", "RMVJOBSCDE", "WRKJOBSCDE", "SBMJOB", "WRKSBMJOB", "DSPJOB", "WRKJOB", "DSPJOBLOG",
-        "DSPHSTJS", "DSPJOBJS", "STRJS", "ENDJS", "HLDJOB", "RLSJOB", "CHGJOB"
-      ],
-      intents: [
-        "How do I inspect scheduled jobs in IBM i?",
-        "Which commands manage job schedule entries?",
-        "How can I verify if one batch job runs before or after another?",
-        "How do I submit or review scheduled/submitted jobs?"
-      ],
-      keywords: ["job schedule", "scheduled job", "scheduler", "batch", "submitted job", "schedule date", "schedule time", "WRKJOBSCDE"]
-    },
-    {
-      id: "work-management",
-      title: "IBM i work management and active job commands",
-      description: "Comandos de IBM i para revisar trabajos activos, joblogs, jobs sometidos, colas de trabajo, subsistemas y atributos de ejecución.",
-      category: "cl-clle",
-      commands: [
-        "WRKACTJOB", "WRKJOB", "DSPJOB", "DSPJOBLOG", "WRKJOBQ", "WRKSBMJOB", "SBMJOB", "CHGJOB", "ENDJOB", "HLDJOB",
-        "RLSJOB", "WRKSBS", "DSPSBS", "WRKOUTQ", "DSPLOG"
-      ],
-      intents: [
-        "How do I see active jobs?",
-        "How do I inspect a joblog or submitted job?",
-        "Which commands are used for IBM i work management?",
-        "How do I check job queues, subsystems or job attributes?"
-      ],
-      keywords: ["active jobs", "joblog", "submitted jobs", "job queue", "subsystem", "work management", "WRKACTJOB"]
-    },
-    {
-      id: "object-locks",
-      title: "IBM i object and record lock commands",
-      description: "Comandos de IBM i para ver locks de objetos, asignar/liberar objetos, revisar jobs propietarios y diagnosticar bloqueos operativos.",
-      category: "cl-clle",
-      commands: ["WRKOBJLCK", "ALCOBJ", "DLCOBJ", "WRKJOB", "DSPJOB", "DSPJOBLOG", "WRKACTJOB", "ENDJOB"],
-      intents: [
-        "How do I check object locks?",
-        "How can I see which job owns a lock?",
-        "Which commands help diagnose locked members, objects or records?",
-        "How do I allocate or deallocate objects?"
-      ],
-      keywords: ["object locks", "record lock", "member lock", "lock state", "owner job", "WRKOBJLCK", "allocate object"]
-    },
-    {
-      id: "security-authority",
-      title: "IBM i security, user profile and object authority commands",
-      description: "Comandos de IBM i para perfiles de usuario, autorizaciones de objeto, propietarios, permisos, listas de autorización y revisión de seguridad.",
-      category: "cl-clle",
-      commands: [
-        "CRTUSRPRF", "CHGUSRPRF", "DSPUSRPRF", "DLTUSRPRF", "WRKUSRPRF", "EDTOBJAUT", "DSPOBJAUT", "GRTOBJAUT", "RVKOBJAUT",
-        "CHGOBJOWN", "WRKAUTL", "CRTAUTL", "CHGAUTL", "DLTAUTL", "DSPAUTL"
-      ],
-      intents: [
-        "How do I inspect or change object authority?",
-        "Which commands manage IBM i user profiles?",
-        "How do I grant or revoke object authority?",
-        "How do group profiles and object ownership relate to security?"
-      ],
-      keywords: ["user profile", "group profile", "object authority", "grant authority", "revoke authority", "authorization list", "owner"]
-    },
-    {
-      id: "database-file-dependencies",
-      title: "IBM i database file, member and dependency commands",
-      description: "Comandos de IBM i para inspeccionar archivos físicos/lógicos, miembros, referencias de programa, relaciones de base de datos y dependencias.",
-      category: "cl-clle",
-      commands: [
-        "DSPFD", "DSPFFD", "WRKMBRPDM", "DSPDBR", "DSPPGMREF", "CRTPF", "CRTLF", "DSPPFM", "CPYF", "RUNQRY", "STRSQL",
-        "OVRDBF", "OPNQRYF", "CHGPF"
-      ],
-      intents: [
-        "How do I list members of a file?",
-        "How can I see what files a program uses?",
-        "How do I inspect database relations or logical files?",
-        "How can I see all record formats used in a file?",
-        "How do I display database relations for record formats and dependent files?",
-        "Which commands help inspect physical files, field descriptions and dependencies?",
-        "What command is commonly used before OPNQRYF?",
-        "What does OVRDBF stand for?",
-        "How do I change the length of a field in a physical file?"
-      ],
-      keywords: ["physical file", "logical file", "members", "program references", "database relations", "record format", "field length", "DSPFD", "DSPDBR", "DSPPGMREF", "DSPFFD", "CHGPF", "OVRDBF", "OPNQRYF"]
-    }
-  ];
-}
-
-function buildCommandGroupDocument(
-  group: ReturnType<typeof commandGroupDefinitions>[number],
-  commandIndex: Map<string, { command: string; description: string; raw: string }>,
-  source: { doc: DocumentRecord; text: string },
-  collectedAt: string
-): DerivedDocumentPayload | undefined {
-  const entries = group.commands
-    .map((command) => commandIndex.get(command))
-    .filter((entry): entry is { command: string; description: string; raw: string } => Boolean(entry));
-  if (entries.length < 3) return undefined;
-
-  const commandLines = entries.map((entry) => `- ${entry.command}: ${entry.description}.`);
-  const text = [
-    group.title,
-    "",
-    "Descripción",
-    group.description,
-    "",
-    "Intenciones cubiertas",
-    ...group.intents.map((intent) => `- ${intent}`),
-    "",
-    "Comandos principales",
-    ...commandLines,
-    "",
-    "Términos semánticos",
-    group.keywords.join(", "),
-    "",
-    "Fuente y trazabilidad",
-    `Derivado automáticamente durante build desde el tópico oficial incluido en el corpus: ${source.doc.title} (${source.doc.id}).`,
-    `Fuente runtime sanitizada: ${source.doc.sourceKind}; categoría: ${source.doc.category}; versión: ${source.doc.version}.`,
-    "Este documento no reemplaza a la documentación oficial; agrupa señales oficiales para mejorar recuperación vectorial multi-hop."
-  ].join("\n");
-  const sha256 = sha256Hex(text);
-  const id = `derived-command-group-${group.id}`;
-  const html = [
-    "<!doctype html>",
-    "<html><head>",
-    `<meta charset="utf-8"><title>${escapeHtml(group.title)}</title>`,
-    "</head><body>",
-    `<h1>${escapeHtml(group.title)}</h1>`,
-    `<p>${escapeHtml(group.description)}</p>`,
-    "<h2>Intenciones cubiertas</h2>",
-    `<ul>${group.intents.map((intent) => `<li>${escapeHtml(intent)}</li>`).join("")}</ul>`,
-    "<h2>Comandos principales</h2>",
-    `<ul>${entries.map((entry) => `<li><strong>${escapeHtml(entry.command)}</strong>: ${escapeHtml(entry.description)}.</li>`).join("")}</ul>`,
-    "<h2>Fuente y trazabilidad</h2>",
-    `<p>Derivado desde ${escapeHtml(source.doc.title)} (${escapeHtml(source.doc.id)}).</p>`,
-    "</body></html>"
-  ].join("\n");
-
-  return {
-    html,
-    text,
-    doc: {
-      id,
-      sourceKind: "manual-pack",
-      sourceId: "derived-semantic-docs",
-      originalUrl: `ibmi-docs-derived://command-groups/${group.id}`,
-      canonicalUrl: `ibmi-docs-derived://command-groups/${group.id}`,
-      title: group.title,
-      breadcrumbs: ["IBM i", "Derived semantic command groups", group.title],
-      product: "IBM i",
-      version: "RDi-local",
-      language: "en",
-      category: group.category,
-      rawHtmlPath: "",
-      normalizedTextPath: "",
-      sha256,
-      textLength: text.length,
-      collectedAt,
-      documentKind: "reference",
-      canonicalTopicKey: `${group.category}:derived-command-group-${group.id}`
-    }
-  };
-}
-
 function sourceRootForDocument(inputDir: string, doc: DocumentRecord, manifest: CorpusManifest): string {
   const source = manifest.sources.find((item) => item.id === doc.sourceId) ?? manifest.sources.find((item) => item.kind === doc.sourceKind);
   const kind = source?.kind ?? doc.sourceKind;
@@ -936,8 +280,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       chunk_id INTEGER PRIMARY KEY REFERENCES chunks(id) ON DELETE CASCADE,
       document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
       dimensions INTEGER NOT NULL,
-      vector BLOB NOT NULL,
-      concepts_json TEXT NOT NULL DEFAULT '[]'
+      vector BLOB NOT NULL
     );
     CREATE INDEX idx_documents_category ON documents(category);
     CREATE INDEX idx_documents_version ON documents(version);
@@ -952,7 +295,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
     category, raw_html_path, normalized_text_path, sha256, text_length, collected_at, document_kind, canonical_topic_key
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const insertChunk = db.prepare("INSERT INTO chunks(document_id, chunk_index, title, body, token_hint) VALUES (?, ?, ?, ?, ?)");
-  const insertVector = db.prepare("INSERT INTO chunk_vectors(chunk_id, document_id, dimensions, vector, concepts_json) VALUES (?, ?, ?, ?, ?)");
+  const insertVector = db.prepare("INSERT INTO chunk_vectors(chunk_id, document_id, dimensions, vector) VALUES (?, ?, ?, ?)");
   const insertSection = db.prepare("INSERT INTO document_sections(document_id, section_index, kind, title, body, start_line, end_line) VALUES (?, ?, ?, ?, ?, ?, ?)");
 
   const tx = db.transaction(() => {
@@ -991,7 +334,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       });
       prepared.chunks.forEach((chunk, index) => {
         const result = insertChunk.run(doc.id, index, doc.title, chunk.body, chunk.tokenHint);
-        insertVector.run(result.lastInsertRowid, doc.id, chunk.vector.length, vectorToBuffer(chunk.vector), JSON.stringify(chunk.concepts));
+        insertVector.run(result.lastInsertRowid, doc.id, chunk.vector.length, vectorToBuffer(chunk.vector));
       });
     }
   });
@@ -1004,7 +347,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
 }
 
 async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRecord[], embeddingModel: string): Promise<PreparedDocument[]> {
-  const chunkInputs: Array<{ doc: DocumentRecord; body: string; tokenHint: number; concepts: string[]; text: string }> = [];
+  const chunkInputs: Array<{ doc: DocumentRecord; body: string; tokenHint: number; text: string }> = [];
   const preparedShells = documents.map((doc) => {
     const textPath = path.join(packRoot, doc.normalizedTextPath);
     const text = readTextIfExists(textPath);
@@ -1023,7 +366,6 @@ async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRe
         doc,
         body,
         tokenHint: Math.ceil(body.length / 4),
-        concepts: buildSemanticProfile(input).concepts,
         text: semanticPassageText(input, embeddingModel)
       });
     }
@@ -1038,8 +380,7 @@ async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRe
     shell.chunks.push({
       body: chunk.body,
       tokenHint: chunk.tokenHint,
-      vector: vectors[index] ?? new Float32Array(DEFAULT_EMBEDDING_DIMENSIONS),
-      concepts: chunk.concepts
+      vector: vectors[index] ?? new Float32Array(DEFAULT_EMBEDDING_DIMENSIONS)
     });
   });
   return preparedShells;

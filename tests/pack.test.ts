@@ -72,7 +72,7 @@ async function createValidPack(root: string, id = "doc-1"): Promise<CorpusManife
     CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE documents (id TEXT PRIMARY KEY);
     CREATE TABLE chunks (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id TEXT, chunk_index INTEGER, title TEXT, body TEXT, token_hint INTEGER);
-    CREATE TABLE chunk_vectors (chunk_id INTEGER PRIMARY KEY, document_id TEXT, dimensions INTEGER, vector BLOB, concepts_json TEXT);
+    CREATE TABLE chunk_vectors (chunk_id INTEGER PRIMARY KEY, document_id TEXT, dimensions INTEGER, vector BLOB);
     CREATE TABLE document_sections (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id TEXT, section_index INTEGER, kind TEXT, title TEXT, body TEXT, start_line INTEGER, end_line INTEGER);
     INSERT INTO meta(key, value) VALUES ('manifest', '${JSON.stringify(manifest).replace(/'/g, "''")}');
     INSERT INTO documents(id) VALUES ('${id}');

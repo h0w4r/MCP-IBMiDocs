@@ -2,7 +2,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { env, pipeline } from "@huggingface/transformers";
-import type { SemanticVectorInput } from "./semanticVector.js";
 
 export const DEFAULT_EMBEDDING_MODEL = "Xenova/multilingual-e5-small";
 export const DEFAULT_EMBEDDING_DIMENSIONS = 384;
@@ -24,6 +23,15 @@ export interface EmbeddingModelDiagnostics {
   markerExists: boolean;
   marker?: EmbeddingModelMarker;
   runtimePolicy: string;
+}
+
+export interface NeuralPassageInput {
+  title?: string;
+  body?: string;
+  category?: string;
+  language?: string;
+  breadcrumbs?: string[];
+  version?: string;
 }
 
 export interface EmbedTextOptions {
@@ -84,7 +92,7 @@ export function semanticQueryText(query: string, modelId = configuredEmbeddingMo
   return `${queryPrefix}${query.trim()}`;
 }
 
-export function semanticPassageText(input: SemanticVectorInput, modelId = configuredEmbeddingModel()): string {
+export function semanticPassageText(input: NeuralPassageInput, modelId = configuredEmbeddingModel()): string {
   const { passagePrefix } = embeddingPrefixesForModel(modelId);
   const body = [
     input.title,

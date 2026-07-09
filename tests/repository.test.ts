@@ -30,7 +30,7 @@ describe("CorpusRepository neural-only", () => {
 
   it("searchSmart amplía versión cuando el scope solicitado tiene evidencia vectorial más débil", async () => {
     const results = await withRepo((repo) => repo.searchSmart({
-      query: "Cómo puedo revisar en IBM i qué jobs programados ejecutan un programa CL antes o después de ENCA136?",
+      query: "job scheduler entries work management scheduled jobs",
       version: "7.5",
       limit: 5
     }));

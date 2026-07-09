@@ -716,9 +716,8 @@ function renderVersionComparison(comparison: any): string {
 function renderRankingExplanation(explanation: any): string {
   return [
     `Ranking para: ${explanation.query}`,
-    `Perfil semántico: ${JSON.stringify(explanation.semanticProfile)}`,
-    `Expansiones: ${(explanation.semanticQueries as string[]).join(" | ") || "n/a"}`,
-        "",
+    `Consultas neurales: ${(explanation.semanticQueries as string[]).join(" | ") || "n/a"}`,
+    "",
     ...(explanation.results as Array<any>).map((item, index) => [
       `${index + 1}. ${item.hit.title} · score=${item.hit.score} · ${item.taxonomy.kind} · ${item.documentKind ?? item.hit.documentKind ?? "n/a"}`,
       ...item.reasons.map((reason: string) => `   - ${reason}`),

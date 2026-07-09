@@ -516,10 +516,6 @@ export interface RankingExplanationItem {
 
 export interface RankingExplanation {
   query: string;
-  semanticProfile: {
-    concepts: string[];
-    intentHints: string[];
-  };
   semanticQueries: string[];
   results: RankingExplanationItem[];
 }
@@ -555,8 +551,6 @@ export interface QueryReport {
   diagnostics: {
     topResultTitle?: string;
     topResultId?: string;
-    semanticConcepts: string[];
-    semanticIntentHints: string[];
     pass: boolean;
     warnings: string[];
   };
