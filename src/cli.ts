@@ -108,7 +108,7 @@ program
 
 program
   .command("answer")
-  .description("Genera una respuesta extractiva con citas desde el corpus local.")
+  .description("Alias de assist: genera respuesta autocontenida con recuperación neuronal local.")
   .argument("<question>", "Pregunta técnica")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--language <language>", "Lenguaje/tecnología")
@@ -118,7 +118,7 @@ program
   .option("--examples", "Incluye ejemplos si existen")
   .option("--compile", "Incluye comandos/opciones de compilación")
   .option("--limit <n>", "Límite", "5")
-  .action((question, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.answer({
+  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
     question,
     language: opts.language,
     version: getIbmVersion(opts),
@@ -158,7 +158,7 @@ program
 
 program
   .command("resolve")
-  .description("Resuelve una consulta con workflow agéntico: search -> read -> sections -> answer/context/diagnóstico según intención.")
+  .description("Alias de assist: resuelve la consulta completa con recuperación neuronal multi-hop.")
   .argument("<question>", "Pregunta técnica")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--language <language>", "Lenguaje/tecnología")
@@ -169,7 +169,7 @@ program
   .option("--examples", "Incluye ejemplos si existen")
   .option("--compile", "Incluye comandos/opciones de compilación")
   .option("--limit <n>", "Límite", "6")
-  .action((question, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.resolve({
+  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
     question,
     language: opts.language,
     version: getIbmVersion(opts),
@@ -182,15 +182,15 @@ program
 
 program
   .command("context")
-  .description("Genera un paquete contextual agéntico equivalente a ibmi_docs_context.")
+  .description("Alias de assist: genera contexto autocontenido con recuperación neuronal.")
   .argument("<task>", "Tarea IBM i a resolver")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--language <language>", "Lenguaje/tecnología")
   .option("--ibmi-version <version>", "Versión IBM i")
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--limit <n>", "Límite", "8")
-  .action((task, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.context({
-    task,
+  .action(async (task, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+    question: task,
     language: opts.language,
     version: getIbmVersion(opts),
     limit: Number(opts.limit)
@@ -198,7 +198,7 @@ program
 
 program
   .command("compile-guidance")
-  .description("Recomienda comandos/opciones de compilación equivalente a ibmi_docs_compile_guidance.")
+  .description("Alias de assist: recupera guía documental de compilación con motor neuronal.")
   .requiredOption("--language <language>", "Lenguaje/tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--target <target>", "Objetivo: module, program, service-program, file")
@@ -207,23 +207,27 @@ program
   .option("--ibmi-version <version>", "Versión IBM i")
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--limit <n>", "Límite", "8")
-  .action((opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.compileGuidance({
+  .action(async (opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+    question: [
+      `Necesito guía de compilación IBM i para ${String(opts.language)}.`,
+      opts.target ? `Target: ${opts.target}.` : "",
+      opts.embeddedSql ? "Usa SQL embebido." : "",
+      opts.usesCopybook ? "Usa copybooks o /COPY /INCLUDE." : ""
+    ].filter(Boolean).join(" "),
     language: String(opts.language),
-    target: opts.target,
-    usesEmbeddedSql: Boolean(opts.embeddedSql),
-    usesCopybook: Boolean(opts.usesCopybook),
     version: getIbmVersion(opts),
+    includeCompileCommands: true,
     limit: Number(opts.limit)
   }))));
 
 program
   .command("explain-message")
-  .description("Explica RNF/SQL/CPF/MCH equivalente a ibmi_docs_explain_message.")
+  .description("Alias de assist: diagnostica mensajes IBM i con recuperación neuronal.")
   .argument("<messageId>", "ID de mensaje, por ejemplo RNF0004, CPF9898, MCH3601")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--limit <n>", "Límite", "6")
-  .action((messageId, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.explainMessage({
-    messageId,
+  .action(async (messageId, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+    question: `Diagnostica el mensaje IBM i ${messageId} con evidencia documental específica.`,
     limit: Number(opts.limit)
   }))));
 
@@ -243,12 +247,23 @@ program
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--category <category>", "Categoría")
   .option("--limit <n>", "Límite", "5")
-  .action((query, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.compareVersions({
-    query,
-    versions: parseList(String(opts.versions)),
-    category: opts.category,
-    limit: Number(opts.limit)
-  }))));
+  .action(async (query, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => {
+    const versions = parseList(String(opts.versions));
+    const entries = [];
+    const evidence = [];
+    for (const version of versions) {
+      const hits = await repo.searchSmart({ query, version, category: opts.category, limit: Number(opts.limit) });
+      const top = hits[0];
+      if (top) evidence.push(top);
+      entries.push({
+        version,
+        found: Boolean(top),
+        result: top,
+        notes: top ? [`Top neural: ${top.title} [${top.version}/${top.category}]`] : ["Sin evidencia vectorial."]
+      });
+    }
+    printJson({ query, versions: entries, evidence });
+  }));
 
 program
   .command("validate-code-context")
@@ -260,7 +275,8 @@ program
   .option("--limit <n>", "Límite", "8")
   .action(async (opts) => {
     const code = await readCodeInput(opts);
-    withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.validateCodeContext({
+    await withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+      question: `Valida este código ${String(opts.language)} contra documentación IBM i y reporta hallazgos accionables.`,
       language: String(opts.language),
       code,
       limit: Number(opts.limit)
@@ -297,15 +313,53 @@ program
   .option("--limit <n>", "Límite", "8")
   .option("--out <file>", "Escribe el issue Markdown en un archivo")
   .action(async (query, opts) => {
-    const report = withRepo(String(opts.pack ?? ""), (repo) => repo.reportQuery({
-      query,
-      category: opts.category,
-      version: getIbmVersion(opts),
-      expectedTitle: opts.expectedTitle,
-      expectedId: opts.expectedId,
-      notes: opts.notes,
-      limit: Number(opts.limit)
-    }));
+    const report = await withRepoAsync(String(opts.pack ?? ""), async (repo) => {
+      const results = await repo.searchSmart({
+        query,
+        category: opts.category,
+        version: getIbmVersion(opts),
+        limit: Number(opts.limit)
+      });
+      const top = results[0];
+      const expectedTitle = String(opts.expectedTitle ?? "");
+      const expectedId = String(opts.expectedId ?? "");
+      const pass = Boolean(
+        (!expectedTitle || top?.title.includes(expectedTitle))
+        && (!expectedId || top?.id === expectedId)
+      );
+      const issueMarkdown = [
+        "# Reporte de búsqueda IBM i Docs",
+        "",
+        `Consulta: ${query}`,
+        `Top result: ${top ? `${top.title} (${top.id})` : "sin resultado"}`,
+        `Pass esperado: ${pass}`,
+        opts.notes ? `Notas: ${opts.notes}` : "",
+        "",
+        "Resultados:",
+        ...results.map((hit, index) => `${index + 1}. ${hit.title} [${hit.version}/${hit.category}] score=${hit.score}`)
+      ].filter(Boolean).join("\n");
+      return {
+        generatedAt: new Date().toISOString(),
+        query,
+        options: {
+          query,
+          category: opts.category,
+          version: getIbmVersion(opts),
+          expectedTitle: opts.expectedTitle,
+          expectedId: opts.expectedId,
+          notes: opts.notes,
+          limit: Number(opts.limit)
+        },
+        diagnostics: {
+          topResultTitle: top?.title,
+          topResultId: top?.id,
+          pass,
+          warnings: top?.relevanceWarnings ?? []
+        },
+        results,
+        issueMarkdown
+      };
+    });
     if (opts.out) {
       const outFile = path.resolve(String(opts.out));
       await fs.mkdir(path.dirname(outFile), { recursive: true });

@@ -103,7 +103,7 @@ export function createServer(): McpServer {
     "ibmi_docs_assist",
     {
       title: "Asistente IBM i one-shot",
-      description: "Herramienta principal para agentes y usuarios: recibe la tarea completa y ejecuta internamente un motor multi-hop de intención -> búsqueda -> lectura -> secciones -> follow-ups por gaps -> síntesis. Devuelve respuesta final autocontenida con evidencia, lecturas, secciones, pasos, validación, cobertura, citas y retrievalPlan; no pide llamadas adicionales.",
+      description: "Herramienta principal para agentes y usuarios: recibe la tarea completa y ejecuta internamente recuperación neuronal multi-hop con Transformers.js -> lectura -> secciones -> follow-ups derivados de evidencia -> síntesis. Devuelve respuesta final autocontenida con evidencia, lecturas, secciones, pasos, validación, cobertura, citas y retrievalPlan; no pide llamadas adicionales.",
       inputSchema: z.object({
         question: z.string().min(1).describe("Pregunta o tarea completa del usuario sobre IBM i/AS400."),
         language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
@@ -127,7 +127,7 @@ export function createServer(): McpServer {
     "ibmi_docs_resolve",
     {
       title: "Resolver consulta IBM i con workflow agéntico",
-      description: "Herramienta principal para agentes: clasifica la intención y auto-orquesta búsqueda, lectura, secciones, respuesta, contexto, compilación, mensajes, versiones o ranking según corresponda. Devuelve una respuesta autocontenida; no pide llamadas adicionales.",
+      description: "Compatibilidad para agentes: enruta la consulta completa al orquestador neuronal de ibmi_docs_assist. Devuelve una respuesta autocontenida; no pide llamadas adicionales.",
       inputSchema: z.object({
         question: z.string().min(1).describe("Consulta completa del usuario sobre IBM i/AS400."),
         language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
@@ -158,7 +158,7 @@ export function createServer(): McpServer {
         limit: z.number().int().min(1).max(50).optional(),
         autoRead: z.boolean().optional().describe("Si true, adjunta contenido completo cuando el resultado es fuerte."),
         includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas."),
-        strictCategory: z.boolean().optional().describe("Si true, no permite ampliación de alcance fuera de la categoría solicitada.")
+        strictCategory: z.boolean().optional().describe("Compatibilidad de entrada; el runtime no infiere categorías.")
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
@@ -224,7 +224,7 @@ export function createServer(): McpServer {
     "ibmi_docs_context",
     {
       title: "Resolver contexto IBM i",
-      description: "Genera un paquete contextual agéntico autocontenido: intención, respuesta, lecturas, secciones enfocadas, comandos, riesgos, notas de versión, acciones y evidencia ya materializada.",
+      description: "Genera un paquete contextual autocontenido mediante el mismo orquestador neuronal de ibmi_docs_assist: respuesta, lecturas, secciones enfocadas, notas de versión, acciones y evidencia ya materializada.",
       inputSchema: z.object({
         task: z.string().min(1).describe("Tarea del usuario: crear programa RPG, corregir RNFxxxx, escribir CLLE, etc."),
         language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
@@ -316,8 +316,13 @@ export function createServer(): McpServer {
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const comparison = withRepository((repo) => repo.compareVersions(input));
-      return { content: [{ type: "text" as const, text: renderVersionComparison(comparison) }], structuredContent: structured(comparison) };
+      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+        question: `Compara documentación IBM i para '${input.query}' en las versiones ${input.versions.join(", ")}.`,
+        version: input.versions[input.versions.length - 1],
+        category: input.category,
+        limit: input.limit
+      }));
+      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
     }
   );
 
@@ -325,7 +330,7 @@ export function createServer(): McpServer {
     "ibmi_docs_explain_ranking",
     {
       title: "Explicar ranking IBM i Docs",
-      description: "Explica perfil semántico, conceptos, similitud vectorial, taxonomía y razones de recuperación para depurar búsquedas.",
+      description: "Explica la recuperación neuronal disponible para depurar búsquedas. En el perfil de agente se recomienda ibmi_docs_assist como entrada canónica.",
       inputSchema: z.object({
         query: z.string().min(1),
         version: z.string().optional(),
@@ -409,7 +414,7 @@ export function createServer(): McpServer {
     "ibmi_docs_report_query",
     {
       title: "Reportar búsqueda/ranking IBM i Docs",
-      description: "Genera un reporte reproducible para depurar una búsqueda mala: ranking, warnings, conceptos semánticos y Markdown listo para issue.",
+      description: "Genera un reporte reproducible para depurar una búsqueda mala con evidencia y Markdown listo para issue.",
       inputSchema: z.object({
         query: z.string().min(1),
         version: z.string().optional(),

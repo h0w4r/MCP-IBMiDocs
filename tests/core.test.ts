@@ -47,14 +47,17 @@ describe("anti dependencia runtime RDi", () => {
     expect(server).not.toContain("export-rdi");
   });
 
-  it("el runtime documental no reintroduce terminología de rescate no neuronal", () => {
+  it("el runtime documental no reintroduce clasificadores, presets ni rescates no neuronales", () => {
     const runtimeSource = [
       fs.readFileSync(new URL("../src/server.ts", import.meta.url), "utf8"),
+      fs.readFileSync(new URL("../src/cli.ts", import.meta.url), "utf8"),
       fs.readFileSync(new URL("../src/repository/CorpusRepository.ts", import.meta.url), "utf8"),
-      fs.readFileSync(new URL("../src/repository/neuralIntentClassifier.ts", import.meta.url), "utf8")
+      fs.readFileSync(new URL("../src/repository/neuralEmbeddings.ts", import.meta.url), "utf8"),
+      fs.readFileSync(new URL("../src/repository/semanticVector.ts", import.meta.url), "utf8")
     ].join("\n");
 
     expect(runtimeSource).not.toMatch(/\b(fallback|legacy|FTS)\b/i);
+    expect(runtimeSource).not.toMatch(/classifyAssistIntentNeural|NeuralAssistIntentProfile|neuralIntentClassifier|PROTOTYPES|SEMANTIC_EXPANSIONS|CONCEPT_RULES|CATEGORY_CONCEPTS|IBM_I_COMMAND_ALIASES|semanticQueryExpansions|LANGUAGE_PRESETS|resolvePreset|buildAssistIntentProfile|extractSemanticEntityAnchors|inferAssistAxisForQuery|classifyResolveIntent/);
   });
 
   it("el data pack distribuible no publica URLs loopback de bootstrap", () => {

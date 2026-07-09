@@ -433,6 +433,7 @@ export type AssistRetrievalAxis =
   | "gap-followup";
 
 export type AssistTaskFamily =
+  | "neural_retrieval"
   | "create_program"
   | "fix_compile_error"
   | "fix_runtime_error"

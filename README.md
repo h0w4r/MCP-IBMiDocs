@@ -145,8 +145,8 @@ Necesito un PF DDS con claves únicas. Busca la documentación de DDS PF y UNIQU
 ```powershell
 ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; dame pasos y validación" --language CLLE --ibmi-version 7.5 --depth deep
 ibmi-docs assist "Cómo reviso trabajos activos y bloqueos de un objeto o miembro? Usa WRKACTJOB, WRKOBJLCK, DSPJOB y WRKJOB si aplican" --language "IBM i administration" --depth deep
-ibmi-docs resolve "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --examples
-ibmi-docs answer "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
+ibmi-docs assist "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --examples --depth deep
+ibmi-docs assist "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
 ibmi-docs search "RNF0004" --category mensajes-rnf --limit 3
 ibmi-docs explain-ranking "SND-MSG Send a Message to the Joblog" --category ile-rpg --ibmi-version 7.5
 ibmi-docs report-query "SND-MSG Send a Message to the Joblog" --category ile-rpg --expected-title "SND-MSG" --out snd-msg-ranking.md
@@ -155,9 +155,9 @@ ibmi-docs doctor
 
 > Nota CLI: `--version` queda reservado para mostrar la versión de `ibmi-docs`. Para filtrar release IBM i usa `--ibmi-version` o su alias `--release`.
 
-### Feedback local para mejorar rankings y categorías
+### Feedback local para mejorar recuperación
 
-Cuando una consulta llega con una categoría o versión demasiado estrecha, el MCP puede hacer una **ampliación de alcance documental** para encontrar evidencia correcta sin inventar. Esa ampliación queda marcada en el resultado como `requestedCategoryScopeExpansion` o `requestedVersionScopeExpansion`.
+Cuando una consulta llega con una versión IBM i demasiado estrecha, el MCP puede mostrar evidencia de otra versión y lo marca explícitamente como `requestedVersionScopeExpansion`. No se infiere categoría ni se usan reglas manuales de decisión: la recuperación pública se basa en embeddings Transformers.js locales contra el corpus.
 
 El proyecto **no recolecta telemetría automáticamente**. Las trazas viven en la máquina del usuario. Para convertir esos casos en mejoras del proyecto, el usuario debe activar trazas locales durante una sesión de prueba y exportar un reporte sanitizado:
 
@@ -170,7 +170,7 @@ ibmi-docs trace-report --limit 20
 ibmi-docs trace-report --limit 20 --format markdown --out scope-feedback.md
 ```
 
-El reporte muestra `scopeExpansionFeedback`: consulta, scope solicitado, scope usado y una pista accionable. Si una persona ve tres ampliaciones en una versión, puede pegar ese Markdown en un issue; esos tres registros son candidatos directos para ajustar categorías, aliases, golden tests o corpus en la siguiente versión.
+El reporte sirve para abrir issues reproducibles sobre consultas difíciles. Esos casos alimentan mejoras reales del corpus, evaluación, embeddings o fine-tuning; no se corrigen agregando aliases o reglas manuales.
 
 ## Herramientas MCP
 
@@ -184,7 +184,7 @@ Por defecto el servidor arranca con `IBMI_DOCS_TOOL_PROFILE=agent`. En ese modo 
 | `ibmi_docs_categories` | Lista categorías disponibles del corpus para orientar consultas. |
 | `ibmi_docs_diagnostics` | Muestra versión, corpus, pack resuelto, perfil MCP activo y tools registradas. |
 
-Regla práctica para agentes: si dudas, usa `ibmi_docs_assist` con la tarea completa, código si existe, lenguaje y versión. Esa tool ya ejecuta internamente el flujo `taskPlan -> intent -> search -> read -> sections -> follow-ups por gaps -> síntesis`, así que no debería responder con “llama otra tool para completar”. Search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+Regla práctica para agentes: si dudas, usa `ibmi_docs_assist` con la tarea completa, código si existe, lenguaje y versión. Esa tool ejecuta internamente recuperación neuronal multi-hop, lectura, secciones, follow-ups derivados de evidencia y síntesis, así que no debería responder con “llama otra tool para completar”. Search-only como respuesta final es “te traje el índice, suerte con el dragón”.
 
 ### Perfiles avanzados
 
@@ -199,12 +199,12 @@ En `standard` o `full` aparecen tools como:
 
 | Tool avanzada | Uso |
 | --- | --- |
-| `ibmi_docs_resolve` | Orquestador especializado para clasificar intención y mostrar workflow interno. |
-| `ibmi_docs_answer` | Respuestas extractivas autocontenidas con citas y evidencia ya leída. |
-| `ibmi_docs_context` | Contexto autocontenido para desarrollo o revisión de código. |
-| `ibmi_docs_compile_guidance` | Evidencia y comandos de compilación. |
-| `ibmi_docs_explain_message` | Diagnóstico de mensajes como `RNF0004`. |
-| `ibmi_docs_compare_versions` | Comparación entre releases IBM i. |
+| `ibmi_docs_resolve` | Compatibilidad: enruta al mismo orquestador neuronal de `ibmi_docs_assist`. |
+| `ibmi_docs_answer` | Compatibilidad: respuesta autocontenida vía `ibmi_docs_assist`. |
+| `ibmi_docs_context` | Compatibilidad: contexto autocontenido vía `ibmi_docs_assist`. |
+| `ibmi_docs_compile_guidance` | Compatibilidad: guía documental vía `ibmi_docs_assist`. |
+| `ibmi_docs_explain_message` | Compatibilidad: diagnóstico vía `ibmi_docs_assist`. |
+| `ibmi_docs_compare_versions` | Comparación entre releases IBM i cuando se audita manualmente. |
 | `ibmi_docs_search` / `ibmi_docs_read` / `ibmi_docs_sections` | Bajo nivel para exploración manual, auditoría o debugging de recuperación semántica. |
 
 Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por defecto. Solo se registra si arrancas el servidor con `IBMI_DOCS_TOOL_PROFILE=full` o `maintainer` **y además** `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`; para usuarios finales y agentes normales no aparece como tool invocable. El flujo recomendado para mantener corpus sigue estando en la CLI (`sync-ibm`, `build-pack`, `pack archive/install`) y no debe confundirse con consulta documental en runtime.

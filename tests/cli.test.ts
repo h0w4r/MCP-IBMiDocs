@@ -34,8 +34,9 @@ describe("CLI ibmi-docs", () => {
     const result = runCli(["report-query", "SND-MSG", "--category", "ile-rpg", "--expected-title", "SND-MSG", "--limit", "3"]);
 
     expect(result.status).toBe(0);
-    const parsed = JSON.parse(result.stdout) as { diagnostics: { semanticConcepts: string[]; semanticIntentHints: string[] }; issueMarkdown: string };
-    expect(parsed.diagnostics.semanticConcepts.length + parsed.diagnostics.semanticIntentHints.length).toBeGreaterThan(0);
+    const parsed = JSON.parse(result.stdout) as { diagnostics: { topResultTitle?: string; pass: boolean }; issueMarkdown: string; results: Array<{ title: string }> };
+    expect(parsed.results.length).toBeGreaterThan(0);
+    expect(parsed.diagnostics.topResultTitle).toBeTruthy();
     expect(parsed.issueMarkdown).toContain("Reporte de búsqueda IBM i Docs");
   });
 
@@ -55,11 +56,11 @@ describe("CLI ibmi-docs", () => {
   it("ejecuta comandos CLI nuevos con salida JSON reproducible", () => {
     const context = runCli(["context", "Crear programa SQLRPGLE con EXEC SQL", "--language", "SQLRPGLE", "--limit", "2"]);
     expect(context.status).toBe(0);
-    expect(JSON.parse(context.stdout).intent.language).toBe("SQLRPGLE");
+    expect(JSON.parse(context.stdout).taskPlan.family).toBe("neural_retrieval");
 
     const message = runCli(["explain-message", "CPF0001", "--limit", "2"]);
     expect(message.status).toBe(0);
-    expect(JSON.parse(message.stdout).messageId).toBe("CPF0001");
+    expect(JSON.parse(message.stdout).question).toContain("CPF0001");
 
     const comparison = runCli(["compare-versions", "CRTRPGMOD", "--versions", "7.3,7.6", "--limit", "1"]);
     expect(comparison.status).toBe(0);
@@ -67,7 +68,7 @@ describe("CLI ibmi-docs", () => {
 
     const validation = runCli(["validate-code-context", "--language", "SQLRPGLE", "--code", "exec sql select 1 from sysibm.sysdummy1;", "--limit", "2"]);
     expect(validation.status).toBe(0);
-    expect(JSON.parse(validation.stdout).findings.length).toBeGreaterThan(0);
+    expect(JSON.parse(validation.stdout).evidence.length).toBeGreaterThan(0);
   });
 
   it("assist entrega salida JSON final para agentes sin pedir sub-tools manuales", () => {
@@ -93,7 +94,7 @@ describe("CLI ibmi-docs", () => {
       implementationSteps: string[];
       validationChecklist: string[];
     };
-    expect(parsed.answer).toMatch(/Resumen directo|Qué hacer|Validación/i);
+    expect(parsed.answer).toMatch(/Resumen|Pasos sugeridos|Validación/i);
     expect(parsed.answer).toMatch(/RTVJOBA|MONMSG/i);
     expect(parsed.coverage.status).not.toBe("thin");
     expect(parsed.coverage.evidenceCount).toBeGreaterThan(0);

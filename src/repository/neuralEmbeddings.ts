@@ -81,7 +81,7 @@ export function embeddingPrefixesForModel(modelId = configuredEmbeddingModel()):
 
 export function semanticQueryText(query: string, modelId = configuredEmbeddingModel()): string {
   const { queryPrefix } = embeddingPrefixesForModel(modelId);
-  return `${queryPrefix}${expandSemanticQueryText(query.trim())}`;
+  return `${queryPrefix}${query.trim()}`;
 }
 
 export function semanticPassageText(input: SemanticVectorInput, modelId = configuredEmbeddingModel()): string {
@@ -95,39 +95,6 @@ export function semanticPassageText(input: SemanticVectorInput, modelId = config
     input.body
   ].filter(Boolean).join("\n");
   return `${passagePrefix}${body.trim()}`;
-}
-
-function expandSemanticQueryText(query: string): string {
-  const expansions = semanticQueryExpansions(query);
-  if (!expansions.length) return query;
-  // Las expansiones no son un fallback léxico ni reemplazan la consulta original:
-  // solo agregan equivalentes documentales para que el transformer reciba el
-  // significado IBM i esperado cuando el usuario escribe términos compactos,
-  // abreviados o con variaciones típicas de entrevistas/operación diaria.
-  return `${query}\nIBM i semantic equivalents: ${expansions.join("; ")}`;
-}
-
-function semanticQueryExpansions(query: string): string[] {
-  const folded = query.toLowerCase();
-  const expansions = new Set<string>();
-  const add = (pattern: RegExp, expansion: string): void => {
-    if (pattern.test(folded)) expansions.add(expansion);
-  };
-
-  add(/\bphysical\s*file\b|\bphysicalfile\b|\bphysic\s*file\b|\bpf\b/, "physical file PF DDS database file");
-  add(/\blogical\s*file\b|\blogicalfile\b|\blf\b/, "logical file LF DDS database relation");
-  add(/\bdisplay\s*file\b|\bdisplayfile\b|\bdspf\b/, "display file DSPF DDS workstation file");
-  add(/\bsource\s*physical\s*file\b|\bsourcephysicalfile\b/, "source physical file source members IBM i");
-  add(/\brecord\s*formats?\b|\brecordformats?\b/, "record format database file format DSPFD DSPFFD DSPDBR");
-  add(/\bfield\s*length\b|\bfieldlength\b|change.*length.*field|length.*field/, "change field length physical file CHGPF DDS source recompile");
-  add(/\bjob\s*log\b|\bjoblog\b/, "job log IBM i messages DSPJOBLOG WRKJOBLOG");
-  add(/\bjob\s*queue\b|\bjobq\b/, "job queue JOBQ subsystem submitted jobs");
-  add(/\bprint\s*queue\b|\bprintq\b|\boutq\b/, "output queue print queue spooled files");
-  add(/\bdata\s*area\b|\bdataarea\b|\blda\b|\*lda\b/, "data area local data area LDA CL variable");
-  add(/\bmessage\s*queue\b|\bmsgq\b/, "message queue IBM i messages CL");
-  add(/\bsub\s*file\b|\bsubfile\b|\bsfl\b/, "subfile DDS display file SFL SFLCTL SFLDSP SFLPAG SFLSIZ");
-
-  return [...expansions];
 }
 
 export async function embedTexts(texts: string[], options: EmbedTextOptions = {}): Promise<Float32Array[]> {

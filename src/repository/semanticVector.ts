@@ -16,127 +16,14 @@ export interface SemanticProfile {
   intentHints: string[];
 }
 
-const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]; related?: string[] }> = [
-  { concept: "ibmi.rpgle.create-module", weight: 12, patterns: [/\bcrtrpgmod\b|create\s+rpg\s+module|rpg\s+module/i], related: ["ibmi.compile.rpgle", "ibmi.ile-rpg", "ibmi.command"] },
-  { concept: "ibmi.ile.service-program.signature", weight: 12, patterns: [/service\s+program|binding\s+directory|binder\s+language|program\s+signature|\bsignature\b.*\b(service|program|binding|binder|module|export)|\b(crtsrvpgm|crtpgm|crtrpgmod)\b/i], related: ["ibmi.ile-rpg", "ibmi.compile.rpgle", "ibmi.command"] },
-  { concept: "ibmi.rpg.file-access-opcodes", weight: 11, patterns: [/file\s+access\s+opcodes?|operation\s+codes?.*\b(read|chain|setll|setgt)|\b(readp|readpe|reade|chain|setll|setgt|klist|kfld|excpt)\b/i], related: ["ibmi.ile-rpg", "ibmi.rpg.opcode"] },
-  { concept: "ibmi.rpg.array-sort", weight: 11, patterns: [/sort\s+(?:an\s+)?array|array\s+sort|\bsorta\b/i], related: ["ibmi.ile-rpg", "ibmi.rpg.opcode"] },
-  { concept: "ibmi.rpg.variable-data-length", weight: 10, patterns: [/length\s+of\s+data\s+in\s+(?:a\s+)?variable|variable\s+length|data\s+length|%len|\bvarying\b/i], related: ["ibmi.ile-rpg", "ibmi.rpg.bif"] },
-  { concept: "ibmi.sqlrpgle.compile-program", weight: 11, patterns: [/\bcrtsqlrpgi\b|create\s+sql\s+rpg|sql\s+rpg\s+program|sqlrpgle\s+compile/i], related: ["ibmi.compile.sqlrpgle", "ibmi.sql.embedded", "ibmi.ile-rpg"] },
-  { concept: "ibmi.rpg.opcode.message", weight: 12, patterns: [/\bsnd-msg\b|send\s+a\s+message\s+to\s+the\s+joblog|message[- ]type|%\s*(msg|target)\b/i], related: ["ibmi.rpg.opcode", "ibmi.joblog.message", "ibmi.ile-rpg"] },
-  { concept: "ibmi.dds.physical-file.definition", weight: 11, patterns: [/\bdds\b.*\b(pf|physical\s*file|physicalfile|physic\s*file|archivo\s+f[ií]sico)\b|defining\s+a\s+physical\s*file|physical\s*file\s+using\s+dds/i], related: ["ibmi.dds.file", "ibmi.datatype"] },
-  { concept: "ibmi.dds.unique-keyword", weight: 10, patterns: [/\bdds\b.*\bunique\b|\bunique\b.*\bdds\b|\bunique\b.*\b(physical|logical)\b|unique\s+\(unique\)\s+keyword|unique\s+keyword.*physical.*logical/i], related: ["ibmi.dds.file", "ibmi.dds.physical-file.definition"] },
-  { concept: "ibmi.sql.embedded.copy-include", weight: 11, patterns: [/\/\s*(copy|include)\b|copy\s+include|using\s+\/copy.*\/include.*embedded\s+sql|source\s+files\s+with\s+embedded\s+sql/i], related: ["ibmi.sql.embedded", "ibmi.ile-rpg"] },
-  { concept: "ibmi.cl.job.submit", weight: 11, patterns: [/\bsbmjob\b|submit\s+job|submitted\s+job/i], related: ["ibmi.cl.command", "ibmi.work-management"] },
-  { concept: "ibmi.cl.job.attributes", weight: 11, patterns: [/\brtvjoba\b|retrieve\s+job\s+attributes|job\s+attributes/i], related: ["ibmi.cl.command", "ibmi.work-management"] },
-  { concept: "ibmi.cl.job.active", weight: 10, patterns: [/\bwrkactjob\b|work\s+with\s+active\s+jobs|active\s+jobs?|trabajos?\s+activos?/i], related: ["ibmi.cl.command", "ibmi.work-management"] },
-  { concept: "ibmi.cl.object-locks", weight: 10, patterns: [/\bwrkobjlck\b|work\s+with\s+object\s+locks?|object\s+locks?|bloqueos?/i], related: ["ibmi.cl.command", "ibmi.object-locks"] },
-  { concept: "ibmi.library-list.initial", weight: 10, patterns: [/library\s+list|initial\s+library|loaded\s+first.*login|login.*librar|lista\s+de\s+bibliotecas|biblioteca\s+inicial/i], related: ["ibmi.work-management", "ibmi.cl.command"] },
-  { concept: "ibmi.file-members.discovery", weight: 10, patterns: [/members?\s+of\s+(?:a\s+)?file|file\s+members?|source\s+members?|miembros?\s+de\s+(?:un\s+)?archivo|listar\s+miembros?|all\s+members/i], related: ["ibmi.cl.command", "ibmi.dds.file"] },
-  { concept: "ibmi.cl.batch-debug", weight: 11, patterns: [/debug.*batch|batch.*debug|depur.*batch|submitted\s+job.*debug|\bstrsrvjob\b|\bstrdbg\b|\bwrksbmjob\b|service\s+job/i], related: ["ibmi.cl.job.submit", "ibmi.work-management", "ibmi.cl.command"] },
-  { concept: "ibmi.seu.line-commands", weight: 10, patterns: [/\bseu\b|source\s+entry\s+utility|line\s+commands?|copy.*delete.*insert.*move|source\s+lines?/i], related: ["ibmi.source-editing"] },
-  { concept: "ibmi.rpg.record-lock-status", weight: 10, patterns: [/record[-\s]+lock|locked\s+record|registro\s+bloquead|%status|%error|\b1218\b|\bchain\b.*\bread\b|\bread\b.*\bchain\b/i], related: ["ibmi.object-locks", "ibmi.ile-rpg"] },
-  { concept: "ibmi.ile.debug", weight: 11, patterns: [/debug(?:ging)?\s+(?:for\s+)?ile|ile\s+debug|source\s+debugger|\bdbgview\b|\bcrt(?:bndrpg|rpgmod)\b.*\bdebug|\*(?:stmt|source|copy|list|all|none)\b/i], related: ["ibmi.ile-rpg", "ibmi.compile.rpgle", "ibmi.cl.command"] },
-  { concept: "ibmi.journal.management", weight: 11, patterns: [/journal(?:ing)?|journal\s+receiver|\bcrt(?:jrn|jrnrcv)\b|\bstrjrnpf\b|\bendjrnpf\b|\bdlt(?:jrn|jrnrcv)\b|\bchgjrn\b/i], related: ["ibmi.cl.command", "ibmi.database", "ibmi.administration"] },
-  { concept: "ibmi.security.user-profile", weight: 11, patterns: [/user\s+profile|group\s+profile|\bdspusrprf\b|\bchgusrprf\b|\bedtobjaut\b|\*(?:secofr|secadm|pgmr|sysopr|user|oper)\b/i], related: ["ibmi.security.authority", "ibmi.cl.command", "ibmi.administration"] },
-  { concept: "ibmi.security.authority", weight: 11, patterns: [/grant\s+authority|object\s+right|data\s+right|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref)\b/i], related: ["ibmi.security.user-profile", "ibmi.cl.command", "ibmi.administration"] },
-  { concept: "ibmi.dds.subfile", weight: 11, patterns: [/sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i], related: ["ibmi.dds.display-file", "ibmi.dds.file"] },
-  { concept: "ibmi.dds.subfile-required-keywords", weight: 12, patterns: [/mandatory\s+keywords?.*subfile|required\s+keywords?.*subfile|subfile.*mandatory|subfile.*required|\bsfl\b.*\bsflctl\b|\bsflsiz\b.*\bsflpag\b/i], related: ["ibmi.dds.subfile", "ibmi.dds.display-file"] },
-  { concept: "ibmi.dds.record-format-discovery", weight: 10, patterns: [/record\s+formats?.*(?:used|file|display|list|see)|display\s+database\s+relations|\bdspdbr\b/i], related: ["ibmi.dds.file", "ibmi.command"] },
-  { concept: "ibmi.dds.physical-file-change-field-length", weight: 10, patterns: [/change\s+(?:the\s+)?length.*field.*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|(?:field\s*length|fieldlength).*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|\bchgpf\b/i], related: ["ibmi.dds.file", "ibmi.command"] },
-  { concept: "ibmi.dds.display-file", weight: 9, patterns: [/display\s+file|\bdspf\b|\bworkstn\b|\bexfmt\b|navigation\s+between\s+two\s+screens|pantallas?|screen\s+navigation/i], related: ["ibmi.dds.subfile", "ibmi.ile-rpg"] },
-  { concept: "ibmi.cl.display-file-io", weight: 10, patterns: [/\bexfmt\b.*\b(cl|command|equivalent)|\b(cl|command|equivalent).*\bexfmt\b|\bsndrcvf\b|send\/receive\s+file|send\s+receive\s+file|display\s+file.*\bcl\b/i], related: ["ibmi.cl.command", "ibmi.dds.display-file", "ibmi.command"] },
-  { concept: "ibmi.cl.data-types", weight: 11, patterns: [/data\s+types?.*\bcl\b|\bcl\b.*data\s+types?|\btype\s*\(\s*\*(char|dec|lgl)\s*\)|\*(char|dec|lgl)\b/i], related: ["ibmi.cl.command", "ibmi.datatype"] },
-  { concept: "ibmi.cl.local-data-area", weight: 11, patterns: [/\blda\b|local\s+data\s+area|\*lda\b|length\s+of\s+(?:an\s+)?lda|type\s+and\s+length\s+of\s+(?:an\s+)?lda/i], related: ["ibmi.cl.command", "ibmi.datatype"] },
-  { concept: "ibmi.rds.rlu", weight: 9, patterns: [/\brlu\b|\bstrrlu\b|report\s+layout\s+utility|invoke\s+rlu/i], related: ["ibmi.cl.command", "ibmi.command"] },
-  { concept: "ibmi.work-management.prestart", weight: 8, patterns: [/prestart\s+job|prestart\s+job\s+entry|prestart/i], related: ["ibmi.work-management", "ibmi.cl.command"] },
-  { concept: "ibmi.object.description.pdm", weight: 9, patterns: [/\bwrkobjpdm\b|\bdspobjd\b|object\s+description|work\s+with\s+objects?\s+using\s+pdm|pdm\s+objects?/i], related: ["ibmi.cl.command", "ibmi.command", "ibmi.administration"] },
-  { concept: "ibmi.rje.job", weight: 8, patterns: [/\bsbmrjejob\b|remote\s+job\s+entry|rje\s+job/i], related: ["ibmi.cl.job.submit", "ibmi.work-management", "ibmi.cl.command"] },
-  { concept: "ibmi.cl.message.types", weight: 10, patterns: [/types?\s+of\s+message|message\s+available\s+in\s+cl|\bsndusrmsg\b|\bsndpgmmsg\b|\bsndmsg\b|\bsndbrkmsg\b|\brtvmsg\b|message\s+queue|inquiry|informational|completion|diagnostic/i], related: ["ibmi.cl.command", "ibmi.message.runtime"] },
-  { concept: "ibmi.synon.functions", weight: 8, patterns: [/\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i], related: ["ibmi.third-party", "ibmi.ile-rpg"] },
-  { concept: "ibmi.rpg.datetime", weight: 7, patterns: [/%\s*(time|date|timestamp)\b/i, /time\s+data\s+type/i, /date[- ]time|timestamp/i, /\b(timfmt|datfmt)\b/i, /hora|fecha|horario/i], related: ["ibmi.rpg.bif", "ibmi.datatype.time"] },
-  { concept: "ibmi.rpg.time-format.iso", weight: 7, patterns: [/\*iso0?|iso0|\*hms|hhmmss|time[- ]format/i], related: ["ibmi.rpg.datetime", "ibmi.datatype.time"] },
-  { concept: "ibmi.rpg.packed-decimal", weight: 7, patterns: [/%\s*dec\b/i, /packed\s+decimal/i, /decimal\s+empaquetad/i, /\bpacket\b/i, /num[eé]ric|numeric/i], related: ["ibmi.rpg.conversion", "ibmi.datatype.numeric"] },
-  { concept: "ibmi.rpg.conversion", weight: 6, patterns: [/convert|conversion|conversi[oó]n|obtener|representar/i, /date,?\s*time\s*or\s*timestamp\s*expression/i], related: ["ibmi.rpg.datetime", "ibmi.rpg.packed-decimal"] },
-  { concept: "ibmi.rpg.bif", weight: 7, patterns: [/%\s*[a-z][a-z0-9_-]+/i, /built[- ]in\s+function|build\s+in\s+function/i, /funci[oó]n\s+integrada/i, /%\s*(subst|abs|editc)\b/i], related: ["ibmi.ile-rpg"] },
-  { concept: "ibmi.sql.embedded", weight: 6, patterns: [/sqlrpgle|exec\s+sql|embedded\s+sql|sql\s+embebido|precompil/i], related: ["ibmi.sql.control", "ibmi.ile-rpg"] },
-  { concept: "ibmi.sql.control", weight: 6, patterns: [/set\s+option|commit|rollback|insert|update|select|delete|merge|open|fetch|close/i], related: ["ibmi.sql.embedded"] },
-  { concept: "ibmi.sql.diagnostics", weight: 6, patterns: [/sqlcode|sqlstate|diagnostic|diagn[oó]stic/i], related: ["ibmi.sql.embedded", "ibmi.sql.control"] },
-  { concept: "ibmi.compile.sqlrpgle", weight: 5, patterns: [/crtsqlrpgi|rpgg?ppopt|compile|compil|precompiler/i], related: ["ibmi.sql.embedded"] },
-  { concept: "ibmi.ile-rpg", weight: 4, patterns: [/rpgle|ile\s+rpg|free[- ]form|rpg\s+free/i], related: ["ibmi.rpg.bif"] },
-  { concept: "ibmi.cl.command", weight: 5, patterns: [/\b(dsp|wrk|crt|chg|snd|rtv|mon|sbm|call)[a-z0-9]{2,}\b/i, /control\s+language|\bclle\b/i], related: ["ibmi.command"] },
-  { concept: "ibmi.dds.file", weight: 5, patterns: [/\bdds\b|physical\s*file|physicalfile|physic\s*file|logical\s*file|logicalfile|archivo\s+f[ií]sico|archivo\s+l[oó]gico|\bpf\b|\blf\b/i], related: ["ibmi.datatype"] },
-  { concept: "ibmi.work-management", weight: 5, patterns: [/wrkactjob|wrkjob|dspjob|joblog|active\s+jobs?|trabajos?\s+activos?/i], related: ["ibmi.command"] },
-  { concept: "ibmi.object-locks", weight: 5, patterns: [/wrkobjlck|object\s+locks?|bloqueos?|locks?/i], related: ["ibmi.work-management"] },
-  { concept: "ibmi.message.rnf", weight: 5, patterns: [/rnf\d{4}|rpg\s+messages?|compiler\s+messages?/i], related: ["ibmi.compile"] },
-  { concept: "ibmi.message.runtime", weight: 5, patterns: [/(cpf|mch)\d{4}|joblog|second\s+level|segundo\s+nivel/i], related: ["ibmi.work-management"] }
-];
-
-const CATEGORY_CONCEPTS: Record<string, string[]> = {
-  "ile-rpg": ["ibmi.ile-rpg", "ibmi.rpg.bif", "ibmi.ile.service-program.signature", "ibmi.rpg.file-access-opcodes", "ibmi.rpg.array-sort", "ibmi.rpg.variable-data-length"],
-  "sql-db2-for-i": ["ibmi.sql.embedded", "ibmi.sql.control"],
-  "cl-clle": ["ibmi.cl.command", "ibmi.command", "ibmi.cl.message.types", "ibmi.cl.display-file-io", "ibmi.cl.data-types", "ibmi.cl.local-data-area"],
-  dds: ["ibmi.dds.file", "ibmi.dds.display-file", "ibmi.dds.subfile", "ibmi.dds.subfile-required-keywords", "ibmi.datatype"],
-  "mensajes-rnf": ["ibmi.message.rnf", "ibmi.compile"],
-  "ile-cobol": ["ibmi.cobol"]
-};
-
-const STOPWORDS = new Set([
-  "a", "an", "and", "as", "de", "del", "el", "en", "for", "in", "la", "las", "los", "of", "on", "or", "the", "to", "un", "una", "with",
-  "que", "para", "por", "con", "sin", "como", "necesito", "validar", "confirmar", "buenas", "practicas", "uso", "usar", "hacer"
-]);
-
-export function buildSemanticProfile(input: SemanticVectorInput | string): SemanticProfile {
-  const text = typeof input === "string" ? input : semanticInputText(input);
-  const concepts = new Set<string>();
-  const intentHints = new Set<string>();
-  for (const rule of CONCEPT_RULES) {
-    if (!rule.patterns.some((pattern) => pattern.test(text))) continue;
-    concepts.add(rule.concept);
-    for (const related of rule.related ?? []) concepts.add(related);
-  }
-  if (typeof input !== "string" && input.category) {
-    for (const concept of CATEGORY_CONCEPTS[input.category] ?? []) concepts.add(concept);
-  }
-  if ([...concepts].some((concept) => concept.includes("datetime") || concept.includes("packed-decimal"))) intentHints.add("date_time_conversion");
-  if ([...concepts].some((concept) => concept.startsWith("ibmi.sql"))) intentHints.add("embedded_sql_or_db2");
-  if ([...concepts].some((concept) => concept.includes("work-management") || concept.includes("object-locks"))) intentHints.add("administration");
-  if ([...concepts].some((concept) => concept.includes("display-file-io"))) intentHints.add("cl_display_file_io");
-  if ([...concepts].some((concept) => concept.includes("rds.rlu"))) intentHints.add("rds_tooling");
-  if ([...concepts].some((concept) => concept.includes("batch-debug"))) intentHints.add("batch_debug");
-  if ([...concepts].some((concept) => concept.includes("library-list") || concept.includes("file-members") || concept.includes("source-editing"))) intentHints.add("guided_discovery");
-  if ([...concepts].some((concept) => concept.includes("message"))) intentHints.add("message_diagnostic");
-  return { concepts: [...concepts].sort(), intentHints: [...intentHints].sort() };
+/** Compatibilidad estructural: el runtime público usa embeddings Transformers.js. */
+export function buildSemanticProfile(_input: SemanticVectorInput | string): SemanticProfile {
+  return { concepts: [], intentHints: [] };
 }
 
-export function buildSemanticVector(input: SemanticVectorInput | string): Float32Array {
-  const vector = new Float32Array(SEMANTIC_VECTOR_DIMENSIONS);
-  if (typeof input === "string") {
-    addProfileFeatures(vector, buildSemanticProfile(input), 2.2);
-    addPhraseFeatures(vector, input, 0.45);
-    normalizeVector(vector);
-    return vector;
-  }
-
-  const headerProfile = buildSemanticProfile({
-    title: input.title,
-    category: input.category,
-    language: input.language,
-    breadcrumbs: input.breadcrumbs,
-    body: ""
-  });
-  const bodyProfile = buildSemanticProfile(input.body ?? "");
-  addProfileFeatures(vector, headerProfile, 2.7);
-  addProfileFeatures(vector, bodyProfile, 0.55);
-
-  if (input.category) addFeature(vector, `category:${input.category}`, 4);
-  if (input.language) addFeature(vector, `language:${input.language.toLowerCase()}`, 3);
-  for (const breadcrumb of input.breadcrumbs ?? []) addPhraseFeatures(vector, breadcrumb, 2.4);
-  if (input.title) addPhraseFeatures(vector, input.title, 6.5);
-
-  addPhraseFeatures(vector, input.body ?? "", 0.22);
-  normalizeVector(vector);
-  return vector;
+/** Compatibilidad estructural: el ranking público no usa este vector. */
+export function buildSemanticVector(_input: SemanticVectorInput | string): Float32Array {
+  return new Float32Array(SEMANTIC_VECTOR_DIMENSIONS);
 }
 
 export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
@@ -159,60 +46,6 @@ export function semanticInputText(input: SemanticVectorInput): string {
   return [input.title, input.breadcrumbs?.join(" > "), input.category, input.language, input.body].filter(Boolean).join("\n");
 }
 
-export function explainSemanticMatch(hit: Pick<SearchHit, "title" | "category" | "breadcrumbs" | "snippet">, query: string): string[] {
-  const queryProfile = buildSemanticProfile(query);
-  const hitProfile = buildSemanticProfile({ title: hit.title, category: hit.category, breadcrumbs: hit.breadcrumbs, body: hit.snippet });
-  const shared = hitProfile.concepts.filter((concept) => queryProfile.concepts.includes(concept));
-  return [
-    ...(shared.length ? [`conceptos compartidos: ${shared.slice(0, 6).join(", ")}`] : []),
-    ...(hitProfile.concepts.length ? [`conceptos del documento: ${hitProfile.concepts.slice(0, 6).join(", ")}`] : []),
-    ...(queryProfile.intentHints.length ? [`intención semántica: ${queryProfile.intentHints.join(", ")}`] : [])
-  ].slice(0, 6);
-}
-
-function addPhraseFeatures(vector: Float32Array, text: string, weight: number): void {
-  const terms = semanticTerms(text);
-  for (const term of terms) addFeature(vector, `term:${term}`, weight);
-  for (let i = 0; i < terms.length - 1; i += 1) addFeature(vector, `bigram:${terms[i]}_${terms[i + 1]}`, weight * 1.35);
-  for (let i = 0; i < terms.length - 2; i += 1) addFeature(vector, `trigram:${terms[i]}_${terms[i + 1]}_${terms[i + 2]}`, weight * 1.55);
-}
-
-function addProfileFeatures(vector: Float32Array, profile: SemanticProfile, multiplier: number): void {
-  for (const concept of profile.concepts) {
-    const configuredWeight = CONCEPT_RULES.find((rule) => rule.concept === concept)?.weight ?? 8;
-    addFeature(vector, `concept:${concept}`, configuredWeight * multiplier);
-  }
-  for (const hint of profile.intentHints) addFeature(vector, `intent:${hint}`, 12 * multiplier);
-}
-
-function semanticTerms(text: string): string[] {
-  const normalized = text
-    .normalize("NFD")
-    .replace(/\p{M}+/gu, "")
-    .toLowerCase()
-    .replace(/[%*#@$]/g, " ");
-  return normalized.match(/[\p{L}\p{N}_+-]{2,}/gu)?.filter((term) => !STOPWORDS.has(term)).slice(0, 240) ?? [];
-}
-
-function addFeature(vector: Float32Array, feature: string, weight: number): void {
-  const hash = fnv1a(feature);
-  const index = hash % vector.length;
-  const sign = (hash & 0x80000000) === 0 ? 1 : -1;
-  vector[index] += sign * weight;
-}
-
-function normalizeVector(vector: Float32Array): void {
-  let norm = 0;
-  for (const value of vector) norm += value * value;
-  norm = Math.sqrt(norm) || 1;
-  for (let i = 0; i < vector.length; i += 1) vector[i] /= norm;
-}
-
-function fnv1a(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return hash >>> 0;
+export function explainSemanticMatch(_hit: Pick<SearchHit, "title" | "category" | "breadcrumbs" | "snippet">, _query: string): string[] {
+  return [];
 }
