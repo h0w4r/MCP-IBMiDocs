@@ -286,6 +286,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
     CREATE INDEX idx_documents_version ON documents(version);
     CREATE INDEX idx_documents_canonical_topic ON documents(canonical_topic_key, version, category);
     CREATE INDEX idx_sections_document ON document_sections(document_id, section_index);
+    CREATE INDEX idx_chunks_document ON chunks(document_id);
     CREATE INDEX idx_chunk_vectors_document ON chunk_vectors(document_id);
   `);
 
@@ -352,7 +353,9 @@ async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRe
     const textPath = path.join(packRoot, doc.normalizedTextPath);
     const text = readTextIfExists(textPath);
     const sections = extractDocumentSections(text);
-    const chunkBodies = splitIntoChunks(text, 3200);
+    const chunkBodies = buildEmbeddingChunkBodies(text, 3200, {
+      atomicEntries: shouldBuildAtomicEmbeddingEntries(doc)
+    });
     for (const body of chunkBodies) {
       const input = {
         title: doc.title,
@@ -407,7 +410,24 @@ function readTextIfExists(filePath: string): string {
   }
 }
 
-function splitIntoChunks(text: string, maxChars: number): string[] {
+export function buildEmbeddingChunkBodies(text: string, maxChars: number, options: { atomicEntries?: boolean } = { atomicEntries: true }): string[] {
+  const structuralChunks = splitIntoChunks(text, maxChars);
+  const atomicEntries = options.atomicEntries === false ? [] : extractAtomicIndexEntries(text);
+  return uniqueTextBlocks([...structuralChunks, ...atomicEntries]);
+}
+
+function shouldBuildAtomicEmbeddingEntries(doc: DocumentRecord): boolean {
+  const kind = doc.documentKind ?? classifyDocumentKindForBuild(doc);
+  if (kind === "index" || kind === "reference") return true;
+  const documentPath = [
+    doc.title,
+    doc.canonicalTopicKey,
+    ...(doc.breadcrumbs ?? [])
+  ].join(" ").toLowerCase();
+  return /\b(finder|commands?|abbreviations?|keywords?|catalog|catalogue|messages?|apis?)\b/.test(documentPath);
+}
+
+export function splitIntoChunks(text: string, maxChars: number): string[] {
   const clean = text.trim();
   if (!clean) return [""];
   const paragraphs = splitIntoStructuralBlocks(clean);
@@ -423,6 +443,64 @@ function splitIntoChunks(text: string, maxChars: number): string[] {
   }
   if (current.trim()) chunks.push(current.trim());
   return chunks;
+}
+
+function extractAtomicIndexEntries(text: string): string[] {
+  const lines = text.split(/\r?\n/).map((line) => line.trim());
+  const entries: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (!isUsefulAtomicLine(line)) continue;
+
+    // Las páginas tipo índice suelen traer entradas autosuficientes en una sola
+    // línea, por ejemplo "XXX (Nombre descriptivo) command". Convertirlas en
+    // chunks propios evita que un vector represente decenas de entradas no
+    // relacionadas y mejora la recuperación neural sin añadir reglas de consulta.
+    entries.push(line);
+  }
+
+  for (let index = 0; index < lines.length - 1; index += 1) {
+    const term = lines[index] ?? "";
+    const meaning = lines[index + 1] ?? "";
+    if (!isAbbreviationTerm(term) || !isAbbreviationMeaning(meaning)) continue;
+
+    // Algunos glosarios separan abreviatura y significado en dos líneas. Esta
+    // unión solo normaliza la granularidad documental para embeddings; no decide
+    // respuestas ni rutas de búsqueda durante runtime.
+    entries.push(`${term} ${meaning}`);
+  }
+  return entries;
+}
+
+function isUsefulAtomicLine(line: string): boolean {
+  if (line.length < 8 || line.length > 220) return false;
+  if (line.includes(">")) return false;
+  if (/\([^)A-Za-z0-9]*[A-Za-z0-9][^)]{1,120}\)\s+(command|keyword|function|view|table|operation|API)$/i.test(line)) return true;
+  return false;
+}
+
+function isAbbreviationTerm(line: string): boolean {
+  return /^[A-Z][A-Z0-9_/%$#@*-]{1,15}$/.test(line);
+}
+
+function isAbbreviationMeaning(line: string): boolean {
+  if (line.length < 3 || line.length > 140) return false;
+  if (line.includes(">")) return false;
+  return /[a-z]/.test(line) && !/^[A-Z0-9_/%$#@* -]+$/.test(line);
+}
+
+function uniqueTextBlocks(blocks: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const block of blocks) {
+    const clean = block.trim();
+    if (!clean) continue;
+    const key = clean.replace(/\s+/g, " ").toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(clean);
+  }
+  return unique.length ? unique : [""];
 }
 
 function splitIntoStructuralBlocks(text: string): string[] {

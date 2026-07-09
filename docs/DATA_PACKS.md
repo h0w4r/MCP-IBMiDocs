@@ -1,8 +1,8 @@
 # Data packs IBM i Docs
 
-El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI, pero no incluye `data/pack` ni `ibmi-docs.sqlite`.
+El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI y también incluye el `data/pack` oficial de la versión publicada.
 
-La distribución separa runtime y corpus para mantener npm ligero y permitir actualizaciones independientes del data pack. Todavía no hay release asset público versionado para el data pack; por ahora, usa el pack incluido en este repositorio o uno autorizado por tu organización.
+El objetivo es que `npm install -g @ckirsch94/ibmi-docs-mcp@latest` funcione en una máquina limpia sin clonar el repositorio y sin RDi. Los packs externos siguen soportados para organizaciones que quieran probar corpus propios o distribuir snapshots internos.
 
 ## Crear archive local del data pack
 
@@ -30,7 +30,17 @@ También puedes usar un directorio explícito:
 node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out D:\MCP-IBMiDocs\data\pack
 ```
 
-## Actualizar un data pack existente
+## Actualizar el data pack incluido en npm
+
+```powershell
+npm install -g @ckirsch94/ibmi-docs-mcp@latest
+ibmi-docs doctor
+ibmi-docs validate-pack
+```
+
+Esto actualiza el runtime y el pack empaquetado con esa versión. También ejecuta el `postinstall` para preparar el modelo semántico local.
+
+## Actualizar un data pack de repo clonado
 
 Si usas el pack del propio repo (`D:\MCP-IBMiDocs\data\pack`), basta con actualizar el repositorio y validar:
 
@@ -61,7 +71,7 @@ El servidor busca el pack en este orden:
 1. `IBMI_DOCS_PACK_DIR`
 2. `data/pack` relativo al `cwd`
 3. `~/.ibmi-docs/pack`
-4. `data/pack` empaquetado junto al servidor, si existiera
+4. `data/pack` empaquetado junto al servidor npm
 
 ## Integridad
 

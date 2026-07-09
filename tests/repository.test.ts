@@ -13,6 +13,63 @@ async function withRepo<T>(callback: (repo: CorpusRepository) => Promise<T>): Pr
 }
 
 describe("CorpusRepository neural-only", () => {
+  it("searchSmart usa recuperación neuronal multi-perspectiva y recupera el comando para invocar RLU", async () => {
+    const results = await withRepo((repo) => repo.searchSmart({
+      query: "What is the command used to invoke RLU?",
+      limit: 10
+    }));
+
+    const corpus = results.map((hit) => `${hit.title}\n${hit.snippet}`).join("\n\n");
+    expect(corpus).toMatch(/STRRLU|Start Report Layout Utility/i);
+    expect(results[0]?.matchReasons?.join(" ")).toContain("perspectiva neural");
+  });
+
+  it("assistSmart sintetiza la respuesta RLU desde evidencia documental materializada", async () => {
+    const assist = await withRepo((repo) => repo.assistSmart({
+      question: "What is the command used to invoke RLU?",
+      language: "CL",
+      depth: "deep",
+      limit: 8
+    }));
+
+    const answerCorpus = [
+      assist.answer,
+      assist.specificFindings.join("\n"),
+      assist.evidence.map((hit) => `${hit.title} ${hit.snippet}`).join("\n"),
+      assist.reads.map((read) => `${read.title} ${read.excerpt}`).join("\n")
+    ].join("\n");
+
+    expect(answerCorpus).toMatch(/STRRLU|Start Report Layout Utility/i);
+    expect(assist.confidence).not.toBe("baja");
+    expect(assist.workflow.map((stage) => stage.tool)).toEqual(expect.arrayContaining([
+      "ibmi_docs_search",
+      "ibmi_docs_read",
+      "ibmi_docs_sections"
+    ]));
+  });
+
+  it("diagnostics reporta cobertura vectorial completa del corpus indexado", async () => {
+    await withRepo(async (repo) => {
+      const diagnostics = repo.diagnostics() as {
+        vectorCoverage?: {
+          ok: boolean;
+          documents: number;
+          chunks: number;
+          vectors: number;
+          documentsWithoutChunks: number;
+          chunksWithoutVectors: number;
+        };
+      };
+
+      expect(diagnostics.vectorCoverage?.ok).toBe(true);
+      expect(diagnostics.vectorCoverage?.documents).toBeGreaterThan(0);
+      expect(diagnostics.vectorCoverage?.chunks).toBeGreaterThanOrEqual(diagnostics.vectorCoverage?.documents ?? 0);
+      expect(diagnostics.vectorCoverage?.vectors).toBe(diagnostics.vectorCoverage?.chunks);
+      expect(diagnostics.vectorCoverage?.documentsWithoutChunks).toBe(0);
+      expect(diagnostics.vectorCoverage?.chunksWithoutVectors).toBe(0);
+    });
+  });
+
   it("searchSmart recupera comandos y tópicos técnicos con embeddings Transformers", async () => {
     const results = await withRepo((repo) => repo.searchSmart({ query: "CRTRPGMOD", limit: 5 }));
 

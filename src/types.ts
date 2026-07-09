@@ -306,11 +306,21 @@ export interface PackDiagnostics {
   corpusVersion: string;
   documents: number;
   chunks: number;
+  vectorCoverage?: VectorCoverageDiagnostics;
   missingFiles: number;
   checkedFiles: number;
   longPaths: string[];
   anomalies: string[];
   runtimeDependency: string;
+}
+
+export interface VectorCoverageDiagnostics {
+  ok: boolean;
+  documents: number;
+  chunks: number;
+  vectors: number;
+  documentsWithoutChunks: number;
+  chunksWithoutVectors: number;
 }
 
 
@@ -526,6 +536,7 @@ export interface QualityReport {
   corpusVersion: string;
   documents: number;
   chunks: number;
+  vectorCoverage?: VectorCoverageDiagnostics;
   coverage: CategoryDiagnostics;
   shortDocuments: Array<{ id: string; title: string; textLength: number; category: string; version: string }>;
   duplicateTitles: Array<{ title: string; count: number; versions: string[] }>;
@@ -584,6 +595,7 @@ export interface TraceEvent {
   timestamp: string;
   tool: string;
   query?: string;
+  semanticQueries?: string[];
   id?: string;
   intent?: DocsIntent;
   topResultId?: string;

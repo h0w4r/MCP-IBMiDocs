@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { extractDocumentContent, inferCategory } from "../src/util/html.js";
 import { createServer } from "../src/server.js";
 import { loadPackageVersion } from "../src/util/packageVersion.js";
+import { buildEmbeddingChunkBodies } from "../src/ingest/packBuilder.js";
 import fs from "node:fs";
 
 // Regresión: el HTML de ayuda trae scripts/frames de Eclipse, pero el corpus debe quedarse con texto útil.
@@ -37,6 +38,28 @@ describe("normalización documental", () => {
     expect(doc.text).toContain("SRCFILE | Source file");
     expect(doc.text).toContain("- Use DBGVIEW for debugging.");
     expect(doc.text).toContain("CRTRPGMOD MODULE(MYLIB/HELLO)");
+  });
+
+  it("crea chunks atómicos para entradas de índices documentales", () => {
+    const text = [
+      "CL command finder",
+      "",
+      "STRQRY (Start Query) command",
+      "",
+      "STRRLU (Start Report Layout Utility) command",
+      "",
+      "STRSEU (Start Source Entry Utility) command",
+      "",
+      "Abbreviations",
+      "",
+      "RLU",
+      "report layout utility"
+    ].join("\n");
+
+    const chunks = buildEmbeddingChunkBodies(text, 3200);
+
+    expect(chunks).toContain("STRRLU (Start Report Layout Utility) command");
+    expect(chunks).toContain("RLU report layout utility");
   });
 });
 

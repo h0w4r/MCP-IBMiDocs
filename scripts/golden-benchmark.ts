@@ -23,9 +23,9 @@ const repo = new CorpusRepository(process.env.IBMI_DOCS_PACK_DIR ?? "data/pack")
 const failures: Array<{ name: string; query: string; category?: string; reason: string; topTitles: string[] }> = [];
 const started = Date.now();
 
-try {
+async function main(): Promise<void> {
   for (const item of queries) {
-    const results = repo.search({ query: item.query, category: item.category, version: item.version, limit: 5 });
+    const results = await repo.searchSmart({ query: item.query, category: item.category, version: item.version, limit: 5 });
     const topTitles = results.slice(0, 5).map((hit) => hit.title);
     if (!results.length) {
       failures.push({ ...item, reason: "sin resultados", topTitles });
@@ -43,35 +43,41 @@ try {
       failures.push({ ...item, reason: `no cumple patrón en top 3: ${item.mustContainTitlePattern}`, topTitles });
     }
   }
-} finally {
+
   repo.close();
+
+  const passed = queries.length - failures.length;
+  const passRate = queries.length ? passed / queries.length : 0;
+  const report = {
+    total: queries.length,
+    passed,
+    failed: failures.length,
+    passRate: Math.round(passRate * 10000) / 100,
+    durationMs: Date.now() - started,
+    failures
+  };
+  console.log(JSON.stringify(report, null, 2));
+
+  const requiredFailures = failures.filter((failure) => queries.some((query) => query.name === failure.name && (query.required || query.mustHaveResults)));
+
+  if (requiredFailures.length) {
+    console.error(`Benchmark golden falló en ${requiredFailures.length} query(s) obligatoria(s).`);
+    process.exit(1);
+  }
+
+  if (passRate < 0.95) {
+    console.error(`Benchmark golden bajo umbral: ${report.passRate}% < 95%`);
+    process.exit(1);
+  }
+
+  if (failures.some((failure) => /top esperado|título esperado|patrón/.test(failure.reason))) {
+    console.error("Benchmark golden falló en una expectativa explícita de precisión.");
+    process.exit(1);
+  }
 }
 
-const passed = queries.length - failures.length;
-const passRate = queries.length ? passed / queries.length : 0;
-const report = {
-  total: queries.length,
-  passed,
-  failed: failures.length,
-  passRate: Math.round(passRate * 10000) / 100,
-  durationMs: Date.now() - started,
-  failures
-};
-console.log(JSON.stringify(report, null, 2));
-
-const requiredFailures = failures.filter((failure) => queries.some((query) => query.name === failure.name && (query.required || query.mustHaveResults)));
-
-if (requiredFailures.length) {
-  console.error(`Benchmark golden falló en ${requiredFailures.length} query(s) obligatoria(s).`);
+main().catch((error) => {
+  repo.close();
+  console.error(error);
   process.exit(1);
-}
-
-if (passRate < 0.95) {
-  console.error(`Benchmark golden bajo umbral: ${report.passRate}% < 95%`);
-  process.exit(1);
-}
-
-if (failures.some((failure) => /top esperado|título esperado|patrón/.test(failure.reason))) {
-  console.error("Benchmark golden falló en una expectativa explícita de precisión.");
-  process.exit(1);
-}
+});

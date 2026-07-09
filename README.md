@@ -1,7 +1,7 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Release 1.0.4.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
+> **Release 1.0.8.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
@@ -28,64 +28,49 @@ Sirve para:
 - **No necesitas RDi instalado** para usar el MCP.
 - **No usa Eclipse Help en runtime**.
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
-- El paquete npm instala el servidor y la CLI.
-- El corpus documental vive en un **data pack local** con SQLite y vectores semánticos (`chunk_vectors`).
+- El paquete npm instala el servidor, la CLI y el **data pack local incluido**.
+- El corpus documental vive en SQLite con vectores semánticos (`chunk_vectors`) y se resuelve sin RDi.
 - El perfil MCP por defecto es **agent-first**: el agente ve pocas tools y debe empezar por `ibmi_docs_assist`.
 - `ibmi_docs_assist` hace una sola llamada con `taskPlan`, respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
 - El planner interno distingue familias como creación RPGLE/CLLE, diseño DDS, diagnóstico de mensajes, Db2 for i y administración de trabajos/locks.
 - Las tools avanzadas/de auditoría existen, pero se ocultan salvo que actives un perfil explícito.
 - Las tools de mantenimiento, como sincronización de IBM Docs público, **no se exponen al agente en runtime normal**.
-- Por ahora, el data pack público disponible está en este repositorio bajo `data/pack`.
+- El data pack público va incluido en npm y también está versionado en este repositorio bajo `data/pack`.
 
 ## Instalación rápida
 
 Prerrequisito: Node.js 22.x recomendado.
 
-### 1. Instala el runtime desde npm
+### 1. Instala desde npm
 
 ```powershell
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
 ibmi-docs --version
 ```
 
-### 2. Obtén el data pack
-
-El paquete npm no incluye el corpus pesado. Para empezar, clona el repo y usa el pack incluido:
+### 2. Valida que todo funciona
 
 ```powershell
-git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
-```
-
-En macOS/Linux puedes usar `~/MCP-IBMiDocs`.
-
-### 3. Valida que todo funciona
-
-```powershell
-$env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 ibmi-docs doctor
 ibmi-docs assist "Explica CRTRPGMOD y cuándo conviene frente a CRTBNDRPG" --language RPGLE --ibmi-version 7.5
 ```
 
-Si `doctor` muestra `Sin RDi, sin Eclipse Help, sin endpoint local de RDi`, vas bien.
+Si `doctor` muestra un pack resuelto y `Sin RDi, sin Eclipse Help, sin endpoint local de RDi`, vas bien.
 
 Más opciones: [instalación, actualización y desinstalación](docs/INSTALLATION.md).
 
 ### Actualizar o eliminar
 
 ```powershell
-# Actualizar runtime npm
+# Actualizar runtime, corpus y modelo local
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
-
-# Actualizar repo/data pack clonado
-cd D:\MCP-IBMiDocs
-git pull --ff-only
 ibmi-docs doctor
 
-# Eliminar runtime npm
+# Eliminar runtime npm y el pack incluido en esa instalación
 npm uninstall -g @ckirsch94/ibmi-docs-mcp
 ```
 
-Cuando exista un release asset público de data pack, podrás usar `ibmi-docs pack update`. Mientras tanto, el camino legítimo y reproducible sigue siendo usar el `data/pack` versionado en este repo o un `.tgz` que tú generes con `ibmi-docs pack archive`.
+Si usas un pack externo mediante `IBMI_DOCS_PACK_DIR`, actualízalo aparte con una fuente autorizada por tu equipo o con un `.tgz` generado desde este repositorio.
 
 ## Configuración rápida en Codex
 
@@ -101,14 +86,14 @@ Ejemplo de `C:\Users\<usuario>\.codex\config.toml`:
 [mcp_servers.ibmi-docs]
 command = 'C:\Users\<usuario>\AppData\Roaming\npm\ibmi-docs-mcp.cmd'
 args = []
-cwd = 'D:\MCP-IBMiDocs'
 startup_timeout_sec = 30.0
 tool_timeout_sec = 120.0
 
 [mcp_servers.ibmi-docs.env]
-IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 IBMI_DOCS_TOOL_PROFILE = 'agent'
 ```
+
+No necesitas declarar `IBMI_DOCS_PACK_DIR` si usas el pack incluido en npm. Úsalo solo cuando quieras apuntar a un pack corporativo o experimental.
 
 Reinicia Codex y prueba algo como:
 
@@ -271,7 +256,7 @@ Guías útiles:
 - npm: <https://www.npmjs.com/package/@ckirsch94/ibmi-docs-mcp>
 - GitHub: <https://github.com/h0w4r/MCP-IBMiDocs>
 
-El paquete npm publica el runtime MCP/CLI. El data pack se mantiene separado para no inflar el paquete ni mezclar runtime con corpus pesado.
+El paquete npm publica el runtime MCP/CLI y el data pack local oficial de esta versión. No incluye artefactos de evaluación, cachés de desarrollo ni exports temporales de RDi.
 
 ## Aviso legal y marcas
 

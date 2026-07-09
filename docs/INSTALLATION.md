@@ -10,12 +10,11 @@ El runtime público está en:
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
 ```
 
-Esto instala dos binarios:
+Esto instala dos binarios y el data pack local de la versión publicada:
 
 - `ibmi-docs`: CLI para diagnóstico, búsqueda y validación.
 - `ibmi-docs-mcp`: servidor MCP por stdio.
-
-El paquete npm **no** incluye `data/pack` ni `ibmi-docs.sqlite`.
+- `data/pack`: corpus documental local con `manifest.json`, `raw/`, `normalized/` e `ibmi-docs.sqlite`.
 
 El servidor MCP público arranca por defecto en perfil `agent`: expone una entrada principal
 (`ibmi_docs_assist`) y oculta tools avanzadas o de mantenimiento para que el agente no se distraiga
@@ -28,8 +27,6 @@ servidor arrancado deliberadamente con perfil avanzado y `IBMI_DOCS_ALLOW_NETWOR
 
 ```powershell
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
-git clone https://github.com/h0w4r/MCP-IBMiDocs.git D:\MCP-IBMiDocs
-$env:IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 ibmi-docs doctor
 ibmi-docs validate-pack
 ibmi-docs assist "Explica CRTRPGMOD y cuándo conviene frente a CRTBNDRPG" --language RPGLE --ibmi-version 7.5
@@ -39,8 +36,6 @@ ibmi-docs assist "Explica CRTRPGMOD y cuándo conviene frente a CRTBNDRPG" --lan
 
 ```bash
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
-git clone https://github.com/h0w4r/MCP-IBMiDocs.git ~/MCP-IBMiDocs
-export IBMI_DOCS_PACK_DIR="$HOME/MCP-IBMiDocs/data/pack"
 ibmi-docs doctor
 ibmi-docs validate-pack
 ibmi-docs assist "Explica CRTRPGMOD y cuándo conviene frente a CRTBNDRPG" --language RPGLE --ibmi-version 7.5
@@ -69,12 +64,10 @@ Ejemplo para `C:\Users\<usuario>\.codex\config.toml`:
 [mcp_servers.ibmi-docs]
 command = 'C:\Users\<usuario>\AppData\Roaming\npm\ibmi-docs-mcp.cmd'
 args = []
-cwd = 'D:\MCP-IBMiDocs'
 startup_timeout_sec = 30.0
 tool_timeout_sec = 120.0
 
 [mcp_servers.ibmi-docs.env]
-IBMI_DOCS_PACK_DIR = 'D:\MCP-IBMiDocs\data\pack'
 IBMI_DOCS_TOOL_PROFILE = 'agent'
 ```
 
@@ -84,7 +77,7 @@ macOS/Linux:
 command -v ibmi-docs-mcp
 ```
 
-Usa esa ruta absoluta como `command` y apunta `IBMI_DOCS_PACK_DIR` al data pack.
+Usa esa ruta absoluta como `command`. No declares `IBMI_DOCS_PACK_DIR` salvo que quieras usar un pack externo o corporativo distinto al incluido en npm.
 
 ## Perfiles de tools MCP
 
@@ -111,7 +104,7 @@ node dist/src/cli.js codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\M
 
 ## Actualizar
 
-### Runtime npm
+### Instalación npm completa
 
 ```powershell
 npm outdated -g @ckirsch94/ibmi-docs-mcp
@@ -120,11 +113,11 @@ ibmi-docs --version
 ibmi-docs doctor
 ```
 
-Actualizar npm cambia el servidor/CLI, no el corpus documental.
+Actualizar npm cambia el servidor/CLI, el data pack incluido y prepara de nuevo el modelo semántico local del usuario.
 
 > `ibmi-docs --version` muestra la versión del CLI. Para filtrar documentación por release IBM i usa `--ibmi-version` o `--release`, por ejemplo `ibmi-docs search "CRTRPGMOD" --ibmi-version 7.6`.
 
-### Repo/data pack incluido
+### Desarrollo desde repo clonado
 
 ```powershell
 cd D:\MCP-IBMiDocs
@@ -137,9 +130,9 @@ npm run smoke
 node dist/src/cli.js doctor
 ```
 
-Si tienes cambios locales, haz commit o `git stash` antes de `git pull`.
+Este flujo es solo para colaboradores que trabajan desde código fuente. Si tienes cambios locales, haz commit o `git stash` antes de `git pull`.
 
-### Data pack copiado a otra carpeta
+### Data pack externo copiado a otra carpeta
 
 ```powershell
 cd D:\MCP-IBMiDocs
@@ -148,7 +141,7 @@ node dist/src/cli.js pack install --from D:\MCP-IBMiDocs\dist\ibmi-docs-pack.tgz
 node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 ```
 
-### Data pack desde release asset
+### Data pack desde release asset o URL autorizada
 
 El comando existe para cuando el proyecto publique un release asset `ibmi-docs-pack.tgz` o cuando tú definas una URL autorizada:
 
@@ -158,7 +151,7 @@ ibmi-docs pack update --out <ruta-del-pack-en-uso>
 ibmi-docs pack verify --pack <ruta-del-pack-en-uso>
 ```
 
-Si no defines `IBMI_DOCS_PACK_LATEST_URL`, el CLI intentará usar el release público más reciente de GitHub. Si ese asset aún no existe, usa el flujo local con `pack archive` + `pack install --from`.
+Si no defines `IBMI_DOCS_PACK_LATEST_URL`, el CLI intentará usar el release público más reciente de GitHub. Si ese asset no existe o tu organización usa un pack propio, usa el flujo local con `pack archive` + `pack install --from`.
 
 ## Desinstalar
 
@@ -185,7 +178,7 @@ command -v ibmi-docs || true
 command -v ibmi-docs-mcp || true
 ```
 
-### Data pack o repo local
+### Data pack externo o repo local
 
 Solo si ya no lo necesitas:
 

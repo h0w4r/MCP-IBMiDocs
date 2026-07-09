@@ -50,6 +50,7 @@ import type {
   TopicSection,
   TraceEvent,
   TraceReport,
+  VectorCoverageDiagnostics,
   VersionComparison,
   WorkflowPolicy,
   WorkflowStage
@@ -67,6 +68,23 @@ interface NeuralCandidate {
   version: string;
   breadcrumbs: string[];
   vector: Float32Array;
+}
+
+interface NeuralPassageMatch {
+  candidate: NeuralCandidate;
+  similarity: number;
+  perspective: string;
+}
+
+interface NeuralDocumentAggregate {
+  documentId: string;
+  row: Row;
+  title: string;
+  category: string;
+  version: string;
+  breadcrumbs: string[];
+  best: NeuralPassageMatch;
+  passages: NeuralPassageMatch[];
 }
 
 const SUPPORTED_VERSIONS = ["7.3", "7.4", "7.5", "7.6", "RDi-local"];
@@ -135,6 +153,7 @@ export class CorpusRepository {
         runtimePolicy: this.getMetaValue("embedding_runtime_policy") ?? "transformers-required",
         modelInstall: embeddingModelDiagnostics()
       },
+      vectorCoverage: this.vectorCoverageDiagnostics(),
       retrievalPolicy: "neural-only-transformers",
       runtimeDependency: "Sin RDi, sin Eclipse Help, sin endpoint local de RDi"
     };
@@ -152,8 +171,9 @@ export class CorpusRepository {
     }
 
     this.assertNeuralDataPackReady();
-    const [queryVector] = await embedTexts([semanticQueryText(query)], { localOnly: true, kind: "query" });
-    if (!queryVector) {
+    const perspectives = buildSearchQueryPerspectives(query);
+    const queryVectors = await embedTexts(perspectives.map((perspective) => semanticQueryText(perspective)), { localOnly: true, kind: "query" });
+    if (!queryVectors.length) {
       this.recordTrace("ibmi_docs_search", started, { query, resultCount: 0 });
       return [];
     }
@@ -165,16 +185,34 @@ export class CorpusRepository {
       return true;
     });
 
-    const bestByDocument = new Map<string, SearchHit>();
-    for (const candidate of candidates) {
-      const similarity = neuralCosineSimilarity(queryVector, candidate.vector);
-      const score = roundScore(similarity * 100);
-      const existing = bestByDocument.get(candidate.documentId);
-      if (existing && existing.score >= score) continue;
-      bestByDocument.set(candidate.documentId, this.hitFromCandidate(candidate, query, score, similarity));
+    const aggregateByDocument = new Map<string, NeuralDocumentAggregate>();
+    for (let perspectiveIndex = 0; perspectiveIndex < queryVectors.length; perspectiveIndex += 1) {
+      const queryVector = queryVectors[perspectiveIndex];
+      const perspective = perspectives[perspectiveIndex] ?? query;
+      for (const candidate of candidates) {
+        const similarity = neuralCosineSimilarity(queryVector, candidate.vector);
+        const match: NeuralPassageMatch = { candidate, similarity, perspective };
+        const existing = aggregateByDocument.get(candidate.documentId);
+        if (!existing) {
+          aggregateByDocument.set(candidate.documentId, {
+            documentId: candidate.documentId,
+            row: candidate.row,
+            title: candidate.title,
+            category: candidate.category,
+            version: candidate.version,
+            breadcrumbs: candidate.breadcrumbs,
+            best: match,
+            passages: [match]
+          });
+          continue;
+        }
+        if (similarity > existing.best.similarity) existing.best = match;
+        insertNeuralPassageMatch(existing.passages, match, 4);
+      }
     }
 
-    let results = [...bestByDocument.values()]
+    let results = [...aggregateByDocument.values()]
+      .map((aggregate) => this.hitFromAggregate(aggregate, query))
       .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
       .slice(0, limit)
       .map((hit) => this.materializeHit(hit, options));
@@ -197,6 +235,7 @@ export class CorpusRepository {
 
     this.recordTrace("ibmi_docs_search", started, {
       query,
+      semanticQueries: perspectives,
       resultCount: results.length,
       topResultId: results[0]?.id,
       topResultTitle: results[0]?.title,
@@ -284,8 +323,11 @@ export class CorpusRepository {
         autoRead: false
       });
       evidenceGroups.push(hits);
-      const selectedReads = hits.slice(0, readLimit).map((hit) => this.read(hit.id)).filter((read): read is ReadResult => Boolean(read));
-      const readSummaries = selectedReads.map((read) => toReadSummary(read, query, sectionLimit));
+      const selectedPairs = hits.slice(0, readLimit)
+        .map((hit) => ({ hit, read: this.read(hit.id) }))
+        .filter((pair): pair is { hit: SearchHit; read: ReadResult } => Boolean(pair.read));
+      const selectedReads = selectedPairs.map((pair) => pair.read);
+      const readSummaries = selectedPairs.map((pair) => toReadSummary(pair.read, query, sectionLimit, pair.hit.snippet));
       const sectionTopics = selectedReads.map((read) => ({
         id: read.id,
         title: read.title,
@@ -561,6 +603,7 @@ export class CorpusRepository {
       corpusVersion: manifest.corpusVersion,
       documents: this.scalarNumber("SELECT COUNT(*) FROM documents"),
       chunks: this.scalarNumber("SELECT COUNT(*) FROM chunks"),
+      vectorCoverage: this.vectorCoverageDiagnostics(),
       missingFiles,
       checkedFiles: rows.length,
       longPaths,
@@ -579,6 +622,7 @@ export class CorpusRepository {
       corpusVersion: manifest.corpusVersion,
       documents: this.scalarNumber("SELECT COUNT(*) FROM documents"),
       chunks: this.scalarNumber("SELECT COUNT(*) FROM chunks"),
+      vectorCoverage: this.vectorCoverageDiagnostics(),
       coverage: diagnostics,
       shortDocuments: shortRows.map((row) => ({ id: String(row.id), title: String(row.title), textLength: Number(row.text_length), category: String(row.category), version: String(row.version) })),
       duplicateTitles: [],
@@ -632,24 +676,34 @@ export class CorpusRepository {
     return candidates;
   }
 
-  private hitFromCandidate(candidate: NeuralCandidate, query: string, score: number, similarity: number): SearchHit {
-    const row = candidate.row;
+  private hitFromAggregate(aggregate: NeuralDocumentAggregate, query: string): SearchHit {
+    const row = aggregate.row;
+    const best = aggregate.best;
+    const topSimilarities = aggregate.passages.map((passage) => passage.similarity).sort((a, b) => b - a);
+    const corroboration = Math.min(0.03, Math.max(0, topSimilarities.slice(1).reduce((total, value) => total + value, 0) / Math.max(1, topSimilarities.length - 1)) * 0.04);
+    const score = roundScore((best.similarity + corroboration) * 100);
+    const passageSummary = aggregate.passages
+      .map((passage, index) => `${index + 1}) ${makeSnippet(passage.candidate.body, "", 260)}`)
+      .join(" ");
     return {
-      id: candidate.documentId,
-      title: candidate.title,
-      snippet: makeSnippet(candidate.body, query, 520),
+      id: aggregate.documentId,
+      title: aggregate.title,
+      snippet: makeSnippet([makeSnippet(best.candidate.body, "", 520), passageSummary].filter(Boolean).join(" "), query, 700),
       score,
-      semanticScore: roundScore(similarity),
+      semanticScore: roundScore(best.similarity),
       sourceKind: String(row.source_kind) as SourceKind,
       sourceId: String(row.source_id),
-      version: candidate.version,
-      category: candidate.category,
+      version: aggregate.version,
+      category: aggregate.category,
       canonicalUrl: String(row.canonical_url),
-      breadcrumbs: candidate.breadcrumbs,
+      breadcrumbs: aggregate.breadcrumbs,
       textLength: Number(row.text_length ?? 0),
       documentKind: normalizeDocumentKind(row.document_kind),
       canonicalTopicKey: String(row.canonical_topic_key ?? ""),
-      matchReasons: [`similitud vectorial Transformers.js=${roundScore(similarity)}`],
+      matchReasons: [
+        `perspectiva neural Transformers.js=${roundScore(best.similarity)}`,
+        `pasajes neuronales corroborados=${aggregate.passages.length}`
+      ],
       relevanceWarnings: []
     };
   }
@@ -718,6 +772,38 @@ export class CorpusRepository {
     if (provider !== "transformers-js" || !model) throw new Error("El data pack no contiene embeddings Transformers.js. Reconstruye el corpus con npm run build:pack.");
     const marker = embeddingModelDiagnostics();
     if (!marker.markerExists) throw new Error(`El modelo semántico local no está instalado en ${marker.cacheDir}. Ejecuta npm install o node postinstall.cjs.`);
+  }
+
+  private vectorCoverageDiagnostics(): VectorCoverageDiagnostics {
+    const documents = this.scalarNumber("SELECT COUNT(*) FROM documents");
+    const chunks = this.scalarNumber("SELECT COUNT(*) FROM chunks");
+    const vectors = this.scalarNumber("SELECT COUNT(*) FROM chunk_vectors");
+    const documentsWithoutChunks = this.scalarNumber(`
+      SELECT COUNT(*)
+      FROM documents d
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM chunks c
+        WHERE c.document_id = d.id
+      )
+    `);
+    const chunksWithoutVectors = this.scalarNumber(`
+      SELECT COUNT(*)
+      FROM chunks c
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM chunk_vectors v
+        WHERE v.chunk_id = c.id
+      )
+    `);
+    return {
+      ok: documents > 0 && chunks > 0 && vectors === chunks && documentsWithoutChunks === 0 && chunksWithoutVectors === 0,
+      documents,
+      chunks,
+      vectors,
+      documentsWithoutChunks,
+      chunksWithoutVectors
+    };
   }
 
   private neuralOnlySyncNotice(question: string, tool: string): Partial<AssistResult> {
@@ -794,6 +880,24 @@ function composeNeuralQuestion(question: string, language?: string, code?: strin
   ].filter((part) => part.trim()).join("\n\n").trim();
 }
 
+function buildSearchQueryPerspectives(query: string): string[] {
+  const clean = query.trim();
+  return uniqueNonEmpty([
+    clean,
+    `Official IBM i documentation passage that directly answers this request:\n${clean}`,
+    `Overview documentation that explains how to define, create, configure, use or diagnose this IBM i topic:\n${clean}`,
+    `IBM i command, utility, language construct, SQL object, API, message, keyword, parameter or system task related to:\n${clean}`,
+    `Technical reference material needed to solve the user's IBM i task:\n${clean}`,
+    `Concise documentation answer with exact IBM i artifact when available:\n${clean}`
+  ]);
+}
+
+function insertNeuralPassageMatch(passages: NeuralPassageMatch[], match: NeuralPassageMatch, maxItems: number): void {
+  passages.push(match);
+  passages.sort((a, b) => b.similarity - a.similarity);
+  if (passages.length > maxItems) passages.splice(maxItems);
+}
+
 function buildEvidenceDrivenQueries(question: string, evidence: SearchHit[]): string[] {
   return uniqueNonEmpty(evidence.slice(0, 4).map((hit) => [question, hit.title, hit.breadcrumbs.join(" > "), hit.snippet].filter(Boolean).join("\n")));
 }
@@ -818,7 +922,11 @@ function buildNeuralCoverage(input: {
   };
 }
 
-function toReadSummary(read: ReadResult, query: string, sectionLimit: number): ContextReadSummary {
+function toReadSummary(read: ReadResult, query: string, sectionLimit: number, retrievedSnippet = ""): ContextReadSummary {
+  const excerpt = joinUniqueFragments([
+    retrievedSnippet,
+    makeSnippet(read.content, query, 900)
+  ], 1200);
   return {
     id: read.id,
     title: read.title,
@@ -829,7 +937,7 @@ function toReadSummary(read: ReadResult, query: string, sectionLimit: number): C
     documentKind: read.documentKind,
     canonicalTopicKey: read.canonicalTopicKey,
     textLength: read.textLength,
-    excerpt: makeSnippet(read.content, query, 900),
+    excerpt,
     focusedSections: (read.sections ?? []).slice(0, sectionLimit)
   };
 }
@@ -841,14 +949,15 @@ function readToCitation(read: ReadResult, section?: string): AnswerCitation {
 function buildExecutiveSummary(question: string, confidence: "alta" | "media" | "baja", evidence: SearchHit[], reads: ContextReadSummary[]): string[] {
   if (!evidence.length) return [`No encontré evidencia documental suficiente para: ${question}`];
   return [
-    `Confianza ${confidence}: la respuesta se apoya en ${evidence.length} resultado(s) vectoriales y ${reads.length} lectura(s) materializada(s).`,
+    `Confianza ${confidence}: la respuesta se apoya en ${evidence.length} resultado(s) vectoriales multi-perspectiva y ${reads.length} lectura(s) materializada(s).`,
     `Documento principal: ${evidence[0].title} [${evidence[0].version}/${evidence[0].category}].`
   ];
 }
 
 function buildSpecificFindings(reads: ContextReadSummary[], evidence: SearchHit[]): string[] {
-  const fromReads = reads.map((read) => `${read.title}: ${read.excerpt}`);
-  return fromReads.length ? fromReads : evidence.slice(0, 3).map((hit) => `${hit.title}: ${hit.snippet}`);
+  const fromEvidence = evidence.slice(0, 8).map((hit) => `${hit.title}: ${hit.snippet}`);
+  const fromReads = reads.slice(0, 8).map((read) => `${read.title}: ${read.excerpt}`);
+  return uniqueReadableItems([...fromEvidence, ...fromReads]).slice(0, 8);
 }
 
 function buildImplementationSteps(evidence: SearchHit[], reads: ContextReadSummary[]): string[] {
@@ -909,6 +1018,25 @@ function makeSnippet(text: string, query: string, maxLength: number): string {
   const start = index > 80 ? index - 80 : 0;
   const snippet = clean.slice(start, start + maxLength).trim();
   return snippet.length < clean.length - start ? `${snippet}…` : snippet;
+}
+
+function joinUniqueFragments(fragments: string[], maxLength: number): string {
+  const joined = uniqueReadableItems(fragments).join(" ");
+  return joined.length > maxLength ? `${joined.slice(0, maxLength).trim()}…` : joined;
+}
+
+function uniqueReadableItems(items: string[]): string[] {
+  const seen = new Set<string>();
+  const output: string[] = [];
+  for (const item of items) {
+    const clean = item.replace(/\s+/g, " ").trim();
+    if (!clean) continue;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(clean);
+  }
+  return output;
 }
 
 function parseStringArray(value: unknown): string[] {

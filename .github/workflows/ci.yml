@@ -59,13 +59,38 @@ jobs:
             throw 'Runtime/docs públicos no deben depender del endpoint temporal RDi.'
           }
 
-      - name: Verify npm package excludes data pack
+      - name: Verify npm package runtime payload
         shell: pwsh
         run: |
           $json = npm pack --dry-run --json | ConvertFrom-Json
           $packed = $json[0].files.path
-          if ($packed -contains 'data/pack/ibmi-docs.sqlite' -or $packed -contains 'dist/ibmi-docs-pack.tgz') {
-            throw 'El paquete npm no debe incluir data packs ni archives; publicar como release asset.'
+          $required = @(
+            'dist/src/server.js',
+            'dist/src/cli.js',
+            'postinstall.cjs',
+            'data/pack/manifest.json',
+            'data/pack/ibmi-docs.sqlite'
+          )
+          foreach ($file in $required) {
+            if ($packed -notcontains $file) {
+              throw "Falta archivo runtime requerido en npm pack: $file"
+            }
+          }
+          $forbiddenPrefixes = @(
+            'data/eval/',
+            '.tmp/',
+            'data/rdi-export/',
+            'data/ibm-docs-cache/'
+          )
+          foreach ($prefix in $forbiddenPrefixes) {
+            $matches = $packed | Where-Object { $_.StartsWith($prefix) }
+            if ($matches) {
+              $matches | Select-Object -First 20 | Format-Table -AutoSize
+              throw "El paquete npm incluye artefactos internos no publicables: $prefix"
+            }
+          }
+          if ($packed -contains 'dist/ibmi-docs-pack.tgz') {
+            throw 'El paquete npm no debe incluir archivos .tgz generados; solo el data pack desempaquetado runtime.'
           }
 
       - name: Create data pack archive artifact

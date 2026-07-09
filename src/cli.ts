@@ -439,9 +439,9 @@ program
       { name: "data-pack", ok: verified.ok, detail: verified.issues.join("; ") || `${verified.corpusVersion} (${verified.documents} docs)` }
     ];
     if (verified.ok) {
-      withRepo(packDir, (repo) => {
+      await withRepoAsync(packDir, async (repo) => {
         for (const smoke of smokeCases()) {
-          const hits = repo.search({ query: smoke.query, category: smoke.category, limit: 3 });
+          const hits = await repo.searchSmart({ query: smoke.query, category: smoke.category, limit: 3 });
           const top = hits[0];
           const ok = Boolean(top) && smoke.ok(hits);
           checks.push({ name: `smoke:${smoke.query}`, ok, detail: top ? `${top.title} (${top.category}/${top.version})` : "sin resultado" });
