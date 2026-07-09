@@ -18,9 +18,13 @@ export interface SemanticProfile {
 
 const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]; related?: string[] }> = [
   { concept: "ibmi.rpgle.create-module", weight: 12, patterns: [/\bcrtrpgmod\b|create\s+rpg\s+module|rpg\s+module/i], related: ["ibmi.compile.rpgle", "ibmi.ile-rpg", "ibmi.command"] },
+  { concept: "ibmi.ile.service-program.signature", weight: 12, patterns: [/service\s+program|binding\s+directory|binder\s+language|program\s+signature|\bsignature\b.*\b(service|program|binding|binder|module|export)|\b(crtsrvpgm|crtpgm|crtrpgmod)\b/i], related: ["ibmi.ile-rpg", "ibmi.compile.rpgle", "ibmi.command"] },
+  { concept: "ibmi.rpg.file-access-opcodes", weight: 11, patterns: [/file\s+access\s+opcodes?|operation\s+codes?.*\b(read|chain|setll|setgt)|\b(readp|readpe|reade|chain|setll|setgt|klist|kfld|excpt)\b/i], related: ["ibmi.ile-rpg", "ibmi.rpg.opcode"] },
+  { concept: "ibmi.rpg.array-sort", weight: 11, patterns: [/sort\s+(?:an\s+)?array|array\s+sort|\bsorta\b/i], related: ["ibmi.ile-rpg", "ibmi.rpg.opcode"] },
+  { concept: "ibmi.rpg.variable-data-length", weight: 10, patterns: [/length\s+of\s+data\s+in\s+(?:a\s+)?variable|variable\s+length|data\s+length|%len|\bvarying\b/i], related: ["ibmi.ile-rpg", "ibmi.rpg.bif"] },
   { concept: "ibmi.sqlrpgle.compile-program", weight: 11, patterns: [/\bcrtsqlrpgi\b|create\s+sql\s+rpg|sql\s+rpg\s+program|sqlrpgle\s+compile/i], related: ["ibmi.compile.sqlrpgle", "ibmi.sql.embedded", "ibmi.ile-rpg"] },
   { concept: "ibmi.rpg.opcode.message", weight: 12, patterns: [/\bsnd-msg\b|send\s+a\s+message\s+to\s+the\s+joblog|message[- ]type|%\s*(msg|target)\b/i], related: ["ibmi.rpg.opcode", "ibmi.joblog.message", "ibmi.ile-rpg"] },
-  { concept: "ibmi.dds.physical-file.definition", weight: 11, patterns: [/\bdds\b.*\b(pf|physical\s+file|archivo\s+f[ií]sico)\b|defining\s+a\s+physical\s+file|physical\s+file\s+using\s+dds/i], related: ["ibmi.dds.file", "ibmi.datatype"] },
+  { concept: "ibmi.dds.physical-file.definition", weight: 11, patterns: [/\bdds\b.*\b(pf|physical\s*file|physicalfile|physic\s*file|archivo\s+f[ií]sico)\b|defining\s+a\s+physical\s*file|physical\s*file\s+using\s+dds/i], related: ["ibmi.dds.file", "ibmi.datatype"] },
   { concept: "ibmi.dds.unique-keyword", weight: 10, patterns: [/\bdds\b.*\bunique\b|\bunique\b.*\bdds\b|\bunique\b.*\b(physical|logical)\b|unique\s+\(unique\)\s+keyword|unique\s+keyword.*physical.*logical/i], related: ["ibmi.dds.file", "ibmi.dds.physical-file.definition"] },
   { concept: "ibmi.sql.embedded.copy-include", weight: 11, patterns: [/\/\s*(copy|include)\b|copy\s+include|using\s+\/copy.*\/include.*embedded\s+sql|source\s+files\s+with\s+embedded\s+sql/i], related: ["ibmi.sql.embedded", "ibmi.ile-rpg"] },
   { concept: "ibmi.cl.job.submit", weight: 11, patterns: [/\bsbmjob\b|submit\s+job|submitted\s+job/i], related: ["ibmi.cl.command", "ibmi.work-management"] },
@@ -37,10 +41,17 @@ const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]
   { concept: "ibmi.security.user-profile", weight: 11, patterns: [/user\s+profile|group\s+profile|\bdspusrprf\b|\bchgusrprf\b|\bedtobjaut\b|\*(?:secofr|secadm|pgmr|sysopr|user|oper)\b/i], related: ["ibmi.security.authority", "ibmi.cl.command", "ibmi.administration"] },
   { concept: "ibmi.security.authority", weight: 11, patterns: [/grant\s+authority|object\s+right|data\s+right|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref)\b/i], related: ["ibmi.security.user-profile", "ibmi.cl.command", "ibmi.administration"] },
   { concept: "ibmi.dds.subfile", weight: 11, patterns: [/sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i], related: ["ibmi.dds.display-file", "ibmi.dds.file"] },
+  { concept: "ibmi.dds.subfile-required-keywords", weight: 12, patterns: [/mandatory\s+keywords?.*subfile|required\s+keywords?.*subfile|subfile.*mandatory|subfile.*required|\bsfl\b.*\bsflctl\b|\bsflsiz\b.*\bsflpag\b/i], related: ["ibmi.dds.subfile", "ibmi.dds.display-file"] },
+  { concept: "ibmi.dds.record-format-discovery", weight: 10, patterns: [/record\s+formats?.*(?:used|file|display|list|see)|display\s+database\s+relations|\bdspdbr\b/i], related: ["ibmi.dds.file", "ibmi.command"] },
+  { concept: "ibmi.dds.physical-file-change-field-length", weight: 10, patterns: [/change\s+(?:the\s+)?length.*field.*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|(?:field\s*length|fieldlength).*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|\bchgpf\b/i], related: ["ibmi.dds.file", "ibmi.command"] },
   { concept: "ibmi.dds.display-file", weight: 9, patterns: [/display\s+file|\bdspf\b|\bworkstn\b|\bexfmt\b|navigation\s+between\s+two\s+screens|pantallas?|screen\s+navigation/i], related: ["ibmi.dds.subfile", "ibmi.ile-rpg"] },
   { concept: "ibmi.cl.display-file-io", weight: 10, patterns: [/\bexfmt\b.*\b(cl|command|equivalent)|\b(cl|command|equivalent).*\bexfmt\b|\bsndrcvf\b|send\/receive\s+file|send\s+receive\s+file|display\s+file.*\bcl\b/i], related: ["ibmi.cl.command", "ibmi.dds.display-file", "ibmi.command"] },
+  { concept: "ibmi.cl.data-types", weight: 11, patterns: [/data\s+types?.*\bcl\b|\bcl\b.*data\s+types?|\btype\s*\(\s*\*(char|dec|lgl)\s*\)|\*(char|dec|lgl)\b/i], related: ["ibmi.cl.command", "ibmi.datatype"] },
+  { concept: "ibmi.cl.local-data-area", weight: 11, patterns: [/\blda\b|local\s+data\s+area|\*lda\b|length\s+of\s+(?:an\s+)?lda|type\s+and\s+length\s+of\s+(?:an\s+)?lda/i], related: ["ibmi.cl.command", "ibmi.datatype"] },
   { concept: "ibmi.rds.rlu", weight: 9, patterns: [/\brlu\b|\bstrrlu\b|report\s+layout\s+utility|invoke\s+rlu/i], related: ["ibmi.cl.command", "ibmi.command"] },
   { concept: "ibmi.work-management.prestart", weight: 8, patterns: [/prestart\s+job|prestart\s+job\s+entry|prestart/i], related: ["ibmi.work-management", "ibmi.cl.command"] },
+  { concept: "ibmi.object.description.pdm", weight: 9, patterns: [/\bwrkobjpdm\b|\bdspobjd\b|object\s+description|work\s+with\s+objects?\s+using\s+pdm|pdm\s+objects?/i], related: ["ibmi.cl.command", "ibmi.command", "ibmi.administration"] },
+  { concept: "ibmi.rje.job", weight: 8, patterns: [/\bsbmrjejob\b|remote\s+job\s+entry|rje\s+job/i], related: ["ibmi.cl.job.submit", "ibmi.work-management", "ibmi.cl.command"] },
   { concept: "ibmi.cl.message.types", weight: 10, patterns: [/types?\s+of\s+message|message\s+available\s+in\s+cl|\bsndusrmsg\b|\bsndpgmmsg\b|\bsndmsg\b|\bsndbrkmsg\b|\brtvmsg\b|message\s+queue|inquiry|informational|completion|diagnostic/i], related: ["ibmi.cl.command", "ibmi.message.runtime"] },
   { concept: "ibmi.synon.functions", weight: 8, patterns: [/\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i], related: ["ibmi.third-party", "ibmi.ile-rpg"] },
   { concept: "ibmi.rpg.datetime", weight: 7, patterns: [/%\s*(time|date|timestamp)\b/i, /time\s+data\s+type/i, /date[- ]time|timestamp/i, /\b(timfmt|datfmt)\b/i, /hora|fecha|horario/i], related: ["ibmi.rpg.bif", "ibmi.datatype.time"] },
@@ -54,7 +65,7 @@ const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]
   { concept: "ibmi.compile.sqlrpgle", weight: 5, patterns: [/crtsqlrpgi|rpgg?ppopt|compile|compil|precompiler/i], related: ["ibmi.sql.embedded"] },
   { concept: "ibmi.ile-rpg", weight: 4, patterns: [/rpgle|ile\s+rpg|free[- ]form|rpg\s+free/i], related: ["ibmi.rpg.bif"] },
   { concept: "ibmi.cl.command", weight: 5, patterns: [/\b(dsp|wrk|crt|chg|snd|rtv|mon|sbm|call)[a-z0-9]{2,}\b/i, /control\s+language|\bclle\b/i], related: ["ibmi.command"] },
-  { concept: "ibmi.dds.file", weight: 5, patterns: [/\bdds\b|physical\s+file|logical\s+file|archivo\s+f[ií]sico|archivo\s+l[oó]gico|\bpf\b|\blf\b/i], related: ["ibmi.datatype"] },
+  { concept: "ibmi.dds.file", weight: 5, patterns: [/\bdds\b|physical\s*file|physicalfile|physic\s*file|logical\s*file|logicalfile|archivo\s+f[ií]sico|archivo\s+l[oó]gico|\bpf\b|\blf\b/i], related: ["ibmi.datatype"] },
   { concept: "ibmi.work-management", weight: 5, patterns: [/wrkactjob|wrkjob|dspjob|joblog|active\s+jobs?|trabajos?\s+activos?/i], related: ["ibmi.command"] },
   { concept: "ibmi.object-locks", weight: 5, patterns: [/wrkobjlck|object\s+locks?|bloqueos?|locks?/i], related: ["ibmi.work-management"] },
   { concept: "ibmi.message.rnf", weight: 5, patterns: [/rnf\d{4}|rpg\s+messages?|compiler\s+messages?/i], related: ["ibmi.compile"] },
@@ -62,10 +73,10 @@ const CONCEPT_RULES: Array<{ concept: string; weight: number; patterns: RegExp[]
 ];
 
 const CATEGORY_CONCEPTS: Record<string, string[]> = {
-  "ile-rpg": ["ibmi.ile-rpg", "ibmi.rpg.bif"],
+  "ile-rpg": ["ibmi.ile-rpg", "ibmi.rpg.bif", "ibmi.ile.service-program.signature", "ibmi.rpg.file-access-opcodes", "ibmi.rpg.array-sort", "ibmi.rpg.variable-data-length"],
   "sql-db2-for-i": ["ibmi.sql.embedded", "ibmi.sql.control"],
-  "cl-clle": ["ibmi.cl.command", "ibmi.command", "ibmi.cl.message.types", "ibmi.cl.display-file-io"],
-  dds: ["ibmi.dds.file", "ibmi.dds.display-file", "ibmi.dds.subfile", "ibmi.datatype"],
+  "cl-clle": ["ibmi.cl.command", "ibmi.command", "ibmi.cl.message.types", "ibmi.cl.display-file-io", "ibmi.cl.data-types", "ibmi.cl.local-data-area"],
+  dds: ["ibmi.dds.file", "ibmi.dds.display-file", "ibmi.dds.subfile", "ibmi.dds.subfile-required-keywords", "ibmi.datatype"],
   "mensajes-rnf": ["ibmi.message.rnf", "ibmi.compile"],
   "ile-cobol": ["ibmi.cobol"]
 };

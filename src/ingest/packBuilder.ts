@@ -362,7 +362,8 @@ function referenceBundleDefinitions(): DerivedReferenceBundleDefinition[] {
       concepts: [
         "RPG operation code", "RPG opcode", "fixed form RPG", "free form RPG",
         "indicator LR", "file positioning", "display file input output", "string concatenation",
-        "variable length field", "program return"
+        "variable length field", "program return", "file access opcodes", "array sort",
+        "SORTA", "READP", "READPE", "KLIST", "KFLD", "EXCPT"
       ],
       intents: [
         "What does EXFMT do in RPG?",
@@ -370,23 +371,30 @@ function referenceBundleDefinitions(): DerivedReferenceBundleDefinition[] {
         "How do I concatenate strings in RPG?",
         "What is the difference between RETURN and LR?",
         "What is VARYING in RPG?",
-        "How does RPG position a file before reading?"
+        "How does RPG position a file before reading?",
+        "Which RPG operation codes are used for file access?",
+        "How can an RPG array be sorted?"
       ],
       entries: [
         { term: "SETLL", meaning: "Set Lower Limit; positions a file to a key or limit before subsequent read operations." },
         { term: "SETGT", meaning: "Set Greater Than; positions a keyed file after a key value." },
         { term: "CHAIN", meaning: "Random retrieval from a file by key or relative record number." },
+        { term: "READP", meaning: "Reads the previous record from a full procedural file." },
         { term: "READE", meaning: "Read equal key records after file positioning." },
         { term: "READPE", meaning: "Read prior equal key records after file positioning." },
+        { term: "KLIST", meaning: "Legacy RPG operation code used to define a composite key list." },
+        { term: "KFLD", meaning: "Legacy RPG operation code used to define fields within a KLIST key list." },
         { term: "EXFMT", meaning: "Write a display format and then read the same format, commonly used for interactive display files." },
         { term: "WRITE", meaning: "Writes a record or display format." },
         { term: "READ", meaning: "Reads the next record or input from a format." },
+        { term: "EXCPT", meaning: "Writes exception output records in RPG output specifications." },
         { term: "CAT", meaning: "Legacy concatenate operation code for joining character strings." },
         { term: "*CAT", meaning: "CL/RPG-style concatenation operator used to concatenate strings." },
         { term: "RETURN", meaning: "Returns control from a program or procedure." },
         { term: "*INLR", meaning: "Last-record indicator commonly used by RPG programs to end and close resources." },
         { term: "SETON LR", meaning: "Legacy pattern for setting the LR indicator on." },
         { term: "VARYING", meaning: "Variable-length alphanumeric/graphic field support in RPG definitions." },
+        { term: "SORTA", meaning: "Sorts an RPG array in ascending sequence unless alternate ordering is specified by the language form." },
         { term: "%FOUND", meaning: "Built-in function used to test whether operations such as SETLL or CHAIN found a record." },
         { term: "%LEN", meaning: "Built-in function that returns current or maximum length, including varying-length fields." }
       ]
@@ -398,10 +406,13 @@ function referenceBundleDefinitions(): DerivedReferenceBundleDefinition[] {
       category: "cl-clle",
       concepts: [
         "CL command", "CL variable declaration", "CL logical variable", "CL decimal variable",
+        "CL character variable", "CL data types", "local data area", "LDA",
         "CL label", "program message", "user message", "database file override", "open query file"
       ],
       intents: [
         "What variable types are available in CL?",
+        "What are the data types available in CL?",
+        "What is the type and length of an LDA?",
         "How do I send a message from CL?",
         "What is a command label?",
         "What command is required before OPNQRYF?",
@@ -413,6 +424,11 @@ function referenceBundleDefinitions(): DerivedReferenceBundleDefinition[] {
         { term: "TYPE(*CHAR)", meaning: "Character CL variable type." },
         { term: "TYPE(*DEC)", meaning: "Packed decimal CL variable type." },
         { term: "TYPE(*LGL)", meaning: "Logical CL variable type." },
+        { term: "*CHAR", meaning: "CL character data type, declared with DCL TYPE(*CHAR)." },
+        { term: "*DEC", meaning: "CL packed decimal data type, declared with DCL TYPE(*DEC)." },
+        { term: "*LGL", meaning: "CL logical data type, declared with DCL TYPE(*LGL)." },
+        { term: "*LDA", meaning: "Local Data Area available to a job; commonly treated as a 1024-character local data area." },
+        { term: "LDA length", meaning: "The local data area is commonly described as a character data area of 1024 positions for job-local exchange." },
         { term: "GOTO CMDLBL", meaning: "Transfers control to a command label inside a CL procedure or program." },
         { term: "CMDLBL", meaning: "Command label used as a target for GOTO or MONMSG handling." },
         { term: "SNDPGMMSG", meaning: "Sends a program message, including completion, diagnostic, escape or informational messages." },
@@ -434,16 +450,21 @@ function referenceBundleDefinitions(): DerivedReferenceBundleDefinition[] {
       category: "dds",
       concepts: [
         "DDS display file", "subfile control record", "subfile display", "restore display",
-        "message subfile", "function key", "redisplay screen", "display format"
+        "message subfile", "function key", "redisplay screen", "display format",
+        "mandatory subfile keywords", "required subfile keywords", "SFL", "SFLCTL",
+        "SFLDSP", "SFLDSPCTL", "SFLSIZ", "SFLPAG"
       ],
       intents: [
         "What keyword is used when a screen is redisplayed?",
         "What are the required keywords for a message subfile?",
+        "Write down mandatory keywords used when defining a subfile",
+        "Which DDS keywords are mandatory for a subfile?",
         "How do function keys work in DDS?",
         "Which keyword controls subfile display?",
         "What does ERRMSG do in a display file?"
       ],
       entries: [
+        { term: "SFL", meaning: "DDS keyword that identifies the record format as the subfile record format." },
         { term: "RSTDSP", meaning: "Restore display keyword/parameter used to restore the display when returning to a screen." },
         { term: "USRRSTDSP", meaning: "User Restore Display keyword for display files." },
         { term: "SFLDSP", meaning: "Subfile display keyword." },
@@ -742,17 +763,20 @@ function commandGroupDefinitions(): Array<{
       category: "cl-clle",
       commands: [
         "DSPFD", "DSPFFD", "WRKMBRPDM", "DSPDBR", "DSPPGMREF", "CRTPF", "CRTLF", "DSPPFM", "CPYF", "RUNQRY", "STRSQL",
-        "OVRDBF", "OPNQRYF"
+        "OVRDBF", "OPNQRYF", "CHGPF"
       ],
       intents: [
         "How do I list members of a file?",
         "How can I see what files a program uses?",
         "How do I inspect database relations or logical files?",
+        "How can I see all record formats used in a file?",
+        "How do I display database relations for record formats and dependent files?",
         "Which commands help inspect physical files, field descriptions and dependencies?",
         "What command is commonly used before OPNQRYF?",
-        "What does OVRDBF stand for?"
+        "What does OVRDBF stand for?",
+        "How do I change the length of a field in a physical file?"
       ],
-      keywords: ["physical file", "logical file", "members", "program references", "database relations", "DSPFD", "DSPDBR", "DSPPGMREF", "OVRDBF", "OPNQRYF"]
+      keywords: ["physical file", "logical file", "members", "program references", "database relations", "record format", "field length", "DSPFD", "DSPDBR", "DSPPGMREF", "DSPFFD", "CHGPF", "OVRDBF", "OPNQRYF"]
     }
   ];
 }

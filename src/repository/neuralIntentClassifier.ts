@@ -212,7 +212,8 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
     title: "ILE RPG native file input output and file specifications",
     body: [
       "The user asks how to interpret native RPG file operations such as WRITE, UPDATE, READ, CHAIN and F-spec or DCL-F declarations against physical files and logical files.",
-      "Explain file specification, update-capable files, record formats, key fields and logical file access path implications."
+      "Explain file specification, update-capable files, record formats, key fields and logical file access path implications.",
+      "When the question mentions a local file/table/object and asks which programs use, write or update it, include program-reference discovery with DSPPGMREF in the same retrieval plan."
     ].join(" "),
     intent: "syntax_lookup",
     family: "db2_catalog_query",
@@ -226,6 +227,8 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
       "UPDATE operation code RPG",
       "DCL-F file declaration ILE RPG",
       "DDS logical file key fields",
+      "DSPPGMREF Display Program References",
+      "Display Program References IBM i",
       "DSPDBR logical physical file relations"
     ]
   },
@@ -360,7 +363,8 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
     id: "dds-physical-logical-file-design",
     title: "DDS physical logical file design",
     body: [
-      "The user wants to define DDS physical files or logical files, PF, LF, record formats, keys, UNIQUE, FIFO, LIFO, FCFO or CRTPF CRTLF commands."
+      "The user wants to define DDS physical files or logical files, PF, LF, record formats, keys, UNIQUE, FIFO, LIFO, FCFO, field length changes or CRTPF CRTLF CHGPF commands.",
+      "Users may write physicalfile, physical file, physic file, PF, fieldlength or field length when they mean DDS physical-file maintenance."
     ].join(" "),
     intent: "explain_topic",
     family: "design_dds_file",
@@ -373,8 +377,35 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
       "DDS for physical and logical files",
       "DDS keywords physical logical files",
       "UNIQUE keyword physical logical files",
+      "record format physical file logical file DDS",
+      "CHGPF change physical file field length",
+      "How to change the length of the field in a physicalfile",
       "CRTPF command",
       "CRTLF command"
+    ]
+  },
+  {
+    id: "database-record-format-discovery",
+    title: "IBM i database record format dependency discovery DSPDBR DSPFD DSPFFD CHGPF lookup",
+    body: [
+      "The user asks how to see all record formats used in a physical file or logical file, inspect database relations, display file field descriptions or change a field length in a physical file.",
+      "The same intent may be phrased with compact or novice spellings such as physicalfile, physic file, fieldlength, PF field length or physical file field size.",
+      "This is IBM i database-file command guidance for DSPDBR, DSPFD, DSPFFD, DSPPGMREF and CHGPF.",
+      "Retrieve the derived database file dependency command bundle and DDS file documentation instead of generic DB2 catalog overviews."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "design_dds_file",
+    axes: ["syntax", "database"],
+    language: "DDS",
+    category: "dds",
+    signals: ["neural-record-format-discovery", "dspdbr", "dspfd", "dspffd", "chgpf"],
+    queries: [
+      "DSPDBR Display Database Relations record format physical file logical file",
+      "How to see all record formats used in a file",
+      "DSPFD DSPFFD display field descriptions physical file",
+      "CHGPF change physical file field length",
+      "Change field length in physicalfile PF",
+      "IBM i database file member dependency commands DSPDBR DSPFFD CHGPF"
     ]
   },
   {
@@ -394,6 +425,7 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
     signals: ["neural-dds-keyword", "display-file-keyword", "screen-redisplay", "subfile-message"],
     queries: [
       "DDS display file and subfile keywords",
+      "mandatory required subfile keywords SFL SFLCTL SFLDSP SFLDSPCTL SFLSIZ SFLPAG",
       "RSTDSP restore display keyword DDS display file",
       "USRRSTDSP User Restore Display keyword for display files",
       "SFLDSPCTL subfile control display keyword",
@@ -403,11 +435,32 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
     ]
   },
   {
+    id: "dds-subfile-required-keywords-lookup",
+    title: "DDS mandatory required subfile keywords SFL SFLCTL SFLDSP SFLSIZ SFLPAG lookup",
+    body: [
+      "The user asks which keywords are mandatory or required when defining a DDS subfile.",
+      "This is a DDS display file and subfile keyword lookup for SFL, SFLCTL, SFLDSP, SFLDSPCTL, SFLSIZ and SFLPAG.",
+      "Retrieve the DDS subfile keyword reference and the derived display-subfile semantic bundle."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "design_display_or_report",
+    axes: ["syntax", "code"],
+    language: "DDS",
+    category: "dds",
+    signals: ["neural-dds-subfile-required", "subfile", "mandatory-keywords"],
+    queries: [
+      "mandatory required subfile keywords SFL SFLCTL SFLDSP SFLDSPCTL SFLSIZ SFLPAG",
+      "Write down mandatory keywords used when defining a subfile",
+      "DDS display file and subfile keywords",
+      "SFLDSP SFLDSPCTL SFLCTL SFLPAG SFLSIZ display file keywords"
+    ]
+  },
+  {
     id: "rpg-operation-code-lookup",
     title: "RPG operation code SETLL EXFMT CAT RETURN VARYING lookup",
     body: [
       "The user asks what an RPG operation code, indicator or keyword does.",
-      "They may ask interview-style questions about SETLL, EXFMT, CAT, RETURN, LR, SETON LR, VARYING, CHAIN, READE or file positioning.",
+      "They may ask interview-style questions about SETLL, SETGT, READ, READP, READE, READPE, CHAIN, KLIST, KFLD, EXCPT, SORTA, EXFMT, CAT, RETURN, LR, SETON LR, VARYING, array sorting or file positioning.",
       "This is RPG syntax and language reference lookup, not generic IBM i command lookup.",
       "Retrieve ILE RPG operation code reference and the derived operation-code semantic bundle."
     ].join(" "),
@@ -416,15 +469,59 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
     axes: ["syntax", "code"],
     language: "RPGLE",
     category: "ile-rpg",
-    signals: ["neural-rpg-opcode", "setll", "exfmt", "varying", "lr-indicator"],
+    signals: ["neural-rpg-opcode", "setll", "exfmt", "varying", "lr-indicator", "file-access-opcodes", "array-sort"],
     queries: [
       "ILE RPG operation codes indicators string operations",
+      "RPG file access opcodes READ SETLL SETGT READE READP READPE CHAIN KLIST KFLD EXCPT WRITE",
+      "SORTA Sort an Array RPG operation code",
       "SETLL Set Lower Limit RPG operation code",
       "EXFMT Write Then Read Format RPG operation code",
       "CAT Concatenate Two Strings RPG operation code",
       "RETURN operation RPG LR indicator",
       "VARYING keyword RPG variable length field",
       "%FOUND SETLL CHAIN RPG"
+    ]
+  },
+  {
+    id: "rpg-array-sort-lookup",
+    title: "ILE RPG array sorting SORTA operation code lookup",
+    body: [
+      "The user asks how to sort an array in RPG, RPGLE or AS/400 interview context.",
+      "This is an ILE RPG operation-code lookup for SORTA and array sorting semantics.",
+      "Retrieve the derived RPG operation-code bundle and RPG language reference instead of generic array or SQL ordering pages."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code"],
+    language: "RPGLE",
+    category: "ile-rpg",
+    signals: ["neural-rpg-array-sort", "sorta", "array-sort"],
+    queries: [
+      "SORTA Sort an Array RPG operation code",
+      "How can we sort an array in RPG",
+      "ILE RPG operation codes indicators string operations SORTA",
+      "RPG array sort operation code"
+    ]
+  },
+  {
+    id: "rpg-variable-length-bif-lookup",
+    title: "ILE RPG variable data length %LEN VARYING built-in function lookup",
+    body: [
+      "The user asks how to get the length of data in a variable, current length, maximum length, variable-length fields or VARYING character data in RPG.",
+      "This is an ILE RPG built-in function and language reference lookup for %LEN and variable-length fields.",
+      "Retrieve %LEN, VARYING and the derived RPG operation-code/BIF semantic bundle instead of generic variable documentation."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code"],
+    language: "RPGLE",
+    category: "ile-rpg",
+    signals: ["neural-rpg-variable-length", "%len", "varying"],
+    queries: [
+      "%LEN built-in function RPG variable length",
+      "How to get the length of data in a variable RPG",
+      "VARYING keyword RPG variable length field",
+      "ILE RPG built-in functions %LEN"
     ]
   },
   {
@@ -445,8 +542,30 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
       "Declaring variables to a CL program or procedure",
       "Variables in CL commands",
       "DCL TYPE(*CHAR) TYPE(*DEC) TYPE(*LGL) CL variables",
+      "What are the data types available in CL *CHAR *DEC *LGL",
       "CL variable value character packed decimal logical integer pointer",
       "CL commands variables labels messages database overrides"
+    ]
+  },
+  {
+    id: "cl-local-data-area-lookup",
+    title: "CL local data area LDA type length lookup",
+    body: [
+      "The user asks about LDA, *LDA, Local Data Area, its type, length, size or how it is represented in CL and IBM i programs.",
+      "This is CL and IBM i data area reference, especially the local data area treated as a character area of 1024 positions.",
+      "Retrieve CL variable/data-area evidence and the derived CL semantic bundle."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "code"],
+    language: "CLLE",
+    category: "cl-clle",
+    signals: ["neural-cl-lda", "local-data-area", "lda"],
+    queries: [
+      "Local Data Area LDA *LDA type length 1024 character",
+      "What is the type and length of an LDA",
+      "CL commands variables labels messages database overrides LDA",
+      "IBM i data area local data area"
     ]
   },
   {
@@ -522,8 +641,8 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
       "Retrieve ILE module and service program documentation."
     ].join(" "),
     intent: "explain_topic",
-    family: "create_program",
-    axes: ["syntax", "compile", "code"],
+    family: "general_explanation",
+    axes: ["primary", "syntax", "compile"],
     language: "RPGLE",
     category: "ile-rpg",
     signals: ["neural-ile-module", "service-program", "binding", "signature"],
@@ -533,7 +652,50 @@ const PROTOTYPES: NeuralAssistPrototype[] = [
       "CRTRPGMOD CRTPGM CRTSRVPGM module service program",
       "Binding directory IBM i ILE RPG",
       "Binder language service program signature",
-      "CALLP procedure service program"
+      "CALLP procedure service program",
+      "service program signature length exports binder language",
+      "how long is an ILE service program signature"
+    ]
+  },
+  {
+    id: "object-description-pdm-lookup",
+    title: "IBM i object description PDM commands WRKOBJPDM DSPOBJD lookup",
+    body: [
+      "The user asks how to inspect object descriptions, object metadata, object attributes, PDM object lists, WRKOBJPDM, DSPOBJD or Work with Objects using PDM.",
+      "Retrieve IBM i command documentation for object description and PDM object discovery instead of generic command finder pages."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "administration"],
+    language: "CLLE",
+    category: "cl-clle",
+    signals: ["neural-object-description", "wrkobjpdm", "dspobjd", "pdm-object"],
+    queries: [
+      "WRKOBJPDM Work with Objects using PDM",
+      "DSPOBJD Display Object Description command",
+      "IBM i object description object attributes",
+      "PDM work with objects command",
+      "how to see what an IBM i object is and its description"
+    ]
+  },
+  {
+    id: "remote-job-entry-command-lookup",
+    title: "IBM i remote job entry RJE command SBMRJEJOB lookup",
+    body: [
+      "The user asks about remote job entry, RJE jobs, submitting remote jobs or SBMRJEJOB.",
+      "Retrieve command and work management evidence for remote job entry without drifting into unrelated batch scheduler topics."
+    ].join(" "),
+    intent: "syntax_lookup",
+    family: "command_lookup",
+    axes: ["syntax", "administration"],
+    language: "CLLE",
+    category: "cl-clle",
+    signals: ["neural-rje", "sbmrjejob", "remote-job-entry"],
+    queries: [
+      "SBMRJEJOB Submit Remote Job Entry Job command",
+      "remote job entry RJE IBM i",
+      "submit remote job entry job",
+      "RJE job command parameters"
     ]
   },
   {

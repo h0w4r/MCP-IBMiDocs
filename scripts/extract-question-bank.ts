@@ -1345,6 +1345,7 @@ function isEvaluationEligible(input: {
 }
 
 function looksLikeQuestionBankNoise(question: string, answer: string): boolean {
+  const rawCombined = `${question}\n${answer}`;
   const combined = fold(`${question}\n${answer}`);
   const readMoreCount = (combined.match(/\bread more\b/g) ?? []).length;
   const unrelatedSignals = [
@@ -1356,9 +1357,27 @@ function looksLikeQuestionBankNoise(question: string, answer: string): boolean {
     "social profiles",
     "citation preview",
     "full description",
-    "international behaviour"
+    "international behaviour",
+    "certification exam",
+    "training provider",
+    "virtual academy"
   ].filter((signal) => combined.includes(signal)).length;
-  const hasStrongIbmiSignal = /\b(as\/?400|ibm\s+i|iseries|system\s+i|rpgle|rpg\/400|sqlrpgle|db2\s+for\s+i|clle|cl\/400|dds)\b/i.test(`${question}\n${answer}`);
+  const hasStrongIbmiSignal = hasQuestionBankTechnicalSignal(question, answer);
+
+  // Ruido comercial/educativo: sirve para navegación humana, pero no como ground
+  // truth técnico del MCP. Meterlo al gate termina castigando al motor por no
+  // contestar marketing de academias. Y sí, eso sería probar un destornillador
+  // midiendo si hace buen café.
+  if (isCommercialTrainingNoise(combined)) return true;
+
+  // Preguntas truncadas de PDFs/HTML mal extraídos no tienen intención completa.
+  // Si entran al lote, el evaluador compara contra una sombra de pregunta.
+  if (isTruncatedQuestionBankQuestion(question)) return true;
+
+  // Algunos bancos mezclan preguntas genéricas ("length of Signature") con
+  // respuestas de un dominio no IBM i. Si no hay señal técnica fuerte, se excluye
+  // en la etapa de desarrollo para evitar falsos negativos del MCP documental.
+  if (!hasStrongIbmiSignal && isLowContextGenericQuestionBankCase(question, answer)) return true;
 
   // Páginas agregadoras tipo preview mezclan títulos/documentos ajenos. Si hay
   // varias señales no IBM i, el caso no es confiable aunque aparezca "AS400" en
@@ -1366,6 +1385,43 @@ function looksLikeQuestionBankNoise(question: string, answer: string): boolean {
   if (unrelatedSignals >= 2) return true;
   if (readMoreCount >= 3 && unrelatedSignals >= 1) return true;
   if (!hasStrongIbmiSignal && unrelatedSignals >= 1) return true;
+  return false;
+}
+
+function hasQuestionBankTechnicalSignal(question: string, answer: string): boolean {
+  const combined = `${question}\n${answer}`;
+  return /\b(as\/?400|ibm\s+i|iseries|system\s+i|rpg(?:le|\/400|400)?|ile\s+rpg|sqlrpgle|db2\s+for\s+i|db2\/400|clle|cl\/400|dds|qsys2?|cobol\/400)\b/i.test(combined)
+    || /%[A-Z][A-Z0-9_-]*|\*[A-Z][A-Z0-9_]*/i.test(combined)
+    || /\b(?:CPF|MCH|RNF|SQL)\d{4,5}\b/i.test(combined)
+    || /\b(?:CRT|DSP|WRK|CHG|DLT|STR|END|SBM|SND|RTV|OVR|MON|CPY|ADD|RMV|DCL|RCV|RUN|SAV|RST)[A-Z0-9]{2,}\b/i.test(combined)
+    || /\b(service\s+program|binding\s+directory|binder\s+language|activation\s+group|sub[-\s]?file|physical\s+file|logical\s+file|record\s+format|library\s+list|job\s+queue|journal\s+receiver|data\s+area|data\s+queue|object\s+authority|object\s+locks?|source\s+member|spool\s+file|joblog|message\s+queue)\b/i.test(combined);
+}
+
+function isCommercialTrainingNoise(combined: string): boolean {
+  return /\b(multisoft|virtual academy|training provider|course availability|completion certificate|certifications?|certified|enroll|instructor[-\s]?led|bootcamp|global training|does .* offer certifications?)\b/i.test(combined);
+}
+
+function isTruncatedQuestionBankQuestion(question: string): boolean {
+  const normalized = cleanInlineText(question);
+  if (!normalized) return false;
+  if (/which are mandatory and which\s*$/i.test(normalized)) return true;
+  if (/\b(which|what|where|when|why|how|and|or|with|without|from|for|to)\s*$/i.test(normalized) && normalized.length < 180) return true;
+  return false;
+}
+
+function isLowContextGenericQuestionBankCase(question: string, answer: string): boolean {
+  const foldedQuestion = fold(question);
+  const foldedCombined = fold(`${question}\n${answer}`);
+  const cleanedAnswer = cleanInlineText(answer);
+  const questionWordCount = cleanInlineText(question).split(/\s+/g).filter(Boolean).length;
+  const answerWordCount = cleanedAnswer.split(/\s+/g).filter(Boolean).length;
+  const shortAnswer = answerWordCount <= 10 || isConciseTechnicalAnswer(cleanedAnswer);
+
+  if (/\bsignature\b/.test(foldedQuestion)
+    && !/\b(service program|binder|binding|export|ile|module|crtsrvpgm|crtrpgmod|crtpgm)\b/.test(foldedCombined)) {
+    return true;
+  }
+  if (shortAnswer && questionWordCount <= 9 && /\b(length|format|formats|mandatory|required|offer|available)\b/.test(foldedQuestion)) return true;
   return false;
 }
 

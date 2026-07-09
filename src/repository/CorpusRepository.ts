@@ -9,6 +9,7 @@ import {
   cosineSimilarity as neuralCosineSimilarity,
   embedTexts,
   embeddingModelDiagnostics,
+  semanticPassageText,
   semanticQueryText
 } from "./neuralEmbeddings.js";
 import {
@@ -88,6 +89,9 @@ const IBM_I_COMMAND_FALSE_POSITIVES = new Set([
 ]);
 const IBM_I_COMMAND_ALIASES: Record<string, string[]> = {
   dspfd: ["display file description", "database files and device files", "member list", "TYPE(*MBRLIST)", "file members"],
+  dspffd: ["display file field description", "field descriptions", "physical file field description", "record format fields"],
+  dspdbr: ["display database relations", "database relations", "record formats used in a file", "logical file relations", "dependent files"],
+  chgpf: ["change physical file", "physical file field length", "change field length", "DDS physical file source change", "recompile physical file"],
   monmsg: ["monitor message", "monitor message command"],
   rtvjoba: ["retrieve job attributes", "retrieve job attributes command", "job attributes"],
   sbmjob: ["submit job", "submit job command", "submitted job"],
@@ -104,6 +108,8 @@ const IBM_I_COMMAND_ALIASES: Record<string, string[]> = {
   wrkjoblog: ["work with job logs", "displaying a job log", "job log"],
   dspjoblog: ["display job log", "displaying a job log", "job log"],
   wrkmbrpdm: ["work with members using pdm", "work with members", "source members", "file members", "rational development studio commands"],
+  wrkobjpdm: ["work with objects using pdm", "work with objects", "displaying object descriptions", "wrkobj", "dspobjd", "object description"],
+  dspobjd: ["display object description", "displaying object descriptions", "object description", "object attributes", "wrkobj"],
   sndrcvf: ["send receive file", "send/receive file", "display file input output in CL", "EXFMT equivalent in CL", "working with multiple device display files"],
   strrlu: ["start report layout utility", "report layout utility", "RLU", "IBM Rational Development Studio for i commands", "rational development studio commands"]
 };
@@ -137,6 +143,9 @@ interface SemanticCategoryScope {
   predictions: SemanticCategoryPrediction[];
   expanded: boolean;
 }
+
+const NEURAL_RERANK_VECTOR_CACHE_LIMIT = 4096;
+const neuralRerankVectorCache = new Map<string, Float32Array>();
 
 // Expansiones semánticas locales: no dependen de embeddings externos ni red.
 // Funcionan como una capa de "recall" para prompts naturales de agentes.
@@ -229,7 +238,7 @@ const SEMANTIC_EXPANSIONS: Array<{ pattern: RegExp; queries: string[]; signals: 
     signals: ["rnf-message"]
   },
   {
-    pattern: /\bdds\b|\bpf\b|\blf\b|physical file|logical file|archivo f[ií]sico|archivo l[oó]gico/i,
+    pattern: /\bdds\b|\bpf\b|\blf\b|physical\s*file|physicalfile|physic\s*file|logical\s*file|logicalfile|archivo f[ií]sico|archivo l[oó]gico/i,
     queries: ["Defining a physical file using DDS", "DDS for physical and logical files", "DDS keywords physical logical files", "CRTPF command"],
     signals: ["dds", "database-file"]
   },
@@ -775,10 +784,11 @@ export class CorpusRepository {
       }
     }
 
+    const candidatePoolLimit = useNeuralOnlyRanking ? Math.min(Math.max(limit * 3, 12), 24) : limit;
     const sortedResults = [...bestByDocument.values()]
       .filter((candidate) => candidate.documentKind !== "stub" && candidate.documentKind !== "landing")
       .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
-      .slice(0, limit)
+      .slice(0, candidatePoolLimit)
       .map((candidate) => {
         const hit = rowToHit({ ...candidate.row, rank: candidate.semanticScore }, options.query);
         hit.documentKind = candidate.documentKind;
@@ -788,7 +798,9 @@ export class CorpusRepository {
         hit.relevanceWarnings = [];
         return hit;
       });
-    const neuralRankedResults = useNeuralOnlyRanking ? sortedResults : projectSemanticCommandTopic(sortedResults, options, limit);
+    const neuralRankedResults = useNeuralOnlyRanking
+      ? await rerankNeuralSearchHits({ queryVector, hits: sortedResults, limit, similarity: runtime.similarity })
+      : projectSemanticCommandTopic(sortedResults, options, limit);
     let results = annotateSemanticCategoryScope(neuralRankedResults, categoryScope);
 
     if (options.version && runtime.broaderSearch) {
@@ -1348,6 +1360,7 @@ export class CorpusRepository {
     const limit = clamp(options.limit, defaultLimit, 1, 12);
     const preset = resolvePreset(options.language ?? options.question ?? options.code);
     const neuralProfile = await classifyAssistIntentNeural(options);
+    const lowContextAmbiguityWarning = buildLowContextAmbiguityWarning(options.question, neuralProfile);
     const intent = neuralProfile.intent;
     const detectedSignals = [...new Set([
       ...neuralProfile.signals,
@@ -1398,9 +1411,12 @@ export class CorpusRepository {
       citations: [],
       context,
       suggestedTools: [],
-      warnings: neuralProfile.localArtifacts.length
-        ? [`Artefactos locales detectados (${neuralProfile.localArtifacts.join(", ")}); se generaliza la consulta para buscar el patrón documental IBM i aplicable, no esos nombres privados del servidor.`]
-        : []
+      warnings: [
+        ...(neuralProfile.localArtifacts.length
+          ? [`Artefactos locales detectados (${neuralProfile.localArtifacts.join(", ")}); se generaliza la consulta para buscar el patrón documental IBM i aplicable, no esos nombres privados del servidor.`]
+          : []),
+        ...(lowContextAmbiguityWarning ? [lowContextAmbiguityWarning] : [])
+      ]
     };
 
     const agenticRetrieval = await this.runAssistRetrievalPlanSmart({
@@ -1477,7 +1493,11 @@ export class CorpusRepository {
       citations
     });
     const hasFilteredMaterial = responseMaterial.evidence.length || responseMaterial.reads.length || responseMaterial.sections.length;
-    const material = hasFilteredMaterial ? responseMaterial : { evidence, reads, sections, citations };
+    const material = lowContextAmbiguityWarning
+      ? { evidence: [], reads: [], sections: [], citations: [] }
+      : hasFilteredMaterial
+        ? responseMaterial
+        : { evidence, reads, sections, citations };
     const coverage = buildAssistCoverage({
       question: options.question,
       evidence: material.evidence,
@@ -2963,7 +2983,9 @@ function semanticTitleIntentBoost(queryConcepts: string[], query: string, hit: S
 
 function documentKindScoreAdjustment(hit: SearchHit): number {
   const title = fold(hit.title);
-  if (/derived-command-group/.test(hit.canonicalTopicKey ?? "")) return 8;
+  const key = fold(hit.canonicalTopicKey ?? "");
+  if (/derived-reference-bundle/.test(key)) return 12;
+  if (/derived-command-group/.test(key)) return 12;
   if (/^(sql|tables|dds concepts|examples?: dds syntax|cl command finder|ibm i commands)$/.test(title)) return -24;
   switch (hit.documentKind) {
     case "topic":
@@ -2987,6 +3009,114 @@ function neuralSemanticPriorScore(input: { canonicalTopicKey?: string; semanticS
   if (score >= 0.82) return 2;
   if (score >= 0.76) return 1;
   return 0;
+}
+
+async function rerankNeuralSearchHits(input: {
+  queryVector: Float32Array;
+  hits: SearchHit[];
+  limit: number;
+  similarity: (a: Float32Array, b: Float32Array) => number;
+}): Promise<SearchHit[]> {
+  const { queryVector, hits, limit, similarity } = input;
+  if (hits.length <= 1) return hits.slice(0, limit);
+
+  const titleTexts = hits.map((hit) => semanticPassageText({
+    title: hit.title,
+    body: [hit.breadcrumbs.join(" > "), hit.category, hit.version, hit.canonicalTopicKey ?? ""].filter(Boolean).join("\n"),
+    category: hit.category,
+    breadcrumbs: hit.breadcrumbs,
+    version: hit.version
+  }));
+  const passageTexts = hits.map((hit) => semanticPassageText({
+    title: hit.title,
+    body: [hit.snippet, hit.breadcrumbs.join(" > "), hit.canonicalTopicKey ?? ""].filter(Boolean).join("\n").slice(0, 1600),
+    category: hit.category,
+    breadcrumbs: hit.breadcrumbs,
+    version: hit.version
+  }));
+
+  const vectors = await embedRerankPassages([...titleTexts, ...passageTexts]);
+  const titleVectors = vectors.slice(0, hits.length);
+  const passageVectors = vectors.slice(hits.length);
+  if (titleVectors.length !== hits.length || passageVectors.length !== hits.length) return hits.slice(0, limit);
+
+  return hits
+    .map((hit, index) => {
+      const titleFocus = similarity(queryVector, titleVectors[index]);
+      const passageFocus = similarity(queryVector, passageVectors[index]);
+      const focus = Math.max(titleFocus, passageFocus);
+      const broadPenalty = broadReferencePenalty(hit, focus);
+      const rerankScore = Math.round((
+        hit.score * 0.55
+        + titleFocus * 42
+        + passageFocus * 38
+        + broadPenalty
+        + (hit.synthetic ? 6 : 0)
+      ) * 100000) / 100000;
+
+      return {
+        ...hit,
+        score: rerankScore,
+        semanticScore: Math.round(Math.max(hit.semanticScore ?? 0, focus) * 100000) / 100000,
+        matchReasons: [...new Set([
+          ...(hit.matchReasons ?? []),
+          `reranking neuronal title=${Math.round(titleFocus * 10000) / 10000}, passage=${Math.round(passageFocus * 10000) / 10000}`
+        ])],
+        relevanceWarnings: broadPenalty < 0
+          ? [...new Set([...(hit.relevanceWarnings ?? []), "Documento amplio/de referencia general degradado por reranking neuronal; úsalo solo si no hay tópico más específico."])]
+          : hit.relevanceWarnings
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+    .slice(0, limit);
+}
+
+async function embedRerankPassages(texts: string[]): Promise<Float32Array[]> {
+  const vectors: Array<Float32Array | undefined> = new Array(texts.length);
+  const missingTexts: string[] = [];
+  const missingIndexes: number[] = [];
+
+  texts.forEach((text, index) => {
+    const key = text.trim();
+    const cached = neuralRerankVectorCache.get(key);
+    if (cached) {
+      vectors[index] = cached;
+      return;
+    }
+    missingTexts.push(key);
+    missingIndexes.push(index);
+  });
+
+  if (missingTexts.length) {
+    const embedded = await embedTexts(missingTexts, { localOnly: true, kind: "passage" });
+    embedded.forEach((vector, offset) => {
+      const index = missingIndexes[offset];
+      vectors[index] = vector;
+      neuralRerankVectorCache.set(missingTexts[offset], vector);
+    });
+    while (neuralRerankVectorCache.size > NEURAL_RERANK_VECTOR_CACHE_LIMIT) {
+      const oldestKey = neuralRerankVectorCache.keys().next().value as string | undefined;
+      if (!oldestKey) break;
+      neuralRerankVectorCache.delete(oldestKey);
+    }
+  }
+
+  return vectors.filter((value): value is Float32Array => Boolean(value));
+}
+
+function isBroadReferenceHit(hit: Pick<SearchHit, "title" | "canonicalTopicKey" | "category" | "documentKind">): boolean {
+  const title = fold(hit.title);
+  const key = fold(hit.canonicalTopicKey ?? "");
+  const broadTitle = /^(reserved words|db2 for i catalog views|syscolumns2|listing of sql messages|procedure division statements|cl command finder|ibm i commands|sql|tables|dds concepts|built-in functions)$/.test(title);
+  const broadKey = /\b(reserved-words|catalog-views|syscolumns2|listing-of-sql-messages|procedure-division-statements|cl-command-finder|ibm-i-commands)\b/.test(key);
+  return broadTitle || broadKey || hit.documentKind === "index";
+}
+
+function broadReferencePenalty(hit: SearchHit, neuralFocus: number): number {
+  if (!isBroadReferenceHit(hit)) return 0;
+  if (neuralFocus >= 0.86) return 0;
+  if (neuralFocus >= 0.80) return -12;
+  return -34;
 }
 
 function shouldPreferBroaderSemanticScope(current: SearchHit[], broader: SearchHit[]): boolean {
@@ -3222,6 +3352,9 @@ function buildRelevanceWarnings(hit: SearchHit, body: string, options: SearchOpt
   if (messageId && !isMessageEvidenceHit(hit, messageId)) {
     warnings.push(`Resultado de apoyo para ${messageId}; validar contra la familia documental de mensajes antes de usarlo como diagnóstico.`);
   }
+  if (isBroadReferenceHit(hit) && (hit.semanticScore ?? 0) < 0.86) {
+    warnings.push("Resultado amplio/de referencia general; no debe usarse como evidencia principal si existe un tópico más específico.");
+  }
   if (hit.documentKind === "stub") warnings.push("Documento clasificado como stub/corto; úsalo solo como pista, no como evidencia principal.");
   if (hit.documentKind === "index") warnings.push("Documento clasificado como índice/novedades; puede mencionar un concepto sin ser el tópico principal.");
   return [...new Set(warnings)];
@@ -3235,7 +3368,11 @@ function selectAnswerEvidence(hits: SearchHit[], query: string): SearchHit[] {
     const hitConcepts = buildSemanticProfile({ title: hit.title, category: hit.category, breadcrumbs: hit.breadcrumbs, body: hit.snippet }).concepts;
     return hitConcepts.some((concept) => profile.concepts.includes(concept)) || hit.score >= 18;
   });
-  return filtered.length ? filtered : hits.filter((hit) => hit.documentKind !== "landing").slice(0, 1);
+  const focused = filtered.filter((hit) => !isBroadReferenceHit(hit) || (hit.semanticScore ?? 0) >= 0.86);
+  if (focused.length) return focused;
+  if (filtered.length) return filtered;
+  const fallbackCandidates = hits.filter((hit) => hit.documentKind !== "landing" && !isBroadReferenceHit(hit));
+  return (fallbackCandidates.length ? fallbackCandidates : hits.filter((hit) => hit.documentKind !== "landing")).slice(0, 1);
 }
 
 function buildContextQueries(task: string, preset?: LanguagePreset): string[] {
@@ -3790,6 +3927,7 @@ function contextEvidenceScore(hit: SearchHit, task: string): number {
   if (hit.synthetic) score += 8;
   if (hit.documentKind === "topic" || hit.documentKind === "reference") score += 12;
   if (hit.documentKind === "index") score -= 15;
+  score += broadReferencePenalty(hit, hit.semanticScore ?? 0);
   return score;
 }
 
@@ -3839,7 +3977,7 @@ function filterAssistResponseMaterial(input: {
   sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
   citations: AnswerCitation[];
 } {
-  const isRelevant = (text: string): boolean => isRelevantForTaskPlan(input.taskPlan, text);
+  const isRelevant = (text: string): boolean => isRelevantForTaskPlan(input.taskPlan, text) && isRelevantForQuestionFocus(input.question, text);
   const isDistracting = (text: string): boolean => isDistractingForTaskPlan(input.taskPlan, input.question, text);
   const evidence = input.evidence.filter((hit) => {
     const text = [hit.title, hit.snippet, hit.breadcrumbs.join(" "), hit.category, hit.canonicalTopicKey ?? ""].join(" ");
@@ -3879,7 +4017,7 @@ function filterAssistResponseMaterial(input: {
   // Para familias generales no filtramos. Para familias especializadas, si el filtro queda vacío,
   // devolvemos el material original para evitar una respuesta sin evidencia; el coverage/warnings
   // seguirá avisando. En los casos maduros esperados el filtro debe conservar material suficiente.
-  if (usesTaskScopedMaterial(input.taskPlan) && (evidence.length || reads.length || sections.length || citations.length)) {
+  if ((usesTaskScopedMaterial(input.taskPlan) || hasQuestionFocusFilter(input.question)) && (evidence.length || reads.length || sections.length || citations.length)) {
     return { evidence, reads, sections, citations };
   }
   return input;
@@ -3887,6 +4025,43 @@ function filterAssistResponseMaterial(input: {
 
 function usesTaskScopedMaterial(taskPlan: AssistTaskPlan): boolean {
   return ["work_management", "object_lock_analysis", "db2_catalog_query", "date_time_conversion", "design_dds_file", "design_display_or_report", "create_program"].includes(taskPlan.family);
+}
+
+function isRelevantForQuestionFocus(question: string, text: string): boolean {
+  const request = fold(question);
+  const haystack = fold(text);
+  if (/service program|signature|binder|binding|bnddir|crtsrvpgm|exports?/.test(request)) {
+    return /ile modules|service program|binding directory|binder language|program signature|\bsignature\b|exports?|bnddir|crtsrvpgm|crtpgm|crtrpgmod|module object|nomain/.test(haystack);
+  }
+  if (/sort\s+(?:an\s+)?array|array\s+sort|\bsorta\b/.test(request)) {
+    return /\bsorta\b|sort\s+an\s+array|array\s+sort|operation code|ile rpg operation/.test(haystack);
+  }
+  if (/file\s+access\s+opcodes?|operation\s+codes?.*\b(read|chain|setll|setgt)|\b(readp|readpe|reade|chain|setll|setgt|klist|kfld|excpt)\b/.test(request)) {
+    return /\b(read|readp|reade|readpe|chain|setll|setgt|klist|kfld|excpt|write)\b|file access|operation code|ile rpg operation/.test(haystack);
+  }
+  if (/mandatory\s+keywords?.*subfile|required\s+keywords?.*subfile|subfile.*mandatory|subfile.*required/.test(request)) {
+    return /\bsfl\b|\bsflctl\b|\bsfldsp\b|\bsfldspctl\b|\bsflsiz\b|\bsflpag\b|subfile|dds display file/.test(haystack);
+  }
+  if (/\blda\b|local\s+data\s+area|\*lda\b/.test(request)) {
+    return /\blda\b|\*lda|local data area|1024|data area|cl variable/.test(haystack);
+  }
+  if (/data\s+types?.*\bcl\b|\bcl\b.*data\s+types?|\*(char|dec|lgl)\b/.test(request)) {
+    return /\*char|\*dec|\*lgl|type\(\*char\)|type\(\*dec\)|type\(\*lgl\)|declares cl variables|\bdcl\b|cl commands variables labels messages database overrides|derived-reference-bundle-cl-commands-variables-messages/.test(haystack);
+  }
+  if (/record\s+formats?.*(?:used|file|display|list|see)|\bdspdbr\b/.test(request)) {
+    return /record format|dspdbr|display database relations|dspfd|dspffd|physical file|logical file|database file/.test(haystack);
+  }
+  if (/change\s+(?:the\s+)?length.*field.*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|(?:field\s*length|fieldlength).*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|\bchgpf\b/.test(request)) {
+    return /\bchgpf\b|change physical file|field length|dds physical file source|recompile physical file|derived-command-group-database-file-dependencies/.test(haystack);
+  }
+  if (/length\s+of\s+data\s+in\s+(?:a\s+)?variable|variable\s+length|data\s+length/.test(request)) {
+    return /%len|built-in function|current length|maximum length|variable-length|varying|ile rpg operation|ile rpg built-in/.test(haystack);
+  }
+  return true;
+}
+
+function hasQuestionFocusFilter(question: string): boolean {
+  return /service program|signature|binder|binding|bnddir|crtsrvpgm|exports?|sort\s+(?:an\s+)?array|array\s+sort|\bsorta\b|file\s+access\s+opcodes?|mandatory\s+keywords?.*subfile|required\s+keywords?.*subfile|subfile.*mandatory|subfile.*required|\blda\b|local\s+data\s+area|\*lda\b|data\s+types?.*\bcl\b|\bcl\b.*data\s+types?|\*(char|dec|lgl)\b|record\s+formats?.*(?:used|file|display|list|see)|\bdspdbr\b|change\s+(?:the\s+)?length.*field.*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|(?:field\s*length|fieldlength).*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|\bchgpf\b|length\s+of\s+data\s+in\s+(?:a\s+)?variable|variable\s+length|data\s+length/i.test(question);
 }
 
 function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean {
@@ -3898,11 +4073,11 @@ function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean 
     case "object_lock_analysis":
       return /wrkobjlck|work with object locks|object locks|object lock|lock state|locks?\b|record lock|record is locked|locked record|record_lock_info|1218|%status|%error|\bchain\b|\bread(e|p|pe)?\b|file status|infds|allocating resources|alco?bj|dlcobj|wrkjob|work with job|job log|joblog|active job/.test(haystack);
     case "db2_catalog_query":
-      return /db2|qsys2|syscolumns|systables|sysindexes|catalog|cat[aá]logo|metadata|metadatos|column|table|view|sql|dspgmref|display program references|program references|referencias|dspdbr|display database relations|database relations|logical file|physical file|source physical file|fuentes?|rpgle|sqlrpgle|clle|write operation|update operation|file specification|f-spec|dcl-f|key fields|campos clave/.test(haystack);
+      return /db2|qsys2|syscolumns|systables|sysindexes|catalog|cat[aá]logo|metadata|metadatos|column|table|view|sql|dspgmref|display program references|program references|referencias|dspdbr|display database relations|database relations|logical\s*file|logicalfile|physical\s*file|physicalfile|physic\s*file|source\s*physical\s*file|sourcephysicalfile|fuentes?|rpgle|sqlrpgle|clle|write operation|update operation|file specification|f-spec|dcl-f|key fields|campos clave/.test(haystack);
     case "date_time_conversion":
       return /%time|%date|%timestamp|%dec|time data type|date time|timestamp|timfmt|datfmt|iso0|hms|hhmmss|packed decimal|decimal|numeric|num[eé]ric|sqlrpgle|embedded sql|set option|sqlcode|sqlstate|insert|update|select|ile rpg|built-in function/.test(haystack);
     case "design_dds_file":
-      return /dds|physical file|logical file|archivo fisico|archivo logico|\bpf\b|\blf\b|crtp[fl]|unique|key|clave|record format|field/.test(haystack);
+      return /dds|physical\s*file|physicalfile|physic\s*file|logical\s*file|logicalfile|archivo fisico|archivo logico|\bpf\b|\blf\b|crtp[fl]|unique|key|clave|record format|field/.test(haystack);
     case "design_display_or_report":
       return /dds|display file|printer file|dspf|prtf|subfile|pantalla|reporte|spool|indicator|indicador|record format|exfmt|sndrcvf|rcvf|sndf|send\/receive file|send receive file|working with multiple device display files/.test(haystack);
     case "create_program":
@@ -3915,6 +4090,14 @@ function isRelevantForTaskPlan(taskPlan: AssistTaskPlan, text: string): boolean 
 function isDistractingForTaskPlan(taskPlan: AssistTaskPlan, question: string, text: string): boolean {
   const request = fold(question);
   const haystack = fold(text);
+  if (
+    taskPlan.family === "create_program"
+    && /service program|signature|binder|binding|bnddir|crtsrvpgm|exports?/.test(request)
+  ) {
+    const serviceEvidence = /ile modules|service program|binding directory|binder language|program signature|\bsignature\b|exports?|bnddir|crtsrvpgm|crtpgm|crtrpgmod|module object|nomain/.test(haystack);
+    const knownNoise = /rpg messages|\/title|\/eof|reserved words|conditions relating to the command being used|program cycle|operation codes|built-in functions/.test(haystack);
+    return !serviceEvidence || (knownNoise && !/service program|binding|binder|signature|bnddir|crtsrvpgm|exports?/.test(haystack));
+  }
   if (taskPlan.family === "object_lock_analysis" && /rpgle|ile rpg|record\s+(?:is\s+)?locked|record[-\s]+lock|locked record/.test(request)) {
     return /qsys2|record_lock_info|thread_id\b|curdate\b|curtime\b|\bnow\b|scalar functions|time-of-day clock|date based on|timestamp based on|sql-db2-for-i/.test(haystack);
   }
@@ -4503,23 +4686,53 @@ function isCoverageBlockingWarning(warning: string): boolean {
   return /sin resultados|no se encontr[oó]|no hay|no se pudo|insuficient|d[eé]bil|baja confianza|riesgo de inventar|fuera de la versi[oó]n|fuera de la categor/i.test(warning);
 }
 
+function buildLowContextAmbiguityWarning(question: string, neuralProfile: NeuralAssistIntentProfile): string | undefined {
+  const normalized = question.trim();
+  if (!normalized) return undefined;
+  if (hasAssistQuestionDomainSignal(normalized)) return undefined;
+
+  const foldedQuestion = fold(normalized);
+  const wordCount = normalized.split(/\s+/g).filter(Boolean).length;
+  const genericShape = wordCount <= 11
+    && /\b(length|format|formats|mandatory|required|offer|available|signature|signatures?)\b/.test(foldedQuestion);
+  const genericSignature = /\bsignature\b/.test(foldedQuestion)
+    && !/\b(service program|binder|binding|export|ile|module|crtsrvpgm|crtrpgmod|crtpgm)\b/.test(foldedQuestion);
+
+  if (!genericShape && !genericSignature && neuralProfile.confidence !== "baja") return undefined;
+  return "Consulta genérica con evidencia IBM i insuficiente; el MCP no usará tópicos tangenciales del corpus para evitar inventar una respuesta. Añade el dominio concreto, por ejemplo service program, binder language, RPG, CL, DDS, Db2 for i o un comando IBM i.";
+}
+
+function hasAssistQuestionDomainSignal(text: string): boolean {
+  return /\b(as\/?400|ibm\s+i|iseries|system\s+i|rpg(?:le|\/400|400)?|ile\s+rpg|sqlrpgle|db2\s+for\s+i|db2\/400|clle|cl\/400|dds|qsys2?|cobol\/400)\b/i.test(text)
+    || /%[A-Z][A-Z0-9_-]*|\*[A-Z][A-Z0-9_]*/i.test(text)
+    || /\b(?:CPF|MCH|RNF|SQL)\d{4,5}\b/i.test(text)
+    || IBM_I_COMMAND_TOKEN_PATTERN.test(text)
+    || /\b(service\s+program|binding\s+directory|binder\s+language|activation\s+group|sub[-\s]?file|physical\s*file|physicalfile|physic\s*file|logical\s*file|logicalfile|record\s+formats?|recordformats?|library\s+list|job\s+queue|journal\s+receiver|data\s+area|data\s+queue|object\s+authority|object\s+locks?|source\s+member|spool\s+file|joblog|message\s+queue|object\s+description|remote\s+job\s+entry|file\s+access\s+opcodes?|array\s+sort|sort\s+an\s+array|local\s+data\s+area|\blda\b|data\s+types?.*\bcl\b|\bcl\b.*data\s+types?|length\s+of\s+data\s+in\s+(?:a\s+)?variable|field\s*length|fieldlength)\b/i.test(text);
+}
+
 function hasFocusedSectionForTerm(sections: Array<{ id: string; title: string; sections: TopicSection[] }>, term: string): boolean {
   const needles = assistCoverageNeedles(term).map(fold);
   const isCommand = IBM_I_COMMAND_PREFIX_PATTERN.test(term);
   const isSqlReference = isAssistSqlReferenceTerm(term);
   const isDatatypeReference = isAssistDatatypeReferenceTerm(term);
+  const isDerivedReference = isAssistDerivedReferenceTerm(term);
   return sections.some((topic) => topic.sections.some((section) => {
     const sectionText = fold(`${topic.title} ${section.title} ${section.content}`);
     if (!needles.some((needle) => sectionText.includes(needle))) return false;
     if (["syntax", "parameters", "examples"].includes(section.kind)) return true;
     if (isSqlReference && ["description", "notes", "generic", "related", "messages", "recovery"].includes(section.kind)) return true;
     if (isDatatypeReference && ["description", "notes", "generic", "related"].includes(section.kind)) return true;
+    if (isDerivedReference && ["description", "notes", "generic", "related", "messages"].includes(section.kind)) return true;
     // Muchos comandos operativos exportados desde la ayuda RDi aparecen en notas,
     // secciones genéricas o temas procedurales sin una página canónica "Command".
     // Si la sección menciona el comando específico, cuenta como evidencia fuerte para
     // evitar falsos huecos de cobertura por forma documental, no por falta real.
     return isCommand && ["description", "notes", "generic", "related"].includes(section.kind);
   }));
+}
+
+function isAssistDerivedReferenceTerm(term: string): boolean {
+  return /^(RPG file access opcodes|CL data types|physical file field length|record format discovery|subfile required keywords|variable data length)$/i.test(term);
 }
 
 function isAssistSqlReferenceTerm(term: string): boolean {
@@ -4565,10 +4778,23 @@ function assistCoverageNeedles(term: string): string[] {
   if (foldedTerm === "user profile / group profile") return ["user profile", "group profile", "dspusrprf", "chgusrprf", "edtobjaut", "*secofr", "*secadm", "*pgmr", "*sysopr", "*user", "*oper"];
   if (foldedTerm === "object authority rights") return ["object authority", "authorization", "*objopr", "*read", "*objmgt", "*add", "*objexist", "*upd", "*autlmgt", "*dlt", "*objalter", "*execut"];
   if (foldedTerm === "subfile") return ["subfile", "sflsiz", "sflpag", "sflrcdnbr", "page up", "page down", "altpagedwn", "altpageup", "message subfile"];
+  if (foldedTerm === "subfile required keywords") return ["subfile", "sfl", "sflctl", "sfldsp", "sfldspctl", "sflsiz", "sflpag", "mandatory", "required"];
+  if (foldedTerm === "rpg file access opcodes") return ["read", "readp", "reade", "readpe", "chain", "setll", "setgt", "klist", "kfld", "excpt", "write", "operation code", "file access"];
+  if (foldedTerm === "rpg array sort") return ["sorta", "sort an array", "array sort", "operation code"];
+  if (foldedTerm === "variable data length") return ["%len", "length of data", "current length", "maximum length", "varying", "variable-length", "built-in function"];
+  if (foldedTerm === "cl data types") return ["type(*char)", "type(*dec)", "type(*lgl)", "*char", "*dec", "*lgl", "declares cl variables", "dcl"];
+  if (foldedTerm === "local data area") return ["local data area", "*lda", "lda", "1024", "character data area"];
+  if (foldedTerm === "record format discovery") return ["record format", "dspdbr", "display database relations", "dspfd", "dspffd", "physical file", "logical file"];
+  if (foldedTerm === "physical file field length") return ["chgpf", "change physical file", "field length", "physical file", "physicalfile", "pf", "dds", "source", "recompile"];
   if (foldedTerm === "ile rpg built-in functions") return ["built-in functions", "%subst", "%abs", "%editc", "edit value using an editcode"];
   if (foldedTerm === "display file navigation") return ["display file", "workstn", "exfmt", "command function", "command attention", "cfnn", "cann"];
   if (foldedTerm === "cl message types") return ["message queue", "sndusrmsg", "sndpgmmsg", "sndmsg", "sndbrkmsg", "rtvmsg", "errmsg", "sflmsg", "inquiry", "informational", "completion", "diagnostic"];
   if (foldedTerm === "synon / ca 2e") return ["synon", "ca 2e", "built-in functions"];
+  if (foldedTerm === "ile service program signatures") return ["service program", "binder language", "binding directory", "signature", "exports", "crtsrvpgm"];
+  if (foldedTerm === "object description / pdm") return ["wrkobjpdm", "dspobjd", "work with objects using pdm", "object description", "object attributes"];
+  if (foldedTerm === "wrkobjpdm") return ["work with objects using pdm", "work with objects", "displaying object descriptions", "wrkobj", "dspobjd", "object description"];
+  if (foldedTerm === "dspobjd") return ["display object description", "displaying object descriptions", "object description", "object attributes", "wrkobj"];
+  if (foldedTerm === "remote job entry") return ["sbmrjejob", "remote job entry", "rje"];
   if (foldedTerm === "set option") return ["set option"];
   if (foldedTerm === "sqlcode") return ["sqlcode", "sqlca", "sql communication area", "include sqlca declarations", "get diagnostics"];
   if (foldedTerm === "sqlstate") return ["sqlstate", "sqlca", "sql communication area", "include sqlca declarations", "get diagnostics"];
@@ -4609,10 +4835,21 @@ function extractAssistTechnicalTerms(question: string): string[] {
   addIf(/user\s+profile|group\s+profile|\bdspusrprf\b|\bchgusrprf\b|\bedtobjaut\b|\*(?:secofr|secadm|pgmr|sysopr|user|oper)\b/i.test(haystack), "user profile / group profile");
   addIf(/grant\s+authority|object\s+right|data\s+right|object\s+authority|authorization|\*(?:objopr|read|objmgt|add|objexist|upd|autlmgt|dlt|objalter|execut|objref)\b/i.test(haystack), "object authority rights");
   addIf(/sub[-\s]?files?|subfile|\bsfl(?:siz|pag|rcdnbr|dsp|clr|end|nxtchg|msg)\b|page\s*up|page\s*down|\bpageup\b|\bpagedown\b/i.test(haystack), "subfile");
+  addIf(/mandatory\s+keywords?.*subfile|required\s+keywords?.*subfile|subfile.*mandatory|subfile.*required|\bsfl\b.*\bsflctl\b|\bsflsiz\b.*\bsflpag\b/i.test(haystack), "subfile required keywords");
+  addIf(/file\s+access\s+opcodes?|operation\s+codes?.*\b(read|chain|setll|setgt)|\b(readp|readpe|reade|chain|setll|setgt|klist|kfld|excpt)\b/i.test(haystack), "RPG file access opcodes");
+  addIf(/sort\s+(?:an\s+)?array|array\s+sort|\bsorta\b/i.test(haystack), "RPG array sort");
+  addIf(/length\s+of\s+data\s+in\s+(?:a\s+)?variable|variable\s+length|data\s+length/i.test(haystack), "variable data length");
+  addIf(/data\s+types?.*\bcl\b|\bcl\b.*data\s+types?|\btype\s*\(\s*\*(char|dec|lgl)\s*\)|\*(char|dec|lgl)\b/i.test(haystack), "CL data types");
+  addIf(/\blda\b|local\s+data\s+area|\*lda\b|length\s+of\s+(?:an\s+)?lda|type\s+and\s+length\s+of\s+(?:an\s+)?lda/i.test(haystack), "local data area");
+  addIf(/record\s+formats?.*(?:used|file|display|list|see)|display\s+database\s+relations|\bdspdbr\b/i.test(haystack), "record format discovery");
+  addIf(/change\s+(?:the\s+)?length.*field.*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|(?:field\s*length|fieldlength).*(?:physical\s*file|physicalfile|physic\s*file|\bpf\b)|\bchgpf\b/i.test(haystack), "physical file field length");
   addIf(/built[- ]in\s+function|build\s+in\s+function|%\s*(subst|abs|editc)\b/i.test(haystack), "ILE RPG built-in functions");
   addIf(/navigation\s+between\s+two\s+screens|screen\s+navigation|display\s+file.*screen|\bexfmt\b|\bworkstn\b|\bcf0?[378]\b|\*in0?[378]\b/i.test(haystack), "display file navigation");
   addIf(/types?\s+of\s+message|message\s+available\s+in\s+cl|\bsndusrmsg\b|\bsndpgmmsg\b|\bsndmsg\b|\bsndbrkmsg\b|\brtvmsg\b|message\s+queue|inquiry|informational|completion|diagnostic/i.test(haystack), "CL message types");
   addIf(/\bsynon\b|ca\s*2e|\b2e\b.*built[- ]in|built[- ]in\s+functions?\s+available\s+in\s+synon/i.test(haystack), "Synon / CA 2E");
+  addIf(/service\s+program|binding\s+directory|binder\s+language|\bsignature\b.*\b(service|program|binding|binder|module|export)|\b(crtsrvpgm|crtpgm|crtrpgmod)\b/i.test(haystack), "ILE service program signatures");
+  addIf(/\bwrkobjpdm\b|\bdspobjd\b|object\s+description|work\s+with\s+objects?\s+using\s+pdm|pdm\s+objects?/i.test(haystack), "object description / PDM");
+  addIf(/\bsbmrjejob\b|remote\s+job\s+entry|rje\s+job/i.test(haystack), "remote job entry");
 
   for (const opaque of question.match(/\b[A-Z]{3,}[A-Z0-9]{3,}\b/g) ?? []) {
     if (localArtifacts.has(opaque.toUpperCase())) continue;
@@ -4665,7 +4902,7 @@ function buildAssistTaskPlan(input: {
   const programLanguage = /^(RPGLE|SQLRPGLE|CLLE|COBOL)$/i.test(language ?? "");
   const explicitProgramCreation = /crear|create|generar|implementar|nuevo|programa|m[oó]dulo|module/i.test(haystack)
     && /rpgle|sqlrpgle|rpg|clle|cobol|programa|m[oó]dulo/i.test(haystack);
-  const explicitDdsDesign = /(?:diseñ|design|model|defin|crear|create|generar).{0,80}(?:dds|archivo\s+f[ií]sico|physical\s+file|\bpf\b|archivo\s+l[oó]gico|logical\s+file|\blf\b|clave|key|unique)|\bdds\b/i.test(haystack);
+  const explicitDdsDesign = /(?:diseñ|design|model|defin|crear|create|generar|change|cambiar|alterar|modificar).{0,100}(?:dds|archivo\s+f[ií]sico|physical\s*file|physicalfile|physic\s*file|\bpf\b|archivo\s+l[oó]gico|logical\s*file|logicalfile|\blf\b|clave|key|unique|field\s*length|fieldlength)|\bdds\b/i.test(haystack);
   const ddsCanOwnTask = language === "DDS" || (explicitDdsDesign && !(programLanguage && explicitProgramCreation));
   const explicitCompileFix = /(corr(e|i)g|fix|bug|falla|fallo|rnf\d{4}|error\s+(?:de\s+)?compilaci[oó]n|compile\s+error|compilation\s+error|listado\s+de\s+compilaci[oó]n)/i.test(rawRequest)
     && /compil|compile|rnf\d{4}/i.test(rawRequest)
