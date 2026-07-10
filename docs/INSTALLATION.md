@@ -16,6 +16,12 @@ Esto instala dos binarios y el data pack local de la versión publicada:
 - `ibmi-docs-mcp`: servidor MCP por stdio.
 - `data/pack`: corpus documental local con `manifest.json`, `raw/`, `normalized/` e `ibmi-docs.sqlite`.
 
+Durante `postinstall` también se preparan en la caché local el modelo de embeddings E5 y el reranker
+cross-encoder BGE. Después de instalar, las consultas funcionan en modo local-only.
+
+El adaptador neuronal IBM i ya viene dentro del paquete y `postinstall` valida su integridad. El
+banco de preguntas usado durante desarrollo no se instala ni se consulta en runtime.
+
 El servidor MCP público arranca por defecto en perfil `agent`: expone una entrada principal
 (`ibmi_docs_assist`) y oculta tools avanzadas o de mantenimiento para que el agente no se distraiga
 con flujos internos. La sincronización de IBM Docs queda para operación explícita por CLI o para un
@@ -85,7 +91,7 @@ Usa esa ruta absoluta como `command`. No declares `IBMI_DOCS_PACK_DIR` salvo que
 
 | Perfil | Uso recomendado | Tools visibles |
 | --- | --- | --- |
-| `agent` | Usuario final y agentes genéricos. Es el valor por defecto. | `ibmi_docs_assist`, `ibmi_docs_categories`, `ibmi_docs_diagnostics`. |
+| `agent` | Usuario final y agentes genéricos. Es el valor por defecto. | Solo `ibmi_docs_assist`; devuelve únicamente la respuesta final. |
 | `standard` | Agentes o clientes que sí entienden tools documentales especializadas. | `agent` + `resolve`, `answer`, `context`, `compile_guidance`, `explain_message`, `compare_versions`, `validate_code_context`. |
 | `full` | Mantenedores, debugging de recuperación semántica y auditoría manual. | Todas las tools documentales de lectura, búsqueda, recuperación, reportes y trazas. |
 | `maintainer` | Igual que `full`; reservado para operación avanzada del proyecto. | Todas las tools disponibles para mantenimiento. |
@@ -113,7 +119,7 @@ ibmi-docs --version
 ibmi-docs doctor
 ```
 
-Actualizar npm cambia el servidor/CLI, el data pack incluido y prepara de nuevo el modelo semántico local del usuario.
+Actualizar npm cambia el servidor/CLI, el data pack incluido y prepara de nuevo los modelos locales de embeddings y reranking.
 
 > `ibmi-docs --version` muestra la versión del CLI. Para filtrar documentación por release IBM i usa `--ibmi-version` o `--release`, por ejemplo `ibmi-docs search "CRTRPGMOD" --ibmi-version 7.6`.
 

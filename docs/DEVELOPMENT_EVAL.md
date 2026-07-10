@@ -11,7 +11,7 @@ No generamos respuestas "ground truth" desde el propio corpus del MCP, porque es
 Regla práctica:
 
 - **Q/A evaluable**: debe venir de una fuente externa con pregunta y respuesta.
-- **Pares sintéticos**, si se crean más adelante: solo sirven como señales auxiliares de retrieval, hard negatives o intent labels; no como verdad de respuesta.
+- **Pares sintéticos**, si se crean más adelante: solo sirven como señales auxiliares de retrieval o hard negatives; no como verdad de respuesta.
 - **Fine-tuning**: antes de usar una fuente para entrenamiento distribuible, revisar permiso/licencia y conservar atribución.
 
 ## Principios
@@ -272,7 +272,8 @@ Fuentes externas actuales ampliadas:
 
 ## Evaluar el MCP con preguntas reales
 
-El harness llama al flujo real de asistencia documental contra el pack local:
+El harness levanta el servidor compilado por `stdio` y llama la tool pública
+`ibmi_docs_assist`, exactamente como un cliente MCP de usuario:
 
 ```powershell
 npm run eval:question-bank
@@ -292,23 +293,62 @@ npx tsx scripts/dev-question-bank-eval.ts `
 
 ## Qué mide el harness
 
-Cada caso valida de forma conceptual/semántica asistida por señales, no por comparación literal:
+La automatización comprueba primero el contrato observable:
 
-- respuesta relacionada con la intención de la pregunta;
-- evidencia documental alineada;
-- ausencia de términos claramente tangenciales;
-- confianza y cobertura razonables;
-- capacidad de responder con documentación IBM i sin inventar.
+- exactamente un bloque público de texto;
+- ausencia de `structuredContent`, scores, IDs, planes o etiquetas internas;
+- respuesta no vacía y ausencia de términos tangenciales conocidos por el fixture;
+- presencia de señales esperadas como ayuda de regresión, nunca como juez semántico definitivo.
+
+El umbral automatizado por caso es `0.85` y el gate agregado recomendado exige al menos `90%` de
+casos aprobados. Esos números no convierten una comparación textual en razonamiento: después de cada
+lote amplio, el mantenedor debe revisar conceptualmente los fallos y una muestra de los aprobados,
+comparando el significado de la respuesta pública contra el ground truth.
+
+El reporte se guarda en `data/eval/` y no se publica. No se permite medir una API privada de
+`CorpusRepository` y declarar que el MCP de usuario funciona: sería aprobar al doble de riesgo y
+mandar al titular a producción. Una pequeña obra de teatro, pero no una prueba.
 
 No buscamos memorizar bancos de entrevista. Buscamos detectar cuándo el MCP se va de paseo turístico por Narnia en vez de recuperar la evidencia correcta.
 
-## Uso futuro para fine-tuning
+## Adaptador neuronal y fine-tuning ligero
 
-El dataset consolidado puede alimentar tres líneas de trabajo:
+El runtime incluye una cabeza MLP residual en `models/semantic-query-adapter.*`. Se entrenó sobre
+embeddings E5 congelados: no memoriza un diccionario de comandos ni distribuye las preguntas. El
+fixture global completo se excluye del entrenamiento; 200 casos sirven para validación y 557 quedan
+reservados para prueba final.
+
+Resultado de la prueba retenida usada por el artefacto actual:
+
+- MRR: `0.4853` → `0.6760`;
+- top-1: `37.16%` → `55.30%`;
+- top-5: `61.40%` → `82.23%`;
+- top-10: `69.30%` → `88.33%`.
+
+Para reproducir el entrenamiento en desarrollo:
+
+```powershell
+npm run train:query-adapter:embeddings
+python -m venv .tmp/train-venv
+.\.tmp\train-venv\Scripts\python.exe -m pip install numpy torch `
+  --index-url https://download.pytorch.org/whl/cpu
+.\.tmp\train-venv\Scripts\python.exe scripts/train-query-adapter.py
+```
+
+Los artefactos candidatos quedan en `.tmp/query-adapter-training/`. Solo se copian a `models/`
+después de superar el modelo base en el conjunto de prueba retenido y pasar el gate MCP end-to-end.
+
+## Líneas futuras de fine-tuning
+
+El dataset consolidado puede alimentar estas líneas de trabajo:
 
 1. **Query pairs**: pregunta comunitaria → documentos/chunks IBM i recuperados correctamente.
 2. **Hard negatives**: pregunta → documentos parecidos pero incorrectos, para enseñar al modelo a no confundirse.
-3. **Intent labels**: pregunta → intención (`compile_guidance`, `db2_sql`, `dds`, `clle`, `job_management`, etc.).
+3. **Reranking contrastivo**: pregunta → pasaje directo frente a pasajes temáticamente cercanos pero insuficientes.
+
+No se mantienen clases de intención, diccionarios de anclas ni reglas por comando en runtime. El
+entrenamiento futuro debe mejorar el espacio semántico y el reranking sin reintroducir matching
+literal disfrazado de inteligencia.
 
 Antes de usar cualquier fuente para fine-tuning distribuible:
 

@@ -1,140 +1,110 @@
-# Recetas de uso para MCP IBM i Docs
+# Recetas de uso
 
-Estas recetas están pensadas para agentes en Codex, VS Code u otros clientes MCP. La idea es que el agente no use el corpus como un simple buscador, sino como evidencia técnica para responder, corregir y comparar.
+Estas recetas usan el contrato que ve un agente normal: una sola tool, `ibmi_docs_assist`, y una
+sola respuesta final. No es necesario elegir categorías, buscar IDs ni encadenar lecturas.
 
-Regla base: **empieza con `ibmi_docs_assist`** si quieres una respuesta final lista para usar. Usa `ibmi_docs_resolve` cuando necesites inspeccionar el workflow interno y `ibmi_docs_search` solo para exploración o depuración de recuperación semántica.
+## 1. Diagnosticar un mensaje RNF
 
-## 1. Diagnosticar RNF
-
-Prompt sugerido:
-
-```text
-Usa IBM i Docs para explicar RNF0004, causa probable, mensajes relacionados y checklist de recuperación.
+```json
+{
+  "question": "Diagnostica RNF0004 durante la compilación de este fuente RPGLE y dime qué revisar.",
+  "language": "RPGLE",
+  "code": "...fuente relacionado..."
+}
 ```
 
-Tools recomendadas:
+El MCP recupera internamente la documentación que considere pertinente. Si no encuentra soporte
+suficiente para ese mensaje, lo indica directamente en vez de sustituirlo por otro RNF.
 
-1. `ibmi_docs_assist`
-2. `ibmi_docs_resolve`
-3. `ibmi_docs_explain_message`
+## 2. Compilar RPGLE o SQLRPGLE
 
-CLI:
+```json
+{
+  "question": "¿Cómo compilo este fuente SQLRPGLE con SQL embebido y /COPY?",
+  "language": "SQLRPGLE",
+  "version": "7.5",
+  "code": "...fuente relacionado..."
+}
+```
+
+No tienes que llamar primero a search, read o sections. `ibmi_docs_assist` realiza la recuperación y
+devuelve la orientación técnica final.
+
+## 3. Consultar RPG moderno
+
+```json
+{
+  "question": "Explica cómo enviar un mensaje al joblog con SND-MSG, %MSG y %TARGET.",
+  "language": "RPGLE",
+  "version": "7.6"
+}
+```
+
+La respuesta pública no incluye scores, IDs de chunks, consultas derivadas ni el recorrido interno
+por el corpus.
+
+## 4. Crear DDS
+
+```json
+{
+  "question": "Diseña un PF DDS con una clave compuesta y explica las keywords relevantes.",
+  "language": "DDS",
+  "version": "7.4"
+}
+```
+
+Incluye restricciones o decisiones funcionales en `question`; el MCP no puede inferir reglas de
+negocio que no estén presentes en la petición.
+
+## 5. Administración IBM i
+
+```json
+{
+  "question": "¿Cómo reviso los trabajos activos y luego inspecciono el joblog de uno de ellos?",
+  "version": "7.5"
+}
+```
+
+Los nombres de objetos, programas, bibliotecas o tablas propios del servidor pueden enviarse como
+contexto. El motor recupera documentación general aplicable sin exigir que esos nombres existan en
+el corpus.
+
+## 6. Datos y Db2 for i
+
+```json
+{
+  "question": "¿Qué tipo de dato de Db2 for i debo usar para almacenar una hora sin fecha y cómo se representa?",
+  "version": "7.5"
+}
+```
+
+Si la documentación relacionada solo está disponible en otro release del data pack, la respuesta
+puede usarla, pero debe identificar el release realmente consultado.
+
+## Uso equivalente desde CLI
 
 ```powershell
-node dist/src/cli.js assist "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE --limit 3
+ibmi-docs assist "What is the command used to invoke RLU?"
+ibmi-docs assist "¿Cómo compilo un módulo RPGLE?" --language RPGLE --ibmi-version 7.5
 ```
 
-Resultado esperado: intención `message_diagnostic`, lectura del tópico `RPG Messages`, explicación del mensaje y checklist de recuperación.
-
-## 2. Crear o revisar SQLRPGLE
-
-```text
-Necesito un programa SQLRPGLE con EXEC SQL y /COPY. Contrasta comandos y opciones contra documentación IBM i.
-```
-
-Tools:
-
-- `ibmi_docs_assist`
-- `ibmi_docs_resolve`
-- `ibmi_docs_context`
-- `ibmi_docs_compile_guidance`
-- `ibmi_docs_validate_code_context` si hay snippet
-
-CLI:
+La CLI imprime solo la respuesta final. El diagnóstico interno se muestra únicamente cuando un
+mantenedor lo solicita explícitamente:
 
 ```powershell
-node dist/src/cli.js assist "Cómo compilo un SQLRPGLE con EXEC SQL y /COPY" --language SQLRPGLE --compile --limit 5
+ibmi-docs assist "¿Cómo compilo un módulo RPGLE?" --language RPGLE --debug-json
 ```
 
-Resultado esperado: guía con `CRTSQLRPGI`, `RPGPPOPT`, `COMMIT`, `DBGVIEW`, riesgos de precompilador/includes y evidencia trazable.
+## Depuración para mantenedores
 
-## 3. Entender opcodes modernos RPG
-
-```text
-Explica SND-MSG, %MSG y %TARGET con sintaxis, operandos, notas y ejemplos.
-```
-
-Tools:
-
-- `ibmi_docs_assist`
-- `ibmi_docs_resolve`
-- `ibmi_docs_sections`
-- `ibmi_docs_read`
-- `ibmi_docs_explain_ranking` si el recuperación sorprende
-
-CLI:
+Las tools de búsqueda, lectura, ranking, calidad y trazas se reservan a perfiles avanzados. No deben
+activarse para el uso diario de agentes:
 
 ```powershell
-node dist/src/cli.js assist "Explica la sintaxis de SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples --depth deep
+$env:IBMI_DOCS_TOOL_PROFILE = 'full'
+ibmi-docs-mcp
 ```
 
-Resultado esperado: intención `syntax_lookup`, lectura automática de tópico fuerte, secciones `syntax`/`parameters`/`messages` y citas.
-
-## 4. Comparar releases IBM i
-
-```text
-Compara CRTRPGMOD entre IBM i 7.3, 7.4, 7.5 y 7.6.
-```
-
-Tools:
-
-- `ibmi_docs_assist`
-- `ibmi_docs_resolve`
-- `ibmi_docs_compare_versions`
-- `ibmi_docs_read`
-
-CLI:
-
-```powershell
-node dist/src/cli.js assist "Compara CRTRPGMOD entre IBM i 7.3, 7.4, 7.5 y 7.6" --limit 4
-```
-
-La comparación incluye disponibilidad por versión, longitud del tópico, secciones detectadas y notas estructurales.
-
-## 5. Depurar recuperación semántica
-
-```text
-El resultado para SND-MSG no parece el tópico principal. Explica por qué ganó ese ordenamiento semántico.
-```
-
-Tools:
-
-- `ibmi_docs_explain_ranking`
-- `ibmi_docs_search`
-- `ibmi_docs_read` para auditar el candidato real
-
-CLI:
-
-```powershell
-node dist/src/cli.js explain-ranking "SND-MSG Send a Message to the Joblog RPG operation code message-type %MSG %TARGET" --category ile-rpg
-node dist/src/cli.js search "SND-MSG Send a Message to the Joblog" --category ile-rpg --sections --auto-read
-```
-
-## 6. Revisar calidad del corpus
-
-```powershell
-node dist/src/cli.js quality-report
-node dist/src/cli.js validate-pack
-npm run bench:golden
-```
-
-Estos comandos ayudan a detectar tópicos cortos, duplicados, cobertura débil y regresiones de búsqueda.
-
-## 7. Medir comportamiento del agente
-
-Activa trazas locales si quieres detectar si el cliente MCP se queda en search-only:
-
-```powershell
-$env:IBMI_DOCS_TRACE = "1"
-$env:IBMI_DOCS_TRACE_FILE = "D:\MCP-IBMiDocs\data\ibmi-docs-trace.ndjson"
-node dist/src/cli.js resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6
-node dist/src/cli.js trace-report --limit 30
-```
-
-Métricas clave:
-
-- `search_only_rate`
-- `search_then_read_rate`
-- `answer_usage_rate`
-- uso por tool
-- eventos recientes con duración y top result
+Para medir el mismo contrato que recibe un usuario final, usa las pruebas MCP por `stdio` y el gate
+del banco de preguntas. No uses resultados internos de `CorpusRepository` como sustituto de una
+llamada MCP real.

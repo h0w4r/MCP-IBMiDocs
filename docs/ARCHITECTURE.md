@@ -11,13 +11,19 @@ flowchart LR
   S --> MCP[Servidor MCP stdio]
   M --> MCP
   N --> MCP
-  MCP --> P1[Perfil agent: assist/categories/diagnostics]
+  MCP --> P1[Perfil agent: solo assist]
   MCP --> P2[Perfiles avanzados: resolve/search/read/sections/compile/retrieval-debug]
 ```
 
 ## Componentes principales
 
-- `src/repository/CorpusRepository.ts`: recuperación semántica vectorial, contexto, related, compare, diagnostics.
+- `src/repository/CorpusRepository.ts`: recuperación semántica, selección de candidatos, lectura y composición de respuesta.
+- `src/repository/neuralEmbeddings.ts`: embeddings E5 multilingües para recuperación inicial por
+  faceta de título/ruta documental y por contenido combinado.
+- `src/repository/neuralQueryAdapter.ts`: cabeza MLP residual aprendida que conserva la vista E5 base
+  y añade una vista adaptada al modo en que la comunidad formula preguntas IBM i. El artefacto de
+  `models/` no contiene ni distribuye el banco de preguntas.
+- `src/repository/neuralReranker.ts`: cross-encoder BGE multilingüe para releer pregunta y pasajes conjuntamente.
 - `src/server.ts`: tools/resources/prompts MCP.
 - `src/cli.ts`: CLI de consulta, doctor, instalación de data packs y build.
 - `src/ingest/packBuilder.ts`: normalización, curación, chunking estructural y SQLite.
@@ -31,13 +37,12 @@ El endpoint RDi solo sirve para bootstrap durante desarrollo. No es dependencia 
 en runtime de usuario salvo que el operador defina explícitamente `IBMI_DOCS_TOOL_PROFILE=full` o
 `maintainer` y además `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
 
-El perfil runtime por defecto es `agent`, que registra solo `ibmi_docs_assist`,
-`ibmi_docs_categories` e `ibmi_docs_diagnostics`. Las consultas de agentes deben entrar por
-`ibmi_docs_assist`; esa tool orquesta internamente `taskPlan`, intención, búsqueda, lectura,
-secciones, follow-ups por gaps, síntesis y citas sobre el data pack local ya instalado.
+El perfil runtime por defecto es `agent` y registra únicamente `ibmi_docs_assist`. Tampoco anuncia
+resources ni prompts diagnósticos. La tool ejecuta internamente recuperación E5 base + adaptada y
+multi-faceta, reranking cross-encoder, lectura y control de
+relevancia. El resultado público contiene un solo bloque de texto con la respuesta final: no incluye
+`structuredContent`, scores, IDs, planes, lecturas ni trazas.
 
-El `taskPlan` clasifica familias de trabajo como creación de programas, diseño DDS, administración
-de trabajos/locks, catálogo Db2 for i, diagnóstico de mensajes y revisión de código. Esa capa evita
-que el agente cliente tenga que saber qué tool secundaria invocar o en qué orden. Los perfiles
-`standard`, `full` y `maintainer` existen para clientes especializados o mantenedores que necesitan
-inspeccionar el corpus y depurar ranking.
+Los objetos internos de diagnóstico siguen disponibles para tests, CLI con `--debug-json` y perfiles
+`standard`, `full` o `maintainer`. Esta separación evita que un agente consumidor confunda
+telemetría del buscador con la respuesta técnica solicitada.

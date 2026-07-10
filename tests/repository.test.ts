@@ -21,7 +21,7 @@ describe("CorpusRepository neural-only", () => {
 
     const corpus = results.map((hit) => `${hit.title}\n${hit.snippet}`).join("\n\n");
     expect(corpus).toMatch(/STRRLU|Start Report Layout Utility/i);
-    expect(results[0]?.matchReasons?.join(" ")).toContain("perspectiva neural");
+    expect(results[0]?.matchReasons?.join(" ")).toContain("Transformers.js");
   });
 
   it("assistSmart sintetiza la respuesta RLU desde evidencia documental materializada", async () => {
@@ -42,7 +42,7 @@ describe("CorpusRepository neural-only", () => {
     expect(answerCorpus).toMatch(/STRRLU|Start Report Layout Utility/i);
     expect(assist.confidence).not.toBe("baja");
     expect(assist.workflow.map((stage) => stage.tool)).toEqual(expect.arrayContaining([
-      "ibmi_docs_search",
+      "ibmi_docs_neural_retrieval",
       "ibmi_docs_read",
       "ibmi_docs_sections"
     ]));
@@ -56,7 +56,9 @@ describe("CorpusRepository neural-only", () => {
           documents: number;
           chunks: number;
           vectors: number;
+          documentVectors: number;
           documentsWithoutChunks: number;
+          documentsWithoutVectors: number;
           chunksWithoutVectors: number;
         };
       };
@@ -65,7 +67,9 @@ describe("CorpusRepository neural-only", () => {
       expect(diagnostics.vectorCoverage?.documents).toBeGreaterThan(0);
       expect(diagnostics.vectorCoverage?.chunks).toBeGreaterThanOrEqual(diagnostics.vectorCoverage?.documents ?? 0);
       expect(diagnostics.vectorCoverage?.vectors).toBe(diagnostics.vectorCoverage?.chunks);
+      expect(diagnostics.vectorCoverage?.documentVectors).toBe(diagnostics.vectorCoverage?.documents);
       expect(diagnostics.vectorCoverage?.documentsWithoutChunks).toBe(0);
+      expect(diagnostics.vectorCoverage?.documentsWithoutVectors).toBe(0);
       expect(diagnostics.vectorCoverage?.chunksWithoutVectors).toBe(0);
     });
   });
@@ -112,11 +116,13 @@ describe("CorpusRepository neural-only", () => {
     expect(assist.reads.length).toBeGreaterThan(0);
     expect(assist.citations.length).toBeGreaterThan(0);
     expect(assist.workflow.map((stage) => stage.tool)).toEqual(expect.arrayContaining([
-      "ibmi_docs_search",
+      "ibmi_docs_neural_retrieval",
+      "ibmi_docs_neural_reranker",
       "ibmi_docs_read",
       "ibmi_docs_sections"
     ]));
-    expect(assist.answer).toContain("Citas");
+    expect(assist.relevance.supported).toBe(true);
+    expect(assist.answer).not.toMatch(/Citas|Score:|ID:|retrievalPlan|taskPlan/i);
   });
 
   it("assistSmart responde consultas de tipo hora con evidencia Db2 for i relacionada", async () => {
@@ -130,6 +136,20 @@ describe("CorpusRepository neural-only", () => {
     const evidenceText = assist.evidence.map((hit) => `${hit.title} ${hit.category}`).join("\n");
     expect(evidenceText).toMatch(/Time|Data types|Datetime|sql-db2-for-i/i);
     expect(assist.confidence).not.toBe("baja");
+    expect(assist.answer).toMatch(/\bTIME(?:STAMP)?\b/i);
+    expect(assist.answer).not.toMatch(/Estimated time/i);
+  });
+
+  it("rechaza semánticamente una consulta ajena al corpus sin inventar una respuesta IBM i", async () => {
+    const assist = await withRepo((repo) => repo.assistSmart({
+      question: "Evalúa si una herramienta MCP debe devolver JSON o solo respuesta final",
+      depth: "concise"
+    }));
+
+    expect(assist.relevance.supported).toBe(false);
+    expect(assist.confidence).toBe("baja");
+    expect(assist.answer).toMatch(/No encontré evidencia documental suficientemente relacionada/i);
+    expect(assist.answer).not.toMatch(/DDS8196|Workstation I\/O|SQL messages/i);
   });
 
   it("las APIs síncronas antiguas no ejecutan búsqueda no neuronal", async () => {

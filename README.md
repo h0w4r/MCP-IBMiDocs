@@ -1,7 +1,7 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Release 1.0.8.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
+> **Release 1.0.9.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
@@ -30,9 +30,9 @@ Sirve para:
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
 - El paquete npm instala el servidor, la CLI y el **data pack local incluido**.
 - El corpus documental vive en SQLite con vectores semánticos (`chunk_vectors`) y se resuelve sin RDi.
-- El perfil MCP por defecto es **agent-first**: el agente ve pocas tools y debe empezar por `ibmi_docs_assist`.
-- `ibmi_docs_assist` hace una sola llamada con `taskPlan`, respuesta final, pasos, validación, cobertura, citas y `retrievalPlan` multi-hop.
-- El planner interno distingue familias como creación RPGLE/CLLE, diseño DDS, diagnóstico de mensajes, Db2 for i y administración de trabajos/locks.
+- El perfil MCP por defecto es **agent-first**: el agente ve únicamente `ibmi_docs_assist`.
+- `ibmi_docs_assist` devuelve un solo bloque con la respuesta final; no expone JSON, scores, IDs, planes de recuperación ni documentos internos.
+- La recuperación combina E5 multilingüe, un adaptador MLP IBM i aprendido con 7.656 pares y un cross-encoder BGE; las vistas neuronales se contrastan antes de elegir la respuesta.
 - Las tools avanzadas/de auditoría existen, pero se ocultan salvo que actives un perfil explícito.
 - Las tools de mantenimiento, como sincronización de IBM Docs público, **no se exponen al agente en runtime normal**.
 - El data pack público va incluido en npm y también está versionado en este repositorio bajo `data/pack`.
@@ -142,7 +142,7 @@ ibmi-docs doctor
 
 ### Feedback local para mejorar recuperación
 
-Cuando una consulta llega con una versión IBM i demasiado estrecha, el MCP puede mostrar evidencia de otra versión y lo marca explícitamente como `requestedVersionScopeExpansion`. No se infiere categoría ni se usan reglas manuales de decisión: la recuperación pública se basa en embeddings Transformers.js locales contra el corpus.
+Cuando la versión solicitada no contiene evidencia suficiente, la respuesta puede usar documentación de otro release y lo indica en texto claro. Los detalles de ranking permanecen en trazas locales opcionales, nunca en la respuesta normal del agente.
 
 El proyecto **no recolecta telemetría automáticamente**. Las trazas viven en la máquina del usuario. Para convertir esos casos en mejoras del proyecto, el usuario debe activar trazas locales durante una sesión de prueba y exportar un reporte sanitizado:
 
@@ -161,15 +161,13 @@ El reporte sirve para abrir issues reproducibles sobre consultas difíciles. Eso
 
 ### Perfil recomendado para agentes
 
-Por defecto el servidor arranca con `IBMI_DOCS_TOOL_PROFILE=agent`. En ese modo el agente no tiene que decidir entre veinte herramientas: ve una entrada principal, una de diagnóstico y una de categorías.
+Por defecto el servidor arranca con `IBMI_DOCS_TOOL_PROFILE=agent`. En ese modo el agente no tiene que decidir entre veinte herramientas: ve una sola entrada universal.
 
 | Tool visible por defecto | Para qué sirve |
 | --- | --- |
-| `ibmi_docs_assist` | Punto de entrada recomendado. Una sola llamada: `taskPlan`, plan agéntico multi-hop, respuesta final, evidencia, lecturas, secciones, pasos, validación, cobertura y citas. |
-| `ibmi_docs_categories` | Lista categorías disponibles del corpus para orientar consultas. |
-| `ibmi_docs_diagnostics` | Muestra versión, corpus, pack resuelto, perfil MCP activo y tools registradas. |
+| `ibmi_docs_assist` | Recibe la tarea completa y devuelve únicamente la respuesta técnica final. La recuperación, lectura, reranking y control de relevancia permanecen internos. |
 
-Regla práctica para agentes: si dudas, usa `ibmi_docs_assist` con la tarea completa, código si existe, lenguaje y versión. Esa tool ejecuta internamente recuperación neuronal multi-hop, lectura, secciones, follow-ups derivados de evidencia y síntesis, así que no debería responder con “llama otra tool para completar”. Search-only como respuesta final es “te traje el índice, suerte con el dragón”.
+Regla práctica para agentes: usa `ibmi_docs_assist` con la tarea completa, código si existe, lenguaje y versión. La respuesta normal no contiene telemetría documental. Para inspeccionar índices o diagnósticos, un mantenedor debe activar deliberadamente un perfil avanzado.
 
 ### Perfiles avanzados
 
@@ -198,8 +196,8 @@ Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por d
 
 - Servidor MCP TypeScript por stdio.
 - CLI `ibmi-docs`.
-- Tool one-shot `ibmi_docs_assist` con motor agéntico multi-hop para respuestas finales más autónomas y menos dependientes del criterio del agente cliente.
-- Planner interno con plantillas por familia de tarea: `create_program`, `design_dds_file`, `work_management`, `object_lock_analysis`, `db2_catalog_query`, diagnósticos y revisión de código.
+- Tool one-shot `ibmi_docs_assist` con respuesta pública compacta y motor neuronal interno multi-etapa.
+- Reranking cross-encoder multilingüe para reducir coincidencias temáticas que no responden realmente la pregunta.
 - Recuperación mejorada para comandos administrativos que no siempre tienen página canónica propia en IBM Docs/RDi, como `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB` y `WRKJOB`.
 - Corpus local versionado como data pack (`manifest.json`, `raw/`, `normalized/`, `ibmi-docs.sqlite`).
 - Índice vectorial semántico local en SQLite para comandos, mensajes, DDS, SQLRPGLE, CLLE y RPGLE.

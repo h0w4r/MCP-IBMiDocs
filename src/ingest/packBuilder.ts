@@ -9,6 +9,7 @@ import {
   embedTexts,
   embeddingPrefixesForModel,
   semanticPassageText,
+  semanticTitlePassageText,
   vectorToBuffer
 } from "../repository/neuralEmbeddings.js";
 import type { CorpusManifest, DocumentRecord, SourceManifest } from "../types.js";
@@ -28,6 +29,7 @@ interface PreparedChunk {
 
 interface PreparedDocument {
   doc: DocumentRecord;
+  titleVector: Float32Array;
   sections: Array<{ kind: string; title: string; body: string; startLine: number; endLine: number }>;
   chunks: PreparedChunk[];
 }
@@ -282,6 +284,11 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
       dimensions INTEGER NOT NULL,
       vector BLOB NOT NULL
     );
+    CREATE TABLE document_vectors (
+      document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+      dimensions INTEGER NOT NULL,
+      vector BLOB NOT NULL
+    );
     CREATE INDEX idx_documents_category ON documents(category);
     CREATE INDEX idx_documents_version ON documents(version);
     CREATE INDEX idx_documents_canonical_topic ON documents(canonical_topic_key, version, category);
@@ -297,6 +304,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const insertChunk = db.prepare("INSERT INTO chunks(document_id, chunk_index, title, body, token_hint) VALUES (?, ?, ?, ?, ?)");
   const insertVector = db.prepare("INSERT INTO chunk_vectors(chunk_id, document_id, dimensions, vector) VALUES (?, ?, ?, ?)");
+  const insertDocumentVector = db.prepare("INSERT INTO document_vectors(document_id, dimensions, vector) VALUES (?, ?, ?)");
   const insertSection = db.prepare("INSERT INTO document_sections(document_id, section_index, kind, title, body, start_line, end_line) VALUES (?, ?, ?, ?, ?, ?, ?)");
 
   const tx = db.transaction(() => {
@@ -308,6 +316,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
     insertMeta.run("embedding_runtime_policy", "download-at-install-update; runtime-local-only");
     insertMeta.run("embedding_query_prefix", embeddingPrefixesForModel(embeddingModel).queryPrefix);
     insertMeta.run("embedding_passage_prefix", embeddingPrefixesForModel(embeddingModel).passagePrefix);
+    insertMeta.run("embedding_facets", "document-title-path,chunk-combined");
     for (const prepared of preparedDocuments) {
       const { doc } = prepared;
       insertDoc.run(
@@ -330,6 +339,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
         doc.documentKind ?? classifyDocumentKindForBuild(doc),
         doc.canonicalTopicKey ?? canonicalTopicKeyForBuild(doc)
       );
+      insertDocumentVector.run(doc.id, prepared.titleVector.length, vectorToBuffer(prepared.titleVector));
       prepared.sections.forEach((section, index) => {
         insertSection.run(doc.id, index, section.kind, section.title, section.body, section.startLine, section.endLine);
       });
@@ -349,7 +359,7 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
 
 async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRecord[], embeddingModel: string): Promise<PreparedDocument[]> {
   const chunkInputs: Array<{ doc: DocumentRecord; body: string; tokenHint: number; text: string }> = [];
-  const preparedShells = documents.map((doc) => {
+  const preparedShells = documents.map<PreparedDocument>((doc) => {
     const textPath = path.join(packRoot, doc.normalizedTextPath);
     const text = readTextIfExists(textPath);
     const sections = extractDocumentSections(text);
@@ -372,10 +382,20 @@ async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRe
         text: semanticPassageText(input, embeddingModel)
       });
     }
-    return { doc, sections, chunks: [] as PreparedChunk[] };
+    return { doc, titleVector: new Float32Array(DEFAULT_EMBEDDING_DIMENSIONS), sections, chunks: [] as PreparedChunk[] };
   });
 
-  const vectors = await embedPassagesInBatches(chunkInputs.map((item) => item.text));
+  const titleVectors = await embedPassagesInBatches(documents.map((doc) => semanticTitlePassageText({
+    title: doc.title,
+    breadcrumbs: doc.breadcrumbs,
+    category: doc.category,
+    language: doc.language,
+    version: doc.version
+  }, embeddingModel)), "facetas de título");
+  preparedShells.forEach((shell, index) => {
+    shell.titleVector = titleVectors[index] ?? new Float32Array(DEFAULT_EMBEDDING_DIMENSIONS);
+  });
+  const vectors = await embedPassagesInBatches(chunkInputs.map((item) => item.text), "contenido combinado");
   const shellsById = new Map(preparedShells.map((item) => [item.doc.id, item]));
   chunkInputs.forEach((chunk, index) => {
     const shell = shellsById.get(chunk.doc.id);
@@ -389,14 +409,14 @@ async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRe
   return preparedShells;
 }
 
-async function embedPassagesInBatches(texts: string[]): Promise<Float32Array[]> {
+async function embedPassagesInBatches(texts: string[], facet: string): Promise<Float32Array[]> {
   const batchSize = Number(process.env.IBMI_DOCS_EMBEDDING_BATCH_SIZE ?? 64);
   const vectors: Float32Array[] = [];
   for (let index = 0; index < texts.length; index += batchSize) {
     const batch = texts.slice(index, index + batchSize);
     vectors.push(...await embedTexts(batch, { localOnly: false, kind: "passage" }));
     if (index === 0 || vectors.length % (batchSize * 10) === 0 || vectors.length >= texts.length) {
-      console.error(`[ibmi-docs] Embeddings del pack: ${vectors.length}/${texts.length}`);
+      console.error(`[ibmi-docs] Embeddings ${facet}: ${vectors.length}/${texts.length}`);
     }
   }
   return vectors;

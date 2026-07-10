@@ -1,299 +1,146 @@
-# Workflows agénticos para IBM i Docs
+# Uso agéntico de IBM i Docs
 
-Este documento define cómo debe usar un agente el MCP IBM i Docs para responder preguntas, revisar código o diagnosticar problemas IBM i / AS400 sin quedarse en una búsqueda superficial.
+## Contrato principal
 
-## Principio central
+El perfil MCP predeterminado es `agent` y expone una sola tool:
 
-Las tools de alto nivel son **orquestadores autocontenidos**.
-
-Cuando un agente llama a `ibmi_docs_assist`, `ibmi_docs_resolve`, `ibmi_docs_answer` o `ibmi_docs_context`, el MCP no debe devolver tareas pendientes del tipo “llama `ibmi_docs_read`” o “usa `ibmi_docs_sections` si necesitas sintaxis”. La tool que recibió la tarea debe materializar internamente la evidencia necesaria: búsqueda, lectura de tópicos, secciones enfocadas, citas, advertencias y acciones sugeridas.
-
-`ibmi_docs_search` sigue existiendo, pero es una tool de bajo nivel para exploración, auditoría o debugging de recuperación semántica. No es la respuesta final para un usuario que pidió sintaxis, corrección, diagnóstico o implementación.
-
-Las tools de mantenimiento/build no forman parte del flujo de consulta de usuario. En particular,
-`ibmi_docs_sync` no se registra en el MCP público por defecto; solo aparece si el operador arranca
-el servidor con un perfil avanzado y `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`. Un agente que quiere
-documentación debe usar `ibmi_docs_assist` como entrada principal, nunca sincronización como
-prerequisito de una tarea.
-
-## Perfil `agent` por defecto
-
-El runtime está diseñado para que el usuario real sea un agente IA. Por eso el perfil por defecto no
-expone todo el panel de control; expone solo lo que reduce ambigüedad:
-
-| Tool | Rol desde la perspectiva del agente |
+| Tool | Responsabilidad |
 | --- | --- |
-| `ibmi_docs_assist` | Entrada universal para preguntas, desarrollo, corrección, diagnóstico, sintaxis, comandos, mensajes y comparación de versiones. |
-| `ibmi_docs_categories` | Descubrir categorías del corpus si la consulta viene muy abierta. |
-| `ibmi_docs_diagnostics` | Ver salud del corpus, pack activo, perfil MCP y tools registradas. |
+| `ibmi_docs_assist` | Recibir la tarea IBM i completa y devolver únicamente la respuesta técnica final. |
 
-Esto resuelve el fallo típico donde el agente llamaba `ibmi_docs_search`, recibía IDs o hints y no
-continuaba con `read/sections`. En perfil `agent`, el camino feliz queda forzado por diseño:
+El agente no necesita conocer la arquitectura de recuperación ni encadenar tools manualmente.
 
 ```text
-humano -> agente -> ibmi_docs_assist -> resolve/context/search/read/sections/follow-ups internos -> respuesta final
+humano -> agente -> ibmi_docs_assist -> respuesta final
 ```
 
-Los perfiles avanzados siguen disponibles para operadores:
+Internamente el servidor puede ejecutar embeddings, búsquedas multi-perspectiva, reranking,
+lecturas y comprobaciones de relevancia. Ninguno de esos detalles forma parte de la respuesta
+pública normal.
 
-- `IBMI_DOCS_TOOL_PROFILE=standard`: expone tools de alto nivel especializadas.
-- `IBMI_DOCS_TOOL_PROFILE=full`: expone también tools de bajo nivel y debugging.
-- `IBMI_DOCS_TOOL_PROFILE=maintainer`: reservado para operación avanzada.
+## Qué enviar
 
-Un agente de uso diario no necesita esos perfiles. Menos botones, menos accidentes: el 5250 ya tuvo
-suficiente sufrimiento visual por una generación.
+`ibmi_docs_assist` acepta un esquema pequeño:
 
-## Orden recomendado
+- `question`: tarea o pregunta completa.
+- `code`: fuente relacionado, si existe.
+- `language`: lenguaje o tecnología, si se conoce.
+- `version`: release IBM i preferido, si aplica.
 
-1. En perfil `agent`, usar siempre `ibmi_docs_assist` como entrada por defecto.
-2. En perfiles avanzados, usar `ibmi_docs_resolve` para preguntas normales o ambiguas cuando se necesita ver la política/workflow interno.
-3. En perfiles avanzados, usar `ibmi_docs_context` para desarrollo, corrección de bugs, revisión de código o tareas donde el agente necesita contexto operativo.
-4. En perfiles avanzados, usar `ibmi_docs_answer` para respuestas extractivas directas con citas.
-5. En perfiles avanzados, usar tools específicas cuando el usuario ya pide una acción concreta:
-   - `ibmi_docs_compile_guidance`
-   - `ibmi_docs_explain_message`
-   - `ibmi_docs_compare_versions`
-   - `ibmi_docs_validate_code_context`
-6. Usar `ibmi_docs_search`, `ibmi_docs_read` y `ibmi_docs_sections` solo para exploración manual, auditoría, pruebas o debugging en perfil `full`.
-7. No usar `ibmi_docs_sync` para responder usuarios. Si no aparece, es correcto: es mantenimiento explícito fuera del runtime normal.
+Ejemplo conceptual:
 
-## Matriz de políticas internas
+```json
+{
+  "question": "Cómo compilo un módulo RPGLE?",
+  "language": "RPGLE",
+  "version": "7.5"
+}
+```
 
-| Intención | Cuándo aplica | Tool recomendada | Qué debe entregar |
-| --- | --- | --- | --- |
-| `explain_topic` | Explicar un tópico, comando, concepto, API o guía IBM i. | `ibmi_docs_assist` o `ibmi_docs_resolve` | Respuesta con evidencia leída, citas y advertencias. |
-| `syntax_lookup` | Sintaxis de comandos, opcodes RPG, BIFs, keywords DDS o sentencias SQL. | `ibmi_docs_assist` o `ibmi_docs_resolve` | Sintaxis/secciones/parámetros ya materializados. |
-| `compile_guidance` | Cómo compilar RPGLE, SQLRPGLE, CLLE, COBOL o programas con `/COPY`/SQL embebido. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_compile_guidance` | Comandos, opciones, pitfalls y evidencia. |
-| `message_diagnostic` | Mensajes `RNFxxxx`, `SQLxxxx`, `CPFxxxx` o `MCHxxxx`. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_explain_message` | Explicación, recuperación, cobertura y evidencia. |
-| `code_review` | Revisar snippet o fuente contra documentación IBM i. | `ibmi_docs_assist` con `code`, `ibmi_docs_resolve` con `code` o `ibmi_docs_context` | Señales detectadas, contexto, hallazgos y pasos. |
-| `work_management` | Trabajos activos, joblogs, estados, locks, objetos o miembros. | `ibmi_docs_assist` | Runbook con `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB`, `WRKJOB` y validación operacional si aplican. |
-| `db2_catalog_query` | Catálogos Db2 for i, columnas, tablas, vistas QSYS2/SYS*. | `ibmi_docs_assist` | Guía SQL de solo lectura, vistas/campos esperados y validaciones. |
-| `version_question` | Comparar disponibilidad o cambios entre IBM i 7.3/7.4/7.5/7.6. | `ibmi_docs_assist`, `ibmi_docs_resolve` o `ibmi_docs_compare_versions` | Comparación por release y evidencia. |
-| `ranking_debug` | Entender por qué aparece un resultado o depurar ranking. | `ibmi_docs_explain_ranking` | Razones de ranking, perfil semántico, conceptos, similitud vectorial y señales documentales. |
-| `search_discovery` | Exploración abierta de documentación. | `ibmi_docs_search` | Candidatos trazables; no usar como respuesta final si falta lectura. |
+## Qué recibe el agente
 
-## `ibmi_docs_assist`
+La tool devuelve exactamente un bloque `content` de tipo texto:
 
-`ibmi_docs_assist` es el camino feliz para clientes MCP y agentes que no conocen la arquitectura interna del servidor. Recibe la tarea completa y devuelve una salida final lista para usar:
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Create RPG Module (CRTRPGMOD) command"
+    }
+  ]
+}
+```
 
-- `answer`: respuesta redactada con resumen, evidencia específica, pasos, validación, cobertura y citas.
-- `taskPlan`: familia detectada, lenguaje principal, evidencia mínima, ejes de recuperación y plantilla de respuesta.
-- `executiveSummary`: resumen corto para que el agente pueda decidir rápido.
-- `specificFindings`: extractos enfocados por término técnico y por sección.
-- `implementationSteps`: pasos concretos para aplicar o diagnosticar.
-- `validationChecklist`: cómo comprobar que la respuesta/corrección quedó bien.
-- `coverage`: estado `complete`, `partial` o `thin`, con términos técnicos cubiertos/faltantes.
-- `retrievalPlan`: plan agéntico ejecutado por el MCP; incluye `strategy`, `axes`, `initialQueries`, `followUpQueries`, `hops` y `coverageGaps`.
-- `evidence`, `reads`, `sections`, `citations`: material ya recuperado, sin pedir sub-tools.
+No devuelve `structuredContent`. Tampoco expone:
 
-El flujo interno ya no es “busca una palabra y cruza los dedos”. Para consultas complejas,
-`ibmi_docs_assist` arma primero un `taskPlan` y después ejes de intención como `primary`, `syntax`,
-`compile`, `message`, `version`, `code`, `administration`, `database` o `gap-followup`; ejecuta
-búsquedas focalizadas, materializa lecturas y secciones, detecta gaps de cobertura y lanza follow-ups
-acotados antes de sintetizar la respuesta final.
+- índices del corpus;
+- scores de embeddings o reranking;
+- IDs de documentos o pasajes;
+- planes de recuperación;
+- consultas derivadas;
+- lecturas internas;
+- cobertura o trazas;
+- instrucciones para llamar otra tool.
 
-### Familias `taskPlan`
+Si no existe soporte documental suficiente, la respuesta lo indica directamente en lugar de
+rellenar el espacio con un tópico tangencial.
 
-`taskPlan.family` ayuda al agente a entender qué clase de respuesta recibió sin conocer la arquitectura
-interna del MCP:
+## Ejemplos de tareas
 
-| Familia | Cuándo aparece | Plantilla esperada |
-| --- | --- | --- |
-| `create_program` | Crear o modificar RPGLE, SQLRPGLE, CLLE o COBOL. | Plan de implementación con compilación y validación. |
-| `fix_compile_error` | Error/listado de compilación real, por ejemplo RNF. | Runbook de compilación. |
-| `fix_runtime_error` | Fallo runtime/joblog/CPF/MCH. | Runbook runtime. |
-| `design_dds_file` | PF/LF DDS, claves, keywords o `CRTPF`/`CRTLF`. | Plan DDS. |
-| `design_display_or_report` | DSPF/PRTF, pantallas, subfiles o reportes. | Plan de pantalla/reporte. |
-| `work_management` | Trabajos activos, `DSPJOB`, `WRKJOB`, joblogs y locks. | Runbook de trabajos y locks. |
-| `object_lock_analysis` | Locks de objeto/miembro con foco en `WRKOBJLCK`. | Análisis de locks. |
-| `db2_catalog_query` | Catálogos Db2 for i, QSYS2/SYS*, columnas/tablas. | Guía Db2 for i. |
-| `message_diagnostic` | RNF/CPF/MCH/SQL. | Diagnóstico de mensaje. |
-| `version_check` | Comparación entre releases IBM i. | Comparación por versión. |
+### Desarrollo RPGLE o SQLRPGLE
 
-No uses `taskPlan` para delegar más trabajo al usuario. Úsalo para consumir la respuesta correcta:
-pasos, validación, evidencias y advertencias ya vienen preparados.
+Envía la tarea completa, el código existente y el release cuando estén disponibles. El agente puede
+usar la respuesta documental como base para crear o corregir el fuente.
 
-### Administración IBM i y comandos sin página canónica
+### CLLE
 
-Algunos comandos operativos aparecen en el corpus como secciones procedurales o entradas de índice,
-no como una página `WRKACTJOB command` perfecta. `ibmi_docs_assist` maneja esto internamente:
+Incluye el objetivo y el fragmento CL relevante. Para errores, agrega el ID de mensaje y el contexto
+del joblog o compilación.
 
-- expande consultas naturales como “trabajos activos” o “bloqueos” hacia aliases documentales;
-- no aplica un filtro de release rígido cuando la mejor evidencia viene del export RDi local del data pack;
-- lee tópicos como “Debugging a job that is running”, “Displaying the lock states for objects” o
-  “Displaying a job log” cuando contienen el comando específico;
-- considera secciones `description`, `notes`, `generic` o `related` como evidencia fuerte si mencionan
-  el comando IBM i específico.
+### DDS
 
-Esto evita falsos huecos de cobertura para `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB` y `WRKJOB`.
+Describe si se trata de PF, LF, DSPF o PRTF y qué comportamiento buscas. No es necesario seleccionar
+una categoría del corpus.
 
-Ejemplo:
+### Administración IBM i
+
+Formula la necesidad operativa en lenguaje natural: trabajos activos, joblogs, locks, objetos,
+miembros, bibliotecas, colas o subsistemas. Los nombres propios de un servidor pueden incluirse como
+contexto; el MCP recupera la documentación general aplicable.
+
+### Versiones
+
+Si pides IBM i 7.6 y la documentación relevante solo está disponible en otro release del corpus, la
+respuesta puede usarla, pero debe indicar expresamente qué versión está citando.
+
+## Perfiles avanzados
+
+Los perfiles siguientes son opt-in y están destinados a operadores que necesitan inspeccionar el
+runtime:
+
+- `standard`: aliases de alto nivel;
+- `full`: búsqueda, lectura, secciones, ranking, calidad y trazas;
+- `maintainer`: operación avanzada del proyecto.
 
 ```powershell
-node dist/src/cli.js assist "Corregir CLLE con RTVJOBA y MONMSG; necesito sintaxis, parámetros y validación" --language CLLE --ibmi-version 7.5 --depth deep
+$env:IBMI_DOCS_TOOL_PROFILE = 'full'
+ibmi-docs-mcp
 ```
 
-Usa `coverage.status` así:
+Las tools avanzadas pueden devolver datos estructurados porque su objetivo es diagnóstico explícito.
+Eso no cambia el contrato limpio de `ibmi_docs_assist`.
 
-- `complete`: puedes usar la respuesta como base fuerte.
-- `partial`: hay evidencia útil, pero revisa advertencias por release, término o sección débil.
-- `thin`: no hay evidencia suficiente; el agente no debe inventar parámetros ni sintaxis.
+## Sincronización
 
-## `ibmi_docs_resolve`
+`ibmi_docs_sync` es mantenimiento. No aparece en el perfil `agent` y solo se registra cuando el
+operador activa un perfil avanzado junto con `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
 
-`ibmi_docs_resolve` es el orquestador principal. Clasifica la consulta, recupera evidencia, lee tópicos principales, extrae secciones cuando aplica y sintetiza una respuesta utilizable por el agente.
-
-Campos útiles de salida:
-
-- `intent`: intención detectada.
-- `policy`: política aplicada.
-- `stages`: etapas internas ejecutadas.
-- `answer`: respuesta autocontenida.
-- `evidence`: resultados candidatos sanitizados.
-- `reads`: tópicos completos ya leídos/resumidos.
-- `sections`: secciones detectadas como `syntax`, `parameters`, `examples`, `notes`, `messages` o `recovery`.
-- `citations`: citas auditables.
-- `warnings`: limitaciones o señales de baja evidencia.
-
-Ejemplo:
-
-```powershell
-node dist/src/cli.js resolve "Explica la sintaxis de SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples
-```
-
-## `ibmi_docs_context`
-
-`ibmi_docs_context` está pensada para desarrollo/corrección. Si el agente está trabajando sobre un problema concreto —por ejemplo un CLLE con `RTVJOBA` y `MONMSG`— esta tool debe devolver todo lo que el agente necesita para avanzar sin pedirle llamadas adicionales.
-
-Salida esperada:
-
-- `answer`: resumen contextual orientado a acción.
-- `appliedWorkflow`: etapas internas como búsqueda, lectura y secciones.
-- `recommendedDocs`: documentos candidatos sanitizados.
-- `reads`: lecturas materializadas.
-- `sections`: secciones enfocadas.
-- `actionItems`: pasos concretos para aplicar en código o diagnóstico.
-- `warnings`: límites documentales.
-
-Ejemplo:
-
-```powershell
-node dist/src/cli.js context "Corregir CLLE con RTVJOBA y MONMSG para manejar CPF/MCH" --language CLLE --ibmi-version 7.5 --limit 5
-```
-
-## Tools de bajo nivel
-
-`ibmi_docs_search`, `ibmi_docs_read` e `ibmi_docs_sections` son útiles cuando el usuario o mantenedor quiere inspeccionar el corpus manualmente:
-
-```text
-1. ibmi_docs_search("CRTRPGMOD command")
-2. ibmi_docs_read(id)
-3. ibmi_docs_sections(id)
-```
-
-Ese flujo es válido para auditoría humana, debugging o tests, pero no debe ser la única respuesta de una tool de alto nivel. Si un agente llamó `ibmi_docs_resolve` o `ibmi_docs_context`, el MCP ya debe haber ejecutado internamente lo necesario.
-
-## Auto-read y secciones enfocadas
-
-El repositorio detecta consultas con comandos IBM i específicos, por ejemplo:
-
-- `CRTRPGMOD command`
-- `SND-MSG`
-- `CRTSQLRPGI`
-- `RTVJOBA`
-- `MONMSG`
-
-Cuando la evidencia es fuerte, el runtime adjunta lectura y secciones útiles para evitar respuestas pobres basadas solo en snippets. Esto es especialmente importante para sintaxis, parámetros, notas, recuperación y mensajes.
-
-## Diagnóstico de mensajes
-
-Para mensajes como `RNF0004`, `CPF0001` o familias `MCH`, evita responder solo desde memoria del modelo:
-
-```powershell
-node dist/src/cli.js resolve "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE
-```
-
-La respuesta debe incluir evidencia, causa/recuperación cuando esté disponible, cobertura específica o por familia y validaciones sugeridas.
-
-## Guía de compilación
-
-Para SQLRPGLE o código con SQL embebido:
-
-```powershell
-node dist/src/cli.js resolve "Cómo compilo un SQLRPGLE con EXEC SQL y /COPY" --language SQLRPGLE --compile
-```
-
-La respuesta debe cubrir comandos como `CRTSQLRPGI`, precompilador, includes/copybooks y opciones relevantes.
-
-## Comparación de versiones
-
-```powershell
-node dist/src/cli.js resolve "Compara CRTRPGMOD entre IBM i 7.3, 7.4, 7.5 y 7.6" --limit 4
-```
-
-La respuesta debe indicar qué se encontró por release y citar evidencia comparable.
+Nunca debe utilizarse como paso previo para responder una consulta documental.
 
 ## Trazas locales
 
-Las trazas son opcionales y locales. No se envían a ningún servicio externo.
+La telemetría es opcional, local y desactivada por defecto:
 
 ```powershell
-$env:IBMI_DOCS_TRACE = "1"
-$env:IBMI_DOCS_TRACE_FILE = "D:\MCP-IBMiDocs\data\ibmi-docs-trace.ndjson"
-node dist/src/cli.js resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6
-node dist/src/cli.js trace-report --limit 30
+$env:IBMI_DOCS_TRACE = '1'
+$env:IBMI_DOCS_TRACE_FILE = 'D:\MCP-IBMiDocs\data\ibmi-docs-trace.ndjson'
+ibmi-docs trace-report --limit 30
 ```
 
-El reporte incluye:
-
-- `search_only_rate`
-- `search_then_read_rate`
-- `answer_usage_rate`
-- `byTool`
-- `recentEvents`
-
-Úsalo para detectar clientes o prompts que abusan de `ibmi_docs_search` y no consumen evidencia completa. Si el reporte muestra mucha búsqueda sin lectura, el prompt del cliente necesita una nalgada documental, no más incienso.
+Un mantenedor puede usarla para reproducir consultas difíciles sin contaminar el contexto del
+agente usuario.
 
 ## Skill opcional
 
-El MCP no debe depender de un skill para funcionar bien. La autonomía principal vive en
-`ibmi_docs_assist` y en el perfil `agent`. Aun así, el repositorio incluye
-`skills/ibmi-docs/SKILL.md` como ayuda para clientes que soportan skills: sirve para enseñar al
-agente cuándo invocar el MCP, qué argumentos pasar y por qué no debe encadenar manualmente
-`search/read/sections` salvo debugging.
+El skill `skills/ibmi-docs/SKILL.md` ayuda a clientes compatibles a decidir cuándo invocar el MCP,
+pero no es requisito de runtime. La autonomía y el contrato de salida viven dentro del servidor.
 
-Recomendación práctica:
+## Checklist
 
-- instala/configura el MCP siempre;
-- usa el skill solo como mejora de comportamiento del agente cliente;
-- no trates el skill como requisito de runtime ni como reemplazo de la orquestación interna.
-
-## Prompts recomendados para clientes MCP
-
-### Pregunta normal
-
-```text
-Usa ibmi_docs_assist como tool principal. Trata su respuesta como autocontenida: incluye búsqueda, lectura, secciones, citas, pasos, validación y advertencias cuando aplica.
-```
-
-### Revisión de código
-
-```text
-Usa ibmi_docs_assist con language y code. Si necesitas depurar el workflow interno, usa ibmi_docs_context o ibmi_docs_resolve. No esperes que el agente encadene manualmente read/sections: el MCP debe devolver contexto materializado.
-```
-
-### Diagnóstico de errores
-
-```text
-Usa ibmi_docs_resolve. Si detectas RNF/SQL/CPF/MCH, la respuesta debe incluir evidencia documental y recuperación/validación sin pedir llamadas adicionales al agente.
-```
-
-## Checklist antes de responder
-
-- ¿La respuesta salió de una tool de alto nivel (`assist`, `resolve`, `answer`, `context`, `compile_guidance`, `explain_message`, `compare_versions`)?
-- Si el agente no conocía el flujo, ¿usó primero `ibmi_docs_assist`?
-- ¿Incluye evidencia ya materializada, no solo IDs?
-- Si el usuario pidió sintaxis, ¿hay secciones o extractos útiles?
-- Si la consulta menciona versión, ¿se filtró o comparó por versión?
-- Si la consulta menciona código, ¿se detectaron señales del código?
-- Si hay baja evidencia, ¿se dijo claramente en vez de inventar?
+- ¿Se llamó únicamente `ibmi_docs_assist` en el perfil normal?
+- ¿La petición contiene la tarea completa y el código disponible?
+- ¿La respuesta contiene un solo bloque de texto?
+- ¿No aparecen JSON interno, scores, IDs ni planes?
+- ¿Una falta de soporte se comunica claramente en vez de devolver otro tópico?
+- ¿Cuando se usa otro release, la respuesta indica la versión?

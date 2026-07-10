@@ -4,7 +4,6 @@ import path from "node:path";
 import process from "node:process";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import type { AssistResult } from "../src/types.js";
 
 interface QuestionBankCase {
   id: string;
@@ -28,9 +27,8 @@ interface CaseResult {
   answerMatched: string[];
   evidenceMatched: string[];
   forbiddenMatched: string[];
-  coverageStatus: string;
-  confidence: string;
-  topCitations: string[];
+  contractViolations: string[];
+  responsePreview: string;
   failureReasons: string[];
   runtimeMode: "mcp";
   durationMs: number;
@@ -223,43 +221,28 @@ function fold(value: string): string {
     .toLowerCase();
 }
 
-function buildEvaluationCorpus(assist: AssistResult): { answerCorpus: string; evidenceCorpus: string; fullCorpus: string } {
-  const answerCorpus = [
-    assist.answer,
-    assist.executiveSummary.join(" "),
-    assist.implementationSteps.join(" "),
-    assist.validationChecklist.join(" "),
-    assist.coverage.matchedTechnicalTerms.join(" "),
-    assist.specificFindings.join(" ")
-  ].join("\n");
-  const evidenceCorpus = [
-    ...assist.citations.map((citation) => `${citation.title} ${citation.section ?? ""} ${citation.id}`),
-    ...assist.evidence.map((hit) => `${hit.title} ${hit.snippet}`),
-    ...assist.reads.map((read) => `${read.title} ${read.excerpt} ${read.focusedSections.map((section) => `${section.title} ${section.content}`).join(" ")}`)
-  ].join("\n");
-  return {
-    answerCorpus,
-    evidenceCorpus,
-    fullCorpus: `${answerCorpus}\n${evidenceCorpus}`
-  };
-}
-
-function evaluateAssist(item: QuestionBankCase, assist: AssistResult, durationMs: number): CaseResult {
-  const { answerCorpus, evidenceCorpus, fullCorpus } = buildEvaluationCorpus(assist);
-  const answerMatched = containsAny(answerCorpus, item.answerMustContainAny);
-  const evidenceMatched = containsAny(evidenceCorpus, item.evidenceMustContainAny);
-  const forbiddenMatched = containsAny(fullCorpus, item.forbiddenAny ?? []);
-  const coverageHealthy = assist.coverage.status !== "thin" && assist.confidence !== "baja";
+function evaluatePublicAnswer(
+  item: QuestionBankCase,
+  answer: string,
+  contractViolations: string[],
+  durationMs: number
+): CaseResult {
+  const answerMatched = containsAny(answer, item.answerMustContainAny);
+  const evidenceMatched = containsAny(answer, item.evidenceMustContainAny);
+  const forbiddenMatched = containsAny(answer, item.forbiddenAny ?? []);
+  const answerUsable = Boolean(answer.trim())
+    && !fold(answer).includes(fold("No encontré evidencia documental suficientemente relacionada"));
   const score =
-    (answerMatched.length ? 0.4 : 0)
+    (answerMatched.length ? 0.45 : 0)
     + (evidenceMatched.length ? 0.35 : 0)
     + (!forbiddenMatched.length ? 0.15 : 0)
-    + (coverageHealthy ? 0.1 : 0);
+    + (answerUsable && !contractViolations.length ? 0.05 : 0);
   const failureReasons = [
     ...(!answerMatched.length ? [`La respuesta no contiene ninguno de: ${item.answerMustContainAny.join(", ")}`] : []),
-    ...(!evidenceMatched.length ? [`La evidencia no contiene ninguno de: ${item.evidenceMustContainAny.join(", ")}`] : []),
+    ...(!evidenceMatched.length ? [`La respuesta pública no contiene evidencia suficiente de: ${item.evidenceMustContainAny.join(", ")}`] : []),
     ...(forbiddenMatched.length ? [`Se encontraron términos prohibidos/tangenciales: ${forbiddenMatched.join(", ")}`] : []),
-    ...(!coverageHealthy ? [`Cobertura/confianza insuficiente: ${assist.coverage.status}/${assist.confidence}`] : [])
+    ...(!answerUsable ? ["La tool pública declaró evidencia insuficiente o devolvió una respuesta vacía."] : []),
+    ...contractViolations
   ];
 
   return {
@@ -270,9 +253,8 @@ function evaluateAssist(item: QuestionBankCase, assist: AssistResult, durationMs
     answerMatched,
     evidenceMatched,
     forbiddenMatched,
-    coverageStatus: assist.coverage.status,
-    confidence: assist.confidence,
-    topCitations: assist.citations.slice(0, 5).map((citation) => citation.title),
+    contractViolations,
+    responsePreview: answer.slice(0, 600),
     failureReasons,
     runtimeMode: "mcp",
     durationMs
@@ -325,11 +307,19 @@ async function evaluateWithMcp(cases: QuestionBankCase[], options: EvalOptions):
           limit: 8
         }
       }, undefined, { timeout: 180_000 });
-      const structured = response.structuredContent as AssistResult | undefined;
-      if (!structured?.coverage || !structured.answer) {
-        throw new Error(`Respuesta MCP sin structuredContent AssistResult para ${item.id}`);
+      const textBlocks = Array.isArray(response.content)
+        ? response.content.filter((block): block is { type: "text"; text: string } => block.type === "text" && typeof block.text === "string")
+        : [];
+      const contractViolations = [
+        ...(response.structuredContent !== undefined ? ["La tool pública expuso structuredContent."] : []),
+        ...(textBlocks.length !== 1 ? [`Se esperaban exactamente 1 bloque de texto y llegaron ${textBlocks.length}.`] : [])
+      ];
+      const answer = textBlocks.map((block) => block.text).join("\n").trim();
+      const internalLabels = ["retrievalPlan", "taskPlan", "semanticScore", "Resumen estructurado", "chunk_vectors"];
+      for (const label of internalLabels) {
+        if (answer.includes(label)) contractViolations.push(`La respuesta expuso el detalle interno ${label}.`);
       }
-      results.push(evaluateAssist(item, structured, Date.now() - started));
+      results.push(evaluatePublicAnswer(item, answer, contractViolations, Date.now() - started));
     }
     return results;
   } catch (error) {

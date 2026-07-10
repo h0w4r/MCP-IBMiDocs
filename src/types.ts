@@ -319,7 +319,9 @@ export interface VectorCoverageDiagnostics {
   documents: number;
   chunks: number;
   vectors: number;
+  documentVectors: number;
   documentsWithoutChunks: number;
+  documentsWithoutVectors: number;
   chunksWithoutVectors: number;
 }
 
@@ -431,6 +433,7 @@ export interface AssistCoverage {
 
 export type AssistRetrievalAxis =
   | "primary"
+  | "semantic-variant"
   | "syntax"
   | "compile"
   | "message"
@@ -490,6 +493,14 @@ export interface AssistRetrievalPlan {
   coverageGaps: string[];
 }
 
+export interface AssistNeuralRelevance {
+  directEmbeddingScore: number;
+  rerankerLogit: number;
+  rerankerProbability: number;
+  supported: boolean;
+  selectedPassageIds: string[];
+}
+
 export interface AssistResult {
   question: string;
   intent: DocsIntent;
@@ -500,6 +511,7 @@ export interface AssistResult {
   specificFindings: string[];
   implementationSteps: string[];
   validationChecklist: string[];
+  relevance: AssistNeuralRelevance;
   coverage: AssistCoverage;
   retrievalPlan: AssistRetrievalPlan;
   workflow: WorkflowStage[];

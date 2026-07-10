@@ -105,6 +105,21 @@ export function semanticPassageText(input: NeuralPassageInput, modelId = configu
   return `${passagePrefix}${body.trim()}`;
 }
 
+/**
+ * Representa la identidad conceptual de un documento sin mezclar el cuerpo.
+ * Esta faceta permite recuperar tópicos precisos por su ruta semántica aunque
+ * un manual o catálogo extenso domine el embedding del contenido completo.
+ */
+export function semanticTitlePassageText(input: NeuralPassageInput, modelId = configuredEmbeddingModel()): string {
+  return semanticPassageText({
+    title: input.title,
+    breadcrumbs: input.breadcrumbs,
+    category: input.category,
+    language: input.language,
+    version: input.version
+  }, modelId);
+}
+
 export async function embedTexts(texts: string[], options: EmbedTextOptions = {}): Promise<Float32Array[]> {
   const modelId = options.modelId ?? configuredEmbeddingModel();
   const cacheDir = options.cacheDir ?? defaultModelCacheDir();

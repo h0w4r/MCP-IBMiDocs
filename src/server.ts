@@ -17,9 +17,7 @@ const packDir = packResolution.packDir;
 type McpToolProfile = "agent" | "standard" | "full" | "maintainer";
 
 const AGENT_PROFILE_TOOLS = new Set([
-  "ibmi_docs_assist",
-  "ibmi_docs_categories",
-  "ibmi_docs_diagnostics"
+  "ibmi_docs_assist"
 ]);
 
 const STANDARD_PROFILE_TOOLS = new Set([
@@ -78,20 +76,23 @@ async function withRepositoryAsync<T>(callback: (repo: CorpusRepository) => Prom
 
 export function createServer(): McpServer {
   const toolProfile = resolveMcpToolProfile();
+  const isAgentProfile = toolProfile === "agent";
   const server = new McpServer(
     { name: "ibmi-docs-mcp", version: loadPackageVersion(import.meta.url) },
     {
       instructions:
-        [
-          "Usa estas herramientas para contrastar respuestas sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, Db2 for i y mensajes RNF contra documentación local oficial.",
-          `Perfil MCP activo: ${toolProfile}. En el perfil agent, la herramienta documental principal para cualquier tarea IBM i es ibmi_docs_assist.`,
-          "Si el cliente o agente no sabe qué herramienta elegir, usa ibmi_docs_assist: es la tool one-shot y devuelve respuesta final, pasos, validación, cobertura y citas sin delegar sub-tools.",
-          "Para flujos especializados en perfiles avanzados, ibmi_docs_resolve, ibmi_docs_answer, ibmi_docs_context, ibmi_docs_compile_guidance, ibmi_docs_explain_message e ibmi_docs_validate_code_context se enrutan al mismo orquestador neuronal de ibmi_docs_assist.",
-          "ibmi_docs_search, ibmi_docs_read e ibmi_docs_sections son herramientas de bajo nivel para auditoría manual o depuración en perfiles full/maintainer; no son requisito posterior cuando una tool de alto nivel ya respondió.",
-          "Las tools de alto nivel no deben delegar trabajo adicional al agente: si la consulta requiere sintaxis, parámetros, ejemplos, mensajes, compilación o comparación por versión, la tool debe incorporar ese flujo en su propia salida.",
-          "Si un ranking parece incorrecto, usa ibmi_docs_report_query para generar evidencia reproducible lista para issue.",
-          "El runtime no depende de RDi ni Eclipse Help y nunca consulta el endpoint local de bootstrap."
-        ].join(" ")
+        (isAgentProfile
+          ? [
+              "Usa ibmi_docs_assist para cualquier consulta o tarea sobre IBM i/AS400, RPGLE, SQLRPGLE, CLLE, DDS, COBOL, Db2 for i, comandos y mensajes.",
+              "Pasa la petición completa y, si existen, el código, el lenguaje y la versión.",
+              "La tool realiza toda la recuperación internamente y devuelve únicamente la respuesta final; no solicites índices, scores, planes, IDs ni sub-tools."
+            ]
+          : [
+              "Usa ibmi_docs_assist como entrada principal para consultas IBM i.",
+              `Perfil MCP activo: ${toolProfile}. Las tools adicionales son para auditoría o mantenimiento explícito.`,
+              "Las tools de alto nivel devuelven una respuesta final limpia; la telemetría se consulta únicamente mediante tools diagnósticas.",
+              "El runtime no depende de RDi ni Eclipse Help y nunca consulta el endpoint local de bootstrap."
+            ]).join(" ")
     }
   );
 
@@ -103,23 +104,30 @@ export function createServer(): McpServer {
     "ibmi_docs_assist",
     {
       title: "Asistente IBM i one-shot",
-      description: "Herramienta principal para agentes y usuarios: recibe la tarea completa y ejecuta internamente recuperación neuronal multi-hop con Transformers.js -> lectura -> secciones -> follow-ups derivados de evidencia -> síntesis. Devuelve respuesta final autocontenida con evidencia, lecturas, secciones, pasos, validación, cobertura, citas y retrievalPlan; no pide llamadas adicionales.",
-      inputSchema: z.object({
-        question: z.string().min(1).describe("Pregunta o tarea completa del usuario sobre IBM i/AS400."),
-        language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
-        version: z.string().optional().describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
-        category: z.string().optional().describe("Categoría opcional del corpus."),
-        code: z.string().optional().describe("Código opcional para validación documental."),
-        depth: z.enum(["concise", "standard", "deep"]).optional().describe("Nivel de detalle de la respuesta."),
-        audience: z.enum(["agent", "developer", "maintainer"]).optional().describe("Audiencia principal de la salida."),
-        includeExamples: z.boolean().optional().describe("Incluir ejemplos/secciones de ejemplo cuando existan."),
-        includeCompileCommands: z.boolean().optional().describe("Incluir guía de compilación cuando aplique."),
-        limit: z.number().int().min(1).max(12).optional()
-      })
+      description: "Responde la tarea completa usando documentación IBM i local. Devuelve únicamente la respuesta final; toda búsqueda, lectura y validación ocurre internamente.",
+      inputSchema: isAgentProfile
+        ? z.object({
+            question: z.string().min(1).describe("Pregunta o tarea completa sobre IBM i/AS400."),
+            code: z.string().optional().describe("Código relacionado, si existe."),
+            language: z.string().optional().describe("Lenguaje o tecnología, si se conoce."),
+            version: z.string().optional().describe("Versión IBM i preferida, si aplica.")
+          })
+        : z.object({
+            question: z.string().min(1).describe("Pregunta o tarea completa del usuario sobre IBM i/AS400."),
+            language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
+            version: z.string().optional().describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
+            category: z.string().optional().describe("Categoría opcional del corpus."),
+            code: z.string().optional().describe("Código opcional para validación documental."),
+            depth: z.enum(["concise", "standard", "deep"]).optional().describe("Nivel de detalle de la respuesta."),
+            audience: z.enum(["agent", "developer", "maintainer"]).optional().describe("Audiencia principal de la salida."),
+            includeExamples: z.boolean().optional().describe("Incluir ejemplos/secciones de ejemplo cuando existan."),
+            includeCompileCommands: z.boolean().optional().describe("Incluir guía de compilación cuando aplique."),
+            limit: z.number().int().min(1).max(12).optional()
+          })
     },
     async (input) => {
       const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -142,7 +150,7 @@ export function createServer(): McpServer {
     },
     async (input) => {
       const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -201,8 +209,8 @@ export function createServer(): McpServer {
   registerTool(
     "ibmi_docs_answer",
     {
-      title: "Responder con evidencia IBM i",
-      description: "Respuesta recomendada para preguntas directas: se enruta al orquestador neuronal de ibmi_docs_assist y devuelve respuesta autocontenida con evidencia ya materializada.",
+      title: "Responder consulta IBM i",
+      description: "Alias avanzado de ibmi_docs_assist: devuelve únicamente la respuesta técnica final.",
       inputSchema: z.object({
         question: z.string().min(1),
         language: z.string().optional(),
@@ -216,7 +224,7 @@ export function createServer(): McpServer {
     },
     async (input) => {
       const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -224,7 +232,7 @@ export function createServer(): McpServer {
     "ibmi_docs_context",
     {
       title: "Resolver contexto IBM i",
-      description: "Genera un paquete contextual autocontenido mediante el mismo orquestador neuronal de ibmi_docs_assist: respuesta, lecturas, secciones enfocadas, notas de versión, acciones y evidencia ya materializada.",
+      description: "Alias avanzado de ibmi_docs_assist: procesa la tarea completa y devuelve únicamente la respuesta técnica final.",
       inputSchema: z.object({
         task: z.string().min(1).describe("Tarea del usuario: crear programa RPG, corregir RNFxxxx, escribir CLLE, etc."),
         language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
@@ -235,7 +243,7 @@ export function createServer(): McpServer {
     },
     async ({ task, language, version, limit }) => {
       const assisted = await withRepositoryAsync((repo) => repo.assistSmart({ question: task, language, version, limit }));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -267,7 +275,7 @@ export function createServer(): McpServer {
         includeCompileCommands: true,
         limit: input.limit
       }));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -284,7 +292,7 @@ export function createServer(): McpServer {
         question: `Diagnostica el mensaje IBM i ${messageId} con evidencia documental específica.`,
         limit
       }));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -322,7 +330,7 @@ export function createServer(): McpServer {
         category: input.category,
         limit: input.limit
       }));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -364,7 +372,7 @@ export function createServer(): McpServer {
         code: input.code,
         limit: input.limit
       }));
-      return { content: [{ type: "text" as const, text: renderAssist(assisted) }], structuredContent: structured(assisted) };
+      return publicAssistResult(assisted);
     }
   );
 
@@ -504,43 +512,47 @@ export function createServer(): McpServer {
     );
   }
 
-  server.registerResource("ibmi-docs-manifest", "ibmi-docs://manifest", { title: "Manifest del corpus IBM i", mimeType: "application/json" }, async (uri) => ({
-    contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(withRepository((repo) => repo.manifest()), null, 2) }]
-  }));
+  // Los recursos y prompts revelan detalles de corpus y operación. Se reservan para
+  // perfiles avanzados para que el cliente normal solo descubra la respuesta one-shot.
+  if (!isAgentProfile) {
+    server.registerResource("ibmi-docs-manifest", "ibmi-docs://manifest", { title: "Manifest del corpus IBM i", mimeType: "application/json" }, async (uri) => ({
+      contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(withRepository((repo) => repo.manifest()), null, 2) }]
+    }));
 
-  server.registerResource(
-    "ibmi-docs-topic",
-    new ResourceTemplate("ibmi-docs://topic/{id}", { list: undefined }),
-    { title: "Tópico IBM i", mimeType: "text/plain" },
-    async (uri, variables) => {
-      const idValue = variables.id;
-      const id = Array.isArray(idValue) ? idValue[0] : idValue;
-      const result = withRepository((repo) => repo.read(String(id)));
-      return { contents: [{ uri: uri.href, mimeType: "text/plain", text: result?.content ?? `No se encontró ${String(id)}` }] };
-    }
-  );
+    server.registerResource(
+      "ibmi-docs-topic",
+      new ResourceTemplate("ibmi-docs://topic/{id}", { list: undefined }),
+      { title: "Tópico IBM i", mimeType: "text/plain" },
+      async (uri, variables) => {
+        const idValue = variables.id;
+        const id = Array.isArray(idValue) ? idValue[0] : idValue;
+        const result = withRepository((repo) => repo.read(String(id)));
+        return { contents: [{ uri: uri.href, mimeType: "text/plain", text: result?.content ?? `No se encontró ${String(id)}` }] };
+      }
+    );
 
-  server.registerResource("ibmi-docs-coverage", "ibmi-docs://coverage", { title: "Cobertura IBM i Docs", mimeType: "application/json" }, async (uri) => ({
-    contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(withRepository((repo) => repo.diagnostics()), null, 2) }]
-  }));
+    server.registerResource("ibmi-docs-coverage", "ibmi-docs://coverage", { title: "Cobertura IBM i Docs", mimeType: "application/json" }, async (uri) => ({
+      contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(withRepository((repo) => repo.diagnostics()), null, 2) }]
+    }));
 
-  server.registerPrompt("consultar-documentacion-ibmi", {
-    title: "Consultar documentación IBM i",
-    description: "Prompt para resolver una consulta IBM i con workflow agéntico y evidencia antes de responder.",
-    argsSchema: { consulta: z.string().min(1) }
-  }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para: ${consulta}. La respuesta debe salir autocontenida con evidencia, citas, lecturas, secciones relevantes, pasos y validación ya materializados por el MCP.` } }] }));
+    server.registerPrompt("consultar-documentacion-ibmi", {
+      title: "Consultar documentación IBM i",
+      description: "Prompt avanzado para resolver una consulta IBM i mediante ibmi_docs_assist.",
+      argsSchema: { consulta: z.string().min(1) }
+    }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para responder esta tarea IBM i completa: ${consulta}` } }] }));
 
-  server.registerPrompt("revisar-codigo-rpgle-con-docs", {
-    title: "Revisar RPGLE con documentación",
-    description: "Prompt para revisar código RPGLE con ayuda IBM i.",
-    argsSchema: { codigo: z.string().min(1) }
-  }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist con language=RPGLE y code para revisar este código contra documentación oficial. La tool debe orquestar internamente validación documental y guía de compilación cuando detecte SQL embebido o /COPY:\n\n${codigo}` } }] }));
+    server.registerPrompt("revisar-codigo-rpgle-con-docs", {
+      title: "Revisar RPGLE con documentación",
+      description: "Prompt avanzado para revisar código RPGLE con ayuda IBM i.",
+      argsSchema: { codigo: z.string().min(1) }
+    }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist con language=RPGLE y code para revisar este código contra documentación IBM i:\n\n${codigo}` } }] }));
 
-  server.registerPrompt("diagnosticar-error-rnf", {
-    title: "Diagnosticar RNF",
-    description: "Prompt para diagnosticar mensajes RNF con causa y recovery.",
-    argsSchema: { mensaje: z.string().min(1) }
-  }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para diagnosticar ${mensaje}; la salida debe incluir diagnóstico, evidencia principal, recovery y acciones de validación sin delegar llamadas posteriores al agente.` } }] }));
+    server.registerPrompt("diagnosticar-error-rnf", {
+      title: "Diagnosticar RNF",
+      description: "Prompt avanzado para diagnosticar mensajes RNF.",
+      argsSchema: { mensaje: z.string().min(1) }
+    }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para diagnosticar este mensaje IBM i: ${mensaje}` } }] }));
+  }
 
   return server;
 }
@@ -583,17 +595,14 @@ function renderEvidenceList(label: string, results: Array<any>): string {
   ].filter(Boolean).join("\n"))].join("\n");
 }
 
-function renderAssist(assist: any): string {
-  return [
-    assist.answer,
-    "",
-    "Resumen estructurado:",
-    `- Intención: ${assist.intent}`,
-    `- Confianza: ${assist.confidence}`,
-    `- Plan agéntico: ${assist.retrievalPlan?.strategy ?? "n/a"}; ejes=${assist.retrievalPlan?.axes?.join(", ") ?? "n/a"}; hops=${assist.retrievalPlan?.hops?.length ?? 0}; follow-ups=${assist.retrievalPlan?.followUpQueries?.length ?? 0}`,
-    `- Cobertura: ${assist.coverage?.status ?? "n/a"} (${assist.coverage?.evidenceCount ?? 0} evidencias, ${assist.coverage?.readCount ?? 0} lecturas, ${assist.coverage?.sectionCount ?? 0} secciones)`,
-    assist.warnings?.length ? `- Advertencias: ${assist.warnings.slice(0, 4).join(" | ")}` : "- Advertencias: n/a"
-  ].join("\n");
+function publicAssistResult(assist: any): { content: Array<{ type: "text"; text: string }> } {
+  const answer = String(assist?.answer ?? "").trim();
+  return {
+    content: [{
+      type: "text",
+      text: answer || "No encontré evidencia documental suficientemente relacionada en el corpus IBM i para responder con fiabilidad."
+    }]
+  };
 }
 
 function renderResolve(resolved: any): string {

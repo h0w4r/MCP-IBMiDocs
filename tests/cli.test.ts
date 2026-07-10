@@ -69,39 +69,20 @@ describe("CLI ibmi-docs", () => {
     const validation = runCli(["validate-code-context", "--language", "SQLRPGLE", "--code", "exec sql select 1 from sysibm.sysdummy1;", "--limit", "2"]);
     expect(validation.status).toBe(0);
     expect(JSON.parse(validation.stdout).evidence.length).toBeGreaterThan(0);
-  });
+  }, 360_000);
 
-  it("assist entrega salida JSON final para agentes sin pedir sub-tools manuales", () => {
+  it("assist entrega solo la respuesta final salvo diagnóstico explícito", () => {
     const result = runCli([
       "assist",
-      "Corregir CLLE con RTVJOBA y MONMSG; necesito sintaxis, parámetros y validación",
-      "--language",
-      "CLLE",
-      "--ibmi-version",
-      "7.5",
+      "What is the command used to invoke RLU?",
       "--depth",
-      "deep",
-      "--compile",
-      "--examples",
+      "concise",
       "--limit",
       "4"
     ]);
 
     expect(result.status).toBe(0);
-    const parsed = JSON.parse(result.stdout) as {
-      answer: string;
-      coverage: { status: string; evidenceCount: number; readCount: number; sectionCount: number };
-      implementationSteps: string[];
-      validationChecklist: string[];
-    };
-    expect(parsed.answer).toMatch(/Resumen|Pasos sugeridos|Validación/i);
-    expect(parsed.answer).toMatch(/RTVJOBA|MONMSG/i);
-    expect(parsed.coverage.status).not.toBe("thin");
-    expect(parsed.coverage.evidenceCount).toBeGreaterThan(0);
-    expect(parsed.coverage.readCount).toBeGreaterThan(0);
-    expect(parsed.coverage.sectionCount).toBeGreaterThan(0);
-    expect(parsed.implementationSteps.length).toBeGreaterThanOrEqual(3);
-    expect(parsed.validationChecklist.length).toBeGreaterThanOrEqual(3);
-    expect(JSON.stringify(parsed)).not.toMatch(/llama ibmi_docs_read|usa ibmi_docs_sections|Siguiente paso recomendado|Para obtener la ayuda completa/i);
-  });
+    expect(result.stdout).toMatch(/STRRLU|Start Report Layout Utility/i);
+    expect(result.stdout).not.toMatch(/retrievalPlan|taskPlan|coverage|semanticScore|Resumen estructurado|"answer"/i);
+  }, 360_000);
 });

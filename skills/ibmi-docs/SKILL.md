@@ -21,31 +21,17 @@ Incluye, cuando exista:
 - `language`: `RPGLE`, `SQLRPGLE`, `CLLE`, `DDS`, `COBOL`, `Db2 for i` u otra tecnología IBM i.
 - `version`: release IBM i objetivo si el usuario lo dio.
 - `code`: código relevante para revisión o corrección.
-- `depth`: `standard` por defecto; `deep` para bugs, compilación, migración o cambios delicados.
-- `includeExamples`: `true` cuando el usuario pide sintaxis, comandos o fuente de ejemplo.
-- `includeCompileCommands`: `true` cuando la tarea implique compilar, crear módulos/programas o SQL embebido.
 
 ## No delegar sub-tools al usuario
 
-Si `ibmi_docs_assist` devuelve una respuesta autocontenida con evidencia, úsala directamente. No le
+Usa directamente el único bloque de texto devuelto por `ibmi_docs_assist`. No le
 pidas al usuario ni al agente que llame manualmente `ibmi_docs_read`, `ibmi_docs_sections` o
 `ibmi_docs_search`.
 
 Las tools de bajo nivel solo son para auditoría o debugging si el operador activó un perfil avanzado.
 
-## Leer el `taskPlan`
-
-`ibmi_docs_assist` devuelve `taskPlan`. Úsalo para entender la familia de tarea sin llamar otra tool:
-
-- `create_program`: crear RPGLE/SQLRPGLE/CLLE/COBOL; usa pasos, comandos de compilación y validación.
-- `design_dds_file`: diseñar PF/LF DDS; revisa keywords, claves y `CRTPF`/`CRTLF`.
-- `work_management`: trabajos activos, joblogs, `WRKACTJOB`, `DSPJOB`, `WRKJOB` y locks.
-- `object_lock_analysis`: bloqueos de objetos o miembros con `WRKOBJLCK`.
-- `db2_catalog_query`: catálogos Db2 for i/QSYS2/SYS*.
-- `message_diagnostic`: RNF/CPF/MCH/SQL.
-
-No conviertas `taskPlan` en más tareas para el usuario. La respuesta ya trae evidencia, pasos,
-validación, citas y límites.
+El perfil normal no expone JSON, scores, IDs, planes, cobertura ni documentos leídos. Esos datos son
+telemetría de mantenimiento y no deben solicitarse durante una tarea de usuario.
 
 ## No usar sync para responder
 
@@ -60,8 +46,6 @@ Llama a `ibmi_docs_assist` con:
 
 - `language`: `RPGLE` o `SQLRPGLE`.
 - `code`: fuente si existe.
-- `depth`: `deep`.
-- `includeCompileCommands`: `true`.
 
 Luego usa la salida para proponer fuente, comandos de compilación y checklist de validación.
 
@@ -71,24 +55,19 @@ Llama a `ibmi_docs_assist` con:
 
 - `language`: `CLLE`.
 - `code`: fuente si existe.
-- `includeExamples`: `true`.
 
 Revisa en la respuesta los comandos, parámetros, `MONMSG`, mensajes y validaciones sugeridas.
 
 ### Diseñar DDS o pantalla/reporte
 
-Llama a `ibmi_docs_assist` con:
-
-- `language`: `DDS`.
-- `depth`: `deep`.
-- `includeExamples`: `true`.
-
-Usa la evidencia para no inventar keywords, niveles de registro, claves, indicadores o restricciones.
+Llama a `ibmi_docs_assist` con `language: DDS` y la tarea completa. Usa la respuesta final para no
+inventar keywords, niveles de registro, claves, indicadores o restricciones.
 
 ### Comandos, trabajos, locks, objetos o administración
 
 Llama a `ibmi_docs_assist` con el comando o necesidad completa. Si el usuario pregunta “cómo veo
-trabajos activos” o “cómo reviso bloqueos”, pide evidencia documental y pasos de validación.
+trabajos activos” o “cómo reviso bloqueos”, la propia tool debe devolver la orientación documental
+aplicable; no solicites una segunda llamada ni metadatos de recuperación.
 
 Para administración IBM i, incluye los comandos o conceptos conocidos en la pregunta si están
 disponibles: `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB`, `WRKJOB`, joblog, objeto, miembro, biblioteca,
@@ -97,19 +76,10 @@ una página canónica perfecta por comando.
 
 ### Mensajes RNF/CPF/MCH/SQL
 
-Llama a `ibmi_docs_assist` con el mensaje exacto y el contexto. Pide `depth=deep` para bugs de
-compilación o runtime.
+Llama a `ibmi_docs_assist` con el mensaje exacto y todo el contexto disponible.
 
 ## Cómo usar la salida
 
-Prioriza:
-
-1. `answer` / resumen final.
-2. `implementationSteps`.
-3. `validationChecklist`.
-4. `specificFindings`.
-5. `coverage.status` y `warnings`.
-6. `citations`, `reads` y `sections` si necesitas auditar evidencia.
-
-Si `coverage.status` es `thin`, no inventes sintaxis ni parámetros: explica la limitación y usa la
-mejor alternativa verificable disponible.
+La salida pública ya es la respuesta final. Si indica que no encontró evidencia documental
+suficientemente relacionada, no inventes sintaxis ni parámetros; comunica esa limitación y continúa
+solo con otra fuente verificable.

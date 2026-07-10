@@ -9,6 +9,15 @@ import {
   embeddingModelDiagnostics,
   semanticQueryText
 } from "./neuralEmbeddings.js";
+import {
+  rerankPassages,
+  rerankerDiagnostics,
+  type NeuralRerankedPassage
+} from "./neuralReranker.js";
+import {
+  expandNeuralQueryVectors,
+  neuralQueryAdapterDiagnostics
+} from "./neuralQueryAdapter.js";
 import type {
   AnswerCitation,
   AnswerOptions,
@@ -16,7 +25,6 @@ import type {
   AssistCoverage,
   AssistOptions,
   AssistResult,
-  AssistRetrievalAxis,
   AssistRetrievalHop,
   AssistRetrievalPlan,
   AssistTaskPlan,
@@ -60,6 +68,8 @@ import { clamp } from "../util/common.js";
 type Row = Record<string, unknown>;
 
 interface NeuralCandidate {
+  chunkId: string;
+  chunkIndex: number;
   row: Row;
   documentId: string;
   title: string;
@@ -68,12 +78,14 @@ interface NeuralCandidate {
   version: string;
   breadcrumbs: string[];
   vector: Float32Array;
+  titleVector: Float32Array;
 }
 
 interface NeuralPassageMatch {
   candidate: NeuralCandidate;
   similarity: number;
   perspective: string;
+  perspectiveIndex: number;
 }
 
 interface NeuralDocumentAggregate {
@@ -84,10 +96,32 @@ interface NeuralDocumentAggregate {
   version: string;
   breadcrumbs: string[];
   best: NeuralPassageMatch;
+  primaryBest: NeuralPassageMatch;
   passages: NeuralPassageMatch[];
+  perspectiveBest: Map<number, NeuralPassageMatch>;
+}
+
+interface NeuralAnswerCandidate extends NeuralRerankedPassage {
+  candidate: NeuralCandidate;
+  directSimilarity: number;
+  embeddingSimilarity: number;
+  reciprocalRankScore: number;
+  neuralConsensusScore: number;
+}
+
+interface NeuralAnswerSelection {
+  candidates: NeuralAnswerCandidate[];
+  directEmbeddingScore: number;
+  supported: boolean;
+  topRerankerLogit: number;
+  topRerankerProbability: number;
 }
 
 const SUPPORTED_VERSIONS = ["7.3", "7.4", "7.5", "7.6", "RDi-local"];
+const ANSWER_RETRIEVAL_PER_PERSPECTIVE = 512;
+const ANSWER_RERANK_LIMIT = 48;
+const MIN_DIRECT_EMBEDDING_SUPPORT = 0.8;
+const CONDITIONAL_RERANKER_SUPPORT = -6;
 
 const NEURAL_POLICY: WorkflowPolicy = {
   intent: "explain_topic",
@@ -153,6 +187,8 @@ export class CorpusRepository {
         runtimePolicy: this.getMetaValue("embedding_runtime_policy") ?? "transformers-required",
         modelInstall: embeddingModelDiagnostics()
       },
+      reranker: rerankerDiagnostics(),
+      queryAdapter: neuralQueryAdapterDiagnostics(),
       vectorCoverage: this.vectorCoverageDiagnostics(),
       retrievalPolicy: "neural-only-transformers",
       runtimeDependency: "Sin RDi, sin Eclipse Help, sin endpoint local de RDi"
@@ -171,8 +207,9 @@ export class CorpusRepository {
     }
 
     this.assertNeuralDataPackReady();
-    const perspectives = buildSearchQueryPerspectives(query);
-    const queryVectors = await embedTexts(perspectives.map((perspective) => semanticQueryText(perspective)), { localOnly: true, kind: "query" });
+    const perspectives = [query];
+    const baseQueryVectors = await embedTexts(perspectives.map((perspective) => semanticQueryText(perspective)), { localOnly: true, kind: "query" });
+    const queryVectors = expandNeuralQueryVectors(baseQueryVectors);
     if (!queryVectors.length) {
       this.recordTrace("ibmi_docs_search", started, { query, resultCount: 0 });
       return [];
@@ -188,10 +225,10 @@ export class CorpusRepository {
     const aggregateByDocument = new Map<string, NeuralDocumentAggregate>();
     for (let perspectiveIndex = 0; perspectiveIndex < queryVectors.length; perspectiveIndex += 1) {
       const queryVector = queryVectors[perspectiveIndex];
-      const perspective = perspectives[perspectiveIndex] ?? query;
+      const perspective = perspectives[Math.floor(perspectiveIndex / 2)] ?? query;
       for (const candidate of candidates) {
-        const similarity = neuralCosineSimilarity(queryVector, candidate.vector);
-        const match: NeuralPassageMatch = { candidate, similarity, perspective };
+        const similarity = neuralFacetSimilarity(queryVector, candidate);
+        const match: NeuralPassageMatch = { candidate, similarity, perspective, perspectiveIndex };
         const existing = aggregateByDocument.get(candidate.documentId);
         if (!existing) {
           aggregateByDocument.set(candidate.documentId, {
@@ -202,11 +239,20 @@ export class CorpusRepository {
             version: candidate.version,
             breadcrumbs: candidate.breadcrumbs,
             best: match,
-            passages: [match]
+            primaryBest: match,
+            passages: [match],
+            perspectiveBest: new Map([[perspectiveIndex, match]])
           });
           continue;
         }
         if (similarity > existing.best.similarity) existing.best = match;
+        const existingPerspective = existing.perspectiveBest.get(perspectiveIndex);
+        if (!existingPerspective || similarity > existingPerspective.similarity) {
+          existing.perspectiveBest.set(perspectiveIndex, match);
+        }
+        if (perspectiveIndex === 0 && similarity > existing.primaryBest.similarity) {
+          existing.primaryBest = match;
+        }
         insertNeuralPassageMatch(existing.passages, match, 4);
       }
     }
@@ -243,6 +289,232 @@ export class CorpusRepository {
       followedReadCandidateIds: results.slice(0, 3).map((hit) => hit.id)
     });
     return results;
+  }
+
+  /**
+   * Construye el conjunto de pasajes que alimenta la respuesta final. Primero
+   * recupera con el bi-encoder E5 desde varias perspectivas y despues deja que
+   * el cross-encoder multilingue lea pregunta y pasaje conjuntamente.
+   */
+  private async selectNeuralAnswer(options: AssistOptions, question: string): Promise<NeuralAnswerSelection> {
+    const requestedVersion = normalizeVersionOption(options.version ?? options.ibmiVersion);
+    const contextualQuestion = composeNeuralQuestion(question, options.language, options.code);
+    const perspectives = uniqueNonEmpty([contextualQuestion, question, options.code ?? ""]);
+    const baseQueryVectors = await embedTexts(
+      perspectives.map((perspective) => semanticQueryText(perspective)),
+      { localOnly: true, kind: "query" }
+    );
+    const queryVectors = expandNeuralQueryVectors(baseQueryVectors);
+    if (!queryVectors.length) {
+      return {
+        candidates: [],
+        directEmbeddingScore: 0,
+        supported: false,
+        topRerankerLogit: Number.NEGATIVE_INFINITY,
+        topRerankerProbability: 0
+      };
+    }
+
+    const requestedCategory = options.category?.trim();
+    const corpusCandidates = this.getNeuralCandidates().filter((candidate) => {
+      // Todas las versiones permanecen candidatas. El cross-encoder recibe la
+      // preferencia de release y puede recuperar otra cuando el release pedido
+      // no contiene evidencia suficientemente útil.
+      if (requestedCategory && candidate.category !== requestedCategory) return false;
+      return true;
+    });
+    type CandidatePoolEntry = {
+      candidate: NeuralCandidate;
+      directSimilarity: number;
+      embeddingSimilarity: number;
+      reciprocalRankScore: number;
+    };
+    const buildCandidatePool = (scope: NeuralCandidate[]): Map<string, CandidatePoolEntry> => {
+      const candidatePool = new Map<string, CandidatePoolEntry>();
+      const titleRepresentatives = scope.filter((candidate) => candidate.chunkIndex === 0);
+      for (let perspectiveIndex = 0; perspectiveIndex < queryVectors.length; perspectiveIndex += 1) {
+        const vector = queryVectors[perspectiveIndex];
+        const rankings = [
+          scope
+            .map((candidate) => ({ candidate, similarity: neuralCosineSimilarity(vector, candidate.vector) }))
+            .sort((left, right) => right.similarity - left.similarity)
+            .slice(0, ANSWER_RETRIEVAL_PER_PERSPECTIVE),
+          titleRepresentatives
+            .map((candidate) => ({ candidate, similarity: neuralCosineSimilarity(vector, candidate.titleVector) }))
+            .sort((left, right) => right.similarity - left.similarity)
+            .slice(0, ANSWER_RETRIEVAL_PER_PERSPECTIVE)
+        ];
+        for (const ranked of rankings) {
+          for (let rank = 0; rank < ranked.length; rank += 1) {
+            const item = ranked[rank];
+            const reciprocalRankScore = 1 / (40 + rank + 1);
+            const existing = candidatePool.get(item.candidate.chunkId);
+            if (existing) {
+              existing.reciprocalRankScore += reciprocalRankScore;
+              existing.embeddingSimilarity = Math.max(existing.embeddingSimilarity, item.similarity);
+              continue;
+            }
+            candidatePool.set(item.candidate.chunkId, {
+              candidate: item.candidate,
+              directSimilarity: neuralFacetSimilarity(queryVectors[0], item.candidate),
+              embeddingSimilarity: item.similarity,
+              reciprocalRankScore
+            });
+          }
+        }
+      }
+      return candidatePool;
+    };
+
+    const globalCandidatePool = buildCandidatePool(corpusCandidates);
+    const preferredCandidatePool = requestedVersion
+      ? buildCandidatePool(corpusCandidates.filter((candidate) => candidate.version === requestedVersion))
+      : undefined;
+    const pooled = [...globalCandidatePool.values()]
+      .sort((left, right) => right.reciprocalRankScore - left.reciprocalRankScore
+        || right.embeddingSimilarity - left.embeddingSimilarity);
+    const preferredPooled = preferredCandidatePool
+      ? [...preferredCandidatePool.values()].sort((left, right) => right.reciprocalRankScore - left.reciprocalRankScore
+        || right.embeddingSimilarity - left.embeddingSimilarity)
+      : [];
+    const directEmbeddingScore = pooled.reduce(
+      (best, item) => Math.max(best, item.directSimilarity),
+      0
+    );
+    const concisePool = pooled.filter((item) => {
+        const length = normalizeCorpusPassage(item.candidate.body).length;
+        return length >= 8 && length <= 280;
+      });
+    // Se conservan varias vistas neuronales del mismo pool para que un pasaje
+    // breve y directo no quede fuera solo porque otra perspectiva produjo un
+    // documento largo con un score marginalmente mayor.
+    const concise = uniqueCandidatesByChunk([
+      ...concisePool.slice(0, 6),
+      ...[...concisePool].sort((left, right) => right.embeddingSimilarity - left.embeddingSimilarity).slice(0, 6),
+      ...[...concisePool].sort((left, right) => right.directSimilarity - left.directSimilarity).slice(0, 6)
+    ]);
+    const preferredVersionPool = requestedVersion
+      ? preferredPooled
+        .sort((left, right) => right.directSimilarity - left.directSimilarity)
+        .slice(0, ANSWER_RERANK_LIMIT)
+      : [];
+    const globalRerankPool = uniqueCandidatesByChunk([
+      ...concise,
+      ...pooled.slice(0, 24),
+      ...[...pooled].sort((left, right) => right.directSimilarity - left.directSimilarity).slice(0, 32),
+      ...[...pooled].sort((left, right) => right.embeddingSimilarity - left.embeddingSimilarity).slice(0, 32)
+    ])
+      .slice(0, ANSWER_RERANK_LIMIT);
+    const rerankCandidatePool = async (pool: typeof globalRerankPool): Promise<NeuralAnswerCandidate[]> => {
+      const reranked = await rerankPassages(
+        requestedVersion ? `${contextualQuestion}\n\nPreferred IBM i version: ${requestedVersion}` : contextualQuestion,
+        pool.map((item) => ({
+          id: item.candidate.chunkId,
+          title: item.candidate.title,
+          body: normalizeCorpusPassage(item.candidate.body, false),
+          category: item.candidate.category,
+          version: item.candidate.version,
+          breadcrumbs: item.candidate.breadcrumbs
+        })),
+        { localOnly: true, maxLength: 160 }
+      );
+      const metadataByChunk = new Map(pool.map((item) => [item.candidate.chunkId, item]));
+      const materialized = reranked.map((item) => {
+        const metadata = metadataByChunk.get(item.id);
+        if (!metadata) throw new Error(`No se encontro metadata neuronal para el pasaje ${item.id}.`);
+        return {
+          ...item,
+          // El modelo recibe una versión normalizada con metadatos de ruta,
+          // pero la respuesta pública se compone desde el cuerpo documental
+          // original para poder limpiar encabezados sin perder estructura.
+          body: metadata.candidate.body,
+          candidate: metadata.candidate,
+          directSimilarity: metadata.directSimilarity,
+          embeddingSimilarity: metadata.embeddingSimilarity,
+          reciprocalRankScore: metadata.reciprocalRankScore,
+          neuralConsensusScore: 0
+        };
+      });
+      const rerankerStats = numericDistribution(materialized.map((item) => item.relevanceLogit));
+      const retrievalStats = numericDistribution(materialized.map((item) => item.reciprocalRankScore));
+      for (const item of materialized) {
+        // Ambos componentes son salidas neuronales. Estandarizarlos evita que
+        // la escala arbitraria de logits anule el consenso de las vistas base
+        // y adaptada, o viceversa.
+        item.neuralConsensusScore = zScore(item.relevanceLogit, rerankerStats)
+          + zScore(item.reciprocalRankScore, retrievalStats);
+      }
+      const pureRerankerTop = materialized[0];
+      materialized.sort((left, right) => right.neuralConsensusScore - left.neuralConsensusScore
+        || right.relevanceLogit - left.relevanceLogit);
+      const consensusTop = materialized[0];
+      // El ensamble no puede sustituir una evidencia que el cross-encoder
+      // considera muy superior por otra varios logits peor. Este guardrail es
+      // estadístico y transversal; no depende de términos ni clases IBM i.
+      if (pureRerankerTop && consensusTop
+        && pureRerankerTop.relevanceLogit - consensusTop.relevanceLogit > 2) {
+        return [pureRerankerTop, ...materialized.filter((item) => item.id !== pureRerankerTop.id)];
+      }
+      return materialized;
+    };
+    let candidates = await rerankCandidatePool(preferredVersionPool.length ? preferredVersionPool : globalRerankPool);
+    const preferredCandidate = requestedVersion
+      ? candidates.find((candidate) => candidate.version === requestedVersion
+        && candidate.directSimilarity >= MIN_DIRECT_EMBEDDING_SUPPORT
+        && candidate.relevanceLogit >= CONDITIONAL_RERANKER_SUPPORT)
+      : undefined;
+    if (preferredCandidate) {
+      candidates = [
+        preferredCandidate,
+        ...candidates.filter((candidate) => candidate.id !== preferredCandidate.id)
+      ];
+    }
+    // Una coincidencia temática débil en el release pedido no debe bloquear
+    // una definición mucho más precisa disponible en otro release. La decisión
+    // compara logits del mismo cross-encoder; no usa términos ni categorías.
+    if (requestedVersion && preferredVersionPool.length
+      && (!preferredCandidate || candidates[0].relevanceLogit < 0.25)) {
+      const globalCandidates = await rerankCandidatePool(globalRerankPool);
+      const preferredTopLogit = candidates[0]?.relevanceLogit ?? Number.NEGATIVE_INFINITY;
+      const globalTopLogit = globalCandidates[0]?.relevanceLogit ?? Number.NEGATIVE_INFINITY;
+      if (!preferredCandidate || globalTopLogit > preferredTopLogit + 0.5) {
+        candidates = globalCandidates;
+      }
+    }
+    candidates = candidates.filter((candidate) => compactAnswerPassage(candidate.body, 900).length >= 3);
+    // Una versión solicitada explícitamente gobierna la selección cuando su
+    // mejor pasaje supera el mismo gate neuronal. Solo entonces se reordena;
+    // si no hay soporte suficiente, se conserva la recuperación global y la
+    // respuesta identifica el release realmente usado.
+    const selectedDirectEmbeddingScore = candidates[0]?.directSimilarity ?? directEmbeddingScore;
+    const topRerankerLogit = candidates[0]?.relevanceLogit ?? Number.NEGATIVE_INFINITY;
+    const topRerankerProbability = candidates[0]?.relevanceProbability ?? 0;
+    const supported = selectedDirectEmbeddingScore >= MIN_DIRECT_EMBEDDING_SUPPORT
+      && topRerankerLogit >= CONDITIONAL_RERANKER_SUPPORT;
+
+    return {
+      candidates,
+      directEmbeddingScore: selectedDirectEmbeddingScore,
+      supported,
+      topRerankerLogit,
+      topRerankerProbability
+    };
+  }
+
+  private hitFromAnswerCandidate(item: NeuralAnswerCandidate, query: string): SearchHit {
+    const hit = this.hitFromDocumentRow(item.candidate.row, query, roundScore(item.relevanceProbability * 100));
+    return {
+      ...hit,
+      snippet: compactAnswerPassage(item.body, 900),
+      semanticScore: roundScore(item.directSimilarity),
+      matchReasons: [
+        `cross-encoder=${roundScore(item.relevanceLogit)}`,
+        `embedding directo=${roundScore(item.directSimilarity)}`,
+        `embedding multi-perspectiva=${roundScore(item.embeddingSimilarity)}`,
+        `consenso RRF=${roundScore(item.reciprocalRankScore)}`,
+        `ensamble neuronal=${roundScore(item.neuralConsensusScore)}`
+      ]
+    };
   }
 
   search(_options: SearchOptions): SearchHit[] {
@@ -294,86 +566,66 @@ export class CorpusRepository {
     const depth = options.depth ?? "standard";
     const defaultLimit = depth === "deep" ? 8 : depth === "concise" ? 4 : 6;
     const limit = clamp(options.limit, defaultLimit, 1, 12);
-    const initialQueries = uniqueNonEmpty([
-      question,
-      composeNeuralQuestion(question, options.language, options.code)
-    ]);
-    const readLimit = depth === "deep" ? 4 : depth === "concise" ? 1 : 2;
     const sectionLimit = depth === "deep" ? 8 : depth === "concise" ? 3 : 5;
-
-    const planWorkflow: WorkflowStage = {
-      tool: "ibmi_docs_assist_planner",
-      reason: "Preparar recuperación multi-hop usando únicamente embeddings Transformers y evidencia del corpus.",
+    const contextualQuestion = composeNeuralQuestion(question, options.language, options.code);
+    const answerSelection = await this.selectNeuralAnswer(options, question);
+    const answerHits = answerSelection.candidates
+      .slice(0, Math.max(limit * 2, 8))
+      .map((candidate) => this.hitFromAnswerCandidate(candidate, question));
+    const evidence = answerHits.slice(0, limit * 2);
+    const responseCandidates = selectResponseCandidates(answerSelection.candidates);
+    const selectedByDocument = new Map<string, NeuralAnswerCandidate>();
+    for (const candidate of responseCandidates) {
+      if (!selectedByDocument.has(candidate.candidate.documentId)) {
+        selectedByDocument.set(candidate.candidate.documentId, candidate);
+      }
+    }
+    const selectedPairs = [...selectedByDocument.values()]
+      .map((candidate) => ({ candidate, read: this.read(candidate.candidate.documentId) }))
+      .filter((pair): pair is { candidate: NeuralAnswerCandidate; read: ReadResult } => Boolean(pair.read));
+    const reads = selectedPairs.map((pair) =>
+      toReadSummary(pair.read, question, sectionLimit, compactAnswerPassage(pair.candidate.body, 900))
+    );
+    const sections = selectedPairs.map((pair) => ({
+      id: pair.read.id,
+      title: pair.read.title,
+      sections: (pair.read.sections ?? []).slice(0, sectionLimit)
+    }));
+    const citations = selectedPairs.map((pair) => readToCitation(pair.read, pair.read.sections?.[0]?.title));
+    const warnings = answerSelection.supported
+      ? []
+      : ["La evidencia neuronal recuperada no supera el umbral conjunto de pertinencia."];
+    const coverage = buildNeuralCoverage({
+      evidence,
+      reads,
+      sections,
+      warnings,
+      directEmbeddingScore: answerSelection.directEmbeddingScore,
+      rerankerLogit: answerSelection.topRerankerLogit,
+      supported: answerSelection.supported
+    });
+    const confidence = !answerSelection.supported
+      ? "baja"
+      : answerSelection.topRerankerLogit >= -2 && answerSelection.directEmbeddingScore >= 0.84
+        ? "alta"
+        : "media";
+    const retrievalHop: AssistRetrievalHop = {
+      axis: "primary",
+      query: contextualQuestion,
+      reason: "Recuperación multi-perspectiva y reranking neuronal sobre todo el índice vectorial.",
       status: "executed",
-      outputSummary: `neural-only; depth=${depth}; limit=${limit}`
+      resultCount: answerSelection.candidates.length,
+      readCount: reads.length,
+      sectionCount: sections.reduce((total, topic) => total + topic.sections.length, 0),
+      evidenceIds: evidence.map((hit) => hit.id).slice(0, 10),
+      warnings
     };
-    const hops: AssistRetrievalHop[] = [];
-    const evidenceGroups: SearchHit[][] = [];
-    const readGroups: ContextReadSummary[][] = [];
-    const sectionGroups: Array<Array<{ id: string; title: string; sections: TopicSection[] }>> = [];
-    const citationGroups: AnswerCitation[][] = [];
-
-    const executeHop = async (axis: AssistRetrievalAxis, query: string, reason: string): Promise<void> => {
-      const hits = await this.searchSmart({
-        query,
-        version: normalizeVersionOption(options.version ?? options.ibmiVersion),
-        category: options.category,
-        limit,
-        includeSections: false,
-        autoRead: false
-      });
-      evidenceGroups.push(hits);
-      const selectedPairs = hits.slice(0, readLimit)
-        .map((hit) => ({ hit, read: this.read(hit.id) }))
-        .filter((pair): pair is { hit: SearchHit; read: ReadResult } => Boolean(pair.read));
-      const selectedReads = selectedPairs.map((pair) => pair.read);
-      const readSummaries = selectedPairs.map((pair) => toReadSummary(pair.read, query, sectionLimit, pair.hit.snippet));
-      const sectionTopics = selectedReads.map((read) => ({
-        id: read.id,
-        title: read.title,
-        sections: (read.sections ?? []).slice(0, sectionLimit)
-      }));
-      const citations = selectedReads.map((read) => readToCitation(read, read.sections?.[0]?.title));
-      readGroups.push(readSummaries);
-      sectionGroups.push(sectionTopics);
-      citationGroups.push(citations);
-      hops.push({
-        axis,
-        query,
-        reason,
-        status: "executed",
-        resultCount: hits.length,
-        readCount: selectedReads.length,
-        sectionCount: sectionTopics.reduce((total, topic) => total + topic.sections.length, 0),
-        evidenceIds: hits.map((hit) => hit.id).slice(0, 10),
-        warnings: hits.length ? [] : [`Sin evidencia documental para la consulta neural: ${query}`]
-      });
-    };
-
-    for (const query of initialQueries) {
-      await executeHop("primary", query, "Búsqueda vectorial directa de la petición completa.");
-    }
-
-    const firstEvidence = mergeHits(evidenceGroups);
-    const followUpQueries = buildEvidenceDrivenQueries(question, firstEvidence).slice(0, depth === "deep" ? 4 : 2);
-    for (const query of followUpQueries) {
-      await executeHop("related", query, "Búsqueda vectorial derivada de la evidencia recuperada previamente.");
-    }
-
-    const evidence = mergeHits(evidenceGroups).slice(0, limit * 2);
-    const reads = mergeReads(readGroups).slice(0, Math.max(readLimit * 2, 3));
-    const sections = mergeSections(sectionGroups).slice(0, Math.max(readLimit * 2, 3));
-    const citations = mergeCitations(citationGroups).slice(0, Math.max(readLimit * 2, 3));
-    const warnings = uniqueNonEmpty(hops.flatMap((hop) => hop.warnings));
-    const coverage = buildNeuralCoverage({ evidence, reads, sections, warnings });
-    const confidence = coverage.status === "complete" ? "alta" : coverage.status === "partial" ? "media" : "baja";
-    const axes = uniqueNonEmpty(hops.map((hop) => hop.axis)) as AssistRetrievalAxis[];
     const retrievalPlan: AssistRetrievalPlan = {
-      strategy: hops.length > 1 ? "multi-hop" : "single-pass",
-      axes: axes.length ? axes : ["primary"],
-      initialQueries,
-      followUpQueries,
-      hops,
+      strategy: "multi-hop",
+      axes: ["primary", "semantic-variant"],
+      initialQueries: [contextualQuestion],
+      followUpQueries: [],
+      hops: [retrievalHop],
       coverageGaps: coverage.missingTechnicalTerms
     };
     const taskPlan: AssistTaskPlan = {
@@ -382,22 +634,32 @@ export class CorpusRepository {
       primaryLanguage: options.language,
       requiredEvidence: NEURAL_POLICY.requiredEvidence,
       retrievalAxes: retrievalPlan.axes,
-      responseTemplate: "Síntesis extractiva con evidencia materializada y citas.",
+      responseTemplate: "Respuesta final compacta respaldada por recuperación y reranking neuronales.",
       minimumCoverage: "exploratory"
     };
-    const executiveSummary = buildExecutiveSummary(question, confidence, evidence, reads);
-    const specificFindings = buildSpecificFindings(reads, evidence);
-    const implementationSteps = buildImplementationSteps(evidence, reads);
-    const validationChecklist = buildValidationChecklist(evidence, reads);
-    const answer = renderNeuralAssistAnswer({ question, confidence, executiveSummary, specificFindings, implementationSteps, validationChecklist, citations, warnings });
+    const answer = renderFinalAgentAnswer({
+      supported: answerSelection.supported,
+      candidates: responseCandidates,
+      requestedVersion: normalizeVersionOption(options.version ?? options.ibmiVersion)
+    });
+    const specificFindings = responseCandidates.map((candidate) => compactAnswerPassage(candidate.body, 900));
+    const executiveSummary = [answer];
+    const implementationSteps: string[] = [];
+    const validationChecklist: string[] = [];
     const workflow: WorkflowStage[] = [
-      planWorkflow,
       {
-        tool: "ibmi_docs_search",
-        reason: "Recuperar candidatos mediante similitud vectorial Transformers.js contra chunks del corpus.",
-        status: hops.length ? "executed" : "skipped",
+        tool: "ibmi_docs_neural_retrieval",
+        reason: "Codificar varias vistas contextuales y recuperar candidatos sobre todos los vectores del corpus.",
+        status: answerSelection.candidates.length ? "executed" : "skipped",
         evidenceIds: evidence.map((hit) => hit.id).slice(0, 12),
-        outputSummary: `${hops.length} hop(s); ${evidence.length} evidencia(s).`
+        outputSummary: `${answerSelection.candidates.length} candidato(s) neuronales.`
+      },
+      {
+        tool: "ibmi_docs_neural_reranker",
+        reason: "Leer conjuntamente la consulta y los pasajes candidatos con un cross-encoder multilingue.",
+        status: answerSelection.candidates.length ? "executed" : "skipped",
+        evidenceIds: answerSelection.candidates.slice(0, 12).map((candidate) => candidate.candidate.documentId),
+        outputSummary: `${answerSelection.candidates.length} pasaje(s) rerankeados; soporte=${answerSelection.supported}.`
       },
       {
         tool: "ibmi_docs_read",
@@ -425,6 +687,13 @@ export class CorpusRepository {
       specificFindings,
       implementationSteps,
       validationChecklist,
+      relevance: {
+        directEmbeddingScore: roundScore(answerSelection.directEmbeddingScore),
+        rerankerLogit: roundScore(answerSelection.topRerankerLogit),
+        rerankerProbability: roundScore(answerSelection.topRerankerProbability),
+        supported: answerSelection.supported,
+        selectedPassageIds: responseCandidates.map((candidate) => candidate.id)
+      },
       coverage,
       retrievalPlan,
       workflow,
@@ -655,14 +924,18 @@ export class CorpusRepository {
     const cached = CorpusRepository.candidateCache.get(dbPath);
     if (cached) return cached;
     const rows = this.db.prepare(`
-      SELECT d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url,
+      SELECT c.id AS chunk_id, c.chunk_index, d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url,
              d.text_length, d.breadcrumbs_json, d.document_kind, d.canonical_topic_key,
-             c.body, v.vector
+             d.normalized_text_path, d.sha256, d.language, d.product,
+             c.body, v.vector, dv.vector AS title_vector
       FROM chunks c
       JOIN documents d ON d.id = c.document_id
       JOIN chunk_vectors v ON v.chunk_id = c.id
+      JOIN document_vectors dv ON dv.document_id = d.id
     `).all() as Row[];
     const candidates = rows.map((row) => ({
+      chunkId: String(row.chunk_id),
+      chunkIndex: Number(row.chunk_index),
       row,
       documentId: String(row.id),
       title: String(row.title),
@@ -670,7 +943,8 @@ export class CorpusRepository {
       category: String(row.category),
       version: String(row.version),
       breadcrumbs: parseStringArray(row.breadcrumbs_json),
-      vector: bufferToNeuralVector(row.vector as Buffer)
+      vector: bufferToNeuralVector(row.vector as Buffer),
+      titleVector: bufferToNeuralVector(row.title_vector as Buffer)
     }));
     CorpusRepository.candidateCache.set(dbPath, candidates);
     return candidates;
@@ -679,18 +953,28 @@ export class CorpusRepository {
   private hitFromAggregate(aggregate: NeuralDocumentAggregate, query: string): SearchHit {
     const row = aggregate.row;
     const best = aggregate.best;
-    const topSimilarities = aggregate.passages.map((passage) => passage.similarity).sort((a, b) => b - a);
-    const corroboration = Math.min(0.03, Math.max(0, topSimilarities.slice(1).reduce((total, value) => total + value, 0) / Math.max(1, topSimilarities.length - 1)) * 0.04);
-    const score = roundScore((best.similarity + corroboration) * 100);
-    const passageSummary = aggregate.passages
+    const primary = aggregate.primaryBest;
+    const perspectiveScores = [...aggregate.perspectiveBest.values()]
+      .map((passage) => passage.similarity)
+      .sort((left, right) => left - right);
+    const medianPerspectiveScore = perspectiveScores.length
+      ? perspectiveScores[Math.floor(perspectiveScores.length / 2)]
+      : primary.similarity;
+    // La consulta original gobierna el ranking. Las reformulaciones neuronales
+    // solo corroboran; nunca pueden convertir por si solas un tema ajeno en un
+    // resultado de confianza alta.
+    const score = roundScore(((primary.similarity * 0.72) + (medianPerspectiveScore * 0.18) + (best.similarity * 0.10)) * 100);
+    const orderedPassages = [primary, ...aggregate.passages.filter((passage) => passage.candidate.chunkId !== primary.candidate.chunkId)];
+    const passageSummary = orderedPassages
+      .slice(0, 4)
       .map((passage, index) => `${index + 1}) ${makeSnippet(passage.candidate.body, "", 260)}`)
       .join(" ");
     return {
       id: aggregate.documentId,
       title: aggregate.title,
-      snippet: makeSnippet([makeSnippet(best.candidate.body, "", 520), passageSummary].filter(Boolean).join(" "), query, 700),
+      snippet: makeSnippet([makeSnippet(primary.candidate.body, "", 520), passageSummary].filter(Boolean).join(" "), query, 700),
       score,
-      semanticScore: roundScore(best.similarity),
+      semanticScore: roundScore(primary.similarity),
       sourceKind: String(row.source_kind) as SourceKind,
       sourceId: String(row.source_id),
       version: aggregate.version,
@@ -701,8 +985,9 @@ export class CorpusRepository {
       documentKind: normalizeDocumentKind(row.document_kind),
       canonicalTopicKey: String(row.canonical_topic_key ?? ""),
       matchReasons: [
-        `perspectiva neural Transformers.js=${roundScore(best.similarity)}`,
-        `pasajes neuronales corroborados=${aggregate.passages.length}`
+        `consulta original Transformers.js=${roundScore(primary.similarity)}`,
+        `mejor perspectiva neuronal=${roundScore(best.similarity)}`,
+        `perspectivas neuronales corroboradas=${aggregate.perspectiveBest.size}`
       ],
       relevanceWarnings: []
     };
@@ -778,6 +1063,7 @@ export class CorpusRepository {
     const documents = this.scalarNumber("SELECT COUNT(*) FROM documents");
     const chunks = this.scalarNumber("SELECT COUNT(*) FROM chunks");
     const vectors = this.scalarNumber("SELECT COUNT(*) FROM chunk_vectors");
+    const documentVectors = this.scalarNumber("SELECT COUNT(*) FROM document_vectors");
     const documentsWithoutChunks = this.scalarNumber(`
       SELECT COUNT(*)
       FROM documents d
@@ -796,12 +1082,24 @@ export class CorpusRepository {
         WHERE v.chunk_id = c.id
       )
     `);
+    const documentsWithoutVectors = this.scalarNumber(`
+      SELECT COUNT(*)
+      FROM documents d
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM document_vectors v
+        WHERE v.document_id = d.id
+      )
+    `);
     return {
-      ok: documents > 0 && chunks > 0 && vectors === chunks && documentsWithoutChunks === 0 && chunksWithoutVectors === 0,
+      ok: documents > 0 && chunks > 0 && vectors === chunks && documentVectors === documents
+        && documentsWithoutChunks === 0 && chunksWithoutVectors === 0 && documentsWithoutVectors === 0,
       documents,
       chunks,
       vectors,
+      documentVectors,
       documentsWithoutChunks,
+      documentsWithoutVectors,
       chunksWithoutVectors
     };
   }
@@ -825,6 +1123,13 @@ export class CorpusRepository {
       specificFindings: [],
       implementationSteps: [],
       validationChecklist: [],
+      relevance: {
+        directEmbeddingScore: 0,
+        rerankerLogit: Number.NEGATIVE_INFINITY,
+        rerankerProbability: 0,
+        supported: false,
+        selectedPassageIds: []
+      },
       coverage: { status: "thin", summary: "Sin ejecución síncrona.", evidenceCount: 0, readCount: 0, sectionCount: 0, matchedTechnicalTerms: [], missingTechnicalTerms: [], warnings: [] },
       retrievalPlan: { strategy: "single-pass", axes: ["primary"], initialQueries: [text], followUpQueries: [], hops: [], coverageGaps: [] },
       workflow: [{ tool: "ibmi_docs_assist", reason: "Entrada canónica neural-only.", status: "planned" }],
@@ -880,26 +1185,27 @@ function composeNeuralQuestion(question: string, language?: string, code?: strin
   ].filter((part) => part.trim()).join("\n\n").trim();
 }
 
-function buildSearchQueryPerspectives(query: string): string[] {
-  const clean = query.trim();
-  return uniqueNonEmpty([
-    clean,
-    `Official IBM i documentation passage that directly answers this request:\n${clean}`,
-    `Overview documentation that explains how to define, create, configure, use or diagnose this IBM i topic:\n${clean}`,
-    `IBM i command, utility, language construct, SQL object, API, message, keyword, parameter or system task related to:\n${clean}`,
-    `Technical reference material needed to solve the user's IBM i task:\n${clean}`,
-    `Concise documentation answer with exact IBM i artifact when available:\n${clean}`
-  ]);
-}
-
 function insertNeuralPassageMatch(passages: NeuralPassageMatch[], match: NeuralPassageMatch, maxItems: number): void {
   passages.push(match);
   passages.sort((a, b) => b.similarity - a.similarity);
   if (passages.length > maxItems) passages.splice(maxItems);
 }
 
-function buildEvidenceDrivenQueries(question: string, evidence: SearchHit[]): string[] {
-  return uniqueNonEmpty(evidence.slice(0, 4).map((hit) => [question, hit.title, hit.breadcrumbs.join(" > "), hit.snippet].filter(Boolean).join("\n")));
+function neuralFacetSimilarity(queryVector: Float32Array, candidate: NeuralCandidate): number {
+  const contentSimilarity = neuralCosineSimilarity(queryVector, candidate.vector);
+  if (candidate.chunkIndex !== 0) return contentSimilarity;
+  return Math.max(contentSimilarity, neuralCosineSimilarity(queryVector, candidate.titleVector));
+}
+
+function numericDistribution(values: number[]): { mean: number; standardDeviation: number } {
+  if (!values.length) return { mean: 0, standardDeviation: 1 };
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return { mean, standardDeviation: Math.sqrt(variance) || 1 };
+}
+
+function zScore(value: number, distribution: { mean: number; standardDeviation: number }): number {
+  return (value - distribution.mean) / distribution.standardDeviation;
 }
 
 function buildNeuralCoverage(input: {
@@ -907,12 +1213,19 @@ function buildNeuralCoverage(input: {
   reads: ContextReadSummary[];
   sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
   warnings: string[];
+  directEmbeddingScore: number;
+  rerankerLogit: number;
+  supported: boolean;
 }): AssistCoverage {
   const sectionCount = input.sections.reduce((total, topic) => total + topic.sections.length, 0);
-  const status: AssistCoverage["status"] = input.evidence.length >= 3 && input.reads.length >= 2 ? "complete" : input.evidence.length ? "partial" : "thin";
+  const status: AssistCoverage["status"] = !input.supported
+    ? "thin"
+    : input.evidence.length >= 2 && input.reads.length
+      ? "complete"
+      : "partial";
   return {
     status,
-    summary: `${input.evidence.length} evidencia(s), ${input.reads.length} lectura(s), ${sectionCount} sección(es).`,
+    summary: `${input.evidence.length} evidencia(s), ${input.reads.length} lectura(s), ${sectionCount} sección(es); embedding=${roundScore(input.directEmbeddingScore)}; reranker=${roundScore(input.rerankerLogit)}.`,
     evidenceCount: input.evidence.length,
     readCount: input.reads.length,
     sectionCount,
@@ -946,69 +1259,105 @@ function readToCitation(read: ReadResult, section?: string): AnswerCitation {
   return { id: read.id, title: read.title, version: read.version, sourceKind: read.sourceKind, canonicalUrl: read.canonicalUrl, section };
 }
 
-function buildExecutiveSummary(question: string, confidence: "alta" | "media" | "baja", evidence: SearchHit[], reads: ContextReadSummary[]): string[] {
-  if (!evidence.length) return [`No encontré evidencia documental suficiente para: ${question}`];
-  return [
-    `Confianza ${confidence}: la respuesta se apoya en ${evidence.length} resultado(s) vectoriales multi-perspectiva y ${reads.length} lectura(s) materializada(s).`,
-    `Documento principal: ${evidence[0].title} [${evidence[0].version}/${evidence[0].category}].`
-  ];
+function uniqueCandidatesByChunk(items: Array<{
+  candidate: NeuralCandidate;
+  directSimilarity: number;
+  embeddingSimilarity: number;
+  reciprocalRankScore: number;
+}>): Array<{
+  candidate: NeuralCandidate;
+  directSimilarity: number;
+  embeddingSimilarity: number;
+  reciprocalRankScore: number;
+}> {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.candidate.chunkId)) return false;
+    seen.add(item.candidate.chunkId);
+    return true;
+  });
 }
 
-function buildSpecificFindings(reads: ContextReadSummary[], evidence: SearchHit[]): string[] {
-  const fromEvidence = evidence.slice(0, 8).map((hit) => `${hit.title}: ${hit.snippet}`);
-  const fromReads = reads.slice(0, 8).map((read) => `${read.title}: ${read.excerpt}`);
-  return uniqueReadableItems([...fromEvidence, ...fromReads]).slice(0, 8);
+function selectResponseCandidates(candidates: NeuralAnswerCandidate[]): NeuralAnswerCandidate[] {
+  if (!candidates.length) return [];
+  const top = candidates[0];
+  const topLength = compactAnswerPassage(top.body, 900).length;
+  const sameDocument = candidates.slice(1, 12).filter((candidate) =>
+    candidate.candidate.documentId === top.candidate.documentId
+    && candidate.relevanceLogit >= Math.max(CONDITIONAL_RERANKER_SUPPORT, top.relevanceLogit - 2.5)
+  );
+  const expandedPrimary = topLength < 120
+    ? sameDocument
+      .filter((candidate) => compactAnswerPassage(candidate.body, 900).length > topLength + 80)
+      .sort((left, right) => {
+        const leftLength = Math.min(900, compactAnswerPassage(left.body, 900).length) / 900;
+        const rightLength = Math.min(900, compactAnswerPassage(right.body, 900).length) / 900;
+        return (right.relevanceLogit + rightLength * 0.8) - (left.relevanceLogit + leftLength * 0.8);
+      })[0]
+    : undefined;
+  const primary = expandedPrimary ?? top;
+  // Sin un generador fundamentado, concatenar otro documento competitivo puede
+  // mezclar dos conceptos cercanos pero distintos. La recuperación interna sí
+  // conserva todos los candidatos; la respuesta pública usa solo el pasaje que
+  // ganó el consenso neuronal para no trasladar ambigüedad al agente usuario.
+  return [primary];
 }
 
-function buildImplementationSteps(evidence: SearchHit[], reads: ContextReadSummary[]): string[] {
-  if (!evidence.length) return ["No implementar cambios basados en esta respuesta sin nueva evidencia documental."];
-  return [
-    "Usar primero los tópicos citados como referencia técnica.",
-    reads.length ? "Aplicar la sintaxis/parámetros según las lecturas materializadas." : "Leer el tópico principal si se necesita detalle adicional.",
-    "Validar el cambio en el entorno IBM i correspondiente y contrastar mensajes/errores contra el corpus."
-  ];
-}
-
-function buildValidationChecklist(evidence: SearchHit[], reads: ContextReadSummary[]): string[] {
-  return [
-    evidence.length ? "Existe evidencia vectorial en el corpus." : "No existe evidencia vectorial suficiente en el corpus.",
-    reads.length ? "Se materializó contenido completo para el agente." : "No se materializó lectura completa.",
-    "No se usaron clases, anclas, categorías inferidas ni reglas manuales."
-  ];
-}
-
-function renderNeuralAssistAnswer(input: {
-  question: string;
-  confidence: "alta" | "media" | "baja";
-  executiveSummary: string[];
-  specificFindings: string[];
-  implementationSteps: string[];
-  validationChecklist: string[];
-  citations: AnswerCitation[];
-  warnings: string[];
+function renderFinalAgentAnswer(input: {
+  supported: boolean;
+  candidates: NeuralAnswerCandidate[];
+  requestedVersion?: string;
 }): string {
-  return [
-    `Respuesta IBM i Docs para: ${input.question}`,
-    `Confianza: ${input.confidence}`,
-    "",
-    "Resumen:",
-    ...input.executiveSummary.map((item) => `- ${item}`),
-    "",
-    "Evidencia relevante:",
-    ...(input.specificFindings.length ? input.specificFindings.map((item) => `- ${item}`) : ["- Sin evidencia suficiente."]),
-    "",
-    "Pasos sugeridos:",
-    ...input.implementationSteps.map((item) => `- ${item}`),
-    "",
-    "Validación:",
-    ...input.validationChecklist.map((item) => `- ${item}`),
-    "",
-    "Citas:",
-    ...(input.citations.length ? input.citations.map((citation) => `- ${citation.title} [${citation.version}] ${citation.canonicalUrl}`) : ["- Sin citas materializadas."]),
-    input.warnings.length ? "" : undefined,
-    input.warnings.length ? "Advertencias:" : undefined,
-    ...input.warnings.map((warning) => `- ${warning}`)
-  ].filter((line): line is string => typeof line === "string").join("\n");
+  if (!input.supported || !input.candidates.length) {
+    return "No encontré evidencia documental suficientemente relacionada en el corpus IBM i para responder con fiabilidad.";
+  }
+  const fragments = input.candidates
+    .map((candidate) => compactAnswerPassage(candidate.body, 900))
+    .filter(Boolean);
+  if (!fragments.length) {
+    return "No encontré evidencia documental suficientemente relacionada en el corpus IBM i para responder con fiabilidad.";
+  }
+  const answer = fragments.length === 1
+    ? fragments[0]
+    : [fragments[0], "", ...fragments.slice(1).map((fragment) => `- ${fragment}`)].join("\n");
+  const primaryVersion = input.candidates[0].version;
+  if (input.requestedVersion && primaryVersion && primaryVersion !== input.requestedVersion) {
+    return `${answer}\n\nLa información disponible corresponde a IBM i ${primaryVersion}; no se encontró soporte equivalente con suficiente relevancia en IBM i ${input.requestedVersion}.`;
+  }
+  return answer;
+}
+
+function normalizeCorpusPassage(text: string, stripPresentationMetadata = true): string {
+  const paragraphs = String(text ?? "")
+    .replace(/\r/g, "")
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .filter((paragraph) => !(paragraph.includes("IBM i programming resources >") && paragraph.split(">").length >= 3))
+    .filter((paragraph) => !stripPresentationMetadata || !(paragraph.includes("Last Updated:") && paragraph.length <= 240))
+    .filter((paragraph) => !stripPresentationMetadata || !paragraph.toLocaleLowerCase().startsWith("parent topic:"));
+  return uniqueReadableItems(paragraphs).join(" ").trim();
+}
+
+function compactAnswerPassage(text: string, maxLength: number): string {
+  const normalized = normalizeCorpusPassage(text);
+  if (!normalized) return "";
+  const numberedFragments = normalized
+    .split(/\s+\d+\)\s+/)
+    .map((fragment) => fragment.trim())
+    .filter(Boolean);
+  const uniqueFragments = uniqueReadableItems(numberedFragments);
+  let compact = uniqueFragments.join(" ");
+  const words = compact.split(/\s+/).filter(Boolean);
+  if (words.length === 2 && words[0].toLocaleLowerCase() === words[1].toLocaleLowerCase()) {
+    compact = words[0];
+  }
+  if (compact.length > maxLength) {
+    const clipped = compact.slice(0, maxLength);
+    const sentenceEnd = Math.max(clipped.lastIndexOf(". "), clipped.lastIndexOf("; "), clipped.lastIndexOf(": "));
+    compact = `${(sentenceEnd >= Math.floor(maxLength * 0.55) ? clipped.slice(0, sentenceEnd + 1) : clipped).trim()}…`;
+  }
+  return compact;
 }
 
 function makeSnippet(text: string, query: string, maxLength: number): string {
@@ -1074,36 +1423,4 @@ function uniqueNonEmpty<T extends string>(values: T[]): T[] {
     output.push(text as T);
   }
   return output;
-}
-
-function mergeHits(groups: SearchHit[][]): SearchHit[] {
-  const byId = new Map<string, SearchHit>();
-  for (const group of groups) {
-    for (const hit of group) {
-      // En assistSmart cada grupo corresponde a un hop neural concreto.
-      // No mezclamos scores absolutos de consultas distintas porque una
-      // reformulación contextual puede inflar similitud y tapar la petición
-      // original. Conservamos prioridad por orden de hop y rank interno.
-      if (!byId.has(hit.id)) byId.set(hit.id, hit);
-    }
-  }
-  return [...byId.values()];
-}
-
-function mergeReads(groups: ContextReadSummary[][]): ContextReadSummary[] {
-  const byId = new Map<string, ContextReadSummary>();
-  for (const group of groups) for (const read of group) if (!byId.has(read.id)) byId.set(read.id, read);
-  return [...byId.values()];
-}
-
-function mergeSections(groups: Array<Array<{ id: string; title: string; sections: TopicSection[] }>>): Array<{ id: string; title: string; sections: TopicSection[] }> {
-  const byId = new Map<string, { id: string; title: string; sections: TopicSection[] }>();
-  for (const group of groups) for (const topic of group) if (!byId.has(topic.id)) byId.set(topic.id, topic);
-  return [...byId.values()];
-}
-
-function mergeCitations(groups: AnswerCitation[][]): AnswerCitation[] {
-  const byId = new Map<string, AnswerCitation>();
-  for (const group of groups) for (const citation of group) if (!byId.has(citation.id)) byId.set(citation.id, citation);
-  return [...byId.values()];
 }

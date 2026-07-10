@@ -130,7 +130,7 @@ program
 
 program
   .command("assist")
-  .description("Tool/CLI principal de una sola llamada: devuelve respuesta final, pasos, validación, cobertura y citas sin pedir sub-tools manuales.")
+  .description("Tool/CLI principal de una sola llamada: devuelve únicamente la respuesta técnica final.")
   .argument("<question>", "Pregunta o tarea técnica IBM i")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--language <language>", "Lenguaje/tecnología")
@@ -143,18 +143,25 @@ program
   .option("--examples", "Incluye ejemplos si existen")
   .option("--compile", "Incluye comandos/opciones de compilación")
   .option("--limit <n>", "Límite", "6")
-  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
-    question,
-    language: opts.language,
-    version: getIbmVersion(opts),
-    category: opts.category,
-    code: opts.code,
-    depth: opts.depth,
-    audience: opts.audience,
-    includeExamples: Boolean(opts.examples),
-    includeCompileCommands: Boolean(opts.compile),
-    limit: Number(opts.limit)
-  }))));
+  .option("--debug-json", "Muestra el diagnóstico interno completo; por defecto imprime solo la respuesta final")
+  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => {
+    const result = await repo.assistSmart({
+      question,
+      language: opts.language,
+      version: getIbmVersion(opts),
+      category: opts.category,
+      code: opts.code,
+      depth: opts.depth,
+      audience: opts.audience,
+      includeExamples: Boolean(opts.examples),
+      includeCompileCommands: Boolean(opts.compile),
+      limit: Number(opts.limit)
+    });
+    // La CLI comparte el contrato limpio del MCP; el JSON queda disponible
+    // únicamente cuando el operador solicita diagnóstico explícito.
+    if (opts.debugJson) printJson(result);
+    else process.stdout.write(`${result.answer}\n`);
+  }));
 
 program
   .command("resolve")

@@ -38,7 +38,7 @@ ibmi-docs doctor
 ibmi-docs validate-pack
 ```
 
-Esto actualiza el runtime y el pack empaquetado con esa versión. También ejecuta el `postinstall` para preparar el modelo semántico local.
+Esto actualiza el runtime y el pack empaquetado con esa versión. También ejecuta el `postinstall` para preparar localmente el modelo de embeddings y el reranker cross-encoder, y valida el adaptador neuronal incluido.
 
 ## Actualizar un data pack de repo clonado
 

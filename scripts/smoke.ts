@@ -64,8 +64,8 @@ async function main(): Promise<void> {
     }, null, 2));
     if (
       assisted.coverage.status === "thin"
-      || assisted.implementationSteps.length < 3
-      || assisted.validationChecklist.length < 3
+      || !assisted.answer.trim()
+      || /No encontré evidencia documental suficientemente relacionada/i.test(assisted.answer)
       || /llama ibmi_docs_read|usa ibmi_docs_sections|Siguiente paso recomendado|Para obtener la ayuda completa/i.test(JSON.stringify(assisted))
     ) {
       process.exitCode = 1;

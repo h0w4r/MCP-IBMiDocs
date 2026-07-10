@@ -119,13 +119,13 @@ describe("anti dependencia runtime RDi", () => {
       const tools = Object.keys(server._registeredTools);
 
       expect(tools).toContain("ibmi_docs_assist");
-      expect(tools).toContain("ibmi_docs_diagnostics");
-      expect(tools).toContain("ibmi_docs_categories");
+      expect(tools).not.toContain("ibmi_docs_diagnostics");
+      expect(tools).not.toContain("ibmi_docs_categories");
       expect(tools).not.toContain("ibmi_docs_context");
       expect(tools).not.toContain("ibmi_docs_search");
       expect(tools).not.toContain("ibmi_docs_read");
       expect(tools).not.toContain("ibmi_docs_sync");
-      expect(tools.sort()).toEqual(["ibmi_docs_assist", "ibmi_docs_categories", "ibmi_docs_diagnostics"].sort());
+      expect(tools).toEqual(["ibmi_docs_assist"]);
     } finally {
       if (previousAllowNetworkSync === undefined) delete process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
       else process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC = previousAllowNetworkSync;
