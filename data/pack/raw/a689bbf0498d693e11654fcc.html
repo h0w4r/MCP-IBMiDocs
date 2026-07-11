@@ -1,0 +1,188 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="PRTPRFINT.Top_Of_Page"></a>
+<h1>Print Profile Internals  (PRTPRFINT)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#PRTPRFINT.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#PRTPRFINT.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#PRTPRFINT.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="PRTPRFINT"></a>
+<p>The Print Profile Internals (PRTPRFINT) command allows you to print a report containing information on the number of entries contained in a user profile (*USRPRF) object on each auxiliary storage pool (ASP).  The number of entries in the user profile determines the size of the user profile.
+</p>
+<p>Four types of entries can be found in a user profile.  These entries exist in the *USRPRF object for the system ASP and all basic user ASPs (*SYSBAS) and in the user profile extension object on each independent ASP (IASP).
+</p>
+<dl>
+<dt><strong>Owned object entries</strong></dt>
+<dd>An owned object entry exists for every permanent and temporary object this user owns in *SYSBAS and every object this user owns on an IASP.
+</dd>
+<dt><strong>Private authority entries</strong></dt>
+<dd>A private authority entry exists for every permanent and temporary object in *SYSBAS to which this user is granted a private authority and every object on an IASP to which this user is granted a private authority.
+</dd>
+<dt><strong>Authorized user entries</strong></dt>
+<dd>An authorized user entry exists for every user that is granted a private authority to a permanent or temporary object this user owns in *SYSBAS and every object this user owns on an IASP.
+</dd>
+<dt><strong>Primary group entries</strong></dt>
+<dd>A primary group entry exists for every permanent and temporary object in *SYSBAS for which this user is the primary group and for every object in an IASP for which this user is the primary group.
+</dd>
+</dl>
+<p>Each entry in the user profile causes the user profile (*USRPRF) object to grow.  The combination of all of the entries determines the size of the user profile. There is a limit to the number of entries a user profile can contain for permanent objects in *SYSBAS, temporary objects in *SYSBAS, and on each IASP that is varied on.  A user profile cannot exceed the limit of entries for the permanent objects in *SYSBAS, temporary objects in *SYSBAS, or on any IASP.  Refer to the Maximum capacities topic in the Availability category in the IBM i documentation for the maximum number of entries a profile can contain for permanent objects in *SYSBAS, temporary objects in *SYSBAS, or on any IASP.
+</p>
+<p>You can also think of the total number of entries as determining how "full" a user profile is.  The report produced by this command shows how full the user profile is by giving a percentage (rather than giving the actual number of entries in the profile.)  The report also gives a percentage for each of the four types of entries in the *USRPRF object.
+</p>
+<p>For each user profile in the report, the ASP name field will show:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">*SYSBAS for information about permanent objects in *SYSBAS.
+</li>
+<li class="cds--list__item">*SYSBASTMP for information about temporary objects in *SYSBAS.
+</li>
+<li class="cds--list__item">The ASP device name for information about objects on each IASP.
+</li>
+</ul>
+<p>Note:  In the report, the total percentage full for a profile can be greater than 100% due to rounding.
+</p>
+<p>You can choose to run this report for all user profiles, a subset of profiles, a specific profile or all profiles that are at least a specified percentage full.  For example, you can run the report for the CJW profile or you can run the report for all profiles that are at least 89.90% full.
+</p>
+<p>Recommendations to avoid profiles becoming full:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Do not have one profile own everything on your system.  For example, have each application be owned by its own profile.
+</li>
+<li class="cds--list__item">Do not use IBM-supplied profiles, such as QSECOFR and QPGMR, as owners of your application.  As shipped from IBM, they already own many objects and can become full when they also own user (non-IBM) objects.
+</li>
+<li class="cds--list__item">If you are granting private authorities to many objects for several users, you should consider using an authorization list to secure the objects.  Authorization lists will cause one private authority entry for the authorization list in the user's profile rather than one private authority entry for each object.  In the object owner's profile, authorization lists will cause an authorized object entry for every user granted authority to the authorization list rather than an authorized object entry for every object multiplied by the number of users granted the private authority.
+<p>Authorization lists are especially useful if you are granting private authorities to files.  Files are complex objects.  For complex objects, you get an entry for each piece of the object.  For example, in a file owner's profile, you have an ownership entry for each piece of the file, including an entry or two for each member.  (Physical files have two entries per member.)  If you grant a private authority to ten users and the file has 50 members, the result will be 100 authorized object entries in the file owner's profile.  With an authorization list, the ownership entries will remain the same, but the authorized object entries will be reduced to one for each user granted authority to the authorization list securing the file.
+</p>
+</li>
+</ul>
+<p>Do not confuse the percentage full of a user profile with the maximum storage (MAXSTG) that a user profile can own.  They are two different concepts.
+</p>
+<p><strong>Restriction:</strong> You must have all object (*ALLOBJ) special authority to run this command.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#PRTPRFINT.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="PRTPRFINT.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#PRTPRFINT.SELECT"><strong>SELECT</strong></a></td>
+<td class="valigntop">Select by</td>
+<td class="valigntop"><strong class="underlined">*USRPRF</strong>, *PCTFULL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="2"><a href="#PRTPRFINT.USRPRF"><strong>USRPRF</strong></a></td>
+<td class="valigntop">User profile</td>
+<td class="valigntop"><span class="var">Qualifier list</span></td>
+<td class="valigntop" rowspan="2">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: User profile</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, <strong class="underlined">*ALL</strong></td>
+</tr><tr>
+<td class="valigntop"><a href="#PRTPRFINT.PCTFULL"><strong>PCTFULL</strong></a></td>
+<td class="valigntop">Percent full</td>
+<td class="valigntop">0.01-100.0, <strong class="underlined">89.90</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#PRTPRFINT.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="PRTPRFINT.SELECT"></a>
+<h2>Select by (SELECT)</h2>
+<p>Specifies what criteria is used to select the user profiles to include in the report.
+</p>
+<dl>
+<dt><strong class="underlined">*USRPRF</strong></dt>
+<dd>User profiles are selected for the report based on the profile name specified for the USRPRF parameter.
+</dd>
+<dt><strong>*PCTFULL</strong></dt>
+<dd>User profiles are selected for the report based on the value specified for the PCTFULL parameter.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#PRTPRFINT.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="PRTPRFINT.USRPRF"></a>
+<h2>User profile (USRPRF)</h2>
+<p>If *USRPRF was specified for the <strong>Select by (SELECT)</strong> parameter, you must specify the user profiles to be included in the report.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All user profiles will be included in the report.
+</dd>
+<dt><strong class="italic">user-name</strong></dt>
+<dd>The name of the user profile to be included in the report.
+</dd>
+<dt><strong class="italic">generic-user-name</strong></dt>
+<dd>The generic name of the user profile to be included in the report.  A generic name is a character string of one or more characters followed by an asterisk (*).
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#PRTPRFINT.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="PRTPRFINT.PCTFULL"></a>
+<h2>Percent full (PCTFULL)</h2>
+<p>If *PCTFULL was specified for the <strong>Select by (SELECT)</strong> parameter, you must enter a value which will be used as the percentage full.  User profiles that are at least as full on any auxiliary storage pool (ASP) as the percentage specified on this parameter will be included in the report.  The value specified must be between 0.01 and 100.00.
+</p>
+<dl>
+<dt><strong>89.90</strong></dt>
+<dd>User profiles that are at least 89.9 percent filled with entries on any ASP will be included in the report.
+</dd>
+<dt><strong>percent-full</strong></dt>
+<dd>A value, ranging from 0.01 through 100.00, for the percent full selection value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#PRTPRFINT.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="PRTPRFINT.COMMAND.EXAMPLES">Examples</a> </h2>
+<p>
+</p><pre>PRTPRFINT   SELECT(*PCTFULL)  PCTFULL(85.00)
+</pre>
+<p></p>
+<p>This command prints a report of user profile internal information for all of the user profiles that are at least 85 percent full.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#PRTPRFINT.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="PRTPRFINT.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPFB304</strong></dt>
+<dd>User does not have required special authorities.
+</dd>
+<dt><strong>CPFB307</strong></dt>
+<dd>Command &amp;1 in use in another job.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#PRTPRFINT.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

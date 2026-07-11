@@ -1,0 +1,295 @@
+Trace TCP/IP Route (TRACEROUTE)
+
+Trace TCP/IP Route (TRACEROUTE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Trace TCP/IP Route (TRCTCPRTE) command, also known as TRACEROUTE, traces the route of IP packets to a user-specified destination system. The route can involve many different systems along the way. Each system along the route is referred to as a hop. You can trace all hops along the route or specify the starting and ending hops to be traced.
+
+The route is traced by sending packets (called probes) to the destination system. Each probe contains an upper limit (called Time To Live or TTL) on the number of hop systems the probe can pass through.
+
+Note: In IP Version 6, Time To Live (TTL) is called the hop limit.
+
+A route is traced by successively incrementing the TTL of the probe packets by one hop. The trace ends when either a probe response is received from the destination system or when the probe Time To Live value equals the maximum allowed.
+
+Responses from the probe packets are sent as messages to the job log or as queue entries to a user-specified data queue.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+RMTSYS | Remote system | Character value | Required, Positional 1
+RANGE | Range of hops to probe | Element list | Optional
+Element 1: Starting probe TTL (hop limit) | 1-255, 1
+Element 2: Maximum probe TTL (hop limit) | 1-255, 30
+PROBES | Probes sent per hop | 1-64, 3 | Optional
+WAITTIME | Response wait time | 1-120, 3 | Optional
+PKTLEN | Packet length (in bytes) | 40-65535, 40 | Optional
+OUTPUT | Output | *MSG, *VERBOSE, *DTAQ | Optional
+DTAQ | Data queue | Qualified object name | Optional
+Qualifier 1: Data queue | Name
+Qualifier 2: Library | Name, *CURLIB, *LIBL
+ADRVERFMT | Address version format | *CALC, *IP4, *IP6 | Optional
+LCLINTNETA | Source IP address | Character value, *ANY | Optional
+RMTPORT | Base remote port | 1-65535, 33434 | Optional
+NAMELOOKUP | Lookup host names | *YES, *NO | Optional
+PROBEPCL | Probing protocol | *ICMP, *UDP | Optional
+FRAGMENT | Allow fragmentation | *TCPA, *NO, *YES | Optional
+
+Top
+
+Remote system (RMTSYS)
+
+Specifies the remote system name (255 characters) or IP address of the destination system.
+
+character-value
+Specify the remote system name or IP address. Either a valid IP Version 4 or IP Version 6 address will be accepted.
+
+Top
+
+Range of hops to probe (RANGE)
+
+Specifies the range of hop systems from which probe responses are expected. Each probe specifies a TTL (Time To Live) integer value. This TTL value is the maximum number of hops the probe can traverse. For example, a probe packet with a TTL of 3 can pass through at most 3 hop systems before the hop system discards the probe and sends information back to the system from which the probe originated.
+
+Element 1 specifies the first TTL value sent in probe packets. Element 2 specifies the last TTL value sent in probe packets. Trace information is generated from each hop system which discards a probe packet because the TTL value in the probe is reached or when the destination system is reached.
+
+Element 1: Starting probe TTL (hop limit)
+
+1
+The default starting hop is 1.
+
+1-255
+Specify the first hop limit TTL number used for probe packets.
+
+Element 2: Maximum probe TTL (hop limit)
+
+30
+The default ending hop is 30.
+
+1-255
+Specify the maximum number of hops a probe can traverse to reach the destination system.
+
+Top
+
+Probes sent per hop (PROBES)
+
+Specifies the number of probe packets sent to each hop system for each probe TTL (hop limit) value in the range specified by the RANGE parameter.
+
+3
+The default number of probes is three.
+
+1-64
+Specify the number of probes to send.
+
+Top
+
+Response wait time (WAITTIME)
+
+Specifies the maximum time, in seconds, to wait for a response from a hop system to each probe.
+
+3
+Wait up to 3 seconds for a response.
+
+1-120
+Specify the maximum number of seconds to wait for a response.
+
+Top
+
+Packet length (in bytes) (PKTLEN)
+
+Specifies the total length, in bytes, of the IP packet sent for each probe.
+
+40
+The probe packet length is 40 bytes.
+
+40-65535
+Specify the number of bytes in the probe IP packet.
+
+Top
+
+Output (OUTPUT)
+
+Specifies where the results obtained from sending the probe packets is sent. Information is sent for each hop until the destination system is reached, including hop count, average round-trip time, IP address of the hop and host name of the hop.
+
+*MSG
+Results are output as messages sent to the job log of the job in which the command is issued.
+
+*VERBOSE
+Results are output as messages sent to the job log of the job in which the command is issued. All responses received are displayed. Results are not limited to ICMP TIME_EXCEEDED and PORT_UNREACHABLE responses.
+
+*DTAQ
+Results from probes are placed on the data queue specified by the Data Queue (DTAQ) parameter.
+
+Top
+
+Data queue (DTAQ)
+
+Specifies the data queue on which entries are placed. When a data queue is specified, messages are not sent to the job log unless an error occurs.
+
+Each queue entry contains the response to a probe if one was received or indicates that no probe response was received. The specified data queue must have a queue entry length of at least 33 characters and must exist when this command is issued.
+
+Qualifier 1: Data queue
+
+name
+Specify the name of the data queue.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the job's library list are searched.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library to search.
+
+Top
+
+Address version format (ADRVERFMT)
+
+Specifies how the host name specified for the Remote system (RMTSYS) parameter is to be resolved.
+
+*CALC
+The host name resolution method will be 'calculated' (determined) based on the host name entered in the RMTSYS parameter. TRCTCPRTE (TRACEROUTE) will first use IP Version 4 host name resolution in determining the IP address. If that fails, IP Version 6 host name resolution is used in determining the IP address.
+
+*IP4
+Use the IP Version 4 host name resolution method.
+
+*IP6
+Use the IP Version 6 host name resolution method.
+
+Top
+
+Source IP address (LCLINTNETA)
+
+Specifies how the source IP address in the probe packet is chosen.
+
+*ANY
+The source IP address in the probe packets is chosen by the system. The system may use any active local interface which can reach the remote system.
+
+character-value
+Specify the local interface to use as the source IP address.
+
+Top
+
+Base remote port (RMTPORT)
+
+Specifies the base UDP port number used in probes.
+
+33434
+Use the default base UDP port number of 33434.
+
+1-65535
+Specify the base UDP port number to be used in probes.
+
+Top
+
+Lookup host names (NAMELOOKUP)
+
+Specifies whether IP addresses will be resolved to the host name.
+
+*YES
+The address will be resolved to the host name.
+
+*NO
+The address will not be resolved to the host name.
+
+Top
+
+Probing protocol (PROBEPCL)
+
+Specifies the protocol used when sending probe packets.
+
+*ICMP
+The probes sent to the destination system are ICMP (Internet Control Message Protocol) Echo Request packets.
+
+*UDP
+The probes sent to the destination system are UDP (User Datagram Protocol) packets.
+
+Top
+
+Allow fragmentation (FRAGMENT)
+
+Specifies how the setting of the "Do Not Fragment" option in the IP header of the probe packet is determined.
+
+*TCPA
+The system sets the option based on the setting of the IP Path MTU Discovery TCP/IP attribute.
+
+Note: Use the Change TCP/IP Attributes (CHGTCPA) command to change the value of this attribute.
+
+*NO
+The "Do Not Fragment" option is always specified.
+
+*YES
+The "Do Not Fragment" option is never specified.
+
+Top
+
+Examples
+
+Example 1: Trace Entire Route
+
+TRCTCPRTE RMTSYS('130.14.3.5')
+
+This command traces the entire route between the local system and the destination system whose IP address is '130.14.3.5'. Three probe packets will be sent to each hop system. Each IP probe packet will be 40 bytes long and will contain an ICMP Echo Request packet. Results received are sent as messages to the job log.
+
+Example 2: Trace Partial Route
+
+TRCTCPRTE RMTSYS('AAA.BBBB.COM') RANGE(3 7)
+PROBES(5) PROBEPCL(*UDP)
+OUTPUT(*DTAQ) DTAQ(MYLIB/MYDATAQ)
+
+This command traces the route between the local system and the destination system whose host name is 'AAA.BBBB.COM'. Five probe packets will be sent for the starting range value of 3. Each probe will be a UDP packet inside an IP packet that is 40 bytes long. Each of these 5 probes will specify a TTL of 3. If system AAA.BBB.COM can be reached by passing through at most 2 hop systems then the trace will terminate at this point.
+
+If system AAA.BBB.COM is futher than 2 hops, another set of 5 probe packets will be sent to the destination AAA.BBB.COM. Each of these 5 probes will specify a TTL of 4. This is repeated until either system AAA.BBB.COM responds to a probe or 5 probes with a TTL of 7, the ending range value, are sent. Any results received are placed as queue entries on data queue MYDATAQ in library MYLIB.
+
+Example 3: Trace Route with an IP Version 6 Address
+
+TRCTCPRTE RMTSYS('1:2:3:4:5:6:7:8')
+
+This command traces the entire route between the local system and the destination system whose IP address is 1:2:3:4:5:6:7:8. Three probe packets will be sent to each hop system. Each IP probe packet will be 40 bytes long and will contain an ICMP6 Echo Request packet. Results received are sent as messages to the job log.
+
+Note: A colon character ( : ) found in the parameter value signifies an IP Version 6 address and will cause an ICMP6 echo request packet to be generated.
+
+Example 4: Trace Route with an IP Version 6 Host Name
+
+TRCTCPRTE RMTSYS('IP6HOST')
+
+This command traces the entire route between the local system and the destination system whose host name is 'IP6HOST'. Three probe packets will be sent to each hop system. Each IP probe packet will be 40 bytes long and will contain an ICMP6 Echo Request packet. Results received are sent as messages to the job log.
+
+The default "Address version format" is *CALC. Host name resolution may return multiple IP addresses for a given host name. But, in the case (*CALC), the first IP address (IP Version 4 or IP Version 6) resolved will be the address used when attempting to trace the route.
+
+Example 5: Trace Route with an IP Version 6 Host Name and Explicitly Use IP Version 6 Host Name Resolution
+
+TRCTCPRTE RMTSYS('IP6HOST') ADRVERFMT(*IP6)
+
+This command traces the entire route between the local system and the destination system whose host name is 'IP6HOST'. Three probe packets will be sent to each hop system. Each IP probe packet will be 40 bytes long and will contain an ICMP6 Echo Request packet. Results received are sent as messages to the job log.
+
+This example differs from example 4 in that only a valid IP version 6 resolved address, for IP6HOST, will be used when attempting to trace the route.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+TCP3250
+DTAQ parameter value required with OUTPUT(*DTAQ).
+
+TCP3251
+DTAQ parameter not valid when OUTPUT(*MSG) specified.
+
+TCP3252
+Starting range value greater than range limit.
+
+Top

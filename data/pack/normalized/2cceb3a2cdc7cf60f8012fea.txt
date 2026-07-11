@@ -1,0 +1,785 @@
+Change Physical File (CHGPF)
+
+Change Physical File (CHGPF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Physical File (CHGPF) command changes the attributes of a physical file and all its members. The changed attributes are used for all members subsequently added to the file unless other values are specified or default for the add operation. To change the attributes of a specific member, specify the Change Physical File Member (CHGPFM) command.
+
+Restrictions:
+
+- You must have object management (*OBJMGT) authority or object alter (*OBJALTER) authority for the file and execute (*EXECUTE) authority to the library. An exclusive-no-read lock is required, which means no one can be using the file for any purpose.
+
+- If a request to make an existing file re-use deleted records is made, but there are logical files over the physical file that specify "FIFO" or "LIFO" ordering for duplicate keys, the change is not allowed.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | Physical file | Qualified object name | Required, Key, Positional 1
+Qualifier 1: Physical file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+SYSTEM | System | *LCL, *RMT, *FILETYPE | Optional, Key
+SRCFILE | Source file | Single values: *NONE
+Other values: Qualified object name | Optional, Key
+Qualifier 1: Source file | Name, QDDSSRC
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+SRCMBR | Source member | Name, *FILE | Optional
+OPTION | Source listing options | Values (up to 3 repetitions): *SRC, *NOSRC, *SOURCE, *NOSOURCE, *LIST, *NOLIST, *SECLVL, *NOSECLVL, *EVENTF, *NOEVENTF | Optional
+GENLVL | Generation severity level | 0-30, 20 | Optional
+FLAG | Flagging severity level | 0-30, 0 | Optional
+DLTDEPLF | Delete dependent logical file | *NO, *YES | Optional
+RMVCST | Remove constraint | *RESTRICT, *REMOVE | Optional
+EXPDATE | Expiration date for member | Date, *SAME, *NONE | Optional
+MAXMBRS | Maximum members | Integer, *SAME, *NOMAX | Optional
+ACCPTHSIZ | Access path size | *SAME, *MAX4GB, *MAX1TB | Optional
+MAINT | Access path maintenance | *SAME, *IMMED, *REBLD, *DLY | Optional
+RECOVER | Access path recovery | *SAME, *NO, *AFTIPL, *IPL | Optional
+FRCACCPTH | Force keyed access path | *SAME, *NO, *YES | Optional
+SIZE | Member size | Single values: *NOMAX
+Other values: Element list | Optional
+Element 1: Initial number of records | 1-2147483646, *SAME
+Element 2: Increment number of records | 0-32767, *SAME
+Element 3: Maximum increments | 0-32767, *SAME
+ALLOCATE | Allocate storage | *NO, *YES, *SAME | Optional
+UNIT | Preferred storage unit | 1-255, *SAME, *ANY, *SSD | Optional
+FRCRATIO | Records to force a write | Integer, *SAME, *NONE | Optional
+WAITFILE | Maximum file wait time | Integer, *SAME, *IMMED, *CLS | Optional
+WAITRCD | Maximum record wait time | Integer, *SAME, *IMMED, *NOMAX | Optional
+SHARE | Share open data path | *SAME, *NO, *YES | Optional
+DLTPCT | Max % deleted records allowed | 1-100, *NONE, *SAME | Optional
+REUSEDLT | Reuse deleted records | *SAME, *YES, *NO | Optional
+SRTSEQ | Sort sequence | Single values: *SAME, *SRC, *JOB, *LANGIDSHR, *LANGIDUNQ, *HEX
+Other values: Qualified object name | Optional
+Qualifier 1: Sort sequence | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+LANGID | Language ID | Character value, *JOB, *SAME | Optional
+LVLCHK | Record format level check | *SAME, *YES, *NO | Optional
+KEEPINMEM | Keep in memory | *SAME, *NO, *YES | Optional
+NODGRP | Node group | Single values: *NONE, *SAME
+Other values: Qualified object name | Optional
+Qualifier 1: Node group | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+PTNKEY | Partitioning Key | Single values: *SAME
+Other values (up to 300 repetitions): Name | Optional
+TEXT | Text 'description' | Character value, *SAME, *BLANK | Optional
+CCSID | Coded character set ID | 1-65535, *SAME, *HEX | Optional
+
+Top
+
+Physical file (FILE)
+
+Specifies the physical file to be changed.
+
+Note: If a Distributed Data Management (DDM) file is specified, the name of the physical file to be changed and the name of the remote system on which the file is to be changed are contained in the DDM file. For more information, see the System (SYSTEM) parameter of this command.
+
+This is a required parameter.
+
+Qualifier 1: Physical file
+
+name
+Specify the name of the physical file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+System (SYSTEM)
+
+Specifies whether the physical file is changed on the local system or the remote system.
+
+*LCL
+The physical file is changed on the local system.
+
+*RMT
+The physical file is changed on a remote system using distributed data management (DDM). The physical file name specified on the Physical file (FILE) parameter must be the name of the DDM file that identifies the name of the physical file to be changed and the name of the remote system on which the file is to be changed.
+
+*FILETYPE
+If the name specified on the FILE parameter is a DDM file, the physical file is changed on the remote system specified by the Remote location (RMTLOCNAME) parameter of the DDM file. If the name specified on the FILE parameter is not a DDM file, the physical file on the local system with that name is changed.
+
+Top
+
+Source file (SRCFILE)
+
+Specifies the source file used to change the physical file. The source file contains the specifications that describe the record format and its fields, and the access path for the file and its members. The data description specifications (DDS) that are made are described in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ and the DDS topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+If the format attributes are changed, the data in the existing file is converted to the new attributes.
+
+Attention:
+
+- The data in the existing file is converted to the new format based on field names. If the name of a field is changed, its existing data is lost.
+
+- Because you are converting data, it is strongly recommended that you save the file before you issue this command.
+
+If the access path attributes are changed or the attributes of one of the key fields in the format are changed, a new access path may need to be built.
+
+Note: When the data or the access path attributes are changed, the change file operation can take a long time to complete. Status messages are sent to keep the interactive user informed of the progress of the operation.
+
+Single values
+
+*NONE
+No source file is specified. Neither the format nor the access path attributes for the file are changed.
+
+Qualifier 1: Source file
+
+QDDSSRC
+The source file, QDDSSRC, contains the DDS used to change the physical file.
+
+name
+Specify the name of the source file that contains the DDS used to change the physical file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Source member (SRCMBR)
+
+Specifies the source file member that contains the DDS for the physical file being changed.
+
+Note: This parameter is valid only when a source file is specified for the Source file (SRCFILE) parameter.
+
+*FILE
+The source file member name is the same as the name of the physical file being changed.
+
+name
+Specify the name of the source file member used to change the physical file.
+
+Top
+
+Source listing options (OPTION)
+
+Specifies the type of output produced when the file is changed. A maximum of four of the following values can be specified in any order on this parameter. If neither or both of the values on an option are specified, the first value is used.
+
+Notes:
+
+- This parameter is valid only when a source file is specified on the Source file (SRCFILE) parameter.
+
+- The first values on an option are similar to, but are not actually default values, and therefore they cannot be changed with the Change Command Default (CHGCMDDFT) command.
+
+- You can specify up to 3 values for this parameter.
+
+Source Listing Option
+
+*SRC or *SOURCE
+A printout is created of the source statements used to change the file, and of the errors that occur.
+
+*NOSRC or *NOSOURCE
+No printout of the source statements is created unless errors are detected. If errors are detected, they are listed along with the keyword or record format that caused the error.
+
+Program Listing Option
+
+*LIST
+An expanded source printout is created, showing a detailed list of the file specifications that result from the source statements and references to other file descriptions.
+
+*NOLIST
+The expanded source printout is not created.
+
+Second-Level Message Text Option
+
+*NOSECLVL
+The messages section of the DDS printout does not contain the second-level message for the errors found during DDS processing.
+
+*SECLVL
+Second-level message text is included in the source listing.
+
+Event File Creation Option
+
+*NOEVENTF
+The compiler does not produce an event file for the CoOperative Development Environment (CODE) product.
+
+*EVENTF
+The compiler produces an event file that can be used by the CODE product. The event file is created as a member in the file EVFEVENT in your object library. The CODE product uses this file to offer error feedback integrated with the CODE editor. This value is normally specified by the CODE product on your behalf
+
+Top
+
+Generation severity level (GENLVL)
+
+Specifies the severity level of errors at which the change operation fails. If errors occur that have a severity level greater than or equal to this value, the operation ends.
+
+Notes:
+
+- This parameter is valid only when a source file is specified on the Source file (SRCFILE) parameter.
+
+- This parameter applies only to messages created while processing the DDS source. Messages created elsewhere in the file change process are not affected by this parameter.
+
+- The value on this parameter must be greater than or equal to the value specified on the Flagging severity level (FLAG) parameter.
+
+20
+The error severity level of 20 or above ends the change operation.
+
+0-30
+Specify the maximum severity level allowed. The file is not changed if the severity level specified is 0.
+
+Top
+
+Flagging severity level (FLAG)
+
+Specifies the minimum severity level of messages to be listed.
+
+Note: This parameter is valid only when a source file is specified on the Source file (SRCFILE) parameter.
+
+0
+All messages are listed.
+
+0-30
+Specify a number indicating the minimum severity of messages to be listed. The value specified must be greater than or equal to the value specified for the Generation severity level (GENLVL) parameter.
+
+Top
+
+Delete dependent logical file (DLTDEPLF)
+
+Specifies whether the logical files and SQL materialized query tables that are dependent on a field are deleted if that field is removed from the file as part of the change operation. A field is removed from the file if its definition is not included in the DDS identified in the source file.
+
+Note: This parameter is valid only when a source file is specified on the Source file (SRCFILE) parameter.
+
+*NO
+The dependent files are not deleted. The field on which the access paths are dependent is not removed and the file is not changed. The command ends.
+
+*YES
+The files that are dependent on a field that is removed from the file are deleted.
+
+Top
+
+Remove constraint (RMVCST)
+
+Specifies whether the constraint relationships are removed in the associated set of dependent files when you are deleting a parent file of a referential constraint.
+
+Note: This parameter is valid only when *YES if sepcified for the Delete dependent logical file (DLTDEPLF) parameter.
+
+*RESTRICT
+The constraint relationships are not removed. The parent file is not removed and the file is not changed. The command ends.
+
+*REMOVE
+The constraints that are dependent on a field that is removed from the file are removed. If a unique constraint is removed, any referential constraints that are dependent on the unique constraint are also removed.
+
+Top
+
+Expiration date for member (EXPDATE)
+
+Specifies the expiration date of all the file's members. If an expiration date is specified, all members in the file are changed. You can specify a new expiration date for a member that has exceeded its expiration date by changing this parameter. The expiration date must be later than or equal to the current date.
+
+*SAME
+The expiration date of the file does not change.
+
+*NONE
+No expiration date is specified.
+
+date
+Specify the date after which the file members should not be used. The date must be specified in the job-date format.
+
+Top
+
+Maximum members (MAXMBRS)
+
+Specifies the maximum number of members that the physical file can have at any time. The maximum number of members specified must be greater than or equal to the current number of members in the file.
+
+*SAME
+The maximum number of members in the file does not change.
+
+*NOMAX
+No maximum is specified for the number of members; the system maximum of 32,767 members per file is used.
+
+integer
+Specify the maximum number of members that the physical file can have. Valid values range from 1 through 32767.
+
+Top
+
+Access path size (ACCPTHSIZ)
+
+Specifies the maximum size of auxiliary storage that can be occupied by the following kinds of access paths:
+
+- The access paths that are associated with a database file that has a keyed sequence access path.
+
+- The access paths that are created for referential or unique constraints.
+
+Changing the value for this file causes the access paths that are owned by the file to be rebuilt.
+
+Note: This parameter does not apply to access paths that are created for queries that refer to the data in the file.
+
+*SAME
+The value does not change.
+
+*MAX1TB
+The maximum amount of auxiliary storage the access paths associated with this file can occupy is determined by the logical page size as shown below:
+
+Logical Maximum
+Page Size Auxiliary Storage
+8K 4TB
+16K 8TB
+32K-512K 16TB
+
+*MAX4GB
+The access paths associated with this file can occupy a maximum of four gigabytes (4,294,967,296 bytes) of auxiliary storage.
+
+Top
+
+Access path maintenance (MAINT)
+
+Specifies the type of access path maintenance used for all members of the physical file. This parameter is valid only if the file has a keyed access path.
+
+*SAME
+The access path maintenance of the file does not change.
+
+*IMMED
+The access path is continuously (immediately) maintained for each physical file member. The path is changed each time a record is changed, added to, or deleted from the member. *IMMED is specified for all files requiring unique keys to ensure uniqueness in all inserts and changes.
+
+*REBLD
+The access path is rebuilt when a file member is opened. The access path is continuously maintained until the member is closed; then the access path maintenance is ended. *REBLD is not valid for access paths that contain unique key values.
+
+*DLY
+The maintenance of the access path is delayed until the member is opened for use. Then the access path is changed only for records that were added, deleted, or changed since the file was last closed. (While the file is open, all changes made to based-on members are immediately reflected in the access paths of the members of the opened files, no matter what is specified for the Access path maintenance (MAINT) parameter.) To prevent a lengthy rebuild time when the file is opened, *DLY should be specified only when the number of changes to the access path between a close operation and the next open operation are small (when key fields in records for this access path change infrequently). *DLY is not valid for access paths that require unique key values.
+If the number of changes between a close operation and the next open operation reaches approximately 10% of the access path size, the system stops saving changes and the access path is completely rebuilt the next time the file is opened.
+
+Top
+
+Access path recovery (RECOVER)
+
+Specifies, for files having immediate or delayed maintenance on their access paths, when recovery processing of the file is done if a system failure occurs while the access path is being changed. This parameter is valid only if a keyed access path is used.
+
+*SAME
+The recovery attribute of the file does not change.
+
+*NO
+The access path of the file is not rebuilt. The file's access path, if not valid, is rebuilt when the file is opened.
+
+*AFTIPL
+The file has its access path rebuilt after the IPL operation is completed. This option allows other jobs not using this file to begin processing immediately after the IPL is completed.
+
+*IPL
+The file has its access path rebuilt during the IPL operation. This ensures that the file's access path is rebuilt before the first user program tries to use it; however, no jobs are started until after all files that specify *IPL have their access paths rebuilt.
+
+Top
+
+Force keyed access path (FRCACCPTH)
+
+Specifies, for files with keyed access paths only, whether access path changes are forced to auxiliary storage along with the associated records in the file. Specifying *YES minimizes (but does not remove) the chance that an abnormal end will cause damage to the access path, which then requires it to be rebuilt.
+
+*SAME
+The force access path attribute of the file does not change.
+
+*NO
+The changed access path and changed records are not forced to auxiliary storage whenever the access path is changed.
+
+*YES
+The changed access path and changed records are forced to auxiliary storage whenever the access path is changed. If this value is specified, *REBLD must not be specified for the Access path maintenance (MAINT) parameter.
+
+Top
+
+Member size (SIZE)
+
+Specifies the initial number of records in each member of the file, the number of records for each increment added to the member, and the number of times the increment is automatically applied. The number of records for each file member is specified as the number of records that can be placed in it (this number includes any deleted records).
+
+The maximum number of records for the member (initial number of records plus the increment number of records times the maximum increments) must be larger than the current number of records in the member. If it is smaller than the current number of records in the member, an error message is sent, and the maximum number of records for the member does not change.
+
+Single values
+
+*NOMAX
+The number of records that can be added to each member of the file is not limited by the user. The maximum number of records for each member is determined by the system. If *YES is in effect for the ALLOCATE attribute of the physical file, this option cannot be specified
+
+Element 1: Initial number of records
+
+*SAME
+The value does not change.
+
+1-2147483646
+Specify the number of records that can be inserted before an automatic extension occurs. If automatic extensions are not wanted, enter zeros for the second and third values in the list.
+
+Element 2: Increment number of records
+
+*SAME
+The value does not change.
+
+0-32767
+Specify a value for the number of additional records that are added to the member when the number of records in the member will exceed the initial number of records, or will exceed the current increment's number of records.
+Enter a 0 value to prevent automatic extensions. This value must be 0 if the value for the maximum increments is 0.
+
+Element 3: Maximum increments
+
+*SAME
+The value does not change.
+
+0-32767
+Specify the maximum number of increments that can be automatically added to the member(s). Enter a 0 value to prevent automatic extensions. If the increment number of records value is 0, this value must also be 0.
+
+Top
+
+Allocate storage (ALLOCATE)
+
+Specifies whether the initial storage space is allocated for each physical file member when it is added to the file. This change takes effect the next time a new member is added to the file or when a current member is cleared or reorganized.
+
+*SAME
+The allocation method does not change.
+
+*NO
+When a new member is added, or when an existing member is cleared or reorganized, the system determines the space that is needed and allocates that amount.
+
+*YES
+The amount of storage space specified in the first value of the Member size (SIZE) parameter is allocated each time a new member is added, or each time an existing member is cleared or reorganized. If that amount of storage space is not available, the member is not added, and a message is sent to the user. If this parameter value is used, *NOMAX cannot be in effect for the SIZE parameter.
+
+Top
+
+Preferred storage unit (UNIT)
+
+Specifies the preferred storage media for the file.
+
+*ANY
+No storage media is preferred. Storage will be allocated from any available storage media.
+
+*SSD
+Solid state disk storage media is preferred. Storage may be allocated from solid state disk storage media, if available.
+
+integer
+A value ranging from 1 through 254 is equivalent to specifying *ANY. A value of 255 is equivalent to specifying *SSD.
+
+Top
+
+Records to force a write (FRCRATIO)
+
+Specifies the number of inserted, changed, or deleted records that are processed before those records are forced to auxiliary (permanent) storage. If the physical file is being recorded in a journal, it is recommended that a larger force write ratio, or *NONE, be specified. More information on journal management is in the Recovering your system book, SC41-5304.
+
+*SAME
+The force write ratio of the file does not change.
+
+*NONE
+There is no force write ratio; the system determines when the records are written to auxiliary storage.
+
+integer
+Specify the number of new or changed records that are processed before those records are forced into auxiliary storage.
+
+Top
+
+Maximum file wait time (WAITFILE)
+
+Specifies the number of seconds that the program waits for the file resources and session resources to be allocated when the file is opened, or for the device or session resources to be allocated when an acquire operation is performed to the file. If the file resources are not allocated in the specified wait time, an error message is sent to the program.
+
+Note: An immediate allocation of the device by the device resource is required when an acquire operation is performed to the file.
+
+*SAME
+The wait attribute of the file does not change.
+
+*IMMED
+The program does not wait. Immediate allocation of file resources is required.
+
+*CLS
+The default wait time specified in the class description is used as the wait time for the file resources that are allocated.
+
+1-32767
+Specify the number of seconds that the program waits for the file resources to be allocated.
+
+Top
+
+Maximum record wait time (WAITRCD)
+
+Specifies the number of seconds that the program waits for a record that is changed or deleted. If the record is not allocated in the specified wait time, an error message is sent to the program.
+
+*SAME
+The record wait attribute of the file does not change.
+
+*IMMED
+The program does not wait; when a record is locked, an immediate allocation of the record is required.
+
+*NOMAX
+The wait time is the maximum allowed by the system (32,767 seconds).
+
+1-32767
+Specify the number of seconds that the program waits for the file resources to be allocated.
+
+Top
+
+Share open data path (SHARE)
+
+Specifies whether the open data path (ODP) is shared with other programs in the same routing step. When an ODP is shared, the programs accessing the file share facilities such as the file status and the buffer.
+
+*SAME
+The ODP sharing value of the member does not change.
+
+*NO
+The ODP is not shared with other programs in the routing step. A new ODP for the file is created and used every time a program opens the file.
+
+*YES
+The same ODP is shared with each program in the job that also specifies *YES when it opens the file.
+
+Top
+
+Max % deleted records allowed (DLTPCT)
+
+Specifies the maximum percentage of deleted records that any member in the physical file can have. The percentage is based on the number of deleted records compared with the total record count in a member. This change takes effect the next time the file is opened and closed.
+
+*SAME
+The deleted record percentage does not change.
+
+*NONE
+No percentage is specified; the number of deleted records in the file members is not checked when a member is closed.
+
+1-100
+Specify the largest percentage of deleted records that any member in the file can have. If a value is larger than this percentage, a message is sent to the system history log (QHST) when the file is closed.
+
+Top
+
+Reuse deleted records (REUSEDLT)
+
+Specifies whether the space used by deleted data entries is reclaimed by future insert requests.
+
+*SAME
+The setting does not change.
+
+*NO
+The file does not reclaim space used by deleted data entries.
+
+*YES
+The file reclaims space used by deleted data entries. More information about the algorithm used to reclaim the deleted data is in Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: Arrival order becomes meaningless for a file that reuses deleted record space. Records might not be added at the end of the file.
+
+Top
+
+Sort sequence (SRTSEQ)
+
+Specifies the sort sequence used for this file. The sort sequence value is used with the LANGID parameter to determine which sort sequence table is used.
+
+Note: Changing the value for this file causes the access paths that are owned by the file to be rebuilt.
+
+Single values
+
+*SAME
+The value does not change.
+
+*SRC
+The table specified on the ALTSEQ keyword in the data description specification (DDS) is used. If the ALTSEQ keyword is not used in the DDS, this value defaults to the *JOB value on this parameter.
+
+*JOB
+The sort sequence value used is the value for the job issuing this command to change the physical file.
+
+*LANGIDSHR
+The sort sequence table uses the same weight for multiple characters, and is the shared-weight sort sequence table associated with the language specified on the LANGID parameter.
+
+*LANGIDUNQ
+The sort sequence table must contain a unique weight for each character in the code page.
+
+*HEX
+A sort sequence table is not used. The hexadecimal values of the characters are used to determine the sort sequence.
+
+Qualifier 1: Sort sequence
+
+name
+Specify the name of the sort sequence table to use.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Language ID (LANGID)
+
+Specifies the language identifier used when *LANGIDSHR or *LANGIDUNQ is specified for the Sort sequence (SRTSEQ) parameter. The language identifier is used with the SRTSEQ and Coded character set ID (CCSID) parameters to determine which sort sequence table the file will use.
+
+Note: Changing the value for this file causes the access paths that are owned by the file to be rebuilt unless the SRTSEQ attribute is *HEX.
+
+*SAME
+The value does not change.
+
+*JOB
+The language identifier specified in the job description is used.
+
+character-value
+Specify a language identifier.
+
+Top
+
+Record format level check (LVLCHK)
+
+Specifies whether the levels of record format identifiers are checked to verify that the current record format identifier is the same as that specified in the program that opens the physical file.
+
+*SAME
+The level check value of the member does not change.
+
+*YES
+The level identifiers of the record formats are checked when the file is opened. If the level identifiers do not match, an error message is sent to the program requesting the open, and the file is not opened.
+
+*NO
+The level identifiers are not checked when the file is opened.
+
+Top
+
+Keep in memory (KEEPINMEM)
+
+Specifies whether the data for a file member should be brought into a main storage pool by the SQL Query Engine (SQE) when the data is used in the query to improve the performance.
+
+*SAME
+The keep in memory attribute does not change.
+
+*NO
+The member's data will not be brought into a main storage pool.
+
+*YES
+The member's data may be brought into a main storage pool.
+
+Note: The Query Options File (QAQQINI) parameter MEMORY_POOL_PREFERENCE can be used to specify the preferred main storage pool that should be used.
+
+Top
+
+Node group (NODGRP)
+
+Specifies the name of a node group across which the file is distributed.
+
+Single values
+
+*SAME
+The value does not change.
+
+*NONE
+The file is not a distributed file. All data associated with the file is on the local system.
+
+Qualifier 1: Node group
+
+name
+Specify the name of a node group associated with this file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Partitioning Key (PTNKEY)
+
+Specifies the field, or set of fields, that is used as the partition key for distributing data.
+
+Note: This parameter is not valid when NODGRP(*NONE) is specified. If a node group name is specified (NODGRP parameter), one or more field names must be specified.
+
+Single values
+
+*SAME
+The value does not change.
+
+Other values (up to 300 repetitions)
+
+name
+Specify the name of a field to be used to define the partition key.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the text that briefly describes the object.
+
+*SAME
+The text that describes the file does not change.
+
+*BLANK
+No text is specified.
+
+character-value
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Coded character set ID (CCSID)
+
+Specifies the coded character set identifier (CCSID) to be used to describe character data in the fields of the file.
+
+Notes:
+
+- If this parameter is specified, SRCFILE(*NONE) also must be specified.
+
+- The CCSID cannot be changed if:
+
+Any explicit field-level or file-level CCSIDs are specified on the CCSID keyword in the DDS for fields in the physical file, the IDDU, or the SQL.
+
+The physical file is a program-described file.
+
+The physical file's format contains a concatenated field.
+
+*SAME
+The CCSID does not change.
+
+*HEX
+The CCSID 65535 is used, which indicates that character data in the fields is treated as bit data and is not converted.
+
+1-65535
+Specify the CCSID to be used.
+If a DBCS field is in the physical file, the CCSID specified must have a corresponding mixed CCSID. More information on valid CCSIDs is in the Globalization information in the iSeries Information Center at http://www.ibm.com/eserver/iseries/infocenter.
+
+Top
+
+Examples
+
+Example 1: Changing Expiration Date for All Members
+
+CHGPF FILE(QGPL/INV) EXPDATE('10/31/89')
+
+This command changes the expiration date for all members in physical file INV to October 31, 1989.
+
+Example 2: Changing File Size
+
+CHGPF FILE(QGPL/DDMF) SIZE(*NOMAX) SYSTEM(*RMT)
+
+This command changes the size of file INV located in the QGPL library on the remote system. Prior to specifying the above command, this user had created a DDM file by specifying the command CRTDDMF FILE(QGPL/DDMF) RMTFILE(QGPL/INV) RMTLOCNAME(AS400).
+
+Example 3: Adding, Removing, and Changing Fields
+
+CHGPF FILE(QGPL/T1) SRCFILE(QDDSSRC)
+
+This command adds fields, removes fields, and changes field attributes based on the DDS in the source file member T1 in the source file QDDSSRC. Prior to specifying the above command, the user had edited the source member.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF326A
+Operation not successful for file &1 in library &2.
+
+CPF327F
+Operation not successful for file &1 in library &2.
+
+CPF7304
+File &1 in &2 not changed.
+
+CPF7305
+File &1 in &2 changed but distributed requests failed.
+
+Top

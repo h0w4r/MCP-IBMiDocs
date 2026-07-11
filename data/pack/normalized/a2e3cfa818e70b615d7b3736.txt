@@ -1,0 +1,164 @@
+Change Cluster (CHGCLU)
+
+Change Cluster (CHGCLU)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Cluster (CHGCLU) command is used to change cluster configuration parameters. Values for current settings may be retrieved using the Display Cluster Information (DSPCLUINF) command or Work Cluster (WRKCLU) command.
+
+Prior to cluster version 6, a failover message queue could be defined for a cluster resource group. If the failover message queue was defined, a message was enqueued during the failover of the cluster resource group, allowing the user to cancel or continue the failover. If a cluster node ended or failed and there were multiple cluster resource groups with that node as a primary recovery domain node, the user would have needed to respond to a message for each cluster resource group.
+
+In cluster version 6 and above, the user has the option of receiving and responding to one message for all cluster resource groups which are failing over to the same node when the primary node for the cluster resource groups ends or fails. A cluster message queue, failover wait time, and failover default action may be specified. If a failure occurs on a node, that node is the primary recovery domain node for any active cluster resource groups, and the cluster message queue is defined, then one message will be enqueued on the cluster message queue. This gives the user the option of continuing all cluster resource group failovers to the new primary, or cancelling all cluster resource group failovers. No message will be enqueued if the primary node is removed from the cluster because that node can not remain the primary node of the cluster resource group. If a cluster resource group is failing over individually, one message will be sent which will control the failover of that cluster resource group. The message will be placed on the message queue on the new primary node before the cluster resource groups call their exit programs. If the failovers are cancelled, the primary node of the cluster resource groups will not be changed, and the cluster resource groups will become Inactive. The exit programs will be called with an action code of Failover Cancelled.
+
+If the user wants to specify failover actions for a specific cluster resource group, the failover message queue fields on the CRTCRG (Create CRG) or CHGCRG (Change CRG) commands should be used instead of the cluster message queue fields. If the failover fields are set at a cluster level, they will override any cluster resource group failover parameters. If the cluster message queue is set to *NONE, then the failover of each individual cluster resource group will be controlled via the cluster resource group failover parameters.
+
+The command provides a base level of tuning support where the cluster will adjust to a predefined set of values identified for maximum, minimum, and normal timeout and messaging interval values. If an advanced level of tuning is desired, usually anticipated with the help of IBM support personnel, then individual parameters may be tuned over a predefined range of values using the Change Cluster Resource Services (QcstChgClusterResourceServices) API.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the cluster to run this command.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- This command must be called on a cluster node with a status of Active.
+
+- The configuration tuning level must be the same in both partitions for a merge to be allowed.
+
+- If the cluster message queue is specified, it must exist on all started nodes in the cluster.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CLUSTER | Cluster | Name | Required, Positional 1
+CLUMSGQ | Cluster message queue | Single values: *SAME, *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: Cluster message queue | Name
+Qualifier 2: Library | Name
+FLVWAITTIM | Failover wait time | Integer, *SAME, *NOWAIT, *NOMAX | Optional
+FLVDFTACN | Failover default action | *SAME, *PROCEED, *CANCEL | Optional
+CFGTUNLVL | Configuration tuning level | *SAME, *NORMAL, *MIN, *MAX | Optional
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the cluster for which the configuration parameters will be changed.
+
+This is a required parameter.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Cluster message queue (CLUMSGQ)
+
+Specifies the message queue to receive messages dealing with failover. If this field is set, the specified message queue must exist on all nodes in the recovery domain after the exit program completes. The message queue cannot be in an independent auxiliary storage pool.
+
+Single values
+
+*SAME
+The current cluster message queue is not changed.
+
+*NONE
+No cluster message queue is defined. No messages will be sent when a failover occurs. This is the behavior for V5R4M0 and prior releases.
+
+Qualifier 1: Cluster message queue
+
+name
+Specify the name of the cluster message queue.
+
+Qualifier 2: Library
+
+name
+Specify the name of the library that contains the cluster message queue. The library name cannot be *CURLIB, QTEMP, or *LIBL.
+
+Top
+
+Failover wait time (FLVWAITTIM)
+
+Specifies the number of minutes to wait for a reply to the failover message that was enqueued on the cluster message queue. This parameter is ignored when the CLUMSGQ parameter is *NONE.
+
+*SAME
+The current failover wait time is not changed.
+
+*NOWAIT
+Failover proceeds without user intervention.
+
+*NOMAX
+Wait forever until a response is given to the failover inquiry message.
+
+integer
+Specify the number of minutes to wait for a response to the failover inquiry message. If no response is received in the specified number of minutes, the failover default action field will be looked at to decide how to proceed.
+
+Top
+
+Failover default action (FLVDFTACN )
+
+Specifies the default action to be taken if a response to the failover message is not received in the failover wait time limit. This parameter is ignored if the cluster message queue (CLUMSGQ) parameter is *NONE or the failover wait time parameter (FLVWAITTIM) is *NOMAX.
+
+*SAME
+The current failover default action is not changed.
+
+*PROCEED
+Proceed with failover.
+
+*CANCEL
+Do not attempt failover.
+
+Top
+
+Configuration tuning level (CFGTUNLVL)
+
+Specifies the desired cluster communications configuration tuning sensitivity level. Provides a simple way to set cluster performance and configuration parameters.
+
+*SAME
+The current value for cluster tuning level is used.
+
+*NORMAL
+Default values are used for cluster communications performance and configuration parameters. This setting may be used to return all parameters to the original default values.
+
+*MIN
+Adjustments are made to cluster communications to increase the heartbeating interval and increase the various message timeout values. With fewer heartbeats and longer timeout values, the cluster will be slower to respond (minimum sensitivity) to communications failures.
+
+*MAX
+Adjustments are made to cluster communications to decrease the heartbeating interval and decrease the various message timeout values. With more frequent heartbeats and shorter timeout values, the cluster will be quicker to respond (maximum sensitivity) to communications failures.
+
+Top
+
+Examples for CHGCLU
+
+Example 1: Changing the Cluster Message Queue
+
+CHGCLU CLUSTER(MYCLUSTER) CLUMSGQ(MYLIB/MYQUEUE) FLVWAITTIM(5)
+FLVDFTACN(*PROCEED) CFGTUNLVL(*SAME)
+
+This command changes the cluster message queue called MYQUEUE in library MYLIB for cluster MYCLUSTER. If a failover message is enqueued on the cluster message queue, the failover will proceed after waiting 5 minutes for a message reply. The configuration tuning level is not changed.
+
+Example 2: Changing the Configuration Tuning Level
+
+CHGCLU CLUSTER(MYCLUSTER) CLUMSGQ(*SAME) FLVWAITTIM(*SAME)
+FLVDFTACN(*SAME) CFGTUNLVL(*MIN)
+
+This command changes the configuration tuning level of the cluster MYCLUSTER. The tuning level is set to the minimum sensitivity level. The cluster message queue and failover parameters are not changed.
+
+Top
+
+Error messages for CHGCLU
+
+*ESCAPE Messages
+
+HAE0012
+Cluster &1 not changed.
+
+Top

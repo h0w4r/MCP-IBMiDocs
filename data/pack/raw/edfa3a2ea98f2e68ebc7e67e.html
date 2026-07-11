@@ -1,0 +1,300 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="CRTCLU.Top_Of_Page"></a>
+<h1>Create Cluster  (CRTCLU)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>Yes
+</td>
+<td class="valigntop alignright">
+<a href="#CRTCLU.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#CRTCLU.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#CRTCLU.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="CRTCLU"></a>
+<p>The Create Cluster (CRTCLU) command is used to create a new cluster of one or more nodes. Each node specified on the Node parameter will be placed in the cluster membership list.
+</p>
+<p>If the Start indicator (START) parameter value is *NO, each node that is being added will have a status of New and Cluster Resource Services will not be started on any node. In order to start Cluster Resource Services, the Start Cluster Node (STRCLUNOD) command must be invoked on a node that ran the CRTCLU command. The STRCLUNOD command may be used to start nodes in the cluster membership list.
+</p>
+<p>If the START parameter value is *YES, Cluster Resource Services will be started on the nodes being defined.  If Cluster Resource Services is not successfully started, the status of the node remains New.
+</p>
+<p>Once the cluster has been created, the Add Cluster Node Entry (ADDCLUNODE) command can be used to add additional nodes to the cluster membership list. The ADDCLUNODE command can be invoked on any node in the cluster that has a status of Active or from the node on which the cluster was originally created.
+</p>
+<p>Prior to cluster version 6, a failover message queue could be defined for a cluster resource group.  If the failover message queue was defined, a message was enqueued during the failover of the cluster resource group, allowing the user to cancel or continue the failover. If a cluster node ended or failed and there were multiple cluster resource groups with that node as a primary recovery domain node, the user would have needed to respond to a message for each cluster resource group.
+</p>
+<p>In cluster version 6 and above, the user has the option of receiving and responding to one message for all cluster resource groups which are failing over to the same node when the primary node for the cluster resource groups ends or fails.  A cluster message queue, failover wait time, and failover default action may be specified on this command or it can also be specified on the CHGCLU (Change Cluster) command.  If a failure occurs on a node, that node is the primary recovery domain node for any active cluster resource groups, and the cluster message queue is defined, then one message will be enqueued on the cluster message queue.  This gives the user the option of continuing all cluster resource group failovers to the new primary, or cancelling all cluster resource group failovers.  No message will be enqueued if the primary node is removed from the cluster because that node can not remain the primary node of the cluster resource group.  If a cluster resource group is failing over individually, one message will be sent which will control the failover of that cluster resource group.  The message will be placed on the message queue on the new primary node before the cluster resource groups call their exit programs.  If the failovers are cancelled, the primary node of the cluster resource groups will not be changed, and the cluster resource groups will become Inactive.  The exit programs will be called with an action code of Failover Cancelled.
+</p>
+<p>If the user wants to specify failover actions for a specific cluster resource group, the failover message queue fields on the CRTCRG (Create CRG) or CHGCRG (Change CRG) commands should be used instead of the cluster message queue fields.  If the failover fields are set at a cluster level, they will override any cluster resource group failover parameters.  If the cluster message queue is set to *NONE, then the failover of each individual cluster resource group will be controlled via the cluster resource group failover parameters.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the cluster to run this command.
+</li>
+<li class="cds--list__item">This command cannot be called from a cluster resource group exit program.
+</li>
+<li class="cds--list__item">A node can be a member of only one cluster.
+</li>
+<li class="cds--list__item">You must include the system on which the command is issued in the cluster membership list.
+</li>
+<li class="cds--list__item">If a cluster message queue is specified, it must exist on each node in the cluster.  This will be verified on the requesting node as part of the CRTCLU (Create Cluster) command, and will be verified on each additional cluster node when that node is started.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="CRTCLU.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCLU.CLUSTER"><strong>CLUSTER</strong></a></td>
+<td class="valigntop">Cluster</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CRTCLU.NODE"><strong>NODE</strong></a></td>
+<td class="valigntop">Node list</td>
+<td class="valigntop">Values (up to 128 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Node identifier</td>
+<td class="valigntop">
+<span class="var">Name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: IP address</td>
+<td class="valigntop">
+Values (up to 2 repetitions): <span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCLU.START"><strong>START</strong></a></td>
+<td class="valigntop">Start indicator</td>
+<td class="valigntop"><strong class="underlined">*YES</strong>, *NO</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCLU.DEVDMN"><strong>DEVDMN</strong></a></td>
+<td class="valigntop">Device domain</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*GEN</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CRTCLU.CLUMSGQ"><strong>CLUMSGQ</strong></a></td>
+<td class="valigntop">Cluster message queue</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Cluster message queue</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop"><a href="#CRTCLU.FLVWAITTIM"><strong>FLVWAITTIM</strong></a></td>
+<td class="valigntop">Failover wait time</td>
+<td class="valigntop"><span class="var">Integer</span>, <strong class="underlined">*NOWAIT</strong>, *NOMAX</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCLU.FLVDFTACN"><strong>FLVDFTACN</strong></a></td>
+<td class="valigntop">Failover default action</td>
+<td class="valigntop"><strong class="underlined">*PROCEED</strong>, *CANCEL</td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="CRTCLU.CLUSTER"></a>
+<h2>Cluster (CLUSTER)</h2>
+<p>Specifies the cluster which will be created.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster to be created.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCLU.NODE"></a>
+<h2>Node identifier (NODE)</h2>
+<p>Specifies information about the cluster and the list of nodes which will be placed in the cluster membership list. A maximum of 128 nodes can be in a cluster.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Element 1: Node identifier</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name for the system that uniquely identifies a node.
+</dd>
+</dl>
+<h3><strong>Element 2: IP address</strong>
+</h3>
+<p>The cluster interface address is an IP address that is used by Cluster Resource Services to communicate with other nodes in the cluster. A maximum of 2 interface addresses per node can be specified.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the IP address to be used to communicate with other nodes in the cluster. The IP address may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+<p>An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+</p>
+<p>An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+</p>
+<p>If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCLU.START"></a>
+<h2>Start indicator (START)</h2>
+<p>Specifies whether or not Cluster Resource Services is to be started on the nodes being defined.
+</p>
+<dl>
+<dt><strong class="underlined">*YES</strong></dt>
+<dd>Cluster Resource Services will be started on the nodes.
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>Cluster Resource Services will not be started on any node.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCLU.DEVDMN"></a>
+<h2>Device domain (DEVDMN)</h2>
+<p>Specifies the device domain to which the nodes in the cluster will be added automatically.  This parameter must be *NONE if the start indicator (START) parameter is *NO.
+</p>
+<dl>
+<dt><strong class="underlined">*GEN</strong></dt>
+<dd>The device domain name will be generated by PowerHA.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>Nodes will not be added to a device domain after cluster creation.
+</dd>
+<dt><strong>name</strong></dt>
+<dd>Specify the name of the device domain to which the nodes in the cluster will be added.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCLU.CLUMSGQ"></a>
+<h2>Cluster message queue (CLUMSGQ)</h2>
+<p>Specifies the message queue to receive messages relating to cluster or node level events. For cluster version 6, messages relating to failover will be sent to this queue.  For node level failovers, one message will be sent which will control the failover of all cluster resource groups with the same new primary node.  If a cluster resource group is failing over individually, one message will be sent which will control the failover of that cluster resource group.  The message will be sent on the new primary node.  If this field is set, the individual cluster resource group failover message queue fields will not be used.  If this field is set, the specified message queue must exist on all nodes in the cluster.  This will be verified on the requesting node as part of the CRTCLU command and will be verified on each additional cluster node when that node is started.  The message queue cannot be in an independent auxiliary storage pool.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No cluster message queue has been defined.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: Cluster message queue</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster message queue.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library that contains the message queue to receive cluster messages. The library name cannot be *CURLIB, QTEMP, *LIBL, *USRLIBL, *ALL, or *ALLUSR.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCLU.FLVWAITTIM"></a>
+<h2>Failover wait time (FLVWAITTIM)</h2>
+<p>Specifies the number of minutes to wait for a reply to the failover message that was enqueued on the cluster message queue.
+</p>
+<dl>
+<dt><strong class="underlined">*NOWAIT</strong></dt>
+<dd>Failover proceeds without user intervention.  Acts the same as V5R4M0 and prior.
+</dd>
+<dt><strong>*NOMAX</strong></dt>
+<dd>Wait forever until a response is given to the failover inquiry message.
+</dd>
+<dt><strong class="italic">integer</strong></dt>
+<dd>Specify the number of minutes to wait for a response to the failover inquiry message. If no response is received in the specified number of minutes, the failover default action field will be looked at to decide how to proceed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCLU.FLVDFTACN"></a>
+<h2>Failover default action (FLVDFTACN )</h2>
+<p>Specifies the default action to be taken if a response to the failover message on the cluster message queue is not received in the failover wait time limit.  This parameter is ignored if the cluster message queue (CLUMSGQ) parameter is *NONE or if the failover wait time parameter (FLVWAITTIM) is *NOMAX.
+</p>
+<dl>
+<dt><strong class="underlined">*PROCEED</strong></dt>
+<dd>Proceed with failover.
+</dd>
+<dt><strong>*CANCEL</strong></dt>
+<dd>Do not attempt failover.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CRTCLU.COMMAND.EXAMPLES"></a>
+<h2>Examples for CRTCLU</h2>
+<p>
+</p><pre>CRTCLU   CLUSTER(MYCLUSTER)
+         NODE((NODE01 ('192.0.2.10'))
+         (NODE02 ('2001:DB8::::ffff:c000:20a')))
+         START(*YES) DEVDMN(*GEN)
+         CLUMSGQ(MYLIB/MYQUEUE) FLVWAITTIM(5)
+         FLVDFTACN(*PROCEED)
+</pre>
+<p></p>
+<p>This command creates cluster MYCLUSTER. The cluster membership list is NODE01 and NODE02. Interface address 192.0.2.10 will be used to communicate with node NODE01. Interface address 2001:DB8::::ffff:c000:20a will be used to communicate with node NODE02. Cluster Resource Services is started on the nodes.  NODE01 and NODE02 are added to a device domian.  A cluster message queue called MYQUEUE in library MYLIB is defined.  If a failover message is enqueued on the cluster message queue, the failover will proceed after waiting 5 minutes for a message reply.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CRTCLU.ERROR.MESSAGES"></a>
+<h2>Error messages for CRTCLU</h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>HAE0005</strong></dt>
+<dd>Cluster &amp;1 not created.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCLU.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

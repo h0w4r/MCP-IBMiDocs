@@ -1,0 +1,268 @@
+Start Migration using BRM (STRMGRBRM)
+
+Start Migration using BRM (STRMGRBRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Migration using BRM (STRMGRBRM) command allows you to specify a migration control group to process. You can start the migration immediately or you can schedule it using the system job scheduler. Processing can be batch or interactive.
+
+The default for the OPTION parameter is *REPORT, which produces the Migration Item Candidate report. This allows you to process a report and review what will be migrated prior to performing the migration operation. To perform a migration for the items in the Migration Item Candidate report created by the *REPORT option or to restart a migration that was interrupted for some reason, you can specify the special value *RESUME.
+
+Each time you process the STRMGRBRM command using either the *REPORT or *MIGRATE special values, BRMS creates a migration candidate file for the items in the control group. This file contains information about the items in the control group at the time that you processed the STRMGRBRM command, as well as information about auxiliary storage pool sizes and utilization. The migration candidate file that you created is used for producing candidate reports and performing migration operations for the control group. If you specify *RESUME for a control group, the migration candidate file that was created for the control group when you processed the STRMGRBRM command is used. A new migration candidate file is not created when you specify *RESUME, even though items in the control group or auxiliary storage pool characteristics may have changed.
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Restrictions:
+
+- If you use the special value *EXIT in a migration control group and the resulting processing modifies the characteristics of either the control group items or auxiliary storage pool characteristics, BRMS does not record the changes in the resulting migration candidate file. You should consider not using the *EXIT special value in migration control groups if the resulting processing alters item or auxiliary storage pool characteristics.
+
+- The migration candidate list that is created as a result of processing a control group using either the *REPORT or *MIGRATE special values is not associated with a job or user id, only the name of the control group. If Job A processes a migration control group and Job B subsequently processes the same migration control group, the migration candidate list created for Job A will be overwritten by the migration candidate list created for Job B. If you want to resume a migration control group using the *RESUME special value, the migration candidate list created for Job B is the list that would be available for the resume operation, even if Job A was the job that was interrupted.
+
+- This command should not be used by control group *EXIT item processing as results will be unpredictable.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CTLGRP | Control group | Name, *MGRGRP | Required, Positional 1
+OPTION | Run option | *REPORT, *MIGRATE, *RESUME | Optional
+SCDTIME | Schedule time | Element list | Optional
+Element 1: Beginning time | Character value, *IMMED
+Element 2: Ending time | Character value, *NONE
+SBMJOB | Submit to batch | *YES, *CONSOLE, *NO | Optional
+JOBD | Job description | Single values: *USRPRF
+Other values: Qualified object name | Optional
+Qualifier 1: Job description | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+JOBQ | Job queue | Single values: *JOBD
+Other values: Qualified object name | Optional
+Qualifier 1: Job queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+ENDINTJOB | End interactive jobs | *SYSPCY, *NO, *YES | Optional
+DELAY | Delay | 0-999, *SYSPCY | Optional
+
+Top
+
+Control group (CTLGRP)
+
+Specifies the name of the control group that you want to to migrate.
+
+This is a required field.
+
+*MGRGRP
+The default migration control group is processed. The default migration control group is created by BRMS at installation.
+
+control-group-name
+Specify the name of the migration control group, that you want to process.
+
+Top
+
+Run option (OPTION)
+
+Specifies whether you want to produce a report of migration candidates or process the control group.
+
+Note: You should always run a report of migration candidates (*REPORT option) prior to processing the actual migration. The special value *EXIT is not processed when using the *REPORT option.
+
+*REPORT
+You want to produce the Migration Item Candidate report. The printer file the report is written to is QP1AHC.
+
+*MIGRATE
+You want to process a migration control group based on the migration plan.
+
+*RESUME
+You want to resume processing a migration control group. The migration will use the last migration report generated for this control group.
+
+Top
+
+Schedule time (SCDTIME)
+
+Specifies the time that you want BRMS to begin and end processing items in the migration control group. The beginning time is the time expressed in 24 hour format that you want the migration processing to begin. The ending time determines when you want migration processing to end. The migration process will not end in the middle of processing a migration item.
+
+Note: If the time that you specify for the beginning time is earlier than the current time, processing is delayed until the next day. Likewise the ending time specified will be moved to the next day.
+
+Note: Leading zeroes must be used when indicating hour and/or minute values less than 10. The use of a time separator is not supported.
+
+Element 1: Beginning time
+
+*IMMED
+You want to start migration control group processing immediately.
+
+begin-time
+Specify the time in hour and minutes that you want the migration to begin. The time is expressed in 24 hour clock format 'hhmm'.
+
+Element 2: Ending time
+
+*NONE
+The migration process continues until it ends, regardless of how long it takes.
+
+ending-time
+Specify the time that you want to conclude the migration process. The process will not end until it has completed processing the item that it is currently processing when the ending time is reached.
+
+Top
+
+Submit to batch (SBMJOB)
+
+Specifies how you want to process the selected control group.
+
+*YES
+Submits the processing of the control group to batch. The job is dependent on the job queue and job description specified as subsequent parameters.
+
+*CONSOLE
+Transfers the processing of the control group to the system console. This special value is used with the console monitoring function in BRMS.
+
+*NO
+Performs the processing of the control group within the current job.
+
+Top
+
+Job description (JOBD)
+
+Specifies the job description to be used with this job if SBMJOB(*YES) is specified.
+
+Single values
+
+*USRPRF
+The job description in the user profile under which the submitted job runs is used as the job description of the submitted job.
+
+Qualifier 1: Job description
+
+name
+Specify the name of the job description used for the job.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the job description.
+
+*CURLIB
+The current library for the job is used to locate the job description. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library where the job description is located.
+
+Top
+
+Job queue (JOBQ)
+
+Specifies the job queue to use if SBMJOB(*YES) is specified.
+
+Single values
+
+*JOBD
+The submitted job is placed on the job queue named in the specified job description.
+
+Qualifier 1: Job queue
+
+name
+Specify the name of the job queue on which the submitted job is placed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the job queue.
+
+*CURLIB
+The current library for the job is used to locate the job queue. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library where the job queue is located.
+
+Top
+
+End interactive jobs (ENDINTJOB)
+
+Specifies whether BRMS should automatically notify active users that a migration process is about to occur and then sign them off. When *SYSPCY is specified, BRMS references the system policy to determine whether interactive users are to be notified and signed off.
+
+*SYSPCY
+The value for sign off interactive users from the system policy is used for this migration process.
+
+*NO
+You do not want BRMS to automatically sign off interactive users.
+
+*YES
+You want BRMS to automatically sign off interactive users.
+
+Top
+
+Delay (DELAY)
+
+Specifies the maximum time limit in minutes that BRMS automatically notifies users prior to automatically signing off active users. The number of minutes can range from 0 to 999 minutes.
+
+Messages are sent using the following schedule:
+
+- Zero - send the message one time and then the user is signed off.
+
+- 1-10 - send the message every minute and then the user is signed off.
+
+- 11-60 - send the message every 2 minutes and then the user is signed off.
+
+- 61+ - send the message every 10 minutes and then the user is signed off.
+
+*SYSPCY
+The sign off limit value from the system policy is used for this migration process.
+
+number-of-minutes
+Specify the number of minutes that will be the sign off limit for this migration process. The number of minutes can range from 0 to 999 minutes.
+
+Top
+
+Examples for STRMGRBRM
+
+Example 1: Producing a Report of Migration Candidates
+
+STRMGRBRM CTLGRP(MGR01) SCDTIME(2000 0400)
+
+This command starts migration operations, for items identified in control group MGR01, between the hours of 10:00 PM and 4:00 AM.
+
+Top
+
+Error messages for STRMGRBRM
+
+*ESCAPE Messages
+
+BRM10A2
+Control group &1 type &2 completed with errors.
+
+BRM1387
+Error occurred processing exit command for control group &1.
+
+BRM1820
+Control group &1 type &2 ended abnormally.
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM1955
+Console monitor is not active.
+
+BRM1F27
+Operation not allowed, resources not available.
+
+BRM2160
+Migration for control group &1 ended.
+
+BRM40A2
+BRMS product initialization required.
+
+CPF3700
+All CPF37xx messages could be signaled. xx is from 01 to FF.
+
+CPF3800
+All CPF38xx messages could be signaled. xx is from 01 to FF.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top

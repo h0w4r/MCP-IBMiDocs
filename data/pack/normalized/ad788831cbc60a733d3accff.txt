@@ -1,0 +1,308 @@
+Clone actions
+
+Clone actions
+
+Last Updated: 2025-10-07
+
+This section describes the actions that are used for cloning operations.
+
+action=checksysbas
+
+The db2mtool action=checksysbas command verifies that the cloning
+of SYSBAS and the configuration of the setup copy node has completed successfully.
+
+The checksysbas process verifies the following information:
+
+- The setup copy node can be connected to by TCP/IP.
+
+- The Db2® Mirror state is ACTIVE.
+
+- The cluster is configured correctly.
+
+If the command returns successfully, SYSBAS cloning is complete and the setup copy node is
+successfully configured. The command must complete with a return code of SUCCESS or WARNING before
+cloning any database independent axillary storage pools (IASPs).
+
+A return code of WARNING is returned if cluster monitors fail to create. The cluster monitors
+that failed to create during the automated setup process must be manually created. They can be
+created by using the Manage Cluster page in the Db2 Mirror GUI or by using the db2mtool
+action=cluster command.
+
+db2mtool action=checksysbas setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./checksysbas.log]
+
+action=cleanup
+
+The db2mtool action=cleanup command cleans up objects on the
+storage system that were created by Db2 Mirror during the
+cloning process.
+
+If the cloning process fails, FlashCopy® or remote
+copy mappings might get left on the storage system. This command can be used to remove them so that
+the cloning process can be restarted from the beginning.
+
+The default value for parameter powerOffCopy is yes,
+which powers off the setup copy node.
+
+db2mtool action=cleanup setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[powerOffCopy=yes|no] [logFile=./cleanup.log]
+
+action=flashcopy
+
+The db2mtool action=flashcopy command performs the FlashCopy process on the storage.
+
+db2mtool action=flashcopy setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./flashcopy.log]
+
+action=geoiaspcopy
+
+The db2mtool action=geoiaspcopy command performs the database IASP
+clone process using geographic mirroring.
+
+db2mtool action=geoiaspcopy setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[dbIaspName=xxx,xxx] [logFile=./geoiaspcopy.log]
+
+Parameter dbIaspName is used to specify the names of the primary IASPs to
+clone, which are separated by a comma without any spaces. If this parameter is omitted, then all
+IASPs defined in clone_info.json are cloned.
+
+action=iaspcopy
+
+The db2mtool action=iaspcopy command performs the entire automated
+database IASP clone process.
+
+db2mtool action=iaspcopy setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[dbIaspName=xxx,xxx] [dbIaspAutoVaryOff=yes|no] [dbIaspAutoVaryOn=yes|no]
+[logFile=./iaspcopy.log]
+
+Parameter dbIaspName is used to specify the names of the primary DB IASPs to
+clone. Multiple IASPs can be listed separated by a comma without any spaces. The specified IASPs and
+all its secondary IASPs must already be added to the JSON configuration file. If this parameter is
+omitted, then all DB IASPs defined in clone_info.json are cloned.
+
+Parameter dbIaspAutoVaryOff and parameter
+dbIaspAutoVaryOn are used to indicate whether to vary off the IASPs before the
+clone and vary on the IASPs after the clone. Parameter dbIaspAutoVaryOff is
+ignored for warm clone.
+
+action=installCertificate
+
+The db2mtool action=installCertificate command installs the
+security certificates that are required when connecting to the hardware management consoles (HMCs)
+of the setup source and setup copy nodes.
+
+db2mtool action=installCertificate setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[copyKeyStore=yes|no] [quorumAddress=xxx] [quorumUser=xxx]
+[promptPasswords=ibmiks,keystore,quorum] [logFile=./installCertificate.log]
+
+action=listCertificate
+
+The db2mtool action=listCertificate command lists the security
+certificates that are used when connecting to the HMCs of the setup source and setup copy nodes.
+
+db2mtool action=listCertificate setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[promptPasswords=keystore] [logfile=./listCertificate.log]
+
+action=poweroff
+
+The db2mtool action=poweroff command powers off the setup source or
+setup copy node using the HMC shutdown operation.
+
+db2mtool action=poweroff setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+lpar=[source|copy|both|uuid] [operation=xxx] [logFile=./poweroff.log]
+
+Parameter operation is optional. It indicates the type of shutdown to
+perform. If specified, the value overrides the value that is stored in
+clone_info.json. The following are the valid values:
+
+osshutdown_immed
+
+Immediate IBM® i shutdown
+
+osshutdown_cntrld
+
+Controlled IBM i shutdown
+
+shutdown
+
+HMC shutdown
+
+action=poweron
+
+The db2mtool action=poweron command powers on the setup source or
+setup copy node using the HMC activate operation.
+
+db2mtool action=poweron setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+lpar=[source|copy|both|uuid] [logFile=./poweron.log]
+
+action=precheck
+
+The db2mtool action=precheck command must be run before cloning
+SYSBAS. It performs validation to ensure the whole cloning process completes successfully. The
+command must complete with a return code of SUCCESS or WARNING before cloning SYSBAS.
+
+The precheck process verifies the following information:
+
+- Storage
+Sign on validation
+
+Source and target volumes are the same type and capacity.
+
+Existing FlashCopy or remote copy relationships do
+not exist.
+
+- HMC
+Sign on validation
+
+IPL mode and key lock position for setup copy
+
+Setup copy has Ethernet and RDMA adapters configured.
+
+- IBM i
+Sign on validation
+
+Required products
+
+Primary and secondary node names
+
+Network and NRG
+
+Cluster
+
+IASP configuration
+
+db2mtool action=precheck setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./precheck.log]
+
+action=preiaspcopy
+
+The db2mtool action=preiaspcopy command performs the pre-IASP copy
+steps. This command is used when cloning storage manually by using storage server copy tools.
+
+db2mtool action=preiaspcopy setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./preiaspcopy.log]
+
+action=postiaspcopy
+
+The db2mtool action=postiaspcopy command performs the post-IASP
+copy steps. This command is used when cloning storage manually by using storage server copy
+tools.
+
+db2mtool action=postiaspcopy setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./postiaspcopy.log]
+
+action=reclonereplicatedobjects
+
+The db2mtool action=reclonereplicatedobjects command is used to add
+all replicated objects in SYSBAS to the object tracking list and begin synchronization of the
+objects. This command is used when cloning SYSBAS by using save and restore.
+
+db2mtool action=reclonereplicatedobjects setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./reclonereplicatedobjects.log]
+
+action=remotecopy
+
+The db2mtool action=remotecopy command performs the remote copy
+process on the storage.
+
+db2mtool action=remotecopy setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./remotecopy.log]
+
+action=start
+
+The db2mtool action=start command begins the entire automated
+SYSBAS cloning process.
+
+When the command completes successfully, the storage for SYSBAS is cloned, and the setup source
+and setup copy nodes are active and have a reference code of 00000000 on the HMC. Even though both
+nodes appear to be active, the setup copy node is still being configured during its first IPL.
+
+db2mtool action=start setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./start.log]
+
+Instead of running the entire SYSBAS cloning process using command db2mtool
+action=start, the process can be separated into multiple steps.
+
+Cold clone
+
+- Power off setup source node using
+db2mtool action=poweroff.
+
+- Clone the storage using db2mtool action=flashcopy or
+db2mtool action=remotecopy.
+
+- Power on the setup source and setup
+copy nodes using db2mtool action=poweron.
+
+Warm clone
+
+- Clone the storage using db2mtool action=flashcopy or
+db2mtool action=remotecopy.
+
+- Power on the setup copy node using
+db2mtool action=poweron.
+
+action=startengine
+
+The db2mtool action=startengine command is used to change the Db2 Mirror state to tracking after saving the system objects.
+Changes to replicated objects on the setup source node are allowed and the changes are tracked. This
+command is used when cloning SYSBAS by using save and restore.
+
+db2mtool action=startengine setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./startengine.log]
+
+action=startiaspwarmclone
+
+The db2mtool action=startiaspwarmclone command starts Db2 Mirror tracking and flushes main memory on the setup source
+node for IASPs. This command is used when cloning storage manually by using storage server copy
+tools.
+
+db2mtool action=startiaspwarmclone setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./startiaspwarmclone.log]
+
+action=startsaverestoreclone
+
+The db2mtool action=startsaverestoreclone command sets the Db2 Mirror state before manually performing the save operation.
+Changes to replicated objects will be blocked on the setup source node after this command is run.
+This command is used when cloning SYSBAS by using save and restore.
+
+db2mtool action=startsaverestoreclone setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./startsaverestoreclone.log]
+
+action=startwarmclone
+
+The db2mtool action=startwarmclone command starts Db2 Mirror tracking and flushes main memory on the setup source
+node for SYSBAS. This command is used when cloning storage manually by using storage server copy
+tools.
+
+db2mtool action=startwarmclone setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./startwarmclone.log]
+
+action=verifymasterkey
+
+The db2mtool action=verifymasterkey command verifies the
+cryptographic services master key configuration on the setup source node. Call this action before
+precheck.
+
+db2mtool action=verifymasterkey setupSrcAddress=xxx setupSrcUser=xxx
+setupSrcSysName=xxx setupCpySysName=xxx [setupSrcUUID=xxx setupCpyUUID=xxx]
+[logFile=./verifymasterkey.log]

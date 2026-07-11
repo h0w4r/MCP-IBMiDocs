@@ -1,0 +1,158 @@
+Restore Deferred Objects (RSTDFROBJ)
+
+Restore Deferred Objects (RSTDFROBJ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Restore Deferred Objects (RSTDFROBJ) command completes the restore and start journal requests for deferred objects, if the objects they depend on are now available.
+
+Deferred objects include:
+
+- Logical files when based-on files are missing. A deferred logical file does not exist on the system until the restore is complete.
+
+- SQL materialized query tables (MQTs) when based-on files are missing. A deferred MQT exists on the system, but any functions that are performed on the MQT that require access to the based-on files will fail.
+
+- Start journal requests for file (*FILE), data area (*DTAARA), data queue (*DTAQ), and library (*LIB) objects when journals are missing. When deferred objects are processed, journaling is started if the journals are available.
+
+Restrictions:
+
+- You must have save system (*SAVSYS) special authority to run this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DFRID | Defer ID | Name | Required, Positional 1
+OUTPUT | Output | *NONE, *PRINT, *OUTFILE | Optional
+OUTFILE | File to receive output | Qualified object name | Optional
+Qualifier 1: File to receive output | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+INFTYPE | Type of output information | *OBJ, *MBR | Optional
+
+Top
+
+Defer ID (DFRID)
+
+Specifies the name that was used for the Defer ID (DFRID) parameter on the restore operations.
+
+This is a required parameter.
+
+name
+Specify the name that was used for the Defer ID (DFRID) parameter on the restore operations.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether a list with information about the restored objects is created. The information can be printed with the job's spooled output or directed to a database file.
+
+*NONE
+No output is created.
+
+*PRINT
+The output is printed with the job's spooled output.
+
+*OUTFILE
+The output is directed to the database file specified for the File to receive output (OUTFILE) parameter.
+
+Note: You must specify a database file name for the File to receive output (OUTFILE) parameter when OUTPUT(*OUTFILE) is specified.
+
+Top
+
+File to receive output (OUTFILE)
+
+Specifies the database file to which the output of the command is directed. If the file does not exist, this command creates a database file in the specified library. If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created. Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+
+Qualifier 1: File to receive output
+
+name
+Specify the name of the database file to which the command output is directed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the file. If the file is not found, one is created in the current library. If no current library exists, the file will be created in the QGPL library.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Note: If a new file is created, the system uses the IBM-supplied file QASRRSTO with format name QSRRST as a model.
+
+Top
+
+Output member options (OUTMBR)
+
+Specifies the name of the database file member to which the output is directed when *OUTFILE is specified for the Output (OUTPUT) parameter.
+
+Element 1: Member to receive output
+
+*FIRST
+The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the File to receive output (OUTFILE) parameter.
+
+name
+Specify the name of the file member that receives the output. If OUTMBR(member-name) is specified and the member does not exist, the system creates it.
+If the member exists, you can add records to the end of the existing member or clear the existing member and add the records.
+
+Element 2: Replace or add records
+
+*REPLACE
+The existing records in the specified database file member are replaced by the new records.
+
+*ADD
+The new records are added to the existing information in the specified database file member.
+
+Top
+
+Type of output information (INFTYPE)
+
+Specifies the type of information which is printed or directed to the database file.
+
+*OBJ
+The list contains an entry for each object requested to be restored.
+
+*MBR
+The list contains an entry for each object, database file member, and spooled file requested to be restored.
+
+Top
+
+Examples
+
+RSTLIB SAVLIB(DTALIB) DEV(TAP01) ENDOPT(*LEAVE) DFRID(ABC)
+RSTLIB SAVLIB(JRNLIB) DEV(TAP01) ENDOPT(*LEAVE) DFRID(ABC)
+RSTLIB SAVLIB(LFLIB) DEV(TAP01) ENDOPT(*LEAVE) DFRID(ABC)
+RSTLIB SAVLIB(PFLIB) DEV(TAP01) ENDOPT(*LEAVE) DFRID(ABC)
+RSTDFROBJ DFRID(ABC)
+
+This example shows libraries that are restored in alphabetical order. Library DTALIB contains objects that used journals in JRNLIB when they were saved. Library LFLIB contains logical files that have based-on files in library PFLIB. Because a DFRID is specified, the start journal requests for objects in DTALIB and the logical files in LFLIB are deferred. The RSTDFROBJ command starts journaling for objects in DTALIB and completes the restore of the logical files in LFLIB. If a DFRID had not been specified, you would need to start journaling for each object in DTALIB and you would need to restore the logical files in LFLIB again.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF222E
+&1 special authority is required.
+
+CPF32C7
+Deferred file not restored.
+
+CPF37C1
+&2 objects completed. &3 objects deferred.
+
+Top

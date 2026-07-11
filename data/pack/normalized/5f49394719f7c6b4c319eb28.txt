@@ -1,0 +1,218 @@
+Reclaim Object Links (RCLLNK)
+
+Reclaim Object Links (RCLLNK)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Reclaim Object Links (RCLLNK) command allows a single object or a group of objects to be reclaimed.
+
+The RCLLNK command can be used to reclaim a directory tree where the specified directory, its contents, and the contents of all of its subdirectories are reclaimed. If SUBTREE(*ALL) is specified, the command will attempt to reclaim as many objects as possible within the subtree. A diagnostic message will be sent for each object that cannot be reclaimed. Additionally, an informational message will be sent if a specific problem is corrected, or a diagnostic message will be sent if a specific problem cannot be corrected. If all of the objects have been reclaimed, with all of the problems corrected, then a completion message will be sent. Otherwise, an escape message will be sent.
+
+The RCLLNK command does the following:
+
+- Corrects object user profile problems
+
+- Corrects user-defined file system problems
+
+- Corrects internal object problems
+
+- Removes invalid object links
+
+- Handles damaged objects as specified on the Damaged object option (DMGOBJOPT) parameter
+
+- Creates missing system objects
+
+A full Reclaim Storage (RCLSTG) fixes the above problems, as well as others such as lost objects or problems which require the system to be in a restricted state. Unlike RCLSTG, the system does not have to be in a restricted state to run RCLLNK.
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- You must have all object (*ALLOBJ) special authority to run this command.
+
+- Only objects found in the "root" (/), QOpenSys, or mounted user-defined file systems are eligible to be reclaimed. All other objects are ignored during a subtree reclaim.
+
+- An independent auxilary storage pool (ASP) must have a status of "Available" in order for objects residing on the independent ASP to be reclaimed.
+
+- Storage freed objects are not reclaimed unless a storage freed object is specified on the Object (OBJ) parameter.
+
+- Objects that are being saved or restored cannot be reclaimed.
+
+- An object's last access, data change, and attribute change date and time values are not normally updated as a result of being reclaimed. However, if the object has a problem that is corrected, these values may be updated.
+
+- Problems found in the contents of a damaged directory object are not corrected.
+
+- The directory conversion function must not be active while RCLLNK runs. The Convert Directory (CVTDIR) command with OPTION(*CHECK) can be used to verify directory conversion is not active.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Path name | Required, Positional 1
+SUBTREE | Directory subtree | *DIR, *NONE, *ALL | Optional, Positional 2
+DMGOBJOPT | Damaged object option | Element list | Optional
+Element 1: Usable objects | *KEEP, *DELETE
+Element 2: Unusable objects | *DELETE, *KEEP
+
+Top
+
+Object (OBJ)
+
+Specifies the path name of the object to be reclaimed. The object must be in the "root" (/), QOpenSys, or a user-defined file system. The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern cannot be specified ('*' or '?'). If the path name is qualified, it must be enclosed in apostrophes.
+
+RCLLNK will not follow symbolic links for the last component in the path name.
+
+If the last component in the path name is a block special file (*BLKSF) then only the block special file object will be reclaimed, not the user-defined file system that it represents.
+
+The last component name in the path name cannot be '.' (dot) or '..' (dot-dot).
+
+The effective root directory must be the "root" (/). Refer to the IBM i PASE chroot command in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to reclaim the objects within the subtree if the object specified by the Object (OBJ) parameter is a directory.
+
+*DIR
+The object specified by OBJ is reclaimed. If the object is a directory, its contents are reclaimed, but the contents of all of its subdirectories are not reclaimed.
+
+*NONE
+Only the object specified by OBJ is reclaimed.
+
+*ALL
+The object specified by OBJ is reclaimed. If the object is a directory, its contents, as well as the contents of all of its subdirectories, are reclaimed.
+
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Damaged object option (DMGOBJOPT)
+
+Specifies how damaged objects are handled that are considered usable or unusable. If no operations can be performed on a damaged object it is considered unusable. Otherwise, it is considered usable.
+
+Deleting a usable damaged directory object will cause all its contents and the contents of all its subdirectories to become lost. These lost objects will need to be restored from media or can be recovered via a RCLSTG. The contents of an unusable damaged directory object are already lost.
+
+The following considerations apply:
+
+- Damaged file system root directory objects are not deleted
+
+- Usable damaged objects that are in use are not deleted
+
+- The contents of an unusable damaged directory object are not reclaimed
+
+- The contents of a usable damaged directory object are reclaimed only if *KEEP is specified for usable objects
+
+Element 1: Usable objects
+
+*KEEP
+Usable damaged objects are not deleted.
+
+*DELETE
+Usable damaged objects are deleted, if possible.
+
+Element 2: Unusable objects
+
+*DELETE
+Unusable damaged objects are deleted, if possible.
+
+*KEEP
+Unusable damaged objects are not deleted.
+
+Top
+
+Examples
+
+Example 1: Reclaim Object Links for a Directory
+
+RCLLNK OBJ('/MYOBJ') SUBTREE(*DIR)
+
+The object MYOBJ will be reclaimed. If MYOBJ is a directory, all of the objects this directory contains will be reclaimed because *DIR is specified for the SUBTREE parameter.
+
+Example 2: Reclaim Object Links for an Object
+
+RCLLNK OBJ('/MYOBJ') SUBTREE(*NONE)
+
+Only the object MYOBJ will be reclaimed because *NONE is specified for the SUBTREE parameter.
+
+Example 3: Reclaim Object Links for a Directory Subtree
+
+RCLLNK OBJ('/MYOBJ') SUBTREE(*ALL)
+
+The object MYOBJ will be reclaimed. If MYOBJ is a directory, all of the objects this directory contains, as well as all of the objects contained in the subdirectories, will be reclaimed because *ALL is specified for the SUBTREE parameter.
+
+Example 4: Reclaim Damaged Objects in a Directory Subtree
+
+RCLLNK OBJ('/MYDIR') SUBTREE(*ALL) DMGOBJOPT(*KEEP *DELETE)
+
+If the MYDIR directory is not damaged, keep all usable damaged objects and delete all unusable damaged objects found in the directory subtree of MYDIR. All other problems found are corrected, if necessary and possible.
+
+Example 5: Search for All Damaged Objects in a Directory Subtree
+
+RCLLNK OBJ('/MYOBJ') SUBTREE(*ALL) DMGOBJOPT(*KEEP *KEEP)
+
+Check MYOBJ for damage. If MYOBJ is a directory, search for all damaged objects found in the directory subtree of MYOBJ. All other problems found are corrected, if necessary and possible.
+
+Example 6: Delete All Damaged Objects in a Directory Subtree
+
+RCLLNK OBJ('/MYOBJ') SUBTREE(*ALL) DMGOBJOPT(*DELETE *DELETE)
+
+Delete MYOBJ if it is damaged. If MYOBJ is a directory that is not damaged, delete all damaged objects found in the directory subtree of MYOBJ. All other problems found are corrected, if necessary and possible.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF8206
+Directory conversion cannot be active during RCLSTG or RCLLNK.
+
+CPFA085
+Home directory not found for user &1.
+
+CPFA089
+Pattern not allowed in path name.
+
+CPFA0A2
+Information passed to this operation was not valid.
+
+CPFA0A7
+Path name too long.
+
+CPFA0A9
+Object not found. Object is &1.
+
+CPFA0B1
+Requested operation not allowed. Access problem.
+
+CPFA0DF
+Error reclaiming objects in directories.
+
+CPFA0F1
+&1 of &2 object links reclaimed with &3 of &4 problems corrected.
+
+Top

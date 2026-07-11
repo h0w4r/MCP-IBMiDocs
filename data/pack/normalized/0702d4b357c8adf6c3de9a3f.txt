@@ -1,0 +1,418 @@
+Change Source Physical File (CHGSRCPF)
+
+Change Source Physical File (CHGSRCPF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Source Physical File (CHGSRCPF) command changes the attributes of a source physical file and all its members. The changed attributes are used for all members subsequently added to the file unless other values are specified or default for the add operation.
+
+Restrictions:
+
+- To change a source physical file, you must have object management (*OBJMGT) authority or object alter (*OBJALTER) authority to the file and execute (*EXECUTE) authority to the library.
+
+- To change the file, an exclusive lock is necessary; no one may be using the file for any purpose.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | Physical file | Qualified object name | Required, Key, Positional 1
+Qualifier 1: Physical file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+SYSTEM | System | *LCL, *RMT, *FILETYPE | Optional, Key
+EXPDATE | Expiration date for member | Date, *SAME, *NONE | Optional
+MAXMBRS | Maximum members | Integer, *SAME, *NOMAX | Optional
+ACCPTHSIZ | Access path size | *SAME, *MAX4GB, *MAX1TB | Optional
+MAINT | Access path maintenance | *SAME, *IMMED, *REBLD, *DLY | Optional
+RECOVER | Access path recovery | *SAME, *NO, *AFTIPL, *IPL | Optional
+FRCACCPTH | Force keyed access path | *SAME, *NO, *YES | Optional
+SIZE | Member size | Single values: *NOMAX
+Other values: Element list | Optional
+Element 1: Initial number of records | 1-2147483646, *SAME
+Element 2: Increment number of records | 0-32767, *SAME
+Element 3: Maximum increments | 0-32767, *SAME
+ALLOCATE | Allocate storage | *NO, *YES, *SAME | Optional
+UNIT | Preferred storage unit | 1-255, *SAME, *ANY, *SSD | Optional
+FRCRATIO | Records to force a write | Integer, *SAME, *NONE | Optional
+WAITFILE | Maximum file wait time | Integer, *SAME, *IMMED, *CLS | Optional
+WAITRCD | Maximum record wait time | Integer, *SAME, *IMMED, *NOMAX | Optional
+SHARE | Share open data path | *SAME, *NO, *YES | Optional
+DLTPCT | Max % deleted records allowed | 1-100, *NONE, *SAME | Optional
+TEXT | Text 'description' | Character value, *SAME, *BLANK | Optional
+CCSID | Coded character set ID | 1-65535, *SAME, *HEX | Optional
+
+Top
+
+Physical file (FILE)
+
+Specifies the physical file to be changed.
+
+Note: If a Distributed Data Management (DDM) file is specified, the name of the physical file to be changed and the name of the remote system on which the file is to be changed are contained in the DDM file. For more information, see the System (SYSTEM) parameter of this command.
+
+This is a required parameter.
+
+Qualifier 1: Physical file
+
+name
+Specify the name of the physical file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+System (SYSTEM)
+
+Specifies whether the physical file is changed on the local system or the remote system.
+
+*LCL
+The physical file is changed on the local system.
+
+*RMT
+The physical file is changed on a remote system using distributed data management (DDM). The physical file name specified on the Physical file (FILE) parameter must be the name of the DDM file that identifies the name of the physical file to be changed and the name of the remote system on which the file is to be changed.
+
+*FILETYPE
+If the name specified on the FILE parameter is a DDM file, the physical file is changed on the remote system specified by the Remote location (RMTLOCNAME) parameter of the DDM file. If the name specified on the FILE parameter is not a DDM file, the physical file on the local system with that name is changed.
+
+Top
+
+Expiration date for member (EXPDATE)
+
+Specifies the expiration date of all the file's members. If an expiration date is specified, all members in the file are changed. You can specify a new expiration date for a member that has exceeded its expiration date by changing this parameter. The expiration date must be later than or equal to the current date.
+
+*SAME
+The expiration date of the file does not change.
+
+*NONE
+No expiration date is specified.
+
+date
+Specify the date after which the file members should not be used. The date must be specified in the job-date format.
+
+Top
+
+Maximum members (MAXMBRS)
+
+Specifies the maximum number of members that the physical file can have at any time. The maximum number of members specified must be greater than or equal to the current number of members in the file.
+
+*SAME
+The maximum number of members in the file does not change.
+
+*NOMAX
+No maximum is specified for the number of members; the system maximum of 32,767 members per file is used.
+
+integer
+Specify the maximum number of members that the physical file can have. Valid values range from 1 through 32767.
+
+Top
+
+Access path size (ACCPTHSIZ)
+
+Specifies the maximum size of auxiliary storage that can be occupied by the following kinds of access paths:
+
+- The access paths that are associated with a database file that has a keyed sequence access path.
+
+- The access paths that are created for referential or unique constraints.
+
+Changing the value for this file causes the access paths that are owned by the file to be rebuilt.
+
+Note: This parameter does not apply to access paths that are created for queries that refer to the data in the file.
+
+*SAME
+The value does not change.
+
+*MAX1TB
+The maximum amount of auxiliary storage the access paths associated with this file can occupy is determined by the logical page size as shown below:
+
+Logical Maximum
+Page Size Auxiliary Storage
+8K 4TB
+16K 8TB
+32K-512K 16TB
+
+*MAX4GB
+The access paths associated with this file can occupy a maximum of four gigabytes (4,294,967,296 bytes) of auxiliary storage.
+
+Top
+
+Access path maintenance (MAINT)
+
+Specifies the type of access path maintenance used for all members of the physical file. This parameter is valid only if the file has a keyed access path.
+
+*SAME
+The access path maintenance of the file does not change.
+
+*IMMED
+The access path is continuously (immediately) maintained for each physical file member. The path is changed each time a record is changed, added to, or deleted from the member. *IMMED is specified for all files requiring unique keys to ensure uniqueness in all inserts and changes.
+
+*REBLD
+The access path is rebuilt when a file member is opened. The access path is continuously maintained until the member is closed; then the access path maintenance is ended. *REBLD is not valid for access paths that contain unique key values.
+
+*DLY
+The maintenance of the access path is delayed until the member is opened for use. Then the access path is changed only for records that were added, deleted, or changed since the file was last closed. (While the file is open, all changes made to based-on members are immediately reflected in the access paths of the members of the opened files, no matter what is specified for the Access path maintenance (MAINT) parameter.) To prevent a lengthy rebuild time when the file is opened, *DLY should be specified only when the number of changes to the access path between a close operation and the next open operation are small (when key fields in records for this access path change infrequently). *DLY is not valid for access paths that require unique key values.
+If the number of changes between a close operation and the next open operation reaches approximately 10% of the access path size, the system stops saving changes and the access path is completely rebuilt the next time the file is opened.
+
+Top
+
+Access path recovery (RECOVER)
+
+Specifies, for files having immediate or delayed maintenance on their access paths, when recovery processing of the file is done if a system failure occurs while the access path is being changed. This parameter is valid only if a keyed access path is used.
+
+*SAME
+The recovery attribute of the file does not change.
+
+*NO
+The access path of the file is not rebuilt. The file's access path, if not valid, is rebuilt when the file is opened.
+
+*AFTIPL
+The file has its access path rebuilt after the IPL operation is completed. This option allows other jobs not using this file to begin processing immediately after the IPL is completed.
+
+*IPL
+The file has its access path rebuilt during the IPL operation. This ensures that the file's access path is rebuilt before the first user program tries to use it; however, no jobs are started until after all files that specify *IPL have their access paths rebuilt.
+
+Top
+
+Force keyed access path (FRCACCPTH)
+
+Specifies, for files with keyed access paths only, whether access path changes are forced to auxiliary storage along with the associated records in the file. Specifying *YES minimizes (but does not remove) the chance that an abnormal end will cause damage to the access path, which then requires it to be rebuilt.
+
+*SAME
+The force access path attribute of the file does not change.
+
+*NO
+The changed access path and changed records are not forced to auxiliary storage whenever the access path is changed.
+
+*YES
+The changed access path and changed records are forced to auxiliary storage whenever the access path is changed. If this value is specified, *REBLD must not be specified for the Access path maintenance (MAINT) parameter.
+
+Top
+
+Member size (SIZE)
+
+Specifies the initial number of records in each member of the file, the number of records for each increment added to the member, and the number of times the increment is automatically applied. The number of records for each file member is specified as the number of records that can be placed in it (this number includes any deleted records).
+
+The maximum number of records for the member (initial number of records plus the increment number of records times the maximum increments) must be larger than the current number of records in the member. If it is smaller than the current number of records in the member, an error message is sent, and the maximum number of records for the member does not change.
+
+Single values
+
+*NOMAX
+The number of records that can be added to each member of the file is not limited by the user. The maximum number of records for each member is determined by the system. If *YES is in effect for the ALLOCATE attribute of the physical file, this option cannot be specified
+
+Element 1: Initial number of records
+
+*SAME
+The value does not change.
+
+1-2147483646
+Specify the number of records that can be inserted before an automatic extension occurs. If automatic extensions are not wanted, enter zeros for the second and third values in the list.
+
+Element 2: Increment number of records
+
+*SAME
+The value does not change.
+
+0-32767
+Specify a value for the number of additional records that are added to the member when the number of records in the member will exceed the initial number of records, or will exceed the current increment's number of records.
+Enter a 0 value to prevent automatic extensions. This value must be 0 if the value for the maximum increments is 0.
+
+Element 3: Maximum increments
+
+*SAME
+The value does not change.
+
+0-32767
+Specify the maximum number of increments that can be automatically added to the member(s). Enter a 0 value to prevent automatic extensions. If the increment number of records value is 0, this value must also be 0.
+
+Top
+
+Allocate storage (ALLOCATE)
+
+Specifies whether the initial storage space is allocated for each physical file member when it is added to the file. This change takes effect the next time a new member is added to the file or when a current member is cleared or reorganized.
+
+*SAME
+The allocation method does not change.
+
+*NO
+When a new member is added, or when an existing member is cleared or reorganized, the system determines the space that is needed and allocates that amount.
+
+*YES
+The amount of storage space specified in the first value of the Member size (SIZE) parameter is allocated each time a new member is added, or each time an existing member is cleared or reorganized. If that amount of storage space is not available, the member is not added, and a message is sent to the user. If this parameter value is used, *NOMAX cannot be in effect for the SIZE parameter.
+
+Top
+
+Preferred storage unit (UNIT)
+
+Specifies the preferred storage media for the file.
+
+*ANY
+No storage media is preferred. Storage will be allocated from any available storage media.
+
+*SSD
+Solid state disk storage media is preferred. Storage may be allocated from solid state disk storage media, if available.
+
+integer
+A value ranging from 1 through 254 is equivalent to specifying *ANY. A value of 255 is equivalent to specifying *SSD.
+
+Top
+
+Records to force a write (FRCRATIO)
+
+Specifies the number of inserted, changed, or deleted records that are processed before those records are forced to auxiliary (permanent) storage. If the physical file is being recorded in a journal, it is recommended that a larger force write ratio, or *NONE, be specified. More information on journal management is in the Recovering your system book, SC41-5304.
+
+*SAME
+The force write ratio of the file does not change.
+
+*NONE
+There is no force write ratio; the system determines when the records are written to auxiliary storage.
+
+integer
+Specify the number of new or changed records that are processed before those records are forced into auxiliary storage.
+
+Top
+
+Maximum file wait time (WAITFILE)
+
+Specifies the number of seconds that the program waits for the file resources and session resources to be allocated when the file is opened, or for the device or session resources to be allocated when an acquire operation is performed to the file. If the file resources are not allocated in the specified wait time, an error message is sent to the program.
+
+Note: An immediate allocation of the device by the device resource is required when an acquire operation is performed to the file.
+
+*SAME
+The wait attribute of the file does not change.
+
+*IMMED
+The program does not wait. Immediate allocation of file resources is required.
+
+*CLS
+The default wait time specified in the class description is used as the wait time for the file resources that are allocated.
+
+1-32767
+Specify the number of seconds that the program waits for the file resources to be allocated.
+
+Top
+
+Maximum record wait time (WAITRCD)
+
+Specifies the number of seconds that the program waits for a record that is changed or deleted. If the record is not allocated in the specified wait time, an error message is sent to the program.
+
+*SAME
+The record wait attribute of the file does not change.
+
+*IMMED
+The program does not wait; when a record is locked, an immediate allocation of the record is required.
+
+*NOMAX
+The wait time is the maximum allowed by the system (32,767 seconds).
+
+1-32767
+Specify the number of seconds that the program waits for the file resources to be allocated.
+
+Top
+
+Share open data path (SHARE)
+
+Specifies whether the open data path (ODP) is shared with other programs in the same routing step. When an ODP is shared, the programs accessing the file share facilities such as the file status and the buffer.
+
+*SAME
+The ODP sharing value of the member does not change.
+
+*NO
+The ODP is not shared with other programs in the routing step. A new ODP for the file is created and used every time a program opens the file.
+
+*YES
+The same ODP is shared with each program in the job that also specifies *YES when it opens the file.
+
+Top
+
+Max % deleted records allowed (DLTPCT)
+
+Specifies the maximum percentage of deleted records that any member in the physical file can have. The percentage is based on the number of deleted records compared with the total record count in a member. This change takes effect the next time the file is opened and closed.
+
+*SAME
+The deleted record percentage does not change.
+
+*NONE
+No percentage is specified; the number of deleted records in the file members is not checked when a member is closed.
+
+1-100
+Specify the largest percentage of deleted records that any member in the file can have. If a value is larger than this percentage, a message is sent to the system history log (QHST) when the file is closed.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the text that briefly describes the object.
+
+*SAME
+The text that describes the file does not change.
+
+*BLANK
+No text is specified.
+
+character-value
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Coded character set ID (CCSID)
+
+Specifies the coded character set identifier (CCSID) used to describe character data in the fields of the file.
+
+*SAME
+The CCSID does not change.
+
+*HEX
+The CCSID 65535 is used, which indicates that character data in the fields is treated as bit data and is not converted.
+
+1-65535
+Specify the CCSID to be used.
+
+Top
+
+Examples
+
+Example 1: Changing the Expiration Date
+
+CHGSRCPF FILE(QGPL/INV) EXPDATE('10/31/88')
+
+This command changes the expiration date of all members in file INV to October 31, 1988.
+
+Example 2: Changing Text
+
+CHGSRCF FILE(QGPL/DDMF) TEXT('Inventory File')
+SYSTEM(*RMT)
+
+This command changes the text of file INV located in the QGPL library on the remote system. Prior to specifying the above command, this user had created a DDM file by specifying the command, CRTDDMF FILE(QGPL/DDMF) RMTFILE(QGPL/INV) RMTLOCNAME(AS400).
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF326A
+Operation not successful for file &1 in library &2.
+
+CPF327F
+Operation not successful for file &1 in library &2.
+
+CPF7304
+File &1 in &2 not changed.
+
+Top

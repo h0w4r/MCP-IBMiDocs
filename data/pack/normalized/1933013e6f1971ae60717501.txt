@@ -1,0 +1,172 @@
+Check Out Object (CHKOUT)
+
+Check Out Object (CHKOUT)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Check Out Object (CHKOUT) command checks out an object. The object is checked out to the user profile associated with the current user of the job that is running the CHKOUT command.
+
+When an object is checked out, other users can read and copy the object. Only the user who has the object checked out can change the object until it is checked in (see the Check In Object (CHKIN) command).
+
+The CHKOUT command can also be used to check out a directory tree so that the specified directory's contents, and the contents of all of its subdirectories, are checked out. If SUBTREE(*ALL) is specified, the command will attempt to check out as many objects as possible within the subtree. A diagnostic message will be sent for each object that cannot be checked out. When all of the objects have been attempted, an escape message will be sent if there were any errors. If all of the objects have been checked out with no errors, a completion message will be sent.
+
+If a symbolic link object is encountered, either specified in the Object (OBJ) parameter or encountered in the processing of a subtree, the symbolic link will not be followed.
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- Only documents within QDLS and stream files can be checked out. If SUBTREE(*ALL) is specified, the check out will only be done for the object types which are supported by the check out command.
+
+- To check out an object the user must have write (*W) authority to all the objects being checked out.
+
+- To check out an object the user must have at least execute (*X) authority to the directory prefixes in the path.
+
+- When doing subtree processing, the user must have read (*R) and execute (*X) authorities to the path name and all subdirectories within that path.
+
+- Not all file systems will support the CHKOUT command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Path name | Required, Positional 1
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies the name of the object to check out or a pattern for multiple objects.
+
+The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to check out all of the objects within the subtree if the object specified by the Object (OBJ) parameter is a directory.
+
+*NONE
+The objects specified by OBJ parameter are checked out.
+
+*ALL
+The objects specified by OBJ are checked out. If the object is a directory, its contents as well as the contents of all of its subdirectories will be checked out.
+
+Note: Pattern matching on the OBJ parameter only applies to the first level objects. If the first level object is a directory, the pattern matching does not apply to its contents or the contents of its subdirectories.
+
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Examples
+
+The examples below assume the following directory structure:
+
+---- dir2
+/
+/--dir1 ------- dir3
+\ \ \
+\ \ -- obj1
+\ \
+\ -- dir4 -- dir5 -- dir6
+\ \
+-- obj3 -- obj2
+obj4
+
+Example 1: Checking an Object Out
+
+CHKOUT OBJ('/dir1/obj4')
+
+This command checks out object obj4 in the dir1 directory. The object is checked out to the current user for the job running this command.
+
+Example 2: Checking Out Objects Using Subtree Processing
+
+CHKOUT OBJ('/dir1') SUBTREE(*ALL)
+
+This command checks out all the eligible objects in directory dir1 as well as all objects in its subdirectories. In this example, objects obj1, obj2, obj3, and obj4 will be checked out.
+
+Example 3: Checking Out a Group of Objects
+
+CHKOUT OBJ('/dir1/obj*') SUBTREE(*NONE)
+
+In this example, objects obj3 and obj4 will be checked out.
+
+Example 4: Checking Out a Group of Objects Using Subtree Processing
+
+CHKOUT OBJ('/dir1/dir*') SUBTREE(*ALL)
+
+In this example, objects obj1 and obj2 will be checked out.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA09C
+Not authorized to object. Object is &1.
+
+CPFA09D
+Error occurred in program &1.
+
+CPFA09E
+Object in use. Object is &1.
+
+CPFA0A1
+An input or output error occurred.
+
+CPFA0A3
+Path name resolution causes looping.
+
+CPFA0A7
+Path name too long.
+
+CPFA0A9
+Object not found. Object is &1.
+
+CPFA0AA
+Error occurred while attempting to obtain space.
+
+CPFA0AB
+Operation failed for object. Object is &1.
+
+CPFA0AD
+Function not supported by file system.
+
+CPFA0B2
+No objects satisfy request.
+
+CPFA0BF
+&3 objects checked out. &4 objects failed.
+
+CPFA0DA
+Object is a directory. Object is &1.
+
+CPFA1C5
+Object is a read only object. Object is &1.
+
+Top

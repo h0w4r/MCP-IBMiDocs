@@ -1,0 +1,211 @@
+Start Journal Object (STRJRNOBJ)
+
+Start Journal Object (STRJRNOBJ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Start Journal Object (STRJRNOBJ) command is used to start journaling changes (made to an object or list of objects) to a specific journal. The object types which are supported through this interface are Data Areas (*DTAARA) and Data Queues (*DTAQ). For more information about journal entries which can be sent, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+
+Additionally, the user can specify that only the after image or both the before and the after images of an object of type *DTAARA be journaled. Before images are necessary to remove journaled changes using the Remove Journaled Changes (RMVJRNCHG) command.
+
+After journaling begins for the object, the user should save the journaled object to preserve its journal attribute information. Also, the object must be saved because, for example, journaled changes cannot be applied to a version of the object that was saved before journaling was in effect.
+
+For other ways to start journaling see the following commands:
+
+- Access paths - Start Journal Access Path (STRJRNAP)
+
+- Integrated file system objects - Start Journal (STRJRN)
+
+- Physical files - Start Journal Physical File (STRJRNPF)
+
+- Libraries - Start Journal Library (STRJRNLIB)
+
+Restrictions:
+
+- The object must not be journaling changes to another journal.
+
+- The maximum number of objects that can be associated with one journal is either 250,000 or 10,000,000. To get 10,000,000, the value of *MAX10M must have been specified for the JRNOBJLMT parameter on either the Create Journal (CRTJRN) command or on the Change Journal (CHGJRN) command. Once the number of objects is greater than or equal to this maximum, journaling does not start for any more objects.
+
+- The specified journal must be a local journal. Although all object types which can be journaled to a local journal can also have their changes sent to a remote journal, this is accomplished by a two step process. First start journaling to the local journal. Then connect the local journal to a remote instance. To initiate such a connection, use the Add Remote Journal (ADDRMTJRN) command or the Add Remote Journal (QjoAddRemoteJournal) API. For information about remote journaling, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+- The specified journal and object must reside in the same auxiliary storage pool (ASP).
+
+- For data areas, only local external data area objects may be journaled. The special data areas (*LDA, *GDA, and *PDA) and DDM data areas cannot be journaled.
+
+- For data queues, only local data queues are supported. DDM data queues cannot be journaled.
+
+- Lock Processing
+The object to start journaling is locked with a read exclusive lock (*EXCLRD).
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Values (up to 300 repetitions): Qualified object name | Required, Positional 1
+Qualifier 1: Object | Generic name, name, *ALL
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OBJTYPE | Object type | *DTAARA, *DTAQ | Required, Positional 2
+JRN | Journal | Qualified object name | Required, Positional 3
+Qualifier 1: Journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+IMAGES | Images | *AFTER, *BOTH | Optional
+LOGLVL | Logging level | *ERRORS, *ALL | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies a maximum of 300 qualified object names for which changes are to be journaled.
+
+This is a required parameter.
+
+Qualifier 1: Object
+
+*ALL
+All objects of the specified type in the specified library will have their changes written to the journal.
+
+generic-name
+Specify the generic name of the object for which changes are to be journaled. A generic name is a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, all objects of the specified object type that have names with the same prefix as the generic name will have their changes journaled.
+
+object-name
+Specify the name of the object for which changes are to be journaled.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Object type (OBJTYPE)
+
+Specifies the object type for which changes are to be journaled.
+
+This is a required parameter.
+
+*DTAARA
+Changes for data area objects are to be journaled.
+
+*DTAQ
+Changes for data queue objects are to be journaled.
+
+Top
+
+Journal (JRN)
+
+Specifies the journal that receives the journaled changes.
+
+This is a required parameter.
+
+Qualifier 1: Journal
+
+journal-name
+Specify the name of the journal that receives the journaled changes.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Images (IMAGES)
+
+Specifies the kinds of images that are written to the journal receiver for changes to objects.
+
+*AFTER
+Only after images are generated for changes to objects.
+
+*BOTH
+The system generates both before and after images to the journal for changes to objects.
+
+Note: The value *BOTH is only valid for *DTAARA objects.
+
+Top
+
+Logging level (LOGLVL)
+
+Specifies the error logging level used. This parameter is used to determine which messages will be sent.
+
+*ERRORS
+All diagnostic and escape messages are sent but the command will not send successful completion messages for each object. At the completion of this command, one completion message will be sent.
+
+*ALL
+The command sends all the messages that would be sent with *ERRORS and it will also send the successful completion message for each object.
+
+Top
+
+Examples
+
+STRJRNOBJ OBJ(DTALIB/MYDTAARA) OBJTYPE(*DTAARA)
+JRN(MYLIB/JRNLA)
+
+This command journals all changes to data area MYDTAARA in library DTALIB to journal JRNLA in library MYLIB. Only the after images of updates are written to the journal.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF6979
+Journal &1 in library &2 is unusable.
+
+CPF700A
+&1 of &2 objects have started journaling.
+
+CPF705A
+Operation failed due to remote journal.
+
+CPF7057
+*LIBL not allowed with *ALL or *ALLLIB or a generic name.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9873
+ASP status is preventing access to object.
+
+CPF9875
+Resources exceeded on ASP &1. Press HELP.
+
+Top

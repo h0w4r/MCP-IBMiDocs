@@ -1,0 +1,2505 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="DSPJRN.Top_Of_Page"></a>
+<h1>Display Journal  (DSPJRN)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#DSPJRN.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#DSPJRN.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#DSPJRN.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN"></a>
+<p>The Display Journal (DSPJRN) command allows you to convert journal entries (contained in one or more receivers) into a form suitable for external representation.  Output of the command can be displayed or printed with the job's spooled printer output or directed to a database output file.  If the database output file exists, records may either replace or be added to the current data in the indicated file member.  The system creates the specified database file and member if they do not exist.  Database files created by the system have a standard format.  A warning message is sent and the records are truncated if any of the entries are longer than the specified maximum record length of the output files.
+</p>
+<p>The contents of selected entries in the journal receivers may be converted for output.  It is also possible to selectively limit the entries that are displayed.  If no journal entries satisfy the selection or limitation criteria, an escape message is sent indicating that fact.
+</p>
+<p>Gaps may exist in the sequence numbers of the entries converted.  These occur because some of the journal entries represent internal system information. These internal entries can be shown by specifying INCHIDENT(*YES).
+</p>
+<p>It is possible to show journal entries whose journal sequence numbers are reset in the chain of receivers being specified.
+</p>
+<p>The QSYS2.DISPLAY_JOURNAL table function returns similar information.
+</p>
+<p>The following authorizations are required:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">*USE is required to the journal. *OBJEXIST is also required if no objects are specified or FILE(*ALLFILE) is specified, or if *IGNFILSLT or *IGNOBJSLT is specified for any journal code selected on the JRNCODE parameter, or if the journal is a remote journal, or if the JID parameter is specified.
+</li>
+<li class="cds--list__item">*USE is required to all journal receivers specified on the RCVRNG parameter.
+</li>
+<li class="cds--list__item">*USE is required for all objects that exist on the system in the QSYS file system that are specified on the FILE and OBJ paramters.
+</li>
+<li class="cds--list__item">*R is required for all objects in the integrated file system that are specified on the OBJPATH parameter, and all objects on the system in the integrated file system specified on the OBJFID parameter. *X is also required for all directories if SUBTREE(*ALL) is specified.
+</li>
+<li class="cds--list__item">If the OUTFILE parameter is specified, *ADD and *OBJOPR are required to the specified outfile. If the file exists and a new member is added, *OBJMGT is also required. If the file and member exist and *REPLACE is specified, *DLT is also required. If the file does not exist, or a new member is added, *USE is also required to the file's library.
+</li>
+</ul>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The file specified for the database output file must not be journaled to the same journal.  More information on database output file record formats is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</li>
+<li class="cds--list__item">If the sequence number is reset in the range of the receivers specified, the first occurrence of FROMENTLRG or FROMENT is used, if they are specified.  If TOENTLRG or TOENT is specified, the first occurrence after the FROMENTLRG or FROMENT entry is used, if FROMENTLRG or FROMENT is specified. Otherwise the first occurrence is used.
+</li>
+<li class="cds--list__item">The JOB, PGM, and USRPRF parameters cannot be used to specify selection criteria if one or more journal receivers in the specified receiver range was attached to the journal when a receiver size option (RCVSIZOPT) or a fixed length data option (FIXLENDTA) that would have omitted this data was in effect.
+</li>
+<li class="cds--list__item">The FILE, OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, OBJJID, JRNCDE, ENTTYP, JOB, PGM, USRPRF, CCIDLRG, CMTCYCID, and DEPENT parameters can be used to specify a subset of all available entries within a range of journal entries.
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">If no values are specified using these parameters, all available journal entries are converted for output.
+</li>
+<li class="cds--list__item">If more than one of these parameters are specified, then a journal entry must satisfy all of the values specified on these parameters, except when *IGNFILSLT or *IGNOBJSLT is specified on the JRNCDE parameter.
+</li>
+<li class="cds--list__item">If a journal code is specified on the JRNCDE parameter and *IGNFILSLT is the second element of that journal code, then journal entries with the specified journal code are selected if they satisfy all selection criteria except what is specified on the FILE parameter.
+</li>
+<li class="cds--list__item">If a journal code is specified on the JRNCDE parameter and *IGNOBJSLT is the second element of that journal code, then journal entries with the specified journal code are selected if they satisfy all selection criteria except what is specified on the OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, and OBJJID parameters.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">If more than the maximum number of objects is identified (32767 objects), an error occurs and no entries are received.  This restriction is ignored if *ALLFILE is specified or no objects are specified.
+</li>
+<li class="cds--list__item">When journal caching is being used, entries that are in the cache are not displayable.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="DSPJRN.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.JRN"><strong>JRN</strong></a></td>
+<td class="valigntop">Journal</td>
+<td class="valigntop">Single values: *INTSYSJRN<br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Journal</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="5"><a href="#DSPJRN.FILE"><strong>FILE</strong></a></td>
+<td class="valigntop">Journaled file</td>
+<td class="valigntop">Single values: *ALLFILE<br>Other values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File</td>
+<td class="valigntop"><span class="var">Name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *ALL, *NONE</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="6"><a href="#DSPJRN.OBJ"><strong>OBJ</strong></a></td>
+<td class="valigntop">Objects</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="6">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Object</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Object</td>
+<td class="valigntop"><span class="var">Name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Object type</td>
+<td class="valigntop">
+*FILE, *DTAARA, *DTAQ, *LIB</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Member, if data base file</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *ALL, *NONE</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.OBJPATH"><strong>OBJPATH</strong></a></td>
+<td class="valigntop">Objects</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Name</td>
+<td class="valigntop">
+<span class="var">Path name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Include or omit</td>
+<td class="valigntop">
+<strong class="underlined">*INCLUDE</strong>, *OMIT</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.SUBTREE"><strong>SUBTREE</strong></a></td>
+<td class="valigntop">Directory subtree</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *ALL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.PATTERN"><strong>PATTERN</strong></a></td>
+<td class="valigntop">Name pattern</td>
+<td class="valigntop">Values (up to 20 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Pattern</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Include or omit</td>
+<td class="valigntop">
+<strong class="underlined">*INCLUDE</strong>, *OMIT</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="7"><a href="#DSPJRN.RCVRNG"><strong>RCVRNG</strong></a></td>
+<td class="valigntop">Range of journal receivers</td>
+<td class="valigntop">Single values: <strong class="underlined">*CURRENT</strong>, *CURCHAIN, *CURAVLCHN, *CURSEQCHN<br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="7">Optional, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Starting journal receiver</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Starting journal receiver</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Ending journal receiver</td>
+<td class="valigntop">
+Single values: <strong class="underlined">*CURRENT</strong><br>Other values: <span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Ending journal receiver</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#DSPJRN.FROMENTLRG"><strong>FROMENTLRG</strong></a></td>
+<td class="valigntop">Starting large sequence number</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*FIRST</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.FROMTIME"><strong>FROMTIME</strong></a></td>
+<td class="valigntop">Starting date and time</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Starting date</td>
+<td class="valigntop">
+<span class="var">Date</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Starting time</td>
+<td class="valigntop">
+<span class="var">Time</span></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.TOENTLRG"><strong>TOENTLRG</strong></a></td>
+<td class="valigntop">Ending large sequence number</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*LAST</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.TOTIME"><strong>TOTIME</strong></a></td>
+<td class="valigntop">Ending date and time</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Ending date</td>
+<td class="valigntop">
+<span class="var">Date</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Ending time</td>
+<td class="valigntop">
+<span class="var">Time</span></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.NBRENT"><strong>NBRENT</strong></a></td>
+<td class="valigntop">Number of journal entries</td>
+<td class="valigntop"><span class="var">Integer</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.JRNCDE"><strong>JRNCDE</strong></a></td>
+<td class="valigntop">Journal codes</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong>, *CTL<br>Other values (up to 16 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Journal code value</td>
+<td class="valigntop">
+A, B, C, D, E, F, J, L, M, P, Q, R, S, T, U, Y</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Journal code selection</td>
+<td class="valigntop">
+<strong class="underlined">*ALLSLT</strong>, *IGNFILSLT, *IGNOBJSLT</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.ENTTYP"><strong>ENTTYP</strong></a></td>
+<td class="valigntop">Journal entry types</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong>, *RCD<br>Other values (up to 300 repetitions): <span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="4"><a href="#DSPJRN.JOB"><strong>JOB</strong></a></td>
+<td class="valigntop">Job name</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong><br>Other values: <span class="var">Qualified job name</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Job name</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: User</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 3: Number</td>
+<td class="valigntop">000000-999999</td>
+</tr><tr>
+<td class="valigntop"><a href="#DSPJRN.PGM"><strong>PGM</strong></a></td>
+<td class="valigntop">Program</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.USRPRF"><strong>USRPRF</strong></a></td>
+<td class="valigntop">User profile</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.CCIDLRG"><strong>CCIDLRG</strong></a></td>
+<td class="valigntop">Commit cycle large identifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.DEPENT"><strong>DEPENT</strong></a></td>
+<td class="valigntop">Dependent entries</td>
+<td class="valigntop"><strong class="underlined">*ALL</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.OUTFMT"><strong>OUTFMT</strong></a></td>
+<td class="valigntop">Output format</td>
+<td class="valigntop"><strong class="underlined">*CHAR</strong>, *HEX</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.JRNID"><strong>JRNID</strong></a></td>
+<td class="valigntop">Journal identification number</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.INCHIDENT"><strong>INCHIDENT</strong></a></td>
+<td class="valigntop">Include hidden entries</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.OBJFID"><strong>OBJFID</strong></a></td>
+<td class="valigntop">File identifier</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Hexadecimal value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.OBJJID"><strong>OBJJID</strong></a></td>
+<td class="valigntop">Object journal identifier</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Hexadecimal value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.OUTPUT"><strong>OUTPUT</strong></a></td>
+<td class="valigntop">Output</td>
+<td class="valigntop"><strong class="underlined">*</strong>, *PRINT, *OUTFILE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.OUTFILFMT"><strong>OUTFILFMT</strong></a></td>
+<td class="valigntop">Outfile format</td>
+<td class="valigntop"><strong class="underlined">*TYPE1</strong>, *TYPE2, *TYPE3, *TYPE4, *TYPE5</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.OUTFILE"><strong>OUTFILE</strong></a></td>
+<td class="valigntop">File to receive output</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File to receive output</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="3"><a href="#DSPJRN.OUTMBR"><strong>OUTMBR</strong></a></td>
+<td class="valigntop">Output member options</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Member to receive output</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Replace or add records</td>
+<td class="valigntop">
+<strong class="underlined">*REPLACE</strong>, *ADD</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="4"><a href="#DSPJRN.ENTDTALEN"><strong>ENTDTALEN</strong></a></td>
+<td class="valigntop">Entry data length</td>
+<td class="valigntop">Single values: <strong class="underlined">*OUTFILFMT</strong>, *CALC<br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Field data format</td>
+<td class="valigntop">
+<span class="var">Integer</span>, <strong class="underlined">*VARLEN</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Variable length field length</td>
+<td class="valigntop">
+<span class="var">Integer</span>, *CALC</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Allocated length</td>
+<td class="valigntop">
+<span class="var">Integer</span>, *FLDLEN</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="4"><a href="#DSPJRN.NULLINDLEN"><strong>NULLINDLEN</strong></a></td>
+<td class="valigntop">Null value indicators length</td>
+<td class="valigntop">Single values: <strong class="underlined">*OUTFILFMT</strong>, *CALC<br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Field data format</td>
+<td class="valigntop">
+1-8000, <strong class="underlined">*VARLEN</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Variable length field length</td>
+<td class="valigntop">
+1-8000, *CALC</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Allocated length</td>
+<td class="valigntop">
+1-8000, *FLDLEN</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.INCENT"><strong>INCENT</strong></a></td>
+<td class="valigntop">Include entries</td>
+<td class="valigntop"><strong class="underlined">*CONFIRMED</strong>, *ALL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.FROMENT"><strong>FROMENT</strong></a></td>
+<td class="valigntop">Starting sequence number</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*FIRST</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.TOENT"><strong>TOENT</strong></a></td>
+<td class="valigntop">Ending sequence number</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*LAST</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.CMTCYCID"><strong>CMTCYCID</strong></a></td>
+<td class="valigntop">Commit cycle identifier</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#DSPJRN.ASPDEV"><strong>ASPDEV</strong></a></td>
+<td class="valigntop">ASP device</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="DSPJRN.JRN"></a>
+<h2>Journal (JRN)</h2>
+<p>Specifies the journal from which the journal entries are retrieved for conversion and output.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*INTSYSJRN</strong></dt>
+<dd>The internal system journal associated with the journal specified on the JRNID parameter is used.  Internal system journals are not stored in libraries.
+<p>
+<strong>Note:     </strong>You must specify a value for JRNID when specifying JRN(*INTSYSJRN).
+</p>
+<p>
+<strong>Note:     </strong>You must have *ALLOBJ special authority to specify JRN(*INTSYSJRN).
+</p>
+</dd>
+</dl>
+<h3><strong>Qualifier 1: Journal</strong>
+</h3>
+<dl>
+<dt><strong class="italic">journal-name</strong></dt>
+<dd>Specify the name of the journal.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.FILE"></a>
+<h2>Journaled physical file (FILE)</h2>
+<p>Specifies a maximum of 300 qualified database file names whose journal entries are converted for output.  This parameter also specifies the name of the physical file member whose journal entries are to be converted for output.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>To determine which journal entries are to be converted for output, based on the specified file or physical file member name, the following is done:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the journal is a local journal, and if the specified file or physical file member currently exists on the system, the journal identifier is determined from the specified file or physical file member.  All journal entries in the specified receiver range for that journal identifier are converted for output.
+</li>
+<li class="cds--list__item">If the journal is a remote journal, or if the specified file or physical file member does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified file or physical file member.  All journal entries in the specified receiver range for those journal identifiers are converted for output.  Specify the library name or *CURLIB to have entries returned for the file.
+<p>There may be more than one journal identifier associated with a specified object within the specified receiver range.  This can happen when a journaled object is deleted, and then a new object is created with the same name and journaled to the same journal.
+</p>
+</li>
+</ul>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying a database file on this parameter, journal entries with the following journal code values are converted for output only if they satisfy the values specified on the other parameters:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code D (database file-level information entries).
+</li>
+<li class="cds--list__item">Journal code F (file member-level information entries).
+</li>
+<li class="cds--list__item">Journal code R (record-level information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNFILSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are converted for output.
+</li>
+</ul>
+</li>
+</ol>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*ALLFILE</strong></dt>
+<dd>The search for the journal entries received is not limited to a specified file name.  All journal entries are converted for output, regardless of which objects, if any, the entries are associated with.
+</dd>
+</dl>
+<h3><strong>Element 1: File</strong>
+</h3>
+<h3><strong>Qualifier 1: File</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for all physical or logical database files in the specified library (the library name must be specified) whose journaled changes are currently in the journal receiver are converted for output.  If *ALL is specified and the user does not have the required authority to all of the files, an error occurs, and the command ends.
+</dd>
+<dt><strong class="italic">file-name</strong></dt>
+<dd>Specify the name of the database file whose journal entries are being converted for output.
+</dd>
+</dl>
+
+<dd>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the job's library list are searched until the first match is found.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the file.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the library where the file is located.
+</dd>
+</dl>
+</dd>
+
+<h3><strong>Element 2: Member</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>Journal entries for the database physical file and the first member in the file are converted for output. This value is not valid for remote journals.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for the database physical file and all the currently existing members in the file are converted for output.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>Only entries for the database file are converted for output. Entries for members of the file are not converted for output.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the physical file member whose entries are being converted for output.  If the specified physical file does not exist on the system, specify either *ALL or a specific physical file member name.
+</dd>
+</dl>
+<p>If *ALL is specified for the file-name element, this member name is used for all applicable physical files in the library.  For example, if library-name/*ALL *FIRST is specified on the FILE parameter, the journal entries of the first members of all applicable physical files in the specified library are converted for output.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OBJ"></a>
+<h2>Objects (OBJ)</h2>
+<p>Specifies a maximum of 300 qualified object names whose journal entries are converted for output.  The possible object types are *FILE, *DTAARA, *DTAQ, and *LIB.  If *FILE is specified, this parameter also specifies the name of the physical file member whose journal entries are to be converted for output.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>To determine which journal entries are to be converted for output, based on the specified object name, the following is done:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the journal is a local journal, and if the specified object currently exists on the system, the journal identifier is determined from the specified object.  All journal entries in the specified receiver range for that journal identifier are converted for output.
+</li>
+<li class="cds--list__item">If the journal is a remote journal, or if the specified object does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified object.  All journal entries in the specified receiver range for those journal identifiers are converted for output. Specify the library name or *CURLIB to have entries returned for an object.
+<p>There may be more than one journal identifier associated with a specified object within the specified receiver range.  This can happen when a journaled object is deleted, and then a new object is created with the same name and journaled to the same journal.
+</p>
+</li>
+</ul>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying an object on this parameter, journal entries with the following journal code values are converted for output only if they satisfy the values specified on the other parameters in addition to the object name specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code D (database file-level information entries).
+</li>
+<li class="cds--list__item">Journal code E (data area information entries).
+</li>
+<li class="cds--list__item">Journal code F (file member-level information entries).
+</li>
+<li class="cds--list__item">Journal code Q (data queue information entries).
+</li>
+<li class="cds--list__item">Journal code R (record-level information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Journal code Y (library information entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are converted for output.
+</li>
+</ul>
+</li>
+</ol>
+<h3><strong>Element 1: Object</strong>
+</h3>
+<h3><strong>Qualifier 1: Object</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for all objects of the specified object type in the specified library (the library name must be specified) whose journaled changes are currently in the journal receiver are converted for output.  The library name must be specified.  If *ALL is specified and the user does not have the required authority for all objects in the library, a message is sent and the command ends.
+</dd>
+<dt><strong class="italic">object-name</strong></dt>
+<dd>Specify the name of the object whose journaled changes are being converted for output.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+<h3><strong>Element 2: Object type</strong>
+</h3>
+<p>Specify the object type of the object whose journaled changes are being converted for output.
+</p>
+<dl>
+<dt><strong>*FILE</strong></dt>
+<dd>Entries for database files and database physical file members are converted for output.
+</dd>
+<dt><strong>*DTAARA</strong></dt>
+<dd>Entries for data areas are converted for output.
+</dd>
+<dt><strong>*DTAQ</strong></dt>
+<dd>Entries for data queues are converted for output.
+</dd>
+<dt><strong>*LIB</strong></dt>
+<dd>Entries for libraries are converted for output.
+</dd>
+</dl>
+<h3><strong>Element 3: Member, if data base file</strong>
+</h3>
+<p>Specify the name of the member in the physical file that has its journal entries converted for output.  If *ALL is specified for the first part of this parameter, the value specified for the member name is used for all applicable physical files in the library.  For example, if *FIRST is specified, the journal entries of the first member of all applicable physical files in the specified library are converted for output.
+</p>
+<p>
+<strong>Note:     </strong>If the specified object type is not *FILE, the member name element value is ignored.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>Journal entries for the database physical file and the first member in the file are converted for output. This value is not valid for remote journals.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for the database physical file and all the currently existing members in the file are converted for output.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>Only entries for the database file are converted for output. Entries for members of the file are not converted for output.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the physical file member whose entries are being converted for output.  If the specified physical file does not exist on the system, specify either *ALL or a specific physical file member name.
+</dd>
+</dl>
+<p>If *ALL is specified for the object-name element, this member name is used for all applicable physical files in the library.  For example, if library-name/*ALL *FILE *FIRST is specified on the OBJ parameter, the journal entries of the first members of all applicable physical files in the specified library are converted for output.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OBJPATH"></a>
+<h2>Objects (OBJPATH)</h2>
+<p>Specifies a maximum of 300 objects whose journal entries are converted for output.  Only objects whose path name identifies an object of type *STMF, *DIR or *SYMLNK that are in the "root" (/), QOpenSys, and user-defined file systems are supported.  All other objects are ignored.
+</p>
+<p>This parameter is not valid for remote journals.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>Only objects that are currently linked with the specified path name and have a journal identifier associated with them are used in journal entry selection. If the specified object does exist, the journal identifier associated with that link is used for journal entry selection. If a specified object does not exist or does not have a journal identifier associated with it, that link is not used in selecting journal entries and no error is sent.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying an object on this parameter, journal entries with the following journal code values are converted for output only if they satisfy the values specified on the other parameters in addition to the object name specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code B (integrated file system information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are converted for output.
+</li>
+</ul>
+</li>
+</ol>
+<h3><strong>Element 1: Name</strong>
+</h3>
+<dl>
+<dt><strong class="italic">path-name</strong></dt>
+<dd>Entries for objects identified by the path name are converted for output.
+<p>A pattern can be specified in the last part of the path name.  An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes. Symbolic links within the path name will not be followed. If the path name begins with the tilde character, then the path is assumed to be relative to the appropriate home directory.
+</p>
+<p>Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is Unicode-enabled.  See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+</p>
+</dd>
+</dl>
+<h3><strong>Element 2: Include or omit</strong>
+</h3>
+<p>The second element specifies whether names that match the path name should be included or omitted from the operation.  Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+</p>
+<p>
+<strong>Note:     </strong>The SUBTREE parameter specifies whether the subtrees are included or omitted.
+</p>
+<dl>
+<dt><strong class="underlined">*INCLUDE</strong></dt>
+<dd>The objects that match the object name pattern are to be included in determining what journal entries are converted for output, unless overridden by an *OMIT specification.
+</dd>
+<dt><strong>*OMIT</strong></dt>
+<dd>The objects that match the object name pattern are not to be included in determining what journal entries are converted for output.  This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.SUBTREE"></a>
+<h2>Directory subtree (SUBTREE)</h2>
+<p>Specifies whether the directory subtrees are included in determining the objects for which journal entries are converted for output.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is only valid if one or more path names were specified on the OBJPATH parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Only the objects that match the selection criteria are processed.  The objects within selected directories are not implicitly processed.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All objects that meet the selection criteria are processed in addition to the entire subtree of each directory that matches the selection criteria.  The subtree includes all subdirectories and the objects within those subdirectories.
+<p>Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree.  This includes, but is not limited to, the following:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Adding, removing, or renaming object links
+</li>
+<li class="cds--list__item">Mounting or unmounting file systems
+</li>
+<li class="cds--list__item">Updating the effective root directory for the process calling the command
+</li>
+<li class="cds--list__item">Updating the contents of a symbolic link
+</li>
+</ul>
+<p>In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing.  This is done so that the command is not likely to fail due to a lack of descriptors.  This process-scoped maximum value is not reset when the command completes.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.PATTERN"></a>
+<h2>Name pattern (PATTERN)</h2>
+<p>Specifies a maximum of 20 patterns to be used to include or omit objects for which journal entries are converted for output.
+</p>
+<p>Only the last part of the path name will be considered for the name pattern match. Path name delimiters are not allowed in the name pattern. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+</p>
+<p>If the Name Pattern parameter is not specified the default will be to match all patterns.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is only valid if one or more path names were specified on the OBJPATH parameter.
+</p>
+<h3><strong>Element 1: Pattern</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">'*'</strong></dt>
+<dd>All objects that match the input OBJPATH parameter are to be included.
+</dd>
+<dt><strong class="italic">name-pattern</strong></dt>
+<dd>Specify the pattern to be used to include or omit objects for which journal entries are converted for output.  Only the last part of the path name will be considered for the name pattern match.  Path name delimiters are not allowed in the name pattern.
+</dd>
+</dl>
+<p>If the Name Pattern parameter is not specified the default will be to match all patterns.
+</p>
+<p>Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is Unicode-enabled.  See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+</p>
+<h3><strong>Element 2: Include or omit</strong>
+</h3>
+<p>The second element specifies whether names that match the pattern should be included or omitted from the operation.  Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+</p>
+<p>
+<strong>Note:     </strong>The SUBTREE parameter specifies whether directory subtrees are included or omitted.
+</p>
+<dl>
+<dt><strong class="underlined">*INCLUDE</strong></dt>
+<dd>The objects that match the object name pattern are included in the operation, unless overridden by an *OMIT specification.
+</dd>
+<dt><strong>*OMIT</strong></dt>
+<dd>The objects that match the object name pattern are not to be included in the operation.  This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.RCVRNG"></a>
+<h2>Range of journal receivers (RCVRNG)</h2>
+<p>Specifies the starting (first) and ending (last) journal receivers (the receiver range) that contain the journal entries being converted for output.  The system starts with the starting journal receiver (as specified by the first value) and proceeds through the receiver chain until the ending receiver (as specified by the last value) is processed.
+</p>
+<p>
+<strong>Note:     </strong>If the maximum number of receivers (2045) in the range is surpassed, an error occurs and no journal entries are converted.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*CURRENT</strong></dt>
+<dd>The journal receiver that is currently attached when starting to convert journal entries is used.
+</dd>
+<dt><strong>*CURCHAIN</strong></dt>
+<dd>The journal receiver chain that includes the journal receiver that is currently attached when starting to convert journal entries is used.  This receiver chain does not cross a break in the chain.  If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to convert journal entries.
+</dd>
+<dt><strong>*CURAVLCHN</strong></dt>
+<dd>The journal receiver chain that includes the journal receiver that is attached when starting to convert journal entries is used.  This receiver chain does not cross a break in the chain.  If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to convert journal entries.  If journal receivers exist in the receiver chain that are not available because they were saved with the storage freed option, those journal receivers will be ignored and entries will be converted starting with the first available journal receiver in the chain.
+</dd>
+<dt><strong>*CURSEQCHN</strong></dt>
+<dd>The journal receiver chain that includes the journal receiver that is attached when starting to convert journal entries is used, starting with the most recent journal receiver in which the journal sequence number was reset if the journal sequence number was reset in the receiver chain. This receiver chain does not cross a break in the chain. If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to convert journal entries. If journal receivers exist in the receiver chain that are not available because they were saved with the storage freed option, those journal receivers will be ignored and entries will be converted starting with the first available journal receiver in the chain.
+</dd>
+</dl>
+<h3><strong>Element 1: Starting journal receiver</strong>
+</h3>
+<h3><strong>Qualifier 1: Starting journal receiver</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the first journal receiver whose entries are converted for output.
+</dd>
+</dl>
+
+<dd>
+<h3><strong>Qualifier 2: Starting date</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the job's library list are searched until the first match is found.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the journal receiver.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the library where the journal receiver is located.
+</dd>
+</dl>
+</dd>
+
+<h3><strong>Element 2: Ending journal receiver</strong>
+</h3>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*CURRENT</strong></dt>
+<dd>The journal receiver that is currently attached when starting to convert journal entries is used.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: Ending journal receiver</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the last journal receiver whose entries are to be converted for output.
+</dd>
+</dl>
+
+<dd>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the job's library list are searched until the first match is found.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the journal receiver.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the library where the journal receiver is located.
+</dd>
+</dl>
+</dd>
+
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.FROMENTLRG"></a>
+<h2>Starting large sequence number (FROMENTLRG)</h2>
+<p>Specifies the first journal entry that is being considered for conversion for external representation.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Starting sequence number (FROMENT)</strong> parameter or the <strong>Starting large sequence number (FROMENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first journal entry in the specified journal receiver range is the first entry being considered for conversion for external representation.
+</dd>
+<dt><strong class="italic">starting-sequence-number</strong></dt>
+<dd>Specify the assigned sequence number of the first journal entry that is being considered for conversion for external representation.  The possible range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.FROMTIME"></a>
+<h2>Starting date and time (FROMTIME)</h2>
+<p>Specifies the date and time of the first journal entry being converted for external representation.
+</p>
+<h3><strong>Element 1: Starting date</strong>
+</h3>
+<dl>
+<dt><strong class="italic">date</strong></dt>
+<dd>Specify the starting date.  The starting date and time of the first journal entry occurring at or after the specified starting date and time becomes the starting point for the range of entries to be converted for external representation.
+</dd>
+</dl>
+<h3><strong>Element 2: Starting time</strong>
+</h3>
+<dl>
+<dt><strong class="italic">starting-time</strong></dt>
+<dd>Specify the starting time.  The starting date and time of the first journal entry occurring at or after the specified starting date and time becomes the starting point for the range of entries to be converted for external representation.
+<p>The time can be specified in 24-hour format with or without a time separator:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where <strong>hh</strong> = hours, <strong>mm</strong> = minutes, and <strong>ss</strong> = seconds.
+</li>
+<li class="cds--list__item">With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds.  If you enter this command from the command line, the string must be enclosed in apostrophes.  If a time separator other than the separator specified for your job is used, this command will fail.
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.TOENTLRG"></a>
+<h2>Ending large sequence number (TOENTLRG)</h2>
+<p>Specifies the last journal entry being converted for external representation.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Ending sequence number (TOENT)</strong> parameter or the <strong>Ending large sequence number (TOENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>The last journal entry in the specified journal receiver range is the final entry being converted for external representation.
+</dd>
+<dt><strong class="italic">ending-sequence-number</strong></dt>
+<dd>Specify the specific sequence number of the final journal entry being converted for external representation.  The possible range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.TOTIME"></a>
+<h2>Ending date and time (TOTIME)</h2>
+<p>Specifies the creation date and time of the last journal entry being converted for external representation.
+</p>
+<h3><strong>Element 1: Ending date</strong>
+</h3>
+<dl>
+<dt><strong class="italic">ending-date</strong></dt>
+<dd>Specify the ending date.  The ending date and time of the first journal entry occurring at or before the specified ending time on the specified ending date becomes the ending point for the range of entries to be converted for external representation.
+</dd>
+</dl>
+<h3><strong>Element 2: Ending time</strong>
+</h3>
+<dl>
+<dt><strong class="italic">ending-time</strong></dt>
+<dd>Specify the ending time.  The ending date and time of the first journal entry occurring at or before the specified ending time on the specified ending date becomes the ending point for the range of entries to be converted for external representation.
+<p>The time can be specified in 24-hour format with or without a time separator:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds.  If you enter this command from the command line, the string must be enclosed in apostrophes.  If a time separator other than the separator specified for your job is used, this command will fail.
+</li>
+<li class="cds--list__item">Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where <strong>hh</strong> = hours, <strong>mm</strong> = minutes, and <strong>ss</strong> = seconds.
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.NBRENT"></a>
+<h2>Number of journal entries (NBRENT)</h2>
+<p>Specifies the total number of journal entries that are being converted for output.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All journal entries that satisfy the selection values and that are in the specified journal receiver range are converted.
+</dd>
+<dt><strong class="italic">maximum-entries</strong></dt>
+<dd>Specify the maximum number of journal entries to be converted.  If the journal entry specified on the TOENTLRG, TOENT, or TOTIME parameter is reached before the value specified on the NBRENT parameter is met, the command ends normally.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.JRNCDE"></a>
+<h2>Journal codes (JRNCDE)</h2>
+<p>Specifies the journal codes for which journal entries are converted for output.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The conversion of journal entries is not limited to entries with a particular journal code.
+</dd>
+<dt><strong>*CTL</strong></dt>
+<dd>Only journal entries created to control the journal functions are converted for external representation.  The journal codes are 'J' and 'F'.
+</dd>
+</dl>
+<h3><strong>Element 1: Journal code value</strong>
+</h3>
+<dl>
+<dt><strong class="italic">journal-code</strong></dt>
+<dd>Specify the journal code for which journal entries are converted.
+<p>For a list of the journal codes that are valid on this parameter, press F4 (Prompt) from the JRNCDE prompt.  An explanation of the list of journal codes that can be specified is in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+</p>
+</dd>
+</dl>
+<h3><strong>Element 2: Journal code selection</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALLSLT</strong></dt>
+<dd>The journal entries with the specified journal code are converted for output only if all other selection parameters are satisfied.
+</dd>
+<dt><strong>*IGNFILSLT</strong></dt>
+<dd>Journal entries having the specified journal code are converted for output only if all selection parameters, except the FILE parameter, are satisfied.
+<p>
+<strong>Note:     </strong>This value is not valid for journal codes D, F, and R. This value is not valid if the OBJ, OBJPATH, OBJFID, or OBJJID parameters are specified.
+</p>
+</dd>
+<dt><strong>*IGNOBJSLT</strong></dt>
+<dd>Journal entries having the specified journal code are converted for output only if all selection parameters are satisfied except OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, and OBJJID.
+<p>
+<strong>Note:     </strong>This value is not valid for journal codes B, D, E, F, Q, R, and Y.  This value is not valid if the FILE parameter is specified.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.ENTTYP"></a>
+<h2>Journal entry types (ENTTYP)</h2>
+<p>Specifies whether to limit the conversion of journal entries to those of a specified entry type.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The conversion of journal entries is not limited to a particular entry-type.
+</dd>
+<dt><strong>*RCD</strong></dt>
+<dd>Only entries that have an entry type for record level operations are converted.  The following entry types are valid:  BR, DL, DR, IL, PT, PX, UB, UP, and UR.
+</dd>
+</dl>
+<h3><strong>Other values</strong>
+</h3>
+<dl>
+<dt><strong class="italic">entry-type</strong></dt>
+<dd>Specify the entry type that limits the number of journal entries being converted for external representation.  Up to 300 valid entry types can be specified.  More information on entry types is in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.JOB"></a>
+<h2>Job name (JOB)</h2>
+<p>Specifies that the journal entries being converted for external representation are limited to the journal entries for a specified job.  Only journal entries for the specified job are converted for external representation.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The conversion of journal entries for external representation is not limited to entries for a specified job.
+</dd>
+</dl>
+<h3><strong>Other values</strong>
+</h3>
+<dl>
+<dt><strong class="italic">job-identifier</strong></dt>
+<dd>Specify the job name, the user name, and the job number of the job to use.  You can also specify that the job name only, or that the job name and the user name be used.
+<dl>
+<dt><strong class="italic">job-name</strong></dt>
+<dd>Specify the job name of the job.
+</dd>
+<dt><strong class="italic">user-name</strong></dt>
+<dd>Specify the user name of the job.
+</dd>
+<dt><strong class="italic">job-number</strong></dt>
+<dd>Specify the system-assigned job number.
+</dd>
+</dl>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.PGM"></a>
+<h2>Program (PGM)</h2>
+<p>Specifies that the journal entries being converted for external representation are limited to the journal entries created by a specified program.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The conversion of journal entries is not limited to entries created by a particular program.
+</dd>
+<dt><strong class="italic">program-name</strong></dt>
+<dd>Specify the name of the program whose journal entries are being converted for external representation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.USRPRF"></a>
+<h2>User profile (USRPRF)</h2>
+<p>Specifies that the journal entries being considered for conversion for external representation are limited to the journal entries created for the specified user profile name.  The user name identifies the user profile under which the job was run that deposited the journal entries.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The conversion of journal entries is not limited to entries for a specified user profile.
+</dd>
+<dt><strong class="italic">user-name</strong></dt>
+<dd>Specify the name of the user profile whose journal entries are being converted for external representation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.CCIDLRG"></a>
+<h2>Commit cycle large identifier (CCIDLRG)</h2>
+<p>Specifies the journal entries considered for conversion based on their associated commit cycle identifier.  A commit cycle consists of all journal entries sharing the same commit cycle identifier.
+</p>
+<p>
+<strong>Note:     </strong>You can input a value for either the <strong>Commit cycle identifier</strong> field (CMTCYCID) or the <strong>Commit cycle large identifier</strong> field (CCIDLRG) but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The journal entries converted are not limited to a specified commit cycle identifier.
+</dd>
+<dt><strong class="italic">commit-cycle-identifier</strong></dt>
+<dd>Specify the commit cycle identifier of the journal entries to be considered for conversion.  The possible range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.DEPENT"></a>
+<h2>Dependent entries (DEPENT)</h2>
+<p>Specifies whether the journal entries to be converted for output include the journal entries recording actions
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">that occur as a result of a trigger program
+</li>
+<li class="cds--list__item">on records that are part of a referential constraint
+</li>
+<li class="cds--list__item">that will be ignored during an Apply Journaled Changes (APYJRNCHG) or Remove Journaled Changes (RMVJRNCHG) operation.
+</li>
+</ul>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The journal entries relating to trigger programs, referential constraints and the entries which will be ignored by an Apply or Remove Journaled Changes operations are converted.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>The journal entries relating to trigger programs, referential constraints and the entries which will be ignored by an Apply or Remove Journaled Changes operations are not converted.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OUTFMT"></a>
+<h2>Output format (OUTFMT)</h2>
+<p>Specifies whether the entry specific data portion of the journal entry information appears in character format or hexadecimal format.  This keyword is ignored if *OUTFILE is specified for the <strong>Output (OUTPUT)</strong> parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*CHAR</strong></dt>
+<dd>The entry specific data portion of the journal entry is shown in character format.
+</dd>
+<dt><strong>*HEX</strong></dt>
+<dd>The entry specific data portion of the journal entry is shown in hexadecimal format.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.JRNID"></a>
+<h2>Journal identification number (JRNID)</h2>
+<p>Specifies the five-character journal identification number (ID) of the internal system journal (*INTSYSJRN) to be displayed.  Journal IDs are assigned by the system.  The first two characters represent the journal type, and the last three characters are the auxiliary storage pool (ASP) identifier.
+</p>
+<p>
+<strong>Note:     </strong>The JRNID parameter can only be specified if JRN(*INTSYSJRN) is specified.
+</p>
+<p>Following is a listing of journal types:
+</p>
+<dl>
+<dt><strong>Journal Types</strong></dt>
+<dd><strong>
+</strong></dd>
+<dt><strong>10</strong></dt>
+<dd>System-managed access path protection (SMAPP)
+</dd>
+<dt><strong>20</strong></dt>
+<dd>Directory
+</dd>
+<dt><strong>30</strong></dt>
+<dd>Spool
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table24" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.INCHIDENT"></a>
+<h2>Include hidden entries (INCHIDENT)</h2>
+<p>Specifies whether hidden journal entries should be returned.  Hidden entries are generated and used by the system.  When hidden entries are returned, it will be possible to display all journal entries such that no sequence numbers will be unaccounted for.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Hidden journal entries are not converted for output.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Hidden journal entries are converted for output.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table25" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OBJFID"></a>
+<h2>File identifier (OBJFID)</h2>
+<p>Specifies a maximum of 300 file identifiers (FID) for which journal entries are converted for output.  FIDs are a unique identifier associated with integrated file system related objects.  This field is input in hexadecimal format.  Only objects whose FID identifies an object of type *STMF, *DIR or *SYMLNK that are in the "root" (/), QOpenSys, and user-defined file systems are supported.  All other objects are ignored.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>To determine which journal entries are to be converted for output, based on the specified file identifier, the following is done:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the journal is a local journal, and if the specified object currently exists on the system, the journal identifier is determined from the specified object.  All journal entries in the specified receiver range for that journal identifier are converted for output.
+</li>
+<li class="cds--list__item">If the journal is a remote journal, or if the specified object does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified object.  All journal entries in the specified receiver range for those journal identifiers are converted for output.
+</li>
+</ul>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying an object on this parameter, journal entries with the following journal code values are converted for output only if they satisfy the values specified on the other parameters in addition to the FID specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code B (integrated file system information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are converted for output.
+</li>
+</ul>
+</li>
+</ol>
+<dl>
+<dt><strong class="italic">file-identifier</strong></dt>
+<dd>Entries for objects identified with the FID are converted for output.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table26" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OBJJID"></a>
+<h2>Object journal identifier (OBJJID)</h2>
+<p>Specifies a maximum of 300 journal identifiers for which journal entries are converted for output.  This field is input in hexadecimal format.  Hexadecimal zero is not valid.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying a journal identifier on this parameter, journal entries with the following journal code values are converted for output only if they satisfy the values specified on the other parameters in addition to the journal identifier specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code B (integrated file system information entries).
+</li>
+<li class="cds--list__item">Journal code D (database file-level information entries).
+</li>
+<li class="cds--list__item">Journal code E (data area information entries).
+</li>
+<li class="cds--list__item">Journal code F (file member-level information entries).
+</li>
+<li class="cds--list__item">Journal code J (journal receiver information entries).
+</li>
+<li class="cds--list__item">Journal code Q (data queue information entries).
+</li>
+<li class="cds--list__item">Journal code R (record-level information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Journal code Y (library information entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are converted for output.
+</li>
+</ul>
+</li>
+</ol>
+<dl>
+<dt><strong class="italic">journal-identifier</strong></dt>
+<dd>Entries for objects associated with the specified journal identifier are converted for output.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table27" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OUTPUT"></a>
+<h2>Output (OUTPUT)</h2>
+<p>Specifies whether the output from the command is shown at the requesting work station, printed with the job's spooled printer output, or sent to the database file specified on the <strong>File to receive output (OUTFILE)</strong> parameter.
+</p>
+<p>When the output of the command is directed to the requesting work station, basic information on the journal entries is shown.  From the basic display, an option can be selected to show information in detail for any journal entry being shown.
+</p>
+<p>If the output is printed with the job's spooled printer output, all of the information that would be shown is printed.  File QPDSPJRN in QSYS is used for printed output.
+</p>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The output is shown (if requested by an interactive job) or printed with the job's spooled output (if requested by a batch job).
+</dd>
+</dl>
+<dl>
+<dt><strong>*PRINT</strong></dt>
+<dd>The output is printed with the job's spooled output.
+</dd>
+</dl>
+<dl>
+<dt><strong>*OUTFILE</strong></dt>
+<dd>The output is directed to the database file specified for the <strong>File to receive output (OUTFILE)</strong> parameter.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table28" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OUTFILFMT"></a>
+<h2>Outfile format (OUTFILFMT)</h2>
+<p>Specifies the format of the journal entries written to the output file specified on the <strong>File to receive output (OUTFILE)</strong> parameter.  This parameter can be specified only if the value *OUTFILE is specified on the OUTPUT parameter.
+</p>
+<p>
+<strong>Note:     </strong>If the <strong>Receiver size options</strong> field (RCVSIZOPT) for the journal was specified as *MAXOPT3, the sequence number, commit cycle identifier, the count of entries applied or removed or relative record number fields can reach a maximum value of 18,446,744,073,709,551,600.  The length of these fields in the *TYPE1, *TYPE2, *TYPE3, and *TYPE4 formats is defined to hold a 10 digit number.  Only the *TYPE5 format has fields large enough to hold this maximum value.  During the building of the output file for the *TYPE1, *TYPE2, *TYPE3, or *TYPE4 formats, if a sequence number or commit cycle identifier larger than 10 digits is found, the field is set to -1 for that record.  At the conclusion of writing the output file, an informational message (CPI7013) will be issued to the joblog as an alert that the output file contains incomplete information in those particular fields.
+</p>
+<dl>
+<dt><strong class="underlined">*TYPE1</strong></dt>
+<dd>The converted entries are formatted to include the minimum information that can be specified.  The information fields and the format of the information in each journal entry is shown in the following table:
+<strong>Figure:        Table 1 - OUTFILFMT(*TYPE1) Journal Entry Format</strong><div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table29" border="1" class="cds--data-table">
+
+
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             : Length   : From     : To
+=======================+==========+==========+==========
+Entry Length           : 5        : 1        : 5
+-----------------------+----------+----------+----------
+Sequence Number (2)    : 10       : 6        : 15
+-----------------------+----------+----------+----------
+Journal Code           : 1        : 16       : 16
+-----------------------+----------+----------+----------
+Journal Entry Type     : 2        : 17       : 18
+-----------------------+----------+----------+----------
+Date                   : 6        : 19       : 24
+-----------------------+----------+----------+----------
+Time                   : 6        : 25       : 30
+-----------------------+----------+----------+----------
+Job Name               : 10       : 31       : 40
+-----------------------+----------+----------+----------
+User Name              : 10       : 41       : 50
+-----------------------+----------+----------+----------
+Job Number             : 6        : 51       : 56
+-----------------------+----------+----------+----------
+Program Name           : 10       : 57       : 66
+-----------------------+----------+----------+----------
+Object Name            : 10       : 67       : 76
+-----------------------+----------+----------+----------
+Object Library         : 10       : 77       : 86
+-----------------------+----------+----------+----------
+Member Name            : 10       : 87       : 96
+-----------------------+----------+----------+----------
+Count/RRN (3)          : 10       : 97       : 106
+-----------------------+----------+----------+----------
+Flag                   : 1        : 107      : 107
+-----------------------+----------+----------+----------
+Commit Cycle ID (4)    : 10       : 108      : 117
+-----------------------+----------+----------+----------
+Incomplete data        : 1        : 118      : 118
+-----------------------+----------+----------+----------
+Minimized Entry        : 1        : 119      : 119
+Specific Data          :          :          :
+-----------------------+----------+----------+----------
+Reserved               : 6        : 120      : 125
+-----------------------+----------+----------+----------
+Entry-Specific Data    : 100 (1)  : 126      : 225
+========================================================
+Note:
+(1)  This is the field length in the system-supplied
+database file, QADSPJRN.  However, a length of up to
+32641 bytes can be specified for this field using the
+ENTDTALEN parameter.
+(2)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(3)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(4)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</dd>
+<dt><strong>*TYPE2</strong></dt>
+<dd>The converted entries include the information returned when OUTFILFMT(*TYPE1) is specified, the name of the user profile for the job that generated the displayed journal entries, and the name of the system on which the output records were generated.  The format of the information in each journal entry is shown in the following table:
+<strong>Figure:        Table 2 - OUTFILFMT(*TYPE2) Journal Entry Format</strong><div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table30" border="1" class="cds--data-table">
+
+
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             : Length   : From     : To
+=======================+==========+==========+==========
+Entry Length           : 5        : 1        : 5
+-----------------------+----------+----------+----------
+Sequence Number (2)    : 10       : 6        : 15
+-----------------------+----------+----------+----------
+Journal Code           : 1        : 16       : 16
+-----------------------+----------+----------+----------
+Journal Entry Type     : 2        : 17       : 18
+-----------------------+----------+----------+----------
+Date                   : 6        : 19       : 24
+-----------------------+----------+----------+----------
+Time                   : 6        : 25       : 30
+-----------------------+----------+----------+----------
+Job Name               : 10       : 31       : 40
+-----------------------+----------+----------+----------
+User Name              : 10       : 41       : 50
+-----------------------+----------+----------+----------
+Job Number             : 6        : 51       : 56
+-----------------------+----------+----------+----------
+Program Name           : 10       : 57       : 66
+-----------------------+----------+----------+----------
+Object Name            : 10       : 67       : 76
+-----------------------+----------+----------+----------
+Object Library         : 10       : 77       : 86
+-----------------------+----------+----------+----------
+Member Name            : 10       : 87       : 96
+-----------------------+----------+----------+----------
+Count/RRN (3)          : 10       : 97       : 106
+-----------------------+----------+----------+----------
+Flag                   : 1        : 107      : 107
+-----------------------+----------+----------+----------
+Commit Cycle ID (4)    : 10       : 108      : 117
+-----------------------+----------+----------+----------
+User Profile           : 10       : 118      : 127
+-----------------------+----------+----------+----------
+System Name            : 8        : 128      : 135
+-----------------------+----------+----------+----------
+Incomplete data        : 1        : 136      : 136
+-----------------------+----------+----------+----------
+Minimized Entry        : 1        : 137      : 137
+Specific Data          :          :          :
+-----------------------+----------+----------+----------
+Reserved               : 18       : 138      : 155
+-----------------------+----------+----------+----------
+Entry-Specific Data    : 100 (1)  : 156      : 255
+========================================================
+Note:
+(1)  This is the field length in the system-supplied
+database file, QADSPJR2. However, a length of up to
+32611 bytes can be specified for this field using the
+ENTDTALEN parameter.
+(2)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(3)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(4)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</dd>
+<dt><strong>*TYPE3</strong></dt>
+<dd>The converted journal entries include all the information returned when OUTFILFMT(*TYPE2) is specified, and the null value indicators.  The format of the information in each converted journal entry is shown in the following table:
+<strong>Figure:        Table 3 - OUTFILFMT(*TYPE3) Journal Entry Format</strong><div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table31" border="1" class="cds--data-table">
+
+
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             : Length   : From     : To
+=======================+==========+==========+==========
+Entry Length           : 5        : 1        : 5
+-----------------------+----------+----------+----------
+Sequence Number (5)    : 10       : 6        : 15
+-----------------------+----------+----------+----------
+Journal Code           : 1        : 16       : 16
+-----------------------+----------+----------+----------
+Journal Entry Type     : 2        : 17       : 18
+-----------------------+----------+----------+----------
+Timestamp (1)          : 26       : 19       : 44
+-----------------------+----------+----------+----------
+Job Name               : 10       : 45       : 54
+-----------------------+----------+----------+----------
+User Name              : 10       : 55       : 64
+-----------------------+----------+----------+----------
+Job Number             : 6        : 65       : 70
+-----------------------+----------+----------+----------
+Program Name           : 10       : 71       : 80
+-----------------------+----------+----------+----------
+Object Name            : 10       : 81       : 90
+-----------------------+----------+----------+----------
+Object Library         : 10       : 91       : 100
+-----------------------+----------+----------+----------
+Member Name            : 10       : 101      : 110
+-----------------------+----------+----------+----------
+Count/RRN (6)          : 10       : 111      : 120
+-----------------------+----------+----------+----------
+Flag                   : 1        : 121      : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (7)    : 10       : 122      : 131
+-----------------------+----------+----------+----------
+User Profile           : 10       : 132      : 141
+-----------------------+----------+----------+----------
+System Name            : 8        : 142      : 149
+-----------------------+----------+----------+----------
+Incomplete data        : 1        : 150      : 150
+-----------------------+----------+----------+----------
+Minimized Entry        : 1        : 151      : 151
+Specific Data          :          :          :
+-----------------------+----------+----------+----------
+Reserved               : 18       : 152      : 169
+-----------------------+----------+----------+----------
+Null Value Indicators  : 52 (2,3) : 170      : 221
+-----------------------+----------+----------+----------
+Entry-Specific Data    : 102 (3,4): 222      : 323
+========================================================
+Notes:
+(1) The date and time of the journal entry is in 26-byte
+SAA timestamp format instead of separate date and time
+fields as in *TYPE1 and *TYPE2.
+(2) This is a 50-character variable-length field in the
+system-supplied database file QADSPJR4. However, a
+length of up to 8000 characters can be specified for
+this field using the NULLINDLEN parameter.
+(3) The first two bytes are the length of the variable-
+length field followed by the actual data if the fields
+are variable-length fields.
+(4) This is a 100-character variable-length field in
+the system-supplied database file QADSPJR4. However, a
+length of up to 32596 characters can be specified for
+this field using the ENTDTALEN parameter if it is a
+fixed-length field and the null value indicators field
+is also a fixed-length field.
+(5)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(6)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(7)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</dd>
+<dt><strong>*TYPE4</strong></dt>
+<dd>The converted entries include the information returned when OUTFILFMT(*TYPE3) is specified, the journal identifier, the physical file trigger indicator, and the referential constraint indicator.  The format of the information in each converted journal entry is shown in the following table:
+<strong>Figure:        Table 4 - OUTFILFMT(*TYPE4) Journal Entry Format</strong><div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table32" border="1" class="cds--data-table">
+
+
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             : Length   : From     : To
+=======================+==========+==========+==========
+Entry Length           : 5        : 1        : 5
+-----------------------+----------+----------+----------
+Sequence Number (5)    : 10       : 6        : 15
+-----------------------+----------+----------+----------
+Journal Code           : 1        : 16       : 16
+-----------------------+----------+----------+----------
+Journal Entry Type     : 2        : 17       : 18
+-----------------------+----------+----------+----------
+Timestamp(1)           : 26       : 19       : 44
+-----------------------+----------+----------+----------
+Job Name               : 10       : 45       : 54
+-----------------------+----------+----------+----------
+User Name              : 10       : 55       : 64
+-----------------------+----------+----------+----------
+Job Number             : 6        : 65       : 70
+-----------------------+----------+----------+----------
+Program Name           : 10       : 71       : 80
+-----------------------+----------+----------+----------
+Object Name            : 10       : 81       : 90
+-----------------------+----------+----------+----------
+Object Library         : 10       : 91       : 100
+-----------------------+----------+----------+----------
+Member Name            : 10       : 101      : 110
+-----------------------+----------+----------+----------
+Count/RRN (6)          : 10       : 111      : 120
+-----------------------+----------+----------+----------
+Flag                   : 1        : 121      : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (7)    : 10       : 122      : 131
+-----------------------+----------+----------+----------
+User Profile           : 10       : 132      : 141
+-----------------------+----------+----------+----------
+System Name            : 8        : 142      : 149
+-----------------------+----------+----------+----------
+Journal Identifier     : 10       : 150      : 159
+-----------------------+----------+----------+----------
+Referential            : 1        : 160      : 160
+Constraint             :          :          :
+-----------------------+----------+----------+----------
+Trigger                : 1        : 161      : 161
+-----------------------+----------+----------+----------
+Incomplete data        : 1        : 162      : 162
+-----------------------+----------+----------+----------
+Ignore during APYJRNCHG: 1        : 163      : 163
+or RMVJRNCHG           :          :          :
+-----------------------+----------+----------+----------
+Minimized Entry        : 1        : 164      : 164
+Specific Data          :          :          :
+-----------------------+----------+----------+----------
+Reserved               : 5        : 165      : 169
+-----------------------+----------+----------+----------
+Null Value Indicators  : 52       : 170 (2,3): 221
+-----------------------+----------+----------+----------
+Entry-Specific Data    : 102      : 222 (3,4): 323
+========================================================
+Notes:
+(1) The date and time of the journal entry is in 26-byte
+SAA timestamp format instead of separate date and time
+fields as in *TYPE1 and *TYPE2.
+(2) This is a 50-character variable-length field in the
+system-supplied database file QADSPJR4. However, a
+length of up to 8000 characters can be specified for
+this field using the NULLINDLEN parameter.
+(3) The first two bytes are the length of the variable-
+length field followed by the actual data if the fields
+are variable-length fields.
+(4) This is a 100-character variable-length field in
+the system-supplied database file QADSPJR4. However, a
+length of up to 32596 characters can be specified for
+this field using the ENTDTALEN parameter if it is a
+fixed-length field and the null value indicators field
+is also a fixed-length field.
+(5)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(6)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(7)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</dd>
+<dt><strong>*TYPE5</strong></dt>
+<dd>The converted entries include the information returned when OUTFILFMT(*TYPE4) is specified, in addition to the program library name, the program library ASP device name, the program library ASP number, the system sequence number, the logical unit of work, the transaction identifier, the thread identifier, the remote address, the address family, the remote port, the arm number, the receiver name, the receiver library name, the receiver library ASP device name, the receiver library ASP number, and the object type.  The format of the information in each converted journal entry is shown in the following table:
+<strong>Figure:        Table 5 - OUTFILFMT(*TYPE5) Journal Entry Format</strong><div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table33" border="1" class="cds--data-table">
+
+
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             : Length   : From     : To
+=======================+==========+==========+==========
+Entry Length           : 5        : 1        : 5
+-----------------------+----------+----------+----------
+Sequence Number        : 20       : 6        : 25
+-----------------------+----------+----------+----------
+Journal Code           : 1        : 26       : 26
+-----------------------+----------+----------+----------
+Journal Entry Type     : 2        : 27       : 28
+-----------------------+----------+----------+----------
+Timestamp(1)           : 26       : 29       : 54
+-----------------------+----------+----------+----------
+Job Name               : 10       : 55       : 64
+-----------------------+----------+----------+----------
+User Name              : 10       : 65       : 74
+-----------------------+----------+----------+----------
+Job Number             : 6        : 75       : 80
+-----------------------+----------+----------+----------
+Program Name           : 10       : 81       : 90
+-----------------------+----------+----------+----------
+Program Library Name   : 10       : 91       : 100
+-----------------------+----------+----------+----------
+Program Library ASP    : 10       : 101      : 110
+Device Name            :          :          :
+-----------------------+----------+----------+----------
+Program Library ASP    : 5        : 111      : 115
+Number                 :          :          :
+-----------------------+----------+----------+----------
+Object Name            : 10       : 116      : 125
+-----------------------+----------+----------+----------
+Object Library         : 10       : 126      : 135
+-----------------------+----------+----------+----------
+Member Name            : 10       : 136      : 145
+-----------------------+----------+----------+----------
+Count/RRN              : 20       : 146      : 165
+-----------------------+----------+----------+----------
+Flag                   : 1        : 166      : 166
+-----------------------+----------+----------+----------
+Commit Cycle ID        : 20       : 167      : 186
+-----------------------+----------+----------+----------
+User Profile           : 10       : 187      : 196
+-----------------------+----------+----------+----------
+System Name            : 8        : 197      : 204
+-----------------------+----------+----------+----------
+Journal Identifier     : 10       : 205      : 214
+-----------------------+----------+----------+----------
+Referential            : 1        : 215      : 215
+Constraint             :          :          :
+-----------------------+----------+----------+----------
+Trigger                : 1        : 216      : 216
+-----------------------+----------+----------+----------
+Incomplete data        : 1        : 217      : 217
+-----------------------+----------+----------+----------
+Ignore during APYJRNCHG: 1        : 218      : 218
+or RMVJRNCHG           :          :          :
+-----------------------+----------+----------+----------
+Minimized Entry        : 1        : 219      : 219
+Specific Data          :          :          :
+-----------------------+----------+----------+----------
+Object indicator       : 1        : 220      : 220
+-----------------------+----------+----------+----------
+System Sequence Number : 20       : 221      : 240
+-----------------------+----------+----------+----------
+Receiver Name          : 10       : 241      : 250
+-----------------------+----------+----------+----------
+Receiver Library Name  : 10       : 251      : 260
+-----------------------+----------+----------+----------
+Receiver Library ASP   : 10       : 261      : 270
+Device Name            :          :          :
+-----------------------+----------+----------+----------
+Receiver Library ASP   : 5        : 271      : 275
+Number                 :          :          :
+-----------------------+----------+----------+----------
+Arm Number             : 5        : 276      : 280
+-----------------------+----------+----------+----------
+Thread Identifier      : 8        : 281      : 288
+-----------------------+----------+----------+----------
+Thread Identifier      : 16       : 289      : 304
+Formatted              :          :          :
+-----------------------+----------+----------+----------
+Address Family         : 1        : 305      : 305
+-----------------------+----------+----------+----------
+Remote Port            : 5        : 306      : 310
+-----------------------+----------+----------+----------
+Remote Address         : 46       : 311      : 356
+-----------------------+----------+----------+----------
+Logical Unit of Work   : 39       : 357      : 395
+-----------------------+----------+----------+----------
+Transaction Identifier : 140      : 396      : 535
+-----------------------+----------+----------+----------
+Object Type            : 7        : 536      : 542
+-----------------------+----------+----------+----------
+File Type Indicator    : 1        : 543      : 543
+-----------------------+----------+----------+----------
+Nested Commit Level    : 7        : 544      : 550
+-----------------------+----------+----------+----------
+Reserved               : 5        : 551      : 555
+-----------------------+----------+----------+----------
+Null Value Indicators  : 52 (2,3) : 556      : 607
+-----------------------+----------+----------+----------
+Entry-Specific Data    : 102 (3,4): 608      : 709
+========================================================
+Notes:
+(1) The date and time of the journal entry is in 26-byte
+SAA timestamp format instead of separate date and time
+fields as in *TYPE1 and *TYPE2.
+(2) This is a 50-character variable-length field in the
+system-supplied database file QADSPJR5. However, a
+length of up to 8000 characters can be specified for
+this field using the NULLINDLEN parameter.
+(3) The first two bytes are the length of the variable-
+length field followed by the actual data if the fields
+are variable-length fields.
+(4) This is a 100-character variable-length field in
+the system-supplied database file QADSPJR5. However, a
+length of up to 32210 characters can be specified for
+this field using the ENTDTALEN parameter if it is a
+fixed-length field and the null value indicators field
+is also a fixed-length field.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table34" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OUTFILE"></a>
+<h2>File to receive output (OUTFILE)</h2>
+<p>Specifies the name and library of the database file to which the output of the command is directed.  If the output file already exists, the system attempts to use it.  Records may replace or be added to the current data in the file member.  If no records are written to the database file (because of the specified selection values), and *REPLACE is specified on the OUTMBR parameter, records are cleared from the existing database file.  If the file does not exist, this command creates a database file in the specified library.
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If a new file is created and *TYPE1 is specified on the OUTFILFMT parameter, the system uses QADSPJRN in QSYS with a format name of QJORDJE as a model.
+</li>
+<li class="cds--list__item">If a new file is created and *TYPE2 is specified on the OUTFILFMT  parameter, the system uses QADSPJR2 in QSYS with a format name of QJORDJE2 as a model.
+</li>
+<li class="cds--list__item">If a new file is created and *TYPE3 is specified on the OUTFILFMT parameter, the system uses QADSPJR3 in QSYS with a format name of QJORDJE3 as a model.
+</li>
+<li class="cds--list__item">If a new file is created and *TYPE4 is specified on the OUTFILFMT parameter, the system uses QADSPJR4 in QSYS with a format name of QJORDJE4 as a model.
+</li>
+<li class="cds--list__item">If a new file is created and *TYPE5 is specified on the OUTFILFMT parameter, the system uses QADSPJR5 in QSYS with a format name of QJORDJE5 as a model.
+</li>
+</ul>
+<h3><strong>Qualifier 1: File to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="italic">file-name</strong></dt>
+<dd>Specify the name of the file.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table35" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.OUTMBR"></a>
+<h2>Member to receive output (OUTMBR)</h2>
+<p>Specifies the name of the database file member that receives the output of the command.
+</p>
+<h3><strong>Element 1: Member to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the <strong>File to receive output (OUTFILE)</strong> parameter.  If the member already exists, you have the option to add new records to the end of the existing member or clear the member and then add the new records.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file member that receives the output.  If it does not exist, the system creates it.
+</dd>
+</dl>
+<h3><strong>Element 2: Replace or add records</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*REPLACE</strong></dt>
+<dd>The system clears the existing member and adds the new records.
+</dd>
+</dl>
+<dl>
+<dt><strong>*ADD</strong></dt>
+<dd>The system adds the new records to the end of the existing records.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table36" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.ENTDTALEN"></a>
+<h2>Entry data length (ENTDTALEN)</h2>
+<p>Specifies the maximum field length of the entry specific data portion of the journal entry when the output file is created by the system.  This field contains part of the variable portion of the journal entries (such as the after-image of records for update journal entries).  If the output file exists, this parameter is ignored.
+</p>
+<p>For this parameter, a single value or a single list of three elements can be specified.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is valid only if OUTPUT(*OUTFILE) is specified.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*OUTFILFMT</strong></dt>
+<dd>The field length of the entry specific data field in the output file is determined by the value specified on the <strong>Outfile format (OUTFILFMT)</strong> parameter.  The attributes of this field are the same as those of the entry specific data field in the corresponding model output file supplied by the system.
+<p>If *TYPE1 or *TYPE2 is specified on the <strong>Outfile format (OUTFILFMT)</strong> parameter, the entry specific data field in the output database file is a fixed-length field 100 characters long.
+</p>
+<p>If *TYPE1 and *TYPE2 are not specified on <strong>Outfile format (OUTFILFMT)</strong> parameter, the entry specific data field in the output file is a variable length field with a maximum field length of 100 characters and an allocated length of 100 characters.  The buffer is 2 bytes longer than the maximum field length to include the length portion of the variable length field.
+</p>
+</dd>
+<dt><strong>*CALC</strong></dt>
+<dd>The system calculates the length of the entry specific data field to accommodate the longest entry specific data among all journal entries in the specified receiver range.  The entry specific data field is a fixed-length character field.  The minimum length of the field is 130 characters.  If the length calculated by the system causes the record format length to exceed the maximum record length, a message is sent and the entry-specific data field is truncated.
+<p>If the length calculated by the system causes the record format length to exceed 32766 bytes, a diagnostic message is signaled and the entry specific data field is truncated.  If *TYPE1 and *TYPE2 are not specified on the <strong>Outfile format (OUTFILFMT)</strong> parameter, and the null value indicator field is a variable length field, the record format length cannot exceed 32740 bytes.
+</p>
+</dd>
+</dl>
+<h3><strong>Element 1: Field data format</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*VARLEN</strong></dt>
+<dd>The entry specific data field is a variable length field.  This value can be specified only when OUTFILFMT(*TYPE1) and OUTFILFMT(*TYPE2) are not specified.  If you specify this value, you can specify a value for the maximum field length and the allocated length of the entry specific data field.
+</dd>
+<dt><strong class="italic">field-length</strong></dt>
+<dd>Specify a field length of the entry specific data portion of the output file.  If *TYPE1 is specified on the <strong>Outfile format (OUTFILFMT)</strong> parameter, valid values range from 1 through 32641.  If *TYPE2 is specified on the OUTFILFMT parameter, valid values range from 1 through 32611.  If *TYPE3 or *TYPE4 is specified on the OUTFILFMT parameter and the null values indicator field is a fixed-length field, valid values range from 1 through 32596.  If *TYPE5 is specified on the OUTFILFMT parameter and the null values indicator field is a fixed-length field, valid values range from 1 through 32210.  If *TYPE3 or *TYPE4 is specified and the null value indicators field is a variable length field, valid values range from 1 through 32570.  If *TYPE5 is specified and the null value indicators field is a variable length field, valid values range from 1 through 32184.
+<p>
+<strong>Note:     </strong>The sum of the values specified on the <strong>Entry data length (ENTDTALEN)</strong> parameter and the <strong>Null value indicators length (NULLINDLEN)</strong> parameter cannot exceed the maximum record length for a database file (32740 for a file with variable length fields and 32766 for a file with fixed-length fields).
+</p>
+</dd>
+</dl>
+<h3><strong>Element 2: Variable length field length</strong>
+</h3>
+<dl>
+<dt><strong>*CALC</strong></dt>
+<dd>The system calculates the maximum length of the entry specific data field to accommodate the longest entry specific data of all journal entries in the specified receiver range.  The minimum length of this field is 130 bytes.  The corresponding buffer length is 132 bytes:  130 bytes of data and 2 bytes for the length portion of the variable length field.
+</dd>
+<dt><strong class="italic">field-length</strong></dt>
+<dd>Specify the number of characters for the maximum field length.  If the null value indicators field is a fixed-length field, valid values range from 1 to 32570.  If the null value indicators field is a variable length field, valid values range from 1 to 32185.
+</dd>
+</dl>
+<h3><strong>Element 3: Allocated length</strong>
+</h3>
+<dl>
+<dt><strong>*FLDLEN</strong></dt>
+<dd>The allocated length is the same as the maximum length of the field.
+</dd>
+<dt><strong class="italic">allocated-length</strong></dt>
+<dd>Specify the allocated length.  If *CALC is specified for the maximum field length and the maximum field length calculated by the system is smaller than the allocated length you specify, the allocated length is set to the maximum field length.  If a particular maximum field length is specified, the allocated length cannot exceed the maximum field length.
+</dd>
+</dl>
+<p>The following table lists the range of values for the ENTDTALEN parameter:
+</p>
+<strong>Figure:        Table 6 - Range of Values for ENTDTALEN Parameter</strong><div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table37" border="1" class="cds--data-table">
+
+
+<tbody><tr>
+<td>
+<p>
+</p><pre>Output    : Entry-    : Null Value: Entry Data: Maximum
+File      : Specific  : Indicators: Length    : Record
+Format    : Data      : Format    :           : Length
+          : Format    :           :           :
+==========+===========+===========+===========+===========
+*TYPE1    : Fixed     : Not       : 1-32641   : 32766
+          :           : applicable:           :
+          :           :           :           :
+----------+-----------+-----------+-----------+-----------
+*TYPE2    : Fixed     : Not       : 1-32611   : 32766
+          :           : applicable:           :
+          :           :           :           :
+----------+-----------+-----------+-----------+-----------
+*TYPE3    : Fixed     : Fixed     : 1-32596   : 32766
+----------+-----------+-----------+-----------+-----------
+*TYPE3    : Fixed     : Variable  : 1-32570   : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE3    : Variable  : Fixed     : 1-32570   : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE3    : Variable  : Variable  : 1-32568   : 32738
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Fixed     : Fixed     : 1-32596   : 32766
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Fixed     : Variable  : 1-32570   : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Variable  : Fixed     : 1-32570   : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Variable  : Variable  : 1-32568   : 32738
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Fixed     : Fixed     : 1-32210   : 32766
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Fixed     : Variable  : 1-32184   : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Variable  : Fixed     : 1-32184   : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Variable  : Variable  : 1-32182   : 32738
+==========================================================
+Note:
+When the file contains variable-length fields, the
+maximum record length does not include the 2 bytes per
+variable-length field.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table38" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.NULLINDLEN"></a>
+<h2>Null value indicators length (NULLINDLEN)</h2>
+<p>Specifies the length of the null value indicators field when the output file is created by the system.  This parameter can be specified only if OUTFILFMT(*TYPE1) and OUTFILFMT(*TYPE2) are not specified.
+</p>
+<p>Null value indicators are present in journal entries for record level operations as follows:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The corresponding physical file has null capable fields.
+</li>
+<li class="cds--list__item">The record image has been minimized in the entry specific data.
+</li>
+</ol>
+<p>If the record image has not been minimized in the entry specific data, then there is one null value indicator per field in the physical file.  Each indicator is one character long and can be either:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">'F0'X = Corresponding field is not null.
+</li>
+<li class="cds--list__item">'F1'X = Corresponding field is null.
+</li>
+</ul>
+<p>If the record image has been minimized on file field boundaries in the entry specific data, then there is one null value indicator per field in the physical file.  Each indicator is one character long and can be either:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">'F0'X = Corresponding field is not null.
+</li>
+<li class="cds--list__item">'F1'X = Corresponding field is null.
+</li>
+<li class="cds--list__item">'F9'X = Corresponding field was not changed and the default value for the field is returned.
+</li>
+</ul>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*OUTFILFMT</strong></dt>
+<dd>The null value indicators field has the same attributes as the corresponding field in the system-supplied model output file QADSPJR3, QADSPJR4 or QADSPJR5.  It is a variable length character field with a maximum length and an allocated length of 50 characters each.  The buffer is 2 bytes longer than the maximum field length to include the length portion of the variable length field.
+</dd>
+<dt><strong>*CALC</strong></dt>
+<dd>The system calculates the length of the field to accommodate the journal entry with the maximum number of null value indicators in the specified receiver range.  In this case, the null value indicators field is a fixed-length character field.  The minimum length of this field is 1 character to ensure that the field exists when the output file is created.  If the length calculated by the system causes the record format length to exceed 32766, a diagnostic message is sent and the null value indicators field is truncated.  If the entry specific data field is a variable length field, the record format length cannot exceed 32740 bytes.
+</dd>
+</dl>
+<h3><strong>Element 1: Field data format</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*VARLEN</strong></dt>
+<dd>To specify a variable-length field, specify *VARLEN for the first element and length values for the last two elements (or let the system use the default values).  The null value indicators field is a variable length field.  If you specify this value, you can specify a value for the maximum length and the allocated length of the field.
+</dd>
+<dt><strong class="italic">field-length</strong></dt>
+<dd>Specify the field length.  Valid values range from 1 through 8000 characters.  A nonzero value is required by the system to ensure that the field exists when the output file is created.  In this case, the null value indicators field is a fixed-length field.
+</dd>
+</dl>
+<h3><strong>Element 2: Variable length field length</strong>
+</h3>
+<dl>
+<dt><strong>*CALC</strong></dt>
+<dd>The system calculates the length of the null value indicators field to accommodate the journal entry with the maximum number of null value indicators in the specified receiver range.  To ensure that the field exists in the output file that is created, the minimum length of the field is 1 byte.  The corresponding buffer length is 3 bytes:  1 byte of data and 2 bytes for the length portion of the variable length field.
+</dd>
+<dt><strong class="italic">field-length</strong></dt>
+<dd>Specify the maximum field length.  Valid values range from 1 to 8000 characters.
+</dd>
+</dl>
+<h3><strong>Element 3: Allocated length</strong>
+</h3>
+<dl>
+<dt><strong>*FLDLEN</strong></dt>
+<dd>The allocated length is the same as the maximum field length.
+</dd>
+<dt><strong class="italic">allocated-length</strong></dt>
+<dd>Specify the allocated length.  Valid values range from 1 to 8000 characters.  If *CALC is specified for the maximum field length and the maximum length calculated by the system is smaller than the allocated length you specify, the allocated length is set to the maximum field length.  If the maximum field length is specified, the allocated length cannot exceed the maximum field length.
+</dd>
+</dl>
+<p>The following table lists the range of values for the NULLINDLEN Parameter:
+</p>
+<strong>Figure:        Table 7 - Range of Values for NULLINDLEN Parameter</strong><div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table39" border="1" class="cds--data-table">
+
+
+<tbody><tr>
+<td>
+<p>
+</p><pre>Output    : Entry-    : Null Value: Null Line : Maximum
+File      : Specific  : Indicators: Indicator : Record
+Format    : Data      : Format    : Length    : Length
+          : Format    :           :           :
+==========+===========+===========+===========+===========
+*TYPE3    : Fixed     : Fixed     : 1-8000    : 32766
+----------+-----------+-----------+-----------+-----------
+*TYPE3    : Fixed     : Variable  : 1-8000    : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE3    : Variable  : Fixed     : 1-8000    : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE3    : Variable  : Variable  : 1-8000    : 32738
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Fixed     : Fixed     : 1-8000    : 32766
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Fixed     : Variable  : 1-8000    : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Variable  : Fixed     : 1-8000    : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE4    : Variable  : Variable  : 1-8000    : 32738
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Fixed     : Fixed     : 1-8000    : 32766
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Fixed     : Variable  : 1-8000    : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Variable  : Fixed     : 1-8000    : 32740
+----------+-----------+-----------+-----------+-----------
+*TYPE5    : Variable  : Variable  : 1-8000    : 32738
+==========================================================
+Note:
+When the file contains variable-length fields, the maximum
+record length does not include the 2 bytes per variable-
+length field.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table40" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.INCENT"></a>
+<h2>Include entries (INCENT)</h2>
+<p>Specifies whether only the confirmed, or both the confirmed and unconfirmed, journal entries are converted for output.  This parameter only applies when converting journal entries for output from a remote journal.
+</p>
+<p>Confirmed entries are those journal entries which have been sent to this remote journal and the state of the Input/Output (I/O) to auxiliary storage for the same journal entries on the local journal is known.
+</p>
+<p>Unconfirmed entries are those journal entries which have been sent to this remote journal, but the state of the Input/Output (I/O) to auxiliary storage for the same journal entries on the local journal is not known, or the object name information for those journal entries is not yet known to the remote journal.  Unconfirmed journal entries can only exist within the attached receiver of a remote journal.  This only applies if synchronous delivery mode is being used for a particular remote journal.
+</p>
+<dl>
+<dt><strong class="underlined">*CONFIRMED</strong></dt>
+<dd>Only those journal entries which have been confirmed are converted for output.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All confirmed and unconfirmed journal entries are converted for output.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table41" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.FROMENT"></a>
+<h2>Starting sequence number (FROMENT)</h2>
+<p>Specifies the first journal entry that is being considered for conversion for external representation.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Starting sequence number (FROMENT)</strong> parameter or the <strong>Starting large sequence number (FROMENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first journal entry in the specified journal receiver range is the first entry being considered for conversion for external representation.
+</dd>
+<dt><strong class="italic">starting-sequence-number</strong></dt>
+<dd>Specify the assigned sequence number of the first journal entry that is being considered for conversion for external representation.  The possible range is 1 to 9,999,999,999.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table42" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.TOENT"></a>
+<h2>Ending sequence number (TOENT)</h2>
+<p>Specifies the last journal entry being converted for external representation.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Ending sequence number (TOENT)</strong> parameter or the <strong>Ending large sequence number (TOENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>The last journal entry in the specified journal receiver range is the final entry being converted for external representation.
+</dd>
+<dt><strong class="italic">ending-sequence-number</strong></dt>
+<dd>Specify the specific sequence number of the final journal entry being converted for external representation.  The possible range is 1 to 9,999,999,999.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table43" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.CMTCYCID"></a>
+<h2>Commit cycle identifier (CMTCYCID)</h2>
+<p>Specifies the journal entries considered for conversion based on their associated commit cycle identifier.  A commit cycle consists of all journal entries sharing the same commit cycle identifier.
+</p>
+<p>
+<strong>Note:     </strong>You can input a value for either the <strong>Commit cycle identifier</strong> field (CMTCYCID) or the <strong>Commit cycle large identifier</strong> field (CCIDLRG) but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The journal entries converted are not limited to a specified commit cycle identifier.
+</dd>
+<dt><strong class="italic">commit-cycle-identifier</strong></dt>
+<dd>Specify the commit cycle identifier of the journal entries to be considered for conversion.  The possible range is 1 to 9,999,999,999.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table44" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="DSPJRN.ASPDEV"></a>
+<h2>ASP device (ASPDEV)</h2>
+<p>Specifies the auxiliary storage pool (ASP) device where the journal is located.
+</p>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The ASPs that are currently part of the thread's library name space will be searched to find the library.  This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and, if the thread has an ASP group, all primary and secondary ASPs in the ASP group.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the primary or secondary ASP device to be searched to find the library.  The primary or secondary ASP must have been activated (by varying on the ASP device) and have a status of Available.  The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+<p>
+<strong>Note:     </strong>To specify a specific auxiliary storage pool (ASP) device name, you must have use (*USE) authority for each ASP device in the ASP group.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table45" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="DSPJRN.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Converting Journal Entries for Display</strong>
+</h3>
+<p>
+</p><pre>DSPJRN   JRN(MYLIB/JRNLA)
+</pre>
+<p></p>
+<p>When issued at a work station, this command converts and shows the first journal entries in the journal receiver currently attached (when the converting of journal entries is started) to the journal JRNLA in library MYLIB. Subsequent entries are shown by pressing the Page Down key. When entered from a batch job, the above command prints all converted journal entries with the job's spooled printer output. The entry-specific data portion of the journal entries are shown in character format.
+</p>
+<h3><strong>Example 2: Converting Journal Entries to an Output File</strong>
+</h3>
+<p>
+</p><pre>DSPJRN   JRN(MYLIB/JRNLA)
+         FILE((LIB1/A MBR3) (LIB1/C) (LIB2/*ALL *ALL))
+         RCVRNG((RCVLIB/RCV27 RCVLIB/RCV30))
+         FROMENT(4736)  ENTTYP(UP DL)
+         JOB(000666/QPGMR/WORKST01)
+         PGM(TSTPGMA)  ENTDTALEN(280)
+         OUTPUT(*OUTFILE)  OUTFILE(MYLIB/JRNENTFIL1)
+</pre>
+<p></p>
+<p>This command converts selected journal entries in the journal receiver chain (from receiver RCV27 in library RCVLIB to receiver RCV30 in library RCVLIB) that is associated with JRNLA in library MYLIB and places them in the first member of the database file JRNENTFIL1 in library MYLIB. If the database file does not exist, it is created with a format of QJORDJE. The last field in the format is 280 bytes in length. The journal entry that has a sequence number of 4736 is the first entry written to the output file. Only entries for record updates and deletes made by program TSTPGMA in the job 000666/QPGMR/WORKST01 to member MBR3 of file A in library LIB1, the first member of file C in library LIB1, and all members of all files in library LIB2 are written to the output file.
+</p>
+<h3><strong>Example 3: Converting Journal Entries for a Specific User Profile</strong>
+</h3>
+<p>
+</p><pre>DSPJRN   JRN(SS/J)  FILE(SS1/PF)  RCVRNG((SS/R1  *CURRENT))
+         JRNCDE(F)  USRPRF(MAC7)
+         OUTFILE(FMTLIB/ENTFILE)  OUTFILFMT(*TYPE2)
+</pre>
+<p></p>
+<p>This command converts selected journal entries in the journal receiver range. The range begins with journal receiver R1 in library SS and ends with the journal receiver currently attached (when the converting of journal entries is started) to journal J in library SS. The entries are placed in the first member of the database file ENTFILE in library FMTLIB. If the file does not exist, it is created with the QJORDJE2 format. The last field of the format is 100 bytes in length. Only entries made by the user MAC7 to the first member of file PF in library SS1 are written to the output file.
+</p>
+<h3><strong>Example 4: Converting Journal Entries with Null Value Field Length Specified</strong>
+</h3>
+<p>
+</p><pre>DSPJRN   JRN(LIBPROD/PRODJRN)  FILE(APPLIB/PFILE)
+         OUTFILFMT(*TYPE5)  OUTFILE(JRNLIB/ENTFILE)
+         ENTDTALEN(*VARLEN 500 100)  NULLINDLEN(25)
+</pre>
+<p></p>
+<p>This command converts selected journal entries from the journal receiver currently attached (when the converting of entries is started) to the journal PRODJRN in library LIBPROD. The entries are placed in the first member of the database file ENTFILE in library JRNLIB. If the file does not exist, it is created with the QJORDJE5 format. The entry-specific data field is a variable-length field with a maximum field length of 500 characters and an allocated length of 100 characters. The null value indicators field is a fixed-length field of 25 characters.  Only entries for the file PFILE in library APPLIB and for the first member of the file are written to the output file.
+</p>
+<h3><strong>Example 5: Converting Journal Entries with Null Value Field Length Calculated</strong>
+</h3>
+<p>
+</p><pre>DSPJRN   JRN(JRNLIB/JRNA)  FILE(FILLIB/FILEA)
+         ENTTYP(UP DL)  OUTPUT(*OUTFILE)
+         OUTFILFMT(*TYPE5)  OUTFILE(ENTLIB/ENTFILE)
+         ENTDTALEN(*CALC)  NULLINDLEN(*VARLEN *CALC *FLDLEN)
+</pre>
+<p></p>
+<p>This command converts only the record update (UP) and record delete (DL) journal entries for the first member of file PFILEA in library FILLIB from the journal receiver currently attached (when the converting of entries is started) to the journal JRNA in library JRNLIB. The entries are written to the first member of database file ENTFILE in library ENTLIB. If the file does not exist, it is created with the QJORDJE5 format. The system calculates the length of the fixed-length, entry-specific data field. The system also calculates the length of the variable-length null value indicators field. The allocated length of this field is the same as the maximum field length.
+</p>
+<h3><strong>Example 6: Converting Journal Entries Using *IGNFILSLT and *CURCHAIN</strong>
+</h3>
+<p>
+</p><pre>DSPJRN   JRN(JRNLIB/JRNA)  FILE(FILLIB/FILEA)
+         RCVRNG(*CURCHAIN)
+         JRNCDE((F *ALLSLT) (R *ALLSLT) (U *IGNFILSLT))
+         OUTPUT(*PRINT)
+</pre>
+<p></p>
+<p>This command converts journal entries with:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">File-level information for file FILEA in library FILLIB and for the first member of the file
+</li>
+<li class="cds--list__item">Record-level information for the first member of file FILEA in library FILLIB
+</li>
+<li class="cds--list__item">User-generated journal entries regardless of whether the entry is associated with any journaled file member
+</li>
+</ul>
+<p>Journal entries are converted from the chain of journal receivers, which are the journal receivers in the range from the latest chain break through the journal receiver currently attached when the converting of entries is started, associated with the journal JRNA in library JRNLIB. The converted entries are written to a print file.
+</p>
+<h3><strong>Example 7: Converting Journal Entries for Data Area, Data Queue, and Integrated File System Objects</strong>
+</h3>
+<p>
+</p><pre>DSPJRN   JRN(LIBPROD/PRODJRN)
+         OBJ((APPLIB/D1 *DTAARA) (APPLIB/D2 *DTAQ)
+         (APPLIB/D3 *FILE *NONE))
+         OBJPATH(('/mydirectory')) SUBTREE(*YES)
+         OUTFILFMT(*TYPE5)  OUTFILE(JRNLIB/ENTFILE)
+</pre>
+<p></p>
+<p>This command converts selected journal entries from the journal receiver currently attached (when the converting of entries is started) to the journal PRODJRN in library LIBPROD. The entries are placed in the first member of the database file ENTFILE in library JRNLIB. If the file does not exist, it is created with the QJORDJE5 format. Only entries associated with the specified objects are converted.  These objects are a data area in library APPLIB called D1, a data queue in library APPLIB called D2, and a database file D3 in library APPLIB, as well as the directory '/mydirectory' and all directories, stream files, and symbolic links within that directory or one of its subdirectories.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table46" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="DSPJRN.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF70A9</strong></dt>
+<dd>OBJPATH parameter not valid for a remote journal.
+</dd>
+<dt><strong>CPF70AC</strong></dt>
+<dd>Object for file identifier &amp;1 not found.
+</dd>
+<dt><strong>CPF70AE</strong></dt>
+<dd>Member *FIRST not allowed for a remote journal.
+</dd>
+<dt><strong>CPF70C3</strong></dt>
+<dd>File &amp;1 in library &amp;2 not a database file.
+</dd>
+<dt><strong>CPF7002</strong></dt>
+<dd>File &amp;1 in library &amp;2 not a physical file.
+</dd>
+<dt><strong>CPF7006</strong></dt>
+<dd>Member &amp;3 not found in file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF7007</strong></dt>
+<dd>Cannot allocate member &amp;3 file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF701B</strong></dt>
+<dd>Journal recovery of an interrupted operation failed.
+</dd>
+<dt><strong>CPF705C</strong></dt>
+<dd>INCENT(*ALL) not allowed for a local journal.
+</dd>
+<dt><strong>CPF7053</strong></dt>
+<dd>Values for RCVRNG parameter not correct; reason code &amp;1.
+</dd>
+<dt><strong>CPF7054</strong></dt>
+<dd>FROM and TO values not valid.
+</dd>
+<dt><strong>CPF7055</strong></dt>
+<dd>Maximum number of objects exceeded.
+</dd>
+<dt><strong>CPF7057</strong></dt>
+<dd>*LIBL not allowed with *ALL or *ALLLIB or a generic name.
+</dd>
+<dt><strong>CPF706B</strong></dt>
+<dd>Not authorized to specify JRN(*INTSYSJRN).
+</dd>
+<dt><strong>CPF706C</strong></dt>
+<dd>Value &amp;1 for JRNID parameter not valid.
+</dd>
+<dt><strong>CPF7060</strong></dt>
+<dd>Object not journaled in specified receiver range.
+</dd>
+<dt><strong>CPF7061</strong></dt>
+<dd>Conversion of journal entries failed.
+</dd>
+<dt><strong>CPF7062</strong></dt>
+<dd>No entries converted or received from journal &amp;1.
+</dd>
+<dt><strong>CPF7065</strong></dt>
+<dd>Entry type (ENTTYP) not valid for journal code (JRNCDE).
+</dd>
+<dt><strong>CPF707A</strong></dt>
+<dd>Value specified for ENTDTALEN is not valid.
+</dd>
+<dt><strong>CPF7074</strong></dt>
+<dd>RCVRNG for specified SEARCH not valid.
+</dd>
+<dt><strong>CPF708D</strong></dt>
+<dd>Journal receiver found logically damaged.
+</dd>
+<dt><strong>CPF709C</strong></dt>
+<dd>JOB, PGM, and USRPRF not valid for receiver range.
+</dd>
+<dt><strong>CPF9801</strong></dt>
+<dd>Object &amp;2 in library &amp;3 not found.
+</dd>
+<dt><strong>CPF9802</strong></dt>
+<dd>Not authorized to object &amp;2 in &amp;3.
+</dd>
+<dt><strong>CPF9803</strong></dt>
+<dd>Cannot allocate object &amp;2 in library &amp;3.
+</dd>
+<dt><strong>CPF9809</strong></dt>
+<dd>Library &amp;1 cannot be accessed.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+<dt><strong>CPF9845</strong></dt>
+<dd>Error occurred while opening file &amp;1.
+</dd>
+<dt><strong>CPF9846</strong></dt>
+<dd>Error while processing file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9847</strong></dt>
+<dd>Error occurred while closing file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9850</strong></dt>
+<dd>Override of printer file &amp;1 not allowed.
+</dd>
+<dt><strong>CPF9860</strong></dt>
+<dd>Error occurred during output file processing.
+</dd>
+<dt><strong>CPF9871</strong></dt>
+<dd>Error occurred while processing.
+</dd>
+<dt><strong>CPF9875</strong></dt>
+<dd>Resources exceeded on ASP &amp;1. Press HELP.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table47" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#DSPJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

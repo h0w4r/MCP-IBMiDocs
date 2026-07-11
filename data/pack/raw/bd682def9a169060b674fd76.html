@@ -1,0 +1,1216 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="CPYFRMIMPF.Top_Of_Page"></a>
+<h1>Copy From Import File  (CPYFRMIMPF)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#CPYFRMIMPF.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#CPYFRMIMPF.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#CPYFRMIMPF.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF"></a>
+<p>The Copy From Import File (CPYFRMIMPF) command copies all or part of an import file to the TOFILE.  The term <u> import file</u>  is used to describe a file created for purposes of copying data between heterogeneous databases.  The import file (FROMSTMF or FROMFILE parameter) is called the <u> from-file</u>  for this command.
+</p>
+<p>An important aspect of this command is its ability to copy the data in parallel. Parallelism is activated for files with at least 50,000 records.  Records are not copied in parallel when the FROMSTMF is specified. By using the Change Query Attributes (CHGQRYA) command, the number of tasks used to perform the copy is determined by the DEGREE parameter of the CHGQRYA command. For the best performance in implementing this command, the number of tasks should be set to the number of CPUs + 1.
+</p>
+<p>For example, if the system has two CPUs, specify CHGQRYA  DEGREE(*NBRTASKS 3)
+</p>
+<p>To use multiple tasks, you must have the Symmetric Multiprocessing Product (SMP) feature installed on the system.
+</p>
+<p>When copying from a tape file, any file in library QTEMP, a distributed file, or a logical file, only one task will be used.  See the CHGQRYA command for more information.
+</p>
+<p>Some of the specific functions that can be performed by the CPYFRMIMPF command include the following:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Copying a from-file to an externally-described physical file.  The to-file must exist on the system before the copy can occur.
+</li>
+<li class="cds--list__item">Limiting the range of records copied based on starting and ending relative record numbers.
+</li>
+<li class="cds--list__item">Adding records to an existing file member or replacing the contents of a receiving file member (MBROPT parameter).
+</li>
+</ul>
+<p><strong>Error Handling:</strong>  The escape message CPF2817 is sent for many different error conditions that can occur during a copy operation.  At least one diagnostic message that indicates the specific error condition always comes before the escape message.  More information on handling errors is in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p><strong>Overrides:</strong>  Overrides are processed for all files.
+</p>
+<p><strong>Status Message:</strong>  During the running of the CPYFRMIMPF command, message CPI2801 is sent as a status message informing the interactive user that a copy operation is occurring.  More information on preventing status messages from appearing is in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<h2><strong>Performance:</strong>
+</h2>
+<p>To increase the performance of the copy:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Delete any logical keyed files based on the to-file.
+</li>
+<li class="cds--list__item">Disable all constraints and triggers of the to-file.
+</li>
+<li class="cds--list__item">Ensure the from-file records will be copied correctly by attempting to copy a few of the records, by using the FROMRCD and number of records option, before copying all the records.
+</li>
+<li class="cds--list__item">Use the ERRLVL(*NOMAX) parameter after knowing the data can be copied correctly.
+</li>
+</ol>
+<h2><strong>Notes For Delimited Data:</strong>
+</h2>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">A delimiter can not be a blank(' ') character.
+</li>
+<li class="cds--list__item">A blank(' ') can not be contained within a numeric field.
+</li>
+<li class="cds--list__item">Fields in the from-file that are longer than the corresponding fields in the to-file will be truncated (on the right).
+</li>
+<li class="cds--list__item">If the data of the from-file does not represent all the fields in the to-file, the fields of the to-file will be set to null. If this happens and the to-file fields do not allow a null value, an error will occur and the record will not be copied to the to-file.
+</li>
+<li class="cds--list__item">A null field in the from-file can be specified by two adjacent field delimiters, two adjacent string delimiters or a field delimiter followed by a record delimiter.
+</li>
+<li class="cds--list__item">From-file field of all blank characters to be stored in a fixed-length field in the to-file, will preserve blank characters even though removal blanks is specified.
+</li>
+<li class="cds--list__item">From-file field of all blank characters to be stored in a variable-length field in the to-file, will be represented as only one significant blank character when removal blanks is specified.
+</li>
+</ol>
+<p><strong>Notes For Fixed Data:</strong>  The information for each field of the fixed format file must be in the following order:
+</p>
+<p>
+</p><pre>Field     Starting      Ending      Null
+Name      Position      Position    Character Position
+_________________________________________________________
+Field1   1              10          11
+Field2   12             15          16
+*END
+</pre>
+<p></p>
+<p>The information for this Field Definition File would be:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The Field Name is the name of the field in the to-file.
+</li>
+<li class="cds--list__item">The Starting Position indicates the byte position in the from-file to start copying data for the field.
+</li>
+<li class="cds--list__item">The Ending Position indicates the byte position in the from-file to end copying data for the field.
+</li>
+<li class="cds--list__item">The Null Character Position is the byte position in the from-file to indicate if the field is null. A value of 'Y' means the field is null. A value of 'N' means the field is not null.  If this value is 0, no null character is provided.
+</li>
+<li class="cds--list__item">The *END is the indicator for the end of the Field Definition File.
+<p>The Field Definition File for the above example would be:
+</p>
+<p>
+</p><pre>Field1   1              10          11
+Field2   12             15          16
+*END
+</pre>
+<p></p>
+</li>
+<li class="cds--list__item">An alternative for creating the Field Definition File is using the keyword *COL instead of the actual column names. *COL indicates the positions of the data in the stream file for all the columns in the target files listed in order.
+<p>An example of the corresponding file above Field Definition File using *COL:
+</p>
+<p>
+</p><pre>*COL     1              10          11
+*COL     12             15          16
+*END
+</pre>
+<p></p>
+</li>
+</ol>
+<h2><strong>Notes For LOB and XML data fields:</strong>
+</h2>
+<p>LOB and XML data fields require the use of secondary stream files that contain the LOB, or XML data and a Field Definition File that describes the offsets of the fields in the data file.  Each record that represents a LOB, or XML in the import file contains the name of a secondary stream file, instead of the data.
+</p>
+<p>
+<strong>Note:     </strong>In the following example, there are 3 secondary stream files (lob1.dat, lob2.dat, and lob3.dat) inside of the directory "/lobdata", which contain the actual LOB data to import.
+</p>
+<p>Using the following FDF:
+</p>
+<p>
+</p><pre>Field     Starting      Ending      Null
+Name      Position      Position    Character Position
+_________________________________________________________
+Field1    1             10         42
+Field2    12            40         44
+*END
+</pre>
+<p></p>
+<p>The import file would be 44 characters (based on the above FDF) in record length, containing the following data:
+</p>
+<p>
+</p><pre>0        1         2         3         4      /Character
+12345678901234567890123456789012345678901234  /Position
+aaaaaaaaaa   /lobdata/lob1.dat           N N
+bbbbbb       /lobdata/lob2.dat           N N
+             /lobdata/lob3.dat           Y N
+cccccccccc                               N Y
+</pre>
+<p></p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The from-file and to-file cannot be the same file.
+</li>
+<li class="cds--list__item">The to-file must exist prior to the copy.
+</li>
+<li class="cds--list__item">The to-file will not have the same relative record numbers as the from-file.
+</li>
+<li class="cds--list__item">The from-file must be a source file, or a valid file with 1 field that is not a numeric data type.
+</li>
+<li class="cds--list__item">If the from-file is defined with the SHARE(*YES) option for the file, unpredictable results can occur. Therefore, if the file is defined with SHARE(*YES), the user should make sure the file is not opened by any process prior to the copy.
+<p><strong>Note:</strong>  Do not precede an entry with an asterisk unless that entry is a "special value" that is shown (on the display itself or in the help information) with an asterisk.
+</p>
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="CPYFRMIMPF.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.FROMSTMF"><strong>FROMSTMF</strong></a></td>
+<td class="valigntop">From stream file</td>
+<td class="valigntop"><span class="var">Path name</span></td>
+<td class="valigntop">Optional, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="5"><a href="#CPYFRMIMPF.FROMFILE"><strong>FROMFILE</strong></a></td>
+<td class="valigntop">From file</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *ALL</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="5"><a href="#CPYFRMIMPF.TOFILE"><strong>TOFILE</strong></a></td>
+<td class="valigntop">To data base file</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *FROMMBR, *ALL</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.MBROPT"><strong>MBROPT</strong></a></td>
+<td class="valigntop">Replace or add records</td>
+<td class="valigntop"><strong class="underlined">*ADD</strong>, *REPLACE, *UPDADD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.STMFLEN"><strong>STMFLEN</strong></a></td>
+<td class="valigntop">Stream file record length</td>
+<td class="valigntop"><span class="var">Integer</span>, <strong class="underlined">*TOFILE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.FROMCCSID"><strong>FROMCCSID</strong></a></td>
+<td class="valigntop">From CCSID</td>
+<td class="valigntop">1-65533, <strong class="underlined">*FILE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.TOCCSID"><strong>TOCCSID</strong></a></td>
+<td class="valigntop">To CCSID</td>
+<td class="valigntop">1-65533, <strong class="underlined">*FILE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.RCDDLM"><strong>RCDDLM</strong></a></td>
+<td class="valigntop">Record delimiter</td>
+<td class="valigntop"><span class="var">Character value</span>, *ALL, *CRLF, *LF, *CR, *LFCR, <strong class="underlined">*EOR</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.DTAFMT"><strong>DTAFMT</strong></a></td>
+<td class="valigntop">Record format of import file</td>
+<td class="valigntop"><strong class="underlined">*DLM</strong>, *FIXED</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.STRDLM"><strong>STRDLM</strong></a></td>
+<td class="valigntop">String delimiter</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*DBLQUOTE</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.STRESCCHR"><strong>STRESCCHR</strong></a></td>
+<td class="valigntop">String escape character</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*STRDLM</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.RMVBLANK"><strong>RMVBLANK</strong></a></td>
+<td class="valigntop">Remove blanks</td>
+<td class="valigntop">*NONE, <strong class="underlined">*LEADING</strong>, *TRAILING, *BOTH</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.FLDDLM"><strong>FLDDLM</strong></a></td>
+<td class="valigntop">Field delimiter</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">','</strong>, *TAB</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="5"><a href="#CPYFRMIMPF.FLDDFNFILE"><strong>FLDDFNFILE</strong></a></td>
+<td class="valigntop">Field definition file</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *ALL</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.DECPNT"><strong>DECPNT</strong></a></td>
+<td class="valigntop">Decimal point</td>
+<td class="valigntop"><strong class="underlined">*PERIOD</strong>, *COMMA</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.DECFLTRND"><strong>DECFLTRND</strong></a></td>
+<td class="valigntop">Decimal float rounding mode</td>
+<td class="valigntop"><strong class="underlined">*HALFEVEN</strong>, *HALFDOWN, *HALFUP, *UP, *CEILING, *DOWN, *FLOOR</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.DATFMT"><strong>DATFMT</strong></a></td>
+<td class="valigntop">Date format</td>
+<td class="valigntop"><strong class="underlined">*ISO</strong>, *USA, *EUR, *JIS, *MDY, *DMY, *YMD, *JUL, *YYMD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.DATSEP"><strong>DATSEP</strong></a></td>
+<td class="valigntop">Date separator</td>
+<td class="valigntop"><strong class="underlined">'/'</strong>, '-', '.', ',', *BLANK</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.TIMFMT"><strong>TIMFMT</strong></a></td>
+<td class="valigntop">Time format</td>
+<td class="valigntop"><strong class="underlined">*ISO</strong>, *USA, *EUR, *JIS, *HMS</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.TIMSEP"><strong>TIMSEP</strong></a></td>
+<td class="valigntop">Time separator</td>
+<td class="valigntop"><strong class="underlined">':'</strong>, '.', *BLANK</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CPYFRMIMPF.FROMRCD"><strong>FROMRCD</strong></a></td>
+<td class="valigntop">Copy from record number</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Copy from record number</td>
+<td class="valigntop">
+<span class="var">Unsigned integer</span>, <strong class="underlined">*FIRST</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Number of records to copy</td>
+<td class="valigntop">
+<span class="var">Unsigned integer</span>, <strong class="underlined">*END</strong></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.ERRLVL"><strong>ERRLVL</strong></a></td>
+<td class="valigntop">Errors allowed</td>
+<td class="valigntop"><span class="var">Unsigned integer</span>, <strong class="underlined">*NOMAX</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="5"><a href="#CPYFRMIMPF.ERRRCDFILE"><strong>ERRRCDFILE</strong></a></td>
+<td class="valigntop">Error record file</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *ALL</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.ERRRCDOPT"><strong>ERRRCDOPT</strong></a></td>
+<td class="valigntop">Replace or add records</td>
+<td class="valigntop"><strong class="underlined">*ADD</strong>, *REPLACE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.RPLNULLVAL"><strong>RPLNULLVAL</strong></a></td>
+<td class="valigntop">Replace null values</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *FLDDFT</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.IDCOL"><strong>IDCOL</strong></a></td>
+<td class="valigntop">Identity column</td>
+<td class="valigntop"><strong class="underlined">*GEN</strong>, *FROMFLD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CPYFRMIMPF.RMVCOLNAM"><strong>RMVCOLNAM</strong></a></td>
+<td class="valigntop">Remove column names</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="CPYFRMIMPF.FROMSTMF"></a>
+<h2>From stream file (FROMSTMF)</h2>
+<p>Specifies the path name of the stream file from which data is to be copied.  Either this parameter or the FROMFILE parameter is required.
+</p>
+<dl>
+<dt><strong class="italic">path-name</strong></dt>
+<dd>Specify the path name of the input stream file.
+</dd>
+</dl>
+<p>
+<strong>Note:     </strong>This parameter is Unicode-enabled.  See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.FROMFILE"></a>
+<h2>From file (FROMFILE)</h2>
+<p>Specifies the from-file and file member that contains the records to be copied.  Either this parameter or the FROMSTMF parameter is required.
+</p>
+<p>The from-file can be any of the following file types:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">source physical file
+</li>
+<li class="cds--list__item">DDM file
+</li>
+<li class="cds--list__item">distributed physical file
+</li>
+<li class="cds--list__item">program-described physical file
+</li>
+<li class="cds--list__item">single-format logical file
+</li>
+<li class="cds--list__item">physical file with one (non-numeric) field
+</li>
+<li class="cds--list__item">tape file.
+</li>
+</ul>
+<h3><strong>Element 1: File</strong>
+</h3>
+<h3><strong>Qualifier 1: File</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file that contains the records to be copied.
+</dd>
+</dl>
+
+<dd>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is searched.  If no library is specified as the current library for the thread, the QGPL library is searched.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</dd>
+
+<h3><strong>Element 2: Member</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member (in order of creation date) of the from-file is used.  Specifying *FIRST is not allowed if the from-file has no members, unless a member name was specified on an OVRDBF (Override with Database File) command for the from-file.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All members of the specified from-file are to be copied. *ALL is not valid for a tape file.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file member to be used.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.TOFILE"></a>
+<h2>To data base file (TOFILE)</h2>
+<p>Specifies the output database file and member to receive the copied records. The output file is also referred to as the <u> to-file</u> .
+</p>
+<p>The to-file can be any of the following file types:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">source physical file
+</li>
+<li class="cds--list__item">DDM file
+</li>
+<li class="cds--list__item">distributed physical file
+</li>
+<li class="cds--list__item">program-described physical file
+</li>
+<li class="cds--list__item">externally-described physical file.
+</li>
+</ul>
+<p>This is a required parameter.
+</p>
+<h3><strong>Element 1: File</strong>
+</h3>
+<h3><strong>Qualifier 1: File</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file to receive the copied records.
+</dd>
+</dl>
+
+<dd>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is searched.  If no library is specified as the current library for the thread, the QGPL library is searched.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</dd>
+
+<h3><strong>Element 2: Member</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member (in order of creation date) of the output file is used.  Specifying *FIRST is not allowed if the to-file has no members, unless a member name was specified on an OVRDBF (Override with Database File) command for the to-file.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>The data is copied to the correct to-member of the partitioned table. *ALL is only valid for partitioned tables.
+</dd>
+<dt><strong>*FROMMBR</strong></dt>
+<dd>Corresponding from-file and to-file member names are used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file member to receive the copied records.  If a member with the specified name does not already exist in the file, the member will be created.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.MBROPT"></a>
+<h2>Replace or add records (MBROPT)</h2>
+<p>Specifies whether the copy operation replaces, adds, or updates the records in a database file member if a member with the specified name already exists. If the member does not exist, it is created and added to the database file.
+</p>
+<p>
+<strong>Note:     </strong>If *ADD or *UPDADD is specified and the to-file contains no records, the copy operation completes normally.  If *REPLACE is specified and the to-file contains no records, the copy operation ends abnormally.
+</p>
+<dl>
+<dt><strong class="underlined">*ADD</strong></dt>
+<dd>The copied records are added to the end of the existing member records.
+</dd>
+<dt><strong>*REPLACE</strong></dt>
+<dd>The copied records replace the existing member records.
+</dd>
+<dt><strong>*UPDADD</strong></dt>
+<dd>The system updates the duplicate key records and adds the new records to the end of the existing records.  Additional information is available in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.STMFLEN"></a>
+<h2>Stream file record length (STMFLEN)</h2>
+<p>The maximum record length of any record of the stream file when *DLM is specified for the <strong>Record format of import file (DTAFMT)</strong> parameter, or the actual record length of all the records of the stream file when *FIXED is specified for the DTAFMT parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*TOFILE</strong></dt>
+<dd>The record length of the to-file record is used.
+</dd>
+<dt><strong class="italic">record-length</strong></dt>
+<dd>Specify the length to be used for each record of the stream file.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.FROMCCSID"></a>
+<h2>From CCSID (FROMCCSID)</h2>
+<p>Specifies the coded character set identifier (CCSID) of the from-file.
+</p>
+<dl>
+<dt><strong class="underlined">*FILE</strong></dt>
+<dd>The from-file CCSID is used. If the from-file is a tape file, the job's default CCSID is used.
+</dd>
+<dt><strong class="italic">1-65533</strong></dt>
+<dd>Specify the CCSID to be used when the CCSID of the from-file is 65535, or if the from-file is a tape file.  If the from-file CCSID is not 65535, or the from-file is not a tape file, an error message will be sent.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.TOCCSID"></a>
+<h2>To CCSID (TOCCSID)</h2>
+<p>Specifies the coded character set identifier (CCSID) to use for the to-file fields.
+</p>
+<dl>
+<dt><strong class="underlined">*FILE</strong></dt>
+<dd>The data is converted to the to-file field CCSID.  If the CCSID of the to-file field is 65535, the field is not converted and it is treated as binary data.
+</dd>
+<dt><strong class="italic">1-65533</strong></dt>
+<dd>Specify the CCSID to be used when the CCSID of the to-file field is 65535. If the CCSID of the to-file field is not 65535, this parameter is ignored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.RCDDLM"></a>
+<h2>Record delimiter (RCDDLM)</h2>
+<p>Specifies the record delimiter to be used.
+</p>
+<p>If the FROMFILE parameter is specified, valid values are *EOR or a character value.  If the FROMSTMF parameter is specified, valid values are  *CR, *CRLF, *LF, *LFCR or *ALL.
+</p>
+<dl>
+<dt><strong class="underlined">*EOR</strong></dt>
+<dd>End of record.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>First occurrence of any single or double character combination of carriage-return and line-feed.
+</dd>
+<dt><strong>*CRLF</strong></dt>
+<dd>Carriage-return followed by line-feed.
+</dd>
+<dt><strong>*LF</strong></dt>
+<dd>Line-feed.
+</dd>
+<dt><strong>*CR</strong></dt>
+<dd>Carriage-return.
+</dd>
+<dt><strong>*LFCR</strong></dt>
+<dd>Line-feed followed by carriage-return.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the single character which indicates the end of a single record.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.DTAFMT"></a>
+<h2>Record format of import file (DTAFMT)</h2>
+<p>Specifies the format of the data in the from-file.
+</p>
+<dl>
+<dt><strong class="underlined">*DLM</strong></dt>
+<dd>The data contains delimiter characters.  Refer to parameter descriptions for STRDLM, FLDDLM, and RCDDLM for information on string, field, and record delimiter characters.
+</dd>
+<dt><strong>*FIXED</strong></dt>
+<dd>The data format is fixed.  The data is in fixed columns in each record.  The description of the format of the data is contained in the file member identified by the FLDDFNFILE parameter.  Refer to the parameter description for RCDDLM for information on the record delimiter character.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.STRDLM"></a>
+<h2>String delimiter (STRDLM)</h2>
+<p>Specifies the string delimiter for the data of the fields being copied from.  This character indicates the start and end of character, date, time, and timestamp strings in the from-file.  Depending on the utility used to create the from-file, some types of strings may appear in the from-file without string delimiter characters.
+</p>
+<p>The specified delimiter character will be converted from the coded character set identifier (CCSID) of the job to the CCSID of the from-file.
+</p>
+<dl>
+<dt><strong class="underlined">*DBLQUOTE</strong></dt>
+<dd>The double quote character is used as the string delimiter.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>No delimiter is expected as the string delimiter. The blank character ( ) represents the *NONE value.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the character value for the string delimiter.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.STRESCCHR"></a>
+<h2>String escape character (STRESCCHR)</h2>
+<p>Specifies the character to be looked for within string fields in the from-file. Character fields in the from-file may contain characters that have a special meaning to CPYFRMIMPF.  These characters include the string delimiter and the string escape character itself. As a result, CPYFRMIMPF could misinterpret the data and produce unexpected results.
+</p>
+<p>The string escape character precedes such characters in the data and revokes their special meaning. CPYFRMIMPF can then determine if the character is data or a string delimiter. The escape characters are not imported into the to-file.
+</p>
+<p>This parameter describes the method that the export utility used for character fields that contained the string escape character or string delimiter.
+</p>
+<p>The specified string escape character will be converted from the coded character set identifier (CCSID) of the job to the CCSID of the from-file. If the from-file CCSID is 1200, 1208, or 13488 the string escape character is converted to the job CCSID, or the job's default CCSID when the job CCSID is 65535.
+</p>
+<dl>
+<dt><strong class="underlined">*STRDLM</strong></dt>
+<dd>The string delimiter is used as the escape character.  If a character data field contains two adjacent string delimiter characters, they are interpreted as a single data character.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>No string escape character is present in the data.  If any string delimiter characters are present in the data, they will be treated as string delimiters.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the character to be used as the escape character.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.RMVBLANK"></a>
+<h2>Remove blanks (RMVBLANK)</h2>
+<p>Specifies whether blanks are removed or retained.
+</p>
+<dl>
+<dt><strong class="underlined">*LEADING</strong></dt>
+<dd>Leading blanks are removed.
+</dd>
+<dt><strong>*TRAILING</strong></dt>
+<dd>Trailing blanks are removed.
+</dd>
+<dt><strong>*BOTH</strong></dt>
+<dd>Leading and trailing blanks are removed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>All leading and trailing blanks are retained.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.FLDDLM"></a>
+<h2>Field delimiter (FLDDLM)</h2>
+<p>Specifies the field delimiter for the record being copied from. This value is used to determine where one field ends and the next field begins.
+</p>
+<dl>
+<dt><strong class="underlined">','</strong></dt>
+<dd>The comma character is the default name of the field delimiter.
+</dd>
+<dt><strong>*TAB</strong></dt>
+<dd>The horizontal tab character is used as field delimiter.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the character value for the field delimiter.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.FLDDFNFILE"></a>
+<h2>Field definition file (FLDDFNFILE)</h2>
+<p>Specifies the field definition file which defines the format of the data when *FIXED is specified for the <strong>Record format of import file (DTAFMT)</strong> parameter.  If DTAFMT(*FIXED) is specified, this parameter is required.
+</p>
+<p>The field definition file can be any of the following file types:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">source physical file
+</li>
+<li class="cds--list__item">DDM file
+</li>
+<li class="cds--list__item">distributed physical file
+</li>
+<li class="cds--list__item">program-described physical file
+</li>
+<li class="cds--list__item">externally-described physical file with one field.
+</li>
+</ul>
+<h3><strong>Element 1: File</strong>
+</h3>
+<h3><strong>Qualifier 1: File</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file that contains the fixed field definition.
+</dd>
+</dl>
+
+<dd>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is searched.  If no library is specified as the current library for the thread, the QGPL library is searched.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</dd>
+
+<h3><strong>Element 2: Member</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member (in order of creation date) in the field definition file is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the field definition file member to use.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.DECPNT"></a>
+<h2>Decimal point (DECPNT)</h2>
+<p>Specifies the decimal point character to be used when copying numeric data from the from-file.
+</p>
+<dl>
+<dt><strong class="underlined">*PERIOD</strong></dt>
+<dd>A period (.) is used for the decimal point character.
+</dd>
+<dt><strong>*COMMA</strong></dt>
+<dd>A comma (,) is used for the decimal point character.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.DECFLTRND"></a>
+<h2>Decimal float rounding mode (DECFLTRND)</h2>
+<p>Specifies the mode that will be used when rounding decimal floating point data.
+</p>
+<dl>
+<dt><strong class="underlined">*HALFEVEN</strong></dt>
+<dd>Round to nearest; if equidistant, round so that the final digit is even. If the discarded digits represent greater than half (0.5) the value of a one in the next left position then the result coefficient should be incremented by 1 (rounded up). If they represent less than half, then the result coefficient is not adjusted (that is, the discarded digits are ignored). Otherwise (they represent exactly half) the result coefficient is unaltered if its rightmost digit is even, or incremented by 1 (rounded up) if its rightmost digit is odd (to make an even digit). This is the default value for the parameter.
+</dd>
+<dt><strong>*HALFDOWN</strong></dt>
+<dd>Round to nearest; if equidistant, round down. If the discarded digits represent greater than half (0.5) of the value of a one in the next left position then the result coefficient should be incremented by 1 (rounded up). Otherwise (the discarded digits are 0.5 or less) the discarded digits are ignored.
+</dd>
+<dt><strong>*HALFUP</strong></dt>
+<dd>Round to nearest; if equidistant, round up. If the discarded digits represent greater than or equal to half (0.5) of the value of a one in the next left position then the result coefficient should be incremented by 1 (rounded up). Otherwise the discarded digits are ignored.
+</dd>
+<dt><strong>*UP</strong></dt>
+<dd>Round away from 0; if all of the discarded digits are zero the result is unchanged other than the removal of discarded digits. Otherwise, the result coefficient should be incremented by 1 (rounded up).
+</dd>
+<dt><strong>*CEILING</strong></dt>
+<dd>Round towards +infinity. If all of the discarded digits are zero or if the sign is negative the result is unchanged other than the removal of discarded digits. Otherwise, the result coefficient should be incremented by 1 (rounded up).
+</dd>
+<dt><strong>*DOWN</strong></dt>
+<dd>Round towards 0. The discarded digits are ignored, this is the same as truncation and is conceptually the same as 'round to zero'.
+</dd>
+<dt><strong>*FLOOR</strong></dt>
+<dd>Round towards -infinity. If all of the discarded digits are zero or if the sign is positive the result is unchanged other than the removal of discarded digits. Otherwise, the sign is negative and the result coefficient should be incremented by 1.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.DATFMT"></a>
+<h2>Date format (DATFMT)</h2>
+<p>Specifies the date format to be used when copying date fields from the from-file.
+</p>
+<dl>
+<dt><strong class="underlined">*ISO</strong></dt>
+<dd>The International Organization for Standardization (ISO) date format <strong>yyyy-mm-dd</strong> is used.
+</dd>
+<dt><strong>*USA</strong></dt>
+<dd>The United States date format <strong>mm/dd/yyyy</strong> is used.
+</dd>
+<dt><strong>*EUR</strong></dt>
+<dd>The European date format <strong>dd.mm.yyyy</strong> is used.
+</dd>
+<dt><strong>*JIS</strong></dt>
+<dd>The Japanese Industrial Standard date format <strong>yyyy-mm-dd</strong> is used.
+</dd>
+<dt><strong>*MDY</strong></dt>
+<dd>The date format <strong>mm/dd/yy</strong> is used.
+</dd>
+<dt><strong>*DMY</strong></dt>
+<dd>The date format <strong>dd/mm/yy</strong> is used.
+</dd>
+<dt><strong>*YMD</strong></dt>
+<dd>The date format <strong>yy/mm/dd</strong> is used.
+</dd>
+<dt><strong>*JUL</strong></dt>
+<dd>The Julian date format <strong>yy/ddd</strong> is used.
+</dd>
+<dt><strong>*YYMD</strong></dt>
+<dd>The date format <strong>yyyymmdd</strong> is used.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.DATSEP"></a>
+<h2>Date separator (DATSEP)</h2>
+<p>Specifies the date separator for the date format. The separator is ignored for DATFMT of *ISO, *USA, *EUR, and *JIS because these formats have a fixed date separator.
+</p>
+<dl>
+<dt><strong class="underlined">'/'</strong></dt>
+<dd>A forward slash is used as the date separator character.
+</dd>
+<dt><strong>'-'</strong></dt>
+<dd>A hyphen is used as the date separator character.
+</dd>
+<dt><strong>'.'</strong></dt>
+<dd>A period is used as the date separator character.
+</dd>
+<dt><strong>','</strong></dt>
+<dd>A comma is used as the date separator character.
+</dd>
+<dt><strong>*BLANK</strong></dt>
+<dd>A blank is used as the date separator character.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.TIMFMT"></a>
+<h2>Time format (TIMFMT)</h2>
+<p>Specifies the time format to be used when copying time fields from the from-file.
+</p>
+<dl>
+<dt><strong class="underlined">*ISO</strong></dt>
+<dd>The International Organization for Standardization (ISO) time format <strong>hh.mm.ss</strong> is used.
+</dd>
+<dt><strong>*USA</strong></dt>
+<dd>The United States time format <strong>hh:mm xx</strong> is used, where <strong>xx</strong> is AM or PM.
+</dd>
+<dt><strong>*EUR</strong></dt>
+<dd>The European time format <strong>hh.mm.ss</strong> is used.
+</dd>
+<dt><strong>*JIS</strong></dt>
+<dd>The Japanese Industrial Standard time format <strong>hh:mm:ss</strong> is used.
+</dd>
+<dt><strong>*HMS</strong></dt>
+<dd>The <strong>hh:mm:ss</strong> format is used.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.TIMSEP"></a>
+<h2>Time separator (TIMSEP)</h2>
+<p>Specifies the time separator for the time format.  This parameter is ignored if *ISO, *USA, *EUR, or *JIS is specified for the <strong>Time format (TIMFMT)</strong> parameter because those time formats define the required time separator character.
+</p>
+<dl>
+<dt><strong class="underlined">':'</strong></dt>
+<dd>A colon is used as the time separator character.
+</dd>
+<dt><strong>'.'</strong></dt>
+<dd>A period is used as the time separator character.
+</dd>
+<dt><strong>*BLANK</strong></dt>
+<dd>A blank is used as the time separator character.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.FROMRCD"></a>
+<h2>Copy from record number (FROMRCD)</h2>
+<p>Specifies which records are copied from the from-file.
+</p>
+<h3><strong>Element 1: Copy from record number</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The copy operation begins with the first record in the from-file.
+</dd>
+<dt><strong class="italic">1-4294967288</strong></dt>
+<dd>Specify the record number of the first record to be copied from the from-file.
+</dd>
+</dl>
+<h3><strong>Element 2: Number of records to copy</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*END</strong></dt>
+<dd>Records are copied until the end-of-file condition is indicated.
+</dd>
+<dt><strong class="italic">1-4294967288</strong></dt>
+<dd>Specify the number of records to be copied from the from-file.  If an end-of-file condition is reached before this number of records has been copied, no error message is issued and the copy operation ends normally.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table24" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.ERRLVL"></a>
+<h2>Errors allowed (ERRLVL)</h2>
+<p>Specifies the maximum number of recoverable read or write errors for the to-file that are tolerated during the copy operation.
+</p>
+<dl>
+<dt><strong class="underlined">*NOMAX</strong></dt>
+<dd>No maximum number of errors is specified, and all recoverable errors are tolerated.  The copy operation continues regardless of the number of recoverable errors found.
+</dd>
+<dt><strong class="italic">number-of-errors</strong></dt>
+<dd>Specify the maximum number of recoverable errors allowed.  If one more recoverable error occurs than the value specified here, the copy operation ends.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table25" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.ERRRCDFILE"></a>
+<h2>Error record file (ERRRCDFILE)</h2>
+<p>Specifies the database file where the records that are in error should be written.
+</p>
+<p>The error record file can be any of the following file types:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">source physical file
+</li>
+<li class="cds--list__item">DDM file
+</li>
+<li class="cds--list__item">distributed physical file
+</li>
+<li class="cds--list__item">program-described physical file
+</li>
+<li class="cds--list__item">externally-described physical file.
+</li>
+</ul>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No error record file is provided.
+</dd>
+</dl>
+<h3><strong>Element 1: File</strong>
+</h3>
+<h3><strong>Qualifier 1: File</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the error record file.
+</dd>
+</dl>
+
+<dd>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is searched.  If no library is specified as the current library for the thread, the QGPL library is searched.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</dd>
+
+<h3><strong>Element 2: Member</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member (in order of creation date) in the error file is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the error file member to be used to contain the from-file records which contained errors.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table26" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.ERRRCDOPT"></a>
+<h2>Replace or add records (ERRRCDOPT)</h2>
+<p>Specifies how error records are added to the error record file.
+</p>
+<dl>
+<dt><strong class="underlined">*ADD</strong></dt>
+<dd>The system adds the new records to the end of the existing records.
+</dd>
+<dt><strong>*REPLACE</strong></dt>
+<dd>The system deletes any existing records and adds the new records.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table27" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.RPLNULLVAL"></a>
+<h2>Replace null values (RPLNULLVAL)</h2>
+<p>Specifies whether null field values will be replaced when copying import file records.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>If a field in the to-file is null capable a null value will be used.  Otherwise an error will be sent.
+</dd>
+<dt><strong>*FLDDFT</strong></dt>
+<dd>If a null value is detected when parsing an import file record, the corresponding field in the database file record is assigned a default value based on the field type or DDS default value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table28" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.IDCOL"></a>
+<h2>Identity column (IDCOL)</h2>
+<p>Specifies, if the to-file is an SQL table which contains a column with the IDENTITY attribute or a column with the ROWID data type, whether the value for the column will be generated by the system or the default value is used.
+</p>
+<dl>
+<dt><strong class="underlined">*GEN</strong></dt>
+<dd>A system-generated value will be inserted into the Identity Column or ROWID column.
+</dd>
+<dt><strong>*FROMFLD</strong></dt>
+<dd>If a value exists in the Identity Column or ROWID column of the fromfile field, this value will be inserted into the Identity Column of the to-file.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table29" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CPYFRMIMPF.RMVCOLNAM"></a>
+<h2>Remove column names (RMVCOLNAM)</h2>
+<p>Specifies if the column names should be removed from the from file.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>The copy will begin with the first record from the from file.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>The copy will begin with the second record from the from file because the first record contains the column names.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table30" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="CPYFRMIMPF.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Copying Physical File Import File</strong>
+</h3>
+<p>
+</p><pre>CHGQRYA   DEGREE(*NBRTASKS 3)
+  :
+CPYFRMIMPF   FROMFILE(IMPFILE)  TOFILE(DB2FILE)
+             FLDDLM(';') RCDDLM(X'07')
+             DATFMT(*JIS) TIMFMT(*JIS)
+</pre>
+<p></p>
+<p>The Change Query Attribute (CHGQRYA) is run prior to CPYFRMIMPF to allow the copy processing to be done by three tasks running in parallel.
+</p>
+<p>All records of file IMPFILE will be copied to the externally-described physical file DB2FILE. Fields in the from-file are delimited by semi-colon (;) characters. Each record in the from file is delimited by a hexadecimal '07' character. Input date fields are are in <strong>yyyy-mm-dd</strong> format. Input time fields are in <strong>hh:mm:ss</strong> format.
+</p>
+<h3><strong>Example 2: Copying Tape File Import File</strong>
+</h3>
+<p>
+</p><pre>OVRTAPF   FILE(QTAPE)  DEV(TAP02)  SEQNBR(3)
+  :
+CPYFRMIMPF   FROMFILE(QTAPE) TOFILE(DB2WHS)  ERRFILE(IMPERR)
+</pre>
+<p></p>
+<p>The Override Tape File (OVRTAPF) parameter is run prior to CPYFRMIMPF to indicate that tape device TAP02 should be used for doing the copy. The from-file must be the third file on the tape mounted on TAP02.
+</p>
+<p>All records of the from-file will be copied to the externally described physical file DB2WHS. Fields in the from-file are delimited by comma (,) characters. Input date fields are are in <strong>yyyy-mm-dd</strong> (ISO) format. Input time fields are in <strong>hh.mm.ss</strong> (ISO) format. From-file records that are found to contain errors and cannot be added to file DB2WHS are added to error file IMPERR.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table31" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="CPYFRMIMPF.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF2817</strong></dt>
+<dd>Copy command ended because of error.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table32" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CPYFRMIMPF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

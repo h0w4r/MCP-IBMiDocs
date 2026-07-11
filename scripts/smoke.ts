@@ -1,6 +1,6 @@
 import { CorpusRepository } from "../src/repository/CorpusRepository.js";
 
-const queries = ["CRTRPGMOD", "RNF0004", "CLLE", "DDS PF", "SQLRPGLE"];
+const queries = ["CRTRPGMOD", "RNF5393", "CLLE", "DDS PF", "SQLRPGLE"];
 
 async function main(): Promise<void> {
   const repo = new CorpusRepository(process.env.IBMI_DOCS_PACK_DIR ?? "data/pack");

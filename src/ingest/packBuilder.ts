@@ -2,9 +2,12 @@ import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { spawn } from "node:child_process";
+import os from "node:os";
 import Database from "better-sqlite3";
 import {
-  configuredEmbeddingModel,
+  configuredEmbeddingDtype,
+  configuredEmbeddingModelIdentity,
   DEFAULT_EMBEDDING_DIMENSIONS,
   embedTexts,
   embeddingPrefixesForModel,
@@ -12,6 +15,7 @@ import {
   semanticTitlePassageText,
   vectorToBuffer
 } from "../repository/neuralEmbeddings.js";
+import { splitSqliteForDistribution } from "../pack/sqliteParts.js";
 import type { CorpusManifest, DocumentRecord, SourceManifest } from "../types.js";
 import { nowIso } from "../util/common.js";
 import { resolveContainedPath } from "../util/paths.js";
@@ -33,6 +37,10 @@ interface PreparedDocument {
   sections: Array<{ kind: string; title: string; body: string; startLine: number; endLine: number }>;
   chunks: PreparedChunk[];
 }
+
+// E5-small admite 512 tokens. Este techo deja margen para título, ruta,
+// categoría y versión que se anteponen al cuerpo antes de tokenizar.
+const EMBEDDING_CHUNK_MAX_CHARS = 1800;
 
 export async function buildDataPack(options: BuildPackOptions): Promise<CorpusManifest> {
   const inputDir = path.resolve(options.inputDir);
@@ -57,6 +65,7 @@ export async function buildDataPack(options: BuildPackOptions): Promise<CorpusMa
   await copyDocumentFiles(manifests, inputDir, outDir, sourceDocuments, documents);
   await fs.writeFile(path.join(outDir, "manifest.json"), JSON.stringify(merged, null, 2), "utf8");
   await buildSqlite(path.join(outDir, "ibmi-docs.sqlite"), outDir, documents, merged);
+  await splitSqliteForDistribution(path.join(outDir, "ibmi-docs.sqlite"));
   return merged;
 }
 
@@ -233,8 +242,8 @@ function escapeHtml(value: string): string {
 
 async function buildSqlite(dbPath: string, packRoot: string, documents: DocumentRecord[], manifest: CorpusManifest): Promise<void> {
   await fs.rm(dbPath, { force: true });
-  const embeddingModel = configuredEmbeddingModel();
-  const preparedDocuments = await prepareDocumentsForSqlite(packRoot, documents, embeddingModel);
+  const embeddingModelIdentity = configuredEmbeddingModelIdentity();
+  const preparedDocuments = await prepareDocumentsForSqlite(packRoot, documents, embeddingModelIdentity);
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
@@ -311,11 +320,12 @@ async function buildSqlite(dbPath: string, packRoot: string, documents: Document
     insertMeta.run("manifest", JSON.stringify(manifest));
     insertMeta.run("generated_at", manifest.generatedAt);
     insertMeta.run("embedding_provider", "transformers-js");
-    insertMeta.run("embedding_model", embeddingModel);
+    insertMeta.run("embedding_model", embeddingModelIdentity);
+    insertMeta.run("embedding_dtype", configuredEmbeddingDtype());
     insertMeta.run("embedding_dimensions", String(preparedDocuments[0]?.chunks[0]?.vector.length ?? DEFAULT_EMBEDDING_DIMENSIONS));
     insertMeta.run("embedding_runtime_policy", "download-at-install-update; runtime-local-only");
-    insertMeta.run("embedding_query_prefix", embeddingPrefixesForModel(embeddingModel).queryPrefix);
-    insertMeta.run("embedding_passage_prefix", embeddingPrefixesForModel(embeddingModel).passagePrefix);
+    insertMeta.run("embedding_query_prefix", embeddingPrefixesForModel(embeddingModelIdentity).queryPrefix);
+    insertMeta.run("embedding_passage_prefix", embeddingPrefixesForModel(embeddingModelIdentity).passagePrefix);
     insertMeta.run("embedding_facets", "document-title-path,chunk-combined");
     for (const prepared of preparedDocuments) {
       const { doc } = prepared;
@@ -363,7 +373,7 @@ async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRe
     const textPath = path.join(packRoot, doc.normalizedTextPath);
     const text = readTextIfExists(textPath);
     const sections = extractDocumentSections(text);
-    const chunkBodies = buildEmbeddingChunkBodies(text, 3200, {
+    const chunkBodies = buildEmbeddingChunkBodies(text, EMBEDDING_CHUNK_MAX_CHARS, {
       atomicEntries: shouldBuildAtomicEmbeddingEntries(doc)
     });
     for (const body of chunkBodies) {
@@ -410,6 +420,11 @@ async function prepareDocumentsForSqlite(packRoot: string, documents: DocumentRe
 }
 
 async function embedPassagesInBatches(texts: string[], facet: string): Promise<Float32Array[]> {
+  const pythonExecutable = process.env.IBMI_DOCS_BUILD_EMBEDDING_PYTHON?.trim();
+  const pytorchModel = process.env.IBMI_DOCS_BUILD_EMBEDDING_MODEL?.trim();
+  if (pythonExecutable && pytorchModel) {
+    return embedPassagesWithPython(texts, facet, pythonExecutable, pytorchModel);
+  }
   const batchSize = Number(process.env.IBMI_DOCS_EMBEDDING_BATCH_SIZE ?? 64);
   const vectors: Float32Array[] = [];
   for (let index = 0; index < texts.length; index += batchSize) {
@@ -420,6 +435,77 @@ async function embedPassagesInBatches(texts: string[], facet: string): Promise<F
     }
   }
   return vectors;
+}
+
+/**
+ * Acelera exclusivamente la construcción del data pack con el checkpoint
+ * PyTorch del mismo Transformer afinado que se exporta a ONNX para runtime.
+ * La búsqueda del usuario sigue ejecutándose localmente con Transformers.js;
+ * esta ruta no se incluye ni se necesita durante npm install o las consultas.
+ */
+async function embedPassagesWithPython(
+  texts: string[],
+  facet: string,
+  pythonExecutable: string,
+  pytorchModel: string
+): Promise<Float32Array[]> {
+  const helper = path.resolve("scripts", "embed-passages.py");
+  if (!fsSync.existsSync(helper)) throw new Error(`No existe el acelerador de embeddings: ${helper}`);
+  const temporaryDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "ibmi-docs-embeddings-"));
+  const inputPath = path.join(temporaryDirectory, "input.jsonl");
+  const outputPath = path.join(temporaryDirectory, "vectors.f32");
+  const dimensions = DEFAULT_EMBEDDING_DIMENSIONS;
+  try {
+    const input = await fs.open(inputPath, "w");
+    try {
+      for (let index = 0; index < texts.length; index += 1) {
+        await input.write(`${JSON.stringify(texts[index])}\n`);
+      }
+    } finally {
+      await input.close();
+    }
+
+    console.error(`[ibmi-docs] Embeddings ${facet}: acelerador PyTorch/CUDA (${texts.length} pasajes).`);
+    const batchSize = String(Math.max(1, Math.trunc(Number(process.env.IBMI_DOCS_BUILD_EMBEDDING_BATCH_SIZE ?? 128))));
+    await runPythonEmbeddingHelper(pythonExecutable, [
+      helper,
+      "--model", path.resolve(pytorchModel),
+      "--input", inputPath,
+      "--output", outputPath,
+      "--batch-size", batchSize
+    ]);
+
+    const output = await fs.readFile(outputPath);
+    const expectedBytes = texts.length * dimensions * Float32Array.BYTES_PER_ELEMENT;
+    if (output.byteLength !== expectedBytes) {
+      throw new Error(`Salida PyTorch inválida para ${facet}: ${output.byteLength} bytes; se esperaban ${expectedBytes}.`);
+    }
+    const vectors: Float32Array[] = [];
+    for (let index = 0; index < texts.length; index += 1) {
+      const start = index * dimensions * Float32Array.BYTES_PER_ELEMENT;
+      const view = new Float32Array(output.buffer, output.byteOffset + start, dimensions);
+      vectors.push(new Float32Array(view));
+    }
+    console.error(`[ibmi-docs] Embeddings ${facet}: ${vectors.length}/${texts.length}`);
+    return vectors;
+  } finally {
+    await fs.rm(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
+async function runPythonEmbeddingHelper(pythonExecutable: string, args: string[]): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(pythonExecutable, args, {
+      cwd: process.cwd(),
+      env: { ...process.env, PYTHONUNBUFFERED: "1" },
+      stdio: ["ignore", "inherit", "inherit"]
+    });
+    child.once("error", reject);
+    child.once("exit", (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`El acelerador PyTorch terminó con código ${code ?? "sin código"}${signal ? ` y señal ${signal}` : ""}.`));
+    });
+  });
 }
 
 function readTextIfExists(filePath: string): string {
@@ -450,7 +536,8 @@ function shouldBuildAtomicEmbeddingEntries(doc: DocumentRecord): boolean {
 export function splitIntoChunks(text: string, maxChars: number): string[] {
   const clean = text.trim();
   if (!clean) return [""];
-  const paragraphs = splitIntoStructuralBlocks(clean);
+  const paragraphs = splitIntoStructuralBlocks(clean)
+    .flatMap((block) => splitOversizedStructuralBlock(block, maxChars));
   const chunks: string[] = [];
   let current = "";
   for (const paragraph of paragraphs) {
@@ -463,6 +550,40 @@ export function splitIntoChunks(text: string, maxChars: number): string[] {
   }
   if (current.trim()) chunks.push(current.trim());
   return chunks;
+}
+
+function splitOversizedStructuralBlock(block: string, maxChars: number): string[] {
+  const clean = block.trim();
+  if (clean.length <= maxChars) return clean ? [clean] : [];
+  const units = clean.split(/\n+/).flatMap((line) => splitOversizedLine(line.trim(), maxChars));
+  const parts: string[] = [];
+  let current = "";
+  for (const unit of units) {
+    const next = [current, unit].filter(Boolean).join("\n");
+    if (current && next.length > maxChars) {
+      parts.push(current);
+      current = unit;
+    } else {
+      current = next;
+    }
+  }
+  if (current) parts.push(current);
+  return parts;
+}
+
+function splitOversizedLine(line: string, maxChars: number): string[] {
+  if (line.length <= maxChars) return line ? [line] : [];
+  const parts: string[] = [];
+  let remaining = line;
+  while (remaining.length > maxChars) {
+    const window = remaining.slice(0, maxChars + 1);
+    const boundary = Math.max(window.lastIndexOf(". "), window.lastIndexOf("; "), window.lastIndexOf(" "));
+    const cutAt = boundary >= Math.floor(maxChars * 0.6) ? boundary + 1 : maxChars;
+    parts.push(remaining.slice(0, cutAt).trim());
+    remaining = remaining.slice(cutAt).trimStart();
+  }
+  if (remaining) parts.push(remaining);
+  return parts;
 }
 
 function extractAtomicIndexEntries(text: string): string[] {

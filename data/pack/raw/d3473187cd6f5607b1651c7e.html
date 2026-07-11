@@ -1,0 +1,157 @@
+<main role="main"><article role="article" aria-labelledby="db2mdb2mtooljson__title__1">
+
+<h1 class="topictitle1" id="db2mdb2mtooljson__title__1">JSON files used by the db2mtool command</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-10-07</div>
+
+
+<div class="body refbody"><p class="shortdesc">Files containing JSON are used to maintain the cloning information for the setup source
+and setup copy nodes.</p>
+
+<div class="section">
+<div class="p"> There are two types of JSON files used by the Db2® Mirror tools:<ul class="cds--list--unordered">
+<li class="cds--list__item">clone_info.json</li>
+
+<li class="cds--list__item">meta_data.json</li>
+
+</ul>
+</div>
+
+</div>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__2"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__2">JSON configuration file</h2>
+
+<div class="p">When saving to the setup source node, two files are saved for clone_info and two files are saved
+for meta_data. They are used for cloning each direction to support reclone. They are named:<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">clone_info_A_B_UUIDA_UUIDB.json</li>
+
+<li class="cds--list__item">clone_info_B_A_UUIDB_UUIDA.json</li>
+
+</ol>
+and<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">meta_data_A_B_UUIDA_UUIDB.json</li>
+
+<li class="cds--list__item">meta_data_B_A_UUIDB_UUIDA.json</li>
+
+</ol>
+where A and B are the system names for the setup source and setup copy nodes, and UUIDA and
+UUIDB are the partition UUIDs for the setup source and setup copy nodes.</div>
+
+</section>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__3"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__3">QMRDBJSON database table</h2>
+
+<div class="p">The QUSRSYS.QMRDBJSON database table contains all the JSON file data. It has three columns:<ul class="cds--list--unordered">
+<li class="cds--list__item">JSON_FILE - file name</li>
+
+<li class="cds--list__item">JSON_STR - file content</li>
+
+<li class="cds--list__item">MOD_TIME - timestamp</li>
+
+</ul>
+</div>
+
+<p>This file is added to the Replication Criteria List so that the JSON files will be kept in sync
+between the setup source and setup copy nodes.</p>
+
+<div class="p">To see the content of the file, run this SQL query:
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>SELECT * FROM QUSRSYS.QMRDBJSON;</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</section>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__4"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__4">JSON files with Setup Tools </h2>
+
+<p>When using the Db2 Mirror setup tools instead of the GUI wizard, several actions need to be performed to correctly handle all the processing with the JSON files that is done for you with the wizard. To help with this process, consider using the GUI to build the JSON files for you and then use the files with the manual process thereafter. Follow the steps thoroughly when using the setup tools directly. </p>
+
+<p>With the <span class="keyword cmdname">db2mtool</span> setup tool, actions <em>new</em>, <em>update</em>, <em>save</em>,
+and <em>restore</em> are used to create, update, upload, and download JSON configuration files. These actions invoke an interactive Java™ program which prompts you to provide the necessary information. This is saved in JSON files on the current node or in a database table on the setup source node. </p>
+
+<p>When using the Db2 Mirror setup tools, you will need to save the JSON files to the setup source node. All cloning actions will retrieve the JSON files from this location. The JSON files on the managing node are used only as a backup copy. </p>
+
+<p><strong>Note:</strong> You only need to create one clone_info&lt;xxx&gt;.json with the setup tools.  The setup
+tools will retrieve all the necessary information and store two clone_info.json files to the setup
+source node, one for each clone direction. </p>
+
+<p>If clone_info&lt;xxx&gt;.json is created and updated directly without the setup tools, you need to
+make sure that both clone_info.json files are uploaded to the setup source node by issuing the
+<kbd class="ph userinput">db2mtool action=save</kbd> command.</p>
+
+<p> It is highly recommended to save JSON configurations to the setup source node using the
+<em>save</em> action. Otherwise you will be required to upload them to the setup source system with a
+separate setup tools command.</p>
+
+</section>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__5"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__5">Clone_info.json</h2>
+
+<p>The clone_info&lt;xxx&gt;.json files contain information for both setup source and setup copy nodes.
+The files for the two directions are similar, but with reversed information for fields that refer to
+setup source and setup copy node information. You only need to save clone_info&lt;xxx&gt;.json for the
+current direction. When clone_info&lt;xxx&gt;.json is created, the setup tools save clone_info.json for
+both directions automatically by reversing the system names.</p>
+
+<p> For example, if the current setup source is A and setup copy is B, you need to create one
+clone_info&lt;xxx&gt;.json for the current direction and save it as
+<span class="ph uicontrol">clone_info_A_B_UUIDA_UUIDB.json</span> to the setup source node. The setup tools
+will reverse the names and save<span class="ph uicontrol"> clone_info_B_A_UUIDB_UUIDA.json</span>
+automatically.</p>
+
+</section>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__6"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__6">Meta_data.json</h2>
+
+<p>The meta_data&lt;xxx&gt;.json is for the setup copy node. You only need to input the information for
+the current setup copy node. When meta_data&lt;xxx&gt;.json is created, the setup tools automatically
+retrieve the necessary information from the current setup source node, and will save two copies of
+meta_data.json, one for setup copy and one for if the copy node becomes the source.</p>
+
+<p>You only need to create meta_data&lt;xxx&gt;.json for the current setup source node
+<span class="ph uicontrol">meta_data_A_B_UUIDA_UUIDB.json</span>. The setup tools will automatically generate
+file <span class="ph uicontrol">meta_data_B_A_ UUIDB_UUIDA.json</span> using information for the current copy
+source system B and save both files to the setup source node.</p>
+
+</section>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__7"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__7">Passing user names and passwords from the command line</h2>
+
+<div class="p">The user names and passwords for HMC, storage systems, and IBM® i are stored in JSON configuration file clone_info&lt;xxx&gt;.json. If you do not want to store the passwords, they can be passed in from the command line. The following command shows how it can be done for HMC passwords using the optional parameters:<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>db2mtool action=start setupSrcAddress=hostname setupSrcUser=user 
+    setupSrcPassword=password setupSrcSysName=sysA setupCpySysName=sysB 
+    lclPowerHMCUser=user1 lclPowerHMCPass=pass1 
+    rmtPowerHMCUser=user2 rmtPowerHMCPass=pass2</code></pre></div><div class="docs--copy-btn"></div></div></div>
+
+</section>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__8"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__8">Store unencrypted passwords in JSON file</h2>
+
+<p>It is strongly recommended to store only encrypted passwords in the JSON file. The setup tools
+encrypt them for users when the commands are used to create or update JSON files. </p>
+
+<div class="p">You can edit JSON configuration files directly. In this way the setup tools support unencrypted
+passwords. This command shows how to indicate that the passwords are not
+encrypted:<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>db2mtool action=start setupSrcAddress=hostname setupSrcUser=user 
+    setupSrcPassword=password setupSrcSysName=sysA setupCpySysName=sysB 
+    pwEncrypted=no
+</code></pre></div><div class="docs--copy-btn"></div></div>Note
+that all passwords need to be encrypted or all passwords must not be encrypted.</div>
+
+</section>
+
+<section class="section" role="region" aria-labelledby="db2mdb2mtooljson__title__9"><h2 class="sectiontitle" id="db2mdb2mtooljson__title__9">IBM i key management</h2>
+
+<p>You can use Cryptographic services key management to secure the passwords in clone_info&lt;xxx&gt;.json. To use this, you need to have related knowledge about the Cryptographic services key management IBM i feature. Otherwise, the default mechanism is used to encrypt all passwords.</p>
+
+</section>
+
+</div>
+
+
+<aside role="complementary" aria-labelledby="db2mdb2mtooljson__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<ul class="ullinks cds--list--unordered">
+<li class="ulchildlink cds--list__item" data-hd-product="ssw_ibm_i_76"><strong><a href="/docs/en/ssw_ibm_i_76/db2mi/db2mdb2mtooljsoncloneinfo.htm">clone_info JSON file</a></strong><br>
+The storage and cloning attributes must be stored in a JSON configuration file named clone_info.json. This file will be used by Db2 Mirror to automatically perform the storage cloning actions.</li>
+<li class="ulchildlink cds--list__item" data-hd-product="ssw_ibm_i_76"><strong><a href="/docs/en/ssw_ibm_i_76/db2mi/db2mdb2mtooljsonmetadata.htm">meta_data JSON file</a></strong><br>
+The setup copy node configuration settings must be stored in a JSON configuration file named meta_data.json. This file will be used by Db2 Mirror to automatically configure the setup copy node during the first IPL after the storage clone.</li>
+</ul>
+
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_76" href="/docs/en/ssw_ibm_i_76/db2mi/db2madditionalsetup.htm" title="This section contains additional topics that may be required during the setup process." class="bottom-section-link">Additional setup topics</a></div></div>
+</div>
+</nav></aside></article></main>

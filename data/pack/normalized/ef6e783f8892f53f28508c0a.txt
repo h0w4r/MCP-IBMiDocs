@@ -1,0 +1,261 @@
+Start Commitment Control (STRCMTCTL)
+
+Start Commitment Control (STRCMTCTL)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Start Commitment Control (STRCMTCTL) command is used to establish either a job level or activation group level commitment definition. The job's current name space determines which independent auxiliary storage pool (IASP) the commitment definition is created in. Files can be opened under commitment control for this commitment definition either when the files reside in that same ASP or when the files reside in *SYSBAS and the commitment definition has no resources registered.
+
+This command also specifies the level of record locking that occurs for the commitment definition to be started. Also, a notify object can be specified.
+
+Before a commitment definition is established, the user must ensure that all database files that are to be opened under commitment control for a single commitment transaction are journaled. If only the after images are being journaled, the system implicitly begins journaling both the before and the after images for the duration of the changes being made to files opened under this commitment definition.
+
+A default journal can be specified. Entries that describe all journals and systems involved in a commitment control operation can be placed in this journal.
+
+More information on the use of journal management is in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. More information on journaling related to commitment control is in the Commitment control topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- The user must have object operational and add authority to the object named on the NFYOBJ parameter, if an object is specified.
+
+- The user must have object operational and add authority to the object named on the DFTJRN parameter, if an object is specified.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+LCKLVL | Lock level | *CHG, *CS, *ALL | Required, Positional 1
+NFYOBJ | Notify object | Single values: *NONE
+Other values: Element list | Optional, Positional 2
+Element 1: Object | Qualified object name
+Qualifier 1: Object | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Object type | Single values: *MSGQ, *DTAARA
+Other values: Element list
+Element 1: (*MSGQ *DTAARA or *FILE) | *FILE
+Element 2: Member, if *FILE | Name, *FIRST
+CMTSCOPE | Commitment definition scope | *ACTGRP, *JOB | Optional
+TEXT | Text 'description' | Character value, *DFTTEXT | Optional
+DFTJRN | Journal | Single values: *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: Journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OMTJRNE | Journal entries to be omitted | *NONE, *LUWID | Optional
+
+Top
+
+Lock level (LCKLVL)
+
+Specifies the default level of record locking that occurs for the commitment definition to be started.
+
+This is a required parameter.
+
+*CHG
+Every record read for update (for a file opened under commitment control) is locked. If a record is changed, added, or deleted, that record remains locked until the transaction is committed or rolled back. Records that are accessed for update operations but are released without being changed are unlocked.
+
+*CS
+Every record accessed for files opened under commitment control is locked. A record that is read, but not changed or deleted, is unlocked when a different record is read. Records that are changed, added, or deleted are locked until the transaction is committed or rolled back.
+
+*ALL
+Every record accessed for files opened under commitment control is locked until the transaction is committed or rolled back.
+
+Top
+
+Notify object (NFYOBJ)
+
+Specifies the name and type of the object where notification is sent regarding the status of a transaction for a commitment definition. The commitment identifier of the last successful commit operation is sent to the notify object only for the following conditions:
+
+- For a job level commitment definition, if any of the following are true:
+
+A system failure occurs
+
+The job ends with uncommitted changes
+
+The job ends with a nonzero completion code
+
+- For an activation group level commitment definition, if any of the following are true:
+
+A system failure occurs
+
+The job ends with uncommitted changes
+
+The job ends with a nonzero completion code
+
+The activation group ends abnormally
+
+The activation group ends with uncommitted changes and the uncommitted changes are rolled back
+
+For a system failure, the commitment identifier is placed in the notify object after the next successful initial program load (IPL). For a job that ends with uncommitted changes or with a nonzero completion code, the commitment identifier is placed in the notify object during end job processing. For an activation group that ends with uncommitted changes or ends abnormally, the notification text is placed in the notify object during activation group end processing.
+
+A commitment identifier (specified for the Commit identification (CMTID) parameter on the Commit (COMMIT) command) can be specified on each commit operation performed for a commitment definition. If more than one job is concurrently using commitment control or there is more than one commitment definition being used concurrently within a single job, then each commitment definition for each job should use a unique notify object or the specified commit identifier should contain unique text such that the text identifies a single commitment definition for a single job. If *NONE is specified for the CMTID parameter of the Commit (COMMIT) command, this entry is ignored.
+
+*NONE
+No notification is sent after an abnormal system or process end.
+
+object-name
+Specify the name (library-name/object-name) of the object to receive notification of the last transaction that is successfully committed. You must have correct authority for the object specified.
+
+The possible library values are:
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the object. If no library is specified as the current library for the job, the QGPL library is used.
+
+library-name
+Specify the library where the object is located.
+
+The possible object type values are:
+
+*MSGQ
+The text identifying the last commitment boundary is placed on the specified message queue.
+
+*DTAARA
+The text identifying the last commitment boundary is placed in the specified data area. The data area specified must be of type character, and unique to this job. The text is padded or truncated to fit the data area.
+
+*FILE
+The text identifying the last commitment boundary is added to the specified physical file.
+
+The possible physical file member values are:
+
+*FIRST
+The first member of the physical file receives the notification.
+
+member-name
+Specify the name of the member of the physical file that receives the notification.
+
+Top
+
+Commitment definition scope (CMTSCOPE)
+
+Specifies the scope for the commitment definition to be started.
+
+*ACTGRP
+An activation-group-level commitment definition is started for the activation group associated with the program issuing the command.
+
+*JOB
+The job-level commitment definition is started for the job.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies text that briefly describes the commitment definition to be started. More information on this parameter is in the CL Reference book, Appendix A.
+
+*DFTTEXT
+The system is to provide a default text description for the commitment definition.
+
+'description'
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Journal (DFTJRN)
+
+Specifies the default journal. The default journal contains entries identifying each of the resources involved in a unit of work. Entries can also be placed when each unit of work starts or ends due to a commit or rollback operation, depending on the OMTJRNE parameter value.
+
+More information on the default journal is in the Commitment control topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+The default journal can be used when adding a resource through the Add Committable Resource (QTNADDCR) Application Program Interface (API). If the special value *DFTJRN is specified for the journal name when calling the API, the name specified on this DFTJRN parameter is used.
+
+*NONE
+No default journal is specified.
+
+The name of the default journal can be qualified by one of the following values:
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, the QGPL library is used.
+
+library-name
+Specify the name of the library to be searched.
+
+journal-name
+Specify the name of the default journal.
+
+Top
+
+Journal entries to be omitted (OMTJRNE)
+
+Specifies the journal entries to omit from the default journal. If *NONE is specified on the DFTJRN parameter, this parameter is ignored.
+
+*NONE
+No journal entries are omitted.
+
+*LUWID
+The journal entry that contains the Logical Unit of Work Identifier (LUWID) and all the resources involved in the logical unit of work are omitted if the logical unit of work is committed or rolled back successfully. If an error occurs while committing or rolling back the logical unit of work, the entry will always be sent regardless of this value.
+
+Top
+
+Examples
+
+Example 1: Defining Activation Group Level Commitment Control
+
+STRCMTCTL LCKLVL(*CHG) CMTSCOPE(*ACTGRP) TEXT('Blue Commit Group')
+
+This command described by the user as the Blue Commit Group starts the activation group level commitment for the activation group associated with the program issuing the command.
+
+Only records that are updated, inserted, or deleted are locked until the transaction is ended by a commit or rollback operation. No identification for the commitment boundary is sent after the initial program load (IPL) following an abnormal system end, after an abnormal end to an activation group for the job, or when the job or activation group ends either with uncommitted changes or with a nonzero completion code.
+
+Example 2: Defining Job Level Commitment Control
+
+STRCMTCTL LCKLVL(*ALL) NFYOBJ(RCVLIB/MYFILE *FILE IDSAVE)
+CMTSCOPE(*JOB) DFTJRN(MGWLIB/MYJRN)
+
+This command starts the job level commitment definition. All records accessed in files opened under commitment control are locked until the commitment transaction is ended by a commit or rollback operation. If a commitment transaction ends in a manner that a notify object is to be updated with the commitment identifier of the last successful commit operation, the notify object to be updated is member IDSAVE of file MYFILE in the library RCVLIB. When a commit or rollback is done, an entry that lists information about all the resources involved in the logical unit of work is put into journal MYJRN in library MGWLIB.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF8351
+Commitment control already active.
+
+CPF8352
+Attribute in notify object &1 type *&4 not valid.
+
+CPF8360
+Not enough storage for commitment control operation.
+
+CPF8366
+Commitment definition &2 not created. Reason code &1.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9807
+One or more libraries in library list deleted.
+
+CPF9808
+Cannot allocate one or more libraries on library list.
+
+CPF9810
+Library &1 not found.
+
+CPF9815
+Member &5 file &2 in library &3 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9830
+Cannot assign library &1.
+
+Top

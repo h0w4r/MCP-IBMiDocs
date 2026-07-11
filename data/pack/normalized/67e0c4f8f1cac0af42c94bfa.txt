@@ -1,0 +1,229 @@
+Delete Journal Receiver (DLTJRNRCV)
+
+Delete Journal Receiver (DLTJRNRCV)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Delete Journal Receiver (DLTJRNRCV) command deletes the specified journal receivers from the system, which frees the storage space allocated to the journal receivers. Exit point QIBM_QJO_DLT_JRNRCV is provided for the DLTJRNRCV command. See the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+Restrictions:
+
+- The journal receiver must not be attached to a journal at the time the command is issued.
+
+- If an attempt is made to delete a journal receiver that is attached to a remote journal, and that remote journal is not actively receiving journal entries or replicating journal entries, and DLTOPT(*IGNINQMSG) is not specified, an inquiry message (CPA705E) is sent to the requesting workstation. If the request is made from a batch job, the message is sent to the system operator. This inquiry message can be automatically replied to. For more information, refer to the INQMSGRPY parameter of the Create Job Description (CRTJOBD) command.
+
+- The journal receiver must not be in the middle of a chain of online receivers unless it is damaged or if its dual receiver is damaged. (The receivers must be deleted in the same order in which they were detached, to prevent gaps from occurring in the range of receivers).
+
+- If an attempt is made to delete a journal receiver that has not been saved and DLTOPT(*IGNINQMSG) is not specified, an inquiry message (CPA7025) is sent to the requesting work station. If the request is made from a batch job, the message is sent to the system operator. This inquiry message can be replied to automatically. For more information, refer to the INQMSGRPY parameter on the Create Job Description (CRTJOBD) command.
+
+- The user must have *ALLOBJ and *SECADM authority in order to specify the *IGNEXITPGM special value.
+
+- This command is conditionally threadsafe if exit programs are registered for exit point QIBM_QJO_DLT_JRNRCV as follows:
+
+If no exit programs are registered or DLTOPT(*IGNEXITPGM) is specified, the command is threadsafe.
+
+If all exit programs are threadsafe and registered to run in a multithreaded job, the command is threadsafe.
+
+If any exit program is registered to not run in a multithreaded job and is being attempted to run in a multithreaded job, the command will fail and the journal receiver will not be deleted.
+
+Use the MLTTHDACN parameter on the ADDEXITPGM command to specify whether an exit program can run in a multithreaded job. See the ADDEXITPGM command for more information.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JRNRCV | Journal receiver | Qualified object name | Required, Positional 1
+Qualifier 1: Journal receiver | Generic name, name
+Qualifier 2: Library | Name, *LIBL, *CURLIB, *USRLIBL, *ALL, *ALLUSR
+DLTOPT | Option | Single values: *NONE
+Other values (up to 3 repetitions): *IGNINQMSG, *IGNEXITPGM, *IGNTGTRCV | Optional
+
+Top
+
+Journal receiver (JRNRCV)
+
+Specifies the name and library of the journal receiver or receivers being deleted.
+
+This is a required parameter.
+
+Qualifier 1: Journal receiver
+
+journal-receiver-name
+Specify the name and library of the journal receiver being deleted. If *LIBL or *USRLIBL is specified for the library name, only the first journal receiver found to have this name is deleted. If *ALLUSR or *ALL is specified for the library name, journal receiver objects by the name specified can be deleted from multiple libraries.
+
+generic*-journal-receiver-name
+Specify the generic name of the journal receiver being deleted. A generic name is a character string that contains one or more characters followed by an asterisk (*); for example, ABC*. The asterisk substitutes for any valid characters. A generic name specifies all objects with names that begin with the generic prefix for which the user has authority. If an asterisk is not included with the generic (prefix) name, the system assumes it to be the complete object name.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+*USRLIBL
+If a current library entry exists in the library list for the current thread, the current library and the libraries in the user portion of the library list are searched. If there is no current library entry, only the libraries in the user portion of the library list are searched.
+
+*ALLUSR
+All user libraries are searched. All libraries with names that do not begin with the letter Q are searched except for the following:
+
+#CGULIB #DSULIB #SEULIB
+#COBLIB #RPGLIB
+#DFULIB #SDALIB
+
+Although the following Qxxx libraries are provided by IBM, they typically contain user data that changes frequently. Therefore, these libraries are considered user libraries and are also searched:
+
+QDSNX QSYS2 QUSRINFSKR QWQCENT
+QGPL QSYS2xxxxx QUSRNOTES QWQREPOS
+QGPL38 QS36F QUSROND
+QMPGDATA QUSER38 QUSRPOSGS
+QMQMDATA QUSRADSM QUSRPOSSA
+QMQMPROC QUSRBRM QUSRPYMSVR
+QPFRDATA QUSRDIRCF QUSRRDARS
+QRCL QUSRDIRCL QUSRSYS
+QRCLxxxxx QUSRDIRDB QUSRVI
+QSRVAGT QUSRIJS QUSRVxRxMx
+
+- 'xxxxx' is the number of a primary auxiliary storage pool (ASP).
+
+- A different library name, in the format QUSRVxRxMx, can be created by the user for each previous release supported by IBM to contain any user commands to be compiled in a CL program for the previous release. For the QUSRVxRxMx user library, VxRxMx is the version, release, and modification level of a previous release that IBM continues to support.
+
+*ALL
+All libraries in the system, including QSYS, are searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Option (DLTOPT)
+
+Specifies whether additional checking should not be done before a journal receiver is deleted.
+
+*NONE
+The journal receiver delete is attempted without ignoring any of the protective checks which are done before a journal receiver is deleted.
+
+*IGNTGTRCV
+The system does not verify that all remote journals associated with this journal that are immediately downstream on a target system have full copies of this journal receiver. The delete operation continues even if any of those remote journals does not have a full copy. This protection on a journal receiver only applies beginning when the remote journal was added using the Add Remote Journal (QjoAddRemoteJournal) API, until it is removed using the Remove Remote Journal (QjoRemoveRemoteJournal) API, or until the journal is deleted. For more information about APIs, see the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+*IGNINQMSG
+Ignore inquiry message. Inquiry message CPA7025 is not presented to the user, even if this receiver has not been fully saved (for example, a save after the receiver was detached). Also, inquiry message CPA705E is not presented to the user even if the receiver is attached to a remote journal. The delete operation continues.
+
+*IGNEXITPGM
+Ignore user exit programs. Any user exit programs registered for exit point QIBM_QJO_DLT_JRNRCV are not called and not included in the decision as to whether this journal receiver can be deleted.
+
+Top
+
+Examples
+
+DLTJRNRCV JRNRCV(MYLIB/JRNRCLA)
+
+This command deletes the journal receiver JRNRCLA in library MYLIB from the system.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2105
+Object &1 in &2 type *&3 not found.
+
+CPF2110
+Library &1 not found.
+
+CPF2113
+Cannot allocate library &1.
+
+CPF2114
+Cannot allocate object &1 in &2 type *&3.
+
+CPF2117
+&4 objects type *&3 deleted. &5 objects not deleted.
+
+CPF2125
+No objects deleted.
+
+CPF2160
+Object type *&1 not eligible for requested function.
+
+CPF2176
+Library &1 damaged.
+
+CPF2182
+Not authorized to library &1.
+
+CPF2189
+Not authorized to object &1 in &2 type *&3.
+
+CPF70ED
+Receiver not deleted due to exit program, reason code &7.
+
+CPF701B
+Journal recovery of an interrupted operation failed.
+
+CPF7022
+Cannot delete journal receiver &1 while attached.
+
+CPF7023
+Cannot delete journal receiver &1 in &2.
+
+CPF7024
+Receiver &1 in &2 not deleted. Reason code, &3.
+
+CPF7025
+Delete of receiver &1 in &2 canceled.
+
+CPF705B
+No authority to specify OPTION(*IGNEXITPGM).
+
+CPF705E
+Delete of receiver &1 in &2 canceled.
+
+CPF705F
+Receiver not replicated to &8 remote journals.
+
+CPF707C
+Cannot delete journal receiver &1, reason code &5.
+
+CPF707D
+Journal receiver &1 in library &2 not deleted.
+
+CPF707E
+Journal receiver &1 in library &2 not deleted.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9873
+ASP status is preventing access to object.
+
+CPF9875
+Resources exceeded on ASP &1. Press HELP.
+
+Top

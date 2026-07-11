@@ -1,0 +1,175 @@
+End TCP/IP (ENDTCP)
+
+End TCP/IP (ENDTCP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The End TCP/IP (ENDTCP) command ends TCP/IP processing.
+
+Attention:
+
+The ENDTCP command must be used carefully. When it is used, it ends all TCP/IP processing on the system that you are working on.
+
+If OPTION(*IMMED) is specified for the ENDTCP command, the following is true:
+
+- All TCP/IP connections are ended. This affects all currently active applications using sockets.
+
+- Unless ENDSVR(*NO) is specified, TCP/IP server jobs, client jobs, and agents are ended for TCP/IP servers that were started using the Start TCP/IP (STRTCP) or Start TCP/IP server (STRTCPSVR) commands. See the description of the End application servers (ENDSVR) parameter for more information.
+
+- All active TCP/IP interfaces are ended.
+
+If OPTION(*CNTRLD) is specified for the ENDTCP command, the following is true:
+
+- No new open operations are allowed to TCP, UDP, or raw sockets.
+
+- A job is submitted to the QSYSWRK subsystem that will, after the time indicated in the DELAY parameter value has expired, do an ENDTCP *IMMED operation.
+
+- An ENDTCP OPTION(*IMMED) can be submitted at any time after issuing ENDTCP OPTION(*CNTRLD). This cancels the controlled end. TCP/IP processing is ended immediately when the ENDTCP OPTION(*IMMED) is issued.
+
+Restrictions:
+
+- This command is conditionally threadsafe. This command calls different programs to process each type of TCP/IP server. If the programs being called are threadsafe, this command is threadsafe.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OPTION | How to end | *IMMED, *CNTRLD | Optional, Positional 1
+DELAY | Controlled end delay time | 1-86400, 30 | Optional, Positional 2
+ENDSVR | End application servers | *YES, *NO | Optional
+CONFIRM | Confirm | *ENVVAR, *INTERACT, *YES, *NO | Optional
+
+Top
+
+How to end (OPTION)
+
+Specifies whether TCP/IP processing is ended in an immediate or controlled manner.
+
+*IMMED
+TCP/IP processing is ended immediately.
+
+Attention:
+
+The ENDTCP OPTION(*IMMED) command should be used carefully. Partially updated data may result if an application is processing data and has not completed an operation when the ENDTCP *IMMED command is issued. It is suggested that you do the following:
+
+- Notify all users before issuing the ENDTCP command so that they can end their applications.
+
+- Issue the ENDTCP command at a time when you know no TCP/IP traffic is occurring on the system. To display the current TCP/IP traffic on the system, use option 3 on the Work with TCP/IP Status (WRKTCPSTS or NETSTAT) command.
+
+*CNTRLD
+TCP/IP processing is ended in a controlled manner. Applications using TCP/IP are given time to complete their processing. New application processing is not allowed. After the specified period of time elapses, the processing for ENDTCP OPTION(*IMMED) is performed.
+The controlled end processing does not do any of the following:
+
+- It does not monitor to see if all TCP/IP processing has completed before the specified period of time has elapsed.
+
+- It does not notify an application that is actively using a TCP/IP connection that TCP/IP processing will be ended.
+
+Top
+
+Controlled end delay time (DELAY)
+
+Specifies the amount of time (in seconds) allowed in which to complete a controlled end of TCP/IP processing. After this period of time all TCP/IP processing is ended immediately.
+
+1-86400
+Specify the number of seconds in which the end operation is completed.
+
+Top
+
+End application servers (ENDSVR)
+
+Specifies whether or not all TCP/IP application server jobs are ended when the ENDTCP command ends TCP/IP processing.
+
+Attention:
+
+Before specifying *NO for this parameter, please consider the following:
+
+- It is not possible to end all the TCP/IP processing on your system without affecting the applications which use TCP/IP.
+
+- If TCP/IP processing is ended, then TCP/IP applications which are not restarted may not function correctly.
+
+*YES
+The ENDTCP command ends all TCP/IP application servers prior to ending TCP/IP processing.
+
+*NO
+The ENDTCP command does not end any TCP/IP application server jobs when it ends TCP/IP processing.
+
+Top
+
+Confirm (CONFIRM)
+
+Specifies whether the request should be confirmed before TCP/IP is ended.
+
+*ENVVAR
+The value in environment variable QIBM_ENDTCP_CONFIRM is used to determine whether the request should be confirmed. If the value is set to *INTERACT, *YES, or *NO, the action described below for that value is taken. If the environment variable is not defined or not set to one of these values, then there is no confirmation.
+
+*INTERACT
+A confirmation panel is displayed when the ENDTCP command is issued in an interactive job. There is no confirmation when the ENDTCP command is issued in a non-interactive job.
+
+*YES
+A confirmation panel is displayed when the ENDTCP command is issued in an interactive job. An inquiry message is sent to QSYSOPR when the ENDTCP command is issued in a non-interactive job.
+
+*NO
+There is no confirmation when the ENDTCP command is issued.
+
+Top
+
+Examples
+
+Example 1: Ending TCP/IP Immediately
+
+ENDTCP OPTION(*IMMED)
+
+This command ends all TCP/IP processing on the system immediately.
+
+Example 2: Ending TCP/IP in a Controlled Time
+
+ENDTCP OPTION(*CNTRLD) DELAY(120)
+
+This command ends all TCP/IP processing after 120 seconds have expired. During this time, new TCP/IP processing is not allowed.
+
+Example 3: Ending TCP/IP Immediately Without Ending Application Servers
+
+ENDTCP OPTION(*IMMED) ENDSVR(*NO)
+
+This command ends all TCP/IP processing on the system immediately. However, any TCP/IP application servers (FTP, SMTP, and so on) that are active are not ended when TCP/IP processing is ended.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+TCP1A13
+Another job is starting or ending TCP/IP or IP over SNA.
+
+TCP1A70
+&1 not active.
+
+TCP1A72
+TCP/IP already ending with *CNTRLD option.
+
+TCP1A73
+Internal object damaged.
+
+TCP1A74
+Error occurred submitting job.
+
+TCP1A77
+&1 completed successfully; however errors occurred.
+
+TCP8A3F
+Unable to determine if operation completed.
+
+TCP9999
+Internal system error in program &1.
+
+Top

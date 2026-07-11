@@ -1,0 +1,157 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="RCLDBXREF.Top_Of_Page"></a>
+<h1>Reclaim DB Cross-Reference  (RCLDBXREF)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#RCLDBXREF.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#RCLDBXREF.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#RCLDBXREF.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="RCLDBXREF"></a>
+<p>The Reclaim Database Cross-Reference (RCLDBXREF) command recovers the database cross-reference catalog data for a specific library.  This command provides a subset of the function provided by the Reclaim Storage (RCLSTG) command to reclaim the database cross-reference catalog data for the system by specifying SELECT(*DBXREF).  The difference is that this command does not require the system to be in restricted state, and it supports a reclaim of a specific library, rather than all libraries on the system.
+</p>
+<p>Additionally this command provides an interface for the user to determine which catalogs have inconsistencies, and which libraries are affected.
+</p>
+<p>If an auxiliary storage pool (ASP) group has been set for the current thread, this command will take affect for the independent ASPs in that ASP group and also for the system and basic user ASPs (ASP numbers 1-32).
+</p>
+<p>This command should only be used when problems with the database cross-reference catalogs occur, and RCLSTG SELECT(*DBXREF) is not an option due to critical business requirements.
+</p>
+<p>Because this command does not need to run in restricted state, it may not always be able to recover cross-reference information.  In such cases, running RCLSTG SELECT(*DBXREF) will be required.
+</p>
+<p>When the command is used to recover cross-reference information, the user must not allow applications to use or modify objects in a library that is being reclaimed.  Failure to do this could cause unpredictable results.
+</p>
+<p>If RCLDBXREF does not correct the problem, the library being reclaimed may have more inconsistencies than existed before using this command.  If this happens, running RCLSTG SELECT(*DBXREF) will be required.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">You must have all object (*ALLOBJ) special authority to use this command.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RCLDBXREF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="RCLDBXREF.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RCLDBXREF.OPTION"><strong>OPTION</strong></a></td>
+<td class="valigntop">Option</td>
+<td class="valigntop"><strong class="underlined">*CHECK</strong>, *FIX</td>
+<td class="valigntop">Optional, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RCLDBXREF.LIB"><strong>LIB</strong></a></td>
+<td class="valigntop">Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*ERR</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RCLDBXREF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="RCLDBXREF.OPTION"></a>
+<h2>Option (OPTION)</h2>
+<p>Specifies what action the command will take.  The command can either check for problems, or attempt to fix them.
+</p>
+<dl>
+<dt><strong class="underlined">*CHECK</strong></dt>
+<dd>The command should check to see if any cross-reference catalog inconsistencies have been found.  As each catalog is inspected, a diagnostic message (CPD32A7) is sent to the job log for each library known to have inconsistent data in that catalog.  After all of the cross-reference catalogs have been checked, an escape message (CPF32AC) is signaled if problems were found.  If no inconsistencies are found in the catalogs, a completion message (CPC32AC) is sent indicating the cross-reference data appears to be correct.
+</dd>
+<dt><strong>*FIX</strong></dt>
+<dd>The command should attempt to fix the cross-reference data for the library specified for the <strong> Library (LIB) </strong> parameter.
+<p>
+<strong>Note:     </strong>In some cases, the system may determine that a full reclaim of the database cross-reference catalogs is needed by running the Reclaim Storage (RCLSTG) command and specifying SELECT(*DBXREF).  In this case, a CPF32AB escape message is sent and the library's cross-reference data will not be fixed.
+</p>
+<p>When the *FIX option is specified, the user must be careful not to interrupt the reclaim process, or to attempt to use or modify objects in a library that is being reclaimed.  Failure to do this could cause the reclaim to fail.  If the reclaim fails, that library may have more catalog inconsistencies than existed before invoking this command.  If this happens, it may be possible to recover by using the command again.  If this does not correct the problem, a Reclaim Storage DBXREF (RCLSTG SELECT(*DBXREF)) will be required.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RCLDBXREF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RCLDBXREF.LIB"></a>
+<h2>Library (LIB)</h2>
+<p>Specifies which library should be recovered.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is only valid when *FIX is specified for the  <strong> Option (OPTION) </strong> parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*ERR</strong></dt>
+<dd>Recovery should be attempted for all libraries known to have had errors in the cross-reference catalogs.  The command will attempt to recover all cross-reference data for any library found having inconsistent data when RCLDBXREF was run previously with OPTION(*CHECK) specified.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library for which cross-reference data will be fixed.  All cross-reference data for the specified library will be recovered, even if the library is not known to have inconsistent data in the catalogs for it. The library does not need to exist to be specified on this command.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RCLDBXREF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RCLDBXREF.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Check for Cross-Reference Problems</strong>
+</h3>
+<p>
+</p><pre>RCLDBXREF   OPTION(*CHECK)
+</pre>
+<p></p>
+<p>This command checks the cross-reference catalogs for errors.
+</p>
+<h3><strong>Example 2: Recover the Cross-Reference Catalogs</strong>
+</h3>
+<p>
+</p><pre>RCLDBXREF   OPTION(*FIX)  LIB(*ERR)
+</pre>
+<p></p>
+<p>This command recovers the cross-reference information for all libraries known to be in error.
+</p>
+<h3><strong>Example 3: Recover the Cross-Reference Catalog Data for One Library</strong>
+</h3>
+<p>
+</p><pre>RCLDBXREF   OPTION(*FIX)  LIB(ABCD)
+</pre>
+<p></p>
+<p>This command recovers the cross-reference information for library ABCD.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RCLDBXREF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RCLDBXREF.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF32AB</strong></dt>
+<dd>Database cross-reference information not recovered.
+</dd>
+<dt><strong>CPF32AC</strong></dt>
+<dd>Database cross-reference problem(s) exist.
+</dd>
+<dt><strong>CPF32A4</strong></dt>
+<dd>Internal failure in system cross-reference program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RCLDBXREF.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

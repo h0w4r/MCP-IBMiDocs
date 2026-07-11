@@ -1,0 +1,493 @@
+Add Job Schedule Entry (ADDJOBSCDE)
+
+Add Job Schedule Entry (ADDJOBSCDE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add Job Schedule Entry (ADDJOBSCDE) command allows you to schedule batch jobs by adding an entry to the job schedule. You can use this command to schedule a batch job to be submitted once, or to schedule a batch job to be submitted at regular intervals.
+
+The job schedule entry contains all of the information needed to submit the job, including the command the job runs, the job description and user profile under which the job is run, the job queue to which the job is submitted, and the message queue to which messages are sent.
+
+At the date and time you specify on this command, the job is submitted to the specified job queue. This command does not guarantee that the job will begin running at the scheduled time, however. The job will not begin running if the job queue is held or not attached to an active subsystem, or if the maximum number of active jobs allowed to run in the subsystem or on the system at one time has been reached.
+
+Each job schedule entry is identified by the job name specified for the JOB parameter of this command and an entry number assigned by the system when the entry is added. The message replacement text sent when an entry is added contains the entry number. If there is more than one entry with the same job name, you may need to specify the number when changing the entry using the Change Job Schedule Entry (CHGJOBSCDE) command, removing the entry using the Remove Job Schedule Entry (RMVJOBSCDE) command, or when holding or releasing the entry using the Hold Job Schedule Entry (HLDJOBSCDE) or Release Job Schedule Entry (RLSJOBSCDE) command. You can use the Work with Job Schedule Entries (WRKJOBSCDE) command to show or print entries.
+
+More information is in the Work management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- To use this command, you must have:
+
+use (*USE) authority to the command specified by the Command to run (CMD) parameter and execute (*EXECUTE) authority to the library containing that command.
+
+use (*USE) authority to the job description (JOBD) and execute (*EXECUTE) authority to the library containing that job description.
+
+use (*USE) authority to the job queue (JOBQ) and execute (*EXECUTE) authority to the library containing that job queue. Authority to the job queue cannot come from adopted authority.
+
+use (*USE) authority to the user profile (USER) that the job is to run under.
+
+use (*USE) and add (*ADD) authority to the message queue (MSGQ), and execute (*EXECUTE) authority to the library containing that message queue. Authority to the message queue cannot come from adopted authority.
+
+change (*CHANGE) authority to object QDFTJOBSCD, type *JOBSCD, in library QUSRSYS and execute (*EXECUTE) authority to library QUSRSYS.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JOB | Job name | Name, *JOBD | Required, Positional 1
+CMD | Command to run | Command string | Required, Positional 2
+FRQ | Frequency | *ONCE, *WEEKLY, *MONTHLY, *YEARLY | Required, Positional 3
+SCDDATE | Schedule date | Date, *CURRENT, *MONTHSTR, *MONTHEND, *NONE | Optional
+SCDDAY | Schedule day | Single values: *NONE, *ALL
+Other values (up to 7 repetitions): *MON, *TUE, *WED, *THU, *FRI, *SAT, *SUN | Optional
+SCDTIME | Schedule time | Time, *CURRENT | Optional
+RELDAYMON | Relative day of month | Values (up to 5 repetitions): *LAST, 1, 2, 3, 4, 5 | Optional
+SAVE | Save | *NO, *YES | Optional
+OMITDATE | Omit date | Values (up to 20 repetitions): Date, *NONE | Optional
+RCYACN | Recovery action | *SBMRLS, *SBMHLD, *NOSBM | Optional
+JOBD | Job description | Single values: *USRPRF
+Other values: Qualified object name | Optional
+Qualifier 1: Job description | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+JOBQ | Job queue | Single values: *JOBD
+Other values: Qualified object name | Optional
+Qualifier 1: Job queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+USER | User | Name, *CURRENT, *JOBD | Optional
+MSGQ | Message queue | Single values: *USRPRF, *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: Message queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TEXT | Text 'description' | Character value, *BLANK | Optional
+
+Top
+
+Job name (JOB)
+
+Specifies the name of the job schedule entry.
+
+This is a required parameter.
+
+*JOBD
+The job description specified for the JOBD parameter is used for the name of the job schedule entry.
+
+name
+Specify the name of the job schedule entry.
+
+Note: To avoid deleting, holding, or releasing entries created by IBM products when you are using generic names to delete, hold, or release your entries, do not add entries with job names beginning with the letter Q.
+
+Top
+
+Command to run (CMD)
+
+Specifies the command that runs in the submitted job. Because the command you specify is used for the request data, the value specified for the RQSDTA parameter in the job description is ignored. The command you specify is syntax-checked when the entry is added.
+
+This is a required parameter.
+
+command-string
+Specify a maximum of 512 characters.
+
+Top
+
+Frequency (FRQ)
+
+Specifies how often the job is submitted.
+
+This is a required parameter.
+
+*ONCE
+The job is submitted once.
+
+*WEEKLY
+The job is submitted on the same day or days of each week at the scheduled time.
+
+*MONTHLY
+The job is submitted on the same day or days of each month at the scheduled time.
+If you specify *MONTHLY and a month does not contain the day specified for the SCDDATE parameter, the job is not run that month. For example, if SCDDATE(01/31/2004) and FRQ(*MONTHLY) are specified, the job is submitted on 01/31, 03/31, 5/31, 7/31, 8/31, 10/31 and 12/31, but will not run in February, April, June, September, or November. To submit a job on the last day of every month, specify SCDDATE(*MONTHEND).
+
+If you specify *MONTHLY and your system or your job is configured to use Julian date format, the job is submitted to run on the day of the month that it would run if the system or job did not use Julian date format.
+
+*YEARLY
+The job is submitted once each year on the same date.
+If you specify *YEARLY you must specify a date for the SCDDATE parameter.
+
+If you specify *YEARLY and a year does not contain the date specified for the SCDDATE parameter, the job is not run that year.
+
+Top
+
+Schedule date (SCDDATE)
+
+Specifies the date on which the job is submitted.
+
+If your system or your job is configured to use the Julian date format, *MONTHSTR and *MONTHEND are calculated as if the system or job did not use the Julian date format.
+
+The SCDDATE and SCDDAY parameters are mutually exclusive.
+
+*CURRENT
+The job is submitted on the current date.
+
+*MONTHSTR
+The job is submitted on the first day of the month. If you specify *MONTHSTR, and if today is the first day of the month and the time you specify on the SCDTIME parameter has not passed, the job is submitted today. Otherwise, the job is submitted on the first day of the next month.
+
+*MONTHEND
+The job is submitted on the last day of the month. If you specify *MONTHEND, and if today is the last day of the month and the time you specify on the SCDTIME has not passed, the job is submitted today. Otherwise it is submitted on the last day of the next month.
+
+*NONE
+No start date is specified. When SCDDATE(*NONE) is specified, a value other than *NONE must be specified for SCDDAY.
+
+date
+Specify the date in the job date format.
+
+Top
+
+Schedule day (SCDDAY)
+
+Specifies the day of the week on which the job is submitted.
+
+The SCDDATE and SCDDAY parameters are mutually exclusive.
+
+If today is the day of the week specified for this parameter and the time specified for the SCDTIME parameter has not passed, the job is submitted today. Otherwise, the job is submitted on the next occurrence of the specified day. For example, if SCDDAY(*FRI) and SCDTIME(12:00:00) are specified, and you are adding this job schedule entry at 11:00 a.m. on a Friday, the job is submitted today. If you are adding the entry at 4:00 p.m. on a Friday, or at 11:00 a.m. on a Monday, the job is submitted the following Friday.
+
+Single values
+
+*NONE
+No start day is specified. SCDDAY(*NONE) is not valid when SCDDATE(*NONE) is specified.
+
+*ALL
+The job is submitted every day.
+
+Other values (up to 7 repetitions)
+
+*MON
+The job is submitted on Monday.
+
+*TUE
+The job is submitted on Tuesday.
+
+*WED
+The job is submitted on Wednesday.
+
+*THU
+The job is submitted on Thursday.
+
+*FRI
+The job is submitted on Friday.
+
+*SAT
+The job is submitted on Saturday.
+
+*SUN
+The job is submitted on Sunday.
+
+Top
+
+Schedule time (SCDTIME)
+
+Specifies the time on the scheduled date at which the job is submitted.
+
+Note: Although the time can be specified to the second, the activity involved in submitting a job and the load on the system may affect the exact time at which the job is submitted.
+
+*CURRENT
+The job is submitted at the current time. If you specify SCDTIME(*CURRENT) and SCDDATE(*CURRENT), the job is immediately submitted to the specified job queue.
+
+time
+Specify the time you want the job to be submitted. The time is specified in 24-hour format and can be specified with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds. Valid values for hh range from 00 to 23. Valid values for mm and ss range from 00 to 59.
+
+- With a time separator, specify a string of 5 or 8 characters where the time separator specified for your job is used to separate the hours, minutes, and seconds. If this command is entered from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Top
+
+Relative day of month (RELDAYMON)
+
+Specifies the relative day of the month on which the job is submitted to run.
+
+This parameter is valid only if a value is specified for the SCDDAY parameter and FRQ(*MONTHLY) is specified.
+
+You can specify 5 values for this parameter.
+
+1
+The job is submitted on the specified day of the week the first time it occurs in the month. For example, if you specify SCDDAY(*TUE), FRQ(*MONTHLY) and RELDAYMON(1), the job is submitted on the first Tuesday of every month.
+
+2
+The job is submitted on the specified day of the week the second time it occurs in the month.
+
+3
+The job is submitted on the specified day of the week the third time it occurs in the month.
+
+4
+The job is submitted on the specified day of the week the fourth time it occurs in the month.
+
+5
+The job is submitted on the specified day of the week the fifth time it occurs in the month.
+
+*LAST
+The job is submitted on the specified day of the week the last time it occurs in the month.
+
+Top
+
+Save (SAVE)
+
+Specifies whether the entry for a job that is submitted only once is kept after the job is submitted. This parameter is valid only if FRQ(*ONCE) is specified.
+
+*NO
+The entry is not kept after the job is submitted.
+
+*YES
+The entry is kept after the job is submitted. If you specify *YES, the job is submitted once. The job is not submitted again until the Change Job Schedule Entry (CHGJOBSCDE) command is used to specify a new date and time.
+
+Top
+
+Omit date (OMITDATE)
+
+Specifies a maximum of 20 dates on which the job is not submitted. You can, for example, use this parameter to prevent recurring jobs from running on holidays. The date must be specified in the job date format.
+
+*NONE
+There are no dates when a job is not submitted.
+
+date
+Specify a date when a job is not submitted.
+
+Top
+
+Recovery action (RCYACN)
+
+Specifies the recovery action to be taken if the job cannot be submitted at the designated time because the system is powered down or in restricted state. The action specified for this parameter occurs at the next initial program load (IPL) or when the system comes out of restricted state.
+
+Jobs submitted during IPL or when the system comes out of restricted state are submitted in the same order that they would have been had the jobs been submitted at the times specified in the job schedule entries. If multiple occurrences of a recurring job are missed, the job is submitted only once. The first missed occurrence of a recurring job is used to order the jobs. The next occurrence of the job is calculated from the current date.
+
+Since the scheduler portion of IPL need not be complete for the IPL of the system to be complete, other jobs may start on the system before all of the jobs have been submitted.
+
+This parameter does not apply:
+
+- When a job is released after being held at the date and time it was to be submitted
+
+- When the date and time at which a job is to be submitted passes because of changes to date and time system values
+
+*SBMRLS
+The job is submitted in the released (RLS) state.
+
+*SBMHLD
+The job is submitted in the held (HLD) state.
+
+*NOSBM
+The job is not submitted.
+Specifying *NOSBM affects only missed occurrences of the job. If the job schedule entry is a recurring job, future occurrences are not affected.
+
+Top
+
+Job description (JOBD)
+
+Specifies the qualified name of the job description used when submitting the job.
+
+Single values
+
+*USRPRF
+The job description specified in the user profile under which the submitted job runs is used. The USER parameter specifies the user profile.
+
+Qualifier 1: Job description
+
+name
+Specify the name of the job description.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library where the job description is located.
+
+Top
+
+Job queue (JOBQ)
+
+Specifies the qualified name of the job queue on which this job is placed.
+
+You must have authority to the queue to specify a name on this parameter. Authority to the queue cannot come from adopted authority.
+
+Single values
+
+*JOBD
+The submitted job is placed on the job queue specified in the job description. The JOBD parameter specifies the job description.
+
+Qualifier 1: Job queue
+
+name
+Specify the name of the job queue.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library where the job queue is located.
+
+Top
+
+User (USER)
+
+Specifies the name of the user profile under which the job is submitted.
+
+*CURRENT
+The job is submitted under the user profile of the user that is adding the entry.
+
+*JOBD
+The user profile specified for the USER parameter of the job description is used. The JOBD parameter of this command specifies the job description. This value is not valid if USER(*RQD) is specified in the job description.
+
+name
+Specify the name of the user profile that is used. You must be authorized to the user profile. The user profile must be authorized to the job description and message queue specified for this command.
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the qualified name of the message queue to which messages are sent.
+
+Messages are sent when the job is submitted and when a submitted job has completed running. Messages indicating a serious error are sent to the QSYSOPR message queue regardless of the value specified for this parameter when:
+
+- The message queue specified for this parameter is damaged.
+
+- MSGQ(*NONE) is specified.
+
+- MSGQ(*USRPRF) and USER(*JOBD) are specified, and the job description specified for the JOBD parameter is changed to USER(*RQD) after the entry is added.
+
+Single values
+
+*USRPRF
+The message queue specified in the user profile under which the submitted job runs is used. The USER parameter specifies the user profile.
+
+*NONE
+Completion messages are not sent. Error messages are sent to the QSYSOPR message queue.
+
+Qualifier 1: Message queue
+
+name
+Specify the name of the message queue.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library where the message queue is located.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies text that briefly describes the job schedule entry.
+
+*BLANK
+No text is specified.
+
+character-value
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Examples
+
+Example 1: Scheduling a Weekly Job
+
+ADDJOBSCDE JOB(CLEANUP) SCDDATE(*NONE)
+CMD(CALL PGM(CLNUPLIB/CLNUPPGM))
+SCDDAY(*FRI) SCDTIME('23:00:00')
+FRQ(*WEEKLY) RCYACN(*NOSBM)
+JOBD(CLNUPLIB/CLNUPJOBD)
+
+This command submits a job named CLEANUP every Friday at 11 p.m. The job uses job description CLNUPJOBD in library CLNUPLIB. If the system is powered down or is in the restricted state at 11 p.m. on Friday, the job is not submitted at IPL or when the system comes out of restricted state.
+
+Example 2: Scheduling a Monthly Job
+
+ADDJOBSCDE JOB(PAYROLLJOB) CMD(CALL PAYROLL)
+SCDDATE(*NONE) SCDDAY(*MON)
+SCDTIME('09:00:00') FRQ(*MONTHLY)
+RELDAYMON(1)
+
+This command submits a job to run program PAYROLL at 9 a.m. on the first Monday of every month.
+
+Example 3: Omitting Dates
+
+ADDJOBSCDE JOB(MONTHEND) CMD(CALL INVENTORY)
+SCDDATE(*MONTHEND) SCDTIME('23:30:00')
+FRQ(*MONTHLY) OMITDATE('12/31/2003')
+
+This command submits a job to run program INVENTORY at 11:30 p.m. on the last day of every month except December 31, 2003.
+
+Example 4: Scheduling a Daily Job
+
+ADDJOBSCDE JOB(*JOBD) CMD(CALL DAILYCLEAN) SCDDATE(*NONE)
+SCDDAY(*ALL) SCDTIME('18:00:00')
+FRQ(*WEEKLY) RCYACN(*NOSBM) USER(SOMEPGMER)
+
+This command submits a job to run program DAILYCLEAN every day at 6 p.m. The job runs under user profile SOMEPGMER. If the system is powered down or is in the restricted state at 6 p.m., the job is not submitted at IPL or when the system comes out of restricted state.
+
+Example 5: Scheduling a Weekly Job
+
+ADDJOBSCDE JOB(*JOBD) CMD(CALL PGM1) SCDDATE('06/01/2003')
+FRQ(*WEEKLY) USER(PGMR1)
+
+This command submits a job to run program PGM1 every week starting on June 1, 2003 at the current time. Because June 1 is a Saturday, the job is submitted every Saturday.
+
+Example 6: Scheduling a Job to Run Twice a Month
+
+ADDJOBSCDE JOB(*JOBD) CMD(CALL PGM2)
+SCDDATE(*NONE) SCDDAY(*MON *WED)
+FRQ(*MONTHLY) RELDAYMON(3)
+SCDTIME('23:30:00')
+
+This command submits a job to run program PGM2 every third Monday and every third Wednesday at 11:30 p.m. The job is submitted this month if the third Monday and Wednesday have not passed when this entry is added. If, for example, yesterday was the third Monday, today is the third Tuesday, and tomorrow is the third Wednesday, the job is submitted tomorrow, and then not again until next month.
+
+Example 7: Scheduling a Job to Run Twice a Month
+
+ADDJOBSCDE JOB(*JOBD) CMD(CALL PGM3)
+SCDDATE(*NONE) SCDDAY(*MON)
+FRQ(*MONTHLY) RELDAYMON(1 3)
+SCDTIME('09:00:00')
+USER(PGMR3)
+
+This command submits a job to run program PGM3 on the 1st and 3rd Monday of every month at 9:00 a.m. The job runs under user profile PGMR3.
+
+Example 8: Scheduling a Job to Run Every Weekday
+
+ADDJOBSCDE JOB(*JOBD) CMD(CALL PGM4)
+SCDDATE(*NONE) SCDDAY(*MON *TUE *WED *THU *FRI)
+SCDTIME('19:00:00') FRQ(*WEEKLY)
+
+This command submits a job to run program PGM4 every weekday at 7 p.m.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1633
+Job schedule entry &3 number &4 not added.
+
+CPF9872
+Program or service program &1 in library &2 ended. Reason code &3.
+
+Top

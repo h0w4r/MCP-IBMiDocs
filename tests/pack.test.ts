@@ -4,7 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
-import { installDataPack, verifyDataPack } from "../src/pack/dataPack.js";
+import { installDataPack, lintContribution, verifyDataPack } from "../src/pack/dataPack.js";
+import { assembleSqliteFromParts, splitSqliteForDistribution } from "../src/pack/sqliteParts.js";
 import { resolvePackDir } from "../src/util/paths.js";
 import type { CorpusManifest, DocumentRecord } from "../src/types.js";
 
@@ -82,6 +83,22 @@ async function createValidPack(root: string, id = "doc-1"): Promise<CorpusManife
 }
 
 describe("resolución e integridad de data packs", () => {
+  it("fragmenta y reconstruye SQLite con verificación de integridad", async () => {
+    const root = await tempDir("ibmi-pack-parts-");
+    const sqlitePath = path.join(root, "ibmi-docs.sqlite");
+    const original = Buffer.alloc(2_500_000);
+    for (let index = 0; index < original.length; index += 1) original[index] = index % 251;
+    await fs.writeFile(sqlitePath, original);
+
+    const manifest = await splitSqliteForDistribution(sqlitePath, 1024 * 1024);
+    expect(manifest.parts).toHaveLength(3);
+    expect(manifest.parts.every((part) => part.size <= 1024 * 1024)).toBe(true);
+    await fs.rm(sqlitePath);
+    await assembleSqliteFromParts(root);
+
+    expect(await fs.readFile(sqlitePath)).toEqual(original);
+  });
+
   it("distingue --pack explícito y rechaza rutas forzadas inválidas", async () => {
     const pack = await tempDir("ibmi-pack-valid-");
     await fs.writeFile(path.join(pack, "manifest.json"), "{}", "utf8");
@@ -130,5 +147,39 @@ describe("resolución e integridad de data packs", () => {
     expect(verification.ok).toBe(true);
     expect(verification.corpusVersion).toBe("test-doc-b");
     expect(fsSync.existsSync(path.join(target, "raw", "stale.html"))).toBe(false);
+  });
+
+  it("valida un pack runtime sin HTML crudo cuando conserva SQLite y texto normalizado", async () => {
+    const pack = await tempDir("ibmi-pack-runtime-");
+    await createValidPack(pack, "doc-runtime");
+    await fs.rm(path.join(pack, "raw"), { recursive: true, force: true });
+
+    const verification = await verifyDataPack(pack);
+    expect(verification.ok).toBe(true);
+  });
+
+  it("no confunde un hash que contiene 52070 con un endpoint local", async () => {
+    const pack = await tempDir("ibmi-pack-hash-");
+    const manifest = await createValidPack(pack, "doc-hash");
+    manifest.documents[0].sha256 = "8dd93ab1aba52070d16ec1f2ca1d47026b644915424c61aa29bf8436fbef3570";
+    await fs.writeFile(path.join(pack, "manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
+
+    const result = await lintContribution(pack);
+    expect(result.ok).toBe(true);
+    expect(result.issues).not.toContain("No incluyas endpoints locales/RDi en contribuciones redistribuibles.");
+    const verification = await verifyDataPack(pack);
+    expect(verification.ok).toBe(true);
+    expect(verification.issues).not.toContain("El manifest contiene referencias loopback/RDi temporales no aptas para runtime.");
+  });
+
+  it("rechaza una URL de documento que conserve el endpoint temporal RDi", async () => {
+    const pack = await tempDir("ibmi-pack-loopback-");
+    const manifest = await createValidPack(pack, "doc-loopback");
+    manifest.documents[0].originalUrl = "http://127.0.0.1:52070/help/topic.html";
+    await fs.writeFile(path.join(pack, "manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
+
+    const result = await lintContribution(pack);
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain("No incluyas endpoints locales/RDi en contribuciones redistribuibles.");
   });
 });

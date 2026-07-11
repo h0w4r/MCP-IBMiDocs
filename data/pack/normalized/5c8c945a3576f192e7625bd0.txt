@@ -1,0 +1,811 @@
+Save Restore (SAVRST)
+
+Save Restore (SAVRST)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Save/Restore IFS (SAVRST) command saves and restores a copy of one or more objects, that can be used in the integrated file system (IFS).
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+The SAVRST command uses the current save and restore support for objects in libraries and for document library objects. As a result, there are restrictions when you use the SAVRST command on these objects.
+
+Notes:
+
+- When the connection type is *IP, this command communicates with remote system using TCP/IP, and Enterprise Extender is not used. The ObjectConnect server is required to be active on the remote system.
+
+- When the connection type is *DB2MIRROR, this command communicates with remote system using the System Object Replication Network Redundancy Group (NRG). The ObjectConnect for Db2 Mirror server is required to be active on the remote system and the System Object Replication NRG is active.
+
+- When the connection type is *SNA, RMTPORT, RMTUSER and RMTPWD are ignored. If an OptiConnect connection is active, OptiConnect is used to access the remote system.
+
+Restrictions:
+
+- For name patterns in the root directory:
+
+OBJ must be one of the following:
+
+OBJ(('/*') ('/QSYS.LIB' *OMIT) ('/QDLS' *OMIT))
+
+OBJ(('/*') ('/QSYS.LIB' *OMIT) ('/QDLS' *OMIT) ('/other values' *OMIT)
+
+- For names involving objects in libraries:
+
+OBJ must have only one name, except when omitting /QSYS.LIB from /*
+
+OBJ must be one of the following:
+
+OBJ('/QSYS.LIB/libname.LIB')
+
+OBJ('/QSYS.LIB/libname.LIB/*')
+
+OBJ('/QSYS.LIB/libname.LIB/*.type')
+
+OBJ('/QSYS.LIB/libname.LIB/objname.type')
+
+OBJ('/QSYS.LIB/libname.LIB/filename.FILE/*')
+
+OBJ('/QSYS.LIB/libname.LIB/filename. FILE/*.MBR')
+
+OBJ('/QSYS.LIB/libname.LIB/filename. FILE/membername.MBR')
+
+OBJ('/QSYS.LIB/*.type')
+
+OBJ('/QSYS.LIB/objname.type')
+
+OBJ('/QSYS.LIB/filename.FILE/*')
+
+OBJ('/QSYS.LIB/filename.FILE/*.MBR')
+
+OBJ('/QSYS.LIB/filename. FILE/membername.MBR')
+
+The .type must be an object type supported by SAVOBJ and RSTOBJ
+
+libname cannot be QSYS, QDOC, QDOCxxxx, QTEMP, QSPL, QSPLxxxx, QSRV, QRECOVERY, QPTFOBJ1, QPTFOBJ2, QRPLOBJ, or QSR if libname.LIB is the last component of the name
+
+SUBTREE must be *ALL
+
+For SAVRST:
+
+CHGPERIOD end date and end time must be *ALL
+
+CHGPERIOD must be default if a file member is specified
+
+An object cannot be renamed
+
+For database file members, OPTION(*NEW) only restores members for new files
+
+- For names involving document library objects:
+
+OBJ must have only one name, except when omitting /QDLS from /*
+
+OBJ and SUBTREE must be one of the following:
+
+OBJ('/QDLS/path/foldername') SUBTREE(*ALL)
+
+OBJ('/QDLS/path/documentname') SUBTREE(*OBJ)
+
+For SAVRST:
+
+The defaults must be taken on the PRECHK and SAVACTMSGQ parameters
+
+CHGPERIOD must be default with OBJ('/QDLS/path/documentname') SUBTREE(*OBJ)
+
+CHGPERIOD start date cannot be *LASTSAVE
+
+CHGPERIOD end date and end time must be *ALL
+
+SAVACT cannot be *SYNC
+
+SAVACTMSGQ must be *NONE
+
+ALWOBJDIF must be *NONE or *ALL
+
+OPTION must be *ALL
+
+- Both systems intended to participate in the save and restore operation must be connected to the same Remote Direct Memory Access (RDMA) connection, or the interworking ethernet network, or the same APPN network, or if the OptiConnect for IBM i option is to be used, both systems must be joined by the OptiConnect for IBM i hardware and software.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+RMTLOCNAME | Remote location name | Character value | Optional, Positional 1
+OBJ | Objects | Values (up to 50 repetitions): Element list | Optional, Positional 2
+Element 1: Name | Path name, *
+Element 2: Include or omit | *INCLUDE, *OMIT
+PATTERN | Name pattern | Values (up to 50 repetitions): Element list | Optional
+Element 1: Pattern | Character value, *
+Element 2: Include or omit | *INCLUDE, *OMIT
+CNNTYPE | Connection type | *SNA, *IP, *DB2MIRROR | Optional
+RMTPORT | Remote port | 1-65534, *DFT | Optional
+RMTUSER | Remote user ID | Name, *NONE, *SVRAUT, *CURRENT, *KERBEROS | Optional
+RMTPWD | Remote password | Character value, *NONE | Optional
+OUTPUT | Output | *NONE, *PRINT | Optional
+SUBTREE | Directory subtree | *ALL, *DIR, *OBJ, *NONE | Optional
+RBDMFS | Rebuild mounted file system | *NONE, *UDFS | Optional
+CHGPERIOD | Time period for last change | Element list | Optional
+Element 1: Start date | Date, *ALL
+Element 2: Start time | Time, *ALL
+Element 3: End date | Date, *ALL
+Element 4: End time | Time, *ALL
+TGTRLS | Target release | Simple name, *CURRENT, *PRV | Optional
+PRECHK | Object pre-check | *NO, *YES | Optional
+SAVACT | Save active | *NO, *YES, *SYNC | Optional
+SAVACTMSGQ | Save active message queue | Path name, *NONE, *WRKSTN | Optional
+ASPDEV | ASP device | Name, *ALLAVL, *, *SYSBAS, *CURASPGRP | Optional
+OPTION | Option | *ALL, *NEW, *OLD | Optional
+ALWOBJDIF | Allow object differences | Single values: *NONE, *ALL
+Other values (up to 2 repetitions): *OWNER, *AUTL, *PGP | Optional
+FRCOBJCVN | Force object conversion | Single values: *SYSVAL, *NO
+Other values: Element list | Optional
+Element 1: Convert during restore | *YES
+Element 2: Objects to convert | *RQD, *ALL
+SCAN | Scan objects | Element list | Optional
+Element 1: Scan during save | *NO, *YES
+Element 2: Save failed objects | *NOSAVFAILED, *SAVFAILED
+PVTAUT | Private authorities | *NO, *YES | Optional
+CRTPRNDIR | Create parent directories | *NO, *YES | Optional
+PRNDIROWN | Parent directory owner | Simple name, *PARENT | Optional
+STRJRN | Start journaling | *YES, *NO | Optional
+
+Top
+
+Remote location (RMTLOCNAME)
+
+Specifies the remote system and the type of connection used to connect to the remote system.
+
+This is a required parameter when CNNTYPE is *IP or *SNA.
+
+character-value
+The syntax for this element is dependent on the value specified for the second element:
+
+- When the connection type is *SNA, specify the name of the remote system using the format nnnnnnnn.cccccccc, where nnnnnnnn is the network identifier (ID) and cccccccc is the remote location name. If no network ID is specified, the network attributes are used to determine the default network ID.
+
+- When the connection type is *IP, specify a host name or an internet address to identify the remote system. Host names must follow these conventions:
+
+The first character must be either A through Z or 0 through 9.
+
+The last character must be either A through Z, 0 through 9, or a period (.).
+
+Blanks ( ) are not allowed.
+
+The special characters, period (.), underscore (_), and minus (-) are allowed.
+
+Parts of the name separated by periods (.) cannot exceed 63 characters in length.
+
+Note: Each part of the name separated by periods (.) must begin and end with an English alphabetic character or a numeric character.
+
+Names must be from 1 to 255 characters in length.
+
+The IPv4 address is specified in the form nnn.nnn.nnn.nnn where nnn is a decimal number ranging from 0 through 255. An IPv4 Internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host ID portion of the address.
+
+The IPv6 address is specified in the form x:x:x:x:x:x:x:x where x is a hexadecimal number ranging from 0 through X'FFFF'. "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+
+If the Internet address is entered from a command line, the address must be enclosed in single quotation marks.
+
+Top
+
+Objects (OBJ)
+
+Specifies the objects to be saved. You can specify an object name pattern for the path name to be used. When a path name is specified that could match many objects, you can specify a value for the Name pattern (PATTERN) parameter to subset the objects that are to be saved.
+
+A maximum of 300 path names can be specified.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Additional information about object name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Element 1: Name
+
+'*'
+The objects in the current directory are saved.
+
+path-name
+Specify an object path name or a pattern that can match many names.
+
+Element 2: Include or omit
+
+Specifies whether names that match the pattern should be included or omitted from the operation. Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+
+Note: The SUBTREE parameter determines whether the subtrees are included or omitted.
+
+*INCLUDE
+The objects that match the object name pattern are to be saved, unless overridden by an *OMIT specification.
+
+*OMIT
+The objects that match the object name pattern are not saved. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+
+Note: The objects will be restored with the same name.
+
+Top
+
+Name pattern (PATTERN)
+
+Specifies one or more object name patterns to be used to subset the objects to be saved. The Objects (OBJ) parameter defines the set of candidate objects. A maximum of 50 values can be specified for this parameter.
+
+Element 1: Pattern
+
+*
+All objects which qualify for the operation are included or omitted.
+
+character-value
+Specify an object name or a pattern that can match many names.
+
+Element 2: Include or omit
+
+Specifies whether names that match the pattern should be included or omitted from the operation.
+
+Note: The SUBTREE parameter determines whether the subtrees are included or omitted.
+
+*INCLUDE
+Only objects which are included by the OBJ parameter and match the PATTERN parameter are included in the save, unless overridden by an *OMIT specification.
+
+*OMIT
+All objects which are included by the OBJ parameter are included in the save except those objects which match the PATTERN parameter. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+
+Top
+
+Connection type (CNNTYPE)
+
+Specifies the type of connection with the remote system.
+
+*SNA
+The remote system is accessed using a Systems Network Architecture (SNA) address and protocol.
+
+*IP
+The remote system is accessed using a host name or an internet address over a TCP/IP connection.
+
+*DB2MIRROR
+The remote system is accessed using System Object Replication NRG configured by Db2 Mirror GUI or Db2 Mirror services.
+
+Top
+
+Remote port (RMTPORT)
+
+Specifies the port that an application on the remote system is listening on (if it's not the default port for ObjectConnect server).
+
+Note: When CNNTYPE is *DB2MIRROR, do not specify RMTPORT.
+
+*DFT
+This default value uses the port configured in TCPIP service table.
+
+1-65534
+Specify the port number to be used. This must be the specific port the ObjectConnect server is listening on. Otherwise, the remote host will reject the open attempt.
+
+Top
+
+Remote user ID (RMTUSER)
+
+Specifies the user ID that is sent to the remote system.
+
+Note: When CNNTYPE is *DB2MIRROR, do not specify RMTUSER parameter. The current thread effective user profile will be sent to remote system.
+
+*NONE
+No user ID is sent.
+
+*SVRAUT
+The user ID stored in the server authentication table (SVRAUT) is sent.
+
+Note: The user profile of the job issuing this command and the RMTLOCNAME are used to obtain the user ID and user password from the SVRAUT table. The user ID and user password are specified in the RMTUSER and RMTPWD are used to authenticate with the ObjectConnect server.
+
+It is required that the QRETSVRSEC system value is set 1 to store the user password and the server name in the SVRAUT table are in upper case.
+
+*CURRENT
+The current user of the job using this command is sent.
+
+*KERBEROS
+Authentication occurs using Kerberos. The default credentials cache file for the current user is used to locate existing Kerberos ticket-granting tickets. The Add Kerberos Ticket (ADDKRBTKT) command or the Qshell kinit tool can be used to create or refresh expired tickets.
+
+Note: Kerberos needs to be configured on both systems for this authentication type to be used.
+
+name
+Specify the name of the user ID. The user ID must exist on the remote system.
+
+Top
+
+Remote password (RMTPWD)
+
+Specifies the password to be sent to the remote system.
+
+Note: When CNNTYPE is *DB2MIRROR, do not specify RMTPWD parameter.
+
+character-value
+Specify a password to be sent to the remote system to verify the user ID specified for the RMTUSER parameter.
+
+Note: If specifying *SVRAUT or *KERBEROS in RMTUSER parameter, the RMTPWD parameter is ignored.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether information about the saved and restored objects is printed.
+
+*NONE
+No output is created.
+
+*PRINT
+Information about the saved objects is printed with the spooled output of the job. Information about the restored objects is printed with the spooled output of the job at the remote location.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether directory subtrees are included in the save operation.
+
+*ALL
+The entire subtree of each directory that matches the object name pattern is included. The subtree includes all subdirectories and the objects within those subdirectories.
+
+*DIR
+The objects in the first level of each directory that matches the object name pattern are included. The subdirectories of each matching directory are included, but the objects in the subdirectories are not included.
+
+*NONE
+No subtrees are included in the save operation. If a directory matches the object name pattern specified, the objects in the directory are included. If the directory has subdirectories, neither the subdirectories nor the objects in the subdirectories are included.
+
+*OBJ
+Only the objects that exactly match the object name pattern will be processed. If the object name pattern specifies a directory, objects in the directory are not included.
+
+*STG
+The objects that match the object name pattern are processed along with the storage for related objects. Objects that are saved using this value can only be restored using SUBTREE(*STG).
+
+Top
+
+Rebuild mounted file system (RBDMFS)
+
+Specifies which mounted file systems should be rebuilt during the restore.
+
+Note: You must have save system (*SAVSYS) or all object (*ALLOBJ) special authority to specify a value other than *NONE for this parameter.
+
+*NONE
+Mounted file systems will not be rebuilt during the restore. Objects that were saved from a mounted file system will be restored to the file system that contains the directory being restored into.
+
+*UDFS
+Mounted user-defined file systems will be rebuilt during the restore. A user-defined file system will be created if it does not exist and then will be mounted over the same directory it was mounted over during the save.
+If a user-defined file system is created during the restore, the attributes will be set based on the saved user-defined file system including any user-defined file system specific attributes such as 'Case sensitivity' or 'Default file format'. If the user-defined file system exists before the restore, no attributes will be changed.
+
+If there is an error creating or mounting a user-defined file system, none of the objects that were saved from the mounted user-defined file system will be restored.
+
+Note: If it does not exist before the restore, the directory that is being mounted over will be created with attributes and authorities copied from the directory being restored into. This could cause problems when the user-defined file system is unmounted and then remounted, if the authorities are not sufficient to allow the mount to occur.
+
+Top
+
+Time period for last change (CHGPERIOD)
+
+Specifies a date/time range. Objects that were last changed within that range will be saved.
+
+Element 1: Start date
+
+*ALL
+No starting date is specified. All objects last changed prior to the ending date will be saved.
+
+*LASTSAVE
+The objects that have changed since the last time they were saved with UPDHST(*YES) specified are saved. Notes:
+
+- If this value is specified, the value *ALL must be specified for all other elements of this parameter.
+
+- For local file systems, the system archive attribute is used. For remote file systems, the PC archive attribute is used.
+
+date
+Specify the date after which objects that have changed are to be saved. The date must be specified in job date format.
+
+Element 2: Start time
+
+*ALL
+All times of day are included in the range.
+
+time
+Specify the time on the start date after which objects that have changed are to be saved.
+
+The time is specified in 24-hour format with or without a time separator as follows:
+
+- With a time separator, specify a string of 5 or 8 digits, where the time separator for the job separates the hours, minutes, and seconds. If you issue this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command fails.
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds. Valid values for hh range from 00 through 23. Valid values for mm and ss range from 00 through 59.
+
+Note: Specifying an explicit time is valid only if the starting date is an explicit date.
+
+Element 3: End date
+
+*ALL
+No ending date is specified. All objects changed since the starting date will be saved.
+
+date
+Specify the date before which objects that have changed are to be saved. The date must be specified in the job date format.
+
+Element 4: End time
+
+*ALL
+All times of day are included in the range.
+
+time
+Specify a time on the end date before which objects that have changed are to be saved.
+
+The time is specified in 24-hour format with or without a time separator as follows:
+
+- With a time separator, specify a string of 5 or 8 digits, where the time separator for the job separates the hours, minutes, and seconds. If you issue this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command fails.
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds. Valid values for hh range from 00 through 23. Valid values for mm and ss range from 00 through 59.
+
+Note: Specifying an explicit time is valid only if the ending date is an explicit date.
+
+Top
+
+Target release (TGTRLS)
+
+Specifies the release level of the operating system on which you intend to use the object being saved.
+
+When specifying the target-release value, the format VxRxMx is used to specify the release, where Vx is the version, Rx is the release, and Mx is the modification level. For example, V5R3M0 is version 5, release 3, modification 0.
+
+Valid values depend on the current version, release, and modification level of the operating system, and they change with each new release. You can press F4 while prompting this command parameter to see a list of valid target release values.
+
+*CURRENT
+The object is to be restored to, and used on, the release of the operating system currently running on your system. The object can also be restored to a system with any subsequent release of the operating system installed.
+
+*PRV
+The object is to be restored to the previous release with modification level 0 of the operating system. The object can also be restored to a system with any subsequent release of the operating system installed.
+
+character-value
+Specify the release in the format VxRxMx. The object can be restored to a system with the specified release or with any subsequent release of the operating system installed.
+
+Top
+
+Object pre-check (PRECHK)
+
+Specifies whether the save operation ends if any of the selected objects cannot be saved.
+
+*NO
+The save operation does not end. Objects that can be saved are saved.
+
+*YES
+The save operation ends. Nothing is saved unless all of the selected objects can be saved.
+
+Top
+
+Save active (SAVACT)
+
+Specifies whether an object can be updated while it is being saved.
+
+Note: If your system is in a restricted state, this parameter is ignored and the save operation is performed as if SAVACT(*NO) was specified.
+
+*NO
+Objects that are in use are not saved. Objects cannot be updated while being saved.
+
+*YES
+Objects can be saved and used at the same time. The object checkpoints can occur at different times.
+
+*SYNC
+Objects can be saved and used at the same time. All of the object checkpoints occur at the same time.
+
+Top
+
+Save active message queue (SAVACTMSGQ)
+
+Specifies the message queue that the save operation uses to notify the user that the checkpoint processing is complete.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+*NONE
+No notification message is sent.
+
+*WRKSTN
+The notification message is sent to the work station message queue.
+
+path-name
+Specify the path name of the message queue to be used.
+
+Top
+
+ASP device (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device to be included in the save operation.
+
+*DFT
+The operation uses the ASPDEV value appropriate for the file system from which objects are being saved. For Integrated File System objects, *ALLAVL is used. For objects from the QSYS file system, the corresponding save command ASPDEV default is used.
+
+*ALLAVL
+The operation includes the system ASP (ASP number 1), all basic user ASPs (ASP numbers 2-32), and all available independent ASPs.
+
+*
+The operation includes the system ASP, all basic user ASPs, and, if the current thread has an ASP group, all independent ASPs in the ASP group.
+
+*SYSBAS
+The system ASP and all basic user ASPs are included in the save operation.
+
+*CURASPGRP
+If the current thread has an ASP group, all independent ASPs in the ASP group are included in the save operation.
+
+name
+Specify the name of the ASP device to be included in the save operation.
+
+Top
+
+Option (OPTION)
+
+Specifies whether to restore objects that already exist on the system or objects that do not already exist on the system.
+
+*ALL
+All of the specified objects are restored, whether they already exist on the system or not.
+
+*NEW
+Objects are restored only if they do not already exist on the system.
+
+*OLD
+Objects are restored only if they already exist on the system.
+
+Top
+
+Allow object differences (ALWOBJDIF)
+
+Specifies whether differences are allowed between the saved objects and the restored objects.
+
+Notes:
+
+- You must have all object (*ALLOBJ) special authority to specify any value other than *NONE for this parameter.
+
+- If differences are found, the final message for the restore operation is an escape message rather than the normal completion message.
+
+The types of differences include:
+
+- Authorization list: The saved object had an authorization list, and either the object exists on the system but does not have the same authorization list, or the object does not exist and it is being restored to a different system than the save system.
+
+Note: This parameter has no effect when the saved object did not have an authorization list. If the object exists, it is restored with the authorization list of the existing object. If it does not exist, it is restored with no authorization list.
+
+- Ownership: The owner of an object on the system is different than the owner of an object from the save operation.
+
+- Primary Group: The primary group of an object on the system is different than the primary group of an object from the save operation.
+
+Single values
+
+*NONE
+None of the differences listed above are allowed on the restore operation. See the description of each individual value to determine how differences are handled.
+
+*ALL
+All of the differences listed above are allowed on the restore operation. See the description of each individual value to determine how differences are handled.
+
+Other values (up to 3 repetitions)
+
+*AUTL
+Authorization list differences are allowed. If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is restored with the authorization list of the existing object. If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored and it is linked to the authorization list. If the authorization list does not exist, the public authority is set to *EXCLUDE.
+If this value is not specified, authorization list differences are not allowed. If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is not restored. If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored, but it is not linked to the authorization list, and the public authority is set to *EXCLUDE.
+
+*OWNER
+Ownership differences are allowed. If an object already exists on the system with a different owner than the saved object, the object is restored with the owner of the object on the system.
+If this value is not specified, ownership differences are not allowed. If an object already exists on the system with a different owner than the saved object, the object is not restored.
+
+*PGP
+Primary group differences are allowed. If an object already exists on the system with a different primary group than the saved object, the object is restored with the primary group of the object on the system.
+If this value is not specified, primary group differences are not allowed. If an object already exists on the system with a different primary group than the saved object, the object is not restored.
+
+Top
+
+Force object conversion (FRCOBJCVN)
+
+Specifies whether to convert user objects to the format required for use in the current version of the operating system, or to be compatible with the current machine, when the objects are restored.
+
+Notes:
+
+- This parameter applies only to user objects of the *MODULE, *PGM, *SRVPGM, and *SQLPKG object types.
+
+- An object must have creation data (either observable or unobservable) to be converted.
+
+- If an object needs to be converted (because it is formatted for an earlier version of the operating system or is incompatible with the current machine), but is not converted during this restore operation, the object is automatically converted the first time it is used.
+
+Single values
+
+*SYSVAL
+The objects are converted based on the value of the QFRCCVNRST system value.
+
+*NO
+The objects are not converted during the restore operation.
+
+Note: If FRCOBJCVN(*NO) is specified, then the QFRCCVNRST system value must have a value of either "0" or "1".
+
+Element 1: Convert during restore
+
+*YES
+The objects are converted during the restore operation.
+
+Notes:
+
+- If FRCOBJCVN(*YES *RQD) is specified, then the QFRCCVNRST system value must have a value of "0", "1", or "2". FRCOBJCVN(*YES *RQD) will override a QFRCCVNRST value of "0" or "1". If FRCOBJCVN(*YES *ALL) is specfied, then QFRCCVNRST can have any valid value and FRCOBJCVN(*YES *ALL) overrides the QFRCCVNRST system value.
+
+- Specifying this value increases the time of the restore operation, but avoids the need to convert the objects when they are first used.
+
+Element 2: Objects to convert
+
+*RQD
+The objects are converted only if they require conversion to be used by the current operating system or to be compatible with the current machine. If the objects do not have all creation data (either observable or unobservable), the objects cannot be converted and will not be restored.
+
+*ALL
+All objects are converted regardless of their current format and machine compatibility, including compatible objects already in the current format. However, if the objects do not have all creation data (either observable or unobservable), the objects cannot be converted and will not be restored.
+
+Top
+
+Scan objects (SCAN)
+
+Specifies whether objects will be scanned while being saved when exit programs are registered with any of the integrated file system scan-related exit points and whether objects that previously failed a scan should be saved.
+
+The integrated file system scan-related exit points are:
+
+- QIBM_QP0L_SCAN_OPEN - Integrated File System Scan on Open Exit Program
+
+- QIBM_QP0L_SCAN_CLOSE - Integrated File System Scan on Close Exit Program
+
+For details on these exit points, see the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Element 1: Scan during save
+
+*NO
+Objects will not be scanned by the scan-related exit programs.
+
+*YES
+Objects will be scanned according to the rules described in the scan-related exit programs.
+
+Element 2: Save failed objects
+
+*NOSAVFAILED
+Objects that have either previously failed a scan or that fail a scan by a QIBM_QP0L_SCAN_OPEN exit program during this save will not be saved.
+
+*SAVFAILED
+Objects that have either previously failed a scan or that fail a scan during this save will be saved.
+
+Top
+
+Private authorities (PVTAUT)
+
+Specifies whether to save and restore private authorities with the objects that are saved and restored.
+
+*NO
+No private authorities are saved or restored.
+
+*YES
+Private authorities are saved and restored with the objects.
+
+Note: You must have save system (*SAVSYS) or all object (*ALLOBJ) special authority on the system from which objects are being saved, and *ALLOBJ special authority on the restore system, to specify this value.
+
+Top
+
+Create parent directories (CRTPRNDIR)
+
+Specifies whether parent directories of objects being restored should be created if they do not exist. For example, if object '/a/b/c/file1' is being restored then directories '/a', '/a/b' and '/a/b/c' must exist. This parameter only applies to "root" (/), QOpenSys and user-defined file systems, and will be ignored for all other file systems.
+
+*NO
+Parent directories will not be created if they do not exist. Diagnostic message CPD375B will be sent and the object will not be restored.
+
+*YES
+The restore will create parent directories if they do not exist. The directories created by the restore will have *EXCLUDE public authority and will be owned by the user profile specified for the Parent directory owner (PRNDIROWN) parameter. The other parent directory attributes will be set using the shipped default values for the Create Directory (CRTDIR) command parameters.
+
+Top
+
+Parent directory owner (PRNDIROWN)
+
+Specifies the name of an existing user profile that will own parent directories created by the restore. This parameter only applies to "root" (/), QOpenSys and user-defined file systems, and will be ignored for all other file systems.
+
+Note: If a value is specified for this parameter, *YES must be specified for the Create parent directories (CRTPRNDIR) parameter.
+
+*PARENT
+The owner of a parent directory being created by the restore will be the same as the owner of the directory it is being created into. For example, if object '/a/b/c/file1' is being restored and directory '/a' exists but the '/b' and '/b/c' directories do not exist, the '/b' and '/b/c' directories are created with the same owner as the '/a' directory.
+
+name
+Specify the name of a user profile to be the owner of any parent directories that are created by the restore.
+
+Top
+
+Start journaling (STRJRN)
+
+Specifies whether to start journaling for new objects that are restored.
+
+Notes:
+
+- Journal information that was saved will be restored for new objects whether journaling is started or not.
+
+- Journaling will not be changed for existing objects.
+
+*YES
+Journaling will be started for new objects that were being journaled when they were saved.
+
+*NO
+Journaling will not be started for the objects that are restored.
+
+Top
+
+Examples
+
+Example 1: Saving and Restoring a Directory using *IP with *SVRAUT
+
+SAVRST CNNTYPE(*IP) RMTLOCNAME(SYSTEM2) RMTUSER(*SVRAUT)
+OBJ(('MYDIR')) SAVACT(*YES)
+SAVACTMSGQ('/QSYS.LIB/SVRTEST.LIB/ZXC.MSGQ')
+
+This command saves the MYDIR directory while active, uses the ZXC message queue in library SVRTEST to save messages and restores the MYDIR directory to remote system SYSTEM2 using connection type *IP with valid user profile and password on the system SYSTEM2 which are retrieved from SVRAUT table using current user profile and server name SYSTEM2.
+
+Example 2: Saving and Restoring a Member Object using *IP with user profile and password
+
+SAVRST CNNTYPE(*IP) RMTLOCNAME(SYSTEM1)
+RMTUSER(USRPRF1) RMTPWD(MYPASSWORD)
+OBJ(('/QSYS.LIB/JTEMP.LIB/ZXC.FILE/QYYCPDGT.MBR'))
+
+This command saves the QYYCPDGT member from file ZXC in library JTEMP and restores the object on the iSeries system at remote location SYSTEM1 using connection type *IP with valid user profile USRPRF1 and password MYPASSWORD on system SYSTEM1.
+
+Example 3: Saving and Restoring a Directory using *IP with Kerberos
+
+SAVRST CNNTYPE(*IP) RMTLOCNAME(SYSTEM2) RMTUSER(*KERBEROS)
+OBJ(('MYDIR')) SAVACT(*YES)
+SAVACTMSGQ('/QSYS.LIB/SVRTEST.LIB/ZXC.MSGQ')
+
+This command saves the MYDIR directory while active, uses the ZXC message queue in library SVRTEST to save messages and restores the MYDIR directory to remote system SYSTEM2 using connection type *IP and Kerberos ticket-granting tickets in default credentials cache file.
+
+Example 4: Saving and Restoring a Directory using *DB2MIRROR
+
+SAVRST CNNTYPE(*DB2MIRROR) OBJ(('/MYDIR'))
+
+This command saves the /MYDIR directory and restores the /MYDIR directory to the mirrored system using connection type *DB2MIRROR.
+
+Example 5: Saving and Restoring a Member Object using *SNA
+
+SAVRST RMTLOCNAME(SYSTEM1)
+OBJ(('/QSYS.LIB/JTEMP.LIB/ZXC.FILE/QYYCPDGT.MBR'))
+
+This command saves the QYYCPDGT member from file ZXC in library JTEMP and restores the object on the iSeries system at remote location SYSTEM1 using connection type *SNA.
+
+Example 6: Saving and Restoring a Directory using *SNA
+
+SAVRST RMTLOCNAME(SYSTEM2) OBJ(('MYDIR')) SAVACT(*YES)
+SAVACTMSGQ('/QSYS.LIB/SVRTEST.LIB/ZXC.MSGQ')
+
+This command saves the MYDIR directory while active, uses the ZXC message queue in library SVRTEST to save messages and restores the MYDIR directory to remote system SYSTEM2 using connection type *SNA.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPCAD80
+&1 objects saved and restored.
+
+CPFAD8D
+An error occurred during the &1 operation.
+
+CPFAD80
+Unable to establish connection from &1 to &2.
+
+CPFAD81
+User profile &1 not found on remote location &2.
+
+CPFAD82
+Remote location &1 not found.
+
+CPFAD83
+Remote location &1 cannot be source location.
+
+CPFAD84
+ObjectConnect internal error, function code &1, return code &2.
+
+CPFAD86
+Location name &1 unable to close &2.
+
+CPFAD88
+Unable to establish connection from &1 to &2.
+
+CPFAD93
+APPC failure. Failure code is &3.
+
+CPF389C
+ObjectConnect ended, function code &1, return code &2.
+
+CPDCB0A
+Error occurred during the &1 operation.
+
+Top

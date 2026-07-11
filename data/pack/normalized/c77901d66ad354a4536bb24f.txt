@@ -1,0 +1,241 @@
+Change Data Area (CHGDTAARA)
+
+Change Data Area (CHGDTAARA)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Change Data Area (CHGDTAARA) command changes the value of the local data area (*LDA), the group data area (*GDA), the program initialization parameter data area (*PDA), or the specified data area that is stored in a library. The new value must have the same type and a length less than or equal to the data area length or the specified substring length.
+
+In group jobs, the data area specified may be the group data area (*GDA). This data area is automatically associated with the group and cannot be accessed from jobs outside the group. The length of this character data area is 512 bytes. More information about group jobs is in the Work management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+The local data area (*LDA) is a character data area 1024 bytes in length. It is automatically associated with your job and other jobs cannot get access to it.
+
+In prestart jobs, the data area specified may be the data area that contains program initialization parameter data (*PDA). This data area is automatically associated with your prestart job and other jobs cannot get access to it. The length of this character data area is 2000 bytes. More information about prestart jobs is in the Work management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+For character data areas, a substring of the data area can be changed without affecting the remainder of the data area. This substring is defined by specifying the starting position and the length of the substring. In this case, the new value must have a length less than or equal to the substring length.
+
+When this command is run to change a data area other than the local data area, group data area, or program initialization parameter data area, the data area is locked by the job or thread during the change operation so that commands in other jobs cannot change or delete it until the operation is completed. If the data area is shared with other jobs and it is updated in steps involving more than one command in a job, the data area should be explicitly allocated to that job until all the steps have been performed. Data areas, other than the group data area , local data area, or program initialization parameter data area can be explicitly allocated with the Allocate Object (ALCOBJ) command; no allocation is necessary when the CHGDTAARA command is run specifying the group data area, local data area, or program initialization parameter data area.
+
+Restrictions:
+
+- To use this command, the user must have change (*CHANGE) authority for the data area being changed and execute (*EXECUTE) authority for the library in which it is stored. No specific authority is required for the local data area, group data area, or program initialization parameter data area.
+
+- This command is conditionally threadsafe. The following restrictions apply:
+
+Changing DDM data areas in a job that allows multiple threads is not threadsafe.
+
+Changing DDM data areas will fail when more than one thread is active in a job.
+
+Changing the special data areas (*LDA, *GDA and *PDA) is allowed from the initial thread only and will fail if attempted from a secondary thread.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DTAARA | Data area specification | Element list | Required, Positional 1
+Element 1: Data area | Single values: *LDA, *GDA, *PDA
+Other values: Qualified object name
+Qualifier 1: Data area | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Substring specifications | Single values: *ALL
+Other values: Element list
+Element 1: Substring starting position | 1-2000
+Element 2: Substring length | 1-2000
+VALUE | New value | Not restricted | Required, Positional 2
+
+Top
+
+Data area specification (DTAARA)
+
+Specifies the name and library of the data area whose value is being changed. It optionally specifies, for character data areas only, the starting position and length of the character string that is changed in the data area.
+
+This is a required parameter.
+
+Element 1: Data area
+
+Single values
+
+*LDA
+The local data area associated with your job is changed. The length of this character data area is 1024 bytes.
+
+*GDA
+The group data area associated with your group job is changed. The length of this character data area is 512 bytes.
+
+*PDA
+The program initialization parameter data area associated with your prestart job is changed. The length of this character data area is 2000 bytes.
+
+Qualifier 1: Data area
+
+name
+Specify the name of the data area to be changed.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the library where the data area is located.
+
+Element 2: Substring specifications
+
+Single values
+
+*ALL
+The entire data area is changed.
+
+Element 1: Substring starting position
+
+1-2000
+Specify the starting position of the data area being changed.
+
+Element 2: Substring length
+
+1-2000
+Specify the length of the data area substring being changed.
+
+Top
+
+New value (VALUE)
+
+Specifies the new value stored in the data area. Specify a value that is valid for the data attributes specified in the data area's description. If *CHAR or *LGL was specified for the Type (TYPE) parameter of the Create Data Area (CRTDTAARA) command when the data area was created and the value specified here is numeric, the value must be enclosed in apostrophes. If *DEC was specified for the Type (TYPE) parameter of the CRTDTAARA command, the value must not be enclosed in apostrophes.
+
+This is a required parameter.
+
+unrestricted-value
+Specify the value of the data area.
+
+Top
+
+Examples
+
+Example 1: Changing the Data Area Value
+
+CHGDTAARA DTAARA(MYLIB/MYDATA) VALUE(GOODNIGHT)
+
+This command changes the value of the data area named MYDATA in library MYLIB to GOODNIGHT. The data area must be for character data and must be 9 or more characters in length.
+
+Example 2: Changing the Logical Value of the Data Area
+
+CHGDTAARA DTAARA(PAYROLLSW) VALUE('0')
+
+This command changes the logical value of the data area named PAYROLLSW to zero (0). The library search list is used to locate the data area.
+
+Example 3: Changing Specific Characters of the Local Data Area
+
+CHGDTAARA DTAARA(*LDA (5 4)) VALUE('TWO')
+
+This command changes characters 5 through 8 of the user's local data area. Because the new value is shorter than the substring, it is padded with a blank.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF101A
+Operation on DDM data area &1 in &2 failed.
+
+CPF1015
+Data area &1 in &2 not found.
+
+CPF1018
+No authority to change data area.
+
+CPF1019
+VALUE parameter not correct.
+
+CPF1020
+VALUE parameter too long.
+
+CPF1021
+Library &1 not found for data area &2.
+
+CPF1022
+No authority to library &1 data area &2.
+
+CPF1026
+VALUE parameter must be '0' or '1'.
+
+CPF1043
+Boundary alignment for data area not valid.
+
+CPF1044
+AREA parameter not valid for data area.
+
+CPF1045
+CPYPTR parameter not valid for data area.
+
+CPF1046
+DTAARA(*GDA) not valid because job not group job.
+
+CPF1062
+Null string not valid as character value.
+
+CPF1063
+Cannot allocate data area &1 in library &2.
+
+CPF1067
+Cannot allocate library &1.
+
+CPF1072
+DTAARA(*PDA) not valid because job not prestart job.
+
+CPF1087
+Substring not allowed for decimal or logical data area.
+
+CPF1088
+Starting position outside of data area.
+
+CPF1089
+Substring specified for data area not valid.
+
+CPF1138
+VALUE parameter not valid type for data area &1.
+
+CPF1155
+VALUE parameter too long for data area &1.
+
+CPF1162
+Boundary alignment for data area &1 not valid.
+
+CPF1163
+AREA parameter not valid for data area &1.
+
+CPF1168
+CPYPTR parameter not valid for data area &1.
+
+CPF1170
+Starting position outside of data area &1.
+
+CPF1192
+Substring specified for data area &1 not valid.
+
+CPF180B
+Function &1 not allowed.
+
+CPF180C
+Function &1 not allowed.
+
+CPF18BE
+Data area &1 not changed because entry not journaled.
+
+CPF4ACF
+Operation failed for object &1 in &2 type *&3 due to replication errors.
+
+CPF9899
+Error occurred during processing of command.
+
+Top

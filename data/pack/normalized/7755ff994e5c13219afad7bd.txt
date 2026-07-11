@@ -1,0 +1,173 @@
+Start Point-to-Point TCP/IP (STRTCPPTP)
+
+Start Point-to-Point TCP/IP (STRTCPPTP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Start Point-to-Point TCP/IP (STRTCPPTP) command is used to start a point-to-point TCP/IP session job. A session job operates in one of two possible modes:
+
+- Answer mode (*ANS) sessions allow a remote system to contact the local system and establish a point-to-point TCP/IP session.
+
+- Dial mode (*DIAL) sessions are used to have the local system contact a remote system and establish a point-to-point TCP/IP session.
+
+Note: You can start any profiles of linetype *PPP with this command. You must use Systems Director Navigator to configure *PPP profiles.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CFGPRF | Configuration profile | Character value, *AUTOSTART | Required, Positional 1
+OUTPUT | Script dialog output | *ERROR, *NONE, *PRINT | Optional
+RESTART | Restart | *NO, *YES | Optional
+SNDINQMSG | Send inquiry message | *NO, *YES | Optional
+AUTODLTCFG | Autodelete configuration | *NO, *YES | Optional
+
+Top
+
+Configuration profile (CFGPRF)
+
+Specifies the point-to-point configuration profile to start. *AUTOSTART indicates that all point-to-point configuration profiles with this attribute should be started. The profile specifies all the attributes and values necessary to define a session. The mode specified in the profile determines whether the local system will be contacting a remote system (*DIAL session), or if a remote system will be contacting the local system (*ANS session). All other information about the characteristics of the session is also contained in the point-to-point configuration profile.
+
+This is a required parameter.
+
+*AUTOSTART
+Start all point-to-point configuration files marked with this attribute.
+
+name
+Specify the name of a valid, inactive point-to-point configuration profile.
+
+Top
+
+Script dialog output (OUTPUT)
+
+Specifies whether or not to print a copy of the script dialog between the local system and the remote system. You can use this dialog to diagnose problems that prevent a point-to-point TCP/IP session from being successfully established.
+
+Note: This parameter does not affect job log creation or output.
+
+*ERROR
+Print the script dialog only if errors occur while establishing the TCP/IP point-to-point session job.
+
+*NONE
+Do not print the script dialog.
+
+*PRINT
+Print the script dialog with the spooled output of the job that issued the STRTCPPTP command, regardless of whether or not any errors occurred.
+
+Top
+
+Restart (RESTART)
+
+Specifies whether to restart the TCP/IP point-to-point session job that is running the profile specified on the Configuration profile (CFGPRF) parameter.
+
+This parameter is only valid when specified for an active TCP/IP point-to-point profile. If the TCP/IP point-to-point profile is not active, this parameter is ignored.
+
+*NO
+Do not restart the TCP/IP point-to-point session job.
+
+*YES
+Restart the TCP/IP point-to-point session job.
+How the TCP/IP point-to-point session job is restarted depends on the mode of point-to-point session that is running. By mode, the session is restarted as follows:
+
+Switched Line Dial (Dial remote systems)
+Reset the session to start by redialing the remote system.
+
+Switched Line Answer (Answering incoming calls)
+Reset the session to Ring Wait state (wait for remote system to dial in).
+
+Leased Line (Initiator or Terminator) for PPP
+Reset back to LCP Configure Request state.
+
+Leased Line (Initiator or Terminator) for SLIP
+Reset back to an 'Active' state
+
+Dial-on-Demand
+Reset the session to wait for the next Dial-on-Demand request.
+
+Top
+
+Send inquiry message (SNDINQMSG)
+
+Specifies whether or not to send an inquiry message after any initialization has been completed. The inquiry message will be sent to the QTCP message queue.
+
+Until you respond to the inquiry message, the point-to-point session job is held. While the job is held, you can set up trace tools for diagnosing problems related to this TCP/IP point-to-point session job.
+
+Note: This parameter is ignored for any profiles of linetype *PPP.
+
+*NO
+Do not send an inquiry message after initialization has been completed.
+
+*YES
+The point-to-point session job will send an inquiry message after it has completed its initialization. If the configuration profile has the attribute for automatic creation of the controller and device, the inquiry message will be sent after the controller description and device description have been created.
+
+Top
+
+Autodelete configuration (AUTODLTCFG)
+
+Specifies whether or not controller description and device description configuration objects that were automatically created during STRTCPPTP initialization should be automatically deleted when the point-to-point session job ends.
+
+*NO
+Do not delete any controller description and device description configuration objects that were automatically created by STRTCPPTP. This allows the controller description and device description to be reused the next time a TCP/IP point-to-point session job is started using the specified configuration profile.
+
+*YES
+Delete any controller description and device description configuration objects that were automatically created during STRTCPPTP initialization.
+
+Top
+
+Examples
+
+Example 1: Start a Point-To-Point TCP/IP Session Job.
+
+STRTCPPTP CFGPRF(DIALPRF)
+
+This command starts a point-to-point TCP/IP session job. The point-to-point configuration profile "DIALPRF" contains the information that will determine whether the local system will be contacting a remote system (*DIAL session), or if a remote system will be contacting the local system (*ANS session).
+
+Example 2: Start a Session and Capture the Script Dialog.
+
+STRTCPPTP CFGPRF(DIALPRF) OUTPUT(*PRINT)
+
+This command starts a point-to-point TCP/IP session job. The point-to-point configuration profile "DIALPRF" contains the information that the local system will use to contact the remote system and establish a point-to-point TCP/IP session with it. A copy of the dialog exchanged between the two systems prior to establishing a point-to-point TCP/IP session is written to the default output queue for the job that issued the STRTCPPTP command.
+
+Example 3: Send an Inquiry Message After Initializing the TCP/IP Session Job.
+
+STRTCPPTP CFGPRF(ANSWERPRF) SNDINQMSG(*YES)
+
+This command uses the SNDINQMSG parameter, which is normally used only if it is necessary to collect detailed internal trace information when the controller and device description used by the point-to-point session job are automatically created.
+
+This command starts a point-to-point TCP/IP session job. The point-to-point configuration profile "ANSWERPRF" contains the information that will be used to establish a point-to-point TCP/IP session when a remote system contacts the local system.
+
+After automatically creating the controller and device description it will use, the point-to-point session job will send an inquiry message to the QTCP message queue. Depending on the response, the job will either continue running or will be cancelled.
+
+Example 4: Restarting a Running Point-To-Point Profile.
+
+STRTCPPTP CFGPRF(ANSWERPRF) RESTART(*YES)
+
+This command will restart the running point-to-point profile ANSWERPRF. How the session is reset (restarted) depends on the connection type of the line (switched or unswitched) and the mode (dial or answer). For more information on how the session would be reset, see the details for RESTART(*YES) above.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+TCP1A1F
+Cannot process request while &3/&2/&1 using &6.
+
+TCP8205
+Required object &2/&1 type *&3 not found.
+
+TCP8207
+STRTCPPTP &1 not performed. Thread &10 in job &6/&5/&4 using &1.
+
+TCP8208
+STRTCPPTP &1 not performed. See previous messages.
+
+Top

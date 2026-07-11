@@ -1,0 +1,254 @@
+Work with Commitment Def (WRKCMTDFN)
+
+Work with Commitment Def (WRKCMTDFN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Work with Commitment Definitions (WRKCMTDFN) command is used to work with the commitment definitions on the system. A commitment definition is used to store information about commitment control when commitment control is started by the Start Commitment Control (STRCMTCTL) command. These commitment definitions may or may not be associated with an active job. Those not associated with an active job have been ended, but one or more of its logical units of work has not yet been completed.
+
+Restrictions:
+
+- None when the creator of the commitment definition matches the effective user of the thread. Otherwise, the caller must have *JOBCTL special authority.
+
+The QSYS2.DB_TRANSACTION_INFO view and the QSYS2.DB_TRANSACTION_JOURNAL_INFO, QSYS2.DB_TRANSACTION_RECORD_INFO, and QSYS2.DB_TRANSACTION_OBJECT_INFO table functions return similar information.
+
+The STATUS parameter can be used to subset the list of commitment definitions by their status. For example, a status value of *PENDING displays a list of all commitment definitions that have local pending changes. A status value of *RESYNC displays a list of all commitment definitions that are involved with resynchronizing their resources. Commitment definitions may be involved with resynchronizing resources in an effort to reestablish a synchronization point across the logical unit of work. A synchronization point is where all resources within a logical unit of work are in consistent state. A status value of *UNDECIDED displays a list of all commitment definitions involved with a commit operation that are waiting to receive the decision to either commit or rollback. A status value of *XOPEN displays a list of all commitment definitions associated with an X/Open global transaction.
+
+The ASP group parameter can be used to subset the list of commitment definitions by the auxiliary storage pool (ASP) on which they reside.
+
+The logical unit of work identifier (LUWID) parameter can be used when trying to find the commitment definition on the system which is working with a commitment definition on another system. The jobs containing these commitment definitions are communicating using an APPC conversation. An LUWID can be found by displaying the commitment definition on one system and then using it as input to the WRKCMTDFN command to find the corresponding commitment definition.
+
+The duplicate job option (DUPJOBOPT) parameter specifies the action taken when duplicate jobs are found by this command. If duplicate jobs are found they can either be displayed in a list the user can select from or a message can be issued for each duplicate job found.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JOB | Job name | Single values: *, *ALL
+Other values: Qualified job name | Optional, Positional 1
+Qualifier 1: Job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+STATUS | Status | *ALL, *PENDING, *RESYNC, *UNDECIDED, *XOPEN | Optional, Positional 2
+ASPGRP | ASP group | Name, *ALLAVL, *SYSBAS | Optional
+LUWID | Logical unit of work ID | Character value, *ALL | Optional
+OUTPUT | Output | *, *PRINT | Optional
+DUPJOBOPT | Duplicate job option | *SELECT, *MSG | Optional
+
+Top
+
+Job name (JOB)
+
+Specifies the names of the jobs (if any) whose commitment definitions are shown. If a job name is not qualified, all jobs by that name have their commitment definitions displayed. When *ALL is not specified, only commitment definitions with lock scope *JOB are shown, even though commitment definitions with lock scope *TNSOBJ may be attached to threads in the specified jobs. To show commitment definitions with lock scope *TNSOBJ, *ALL must be specified.
+
+A job identifier is a special value or a qualified name with up to three elements. For example:
+
+*
+*ALL
+job-name
+user-name/job-name
+job-number/user-name/job-name
+
+*
+The commitment definitions which are associated with the job where the WRKCMTDFN command is issued are shown.
+
+*ALL
+Commitment definitions for all jobs on the system are shown.
+
+job-name
+Specify the name of the job which is associated with the commitment definitions to be shown.
+
+user-name
+Specify the name of the user which is associated with the commitment definitions to be shown.
+
+job-number
+Specify the number of the job which is associated with the commitment definitions to be shown.
+
+Top
+
+Status (STATUS)
+
+Specifies that only the commitment definitions with a status that matches the value specified on this parameter are listed.
+
+*ALL
+Commitment definitions with all status' are shown.
+
+*PENDING
+Only commitment definitions with local pending changes are shown. A local pending change can be any of the following cases:
+
+- One or more record level changes are pending,
+
+- One or more object level changes are pending,
+
+- An API resource is registered that does not allow save-while-active requests to perform normally or does not allow the independent ASP to be quiesced.
+
+*RESYNC
+Only commitment definitions which are involved with resynchronizing resources are shown. A commitment definition may be involved with resynchronization in an effort to reestablish a synchronization point. A synchronization point is the point where all resources are in a consistent state.
+
+*UNDECIDED
+Only commitment definitions whose logical unit of work is in a state that is undecided are shown. A commitment definition is in an undecided state when the decision to either commit or rollback resources is unknown to the commitment definition.
+
+*XOPEN
+Only commitment definitions associated with an X/Open global transaction are shown.
+
+Top
+
+ASP group (ASP Group)
+
+Specifies the Auxiliary Storage Pool (ASP) group of the commitment definitions to be shown.
+
+*ALLAVL
+All commitment definitions in all online ASPs are shown.
+
+*SYSBAS
+Only commitment definitions in the system ASP (ASP number 1) and basic ASPs (ASP numbers 2-32) are shown.
+
+auxiliary-storage-pool-group-name
+Only commitment definitions in the specified ASP group are shown.
+
+Top
+
+Logical unit of work ID (LUWID)
+
+Specifies the logical unit of work identifier of the commitment definition to be shown.
+
+A logical unit of work identifier is a character string made up of three elements:
+
+- Network-qualified logical unit (LU) name
+
+- Instance number
+
+- Sequence number
+
+The network-qualified LU name consists of a character network ID with a maximum of 8 characters, a period delimiter, followed by a LU name with a maximum of 8 characters. The instance number is entered as a 12 character value, each character representing a single hexadecimal digit. The value must be entered in hexadecimal format. For example, X'123456789012'. The sequence number is a decimal value with values ranging from 1 through 65535. For example:
+
+APPN.RCHASLGU.X'12578A3BDCFF'.23657
+
+*ALL
+Commitment definitions associated with all logical units of work are shown.
+
+generic*-logical-unit-of-work-identifier
+Specify the generic name of a logical unit of work identifier. A generic name is a character string of one or more characters followed by an asterisk (*); for example, ABC*. If a generic name is specified, all commitment definitions with logical unit of work identifiers that begin with the generic name are shown. If an asterisk is not included with the generic (prefix) name, the system assumes it to be the complete logical unit of work identifier.
+
+logical-unit-of-work-identifier
+Specify a maximum of 39 characters for the logical unit of work identifier associated with a commitment definition.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether the output from the command is shown at the requesting display station or printed with the job's spooled output.
+
+*
+Output requested by an interactive job is shown on the display. Output requested by a batch job is printed with the job's spooled output.
+
+*PRINT
+The output is printed with the job's spooled output.
+
+Top
+
+Duplicate job option (DUPJOBOPT)
+
+Specifies the action taken when duplicate jobs are found by this command.
+
+*SELECT
+The Selection display is shown when duplicate jobs are found during an interactive session. For a batch job, a message is shown.
+
+*MSG
+A message is issued when duplicate jobs are found.
+
+Top
+
+Examples
+
+Example 1: Limiting by Job
+
+The following example will display a list of commitment definitions associated with the specified job. Of all the commitment definitions on the system, only those associated with the specified job will be listed.
+
+WRKCMTDFN JOB(012345/WULF/WULFS1)
+
+Example 2: Limiting by Commitment Definitions Involved with Resynchronizing Resources
+
+The following example will display a list of all of the commitment definitions on the system that are involved with resynchronizing their resources.
+
+WRKCMTDFN JOB(*ALL) STATUS(*RESYNC)
+
+Example 3: Limiting by Commitment Definitions That Are Undecided
+
+The following example will display a list of all of the commitment definitions on the system that are in an undecided state. The commitment definitions are in an undecided state when their logical unit of work state is either prepared or last-agent pending.
+
+WRKCMTDFN JOB(*ALL) STATUS(*UNDECIDED)
+
+Example 4: Limiting by Commitment Definitions That Are Associated With An X/Open Global Transaction
+
+The following example will display a list of all the commitment definitions associated with an X/Open global transaction.
+
+WRKCMTDFN JOB(*ALL) STATUS(*XOPEN)
+
+Example 5: Limiting by LUWID
+
+WRKCMTDFN JOB(*ALL) LUWID(APPN.RCHASL7E.X'11223344BDFF'.*)
+
+This command will display a list of all the commitment definitions whose logical unit of work ID begins with the specified generic value. Of all those commitment definitions on the system, only those whose logical unit of work id's begin with the generic value will be listed.
+
+Example 6: Limiting by System ASP
+
+WRKCMTDFN JOB(*ALL) ASPGRP(*SYSBAS)
+
+This command will display a list of all the commitment definitions that reside on the system auxiliary storage pool (ASP number 1).
+
+Example 7: Limiting by ASP Device Description Name
+
+WRKCMTDFN JOB(*ALL) ASPGRP(IASP0035)
+
+This command will display a list of all the commitment definitions that reside on the independent auxiliary storage pool (ASP) associated with ASP device description IASP0035.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0941
+Job &3/&2/&1 no longer in system.
+
+CPF1069
+End of duplicate names.
+
+CPF1070
+Job &3/&2/&1 not found.
+
+CPF1071
+No authority to job &3/&2/&1.
+
+CPF83E5
+Not authorized to jobs.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9846
+Error while processing file &1 in library &2.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9850
+Override of printer file &1 not allowed.
+
+CPF9851
+Overflow value for file &1 in &2 too small.
+
+CPF9871
+Error occurred while processing.
+
+Top

@@ -17,7 +17,7 @@ describe("normalización documental", () => {
   });
 
   it("clasifica documentos IBM i por categoría técnica", () => {
-    expect(inferCategory({ title: "RNF0004", text: "Compiler not able to access file" })).toBe("mensajes-rnf");
+    expect(inferCategory({ title: "RNF5393", text: "Compiler diagnostic message" })).toBe("mensajes-rnf");
     expect(inferCategory({ title: "Control language", text: "CLLE command" })).toBe("cl-clle");
     expect(inferCategory({ title: "DDS physical file", text: "PF LF" })).toBe("dds");
   });
@@ -61,6 +61,17 @@ describe("normalización documental", () => {
     expect(chunks).toContain("STRRLU (Start Report Layout Utility) command");
     expect(chunks).toContain("RLU report layout utility");
   });
+
+  it("no genera pasajes mayores al máximo que puede representar el Transformer", () => {
+    const oversizedTable = Array.from({ length: 120 }, (_, index) =>
+      `PARAM${index} | Description for parameter ${index} with choices and operational notes.`
+    ).join("\n");
+    const chunks = buildEmbeddingChunkBodies(oversizedTable, 600, { atomicEntries: false });
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.every((chunk) => chunk.length <= 600)).toBe(true);
+    expect(chunks.join("\n")).toContain("PARAM119");
+  });
 });
 
 describe("anti dependencia runtime RDi", () => {
@@ -87,7 +98,9 @@ describe("anti dependencia runtime RDi", () => {
     const manifestUrl = new URL("../data/pack/manifest.json", import.meta.url);
     if (!fs.existsSync(manifestUrl)) return;
     const manifest = fs.readFileSync(manifestUrl, "utf8");
-    expect(manifest).not.toMatch(/127\.0\.0\.1|localhost|52070/i);
+    // Se rechazan endpoints loopback reales. No se buscan dígitos sueltos:
+    // un SHA-256 puede contener "52070" por azar sin representar una URL.
+    expect(manifest).not.toMatch(/https?:\/\/(?:127\.0\.0\.1|localhost)(?::52070)?(?:[/?#]|$)/i);
     expect(manifest).toContain("rdi-help-bootstrap://local-export");
   });
 

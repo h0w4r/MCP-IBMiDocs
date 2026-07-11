@@ -1,0 +1,175 @@
+Transfer Job (TFRJOB)
+
+Transfer Job (TFRJOB)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Transfer Job (TFRJOB) command transfers a job to the specified job queue. The job that is transferred is the one where this command is issued. If the job being transferred is an interactive job, it is given the highest priority on the job queue. New routing data and request data can be specified for the job when it is transferred.
+
+If objects allocated to the previous routing step are needed in the new routing step, they must be allocated again. If files opened in the previous routing step are needed in the new routing step, they must be opened again.
+
+Restrictions:
+
+- To use this command, you must have:
+
+use (*USE) authority to the job queue and execute (*EXECUTE) authority to the library that contains that job queue.
+
+use (*USE) authority to the subsystem description associated with the subsystem that has the job queue allocated. This restriction only applies if the job being transferred is an interactive job.
+
+- If the job being transferred is an interactive job, the following restrictions apply:
+
+The job queue on which the job is placed must be associated with an active subsystem.
+
+The work station associated with the job must have a corresponding work station entry in the subsystem description associated with the new subsystem.
+
+The work station associated with the job must not have another job associated with it that has been suspended by means of the Sys Req (system request) key. The suspended job must be canceled before the Transfer Job command can be run.
+
+The job must not be a group job.
+
+- The job must not be a communications batch job (started as a result of a program start request), unless it meets one of the following criteria:
+
+It was started from an APPC communications device.
+
+The session on the communications device has ended.
+
+Notes:
+
+- Running this command in a batch job causes loss of spooled inline files because they cannot be accessed in the new routing step.
+
+- If the target subsystem is ended (by running the End Subsystem (ENDSBS) command, the End System (ENDSYS) command, or the Power Down System (PWRDWNSYS) command) while an interactive transferring job is on a job queue, the job is canceled as part of subsystem ending.
+
+- Because a PWRDWNSYS command inhibits new jobs or routing steps from being started by any subsystem, a batch job transferred to a job queue (by the TFRJOB command) is not completed before the system is powered down.
+
+- The temporary objects associated with a transferring job (such as the library list, the QTEMP library, and all objects in it) are destroyed during the PWRDWNSYS command, so that during a re-initial program load (IPL), the system is unable to restore the job to its previous state. During re-IPL, the system removes the job from the job queue and produces its job log.
+
+- If the TFRJOB command is issued in a CL program, all subsequent commands in the CL program are bypassed.
+
+- When the new routing step is started, the current user must have use (*USE) authority to the subsystem description for the subsystem in which the routing step runs.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JOBQ | Job queue | Qualified object name | Required, Positional 1
+Qualifier 1: Job queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+RTGDTA | Routing data | Character value, QCMDI, *RQSDTA | Optional
+RQSDTA | Request data or command | Character value, *NONE, *RTGDTA | Optional
+
+Top
+
+Job queue (JOBQ)
+
+Specifies the qualified name of the job queue to which the job is transferred.
+
+This is a required parameter.
+
+Qualifier 1: Job queue
+
+name
+Specify the name of the job queue.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the library where the job queue is located.
+
+Top
+
+Routing data (RTGDTA)
+
+Specifies the routing data used to start the next routing step in the job. The routing data is used to determine the routing entry that identifies the program that the job runs.
+
+QCMDI
+This routing data matches a routing entry in the IBM-supplied subsystem descriptions, which starts a routing step processed by the IBM-supplied control language processor, QCMD, in the QSYS library.
+
+*RQSDTA
+The first 80 characters of the request data specified in the Request data or command (RQSDTA) parameter of this command are also used as the routing data for the routing step.
+
+character-value
+Specify the character string that is used as the routing data for starting the routing step. A maximum of 80 characters can be entered, enclosed in apostrophes if necessary.
+
+Top
+
+Request data or command (RQSDTA)
+
+Specifies the request data that is placed as the last entry in this job's message queue. The request data can be a CL command to be run or a string of characters used by another program.
+
+*NONE
+No request data is placed in the job's message queue.
+
+*RTGDTA
+The routing data specified in the Routing data (RTGDTA) parameter is also placed at the end of the job's message queue.
+
+character-value
+Specify the character string that is placed at the end of the job's message queue for use by the new routing step or some subsequent routing step in the job. A maximum of 256 characters can be entered, enclosed in apostrophes if necessary.
+
+Top
+
+Examples
+
+TFRJOB JOBQ(QGPL/APPLICQ) RTGDTA(APPLICS)
+
+This command transfers the job in which the command is entered to the APPLICQ job queue in the QGPL library. The job is routed using the routing data APPLICS. If the job is an interactive job, the job queue must be allocated by an active subsystem.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1289
+Transfer job is not allowed.
+
+CPF1315
+Command &1 not allowed in this environment.
+
+CPF1357
+Job not transferred.
+
+CPF1364
+Job not transferred. Job queue &1 in library &2 not active.
+
+CPF1365
+Job not transferred. Subsystem &1 ending.
+
+CPF1366
+Subsystem &1 has no usable work station entry for &2.
+
+CPF1367
+User &1 not authorized to subsystem &2
+
+CPF1368
+&1 not authorized to job queue &2 in library &3.
+
+CPF1369
+Job queue &1 in &2 not found.
+
+CPF1370
+Job queue &1 in &2 not accessible.
+
+CPF1372
+Job not transferred. Job currently being ended.
+
+CPF1373
+Job not transferred. System request in effect for job.
+
+CPF1375
+Job not transferred. Single active job not allowed to transfer.
+
+Top

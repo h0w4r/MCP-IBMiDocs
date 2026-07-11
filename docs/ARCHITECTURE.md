@@ -18,12 +18,19 @@ flowchart LR
 ## Componentes principales
 
 - `src/repository/CorpusRepository.ts`: recuperación semántica, selección de candidatos, lectura y composición de respuesta.
-- `src/repository/neuralEmbeddings.ts`: embeddings E5 multilingües para recuperación inicial por
-  faceta de título/ruta documental y por contenido combinado.
-- `src/repository/neuralQueryAdapter.ts`: cabeza MLP residual aprendida que conserva la vista E5 base
-  y añade una vista adaptada al modo en que la comunidad formula preguntas IBM i. El artefacto de
-  `models/` no contiene ni distribuye el banco de preguntas.
-- `src/repository/neuralReranker.ts`: cross-encoder BGE multilingüe para releer pregunta y pasajes conjuntamente.
+- `src/repository/neuralEmbeddings.ts`: carga local-only del Transformer E5 multilingüe afinado y
+  generación de embeddings para facetas de título/ruta documental y contenido combinado.
+- `models/ibmi-e5-base-finetuned-v1/`: bi-encoder E5-base de 768 dimensiones con pesos ONNX q8,
+  tokenizer, licencia y manifest de entrenamiento. El
+  ONNX se versiona en fragmentos menores de 100 MB y `postinstall.cjs` lo reconstruye, verifica por
+  SHA-256 e instala en la caché local; el banco de preguntas no se distribuye.
+- `src/repository/neuralQueryHead.ts` y `models/ibmi-neural-query-head-v1/`: MLP residual
+  obligatoria que proyecta cada consulta E5 al espacio documental. Se entrenó end-to-end contra
+  los 7.027 vectores de documentos del pack y se valida por SHA-256; no contiene aliases, regex,
+  clases de intención ni una ruta legacy.
+- `models/ibmi-reranker-finetuned-v1/`: cross-encoder mMARCO MiniLM afinado y cuantizado para releer
+  conjuntamente la pregunta y cada evidencia candidata.
+- `src/repository/neuralReranker.ts`: carga local-only y ejecución del cross-encoder.
 - `src/server.ts`: tools/resources/prompts MCP.
 - `src/cli.ts`: CLI de consulta, doctor, instalación de data packs y build.
 - `src/ingest/packBuilder.ts`: normalización, curación, chunking estructural y SQLite.
@@ -38,8 +45,9 @@ en runtime de usuario salvo que el operador defina explícitamente `IBMI_DOCS_TO
 `maintainer` y además `IBMI_DOCS_ALLOW_NETWORK_SYNC=1`.
 
 El perfil runtime por defecto es `agent` y registra únicamente `ibmi_docs_assist`. Tampoco anuncia
-resources ni prompts diagnósticos. La tool ejecuta internamente recuperación E5 base + adaptada y
-multi-faceta, reranking cross-encoder, lectura y control de
+resources ni prompts diagnósticos. La tool ejecuta internamente un ensamble permanente entre la
+geometría fundacional E5 y la proyección query→corpus, recuperación multi-faceta, reranking
+cross-encoder, lectura y control de
 relevancia. El resultado público contiene un solo bloque de texto con la respuesta final: no incluye
 `structuredContent`, scores, IDs, planes, lecturas ni trazas.
 

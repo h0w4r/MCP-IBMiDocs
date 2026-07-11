@@ -1,0 +1,722 @@
+Duplicate Tape (DUPTAP)
+
+Duplicate Tape (DUPTAP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Duplicate Tape (DUPTAP) command copies the contents of one tape to another tape.
+
+Notes:
+
+- The density field in the file header labels are updated to reflect the true density.
+
+- Byte 80 in the volume label of a tape written on device type 6157 is reset from a 'Q' to a blank.
+
+Restrictions:
+
+- You must have two tape drives or a tape media library device with two tape resources to use this command.
+
+- A file that spans volumes must have both partial files duplicated at the same time. That is, duplicating a tape that ends in a partial file, followed by appending the second part of the file to the end of the tape is not allowed. You must duplicate both parts of the file at the same time by specifying multiple volumes on the FROMVOL parameter.
+
+- Only a user with save system (*SAVSYS) special authority can use this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMDEV | From device | Name | Required, Positional 1
+TODEV | To device | Name | Required, Positional 2
+FROMSEQNBR | From sequence number | Single values: *ALL
+Other values: Element list | Optional
+Element 1: Starting file sequence number | 1-16777215, *FIRST
+Element 2: Ending file sequence number | 1-16777215, *ONLY, *LAST
+TOSEQNBR | To sequence number | 1-16777215, *END, *FROMSEQ | Optional
+FROMVOL | From volume identifier | Single values: *MOUNTED
+Other values (up to 300 repetitions): Character value | Optional
+TOVOL | To volume identifier | Single values: *MOUNTED, *FROMVOL
+Other values (up to 300 repetitions): Character value | Optional
+TODENSITY | Tape density | Character value, *DEVTYPE, *CTGTYPE, *FMT3480, *FMT3490E, *FMT3570, *FMT3570E, *FMT3590, *FMT3590E, *FMT3590H, *QIC120, *QIC525, *QIC1000, *QIC2GB, *QIC2DC, *QIC4GB, *QIC4DC, *QIC3040, *QIC5010, *MLR3, *SLR60, *SLR100, *FMT2GB, *FMT5GB, *FMT7GB, *FMT20GB, *FMT60GB, *ULTRIUM1, *ULTRIUM2, *VXA1, *VXA2, 1600, 3200, 6250 | Optional
+COMPACT | Data compaction | *FROMFILE, *YES, *NO | Optional
+FILES | Files to duplicate | *ALL, *ACTIVE | Optional
+USRLBLPGM | User label program | Single values: *NONE, *SYSCOPY
+Other values: Qualified object name | Optional
+Qualifier 1: User label program | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMENDOPT | From device end option | *REWIND, *UNLOAD, *LEAVE | Optional
+TOENDOPT | To device end option | *UNLOAD, *REWIND, *LEAVE | Optional
+CHECK | Check for active files | *YES, *NO | Optional
+EXPDATE | File expiration date | Date, *FROMFILE, *PERM | Optional
+
+Top
+
+From device (FROMDEV)
+
+Specifies the device from which the tape is copied.
+
+This is a required parameter.
+
+name
+Specify the name of the tape device where the tape to be copied is mounted.
+
+Top
+
+To device (TODEV)
+
+Specifies the device to which the tape is copied.
+
+This is a required parameter.
+
+name
+Specify the name of the tape device where the tape volume to which data is being copied is mounted.
+
+Top
+
+From sequence number (FROMSEQNBR)
+
+Specifies which data file sequence numbers are to be copied.
+
+Single values
+
+*ALL
+All files are duplicated.
+
+Element 1: Starting file sequence number
+
+*FIRST
+All files starting with the first file sequence are duplicated.
+
+1-16777215
+Specify the starting file sequence number to be duplicated. Only the files in the specified sequence number range are duplicated.
+
+Element 2: Ending file sequence number
+
+*LAST
+All files ending with the last file sequence are duplicated.
+
+*ONLY
+Only the file specified in the starting file sequence is duplicated.
+
+1-16777215
+Specify the ending file sequence number of the range to be duplicated.
+
+Top
+
+To sequence number (TOSEQNBR)
+
+Specifies which sequence number the data files are to be copied to.
+
+*FROMSEQ
+The data files are duplicated to the same file sequences as are specified in the from-file sequence number parameter.
+
+*END
+The data files are added to the logical end of tape. The next valid sequence number is used.
+
+1-16777215
+Specify the sequence number in which the data file will be copied to. This value is not allowed if the device does not have overwriting capabilities and the value specified is not the next logical value to be used at the end of the logical tape volume. The duplication begins at the specified file.
+
+Top
+
+From volume identifier (FROMVOL)
+
+Specifies the volume identifier of the tape being duplicated.
+
+Note: If the device specified is a media library device, or a virtual tape device, then the volume specified should be the cartridge identifier or virtual tape volume name to be mounted and used.
+
+Single values
+
+*MOUNTED
+Any labeled or unlabeled volume placed on the tape device specified on the From device (FROMDEV) parameter is duplicated. For a tape media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command. For a virtual tape device, the volume to be used is the currently mounted one, or if there is not a currently mounted volume, the next volume in loaded status in the image catalog will be used.
+
+Other values (up to 300 repetitions)
+
+character-value
+Specify the identifier of the labeled volume being duplicated.
+
+Top
+
+To volume identifier (TOVOL)
+
+Specifies the volume identifiers of the tapes to which data is being copied.
+
+Note: If the device specified is a media library device, or a virtual tape device, then the volume specified should be the cartridge identifier or virtual tape volume name to be mounted and used.
+
+Single values
+
+*MOUNTED
+The volume currently placed in the device is used. For a media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command. For a virtual tape device, the volume to be used is the currently mounted one, or if there is not a currently mounted volume, the next volume in loaded status in the image catalog will be used.
+
+*FROMVOL
+The volume label of the tape placed in the device specified on the From device (FROMDEV) parameter is used to initialize the tape placed in the device specified on the To device (TODEV) parameter. Up to eight additional volume labels and nine user volume labels are duplicated. This value is not supported for tape media libary devices and virtual tape devices.
+
+Other values (up to 300 repetitions)
+
+character-value
+Specify the volume identifier of the tapes to which data is being copied. At the end of volume time, you are able to reinitialize the tape using this volume identifier. If the volume contains the correct volume identifier but is in the wrong code or density, the tape is reinitialized to the correct code and density. The volume identifier is saved.
+
+Top
+
+Tape density (TODENSITY)
+
+Specifies the density or format in which the copied data is written.
+
+*DEVTYPE
+The highest capacity density or format supported by the tape device will be used.
+
+Device
+Highest capacity density or format
+
+3490E
+*FMT3490E
+
+3570-Bxx
+*FMT3570
+
+3570-Cxx
+*FMT3570E
+
+3580-001
+*ULTRIUM1
+
+3580-002
+*ULTRIUM2
+
+3580-003
+*ULTRIUM3
+
+3580-004
+*ULTRIUM4
+
+3580-005
+*ULTRIUM5
+
+3580-006
+*ULTRIUM6
+
+3580-007
+*ULTRIUM7
+
+3580-008
+*ULTRIUM8
+
+3580-009
+*ULTRIUM9
+
+3590-Bxx
+*FMT3590
+
+3590-Exx
+*FMT3590E
+
+3590-Hxx
+*FMT3590H
+
+3592-E05
+*FMT3592A2
+
+3592-E06
+*FMT3592A3
+
+3592-E07
+*FMT3592A4
+
+3592-E08
+*FMT3592A5
+
+3592-55F
+*FMT3592B5
+
+3592-60F
+*FMT3592A6
+
+3592-70F
+*FMT3592A7
+
+3592-J1A
+*FMT3592A1
+
+4685-001
+*VXA2
+
+5619
+*DAT160
+
+5661
+*DAT320
+
+5746
+*ULTRIUM4
+
+5755
+*ULTRIUM2
+
+5907
+*DAT72
+
+6258
+*DAT72
+
+6279
+*VXA3
+
+6380
+*QIC2GB
+
+6381
+*QIC2DC
+
+6382
+*QIC4DC
+
+6383
+*QIC5010
+
+6384
+*SLR60
+
+6386
+*MLR3
+
+6387
+*SLR100
+
+63B0
+*VRT256K
+
+7207-122
+*QIC4DC
+
+7208-012
+*FMT5GB
+
+7208-222
+*FMT7GB
+
+7208-342
+*FMT20GB
+
+7208-345
+*FMT60GB
+
+9348
+6250
+
+*CTGTYPE
+The highest capacity density or format supported by the device for the mounted cartridge type will be used. If the device does not support special cartridge type information, *DEVTYPE is used.
+
+character-value
+Specify the density or format to use.
+
+1600
+The data density on the tape volume is 1,600 bits per inch, which is used for 1/2 inch reel tapes.
+
+6250
+The data density on the tape volume is 6,250 bits per inch, which is used for 1/2 inch reel tapes.
+
+*DAT72
+The format of this tape is DAT72. It is used by 4mm cartridge tape devices that can store 36 gigabytes of data on a standard length cartridge.
+
+*DAT160
+The format of this tape is DAT160. It is used by 4mm cartridge tape devices that can store 80 gigabytes of data on a standard length cartridge.
+
+*DAT320
+The format of this tape is DAT320. It is used by 4mm cartridge tape devices that can store 160 gigabytes of data on a standard length cartridge.
+
+*DDS3
+The format of this tape is DDS3. It is used by 4mm cartridge tape devices that can store 12 gigabytes of data on a standard length cartridge.
+
+*DDS4
+The format of this tape is DDS4. It is used by 4mm cartridge tape devices that can store 20 gigabytes of data on a standard length cartridge.
+
+*FMT3490E
+The format of this tape is FMT3490E. The data density on this tape volume is formatted to support a 3490E device. This density is used for 1/2 inch cartridge tapes.
+
+*FMT3570
+The format of this tape is FMT3570. The data format is written on the tape volume with a 3570 device.
+
+*FMT3570E
+The format of this tape is FMT3570E. The data format is written on the tape volume with a 3570E device.
+
+*FMT3590
+The format of this tape is FMT3590. The data format is written on the tape volume with a 3590 device. This density is used for 1/2 inch cartridge tapes.
+
+*FMT3590E
+The format of this tape is FMT3590E. The data format is written on the tape volume with a 3590E device. This density is used for 1/2 inch cartridge tapes.
+
+*FMT3590H
+The format of this tape is FMT3590H. The data format is written on the tape volume with a 3590H device. This density is used for 1/2 inch cartridge tapes.
+
+*FMT3592A1
+The format of this tape is FMT3592A1. It is used by 3592 tape devices that can store 300 gigabytes of uncompressed data on a JA type cartridge.
+
+FMT3592A1E
+The format of this tape is FMT3592A1E. It is used by 3592 tape devices that can store 300 gigabytes of uncompressed encrypted data on a JA type cartridge.
+
+*FMT3592A2
+The format of this tape is FMT3592A2. It is used by 3592 tape devices that can store 700 gigabytes of uncompressed data on a JB type cartridge.
+
+FMT3592A2E
+The format of this tape is FMT3592A2E. It is used by 3592 tape devices that can store 700 gigabytes of uncompressed encrypted data on a JB type cartridge.
+
+*FMT3592A3
+The format of this tape is FMT3592A3. It is used by 3592 tape devices that can store 1 terabyte of uncompressed data on a JB type cartridge.
+
+FMT3592A3E
+The format of this tape is FMT3592A3E. It is used by 3592 tape devices that can store 1 terabyte of uncompressed encrypted data on a JB type cartridge.
+
+*FMT3592A4
+The format of this tape is FMT3592A4. It is used by 3592 tape devices that can store 4 terabytes of uncompressed data on a JC type cartridge.
+
+FMT3592A4E
+The format of this tape is FMT3592A4E. It is used by 3592 tape devices that can store 4 terabytes of uncompressed encrypted data on a JC type cartridge.
+
+*FMT3592A5
+The format of this tape is FMT3592A5. It is used by 3592 tape devices that can store 10 terabytes of uncompressed data on a JD type cartridge.
+
+FMT3592A5E
+The format of this tape is FMT3592A5E. It is used by 3592 tape devices that can store 10 terabytes of uncompressed encrypted data on a JD type cartridge.
+
+*FMT3592B5
+The format of this tape is FMT3592B5. It is used by 3592 tape devices that can store 15 terabytes of uncompressed data on a JD type cartridge.
+
+FMT3592B5E
+The format of this tape is FMT3592B5E. It is used by 3592 tape devices that can store 15 terabytes of uncompressed encrypted data on a JD type cartridge.
+
+*FMT3592A6
+The format of this tape is FMT3592A6. It is used by 3592 tape devices that can store 20 terabytes of uncompressed data on a JE type cartridge.
+
+FMT3592A6E
+The format of this tape is FMT3592A6E. It is used by 3592 tape devices that can store 20 terabytes of uncompressed encrypted data on a JE type cartridge.
+
+*FMT3592A7
+The format of this tape is FMT3592A7. It is used by 3592 tape devices that can store 50 terabytes of uncompressed data on a JF type cartridge.
+
+FMT3592A7E
+The format of this tape is FMT3592A7E. It is used by 3592 tape devices that can store 50 terabytes of uncompressed encrypted data on a JF type cartridge.
+
+*QIC120
+The format of this tape is QIC120, which is used for 1/4 inch cartridge tapes that can hold 120 megabytes of data.
+
+*QIC525
+The format of this tape is QIC525, which is used for 1/4 inch cartridge tapes that can hold 525 megabytes of data.
+
+*QIC1000
+The format of this tape is QIC1000, which is used for 1/4 inch cartridge tapes that can hold 1200 megabytes of data.
+
+*QIC2GB
+The format of this tape is QIC2GB. It is used by 1/4 inch tape devices which can store 2.5 gigabytes of data on a standard length QIC2GB cartridge.
+
+*QIC2DC
+The format of this tape is QIC2DC. It is used to write compacted data to a 1/4 inch cartridge that supports the QIC2GB format.
+
+*QIC4GB
+The format of this tape is QIC4GB. It is used by 1/4 inch tape devices which can store 4 gigabytes of data on a standard length QIC4GB cartridge.
+
+*QIC4DC
+The format of this tape is QIC4DC. It is used to write compacted data to a 1/4 inch cartridge that supports the QIC4GB format.
+
+*QIC5010
+The format of this tape is QIC5010, which is used for 1/4 inch cartridge tapes that can hold 13.5 gigabytes of data.
+
+*MLR3
+The format of this tape is MLR3. It is used by 1/4 inch tape devices which can store 25 gigabytes of data on a standard length MLR3 cartridge.
+
+*SLR60
+The format of this tape is SLR60. It is used by 1/4 inch tape devices which can typically store 60 gigabytes of compacted data on a standard length SLR60 cartridge.
+
+*SLR100
+The format of this tape is SLR100. It is used by 1/4 inch tape devices which can typically store 100 gigabytes of compacted data on a standard length SLR100 cartridge.
+
+*FMT5GB
+The format of this tape is FMT5GB, which is used for 8 millimeter cartridge tapes that can hold 5 gigabytes of data.
+
+*FMT7GB
+The format of this tape is FMT7GB, which is used for 8 millimeter cartridge tapes that can hold 7 gigabytes of data.
+
+*FMT20GB
+The format of this tape is FMT20GB. It is used by 8 millimeter tape devices that can store 20 gigabytes of data on a standard length cartridge.
+
+*FMT60GB
+The format of this tape is FMT60GB. It is used by 8 millimeter tape devices that can store 60 gigabytes of data on a standard length cartridge.
+
+*ULTRIUM1
+The format of this tape is ULTRIUM1. It is used by 1/2 inch cartridge tape devices that can store 100 gigabytes of uncompressed data on a LTO Ultrium 1 data cartridge.
+
+*ULTRIUM2
+The format of this tape is ULTRIUM2. It is used by 1/2 inch cartridge tape devices that can store 200 gigabytes of uncompressed data on a LTO Ultrium 2 data cartridge.
+
+*ULTRIUM3
+The format of this tape is ULTRIUM3. It is used by 1/2 inch cartridge tape devices that can store 400 gigabytes of uncompressed data on a LTO Ultrium 3 data cartridge.
+
+*ULTRIUM4
+The format of this tape is ULTRIUM4. It is used by 1/2 inch cartridge tape devices that can store 800 gigabytes of uncompressed data on a LTO Ultrium 4 data cartridge.
+
+*ULTRIUM5
+The format of this tape is ULTRIUM5. It is used by 1/2 inch cartridge tape devices that can store 1.5 terabytes of uncompressed data on a LTO Ultrium 5 data cartridge.
+
+*ULTRIUM6
+The format of this tape is ULTRIUM6. It is used by 1/2 inch cartridge tape devices that can store 2.5 terabytes of uncompressed data on a LTO Ultrium 6 data cartridge.
+
+*ULTRIUM7
+The format of this tape is ULTRIUM7. It is used by 1/2 inch cartridge tape devices that can store 6 terabytes of uncompressed data on a LTO Ultrium 7 data cartridge.
+
+*ULTRIUMM8
+The format of this tape is ULTRIUMM8. It is used by 1/2 inch cartridge tape devices that can store 9 terabytes of uncompressed data on a LTO Ultrium 7 M8 data cartridge.
+
+*ULTRIUM8
+The format of this tape is ULTRIUM8. It is used by 1/2 inch cartridge tape devices that can store 12 terabytes of uncompressed data on a LTO Ultrium 8 data cartridge.
+
+*ULTRIUM9
+The format of this tape is ULTRIUM9. It is used by 1/2 inch cartridge tape devices that can store 18 terabytes of uncompressed data on a LTO Ultrium 9 data cartridge.
+
+*VRT32K
+The format of the volume is VRT32K. It is used to write data to a virtual volume using a maximum data block size of 32KB. Volumes written using this format can be duplicated to all supported tape devices.
+
+*VRT64K
+The format of the volume is VRT64K. It is used to write data to a virtual volume using a maximum data block size of 64KB. Volumes written using this format can only be duplicated to tape devices that support a maximum block size of 64KB or greater.
+
+*VRT240K
+The format of the volume is VRT240K. It is used to write data to a virtual volume using a maximum data block size of 240KB. Volumes written using this format can only be duplicated to tape devices that support a maximum block size of 240KB or greater.
+
+*VRT256K
+The format of the volume is VRT256K. It is used to write data to a virtual volume using a maximum data block size of 256KB. Volumes written using this format can only be duplicated to tape devices that support a maximum block size of 256KB or greater.
+
+*VXA1
+The format of this tape is VXA1. It is used by VXA cartridge tape devices that can store 33 gigabytes of data on a standard length cartridge.
+
+*VXA2
+The format of this tape is VXA2. It is used by VXA cartridge tape devices that can store 80 gigabytes of data on a standard length cartridge.
+
+*VXA3
+The format of this tape is VXA3. It is used by VXA cartridge tape devices that can store 160 gigabytes of data on a standard length cartridge.
+
+Note: Self-configured tape devices may define additional valid values for the density parameter. Use System i Navigator (Configuration and Service) (Hardware) (Tape Devices) (Tape Libraries) (Tape Resources) (Properties) or (Configuration and Service)(Hardware) (Tape Devices) (Stand-Alone Devices) (Properties) to find additional valid density values for a specific device, or use the F4=Prompt key on the "Tape density" field of the CL command to see a list of all valid density values for the attached tape devices.
+
+Top
+
+Data compaction (COMPACT)
+
+Specifies whether device data compaction is performed. If the device specified does not support compaction, this parameter is ignored.
+
+*FROMFILE
+Device data compaction is performed if the file being read from the device specified on the From device (FROMDEV) parameter was written using device data compaction or if the FROMDEV parameter specifies a virtual tape device.
+
+*YES
+Device data compaction is performed on all files written to the device specified on the To device (TODEV) parameter.
+
+*NO
+Device data compaction is not performed.
+
+Top
+
+Files to duplicate (FILES)
+
+Specifies whether expired data files are copied from the tape volume placed in the device specified on the From device (FROMDEV) parameter to the tape volume placed on the device specified on the To device (TODEV) parameter.
+
+*ALL
+All data files on the tape volume are copied. All existing file sequence numbers are saved.
+
+*ACTIVE
+Only data files with an expiration date later than the current system date are copied. Data files are renumbered consecutively, beginning with the number of the first file on the volume and omitting any files that have expired.
+
+Top
+
+User label program (USRLBLPGM)
+
+Specifies the name and library of the user program that processes user tape labels. For the device specified on the To device (TODEV) parameter, the user label program sends the user labels that are written to tape. For the device specified on the From device (FROMDEV) parameter, the user labels are sent to the user label program.
+
+Single values
+
+*SYSCOPY
+User tape labels are processed to allow proper duplication of System/36 save and restore tapes. If user header labels are present on the tape volume specified on the FROMDEV parameter, they are copied to the tape volume specified on the TODEV parameter. The same is done for the user trailer labels at the end of the file or for the trailer labels at the end of the file section.
+If an end-of-volume condition occurs on the device specified on the TODEV parameter before logical end-of-tape is found on the device specified on the FROMDEV parameter, user trailer and user header labels are created and written to the current and next tape volumes that replicate the data from the user header label read at the beginning of the file.
+
+*NONE
+No user program processes user tape labels. No user labels are written to the tape volume.
+
+Qualifier 1: User label program
+
+name
+Specify the name of the user program that processes the user tape labels.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the user label program. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library where the user label program is located.
+
+Top
+
+From device end option (FROMENDOPT)
+
+Specifies whether the tape volume placed on the device specified on the From device (FROMDEV) parameter is rewound, or rewound and unloaded after the operation is completed.
+
+*REWIND
+The tape is automatically rewound, but not unloaded, after the operation has ended.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+*LEAVE
+The tape does not rewind or unload after the operation ends. It remains at the current position on the tape drive.
+
+Top
+
+To device end option (TOENDOPT)
+
+Specifies whether the tape volume placed on the device specified on the To device (TODEV) parameter is rewound, or rewound and unloaded after the operation is completed.
+
+*UNLOAD
+The tape is rewound and unloaded after the operation is completed.
+
+*REWIND
+The tape is rewound, but not unloaded.
+
+*LEAVE
+The tape does not rewind or unload after the operation ends. It remains at the current position on the tape drive.
+
+Top
+
+Check for active files (CHECK)
+
+Specifies whether a tape file on the volume mounted on the To device (TODEV) parameter is checked for active data before it is overwritten. If an unlabeled volume is on the To device, this parameter is ignored.
+
+*YES
+The file to be overwritten is checked for active data. Only the first file to be overwritten is checked for active data, any subsequent files are not checked. If active files are found, the operation is ended and an error message is sent.
+
+*NO
+Tape duplication continues with no checking for active files.
+
+Top
+
+File expiration date (EXPDATE)
+
+Specifies the expiration date to be assigned to all the files when they are copied. This parameter only applies to standard labeled tapes.
+
+*FROMFILE
+The expiration date currently specified for the file to be copied is used.
+
+*PERM
+All the copied files will be assigned a permanent expiration date.
+
+date
+Specify the expiration date to be assigned to all the files when they are copied.
+
+Top
+
+Examples
+
+Example 1: Duplicating a Single Volume to a Single Volume
+
+DUPTAP FROMDEV(TAPE01) TODEV(TAPE02)
+
+This command duplicates the tape volume mounted on device TAPE01 onto the tape volume mounted on device TAPE02.
+
+Example 2: Appending a Volume Set to the End of a Single Volume
+
+DUPTAP FROMDEV(TAPE01) TODEV(TAPE02) FROMVOL( VOL001 VOL002)
+TOVOL(VOLABC) FROMSEQNBR(*ALL) TOSEQNBR(*END)
+
+This command duplicates all files from the tape volumes VOL001 and VOL002 onto the end of the to-volume VOLABC on device TAPE02.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF222E
+&1 special authority is required.
+
+CPF516D
+Data overwrite not allowed.
+
+CPF67E6
+Volume &2 is not correct
+
+CPF67FA
+Volume compatibility not correct.
+
+CPF67FD
+File sequence number &3 not correct for volume &2.
+
+CPF67FE
+No files found on volume &2.
+
+CPF67F7
+Continuation volume cannot be duplicated.
+
+CPF67F8
+TOSEQNBR not correct on volume &2.
+
+CPF6708
+Command ended due to error.
+
+CPF671C
+Not all files duplicated to device &2.
+
+CPF6714
+TOVOL(*FROMVOL) not correct.
+
+CPF6718
+Cannot allocate device &1.
+
+CPF6720
+Incorrect volume &2 found on device &1.
+
+CPF6721
+Device &1 not a tape device.
+
+CPF6722
+End of tape found on device &1.
+
+CPF6725
+Ending file sequence number less than starting sequence number.
+
+CPF6734
+File sequence number &3 not found on volume &2.
+
+CPF6740
+TODEV and FROMDEV must be different.
+
+CPF6751
+Load failure occurred on device &4.
+
+CPF6754
+Active file &4 found on volume &2.
+
+CPF676B
+Volume on device &4 is write protected.
+
+CPF6760
+Device &1 not ready.
+
+CPF6761
+Labels not found while processing file.
+
+CPF6768
+Volume on device &1 is write protected.
+
+CPF6772
+Volume on device &1 cannot be processed.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+Top

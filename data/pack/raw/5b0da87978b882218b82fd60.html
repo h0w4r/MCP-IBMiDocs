@@ -1,0 +1,307 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="ADDCLUMON.Top_Of_Page"></a>
+<h1>Add Cluster Monitor  (ADDCLUMON)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>Yes
+</td>
+<td class="valigntop alignright">
+<a href="#ADDCLUMON.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#ADDCLUMON.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#ADDCLUMON.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="ADDCLUMON"></a>
+<p>The Add Cluster Monitor (ADDCLUMON) command is used to add a cluster node monitor to the cluster.  The monitor runs on some node within the cluster and waits for messages from a server.  The server sends a message when it detects a failure for a system it is monitoring.
+</p>
+<p>In the absence of a cluster monitor, a failure such as a system crash due to a processor or memory failure is not detected by cluster resource services as a node failure.  Rather, cluster resource services detects a failure in heartbeat communications and cannot determine if it is due to a node failure or a communications path failure.  In this case, the cluster enters a partition state and failover does not occur.
+</p>
+<p>Two types of servers are supported: CIM servers and REST servers.
+</p>
+<p>For systems managed using the Hardware Management Console (HMC) the server runs on the HMC.  The server is either Representational State Transfer (REST) or CIM.  Older versions of the HMC run the CIM server, newer versions of the HMC replace the CIM server with a REST server.  The HMC affords the most complete node failure detection since it is not part of the system and thus can continue to operate when a system has completely failed.
+</p>
+<p>Some systems such as a blade server or an entry level system may not be managed by an HMC but instead make use of the Integrated Virtualization Manager (IVM) in a Virtual I/O Server (VIOS) management partition.  These systems use a CIM server.  Since the VIOS is software running on the same system as a cluster node, some failures such as a hardware failure which takes down the whole system cannot be detected with this type of cluster monitor.  When using VIOS, the CIM server must be started in the VIOS management partition by running the "startnetsvc cimserver" command in the VIOS partition.
+</p>
+<p>With the use of an HMC or VIOS and a cluster monitor, cluster partitions can be prevented for more situations.  For example, suppose there are two cluster nodes: Node A and Node B.  Each node is on a separate system.  An HMC is attached to the system which contains Node A and the HMC is on a network which can communicate to Node B.  A cluster node monitor is configured to run on Node B.  Should Node A crash, the HMC sends a message to Node B and thus cluster resource services has additional information to know that this was really a node failure and not a heartbeat communication failure.
+</p>
+<p>When a cluster node is started and that node has had monitors added to it, cluster resource services will attempt to contact the server defined in each monitor.  The node will be started even if some error occurs contacting the server.
+</p>
+<p>When an active cluster node is removed from the cluster and that node has had monitors added to it, cluster resource services will attempt to contact the server defined in each monitor.  The node will be removed even if some error occurs contacting the server.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the cluster to run this command.
+</li>
+<li class="cds--list__item">This command cannot be called from a cluster resource group exit program.
+</li>
+<li class="cds--list__item">The node the monitor is being added to must be active within the cluster.
+</li>
+<li class="cds--list__item">The command will fail if any node in the cluster has a status of Partition.
+</li>
+<li class="cds--list__item">To add cluster monitors for CIM servers:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The 5770-UME Licensed Product (IBM Universal Manageability Enablement for i) must be installed and configured on the node to which the monitor is being added.  The cimconfig command must be used to set the sslClientVerificationMode property to disabled and the enableAuthentication property to false.
+</li>
+<li class="cds--list__item">The 5733-SC1 Licensed Product (IBM Portable Utilities for i) must be installed on the node to which the monitor is being added.
+</li>
+<li class="cds--list__item">Operating system option 33 (Portable Application Solution Environment (PASE)) must be installed on the node to which the monitor is being added.
+</li>
+<li class="cds--list__item">The HMC version must be V8R8.5.0 or earlier.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">To add cluster monitors for Representational State Transfer (REST) servers:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The Extended Base Directory Support (Option 3 of the IBM i operating system) must be installed on the node to which the monitor is being added.
+</li>
+<li class="cds--list__item">The HMC version must be V8R8.5.0 or later.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">The server associated with this monitor must be running and able to communicate with the node to which the monitor is being added.
+</li>
+<li class="cds--list__item">This command can only be used with a cluster at cluster version 7 or greater.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="ADDCLUMON.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#ADDCLUMON.CLUSTER"><strong>CLUSTER</strong></a></td>
+<td class="valigntop">Cluster</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#ADDCLUMON.NODE"><strong>NODE</strong></a></td>
+<td class="valigntop">Node identifier</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#ADDCLUMON.TYPE"><strong>TYPE</strong></a></td>
+<td class="valigntop">Monitor type</td>
+<td class="valigntop"><strong class="underlined">*CIMSVR</strong>, *RESTSVR</td>
+<td class="valigntop">Optional, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="4"><a href="#ADDCLUMON.CIMSVR"><strong>CIMSVR</strong></a></td>
+<td class="valigntop">CIM server</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: CIM server host name</td>
+<td class="valigntop">
+<span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: CIM server user id</td>
+<td class="valigntop">
+<span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: CIM server user password</td>
+<td class="valigntop">
+<span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="4"><a href="#ADDCLUMON.RESTSVR"><strong>RESTSVR</strong></a></td>
+<td class="valigntop">REST server</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: REST server host name</td>
+<td class="valigntop">
+<span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: REST server user id</td>
+<td class="valigntop">
+<span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: REST server user password</td>
+<td class="valigntop">
+<span class="var">Character value</span></td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="ADDCLUMON.CLUSTER"></a>
+<h2>Cluster (CLUSTER)</h2>
+<p>Specifies the cluster to which the monitor is being added.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster to which the node monitor is being added.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDCLUMON.NODE"></a>
+<h2>Node identifier (NODE)</h2>
+<p>Specifies the node on which the monitor will run and receive messages from a server.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specifies the node on which the monitor will run and receive messages from a server.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDCLUMON.TYPE"></a>
+<h2>Monitor type (TYPE)</h2>
+<p>Specifies the type of monitor to be added.
+</p>
+<dl>
+<dt><strong class="underlined">*CIMSVR</strong></dt>
+<dd>The type of monitor to be added is a CIM server.
+</dd>
+<dt><strong class="underlined">*RESTSVR</strong></dt>
+<dd>The type of monitor to be added is a Representational State Transfer (REST) server.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDCLUMON.CIMSVR"></a>
+<h2>CIM server (CIMSVR)</h2>
+<p>Specifies information about the CIM server which will send information about the system or logical partitions it is monitoring.
+</p>
+<h3><strong>Element 1: CIM server host name</strong>
+</h3>
+<p>A name that uniquely identifies the HMC or VIOS partition and can be found in a domain name server to determine the HMC's or VIOS partition's  IP address.  The name can be the complete domain name or it can be a short name that can be uniquely found in a domain name server.  For example, the domain name may be NYCHMC1.ABCCOMPANY.COM and its short name may be NYCHMC1.
+</p>
+<p>For additional information on valid names, refer to the HOSTNAME keyword on the ADDTCPHTE (Add TCP/IP Host Table Entry) command.
+</p>
+<p>One way to set up the domain name server function is to add the HMC or VIOS  partition name and its internet address to the TCP/IP host table on the node  where the cluster monitor is being added.  For example, take option 10 on the  Configure TCP/IP panel for the CFGTCP (Configure TCP/IP) command.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify a name for the HMC or VIOS partition.
+</dd>
+</dl>
+<h3><strong>Element 2: CIM server user id</strong>
+</h3>
+<p>The cluster node running the monitor must authenticate with the HMC or VIOS partition.  A user id that is configured on the HMC or VIOS partition must be specified.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify a  user id that is configured on the HMC or VIOS partition.
+</dd>
+</dl>
+<h3><strong>Element 3: CIM server user password</strong>
+</h3>
+<p>The cluster node running the monitor must authenticate with the HMC or VIOS partition.  A password associated with the user id that is configured on the HMC or VIOS partition must be specified.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the password for the user id.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDCLUMON.RESTSVR"></a>
+<h2>REST server (RESTSVR)</h2>
+<p>Specifies information about the Representational State Transfer (REST) server which sends information about the system or logical partitions it is monitoring.
+</p>
+<h3><strong>Element 1: REST server host name</strong>
+</h3>
+<p>A name that uniquely identifies the HMC partition and can be found in a domain name server to determine the HMC's IP address.  The name can be the complete domain name or it can be a short name that can be uniquely found in a domain name server.  For example, the domain name may be NYCHMC1.ABCCOMPANY.COM and its short name may be NYCHMC1.
+</p>
+<p>For additional information on valid names, refer to the HOSTNAME keyword on the ADDTCPHTE (Add TCP/IP Host Table Entry) command.
+</p>
+<p>One way to set up the domain name server function is to add the HMC partition name and its internet address to the TCP/IP host table on the node where the cluster monitor is being added.  For example, take option 10 on the Configure TCP/IP panel for the CFGTCP (Configure TCP/IP) command.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify a name for the HMC partition.
+</dd>
+</dl>
+<h3><strong>Element 2: REST server user id</strong>
+</h3>
+<p>The cluster node running the monitor must authenticate with the HMC partition.  A user id that is configured on the HMC partition must be specified.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify a user id that is configured on the HMC partition.
+</dd>
+</dl>
+<h3><strong>Element 3: REST server user password</strong>
+</h3>
+<p>The cluster node running the monitor must authenticate with the HMC partition.  A password associated with the user id that is configured on the HMC partition must be specified.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the password for the user id.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="ADDCLUMON.COMMAND.EXAMPLES"></a>
+<h2>Examples for ADDCLUMON</h2>
+<p>
+</p><pre>ADDCLUMON   CLUSTER(MYCLUSTER)  NODE(NODE2) TYPE(*RESTSVR)
+            RESTSVR(NYHMC hscroot Secret1)
+</pre>
+<p></p>
+<p>This command adds a Representational State Transfer (REST) monitor to run on node NODE2 to the cluster MYCLUSTER.  It receives information from a Hardware Management Console (HMC) named NYHMC that is attached to and managing another node (NODE1).  NODE2 authenticates to the HMC with a user id of hscroot and a password of Secret1.
+</p>
+<p>
+</p><pre>ADDCLUMON   CLUSTER(MYCLUSTER)  NODE(NODE2) TYPE(*CIMSVR)
+            CIMSVR(NYHMC hscroot Secret1)
+</pre>
+<p></p>
+<p>This command adds a CIM monitor to run on node NODE2 to the cluster MYCLUSTER.  It will receive information from a Hardware Management Console (HMC) named NYHMC that is attached to and managing another node (NODE1).  NODE2 will authenticate to the HMC with a user id of hscroot and a password of Secret1.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="ADDCLUMON.ERROR.MESSAGES"></a>
+<h2>Error messages for ADDCLUMON</h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>HAE003F</strong></dt>
+<dd>Cluster monitor not added to node &amp;1 in cluster &amp;2.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDCLUMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

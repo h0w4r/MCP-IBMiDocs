@@ -1,0 +1,943 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="CRTCRG.Top_Of_Page"></a>
+<h1>Create Cluster Resource Group  (CRTCRG)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>Yes
+</td>
+<td class="valigntop alignright">
+<a href="#CRTCRG.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#CRTCRG.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#CRTCRG.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG"></a>
+<p>The Create Cluster Resource Group (CRTCRG) command creates a cluster resource group object. The cluster resource group serves as the control object for a collection of resilient resources. It identifies a recovery domain, which is a set of nodes in the cluster that will play a role in the recovery. Additional characteristics for the cluster resource group, such as the exit program that will be called to perform resource specific processing.  The cluster resource group exit program will be called with an action code of Initialize after each group has been created on each node in the recovery domain, if an exit program is specified for the cluster resource group. Successful completion of this command results in a new job started as a system job.  This job has the same name as the name of the cluster resource group being created.
+</p>
+<p>To change attributes of the cluster resource group use the Change Cluster Resource Group (CHGCRG) command.
+</p>
+<p>This command will do the following:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Create the cluster resource group object on all nodes in the recovery domain. The cluster resource group may be accessed by a cluster resource group command running on any node in the cluster.
+</li>
+<li class="cds--list__item">Provide users a single system image of the cluster resource group object. That is, any changes made to the cluster resource group will be made on all nodes in the recovery domain.
+</li>
+<li class="cds--list__item">Call the cluster resource group exit program with an action code of Initialize after the cluster resource group has been created on each node in the recovery domain, if an exit program is specified for the cluster resource group. The cluster resource group status will be set to Initialize Pending. If the exit program fails, the cluster resource group object is deleted from all nodes in the recovery domain.
+</li>
+<li class="cds--list__item">If the exit program is successful, the cluster resource group status is set to Inactive. To change the cluster resource group status to Active, use the Start Cluster Resource Group (STRCRG) command.
+</li>
+<li class="cds--list__item">After the exit program is called, this command verifies the queue (CRGMSGUSRQ parameter), used by the Distribute Information (QcstDistributeInformation) API, exists if one was specified. The distributed information user queue must be created with pointer capable messages disabled. This means that pointers are not allowed within the message content.
+</li>
+<li class="cds--list__item">After the exit program is called, this command verifies the failover message queue and library on all recovery domain nodes if one was specified.
+</li>
+</ul>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+</li>
+<li class="cds--list__item">This command cannot be called from a cluster resource group exit program.
+</li>
+<li class="cds--list__item">The cluster resource group name cannot begin with QCST.
+</li>
+<li class="cds--list__item">Cluster Resource Services must be active on the node processing the request.
+</li>
+<li class="cds--list__item">All nodes in the recovery domain must be in the cluster with a status of Active.
+</li>
+<li class="cds--list__item">The cluster resource group exit program must exist on all nodes in the recovery domain if an exit program is specified. It must have the same name and be in the same library on each node.
+</li>
+<li class="cds--list__item">Each node can be specified only once in the recovery domain.
+</li>
+<li class="cds--list__item">The cluster resource group name cannot be used by an existing cluster resource group on any node in the cluster.
+</li>
+<li class="cds--list__item">For application cluster resource groups, the following restrictions apply to the specified takeover IP address:
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">If Cluster Resource Services configures the takeover IP address, all nodes in the recovery domain must be in the same subnet (network address) and the subnet defined on all nodes in the recovery domain.
+</li>
+<li class="cds--list__item">The takeover IP address must be unique. If Cluster Resource Services is responsible for configuring the takeover IP address, it will be added to each node in the recovery domain.
+</li>
+<li class="cds--list__item">The takeover IP address must not be active on any node in the recovery domain.
+</li>
+<li class="cds--list__item">IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as takeover IP addresses.
+</li>
+</ol>
+</li>
+<li class="cds--list__item">For device cluster resource groups:
+<ol class="cds--list--ordered--temporary list--ordered--indented">
+<li class="cds--list__item">Only auxiliary storage pool devices (*DEVD) and IP addresses (*IPA) are supported.
+</li>
+<li class="cds--list__item">All nodes in the recovery domain must belong to the same device domain.
+</li>
+<li class="cds--list__item">The configuration objects, such as device descriptions, for the devices specified for the cluster resource group must exist on all nodes in the recovery domain and the resource name specified in a configuration object must be the same on all nodes in the recovery domain.
+</li>
+<li class="cds--list__item">If a site name is specified, then for geographic mirroring a data port IP address must be specified. All other types of cross site mirroring do not use data port addresses.  If a data port IP address is specified, then a site name must be specified.
+</li>
+<li class="cds--list__item">If a data base is specified in a configuration object, it must be the same on all nodes in the recovery domain.
+</li>
+<li class="cds--list__item">For cluster versions 9 and later, a server takeover IP address can be used with type *IPA without an auxiliary storage pool device (*DEVD) as a configuration object.
+</li>
+<li class="cds--list__item">If a server takeover IP address is specified, it must exist on all nodes in the recovery domain.  The server takeover IP address must be unique within the cluster.  For an auxiliary storage pool, it can only be associated with a primary auxiliary storage pool.  IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as server takeover IP addresses.
+</li>
+<li class="cds--list__item">For cluster versions 8 and prior, the configuration object cannot be specified for more than one cluster resource group in a device domain.  For cluster versions 9 and later the same configuration object can be specified for more than one cluster resource group in a device domain if the cluster resource group recovery domains do not overlap.
+</li>
+<li class="cds--list__item">If configuration objects are specified and the primary node does not currently own the devices, this command fails with an error message.
+</li>
+<li class="cds--list__item">A cluster resource group may be created with no device entries. Device entries must be added using the Add Cluster Resource Group Device Entry (ADDCRGDEVE) command before the cluster resource group can be started.
+</li>
+<li class="cds--list__item">If the cluster resource group contains any members of an auxiliary storage pool group, it must contain <strong>all</strong> members before the cluster resource group can be started. All members do not have to be specified when the cluster resource group is created. Additional members can be added with the Add Cluster Resource Group Device Entry (ADDCRGDEVE) Command. If the auxiliary storage pool group exists and clustering can determine the members of the group, a warning message is sent if any members were not specified.
+</li>
+<li class="cds--list__item">If the configuration objects specified are for remote independent auxiliary storage pool mirroring, each node in the recovery domain may have a site name and, for geographic mirroring only, up to 4 data port IP addresses.  There can be at most 2 different site names amongst the nodes. If one or more data port IP address is specified, a site name must be specified.
+</li>
+</ol>
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="CRTCRG.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.CRG"><strong>CRG</strong></a></td>
+<td class="valigntop">Cluster resource group</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.CRGTYPE"><strong>CRGTYPE</strong></a></td>
+<td class="valigntop">Cluster resource group type</td>
+<td class="valigntop">*DATA, *APP, *DEV, *PEER</td>
+<td class="valigntop">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="6"><a href="#CRTCRG.RCYDMN"><strong>RCYDMN</strong></a></td>
+<td class="valigntop">Recovery domain node list</td>
+<td class="valigntop">Values (up to 128 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="6">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Node identifier</td>
+<td class="valigntop">
+<span class="var">Name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Node role</td>
+<td class="valigntop">
+<strong class="underlined">*CRGTYPE</strong>, *PRIMARY, *BACKUP, *REPLICATE, *PEER</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Backup sequence number</td>
+<td class="valigntop">
+1-127, <strong class="underlined">*LAST</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 4: Site name</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*NONE</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 5: Data port IP address</td>
+<td class="valigntop">
+Single values: <strong class="underlined">*NONE</strong><br>Other values (up to 4 repetitions): <span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="5"><a href="#CRTCRG.CFGOBJ"><strong>CFGOBJ</strong></a></td>
+<td class="valigntop">Configuration object list</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values (up to 256 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Configuration object</td>
+<td class="valigntop">
+<span class="var">Name</span>, *GEN</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Configuration object type</td>
+<td class="valigntop">
+<strong class="underlined">*DEVD</strong>, *IPA</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Configuration object online</td>
+<td class="valigntop">
+<strong class="underlined">*OFFLINE</strong>, *ONLINE, *PRIMARY, *CURRENT</td>
+</tr>
+<tr>
+<td class="valigntop">Element 4: Server takeover IP address</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CRTCRG.EXITPGM"><strong>EXITPGM</strong></a></td>
+<td class="valigntop">CRG exit program</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: CRG exit program</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop"><a href="#CRTCRG.USRPRF"><strong>USRPRF</strong></a></td>
+<td class="valigntop">User profile</td>
+<td class="valigntop"><span class="var">Simple name</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.EXITPGMFMT"><strong>EXITPGMFMT</strong></a></td>
+<td class="valigntop">Exit program format name</td>
+<td class="valigntop"><strong class="underlined">EXTP0100</strong>, EXTP0101, EXTP0200, EXTP0201</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.EXITPGMDTA"><strong>EXITPGMDTA</strong></a></td>
+<td class="valigntop">Exit program data</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.JOB"><strong>JOB</strong></a></td>
+<td class="valigntop">Exit program job</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*JOBD</strong>, *CRG</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.TKVINTNETA"><strong>TKVINTNETA</strong></a></td>
+<td class="valigntop">Takeover IP address</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CRTCRG.CFGINTNETA"><strong>CFGINTNETA</strong></a></td>
+<td class="valigntop">Configure takeover IP address</td>
+<td class="valigntop">Single values: <strong class="underlined">*CRS</strong><br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Responsibilities</td>
+<td class="valigntop">
+<strong class="underlined">*USR</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Allow active IP address</td>
+<td class="valigntop">
+<strong class="underlined">*NO</strong>, *YES</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.ALWRESTART"><strong>ALWRESTART</strong></a></td>
+<td class="valigntop">Allow application restarts</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.NBRRESTART"><strong>NBRRESTART</strong></a></td>
+<td class="valigntop">Number of application restarts</td>
+<td class="valigntop">0-3, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.APPID"><strong>APPID</strong></a></td>
+<td class="valigntop">Application identifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.TEXT"><strong>TEXT</strong></a></td>
+<td class="valigntop">Text description</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*BLANK</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CRTCRG.FLVMSGQ"><strong>FLVMSGQ</strong></a></td>
+<td class="valigntop">Failover message queue</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Failover message queue</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop"><a href="#CRTCRG.FLVWAITTIM"><strong>FLVWAITTIM</strong></a></td>
+<td class="valigntop">Failover wait time</td>
+<td class="valigntop"><span class="var">Integer</span>, <strong class="underlined">*NOWAIT</strong>, *NOMAX</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CRTCRG.FLVDFTACN"><strong>FLVDFTACN</strong></a></td>
+<td class="valigntop">Failover default action</td>
+<td class="valigntop"><strong class="underlined">*PROCEED</strong>, *CANCEL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CRTCRG.CRGMSGUSRQ"><strong>CRGMSGUSRQ</strong></a></td>
+<td class="valigntop">Distribute info user queue</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Distribute info user queue</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop"><a href="#CRTCRG.CLUSTER"><strong>CLUSTER</strong></a></td>
+<td class="valigntop">Cluster</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="CRTCRG.CRG"></a>
+<h2>Cluster resource group (CRG)</h2>
+<p>Specifies the cluster resource group to be created.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.CRGTYPE"></a>
+<h2>Cluster resource group type (CRGTYPE)</h2>
+<p>Specifies the type of the cluster resource group to be created.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong>*DATA</strong></dt>
+<dd>The cluster resource group is a data cluster resource group.
+</dd>
+<dt><strong>*APP</strong></dt>
+<dd>The cluster resource group is an application cluster resource group.
+</dd>
+<dt><strong>*DEV</strong></dt>
+<dd>The cluster resource group is a device cluster resource group.
+</dd>
+<dt><strong>*PEER</strong></dt>
+<dd>The cluster resource group is a peer cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.RCYDMN"></a>
+<h2>Recovery domain node list (RCYDMN)</h2>
+<p>Specifies the list of nodes that compose the recovery domain.  A role must be defined for each node in the recovery domain.  Nodes in the recovery domain must be unique.
+</p>
+<p>You can specify up to 128 nodes for the recovery domain.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Element 1: Node identifier</strong>
+</h3>
+<p>Specify an active cluster node that will participate in the recovery of resilient resources represented by this cluster resource group.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name for the system that uniquely identifies a node.
+</dd>
+</dl>
+<h3><strong>Element 2: Node role</strong>
+</h3>
+<p>Specify the role of the node in the recovery domain of the cluster resource group.  For primary-backup model cluster resource groups a node can have one of three roles: primary, backup, or replicate. Only one node can be designated as the primary. For peer model cluster resource groups a node can have one of two roles: peer or replicate. Any number of nodes can be designated as a peer or replicate.
+</p>
+<dl>
+<dt><strong class="underlined">*CRGTYPE</strong></dt>
+<dd>The node role will be set based on the type of the cluster resource group. If the type of cluster resource group is *PEER the default for the node role will be *PEER. For any other type of cluster resource group the default will be *BACKUP.
+</dd>
+<dt><strong>*PRIMARY</strong></dt>
+<dd>The node will be set as the primary node. One node in the recovery domain must have the role of *PRIMARY. This node can become an active access point for the cluster resources.
+</dd>
+<dt><strong>*BACKUP</strong></dt>
+<dd>The node will be set as a backup node. The node can take over as the access point for the cluster resources.
+</dd>
+<dt><strong>*REPLICATE</strong></dt>
+<dd>The new node will be added as a replicate. Replicate nodes are not ordered and cannot become an access point unless its role is changed to the proper value for the cluster resource group type.
+</dd>
+<dt><strong>*PEER</strong></dt>
+<dd>The new node will be added as a peer. Peer nodes are not ordered. This node can become an active access point for the cluster resources.
+</dd>
+</dl>
+<h3><strong>Element 3: Backup sequence number</strong>
+</h3>
+<p>Specifies the backup order for a node with a role of *BACKUP. At the completion of the request the nodes with backup roles will be sequentially renumbered from the first backup to the last. The first backup will always be 1.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>The node will be added as the last backup in the recovery domain.  If *LAST is specified for more than one node, then the first node specified with *LAST will be the last backup node, second node specified will be the second to the last backup node, etc..
+</dd>
+<dt><strong class="italic">integer</strong></dt>
+<dd>Specify the backup sequence number.
+</dd>
+</dl>
+<h3><strong>Element 4: Site name</strong>
+</h3>
+<p>Specifies the site name of the recovery domain node. This is valid in a version 4 cluster and only in a device cluster resource group for cross site mirroring. A site contains a subset of recovery domain nodes in the same physical location. All nodes at a site have access to the same copy of the auxiliary storage pool.  Only nodes with a site name need to have access to the devices.
+</p>
+<dl>
+<dt><strong>*NONE</strong></dt>
+<dd>The recovery domain node does not have a site name.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the site name for a recovery domain node.
+</dd>
+</dl>
+<h3><strong>Element 5: Data port IP address</strong>
+</h3>
+<p>Specify the data port IP address for the recovery domain node. This is valid only in a cluster of version 4 or higher, for a device cluster resource group, specifically for geographic mirroring. The data port IP address is used to send updates from a source node that owns the production copy of auxiliary storage pool to a target node that owns the mirror copy of the auxiliary storage pool. The user is responsible for configuring and starting/ending the data port IP address. The data port IP address must already exist on the specified node. The data port IP address may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+</p>
+<p>An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+</p>
+<p>An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+</p>
+<p>If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>The recovery domain node does not have a data port IP address.
+</dd>
+</dl>
+<h3><strong>Other values (up to 4 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the data port IP address for the recovery domain node.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.CFGOBJ"></a>
+<h2>Configuration object list (CFGOBJ)</h2>
+<p>Specifies detailed information about the resilient devices or IP addresses to be added to the cluster resource group.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>There are no configuration objects defined for this cluster resource group.
+</dd>
+</dl>
+<h3><strong>Other values (up to 256 repetitions)</strong>
+</h3>
+<h3><strong>Element 1: Configuration object</strong>
+</h3>
+<p>The name of the configuration object that can be switched between the nodes in the recovery domain.  For cluster versions 8 and prior, a configuration object can be specified in only one cluster resource group in a device domain.  For cluster versions 9 and later a configuration object can be specified in more than one cluster resource group in a device domain if the cluster resource group recovery domains do not overlap.
+</p>
+<dl>
+<dt><strong class="italic">*GEN</strong></dt>
+<dd>The name of the configuration object will be generated automatically.  This is only valid when configuration object type is *IPA.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the configuration object.
+</dd>
+</dl>
+<h3><strong>Element 2: Configuration object type</strong>
+</h3>
+<p>Specifies the type of configuration object specified with configuration object name.
+</p>
+<dl>
+<dt><strong class="underlined">*DEVD</strong></dt>
+<dd>Configuration objects of type device description.
+</dd>
+<dt><strong class="italic">*IPA</strong></dt>
+<dd>Configuration objects of type IP address.
+</dd>
+</dl>
+<h3><strong>Element 3: Configuration object online</strong>
+</h3>
+<p>Specifies what configuration action to take when the cluster resource group is switched over or failed over to a backup node.  Switchover and failover completion may be delayed if the varyon of devices takes a long time.
+</p>
+<p>This element is ignored for a secondary ASP and automatically set to *PRIMARY.
+</p>
+<dl>
+<dt><strong class="underlined">*OFFLINE</strong></dt>
+<dd>Do not vary the configuration object on and do not start the server takeover IP address.
+</dd>
+<dt><strong>*CURRENT</strong></dt>
+<dd>Preserves the VARY status of the configuration object and the status of the server takeover IP address.  If the configuration object was online prior to the switchover or failover, the configuration object will vary on after the switchover of failover completes and will start the server takeover IP address.  If the configuration object was offline prior to the switchover or failover, the configuration object will not vary on after the switchover or failover completes and will not start the server takeover IP address.
+<p>This value is not valid for a configuration object of type *IPA.
+</p>
+</dd>
+<dt><strong>*ONLINE</strong></dt>
+<dd>Vary the configuration object on and start the server takeover IP address after a switchover or failover.
+</dd>
+<dt><strong>*PRIMARY</strong></dt>
+<dd>This is a secondary ASP. Vary on processing is determined by the corresponding primary ASP for this ASP group.
+<p>This value is not valid for a configuration object of type *IPA.
+</p>
+</dd>
+</dl>
+<h3><strong>Element 4: Server takeover IP address</strong>
+</h3>
+<p>Specifies a takeover IP address for servers associated with the relational database name in the device description for an auxiliary storage pool, or the IP address for a configuration object with type *IPA.  For an auxiliary storage pool, this element is optional and can only be specified for a primary auxiliary storage pool.  If specified, the takeover IP address may be an IPv4 address or IPv6 address.
+</p>
+<p>An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+</p>
+<p>An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address. IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as server takeover IP addresses.
+</p>
+<p>If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>There is no server takeover IP address associated with the relational database name in the device description.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the server takeover IP address.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.EXITPGM"></a>
+<h2>CRG exit program (EXITPGM)</h2>
+<p>Specifies the exit program that is used to handle action codes that are passed to it due to operations on the cluster resource group. The exit program cannot be in an independent auxiliary storage pool. The action codes are described in the Cluster Resource Group Exit Program section in the API manual.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>The cluster resource group does not have an exit program.  This is valid only for a device cluster resource group.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: CRG exit program</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the exit program.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library where the exit program exists. QTEMP is not a valid library name.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.USRPRF"></a>
+<h2>User profile (USRPRF)</h2>
+<p>Specifies the user profile under which the exit program should be run. The user profile must exist on all nodes in the recovery domain.
+</p>
+<p>The value for this parameter must be *NONE if no exit program is specified.
+</p>
+<p>The following user profiles are not valid:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">QDBSHR
+</li>
+<li class="cds--list__item">QDOC
+</li>
+<li class="cds--list__item">QDTFOWN
+</li>
+<li class="cds--list__item">QRJE
+</li>
+<li class="cds--list__item">QLPAUTO
+</li>
+<li class="cds--list__item">QLPINSTALL
+</li>
+<li class="cds--list__item">QSECOFR
+</li>
+<li class="cds--list__item">QSPL
+</li>
+<li class="cds--list__item">QSYS
+</li>
+<li class="cds--list__item">QTSTRQS
+</li>
+</ul>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>There is no exit program so no user profile is needed.
+</dd>
+<dt><strong class="italic">simple-name</strong></dt>
+<dd>Specify the name of the user profile to use for running the exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.EXITPGMFMT"></a>
+<h2>Exit program format name (EXITPGMFMT)</h2>
+<p>Specifies the format which should be used for the information passed to the user when a CRG exit program is called.
+</p>
+<dl>
+<dt><strong class="underlined">EXTP0100</strong></dt>
+<dd>Exit program information defined in EXTP0100 format will be passed to user.
+</dd>
+<dt><strong>EXTP0101</strong></dt>
+<dd>Exit program information defined in EXTP0101 format will be passed to user.  This format includes IPv6 support.
+</dd>
+<dt><strong>EXTP0200</strong></dt>
+<dd>Exit program information defined in EXTP0200 format will be passed to user.  Additional information such as site name and data port IP address on each node are passed to the exit program. This format is not allowed for a peer cluster resource group.
+</dd>
+<dt><strong>EXTP0201</strong></dt>
+<dd>Exit program information defined in EXTP0201 format will be passed to user.  Additional information such as site name and data port IP address on each node are passed to the exit program. This format includes IPv6 support and is not allowed for a peer cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.EXITPGMDTA"></a>
+<h2>Exit program data (EXITPGMDTA)</h2>
+<p>Specifies up to 256 bytes of data that is passed to the cluster resource group exit program when it is called. This parameter may contain any scalar data except pointers. For example, it can be used to provide state information. This data will be stored with the specified cluster resource group and copied to all nodes in the recovery domain. Pointers in this area will not resolve correctly on all nodes and should not be placed in the data.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>There is no exit program data.
+</dd>
+<dt><strong class="italic">character</strong></dt>
+<dd>Specify up to 256 bytes of data to be passed to the cluster resource group exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.JOB"></a>
+<h2>Exit program job (JOB)</h2>
+<p>Specifies the name given the batch job that is submitted by the cluster resource group. This job will call the cluster resource group exit program with the action code generated by the command being used. If this field is blank, the job name will be the value in the job description found in the specified user profile to run the exit program.
+</p>
+<dl>
+<dt><strong class="underlined">*JOBD</strong></dt>
+<dd>The job name in the job description for the specified user profile will be used.
+</dd>
+<dt><strong>*CRG</strong></dt>
+<dd>The name of the cluster resource group will be used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name to be given to the batch job submitted for running the exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.TKVINTNETA"></a>
+<h2>Takeover IP address (TKVINTNETA)</h2>
+<p>Specifies the internet interface address that is to be associated with an application. This is the takeover IP address that will be switched between systems. The takeoever IP address may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+</p>
+<p>An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+</p>
+<p>An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address. IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as takeover IP addresses.
+</p>
+<p>If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+</p>
+<p>
+<strong>Note:     </strong>This parameter must be specified if *APP is specified for the <strong>Cluster resource group type (CRGTYPE)</strong> parameter.
+</p>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the takeover IP address for the application cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.CFGINTNETA"></a>
+<h2>Configure takeover IP address (CFGINTNETA)</h2>
+<p>Specifies who is responsible for configuring (adding and removing) the takeover IP address. This does not affect the starting and ending of the takeover IP address, Cluster Resource Services will perform this function.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*CRS</strong></dt>
+<dd>Cluster Resource Services is responsible for configuring the takeover IP address. The takeover IP address must not exist on any of the nodes in the recovery domain prior to creating cluster resource group. The takeover IP address will be removed when the cluster resource group is deleted.
+</dd>
+</dl>
+<h3><strong>Element 1: Responsibilities</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*USR</strong></dt>
+<dd>User is responsible for configuring the takeover IP address.  The takeover IP address must be added on all nodes in the recovery domain except replicates prior to starting the cluster resource group. For details on configuring a takeover IP address for an application cluster resource group that has recovery domain nodes in different subnets, go to Configuring under the Clustering topic in the IBM i documentation.
+</dd>
+</dl>
+<h3><strong>Element 2: Allow active IP address</strong>
+</h3>
+<p>Specifies whether or not a takeover IP address can be active when starting an application cluster resource group.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Do not allow the takeover IP address to already be active when starting the cluster resource group.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Allow the takeover IP address to already be active when starting the cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.ALWRESTART"></a>
+<h2>Allow application restarts (ALWRESTART)</h2>
+<p>Specifies whether or not to restart an application if the cluster resource group exit program fails.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Do not attempt to restart the application. The cluster resource group exit program is called with an action code of Failover.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Attempt to restart the application on the same node.  The cluster resource group exit program will be called with an action code of Restart. If the application cannot be restarted in the specified maximum number of attempts, the cluster resource group exit program will be called with an action code of Failover.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.NBRRESTART"></a>
+<h2>Number of application restarts (NBRRESTART)</h2>
+<p>Specifies the number of times a cluster resource group exit program can be called on a same node before failure occurs.  Maximum number of restarts is 3. If the cluster resource group is currently active, any change does not take affect until failover occurs or the cluster resource group exit program job ends.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>There should be no restart attempts before a failover is started.
+</dd>
+<dt><strong class="italic">0-3</strong></dt>
+<dd>Specify the number of times that restart will be attempted before doing a failover.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.APPID"></a>
+<h2>Application identifier (APPID )</h2>
+<p>Specifies the application identifier. This identifies the purpose of the cluster resource group.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No application identifier.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the application that supplied the peer cluster resource group.  The name can be up to 20 characters.  The recommended format is 'vendor-id.name' where vendor-id is an identifier for the vendor creating the cluster resource group and name is the application name. For example, QIBM.ExamplePeer, indicates it is supplied by IBM for the ExamplePeer application. It is not recommended to use QIBM unless the cluster resource group is supplied by IBM.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.TEXT"></a>
+<h2>Text description (TEXT)</h2>
+<p>Specifies the text used to briefly describe the cluster resource group object.
+</p>
+<dl>
+<dt><strong class="underlined">*BLANK</strong></dt>
+<dd>There is no text describing this cluster resource group.
+</dd>
+<dt><strong class="italic">character-value </strong></dt>
+<dd>Specify up to 50 characters of text to describe the cluster resource group object.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.FLVMSGQ"></a>
+<h2>Failover message queue (FLVMSGQ)</h2>
+<p>Specifies the message queue to receive messages (CPABB01) dealing with failover. If the user would like to receive notice before a failover occurs, then this parameter must be set to a value other than *NONE. If this field is set, the specified message queue must exist on all nodes in the recovery domain after the exit program completes. The message queue cannot be in an independent auxiliary storage pool.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No messages will be sent when a failover occurs for this cluster resource group.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: Failover message queue</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the failover message queue.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library that contains the message queue to receive the failover message. The library name cannot be *CURLIB, QTEMP, or *LIBL.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.FLVWAITTIM"></a>
+<h2>Failover wait time (FLVWAITTIM)</h2>
+<p>Specifies the number of minutes to wait for a reply to the failover message that was enqueued on the failover message queue.
+</p>
+<dl>
+<dt><strong class="underlined">*NOWAIT</strong></dt>
+<dd>Failover proceeds without user intervention.
+</dd>
+<dt><strong>*NOMAX</strong></dt>
+<dd>Wait forever until a response is given to the failover inquiry message.
+</dd>
+<dt><strong class="italic">integer</strong></dt>
+<dd>Specify the number of minutes to wait for a response to the failover inquiry message. If no response is received in the specified number of minutes, the failover default action field will be looked at to decide how to proceed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.FLVDFTACN"></a>
+<h2>Failover default action (FLVDFTACN )</h2>
+<p>Specifies the default action to be taken if a response to the failover message is not received in the failover wait time limit.  This parameter is ignored if the failover message queue (FLVMSGQ) parameter is *NONE or if the failover wait time (FLVWAITTIM) parameter is *NOMAX.
+</p>
+<dl>
+<dt><strong class="underlined">*PROCEED</strong></dt>
+<dd>Proceed with failover.
+</dd>
+<dt><strong>*CANCEL</strong></dt>
+<dd>Do not attempt failover.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.CRGMSGUSRQ"></a>
+<h2>Distribute info user queue (CRGMSGUSRQ)</h2>
+<p>Specifies the user queue to receive distributed information from the Distribute Information (QcstDistributeInformation) API. If the user would like to distribute cluster-wide information through this cluster resource group using the Distribute Information (QcstDistributeInformation) API, then this parameter must be set to a value other than *NONE. If this field is set, the specified user queue must exist on all nodes in the recovery domain after the exit program completes. The only way to change the value of this field once the cluster resource group has been created is to delete and recreate the cluster resource group.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>The QcstDistributeInformation (QcstDistributeInformation) API will not be used to distribute information through this cluster resource group.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: Distribute info user queue</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the user queue to receive the distributed information.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library that contains the user queue to receive the distributed information. The library name cannot be QTEMP.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CRTCRG.CLUSTER"></a>
+<h2>Cluster (CLUSTER)</h2>
+<p>Specifies the name of the cluster.
+</p>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The cluster that has been configured on this system is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CRTCRG.COMMAND.EXAMPLES"></a>
+<h2>Examples for CRTCRG</h2>
+<h3><strong>Example 1: Creating a CRG with a Two-Node Recovery Domain</strong>
+</h3>
+<p>
+</p><pre>CRTCRG   CRG(MYCRG)  CRGTYPE(*DEV)
+         RCYDMN((NODE01 *PRIMARY) (NODE02 *BACKUP *LAST))
+         CFGOBJL(*NONE)  TEXT('IASP for Application 17')
+</pre>
+<p></p>
+<p>This command creates a device cluster resource group called MYCRG in the cluster. The recovery domain consists of two nodes. NODE01 is the primary and NODE02 is the only backup.  The list of configuration objects is not specified on this command; the Add CRG Device Entry (ADDCRGDEVE) command can be used to add this information.
+</p>
+<h3><strong>Example 2: Creating a CRG with a Single-Node Recovery Domain</strong>
+</h3>
+<p>
+</p><pre>CRTCRG   CRG(MYCRG)  CRGTYPE(*DEV)
+         RCYDMN((NODE01 *PRIMARY *LAST MYSITE ('1.1.1.1'
+                                              '2.2.2.2')))
+         TEXT('IASP for Application 17')
+</pre>
+<p></p>
+<p>This command creates a device cluster resource group called MYCRG in the cluster. The recovery domain consists of one node, NODE01.  The recovery domain sets NODE01 as the primary node in site MYSITE, with 2 data port IP addresses, 1.1.1.1 and 2.2.2.2.
+</p>
+<p>
+</p><pre>CRTCRG   CRG(MYCRG)  CRGTYPE(*DEV)
+         EXITPGM(TEST/EXITPGM)  USRPRF(USER1)
+         RCYDMN((NODE01 *PRIMARY *LAST MYSITE
+                 ('2001:0DB8:3333:4444:5555:6666:7777:8888')))
+         EXITPGMFMT(EXTP0201)
+         TEXT('IASP for Application 17')
+</pre>
+<p></p>
+<p>This command creates a device cluster resource group called MYCRG in the cluster. The recovery domain consists of one node, NODE01.  The recovery domain sets NODE01 as the primary node in site MYSITE, with a data port IP address of 2001:0DB8:3333:4444:5555:6666:7777:8888.
+</p>
+<h3><strong>Example 3: Creating a Peer CRG with a Two-Node Recovery Domain</strong>
+</h3>
+<p>
+</p><pre>CRTCRG   CRG(MYPEER)  CRGTYPE(*PEER)
+         EXITPGM(TEST/EXITPGM)  USRPRF(USER1)
+         RCYDMN((NODE01 *PEER) (NODE02 *PEER))
+         APPID(CompanyName.ExPeer)
+         TEXT('Peer for ExamplePeer Application')
+</pre>
+<p></p>
+<p>This command creates a peer cluster resource group called MYPEER in the cluster. The recovery domain consists of two nodes, NODE01 and NODE02. This cluster resource group is for an IBM shipped application called ExamplePeer.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table24" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CRTCRG.ERROR.MESSAGES"></a>
+<h2>Error messages for CRTCRG</h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>HAE0017</strong></dt>
+<dd>Cluster resource group &amp;1 not created.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table25" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CRTCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

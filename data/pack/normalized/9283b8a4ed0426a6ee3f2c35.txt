@@ -1,0 +1,225 @@
+Monitor Save While Active (MONSWABRM)
+
+Monitor Save While Active (MONSWABRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Monitor Save While Active (MONSWABRM) command reviews the save while active message queue and looks for the message indicating the end of library synchronization. When synchronization is detected, you can issue a command to the system.
+
+The MONSWABRM command can be used as an exit (*EXIT) special value in a control group during backup processing.
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+LIB | Saved library | Name, *MSGQ | Required, Positional 1
+CMD | Command to run | Command string | Required, Positional 2
+JOBD | Job description | Single values: *USRPRF
+Other values: Qualified object name | Optional
+Qualifier 1: Job description | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+JOBQ | Job queue | Single values: *JOBD
+Other values: Qualified object name | Optional
+Qualifier 1: Job queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+WAITMSG | Time limit in seconds | 1-999999, 3600, *NOMAX | Optional
+MSGQ | Message queue | Name | Optional
+SYNCID | Multiple save synchronization | Element list | Optional
+Element 1: Synchronization ID | Name, *NONE
+NUMSYNC | Number of operations | 2-32, 2 | Optional
+STRSAVWAIT | Start save wait time | 1-99999, 600, *NOMAX | Optional
+
+Top
+
+Saved library (LIB)
+
+Specifies the name of the library or message queue that you want to review for synchronization during a save while active operation.
+
+This is a required parameter.
+
+library-name
+Specify the name of the library that you want to review for synchronization.
+
+*MSGQ
+When you specify *MSGQ, you must specify a message queue name in the Message queue (MSGQ) parameter. The message queue name that you specify is reviewed for synchronization.
+
+Top
+
+Command to run (CMD)
+
+Specifies the command that you want to process when library synchronization is achieved during a save while active operation. For instance, you may want to restart a subsystem once synchronization has occurred for the library you are saving.
+
+Note: Effective use of MONSWABRM in a control group requires that you specify *LIB, *SYNCLIB, *SYSDFN, *SYNC, *NWSSTG, *NWSSYNC or *YES for "Save while active" in the control group entry for the monitored library, and that the *EXIT entry precedes the control group entry for the monitored library.
+
+This is a required parameter.
+
+Top
+
+Job description (JOBD)
+
+Specifies the job description used with this job.
+
+Single values
+
+*USRPRF
+The job description in the user profile under which the submitted job runs is used as the job description of the submitted job.
+
+Qualifier 1: Job description
+
+name
+Specify the name of the job description used for the job.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the job description.
+
+*CURLIB
+The current library for the job is used to locate the job description. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library where the job description is located.
+
+Top
+
+Job queue (JOBQ)
+
+Specifies the job queue in which this job is placed. This job queue must be different from the job queue in which the control group will run, so that the MONSWABRM command will run at the same time with the control group.
+
+Single values
+
+*JOBD
+The submitted job is placed on the job queue named in the specified job description.
+
+Qualifier 1: Job queue
+
+name
+Specify the name of the job queue on which the submitted job is placed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the job queue.
+
+*CURLIB
+The current library for the job is used to locate the job queue. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library where the job queue is located.
+
+Top
+
+Time limit in seconds (WAITMSG)
+
+Specifies the time in seconds that the MONSWABRM command should wait for the library synchronization message in the job queue. If the specified time is exceeded, the MONSWABRM command will stop monitoring the message queue. The time can be specified from 1 to 999999 seconds, with a default time of 3600 seconds (1 hour).
+
+3600
+The default time limit is one hour.
+
+*NOMAX
+The program waits indefinitely for the arrival of the library synchronization message.
+
+time-limit-in-seconds
+Specify the time limit in seconds. The time can range from 1 to 999999 seconds.
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the name of the message queue that you want to review for synchronization. This parameter is required when *MSGQ is specified in the Saved library (LIB) parameter.
+
+message-queue-name
+Specify the name of the message queue that you want to review for synchronization during a save while active operation.
+
+Restriction:
+
+- The message queue name specified must match the name used on the SWA Message Queue field on the control group entries intended to be monitored, or the name specified in the Save active message queue (SAVACTMSGQ) parameter specified in the BRMS save command(s) intended to be monitored.
+MONSWABRM will create a message queue in library QUSRBRM, if the message queue does not exist.
+
+MONSWABRM will delete the message queue once the checkpoint has been reached.
+
+If you do not use MONSWABRM all the messages are left in the message queue.
+
+Top
+
+Synchronization ID (SYNCID)
+
+Specifies the name of the synchronized checkpoint. This name must also be specified for the Synchronization ID (SYNCID) parameter for each of the participating save operations.
+
+*NONE
+The checkpoint for this save while active operation is not synchronized with any other save while active operations.
+
+name
+Specify the name of the synchronized checkpoint.
+
+The Start Save Synchronization (STRSAVSYNC) command will be issued to start synchronizing the checkpoints for more than one save while active operation across multiple save operations.
+
+Note: The values of the Number of operations (NUMSYNC) and Start save wait time (STRSAVWAIT) parameters will be ignored if *NONE is specified for this parameter.
+
+Top
+
+Number of operations (NUMSYNC)
+
+Specifies the number of save while active operations that will have synchronized checkpoints. All of the operations must start within the amount of time specified for the Start save wait time (STRSAVWAIT) parameter
+
+2
+Two save while active operations will participate in the synchronized checkpoint.
+
+2-32
+Specify the number of save while active operations that will participate in the synchronized checkpoint.
+
+Top
+
+Start save wait time (STRSAVWAIT)
+
+Specifies the amount of time to wait for all of the participating save operations to be started. If the number of participating save operations specified for the Number of operations (NUMSYNC) parameter do not start within the specified time, any operations that do start within that time will be ended.
+
+600
+The system waits up to 600 seconds for all of the participating save operations to begin.
+
+*NOMAX
+There is no maximum wait time.
+
+1-99999
+Specify the number of seconds to wait for all of the participating save operations to begin.
+
+Top
+
+Examples for MONSWABRM
+
+Example 1: Processing a Command after Synchronization
+
+MONSWABRM LIB(GLLIB) CMD(SBMJOB JOB(GLDAILY))
+
+This command will submit the GLDAILY job when the synchronization message is sent during the save of library GLLIB.
+
+Top
+
+Error messages for MONSWABRM
+
+*ESCAPE Messages
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM40A2
+BRMS product initialization required.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top

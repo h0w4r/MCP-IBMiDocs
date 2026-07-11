@@ -1,0 +1,579 @@
+<html><head></head><body><main role="main"><article role="article" aria-labelledby="rzajrmstsmpcl__title__1">
+<h1 class="topictitle1" id="rzajrmstsmpcl__title__1">Examples: Create exit programs with CL commands</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-09-29</div>
+
+
+<div class="body conbody"><p class="shortdesc">You can create <span class="keyword">IBM i</span> exit programs using
+CL commands.</p>
+
+<p id="rzajrmstsmpcl__SPTIDX243">The following example illustrates how to set up
+a user exit program with control language (CL) commands.</p>
+
+<div class="note border-2 cds--inline-notification--info ibmdocs-note cds--inline-notification cds--inline-notification--low-contrast margin-top-1 margin-bottom-1"><div class="cds--inline-notification__details"><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="cds--inline-notification__icon" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16,2A14,14,0,1,0,30,16,14,14,0,0,0,16,2Zm0,5a1.5,1.5,0,1,1-1.5,1.5A1.5,1.5,0,0,1,16,7Zm4,17.12H12V21.88h2.88V15.12H13V12.88h4.13v9H20Z"></path></svg>
+        <div class="cds--inline-notification__text-wrapper">
+          <div class="cds--inline-notification__subtitle"><span class="notetitle ibm-bold ibm-textcolor-blue-50 background-blue cds--inline-notification__title ibm-padding-top-1 ibm-padding-bottom-1 padding-left-1 padding-right-1">Note:</span> Read the Code example disclaimer for important legal information.</div>
+        </div>
+      </div></div>
+
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/******************************************************************/
+/*                                                                */
+/* IBM i - SAMPLE USER EXIT PROGRAM                               */
+/*                                                                */
+/* THE FOLLOWING CL PROGRAM UNCONDITIONALLY                       */
+/* ACCEPTS ALL REQUESTS. IT CAN BE USED AS A SHELL FOR DEVELOPING */
+/* EXIT PROGRAMS TAILORED FOR YOUR OPERATING ENVIRONMENT.         */
+/*                                                                */
+/*                                                                */
+/******************************************************************/
+PGM PARM(&amp;STATUS &amp;REQUEST)
+ 
+/* * * * * * * * * * * * * * * * * * * */
+/*                                     */
+/* PROGRAM CALL PARAMETER DECLARATIONS */
+/*                                     */
+/* * * * * * * * * * * * * * * * * * * */
+ 
+DCL VAR(&amp;STATUS) TYPE(*CHAR) LEN(1) /* Accept/Reject indicator   */
+ 
+DCL VAR(&amp;REQUEST) TYPE(*CHAR) LEN(9999) /* Parameter structure. LEN(9999) is a CL limit.*/
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/***********************************/
+/*                                 */
+/* PARAMETER DECLARES              */
+/*                                 */
+/***********************************/
+ 
+/* COMMON DECLARES */
+DCL VAR(&amp;USER) TYPE(*CHAR) LEN(10)
+/* User ID     */
+DCL VAR(&amp;APPLIC) TYPE(*CHAR) LEN(10)
+/* Server ID   */
+DCL VAR(&amp;FUNCTN) TYPE(*CHAR) LEN(10) /* Function being performed   */
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code> /* VIRTUAL PRINT DECLARES */
+DCL VAR(&amp;VPOBJ)  TYPE(*CHAR) LEN(10)  /* Object name           */
+DCL VAR(&amp;VPLIB)  TYPE(*CHAR) LEN(10)  /* Object library name   */
+DCL VAR(&amp;VPLEN)  TYPE(*DEC) LEN(5 0)  /* Length of following fields*/
+DCL VAR(&amp;VPOUTQ) TYPE(*CHAR) LEN(10)  /* Output queue name    */
+DCL VAR(&amp;VPQLIB) TYPE(*CHAR) LEN(10)  /* Output queue library name */
+ 
+/* TRANSFER FUNCTION DECLARES */
+ DCL VAR(&amp;TFOBJ) TYPE(*CHAR) LEN(10)   /* Object name */
+ DCL VAR(&amp;TFLIB) TYPE(*CHAR) LEN(10)   /* Object library name */
+ DCL VAR(&amp;TFMBR) TYPE(*CHAR) LEN(10)   /* Member name */
+ DCL VAR(&amp;TFFMT) TYPE(*CHAR) LEN(10)   /* Record format name */
+ DCL VAR(&amp;TFLEN) TYPE(*DEC) LEN(5 0)   /* Length of request */
+ DCL VAR(&amp;TFREQ) TYPE(*CHAR) LEN(1925) /*Transfer request
+statement*/
+ 
+/* FILE SERVER DECLARES */
+DCL VAR(&amp;FSFID) TYPE(*CHAR) LEN(4)   /* Function identifier  */
+DCL VAR(&amp;FSFMT) TYPE(*CHAR) LEN(8)   /* Parameter format     */
+DCL VAR(&amp;FSREAD) TYPE(*CHAR) LEN(1)  /* Open for read        */
+DCL VAR(&amp;FSWRITE) TYPE(*CHAR) LEN(1) /* Open for write       */
+DCL VAR(&amp;FSRDWRT) TYPE(*CHAR) LEN(1) /* Open for read/write  */
+DCL VAR(&amp;FSDLT) TYPE(*CHAR) LEN(1)   /* Open for delete      */
+DCL VAR(&amp;FSLEN) TYPE(*CHAR) LEN(4)   /* fname length         */
+DCL VAR(&amp;FSNAME) TYPE(*CHAR) LEN(2000) /* Qualified file name  */
+ 
+/* DATA QUEUE DECLARES */
+DCL VAR(&amp;DQQ)    TYPE(*CHAR) LEN(10)  /* Data queue name */
+DCL VAR(&amp;DQLIB)  TYPE(*CHAR) LEN(10)  /* Data queue library name */
+DCL VAR(&amp;DQLEN)  TYPE(*DEC)  LEN(5 0) /* Total request length */
+DCL VAR(&amp;DQROP)  TYPE(*CHAR) LEN(2)   /* Relational operator */
+DCL VAR(&amp;DQKLEN) TYPE(*DEC)  LEN(5 0) /* Key length */
+DCL VAR(&amp;DQKEY)  TYPE(*CHAR) LEN(256) /* Key value */
+ 
+/* REMOTE SQL DECLARES */
+DCL VAR(&amp;RSOBJ) TYPE(*CHAR) LEN(10) /* Object name               */
+DCL VAR(&amp;RSLIB) TYPE(*CHAR) LEN(10) /* Object library name       */
+DCL VAR(&amp;RSCMT) TYPE(*CHAR) LEN(1) /* Commitment control level*/
+DCL VAR(&amp;RSMODE) TYPE(*CHAR) LEN(1) /* Block/Update mode indicator*/
+DCL VAR(&amp;RSCID) TYPE(*CHAR) LEN(1) /* Cursor ID              */
+DCL VAR(&amp;RSSTN) TYPE(*CHAR) LEN(18) /* Statement name         */
+DCL VAR(&amp;RSRSU) TYPE(*CHAR) LEN(4) /* Reserved               */
+DCL VAR(&amp;RSREQ) TYPE(*CHAR) LEN(1925)/* SQL statement         */
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* NETWORK PRINT SERVER DECLARES */
+DCL VAR(&amp;NPFMT) TYPE(*CHAR) LEN(8) /* Format name            */
+DCL VAR(&amp;NPFID)      TYPE(*CHAR) LEN(4) /* Function identifier*/
+/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT SPLF0l00 */
+DCL VAR(&amp;NPJOBN)     TYPE(*CHAR) LEN(10)/* Job name             */
+DCL VAR(&amp;NPUSRN)     TYPE(*CHAR) LEN(10)/* User name            */
+DCL VAR(&amp;NPJOB#)     TYPE(*CHAR) LEN(6) /* Job number           */
+DCL VAR(&amp;NPFILE)     TYPE(*CHAR) LEN(10)/* File name            */
+DCL VAR(&amp;NPFIL#)     TYPE(*CHAR) LEN(4) /* File number          */
+DCL VAR(&amp;NPLEN)      TYPE(*CHAR) LEN(4) /* Data Length          */
+DCL VAR(&amp;NPDATA)     TYPE(*CHAR) LEN(2000) /* Data              */
+ 
+DCL VAR(&amp;DBNUM) TYPE(*CHAR) LEN(4) /* Number of libraries    */
+DCL VAR(&amp;DBLIB2) TYPE(*CHAR) LEN(10) /* Library name          */
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* DATA QUEUE SERVER DECLARES */
+DCL VAR(&amp;DQFMT)    TYPE(*CHAR) LEN(8)    /* Format name             */
+DCL VAR(&amp;DQFID)    TYPE(*CHAR) LEN(4)    /* Function IDENTIFIER */
+DCL VAR(&amp;DQOOBJ)   TYPE(*CHAR) LEN(10)   /* Object name             */
+DCL VAR(&amp;DQOLIB)   TYPE(*CHAR) LEN(10)   /* Library name            */
+DCL VAR(&amp;DQOROP)   TYPE(*CHAR) LEN(2) /* Relational operator       */
+DCL VAR(&amp;DQOLEN)   TYPE(*CHAR) LEN(4) /* Key length                */
+DCL VAR(&amp;DQOKEY)   TYPE(*CHAR) LEN(256) /* Key                     */
+ 
+/* CENTRAL SERVER DECLARES */
+DCL VAR(&amp;CSFMT)    TYPE(*CHAR) LEN(8)   /* Format name             */
+DCL VAR(&amp;CSFID)    TYPE(*CHAR) LEN(4) /* Function identifier       */
+/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZSCL0100 */
+DCL VAR(&amp;CSCNAM)   TYPE(*CHAR) LEN(255) /* Unique client name     */
+DCL VAR(&amp;CSLUSR)   TYPE(*CHAR) LEN(8)     /* License users handle    */
+DCL VAR(&amp;CSPID)    TYPE(*CHAR) LEN(7)      /* Product identification   */
+DCL VAR(&amp;CSFID)    TYPE(*CHAR) LEN(4)      /* Feature identification   */
+DCL VAR(&amp;CSRID)    TYPE(*CHAR) LEN(6)      /* Release identification   */
+DCL VAR(&amp;CSTYPE)   TYPE(*CHAR) LEN(2) /* Type of information req    */
+/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZSCS0100  */
+DCL VAR(&amp;CSCNAM)   TYPE(*CHAR) LEN(255) /* Unique client name       */
+DCL VAR(&amp;CSCMTY)   TYPE(*CHAR) LEN(255) /* Community name           */
+DCL VAR(&amp;CSNODE)   TYPE(*CHAR) LEN(1) /* Node type                  */
+DCL VAR(&amp;CSNNAM)   TYPE(*CHAR) LEN(255) /* Node name                */
+/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZSCN0100  */
+DCL VAR(&amp;CSFROM)   TYPE(*CHAR) LEN(4) /* From CCSID                 */
+DCL VAR(&amp;CSTO)     TYPE(*CHAR) LEN(4)   /* To CCSID                 */
+DCL VAR(&amp;CSCTYP)   TYPE(*CHAR) LEN(2)     /* Type of conversion      */
+/* DATABASE SERVER DECLARES */
+DCL VAR(&amp;DBFMT)    TYPE(*CHAR) LEN(8)   /* Format name              */
+DCL VAR(&amp;DBFID)    TYPE(*CHAR) LEN(4) /* Function identifier        */
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZDAD0100 */
+DCL VAR(&amp;DBFILE)   TYPE(*CHAR) LEN(128)   /* File name             */
+DCL VAR(&amp;DBLIB)    TYPE(*CHAR) LEN(10)    /* Library name           */
+DCL VAR(&amp;DBMBR)    TYPE(*CHAR) LEN(10)    /* Member name            */
+DCL VAR(&amp;DBAUT)    TYPE(*CHAR) LEN(10)    /* Authority to file      */
+DCL VAR(&amp;DBBFIL)   TYPE(*CHAR) LEN(128)   /* Based on file name    */
+DCL VAR(&amp;DBBLIB)   TYPE(*CHAR) LEN(10)   /* Based on library name   */
+DCL VAR(&amp;DBOFIL)   TYPE(*CHAR) LEN(10)   /* Override file name     */
+DCL VAR(&amp;DBOLIB)   TYPE(*CHAR) LEN(10)   /* Override libraryname   */
+DCL VAR(&amp;DBOMBR)   TYPE(*CHAR) LEN(10)   /* Override membername    */
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZDAD0200 */
+ DCL VAR(&amp;DBNUM)   TYPE(*CHAR) LEN(4) /* Number of libraries   */
+ DCL VAR(&amp;DBLIB2)  TYPE(*CHAR) LEN(10) /* Library name          */
+ 
+/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZDAQ0100 */
+DCL VAR(&amp;DBSTMT) TYPE(*CHAR) LEN(18) /* Statement name        */
+DCL VAR(&amp;DBCRSR) TYPE(*CHAR) LEN(18) /* Cursor name           */
+DCL VAR(&amp;DBOPT)  TYPE(*CHAR) LEN(2) /* Prepare option         */
+DCL VAR(&amp;DBATTR) TYPE(*CHAR) LEN(2) /* Open attributes       */
+DCL VAR(&amp;DBPKG)  TYPE(*CHAR) LEN(10) /* Package name          */
+DCL VAR(&amp;DBPLIB) TYPE(*CHAR) LEN(10) /* Package library name */
+DCL VAR(&amp;DBDRDA) TYPE(*CHAR) LEN(2) /* DRDA(R) indicator */
+DCL VAR(&amp;DBCMT)  TYPE(*CHAR) LEN(1)    /* Commit control level*/
+DCL VAR(&amp;DBTEXT) TYPE(*CHAR) LEN(512) /* First 512 bytes of stmt */
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZDAR0100 */
+DCL VAR(&amp;DBLIBR) TYPE(*CHAR) LEN(20) /* Library name              */
+DCL VAR(&amp;DBRDBN) TYPE(*CHAR) LEN(36) /* Relational Database name */
+DCL VAR(&amp;DBPKGR) TYPE(*CHAR) LEN(20) /* Package name             */
+DCL VAR(&amp;DBFILR) TYPE(*CHAR) LEN(256) /* File name (SQL alias)   */
+DCL VAR(&amp;DBMBRR) TYPE(*CHAR) LEN(20) /* Member name               */
+DCL VAR(&amp;DBFFMT) TYPE(*CHAR) LEN(20) /* Format name              */
+ 
+/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZDAR0200 */
+DCL VAR(&amp;DBPLIB) TYPE(*CHAR) LEN(10) /* Primary key table lib     */
+DCL VAR(&amp;DBPTBL) TYPE(*CHAR) LEN(128) /* Primary key table       */
+DCL VAR(&amp;DBFLIB) TYPE(*CHAR) LEN(10) /* Foreign key table lib    */
+DCL VAR(&amp;DBFTBL) TYPE(*CHAR) LEN(128) /* Foreign key table       */
+ 
+/* REMOTE COMMAND SERVER DECLARES */
+DCL VAR(&amp;RCFMT) TYPE(*CHAR) LEN(8) /* Format name                */
+DCL VAR(&amp;RCFID) TYPE(*CHAR) LEN(4) /* Function identifier        */
+DCL VAR(&amp;RCPGM) TYPE(*CHAR) LEN(10) /* Program name               */
+DCL VAR(&amp;RCLIB) TYPE(*CHAR) LEN(10) /* Program library name       */
+DCL VAR(&amp;RCNUM) TYPE(*CHAR) LEN(4) /* Number of parms or cmdlen*/
+ 
+DCL VAR(&amp;RCDATA) TYPE(*CHAR) LEN(9999)/* Command string nor
+parms */
+ 
+ 
+/* SIGNON SERVER DECLARES */
+ 
+DCL VAR(&amp;SOFMT) TYPE(*CHAR) LEN(8) /* Format name              
+  */
+DCL VAR(&amp;SOFID) TYPE(*CHAR) LEN(4) /* Function identifier      
+  */
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/***********************************/
+/*                                 */
+/* OTHER DECLARES                  */
+/*                                 */
+/**********************************/
+ DCL VAR(&amp;WRKLEN) TYPE(*CHAR) LEN(5)
+ DCL VAR(&amp;DECLEN) TYPE(*DEC) LEN(8 0)
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*/                                                     */
+/*                                            */
+/* EXTRACT THE VARIOUS PARAMETERS FROM THE STRUCTURE  */
+/*                                            */
+/* * * * * * * * * * * * * * * * * * * * * * * * */
+ 
+/* HEADER */
+CHGVAR VAR(&amp;USER)   VALUE(%SST(&amp;REQUEST 1 10))
+   CHGVAR VAR(&amp;APPLIC) VALUE(%SST(&amp;REQUEST 11 10))
+   CHGVAR VAR(&amp;FUNCTN) VALUE(%SST(&amp;REQUEST 21 10))
+ 
+/* VIRTUAL PRINTER */
+   CHGVAR VAR(&amp;VPOBJ)  VALUE(%SST(&amp;REQUEST 31 10))
+   CHGVAR VAR(&amp;VPLIB)  VALUE(%SST(&amp;REQUEST 41 10))
+   CHGVAR VAR(&amp;WRKLEN) VALUE(%SST(&amp;REQUEST 71 5))
+   CHGVAR VAR(&amp;VPLEN)  VALUE(%BINARY(&amp;WRKLEN 1 4))
+   CHGVAR VAR(&amp;VPOUTQ) VALUE(%SST(&amp;REQUEST 76 10))
+   CHGVAR VAR(&amp;VPQLIB) VALUE(%SST(&amp;REQUEST 86 10))
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* TRANSFER FUNCTION */
+   CHGVAR VAR(&amp;TFOBJ)  VALUE(%SST(&amp;REQUEST 31 10))
+   CHGVAR VAR(&amp;TFLIB)  VALUE(%SST(&amp;REQUEST 41 10))
+   CHGVAR VAR(&amp;TFMBR)  VALUE(%SST(&amp;REQUEST 51 10))
+   CHGVAR VAR(&amp;TFFMT)  VALUE(%SST(&amp;REQUEST 61 10))
+   CHGVAR VAR(&amp;WRKLEN) VALUE(%SST(&amp;REQUEST 71 5))
+   CHGVAR VAR(&amp;TFLEN)  VALUE(%BINARY(&amp;WRKLEN 1 4))
+   CHGVAR VAR(&amp;TFREQ)  VALUE(%SST(&amp;REQUEST 76 1925))
+ 
+/* FILE SERVER */
+   CHGVAR VAR(&amp;FSFID)      VALUE(%SST(&amp;REQUEST   21   4))
+   CHGVAR VAR(&amp;FSFMT)      VALUE(%SST(&amp;REQUEST   25   8))
+   CHGVAR VAR(&amp;FSREAD)     VALUE(%SST(&amp;REQUEST   33   1))
+   CHGVAR VAR(&amp;FSWRITE)    VALUE(%SST(&amp;REQUEST   34   1))
+   CHGVAR VAR(&amp;FSRDWRT)    VALUE(%SST(&amp;REQUEST   35   1))
+   CHGVAR VAR(&amp;FSDLT)      VALUE(%SST(&amp;REQUEST   36   1))
+   CHGVAR VAR(&amp;FSLEN)      VALUE(%SST(&amp;REQUEST   37   4))
+   CHGVAR VAR(&amp;DECLEN)     VALUE(%BINARY(&amp;FSLEN 1 4))
+   CHGVAR VAR(&amp;FSNAME)     VALUE(%SST(&amp;REQUEST   41  
+&amp;DECLEN))
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* DATA QUEUES */
+   CHGVAR VAR(&amp;DQQ)        VALUE(%SST(&amp;REQUEST 31 10))
+   CHGVAR VAR(&amp;DQLIB)      VALUE(%SST(&amp;REQUEST 41 10))
+   CHGVAR VAR(&amp;WRKLEN)     VALUE(%SST(&amp;REQUEST 71  5))
+   CHGVAR VAR(&amp;DQLEN)      VALUE(%BINARY(&amp;WRKLEN 1 4))
+   CHGVAR VAR(&amp;DQROP)      VALUE(%SST(&amp;REQUEST 76  2))
+   CHGVAR VAR(&amp;WRKLEN)     VALUE(%SST(&amp;REQUEST 78  5))
+   CHGVAR VAR(&amp;DQKLEN)     VALUE(&amp;WRKLEN)
+   CHGVAR VAR(&amp;DQKEY)      VALUE(%SST(&amp;REQUEST 83
+&amp;DQKLEN))
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code> /* REMOTE SQL */
+   CHGVAR VAR(&amp;RSOBJ)    VALUE(%SST(&amp;REQUEST 31 10))
+   CHGVAR VAR(&amp;RSLIB)    VALUE(%SST(&amp;REQUEST 41 10))
+   CHGVAR VAR(&amp;RSCMT)    VALUE(%SST(&amp;REQUEST 51 1))
+   CHGVAR VAR(&amp;RSMODE)   VALUE(%SST(&amp;REQUEST 52 1))
+   CHGVAR VAR(&amp;RSCID)    VALUE(%SST(&amp;REQUEST 53 1))
+   CHGVAR VAR(&amp;RSSTN)    VALUE(%SST(&amp;REQUEST 54 18))
+   CHGVAR VAR(&amp;RSRSU)    VALUE(%SST(&amp;REQUEST 72 4))
+   CHGVAR VAR(&amp;RSREQ)    VALUE(%SST(&amp;REQUEST 76 1925))
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* NETWORK PRINT SERVER */
+   CHGVAR VAR(&amp;NPFMT)    VALUE(%SST(&amp;REQUEST 21 8))
+   CHGVAR VAR(&amp;NPFID)    VALUE(%SST(&amp;REQUEST 29 4))
+ 
+/* IF FORMAT IS SPLF0100 */
+IF  COND(&amp;NPFMT *EQ 'SPLF0100') THEN(DO)
+   CHGVAR VAR(&amp;NPJOBN)   VALUE(%SST(&amp;REQUEST 33 10))
+   CHGVAR VAR(&amp;NPUSRN)   VALUE(%SST(&amp;REQUEST 43 10))
+   CHGVAR VAR(&amp;NPJOB#)   VALUE(%SST(&amp;REQUEST 53 6))
+   CHGVAR VAR(&amp;NPFILE)   VALUE(%SST(&amp;REQUEST 59 10))
+   CHGVAR VAR(&amp;NPFIL#)   VALUE(%SST(&amp;REQUEST 69 4))
+   CHGVAR VAR(&amp;NPLEN)    VALUE(%SST(&amp;REQUEST 73 4))
+   CHGVAR VAR(&amp;DECLEN)   VALUE(%BINARY(&amp;NPLEN 1 4))
+   CHGVAR VAR(&amp;NPDATA)   VALUE(%SST(&amp;REQUEST 77
+&amp;DECLEN))
+ENDDO
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* DATA QUEUE SERVER */
+   CHGVAR VAR(&amp;DQFMT)  VALUE(%SST(&amp;REQUEST 21 8))
+   CHGVAR VAR(&amp;DQFID)  VALUE(%SST(&amp;REQUEST 29 4))
+   CHGVAR VAR(&amp;DQOOBJ) VALUE(%SST(&amp;REQUEST 33 10))
+   CHGVAR VAR(&amp;DQOLIB) VALUE(%SST(&amp;REQUEST 43 10))
+   CHGVAR VAR(&amp;DQOROP) VALUE(%SST(&amp;REQUEST 53 2))
+   CHGVAR VAR(&amp;DQOLEN) VALUE(%SST(&amp;REQUEST 55 4))
+   CHGVAR VAR(&amp;DQOKEY) VALUE(%SST(&amp;REQUEST 59 256))
+ 
+/* CENTRAL SERVER */
+   CHGVAR VAR(&amp;CSFMT) VALUE(%SST(&amp;REQUEST 21 8))
+   CHGVAR VAR(&amp;CSFID) VALUE(%SST(&amp;REQUEST 29 4))
+ 
+/* IF FORMAT IS ZSCL0100 */
+IF COND(&amp;CSFMT *EQ 'ZSCL0100') THEN(DO)
+   CHGVAR VAR(&amp;CSCNAM) VALUE(%SST(&amp;REQUEST 33 255))
+   CHGVAR VAR(&amp;CSLUSR)  VALUE(%SST(&amp;REQUEST 288 8))
+   CHGVAR VAR(&amp;CSPID)   VALUE(%SST(&amp;REQUEST 296 7))
+   CHGVAR VAR(&amp;CSFID)   VALUE(%SST(&amp;REQUEST 303 4))
+   CHGVAR VAR(&amp;CSRID)   VALUE(%SST(&amp;REQUEST 307 6))
+   CHGVAR VAR(&amp;CSTYPE)  VALUE(%SST(&amp;REQUEST 313 2))
+ENDDO
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* IF FORMAT IS ZSCS0100 */
+IF COND(&amp;CSFMT *EQ 'ZSCS0100') THEN(DO)
+  CHGVAR VAR(&amp;CSCNAM) VALUE(%SST(&amp;REQUEST 33 255))
+  CHGVAR VAR(&amp;CSCMTY) VALUE(%SST(&amp;REQUEST 288 255))
+  CHGVAR VAR(&amp;CSNODE) VALUE(%SST(&amp;REQUEST 543 1))
+  CHGVAR VAR(&amp;CSNNAM) VALUE(%SST(&amp;REQUEST 544 255))
+  ENDDO
+ 
+ 
+/* IF FORMAT IS ZSCN0100 */
+IF COND(&amp;CSFMT *EQ 'ZSCN0100') THEN(DO)
+  CHGVAR VAR(&amp;CSFROM) VALUE(%SST(&amp;REQUEST 33 4))
+  CHGVAR VAR(&amp;CSTO)   VALUE(%SST(&amp;REQUEST 37 4))
+  CHGVAR VAR(&amp;CSCTYP) VALUE(%SST(&amp;REQUEST 41 2))
+  ENDDO
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* DATABASE SERVER */
+   CHGVAR VAR(&amp;DBFMT)    VALUE(%SST(&amp;REQUEST 21 8))
+   CHGVAR VAR(&amp;DBFID)    VALUE(%SST(&amp;REQUEST 29 4))
+/* IF FORMAT IS ZDAD0100 */
+IF COND(&amp;CSFMT *EQ 'ZDAD0100') THEN(DO)
+   CHGVAR VAR(&amp;DBFILE)   VALUE(%SST(&amp;REQUEST 33 128))
+   CHGVAR VAR(&amp;DBLIB)    VALUE(%SST(&amp;REQUEST 161 10))
+   CHGVAR VAR(&amp;DBMBR)    VALUE(%SST(&amp;REQUEST 171 10))
+   CHGVAR VAR(&amp;DBAUT)    VALUE(%SST(&amp;REQUEST 181 10))
+   CHGVAR VAR(&amp;DBBFIL)   VALUE(%SST(&amp;REQUEST 191 128))
+   CHGVAR VAR(&amp;DBBLIB)   VALUE(%SST(&amp;REQUEST 319 10))
+   CHGVAR VAR(&amp;DBOFIL)   VALUE(%SST(&amp;REQUEST 329 10))
+   CHGVAR VAR(&amp;DBOLIB)   VALUE(%SST(&amp;REQUEST 339 10))
+   CHGVAR VAR(&amp;DBOMBR)   VALUE(%SST(&amp;REQUEST 349 10))
+ENDDO
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* IF FORMAT IS ZDAD0200 */
+IF COND(&amp;CSFMT *EQ 'ZDAD0200') THEN(DO)
+  CHGVAR VAR(&amp;DBNUM) VALUE(%SST(&amp;REQUEST 33 4))
+  CHGVAR VAR(&amp;DBLIB2) VALUE(%SST(&amp;REQUEST 37 10))
+  ENDDO
+ 
+/* IF FORMAT IS ZDAQ0100 */
+IF COND(&amp;CSFMT *EQ 'ZDAQ0100') THEN DO
+   CHGVAR VAR(&amp;DBSTMT)     VALUE(%SST(&amp;REQUEST 33  18))
+   CHGVAR VAR(&amp;DBCRSR)     VALUE(%SST(&amp;REQUEST 51  18))
+   CHGVAR VAR(&amp;DBSOPT)     VALUE(%SST(&amp;REQUEST 69  2))
+   CHGVAR VAR(&amp;DBATTR)     VALUE(%SST(&amp;REQUEST 71  2))
+   CHGVAR VAR(&amp;DBPKG)      VALUE(%SST(&amp;REQUEST 73  10))
+   CHGVAR VAR(&amp;DBPLIB)     VALUE(%SST(&amp;REQUEST 83  10))
+   CHGVAR VAR(&amp;DBDRDA)     VALUE(%SST(&amp;REQUEST 93  2))
+   CHGVAR VAR(&amp;DBCMT)      VALUE(%SST(&amp;REQUEST 95  1))
+   CHGVAR VAR(&amp;DBTEXT)     VALUE(%SST(&amp;REQUEST 96  512))
+ENDDO
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* IF FORMAT IS ZDAR0100 */ 
+IF COND(&amp;CSFMT *EQ 'ZDAR0100') THEN DO   
+   CHGVAR VAR(&amp;DBLIBR)     VALUE(%SST(&amp;REQUEST 33  20))    
+   CHGVAR VAR(&amp;DBRDBN)     VALUE(%SST(&amp;REQUEST 53  36))
+   CHGVAR VAR(&amp;DBPKGR)     VALUE(%SST(&amp;REQUEST 69  20))
+   CHGVAR VAR(&amp;DBATTR)     VALUE(%SST(&amp;REQUEST 89  20))
+   CHGVAR VAR(&amp;DBFULR)     VALUE(%SST(&amp;REQUEST 109  256))
+   CHGVAR VAR(&amp;DBMBRR)     VALUE(%SST(&amp;REQUEST 365  20))
+   CHGVAR VAR(&amp;DBFFMT)     VALUE(%SST(&amp;REQUEST 385  20))
+ENDDO
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* THE FOLLOWING PARAMETERS ADDITIONAL FOR FORMAT ZDAR0200 */
+/* IF FORMAT IS ZDAR0200 */  
+IF COND(&amp;CSFMT *EQ 'ZDAR0200') THEN DO   
+   CHGVAR VAR(&amp;DBPLIB)     VALUE(%SST(&amp;REQUEST 33  10))    
+   CHGVAR VAR(&amp;DBPTBL)     VALUE(%SST(&amp;REQUEST 43  128))
+   CHGVAR VAR(&amp;DBFLIB)     VALUE(%SST(&amp;REQUEST 171  10))
+   CHGVAR VAR(&amp;DBFTBL)     VALUE(%SST(&amp;REQUEST 181  128))
+ENDDO
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* REMOTE COMMAND SERVER */
+   CHGVAR VAR(&amp;RCFMT)     VALUE(%SST(&amp;REQUEST 21  8))    
+   CHGVAR VAR(&amp;RCFID)     VALUE(%SST(&amp;REQUEST 29  4))
+   CHGVAR VAR(&amp;RCPGM)     VALUE(%SST(&amp;REQUEST 33  10))
+   CHGVAR VAR(&amp;RCLIB)     VALUE(%SST(&amp;REQUEST 43  10))
+   CHGVAR VAR(&amp;RCNUM)     VALUE(%SST(&amp;REQUEST 53  4))    
+   CHGVAR VAR(&amp;RCDATA)    VALUE(%SST(&amp;REQUEST 57  6000))
+ 
+/* SIGNON SERVER DECLARES */
+   CHGVAR VAR(&amp;SOFNT)     VALUE(%SST(&amp;REQUEST 21  8))    
+   CHGVAR VAR(&amp;SOFID)     VALUE(%SST(&amp;REQUEST 29 4))
+ 
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/***********************************/
+/*                                           */
+/* BEGIN MAIN PROGRAM                        */
+/*                                           */
+ 
+ 
+ CHGVAR VAR(&amp;STATUS) VALUE('1') /* INITIALIZE RETURN +
+                           VALUE TO ACCEPT THE REQUEST */
+ 
+ /* ADD LOGIC COMMON TO ALL SERVERS */
+ 
+ /* PROCESS BASED ON SERVER ID */
+ IF COND(&amp;APPLIC *EQ '*VPRT') THEN(GOTO CMDLBL(VPRT))   /* IF VIRTUAL PRINTER */
+ IF COND(&amp;APPLIC *EQ '*TFRFCL') THEN(GOTO CMDLBL(TFR))  /* IF TRANSFER FUNCTIO*/
+ IF COND(&amp;APPLIC *EQ '*FILESRV') THEN(GOTO CMDLBL(FLR)) /* IF FILE SERVERS */
+ IF COND(&amp;APPLIC *EQ '*MSGFCL') THEN(GOTO CMDLBL(MSG))  /* IF MESSAGING FUNCT */
+ IF COND(&amp;APPLIC *EQ '*DQSRV') THEN(GOTO CMDLBL(DATAQ)) /* IF DATA QUEUES */
+ IF COND(&amp;APPLIC *EQ '*RQSRV') THEN(GOTO CMDLBL(RSQL))  /* IF REMOTE SQL */
+ IF COND(&amp;APPLIC *EQ '*SQL') THEN(GOTO CMDLBL(SQLINIT)) /* IF SQL */
+ IF COND(&amp;APPLIC *EQ '*NDB') THEN(GOTO CMDLBL(NDB))     /* IF NATIVE DATABASE */
+ IF COND(&amp;APPLIC *EQ '*SQLSRV') THEN(GOTO CMDLBL(SQLSRV)) /* IF SQL */
+ IF COND(&amp;APPLIC *EQ '*RTVOBJINF') THEN(GOTO CMDLBL(RTVOBJ)) /* IF RETRIEVE OB*/
+ IF COND(&amp;APPLIC *EQ '*DATAQSRV') THEN(GOTO CMDLBL(ODATAQ))  /* IF D*/
+ IF COND(&amp;APPLIC *EQ 'QNPSERVR') THEN(GOTO CMDLBL(NETPRT))  /* IF NETWORK PRI*/
+ IF COND(&amp;APPLIC *EQ '*CNTRLSRV') THEN(GOTO CMDLBL(CENTRAL)) /* IF CENTRAL SER*/
+ IF COND(&amp;APPLIC *EQ '*RMTSRV') THEN(GOTO CMDLBL(RMTCMD))    /* IF RMTCMD/DPC */
+ IF COND(&amp;APPLIC *EQ '*SIGNON') THEN(GOTO CMDLBL(SIGNON))  /* IF SIGNON */
+ 
+ GOTO EXIT
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* * * * * * * * * * * * * * * * * * * * * * */
+/* SUBROUTINES                               */
+/*                                           */
+/* * * * * * * * * * * * * * * * * * * * * * */
+ 
+/* VIRTUAL PRlNTER */
+ VPRT:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+/* TRANSFER FUNCTION */
+ TFR:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* FILE SERVERS */
+  FLR:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+/* MESSAGING FUNCTION */
+  MSG:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+/* DATA QUEUES */
+  DATAQ:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* REMOTE SQL */
+  RSQL:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+/* DATABASE INIT */
+  SQLINIT:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+ 
+/* NATIVE DATABASE */
+       NDB:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+/* DATABASE SQL */
+  SQLSRV:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+ 
+</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/* RETRIEVE OBJECT INFORMATION */
+  RTVOBJ:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+ 
+/* DATA QUEUE SERVER */
+  ODATAQ:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+/* NETWORK PRINT SERVER */
+  NETPRT:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+ /* CENTRAL SERVER */
+  CENTRAL:
+ 
+   /* SPECIFIC LOGIC GOES HERE */
+ 
+   GOTO EXIT
+ /* REMOTE COMMAND AND DISTRIBUTED PROGRAM CALL */
+  RMTCMD:
+ 
+ /* IN THIS CASE IF A USER ATTEMPTS TO DO A REMOTE COMMAND AND DISTRIBUTED  */
+ /* PROGRAM CALL AND HAS A USERID OF userid THEY WILL NOT BE ALLOWED TO */
+ /* CONTINUE.                                                      
+    */
+ IF COND(&amp;USER *EQ 'userid') THEN(CHGVAR VAR(&amp;STATUS) VALUE('0'))
+ 
+      GOTO EXIT
+ /* SIGNON SERVER */
+ SIGNON:
+ 
+  /* SPECIFIC LOGIC GOES HERE */
+ 
+  GOTO EXIT
+ 
+ EXIT:
+ENDPGM
+</code></pre></div><div class="docs--copy-btn"></div></div>
+</div>
+
+
+<aside role="complementary" aria-labelledby="rzajrmstsmpcl__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_75" href="/docs/en/ssw_ibm_i_75/rzajr/rzajrmst34.htm" title="These sample IBM i exit programs do not show all possible programming considerations or techniques, but you can review the examples before you begin your own design and coding." class="bottom-section-link">Examples: Exit programs</a></div></div>
+</div>
+</nav></aside></article></main><script type="text/javascript"  src="/0qKP/Fm9A/Igg6/tAAW/dg/iVOLVfDNDDtLXc5puX/UExGPFZyWg8/ayldF/R5WAkUB"></script></body></html>

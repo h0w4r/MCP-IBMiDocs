@@ -2,6 +2,10 @@
 
 El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI y también incluye el `data/pack` oficial de la versión publicada.
 
+El repositorio y los archives completos conservan `raw/` para trazabilidad. El
+paquete npm de ejecución omite ese HTML original para reducir la descarga: el
+MCP instalado trabaja con SQLite, `manifest.json` y el texto `normalized/`.
+
 El objetivo es que `npm install -g @ckirsch94/ibmi-docs-mcp@latest` funcione en una máquina limpia sin clonar el repositorio y sin RDi. Los packs externos siguen soportados para organizaciones que quieran probar corpus propios o distribuir snapshots internos.
 
 ## Crear archive local del data pack
@@ -38,7 +42,9 @@ ibmi-docs doctor
 ibmi-docs validate-pack
 ```
 
-Esto actualiza el runtime y el pack empaquetado con esa versión. También ejecuta el `postinstall` para preparar localmente el modelo de embeddings y el reranker cross-encoder, y valida el adaptador neuronal incluido.
+Esto actualiza el runtime y el pack empaquetado con esa versión. También ejecuta el `postinstall`
+para instalar localmente el Transformer E5 afinado, la cabeza neuronal query→corpus y el reranker
+cross-encoder.
 
 ## Actualizar un data pack de repo clonado
 

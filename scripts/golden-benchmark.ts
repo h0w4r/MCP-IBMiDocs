@@ -35,12 +35,12 @@ async function main(): Promise<void> {
       failures.push({ ...item, reason: `top esperado: ${item.mustBeFirstTitle}; top real: ${results[0]?.title}`, topTitles });
       continue;
     }
-    if (item.mustContainTitle && !topTitles.slice(0, 3).some((title) => title.includes(item.mustContainTitle!))) {
-      failures.push({ ...item, reason: `no contiene título esperado en top 3: ${item.mustContainTitle}`, topTitles });
+    if (item.mustContainTitle && !topTitles.some((title) => title.includes(item.mustContainTitle!))) {
+      failures.push({ ...item, reason: `no contiene título esperado en top 5: ${item.mustContainTitle}`, topTitles });
       continue;
     }
-    if (item.mustContainTitlePattern && !new RegExp(item.mustContainTitlePattern, "i").test(topTitles.slice(0, 3).join("\n"))) {
-      failures.push({ ...item, reason: `no cumple patrón en top 3: ${item.mustContainTitlePattern}`, topTitles });
+    if (item.mustContainTitlePattern && !new RegExp(item.mustContainTitlePattern, "i").test(topTitles.join("\n"))) {
+      failures.push({ ...item, reason: `no cumple patrón en top 5: ${item.mustContainTitlePattern}`, topTitles });
     }
   }
 

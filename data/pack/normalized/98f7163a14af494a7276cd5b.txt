@@ -1,0 +1,171 @@
+Retrieve Group Attributes (RTVGRPA)
+
+Retrieve Group Attributes (RTVGRPA)
+
+Last Updated: 2025-04-08
+
+Where allowed to run:
+
+- Interactive program (*IPGM)
+
+- Interactive REXX procedure (*IREXX)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Retrieve Group Attributes (RTVGRPA) command retrieves information about the group in which the job that issued the command belongs. The following attributes can be retrieved:
+
+- The group job name of the job calling the RTVGRPA command
+
+- A list containing information about all active jobs in the group
+
+- A count of the number of active jobs in the group
+
+- The name of the group message queue
+
+- The library in which the group message queue resides
+
+- The group job name and job number of the previously active job in the group
+
+- A control code indicating why the currently active job in the group gained control
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+GRPJOB | CL var for GRPJOB (10) | Character value | Optional, Positional 1
+GRPJOBL | CL var for GRPJOB list (1056) | Character value | Optional, Positional 2
+GRPJOBCNT | CL var for GRPJOBCNT (3 0) | Decimal number | Optional, Positional 3
+MSGQ | CL var for MSGQ (10) | Character value | Optional
+MSGQLIB | CL var for MSGQLIB (10) | Character value | Optional
+PRVGRPJOB | CL var for PRVGRPJOB (16) | Character value | Optional
+CTLCDE | CL var for CTLCDE (3 0) | Decimal number | Optional
+
+Top
+
+CL var for GRPJOB (10) (GRPJOB)
+
+Specifies the name of the CL variable that receives the group job name of the job. The variable must be a character variable with a minimum length of 10 characters. If the group job name has fewer characters than the variable allows, the value is padded on the right with blanks.
+
+Top
+
+CL var for GRPJOB list (1056) (GRPJOBL)
+
+Specifies the name of the CL variable that receives the list of jobs in the group. Each entry contains the job's group job name (10), job number (6), and the 50 characters of descriptive text. The maximum number of entries in the variable is 16. The entries are ordered by most recently active job. The variable must be a character variable with a minimum length of 1056 characters. If the group job list has fewer characters than the variable allows, the value is padded on the right with blanks.
+
+Top
+
+CL var for GRPJOBCNT (3 0) (GRPJOBCNT)
+
+Specifies the CL variable that receives the count of active jobs in the group. The CL variable must be a three-position decimal variable with no decimal positions. The CL variable contains the number of non-blank entries in the group job list. The count includes all of the active jobs in the group. Jobs that have not completely ended (jobs that have been canceled) are not counted.
+
+Top
+
+CL var for MSGQ (10) (MSGQ)
+
+Specifies the name of the CL variable that receives the group message queue name. This variable must be a character variable with a minimum length of 10 characters. If the message queue name has fewer characters than the variable allows, the value is padded on the right with blanks. If there is no message queue associated with the group, the CL variable is set to the special value of *NONE.
+
+Top
+
+CL var for MSGQLIB (10) (MSGQLIB)
+
+Specifies the name of the CL variable that receives the name of the library that contains the group message queue. This variable must be a character variable with a minimum length of 10 characters. If the library name has fewer characters than the variable allows, the value is padded on the right with blanks. If there is no message queue associated with the group, the CL variable is set to blanks.
+
+Top
+
+CL var for PRVGRPJOB (16) (PRVGRPJOB)
+
+Specifies the name of the CL variable that receives the group job name and job number of the previously active job in the group. The variable must be a character variable with a minimum length of 16 characters. If the group job name has fewer characters than the variable allows, the value is padded on the right with blanks. If there is no previously active job in the group, the group job name portion of the CL variable is set to the special value of *NONE, and the job number portion of the CL variable is set to blanks. The CL variable is returned in the following format:
+
+Group-job-name CHAR(10)
+Job-number CHAR(6)
+
+Top
+
+CL var for CTLCDE (3 0) (CTLCDE)
+
+Specifies the name of the CL variable that receives information about why the active job in the group has gained control. The CL variable must be a three-position decimal variable with no decimal positions. The following control codes (and their meanings) are possible:
+
+0
+There was no previously active job (no Transfer to Group Job (TFRGRPJOB) commands have been run for this group).
+
+10
+The previously active job selected this job to be transferred to on the TFRGRPJOB command.
+
+20
+The previously active job's first group program ended normally, and this job was the most recently active job in the group.
+
+30
+The previously active job was ended by the End Group Job (ENDGRPJOB) command, and this job was selected to gain control (the Group job to be resumed (RSMGRPJOB) parameter specified this group job).
+
+40
+The previously active job was ended by the ENDGRPJOB command and selected a job other than this job to gain control (which was ended before it could be resumed). Since this job was the most recently active job in the group, control is passed to it.
+
+50
+The previously active job was ended by the ENDGRPJOB command, and this job was the most recently active job in the group (the RSMGRPJOB parameter specified *PRV).
+
+60
+The previously active job's first group program ended abnormally, and this job was the most recently active job in the group.
+
+70
+The previously active job was ended by the End Job (ENDJOB) command, and this job was the most recently active job in the group.
+
+Top
+
+Examples
+
+Assume jobs 030001/QUSER/WORKST01 and 030002/QUSER/WORKST01 are group jobs with group job names GROUPJ1 and GROUPJ2, respectively. Also assume that message queue QGPL/GROUPMSGQ is associated with the group. If group job GROUPJ1 has just issued the TFRGRPJOB command to transfer to group job GROUPJ2, and GROUPJ2 called the following CL program:
+
+PGM Example
+
+DCL VAR(&GRPJOBN) TYPE(*CHAR) LEN(10)
+DCL VAR(&GRPJOBL) TYPE(*CHAR) LEN(1056)
+DCL VAR(&GRPCOUNT) TYPE(*DEC) LEN(3 0)
+DCL VAR(&MSGQNAME) TYPE(*CHAR) LEN(10)
+DCL VAR(&MSGQLIB) TYPE(*CHAR) LEN(10)
+DCL VAR(&PRVJOB) TYPE(*CHAR) LEN(16)
+DCL VAR(&CTLCODE) TYPE(*DEC) LEN(3 0)
+RTVGRPA GRPJOB(&GRPJOBN) GRPJOBL(&GRPJOBL) +
+GRPJOBCNT(&GRPCOUNT) MSGQ(&MSGQNAME) +
+MSGQLIB(&MSGQLIB) PRVGRPJOB(&PRVJOB) +
+CTLCDE(&CTLCODE)
+
+The contents of the CL variables returned are as follows:
+
+&GRPJOBN: GROUPJ2
+&GRPJOBL: GROUPJ2 030002 50 characters of text for
+this group job...
+GROUPJ1 030001 50 characters of text for
+this group job...
+
+Fourteen more entries, full of blanks
+
+&GRPCOUNT: 002
+&MSGQNAME: GROUPMSGQ
+&MSGQLIB: QGPL
+&PRVJOB: GROUPJ1 030001
+&CTLCODE: 010
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1309
+Subsystem cannot complete the &1 command.
+
+CPF1311
+Job is not a group job.
+
+CPF1317
+No response from subsystem for job &3/&2/&1.
+
+CPF1351
+Function check occurred in subsystem for job &3/&2/&1.
+
+Top

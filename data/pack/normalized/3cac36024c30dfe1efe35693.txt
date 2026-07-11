@@ -1,0 +1,396 @@
+Change Message Queue (CHGMSGQ)
+
+Change Message Queue (CHGMSGQ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Message Queue (CHGMSGQ) command changes the attributes of the specified message queue. If the delivery mode is being changed to *BREAK or *NOTIFY and if the message queue is not already in *BREAK or *NOTIFY mode or specifically allocated to another job, it is implicitly allocated by this command. The DLVRY, PGM, and SEV parameters are not contained in the Create Message Queue (CRTMSGQ) command, but default values are assigned to them by the system when the message queue is created. This command can also be used to reset the status of old messages to that of new messages so they can be received again without the use of message reference keys.
+
+Restrictions:
+
+- You must have use (*USE) and delete (*DLT) authorities for the queue.
+
+- The message queues being changed cannot be allocated with either a *SHRRD, or *EXCL lock by another job. If the queue is allocated by another job when the CHGMSGQ command is attempted, an error message will be sent. One exception to this is that no lock is required when changing the CCSID of a workstation message queue.
+
+- If you are changing multiple message queues with the generic support you are not allowed to change the value for the DLVRY parameter to *BREAK or to *NOTIFY.
+
+- The QHST message queue has a message queue full action of *SNDMSG and this value cannot be changed. The CPF2433 message (Function not allowed for system log message queue QHST.) is issued if the message queue full action is changed for QHST.
+
+- Message queue QSYSOPR is shipped with a message queue full action of *WRAP. If the value is changed to *SNDMSG and the queue needs to be recreated because it was damaged, the value is reset to the shipped value of *WRAP.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+MSGQ | Message queue | Single values: *USRPRF, *WRKSTN
+Other values: Qualified object name | Required, Positional 1
+Qualifier 1: Message queue | Generic name, name, *ALL
+Qualifier 2: Library | Name, *LIBL, *CURLIB, *USRLIBL, *ALLUSR, *ALL
+DLVRY | Delivery | *SAME, *HOLD, *BREAK, *NOTIFY, *DFT | Optional, Positional 2
+SEV | Severity code filter | 0-99, *SAME | Optional, Positional 4
+TEXT | Text 'description' | Character value, *SAME, *BLANK | Optional
+PGM | Break handling attributes | Single values: *SAME, *DSPMSG
+Other values: Element list | Optional, Positional 3
+Element 1: Break handling program | Qualified object name
+Qualifier 1: Break handling program | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Allow other jobs to reply | *NOALWRPY, *ALWRPY
+RESET | Reset old messages | *NO, *YES | Optional
+FORCE | Force to auxiliary storage | *SAME, *NO, *YES | Optional
+ALWALR | Allow alerts | *SAME, *NO, *YES | Optional
+CCSID | Coded character set ID | 1-65535, *SAME, *MSG, *HEX, *JOB | Optional
+MSGQFULL | Message queue full action | *SAME, *SNDMSG, *WRAP | Optional
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the name of the message queue whose attributes are being changed.
+
+This is a required parameter.
+
+Single values
+
+*WRKSTN
+The attributes of the work station's message queue are being changed. (This parameter is not valid for a batch job.)
+
+*USRPRF
+The attributes of the message queue associated with the currrent user profile are being changed.
+
+Qualifier 1: Message queue
+
+*ALL
+All message queues in the libraries identified in the library qualifier are changed.
+
+generic*-message-queue-name
+Specify the generic name of the message queue whose attributes are being changed. A generic name is a character string of one or more characters followed by an asterisk (*); for example, ABC*. The asterisk (*) is a substitute for any valid character. A generic name specifies all objects with names that begin with the generic prefix for which the user has authority. If an asterisk is not included with the generic (prefix) name, the system assumes it to be the complete object name. If the complete object name is specified and the library qualifier is *USRLIBL, *ALL, or *ALLUSR, all message queues of the specified name are changed.
+
+name
+Specify the name of the message queue whose attributes are to be changed.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the message queue. If no current library entry exists in the library list, QGPL is used.
+
+*USRLIBL
+Only the libraries in the user portion of the thread's library list are searched.
+
+*ALL
+All libraries in the system, including QSYS, are searched.
+
+*ALLUSR
+All user libraries are searched. All libraries with names that do not begin with the letter Q are searched except for the following:
+
+#CGULIB #DSULIB #SEULIB
+#COBLIB #RPGLIB
+#DFULIB #SDALIB
+
+Although the following Qxxx libraries are provided by IBM, they typically contain user data that changes frequently. Therefore, these libraries are considered user libraries and are also searched:
+
+QDSNX QSYS2 QUSRINFSKR QWQCENT
+QGPL QSYS2xxxxx QUSRNOTES QWQREPOS
+QGPL38 QS36F QUSROND
+QMPGDATA QUSER38 QUSRPOSGS
+QMQMDATA QUSRADSM QUSRPOSSA
+QMQMPROC QUSRBRM QUSRPYMSVR
+QPFRDATA QUSRDIRCF QUSRRDARS
+QRCL QUSRDIRCL QUSRSYS
+QRCLxxxxx QUSRDIRDB QUSRVI
+QSRVAGT QUSRIJS QUSRVxRxMx
+
+- 'xxxxx' is the number of a primary auxiliary storage pool (ASP).
+
+- A different library name, in the format QUSRVxRxMx, can be created by the user for each previous release supported by IBM to contain any user commands to be compiled in a CL program for the previous release. For the QUSRVxRxMx user library, VxRxMx is the version, release, and modification level of a previous release that IBM continues to support.
+
+name
+Specify the library where the message queue is located.
+
+Top
+
+Delivery (DLVRY)
+
+Specifies how the messages that are sent to this message queue are delivered. The method of delivery is in effect only as long as the message queue is allocated to the job. When the queue is no longer allocated, the delivery mode is changed to *HOLD for work station, system operator, and user message queues. However, if *DFT is specified for a system operator or user message queue, the delivery mode remains *DFT.
+
+Note: When the delivery mode of a message queue is changed to *BREAK or *NOTIFY, the message queue is allocated with an *EXCL lock. The *EXCL lock will remain on the queue until the delivery mode is changed to *HOLD or *DFT, or the job that contains the lock on the queue ends.
+
+*SAME
+The method of message delivery is not changed. If this parameter has not been changed in a previous command, *SAME means that *HOLD is the method of delivery. However, if the specified message queue is a display station message queue, it is automatically changed to *NOTIFY by the system at sign-on.
+
+*HOLD
+The messages are held in the message queue until they are requested by the user or program. The display station user uses the Display Messages (DSPMSG) command to show the messages. A program must issue a Receive Message (RCVMSG) command to receive a message and handle it.
+
+*BREAK
+When a message arrives at the message queue, the job to which the message queue is allocated is interrupted, and the program specified for the Break handling program (PGM) parameter is called, or the Display Message (DSPMSG) command is processed. If the job is an interactive job, the audible alarm is sounded (if installed). The delivery mode cannot be changed to *BREAK if the message queue is also being used by another job.
+When changing to *BREAK mode, if a program name is not specified or if PGM(*SAME) is specified the PGM parameter defaults to *DSPMSG for the break program and *ALWRPY for the allow other jobs to reply attribute.
+
+*NOTIFY
+When a message arrives at the message queue, an interactive job to which the message queue is allocated is notified by the message light turning on and a buzzer sounding (if you have that feature). For batch jobs, no notification occurs; the message is simply held in the queue (the same as for *HOLD). The delivery mode cannot be changed to *NOTIFY if the message queue is also being used by another job.
+
+*DFT
+Messages requiring replies are answered with their default reply. If no default reply is specified in the message description of the inquiry message, the system default reply, *N, is used. No messages are added to the message queue unless the message queue is QSYSOPR.
+
+Top
+
+Severity code filter (SEV)
+
+Specifies the lowest severity level that a message can have and still be delivered to a user in break or notify mode. Messages arriving at the message queue whose severities are lower than that specified here do not interrupt the job or turn on the audible alarm or the Message Waiting light; they are held in the queue until they are displayed by the Display Message (DSPMSG) command. If *BREAK or *NOTIFY is specified on the DLVRY parameter, and is in effect when a message arrives at the queue, the message is delivered if the severity code associated with the message is equal to or greater than the value specified here. Otherwise, the message is held in the queue until it is requested.
+
+*SAME
+The severity code is not changed.
+
+severity-code
+Specify a value, 0 through 99, that specifies the lowest severity code that a message can have and still be delivered to a user if the message queue is in break or notify delivery mode.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the user-defined text that describes the message queue. The text specified here replaces any previous text.
+
+*SAME
+The text is not changed.
+
+*BLANK
+No text is specified.
+
+'description'
+Specify no more than 50 characters, enclosed in apostrophes.
+
+Top
+
+Break handling attributes (PGM)
+
+Two elements are used to specify the program parameter. The first element specifies the program called when a message arrives at the message queue and break delivery has been specified. The second element indicates whether or not to allow other jobs to reply to messages on the message queue when it is placed in *BREAK delivery mode with a break handling program other than *DSPMSG specified.
+
+Because the QSYSOPR message queue receives messages that require manual operator action, only *DSPMSG should be specified or assumed if the message queue being changed is QSYSOPR.
+
+The following parameters are passed to the program:
+
+- Message queue name (10 characters). The name of the message queue to which the message was sent.
+
+- Library name (10 characters). The name of the library containing the message queue.
+
+- Message reference key (4 characters). The reference key of the message sent to the message queue.
+
+Single values
+
+*SAME
+The same program, if any, is called. (If this parameter has not been changed previously in another Change Message Queue (CHGMSGQ) command, *SAME means that *DSPMSG and *ALWRPY are assumed.) When changing to *BREAK mode and if this parameter is not specified or if *SAME is specified, then the break program defaults to *DSPMSG and the allow other jobs to reply value is set to *ALWRPY.
+
+*DSPMSG
+The Display Message (DSPMSG command) is processed when a message arrives for break delivery and the allow other jobs to reply value is set to *ALWRPY. For interactive jobs, the messages are shown on the display. At the display station, the audible alarm is sounded (if installed) and the Message Waiting light is turned on. For batch jobs, the message is sent to a spooled printer file.
+
+Element 1: Break handling program
+
+Specify the program that is called when a message arrives for break delivery.
+
+Qualifier 1: Break handling program
+
+name
+Specify the name of the program to be called.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the program. If no current library entry exists in the library list, QGPL is used.
+
+name
+Specify the library where the program is located.
+
+Element 2: Allow other jobs to reply
+
+Specifies whether other jobs can reply to inquiry messages on the message queue when it is placed in *BREAK delivery mode with a break handling program other than *DSPMSG specified. If *DSPMSG is specified for the break handling program then *ALWRPY is assumed for this attribute. If QMHDSMSS is specified for the break handling program in a library other than QSYS, then *ALWRPY will also be assumed for this attribute unless *NOALWRPY is explicitly specified.
+
+Note: If a value is specified for this element, you must also specify a break handling program for element 1 of this parameter.
+
+*NOALWRPY
+When the message queue is in *BREAK mode with a break handling program other than *DSPMSG specified, other jobs can display the message queue, but cannot reply to inquiry messages on the message queue.
+
+*ALWRPY
+When the message queue is in *BREAK mode with a break handling program other than *DSPMSG specified, other jobs can reply to inquiry messages on the message queue.
+
+Top
+
+Reset old messages (RESET)
+
+Specifies whether old messages (messages that have been received once and were not removed from the message queue) held in the message queue are reset to the new message status. The messages can then be received in first-in, first-out (FIFO) order as they were originally. This parameter applies only to messages received by a program; it does not affect message displays. If all messages are being cleared, refer to the RMVMSG (Remove Message) command description.
+
+*NO
+Old messages in the message queue are not reset to new message status. To receive an old message, reply to it, or remove it, you must enter the message reference key.
+
+*YES
+All messages in the message queue, except inquiry messages that have been sent a reply, are reset to the new message status. These messages can then be received as new messages in the same order that they were sent to the message queue.
+
+Top
+
+Force to auxiliary storage (FORCE)
+
+Specifies whether changes made to the message queue description or messages added to or removed from the queue are immediately forced into auxiliary storage; this ensures that changes to the queue, or messages sent or received, are not lost if a system failure occurs.
+
+*SAME
+The value specified in the referred to message queue is not changed.
+
+*NO
+Changes made to the message queue, including its messages, are not immediately forced to auxiliary storage.
+
+*YES
+All changes to the message queue description and to the messages in the queue are immediately forced to auxiliary storage. Warning: This could result in program performance problems.
+
+Top
+
+Allow alerts (ALWALR)
+
+Specifies whether the queue being changed allows alerts to be generated from alert messages that are sent to it.
+
+*SAME
+The value is not changed.
+
+*NO
+Does not allow alerts to be generated from this message queue.
+
+*YES
+Allows alerts to be generated from this message queue.
+
+Top
+
+Coded character set ID (CCSID)
+
+Specifies the coded character set identifier (CCSID) associated with this message queue. This applies only to immediate messages and message data that is defined as a character field that can be converted (*CCHAR).
+
+*SAME
+The value is not changed.
+
+*HEX
+Messages sent, received, or displayed from this message queue are not converted. The message queue CCSID is 65535.
+
+*MSG
+Messages sent to this message queue are not converted. The CCSID specified by the sending job is saved in case a conversion is needed for a display or receive function. The message queue CCSID is 65534.
+
+*JOB
+The CCSID of the message queue is changed to the CCSID of the job running this command.
+
+coded-character-set-identifier
+Specify the CCSID associated with this message queue. Messages sent to this message queue are converted to this CCSID. Valid values range from 1 through 65535. See the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for a list of valid CCSID values.
+
+Note: When changing the CCSID of a message queue, the messages on the queue are not converted and the CCSID associated with each individual message is not changed. If the message queue is changed back to *MSG the original CCSID of each message is then used.
+
+Changing the CCSID of a message queue that already has messages on it can cause unpredictable results. This can occur when the encoding of the messages does not match the CCSID you specify. Only change the CCSID of a message queue when the CCSID of a message queue does not match the encoding of the messages on it.
+
+For more information on the message handler and its use of CCSIDs, see the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Message queue full action (MSGQFULL)
+
+Specifies the action to take when the message queue is full.
+
+*SAME
+The value does not change.
+
+*SNDMSG
+When the message queue is full, CPF2460 (Message queue could not be extended.) is sent to the program or user that is sending a message to the full message queue.
+
+*WRAP
+When the message queue is full, the oldest informational and answered messages are removed from the message queue to allow space for new messages to be added. If the removing of the informational and answered messages does not provide enough space to add the requested message, then unanswered inquiry messages are removed until there is space to add the requested message. The default reply is sent before an unanswered inquiry message is removed. When the message queue is wrapped, CPI2420 or CPI2421 is sent to the queue that was full to indicate it was wrapped. If there is no space on the queue to send these messages they are sent to the joblog of the user that was sending the message to the queue and they are sent to QHST if the full queue was QSYSOPR.
+NOTE: When a queue uses *WRAP and a job sends a message to the queue that causes a wrap, messages are removed for the following conditions in order to perform the wrap:
+
+- the queue is in break or notify mode for a job
+
+- a job is in a message wait state because it did a receive function on the queue with a wait time specified
+
+- the queue is allocated by a job via the ALCOBJ command
+
+Only the system wrap function can remove messages from queues in these conditions. Other jobs still are not allowed to remove messages from the queues during these conditions. With *SNDMSG, these conditions do not allow another job to remove messages from the queue.
+
+Also when a queue specifies *WRAP and it is in break mode, the wrap function only removes messages that have been received by the break-handling program. For example, if the break-handling program did not receive all messages from the queue and it was becoming full, CPF2460 could be issued because messages could not be removed to perform the wrap.
+
+Top
+
+Examples
+
+Example 1: Changing Method of Delivery to Notify Mode
+
+CHGMSGQ MSGQ(JONES) DLVRY(*NOTIFY)
+
+This command changes the method of delivery of the message queue named JONES to notify mode. The user is immediately notified by the attention light and audible alarm (if installed) when a message has been sent to his queue.
+
+Example 2: Changing Method of Delivery to Break Mode
+
+CHGMSGQ MSGQ(INV) DLVRY(*BREAK) PGM(INVUPDT)
+
+This command changes the delivery mode of the message queue named INV to *BREAK and calls a program named INVUPDT when a message arrives at INV. Other jobs will not be allowed to reply to inquiry messages on message queue INV.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2401
+Not authorized to library &1.
+
+CPF2403
+Message queue &1 in &2 not found.
+
+CPF2406
+Authority error occurred on call to break program &1 in &2 for message queue &3 in &4.
+
+CPF2408
+Not authorized to message queue &1.
+
+CPF2437
+MSGQ(*WRKSTN) not allowed unless done interactively.
+
+CPF244E
+The delivery specified is not valid with a generic message queue
+
+CPF2446
+Delivery mode specified not valid for system log message queue.
+
+CPF2450
+Work station message queue &1 not allocated to job.
+
+CPF2451
+Message queue &1 is allocated to another job.
+
+CPF247E
+CCSID &1 is not valid.
+
+CPF2477
+Message queue &1 currently in use.
+
+CPF2485
+Number of parameters for break program &1 in &2 message queue &3 in &4 not valid.
+
+CPF2507
+MODE(*NOTIFY) not allowed in batch mode.
+
+CPF2522
+Break program &1 in &2 for message queue &3 in &4 cannot be called.
+
+CPF2534
+MSGQ(*USRPRF) specified and no msg queue with user profile.
+
+CPF8127
+&8 damage on message queue &4 in &9. VLIC log-&7.
+
+CPF8176
+Message queue for device description &4 damaged.
+
+Top

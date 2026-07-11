@@ -1,0 +1,181 @@
+Change Cluster Recovery (CHGCLURCY)
+
+Change Cluster Recovery (CHGCLURCY)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Cluster Recovery (CHGCLURCY) command is used for problem recovery. Use this command only when directed by service provider. It directs a node in a cluster resource group to perform a specific recovery action. The recovery action can cancel the current protocol, force a recovery of the cluster resource group object associated with the cluster resource group, force a rejoin with the cluster resource group, end the job that is associated with the cluster resource group, cause a cluster resource group job to be submitted on the node where the CHGCLURCY command was executed. The cluster resource group job being submitted must not be currently running.
+
+The actions are intended to be used when a cluster resource group is experiencing a problem, and you need to force some recovery action onto the group. The problem may not be due to Cluster Resource Services. For example, Cluster Resource Services submits a job to invoke user exit programs. If the job is held, then it appears to a user that the cluster resource group is hung. A user may not know what exit program job was submitted, and so cannot perform any recovery outside of the cluster. Performing the appropriate recovery action with CHGCLURCY can satisfy Cluster Resource Services so it can fail the protocol that invoked the exit program job and continue.
+
+Restrictions:
+
+- To use this command you must have job control (*JOBCTL) special authority, and either service (*SERVICE) special authority or be authorized to the Service Trace function of the operating system through iSeries Navigator's Application Administration support. You must also have change (*CHANGE) authority to any cluster resource group object that is to be acted upon with this command.
+
+- The cluster must be at version 3 or greater for this command to work remotely (work on any node other than the node issuing the command).
+
+- Cluster Resource Services must either be active or in the process of starting on the node that this command is issued from.
+
+- Only nodes that have a job for the desired cluster resource group may participate in this command.
+
+- To determine if this command succeeded, check the job logs of the affected cluster jobs for a CPDBB06 message indicating the recovery action performed.
+
+Warning: Use caution with this command, recovery actions cannot be undone or canceled.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CLUSTER | Cluster | Name, * | Required, Positional 1
+CRG | Cluster resource group | Character value, *ALL, *CAD | Required, Positional 2
+NODE | Node identifier | Name, *ALL, * | Required, Positional 3
+ACTION | Action | *CANCEL, *RESTART, *REJOIN, *END, *STRCRGJOB, *DLTIDX | Required, Positional 4
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the cluster that is to be operated upon.
+
+This is a required parameter.
+
+name
+Specifies the name of the cluster to which a recovery action will be performed.
+
+Top
+
+Cluster resource group (CRG)
+
+Specifies the cluster resource group that is to be operated upon.
+
+This is a required parameter.
+
+*ALL
+All groups, including the reserved groups QCSTCTL and QCSTCRGM.
+
+name
+Specify the name of the cluster resource group. The reserved names for the Cluster Control and Cluster Resource Group Manager groups, QCSTCTL and QCSTCRGM, respectively, may also be specified.
+
+Top
+
+Node identifier (NODE)
+
+Specifies the cluster node that is to be operated upon.
+
+This is a required parameter.
+
+*ALL
+All active nodes in the cluster.
+
+name
+Specify the name of the cluster node.
+
+Top
+
+Action (ACTION)
+
+Specifies a recovery action for the specified cluster resource group on the specified node.
+
+This is a required parameter.
+
+Notes:
+
+- The only valid value for NODE(*ALL) is *END.
+
+- The only valid value for CRG(*ALL) is *END.
+
+- For a CRG parameter value of QCSTCTL or QCSTCRGM, actions *RESTART or *REJOIN will cause clustering to end on the specified node, and then the node will automatically start. For *END, clustering will end on the node and clustering will not be automatically started.
+
+- For *STRCRGJOB,only a specific cluster resource group name is allowed. Special values of QCSTCTL or QCSTCRGM are not allowed.
+
+*CANCEL
+Cancels the current protocol request. If no protocol is in-progress, the action is ignored.
+
+*RESTART
+Restart the specified node in the specified cluster resource group by performing a start action without the cluster resource group doing any failover of the node. The cluster resource group object associated with the cluster resource group will be recovered from another node in the recovery domain of the group. If there is not another active node in the recovery domain, then the cluster resource group will go inactive and no further operations on it will occur until another node in the recovery domain starts that has a valid cluster resource group object.
+
+*REJOIN
+Rejoin the specified node in the specified cluster resource group. The cluster resource group will first do a failover, and then the cluster resource group will automatically start the node only for that cluster resource group.
+
+*END
+End the cluster resource group job on the specified node. This may cause a failover in the cluster resource group. The cluster resource group will not automatically start the node, and no further cluster resource group operations can be performed on the node without first ending, then starting, clustering on the node.
+
+*STRCRGJOB
+Submit a cluster resource group job on this node only. The NODE parameter must contain the name of the local node.
+
+Top
+
+Examples
+
+Example 1: Recovery Action for One Node in One Cluster Resource Group
+
+CHGCLURCY CLUSTER(EXAMPLE) CRG(CRG1) NODE(NODE1)
+ACTION(*CANCEL)
+
+This command cancels the current protocol in cluster resource group CRG1 on node NODE1 in cluster EXAMPLE.
+
+Example 2: Recovery Action for a Reserved Cluster Resource Group
+
+CHGCLURCY CLUSTER(EXAMPLE) CRG(QCSTCRGM)
+NODE(NODE1) ACTION(*RESTART)
+
+This command causes node NODE1 of cluster resource group QCSTCRGM in cluster EXAMPLE to end clustering on NODE1. Clustering on NODE1 will attempt to automatically restart itself as though NODE1 was started with the Start Cluster Node (STRCLUNOD) command.
+
+Example 3: Recovery Action for All Nodes
+
+CHGCLURCY CLUSTER(EXAMPLE) CRG(CRG1)
+NODE(*ALL) ACTION(*END)
+
+This command causes all cluster jobs on all nodes associated with cluster resource group CRG1 in cluster EXAMPLE to end. No further operations on CRG1 can be performed on a given node until that node has clustering ended, and then started. The End Cluster Node (ENDCLUNOD) and STRCLUNOD commands may be used for ending and starting a cluster node.
+
+Example 4: Recovery Action for All Groups
+
+CHGCLURCY CLUSTER(EXAMPLE) CRG(*ALL)
+NODE(NODE1) ACTION(*END)
+
+This command causes all cluster jobs on node NODE1 in cluster EXAMPLE to end. This has the effect of ending clustering on NODE1. To start the cluster jobs on NODE1 requires NODE1 to have clustering started on it. The STRCLUNOD command may be used for starting a cluster node.
+
+Example 5: Start CRG1 Job on Node NODE1
+
+CHGCLURCY CLUSTER(EXAMPLE) CRG(CRG1)
+NODE(NODE1) ACTION(*STRCRGJOB)
+
+This command will cause cluster resource group job, CRG1, on node NODE1 to be submitted. To start the cluster resource group job on NODE1 requires NODE1 to have clustering started on it. The STRCLUNOD command may be used for starting a cluster node.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF222E
+&1 special authority is required.
+
+CPF98A2
+Not authorized to &1 command or API.
+
+CPFBB02
+Cluster &1 does not exist.
+
+CPFBB09
+Cluster node &1 does not exist in cluster &2.
+
+CPFBB0F
+Cluster resource group &1 does not exist in cluster &2.
+
+CPFBB70
+Request &1 not compatible with current cluster version.
+
+CPFBBA0
+Cluster node &1 in cluster resource group &2 is not responding.
+
+Top

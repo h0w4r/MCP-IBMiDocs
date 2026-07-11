@@ -1,0 +1,876 @@
+Start Recovery using BRM (STRRCYBRM)
+
+Start Recovery using BRM (STRRCYBRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Recovery using BRM (STRRCYBRM) command recovers items ranging from a single library to the entire system. Any library or group of libraries that were saved by a BRMS save command can be restored by this command. Recovery is based on entries in the BRMS media inventory contents information.
+
+Recovery using the STRRCYBRM uses the most recent times and dates of entries in the BRMS media content information. This reflects the order in which libraries and objects were saved. For instance, a recovery request for a library will restore the most recent full backup of a library, the latest incremental backup of that library, and all object level saves that have dates after the last full save.
+
+BRMS always uses non-duplicated media information when selecting items for recovery regardless of whether the location of the media if a value of *ALL is specified for the Volume location (LOC) parameter. If you want to select recovery items from duplicated media information, then specify *YES on the Use duplicate media (USEDUPMED) parameter.
+
+The design of the STRRCYBRM command concerning libraries is to report all the resources needed to recover a library in its entirety. This means that during the search of media information a full backup is required as a starting point in recovering the library. If a full backup is not found meeting the search criteria, any subsequent saves of objects for that library are ignored. This could happen if control group A saves libraries full and control group B saves libraries incremental and the STRRCYBRM OPTION(*CTLGRP) CTLGRP((B) is issued. This could also happen if the time period specified does not have a full backup of the library.
+
+Note: Prior to processing a restore, you should use the report option (*REPORT) to produce a report of the steps required to restore a portion of the system or the entire system. The report that is produced is the Recovery Analysis report. The report, if printed, is written to printer file QP1ARCY.
+
+Note: When you are restoring multiple items, such as a *SYSTEM , *SYSBAS or *SAVSYS, it is advisable to first run a Recovery Analysis Report to assist you in evaluating the steps required to restore the requested items. For instance, BRMS cannot install the Licensed Internal Code and restore the operating system for you automatically. The report assists you in locating the required volumes and identifies the manual steps needed to restore the Licensed Internal Code, the operating system, the BRMS product and required system libraries.
+
+After you have performed the manual steps, BRMS is able to provide automated assistance in restoring the remainder of the system. The steps required to restore the system are provided in the Recovery Analysis report.
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Restrictions:
+
+- You must have authority to the following restore commands:
+
+Restore Object (RST)
+Restore Document Library Object (RSTDLO)
+Restore Library (RSTLIB)
+Restore Object (RSTOBJ)
+Restore Configuration (RSTCFG)
+Restore User Profiles (RSTUSRPRF)
+Restore System Information (RSTSYSINF)
+
+and must have the object authorities required by those commands as outlined in Appendix D of the IBM i Security Reference.
+
+- To restore libraries and objects:
+
+You must have *ADD and *READ authority to the QSYS library to restore libraries which do not exist.
+
+You must have *OBJEXIST authority to restore over objects contained in a library.
+
+- To restore documents and folders:
+
+You must be enrolled in the system distribution directory.
+
+You must have *CHANGE authority to the parent folder and *ALL authority to the document if it already exists on the system.
+
+You must have *EXECUTE authority to the document library.
+
+- To restore directories and files:
+
+You must have *W and *OBJEXIST authority to file if it already exists on the system.
+
+You must have *WX authority to the parent directory.
+
+You must have *ADD authority to the owning user profile of the directory into which the parent directories are created.
+
+You must have *ALLOBJ special authority to create parent directories with a user profile other than your own.
+
+- You must have *USE authority to any auxiliary storage pool device when recovering objects to auxiliary storage pool devices.
+
+- These additional restrictions apply when *APYJRNCHG is specified for the Option (OPTION) parameter:
+
+You must have authority to the APYJRNCHG command.
+
+You must have *EXECUTE authority to the libraries containing the files, journals and journal receivers.
+
+You must have *OBJEXIST authority to restore any files that already exist on the system.
+
+You must have *CHANGE and *OBJMGT authority to apply journal changes to journaled files.
+
+You must have *USE authority to any journal or journal receiver used to apply journal changes.
+
+- This command should not be used by control group *EXIT item processing as results will be unpredictable.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OPTION | Option | *SYSTEM, *ALLDLO, *ALLUSR, *APYJRNCHG, *ASP, *ASPDEV, *CTLGRP, *IBM, *JOURNAL, *LIB, *LNKLIST, *RCYEXITPGM, *RESUME, *SAVSYS, *SYSBAS | Optional, Positional 1
+ACTION | Action | *REPORT, *RESTORE | Optional
+PERIOD | Time period for recovery | Single values: *DAYS
+Other values: Element list | Optional
+Element 1: Start time and date | Element list
+Element 1: Beginning time | Time, *AVAIL
+Element 2: Beginning date | Character value, *BEGIN, *CURRENT
+Element 2: End time and date | Element list
+Element 1: Ending time | Time, *AVAIL
+Element 2: Ending date | Character value, *END, *CURRENT
+DAYS | Time period in days | 1-365, 7 | Optional
+USESAVF | Use save files | *YES, *NO | Optional
+USEADSM | Use TSM | *YES, *NO | Optional
+ASP | Auxiliary storage pool | 1-32, *SYSTEM | Optional
+LIB | Library | Generic name, name | Optional
+LIST | List | Name, *ALL | Optional
+JRN | Journal | Single values: *JRNLST
+Other values (up to 25 repetitions): Qualified object name | Optional
+Qualifier 1: Journal | Name
+Qualifier 2: Library | Name
+ASPDEV | ASP device | Values (up to 25 repetitions): Element list | Optional
+Element 1: From system | Name, *LCL
+Element 2: Auxiliary storage pool | Name, *ALL
+Element 3: Objects | *ALL, *LIB, *LNK
+CTLGRP | Control group selection | Single values: *SELECT
+Other values (up to 300 repetitions): Element list | Optional
+Element 1: Control group | Name, *NONE, *BKUGRP, *SYSGRP, *SYSTEM
+Element 2: Sequence number | 1-99, 1
+OMITLIB | Libraries to omit | Single values: *NONE
+Other values (up to 25 repetitions): Generic name, name, *DELETE | Optional
+ALWDUP | Allow duplicate entries | *NO, *YES | Optional
+LOC | Volume locations to include | Single values: *ALL
+Other values (up to 10 repetitions): Name, *HOME | Optional
+OMITLOC | Volume locations to omit | Single values: *NONE
+Other values (up to 10 repetitions): Name, *HOME | Optional
+SHWDLTLIB | Show deleted libraries | *YES, *NO | Optional
+OVERRIDE | Override recovery element | *NO, *YES | Optional
+RCYELEM | Recovery element override | Values (up to 3 repetitions): Element list | Optional
+Element 1: Recovery element | *ALLSYS, *SAVSYS, *SECDTA, *SAVCFG
+Element 2: Time period for recovery | Element list
+Element 1: Start time and date | Element list
+Element 1: Beginning time | Time, *AVAIL
+Element 2: Beginning date | Character value, *BEGIN, *CURRENT
+Element 2: End time and date | Element list
+Element 1: Ending time | Time, *AVAIL
+Element 2: Ending date | Character value, *END, *CURRENT
+FROMSYS | From system | Character value, *LCL | Optional
+PRTSYSINF | Print system information | *NO, *YES | Optional
+USEDUPMED | Use duplicate media | *NO, *YES | Optional
+USRRCYINF | User recovery information | *NONE, *ADD | Optional
+RCYORDLST | Recovery order list | Name, *NONE | Optional
+VOLSUMORD | Volume summary order | *VOLNAME, *RCYRPT, *VOLCRTDAT | Optional
+
+Top
+
+Option (OPTION)
+
+Specifies what you want to restore from the BRMS media content inventory.
+
+*SYSTEM
+You want to restore the system (1) and basic user (2-32) auxiliary storage pools and auxiliary storage pool devices based on the BRMS media content information.
+
+*ALLDLO
+You want to restore all documents, folders, and distribution objects (mail) from the media content information that meet the specified starting and ending date.
+
+*ALLUSR
+You want to restore all user libraries that were saved using the *ALLUSR special value.
+Refer to the Special Values table for the Save Library (SAVLIB) Command in the Saving Libraries section of the IBM i Backup and Recovery book for a list of libraries which can be restored using this special value.
+
+*APYJRNCHG
+You want to apply journaled changes. Specify the journals using the Journal (JRN) parameter. The value of the From system (FROMSYS) parameter will be ignored if this value is specified.
+If you want to apply journaled changes to a point in time, specify the point in time on the End time and date prompt of the Time period for recovery (PERIOD) parameter.
+
+*ASP
+You want to restore the system (1) or basic user (2-32) auxiliary storage pool. You must specify the auxiliary storage pool using the Auxiliary storage pool (ASP) parameter. If you are restoring system (1) auxiliary storage pool, only user data is restored, not the operating system.
+
+*ASPDEV
+You want to restore auxiliary storage pool devices. Specify the systems, auxiliary storage pool devices, and objects using the ASP device (ASPDEV) parameter. The value of the From system (FROMSYS) parameter will be ignored if this value is specified.
+
+*CTLGRP
+You want to restore a control group and its associated save items from the media content information. You must specify the control group name in the Control group selection (CTLGRP) parameter.
+
+Note: When you select *NONE in the CTLGRP parameter you are indicating that you want to restore saved items from the media content information file not associated with a control group name.
+
+Additionally you have the option of selecting up to 300 control groups to restore when you use the *SELECT option in the CTLGRP parameter. You can sequence the order in which the selected control groups are restored by using the Sequence number element of the CTLGRP parameter.
+
+*IBM
+You want to restore all system (IBM) libraries that were saved using the *IBM special value.
+Refer to the Special Values table for the Save Library (SAVLIB) Command in the Saving Libraries section of the IBM i Backup and Recovery book for a list of libraries which can be restored using this special value.
+
+*JOURNAL
+You want to print journal report. Specify the journals using the Journal (JRN) parameter. Journal receiver chain report will be printed from the backup history for the specified journal. Journal exception report will be printed if BRMS detect required journal receiver were not fully saved or not saved during specified period. The value of the From system (FROMSYS) parameter will be ignored if this value is specified.
+Time period for recovery (PERIOD) parameter can be specified for required period.
+
+*LIB
+You want to restore a library from the media content information. You must specify the library name in the Library (LIB) parameter. The latest version of the library is restored from the BRMS media content information by using the latest full save plus any incremental and object saves subsequent to the latest full save.
+
+*LNKLIST
+You want to restore all integrated file system objects that were specified in a list from the media content information that meet the specified starting and ending date. Specify the backup link list using the List (LIST) parameter when using this special value.
+
+*RCYEXITPGM
+Any objects that have been recovered and are waiting for a recovery exit program to be called to reestablish relationships between related objects will be called passing the list of objects that were restored.
+This step is required to successfully rebuild objects that specified recovery exit processing when the objects were saved.
+
+During a complete system recovery, steps are provided to restore all system and user data back to the system. Some of these objects were saved requesting that a recovery exit program be called via the Recovery exit program (RCYEXITPGM) parameter. The objects are all restored by BRMS in the appropriate recovery step, and each object that requires a call to a recovery exit program is put into a list. After all data for the recovery is restored, the exit program is called for each package through processing of this option.
+
+A package is a related group of media files that were grouped together during the save operation by specifying a value on the Package identifier (PKGID) parameter.
+
+In a recovery of a single object or package that had requested a recovery exit program be called on recovery, this step will be done in the same way, the objects will be restored and the exit program will be called with the list of objects.
+
+*RESUME
+You want to start the recovery from the point where the recovery stopped.
+
+*SAVSYS
+You want to restore the operating system based on the BRMS media content information.
+
+*SYSBAS
+You want to restore only the system (1) and basic user auxiliary storage pools (2-32) based on the BRMS media content information.
+
+Top
+
+Action (ACTION)
+
+You can either specify whether you want to create a Recovery Analysis Report or perform an actual recovery.
+
+*REPORT
+You want to create the Recovery Analysis Report. This is recommended prior to restoring the system or *IBM to assure that the required media is available and that all necessary saves have been performed.
+The STRRCYBRM produces multiple reports depending on the print options you select as well as the current conditions that it detects. Listed below are the printer files and associated reports that can be produced when the STRRCYBRM command processes:
+
+- QP1ARCY - Recovery Report
+
+- QP1A2RCY - Recovery Volume Summary Report
+
+- QP1AASP - Display ASP Information
+
+- QP1AJR - Journal Receiver Chain Report
+
+- QP1AJREXC - Journal Receiver Exception Report
+
+*RESTORE
+You want to restore the requested items from the BRMS media content information.
+
+Note: If you specify *RESTORE and have specified *SYSTEM for the Option (OPTION) parameter, you will be returned to the Perform Recovery display.
+
+Top
+
+Time period for recovery (PERIOD)
+
+Specifies the period of time for which the recovery items are selected for recovery. Selected items are either included in the recovery report or recovered. This is dependent on the value specified in the Action (ACTION) parameter.
+
+Single values
+
+*DAYS
+Use the Time period in days (DAYS) parameter to select recovery items.
+
+Other values
+
+Element 1: Start time and date
+
+Element 1: Beginning time
+
+One of the following is used to specify the beginning creation time at which or after recovery items are included. Any items created before the specified time and date are not included in the selected recovery items.
+
+*AVAIL
+Any time that is available for the beginning date is included.
+
+begin-time
+Specify the beginning time for the specified beginning date that indicates which recovery items are to be included.
+The time is specified in 24-hour format and can be specified with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh=hours, mm=minutes and ss=seconds. Hours, minutes, and seconds must each be exactly 2 digits (using leading zeros if necessary).
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Element 2: Beginning date
+
+One of the following is used to specify the beginning date on or after which the recovery items must have been saved. Any entries saved prior to the specified date are not included in the recovery.
+
+*BEGIN
+Recovery items from the beginning of the media content information are recovered.
+
+*CURRENT
+Recovery items with a current date creation date and between the specified beginning and ending times (if specified) are recovered.
+
+begin-date
+Specify the beginning date. The date must be specified in the job date format.
+
+Element 2: End time and date
+
+Element 1: Ending time
+
+One of the following is used to specify the ending time before which recovery items are included. Any items created after the specified time and date are not included in the recovery items selected for recovery.
+
+*AVAIL
+Any time that is available for the ending date is included.
+
+end-time
+Specify the ending time for the specified ending date that indicates which recovery items are to be included.
+
+Element 2: Ending date
+
+One of the following is used to specify the ending date on which or before which the recovery items must have been saved. Any recovery items created after the specified date are not included in the recovery operation.
+
+*END
+The recovery items to the end of the recovery information are recovered.
+
+*CURRENT
+Recovery items whose save date is on or before the current date are included in the recovery.
+
+end-date
+Specify the ending date. The date must be specified in the job date format.
+
+Top
+
+Time period in days (DAYS)
+
+Specifies the number of days from which recovery items are selected. For example, a time period of 7 days would include recovery items from midnight seven days ago through the current date and time. Time period in days can be specified from 1 to 365.
+
+Note: Time period in days is ignored unless *DAYS is specified for the Time period for recovery (PERIOD) parameter.
+
+7
+The default time period in days is seven.
+
+time-period-in-days
+Specify the time period in days that you want to use to select recovery items.
+
+Top
+
+Use save files (USESAVF)
+
+Specifies whether you want to use save files for recovery.
+
+*YES
+You do want to use save files for recovery. If the library that you want to recover is saved both on tape and a save file, and the save time and dates are the same, then BRMS will use the save file for recovery.
+
+*NO
+You do not want to use save files for recovery.
+
+Top
+
+Use ADSM (USEADSM)
+
+Specifies whether data stored on the TSM (ADSM) server is included in the recovery. When the recovery includes data saved to TSM servers, additional steps are added to the recovery report to assist in the recovery of this data. During a full system recovery, the TSM server data is recovered after the system (1) and basic user (2-32) auxiliary storage pool data is recovered and after the initial IPL. This assures the necessary operating system resources are available for establishing the connection to the TSM server. BRMS also makes recovery decisions based on where the recovery data resides. For example, when the current full backup is stored on a TSM server, but incremental backups are stored on tape, the BRMS report or plan will indicate that the full backup from the TSM server must occur first, followed by the recovery of the incremental saves from tape.
+
+*YES
+Include TSM data in the recovery report or plan.
+
+*NO
+Do not include TSM data in the recovery report or plan.
+
+Top
+
+Auxiliary storage pool (ASP)
+
+Specifies the system (1) or basic user (2-32) auxiliary storage pool that you want to restore. The ASP parameter is a required field when the Option (OPTION) parameter is *ASP. If you are restoring the system (1) auxiliary storage pool, only user data is restored, not the operating system.
+
+*SYSTEM
+You want to restore the system (1) auxiliary storage pool.
+
+auxiliary-storage-pool-name
+Specify the name of the basic user auxiliary storage pool that you want to restore.
+
+auxiliary-storage-pool-number
+Specify the number of the system (1) or basic user (2-32) auxiliary storage pool that you want to restore.
+
+Top
+
+Library (LIB)
+
+Specifies the name of the library that you want to restore. Library is a required field when the Option field contains *LIB.
+
+library-name
+Specify the name of the library that you want to restore.
+
+generic*-library-name
+Specify one or more generic names of groups of libraries that you want to restore. A generic name is a character string that contains one or more characters followed by an asterisk (*). If an * is not specified with the name, the system assumes that the name is a complete library name.
+
+Top
+
+List (LIST)
+
+Specifies the name of the list for the recovery operation.
+
+When *LNKLIST is specified for the Option (OPTION) parameter the List (LIST) parameter specifies the name of the integrated file system list that you want to restore. You can restore a single list or all lists.
+
+*ALL
+All integrated file system lists are selected for recovery.
+
+link-list-name
+Specify the name of the integrated file system list that you want to restore.
+
+Top
+
+Journal (JRN)
+
+Specifies the qualified names of the journals to be included in the apply journal changes operation. Up to 25 qualified names can be specified.
+
+Restrictions:
+
+- This parameter is only valid when *APYJRNCHG is specified for the Option (OPTION) parameter.
+
+- *LCL must be specified for the From system (FROMSYS) parameter.
+
+Single values
+
+*JRNLST
+The names of the journals to be included in the apply journal changes operation are retrieved from a list of saved journals.
+
+Qualifier 1: Journal
+
+name
+Specify the name of the journal to be included in the apply journal changes operation.
+
+Qualifier 2: Library
+
+name
+Specify the name of the library containing the journal to be included in the apply journal changes operation.
+
+Top
+
+ASP device (ASPDEV)
+
+Specifies auxiliary storage pool devices which are to be included in the recovery of the current system. Up to 25 iterations can be specified.
+
+Restrictions:
+
+- This parameter is only valid when *SYSTEM or *ASPDEV is specified for the Option (OPTION) parameter.
+
+- *LCL must be specified for the From system (FROMSYS) parameter.
+
+Note: To include objects in auxiliary storage pool devices saved on other systems in the recovery, the current system must be receiving media content information from the systems which saved the auxiliary storage pool device information.
+
+Note: To recover objects in auxiliary storage pool devices saved on other systems, the current system must have devices which support the density of the media volumes containing the saved items.
+
+Element 1: From system
+
+Specifies the system where the auxiliary storage pool device was saved.
+
+*LCL
+Include auxiliary storage pool devices saved on the current system in the recovery.
+
+system-name
+Include auxiliary storage pool devices saved on the specified system in the recovery.
+
+network-id.system-name
+Include auxiliary storage pool devices saved on the specified system in the recovery. Format of the system name is nnnnnnnn.cccccccc where nnnnnnnn is the network identifier and cccccccc is the default local location name.
+
+Element 2: Auxiliary storage pool
+
+Specifies the name of the auxiliary storage pool device.
+
+*ALL
+Include all auxiliary storage pool devices in the recovery.
+
+auxiliary-storage-pool-name
+Include the auxiliary storage pool device identified by this name in the recovery.
+
+Element 3: Objects
+
+Specifies the type of objects.
+
+*ALL
+Include all objects in the recovery.
+
+*LIB
+Include only library objects in the recovery.
+
+*LNK
+Include only directory and file objects in the recovery.
+
+Top
+
+Control group selection (CTLGRP)
+
+Specifies the name of the control group that you want to restore. The CTLGRP parameter is a required field when the Option (OPTION) parameter contains *CTLGRP. You can specify a single control group or you can specify multiple control groups and sequence the order in which they are restored.
+
+When you want to select a control group or groups from a list of control groups, specify *SELECT in the CTLGRP parameter and press Enter. You are taken to the Select and Sequence Control Groups display where all control groups that are in the media content information are displayed. You can select and sequence each control group that you want to restore by putting a sequence number by each control group to establish a relative restore order. Sequence numbers can range from 1 to 99. Up to 300 control groups can be selected and can share the same sequence number.
+
+If the full and incremental saves are done in different control groups, it would be necessary to specify both control groups in order for the incremental entries to be selected. For example you could specify STRRCYBRM OPTION(*CTLGRP) CTLGRP((A) (B)).
+
+A sequence number can be used with the control group names to ensure the sequence of the entries on the report. Do not sequence the incremental control group ahead of the full control group. If this is done, the full save will be restored over the incremental. It is a good idea to use different sequence numbers for control groups that are running at the same time. Otherwise there may be alot of loading and unloading of different tapes. For instance, control group C runs at the same time as A, and D the same time as B. In this case STRRCYBRM OPTION(*CTLGRP) CTLGRP((A 10) (C 10) (B 20) (D 20) may be an appropriate use of sequence numbers.
+
+Single values
+
+*SELECT
+You want to select a control group or groups from a list of control groups to restore from the media content information. This parameter can not be used in batch operations.
+
+Other values (up to 300 repetitions)
+
+Element 1: Control group
+
+*NONE
+You want to restore data that is not associated with a control group.
+
+*BKUGRP
+You want to restore the backup user data control group.
+
+*SYSGRP
+You want to restore the system data control group.
+
+*SYSTEM
+You want to restore the backup entire system control group.
+
+control-group-name
+Specify the name of the control group that you want to restore.
+
+Element 2: Sequence number
+
+sequence-number
+Specify a number from 1 to 99 to indicate the order in which you want to restore selected control groups. You can specify the same sequence number on several control groups.
+
+Note: The sequence number is ignored if *NONE is specified in the CTLGRP parameter.
+
+Top
+
+Libraries to omit (OMITLIB)
+
+Specifies the libraries you want to omit from recovery. You can choose to includes all libraries, or exclude deleted libraries and/or specifies libraries, and/or generic libraries. Up to 25 iterations can be specified.
+
+Single values
+
+*DELETE
+Exclude deleted libraries from the recovery. Please note that only libraries deleted before the last run of Start Maintenance for BRM (STRMNTBRM) will be omitted.
+
+*NONE
+Include all libraries in the recovery.
+
+Other values (up to 25 repetitions)
+
+library-name
+Exclude the named library from recovery.
+
+*generic-library-name
+Exclude libraries beginning with this generic name from recovery.
+
+Top
+
+Allow duplicate entries (ALWDUP)
+
+Specifies whether to allow duplicate entries in the list of control groups that you can select to restore.
+
+*NO
+Duplicate control group entries are not allowed in the Select and Sequence Control Groups display.
+
+*YES
+Duplicates are allowed in the Select and Sequence Control Groups display.
+
+Top
+
+Volume locations to include (LOC)
+
+Specifies the locations that you want to include in the recovery.
+
+Single values
+
+*ALL
+Include all locations that have been set up in BRMS.
+
+Other values (up to 10 repetitions)
+
+*HOME
+Include the home location in the recovery.
+
+location-name
+Specify the name of the location that you want to include in the recovery. You can specify up to 10 locations.
+
+Top
+
+Volume locations to omit (OMITLOC)
+
+Specifies the locations that you want to omit from the recovery.
+
+Single values
+
+*NONE
+No locations are omitted from the recovery.
+
+Other values (up to 10 repetitions)
+
+*HOME
+Omit the home location in the recovery.
+
+location-name
+Specify the name of the location that you want to omit from the recovery. You can specify up to 10 locations.
+
+Top
+
+Show deleted libraries (SHWDLTLIB)
+
+Specifies whether to show the list of deleted libraries that have been excluded from the recovery report. The list of deleted libraries can become long and significantly increase the size of the recovery report.
+
+Note: This parameter is only used when special value *DELETED is specified on the Libraries to omit (OMITLIB) parameter.
+
+*YES
+Show the list of deleted libraries in the recovery report.
+
+*NO
+Do not show the list of deleted libraries in the recovery report.
+
+Top
+
+Override recovery element (OVERRIDE)
+
+Specifies whether you want to use a different time period for a specific recovery element selected for recovery.
+
+*NO
+Indicates that you do not want to specify a different date and time range for a specific recovery element.
+
+*YES
+Indicates that you want to specify a different date and time range for a specific recovery element.
+
+Top
+
+Recovery element override (RCYELEM)
+
+Specifies the recovery element for which the new date and time period will be used in the recovery.
+
+Note: This parameter will be ignored if *NO is specified in the OVERRIDE parameter.
+
+Element 1: Recovery element to override
+
+Specifies the recovery element that will be included in the report for the new date and time period specified.
+
+Note: When *ALLSYS is specified, no other recovery element is allowed.
+
+*ALLSYS
+Specifies that you want to recover all the system data, which includes *SAVSYS, *SECDTA and *SAVCFG.
+
+*SAVSYS
+Specifies that you want to recover the operating system based on the BRMS media content information.
+
+*SECDTA
+Specifies that you want to recover the security data.
+
+*SAVCFG
+Specifies that you want to recover the configuration data.
+
+Element 2: Time period for recovery
+
+Specifies the period of time for which the recovery items are selected for recovery. Selected items are either included in the recovery report or recovered. This is dependent on the value specified in the Action (ACTION) parameter.
+
+Element 1: Start time and date
+
+Element 1: Beginning time
+
+One of the following is used to specify the beginning time at which or after recovery items are included. Any items created before the specified time and date are not included in the recovery items selected for recovery.
+
+*AVAIL
+Any time that is available for the specified beginning date is included.
+
+begin-time
+Specify the beginning time for the specified beginning date that indicates which recovery items are to be included.
+The time is specified in 24-hour format and can be specified with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh=hours, mm=minutes and ss=seconds. Hours, minutes, and seconds must each be exactly 2 digits (using leading zeros if necessary).
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Element 2: Beginning date
+
+One of the following is used to specify the beginning date on or after which the recovery items must have been saved. Any entries saved prior to the specified date are not included in the recovery.
+
+*BEGIN
+Recovery items from the beginning of the media content information in BRMS are recovered.
+
+*CURRENT
+Recovery items whose save date is the current date, and between the specified beginning and ending times (if specified) are recovered.
+
+begin-date
+Specify the beginning date. The date must be specified in the job date format.
+
+Element 2: End time and date
+
+Element 1: Ending time
+
+One of the following is used to specify the ending time before which recovery items are included. Any items created after the specified time and date are not included in the recovery items selected for recovery.
+
+*AVAIL
+Any time that is available for the specified ending date is included.
+
+end-time
+Specify the ending time for the specified ending date that indicates which recovery items are to be included.
+
+Element 2: Ending date
+
+One of the following is used to specify the ending date on which or before which the recovery items must have been saved. Any recovery items created after the specified date are not included in the recovery operation.
+
+*END
+The recovery items to the end of the media content information in BRMS are recovered.
+
+*CURRENT
+Recovery items whose save date is on or before the current date are included in the recovery.
+
+end-date
+Specify the ending date. The date must be specified in the job date format.
+
+Top
+
+From system (FROMSYS)
+
+Specifies the location and network identification of the system from which you want to restore media information to the local system.
+
+Note: Use the Display Network Attributes (DSPNETA) command to view the system network attributes.
+
+*LCL
+Specifies that the from-system is the local system. BRMS uses the Default local location name (LCLLOCNAME) network attribute and not the System name (SYSNAME) network attribute to determine the current system name. In most cases, the systems have the same value specified for LCLLOCNAME as for SYSNAME.
+
+location-name
+Specifies the Default local location name (LCLLOCNAME) network attribute of the remote system for the network operation. The current system Local network ID (LCLNETID) network attribute is used to connect with the remote system.
+
+network-id.location-name
+Specifies the Local network ID (LCLNETID) and the Default local location name (LCLLOCNAME) network attributes of the remote system for the network operation. Specify these values using the format nnnnnnnn.cccccccc where nnnnnnnn is the LCLNETID and cccccccc is the LCLLOCNAME.
+
+Top
+
+Print system information (PRTSYSINF)
+
+Specifies whether you want to include system information in recovery reports that you print when processing this command. If you specify *YES, the Print System Information (PRTSYSINF) command is processed.
+
+*NO
+Do not included system information when recovery reports are printed.
+
+*YES
+Include system information when recovery reports are printed.
+
+Top
+
+Use duplicate media (USEDUPMED)
+
+Specifies whether you want to use the original save media or duplicate save media when selecting history items for recovery. You may want to use this option if you move your original media offsite and keep duplicates of the original media onsite.
+
+Note: USEDUPMED is used to indicate that you want to include either the original save media or the duplicate save media, but not both. If you want to include both the original save media and the duplicate save media in your recovery, create the QUSRBRM/Q1AIGNRDUP data area.
+
+The default value is *NO.
+
+*NO
+Specifies you want to use only the original save media when selecting history items for recovery.
+
+*YES
+Specifies you want to use duplicate media when selecting history items for recovery.
+
+Top
+
+User recovery (USRRCYINF)
+
+Specifies whether you want user recovery information added to the BRMS Recovery Report (QP1ARCY) created by this command.
+
+Usage notes:
+
+- User recovery information can be included in the recovery report by adding records containing the information to the appropriate members of file QO1AUSRRCY in library QUSRBRM. Add records to member PROLOG to include user recovery information to the prolog information in the report. Add records to members STEPnnn to include user recovery information to specific steps in the report, where nnn is the step number as it appears on the report. Up to 92 bytes of user recovery information can be added to each record. There is no limit to the number of records.
+
+- User recovery information is added to the report following the BRMS information and before any saved items in the step. This information will be clearly highlighted on the report as user recovery information.
+
+- Each record is read sequentially from the file member, starting from the first record and ending with the last record, and will be added to the report in the same order as read. Each record will be placed on the report following the last printed line starting in column 8.
+
+- The user is responsible for all spacing, positioning and translation of the recovery information in each record.
+
+- The user is responsible for assuring the accuracy of the user recovery information.
+
+- The step numbers in the report differ depending on the value of the Option (OPTION) parameter and the content of the recovery. If the OPTION or content is changed, the names of the members in file QO1AUSRRCY may need to be renamed accordingly. The step numbers should be consistent if the report type and saved item content are consistent.
+
+- No exception is signaled if user recovery information is requested but no records are found in the members.
+
+*NONE
+Specifies no user recovery information is available for the report.
+
+*ADD
+Specifies user recovery information is available and is to be added to the report.
+
+Note: This value can only be specified if *REPORT is specified for the Action (ACTION) parameter.
+
+Top
+
+Recovery order list (RCYORDLST)
+
+Specifies an object list that you want to use to determine the order of recovery.
+
+*NONE
+Indicates that you are not using an object list to determine the order of recovery.
+
+name
+Specify the name of the object list that contains libraries that will determine the recovery order. These libraries will be listed prior to any other user libraries that will be recovered.
+
+Top
+
+Volume summary order (VOLSUMORD)
+
+Specifies the order you want the volumes to be listed in the BRMS Recovery Volume Summary Report (QP1A2RCY).
+
+*VOLNAME
+Specifies you want to order the volume list alphabetically.
+
+*RCYRPT
+Specifies you want to order the volume list using the initial order that the volumes appear in the BRMS Recovery Report (QP1ARCY).
+
+*VOLCRTDAT
+Specifies you want to order the volume list in descending order by the volume creation date.
+
+Top
+
+Examples for STRRCYBRM
+
+Example 1: Print the Recovering Your Entire System Report
+
+STRRCYBRM OPTION(*SYSTEM)
+
+This command produces a recovery report to assist you in restoring the entire system which includes the system (1) and basic user (2-32) auxiliary storage pools and any auxiliary storage pool devices.
+
+Example 2: Omit Libraries from the Recovering Your Entire System Report
+
+STRRCYBRM OPTION(*SYSTEM) OMITLIB(*DELETE QSC*)
+
+This command produces a report to assist you in recovering the entire system which includes the system (1) and basic user (2-32) auxiliary storage pools and any auxiliary storage pool devices. However, deleted libraries and libraries beginning with the generic name QSC* are omitted from the report.
+
+Example 3: Customize STEP 002 of the Recovering Your Entire System Report
+
+Enter the following command to work with the user recovery information file.
+
+WRKMBRPDM FILE(QUSRBRM/QO1AUSRRCY) MBR(STEP002)
+
+Edit the member using option 2=Edit on member STEP002. Enter the detailed user recovery information you want added to the report. When finished, exit the Edit display and indicate on the Exit display to save the edit session changes.
+
+Run the following command to print the report and validate the user recovery information in STEP 002. Use the same command to generate all future reports using the user recovery information.
+
+STRRCYBRM OPTION(*SYSTEM) USRRCYINF(*ADD)
+
+The above steps show how to customized STEP 002 in the Recovering Your Entire System Report by adding your own user recovery information. You might do this to provide your system operators with special detailed guidance unique to your recovery. You can do this with any or all steps in the report.
+
+Example 4: Print the Recovering Your Entire System Report for the Base System
+
+STRRCYBRM OPTION(*SYSBAS)
+
+This command produces a report to assist you in restoring the base system which includes the system (1) and basic user (2-32) auxiliary storage pools, excluding any auxiliary storage pool devices.
+
+Example 5: Print the Recovering Your Entire System Report for Auxiliary Storage Pool 2
+
+STRRCYBRM OPTION(*ASP) ASP(2)
+
+This command produces a report to assist you in restoring saved items to basic user auxiliary storage pool 2.
+
+Example 6: Restore Auxiliary Storage Pool Device MYASP
+
+STRRCYBRM OPTION(*ASP) ACTION(*RESTORE) ASP(MYASP)
+
+This command present the Select Recovery Items display containing a list of storing objects saved items from auxiliary storage pool device MYASP.
+
+Example 7: Entire System Recovery Report with a Switched Auxiliary Storage Pool Device
+
+STRRCYBRM ACTION(*REPORT) OPTION(*SYSTEM)
+ASPDEV(SYSTEM_B PAYROLL)
+
+This command produces a report to assist you in restoring the current system including auxiliary storage pool device PAYROLL saved on SYSTEM_B. SYSTEM_B is a system in the BRMS network and is networking media information about its saves to the current system.
+
+Example 8: Applying Journal Changes
+
+STRRCYBRM OPTION(*APYJRNCHG) JRN(*JRNLST)
+
+This command prompts the BRMS Work with Journals using BRMS display. The display will be populated with the names of journals which have been saved using BRMS. Use Option 1=Apply changes to show the associated journals receivers on the Apply Journal Changes using BRMS display, then use F16=Apply changes to apply journal changes.
+
+Top
+
+Error messages for STRRCYBRM
+
+*ESCAPE Messages
+
+BRM1177
+Cannot establish connection with remote system &1.
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM4040
+Access denied for user &1.
+
+BRM40A2
+BRMS product initialization required.
+
+BRM61FF
+Recovery completed with errors.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top

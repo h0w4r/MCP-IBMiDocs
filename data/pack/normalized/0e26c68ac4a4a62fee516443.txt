@@ -1,0 +1,175 @@
+If (IF)
+
+If (IF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run:
+
+- Batch program (*BPGM)
+
+- Interactive program (*IPGM)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The If (IF) command evaluates a logical expression and conditionally processes CL program or ILE CL procedure commands according to the evaluation of the expression. If the logical expression is true (a logical 1), the command (or the group of commands in a Do group) specified in the THEN parameter is processed, and the ELSE command with its associated command or Do group is not processed. If the result of the logical expression is false (a logical 0), the command specified in the THEN parameter is not processed and control passes to the next command. If that command is an ELSE command, the command or Do group specified in that command is processed. If the ELSE command is not specified, control passes to the next command.
+
+When a DO command is specified, either in the THEN parameter of the IF command or in the CMD parameter of the ELSE command, the Do group is bypassed if the result of the expression is not the one needed for the group being processed. That is, control passes to the command that follows the ENDDO command associated with that DO.
+
+When the command or Do group specified by the THEN parameter or the ELSE command is completed (and no GOTO command has been processed), control passes to the next command following the command or Do group specified by the ELSE command. If a GOTO command is processed, control is passed to the command with the label specified by the GOTO command, and processing continues from that command.
+
+The following command sequence shows this flow. In this example, &TESTSW is a logical variable.
+
+IF &TESTSW DO
+Group A (group of CL commands)
+.
+.
+ENDDO
+ELSE DO
+Group B (group of CL commands)
+.
+.
+ENDDO
+Group C (continued CL commands)
+.
+.
+
+The IF command tests the logical variable &TESTSW. If a true condition exists (&TESTSW contains a value of '1'), the commands in Group A are processed, then control passes to the commands in Group C. If a false condition exists (&TESTW contains a value of 0), the commands in group A are bypassed, the commands in Group B are processed, then control passes to the commands in Group C.
+
+Restrictions:
+
+- The IF command is valid only in a CL program or ILE CL procedure.
+
+- Up to ten levels of nested IF and ELSE commands are allowed.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+COND | Condition | Logical value | Required, Positional 1
+THEN | Command | Command string | Optional, Positional 2
+
+Top
+
+Condition (COND)
+
+Specifies the logical expression that is evaluated to determine a condition in the program and what is done next. Refer to "Logical Expressions" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for a description of logical expressions. Note that variables, constants, and the %SUBSTRING, %SWITCH, and %BINARY built-in functions can be used within the expression.
+
+To test if a pointer has a null value, the CL pointer variable can be compared to the special value *NULL if the CL source is being compiled with the Create CL Module (CRTCLMOD) or Create Bound CL Program (CRTBNDCL) command. If the CL source is being compiled with the Create CL Program (CRTCLPGM) command, compare the CL pointer variable to another CL pointer variable that was declared with ADDRESS(*NULL) and has not been changed.
+
+This is a required parameter.
+
+logical-value
+Specify the name of a CL logical variable or a logical expression.
+
+Top
+
+Command (THEN)
+
+Specifies the command or group of commands (in a Do group) that are processed if the result of evaluating the logical expression is true. After the command or Do group is processed, control is passed to the next command after the ELSE command associated with this IF command. If the result is true, the ELSE command associated with the IF command is not processed. If the command specified in this parameter is a DO command, all commands within the Do group are considered to be the command specified by the parameter.
+
+If the command specified by the THEN keyword is not coded on the same line when the keyword is coded, the THEN keyword must be immediately followed (on the same line) either by the left parenthesis or by a plus sign (+) or a minus sign (-) to show continuation. (A blank cannot immediately follow any keyword.) The command and the right parenthesis can then be coded on the next line. For example:
+
+IF COND(&A *EQ &B) THEN( +
+GOTO C)
+
+If any part of the command specified by the THEN parameter continues on the next line, a continuation character (+ or -) must be specified.
+
+If a DO command is specified, only the DO command (not the commands specified within the Do group) is within the parentheses. For example:
+
+IF COND(&A *EQ &B) THEN(DO)
+CMD1
+CMD2
+.
+.
+ENDDO
+
+If no command is specified for the THEN parameter (a null THEN) and the ELSE command immediately follows it, the ELSE is processed if the IF expression is false and it is skipped if the expression is true.
+
+Any CL command can be specified for the THEN parameter, except the following commands:
+
+- ELSE
+
+- PGM, ENDPGM
+
+- ENDDO
+
+- MONMSG
+
+- DCL, DCLF
+
+- WHEN, OTHERWISE, ENDSELECT
+
+The command can be another IF, unless there are already ten levels of nested IF and ELSE commands.
+
+Top
+
+Examples
+
+IF COND(&A *EQ &B) THEN(GOTO X)
+IF (&A *EQ &B) THEN(GOTO X)
+IF (&A *EQ &B) (GOTO X)
+IF COND(&A *EQ &B) THEN(GOTO X)
+
+The examples above show a number of different ways the IF command can be specified to test a condition and branch to a label. In each of these examples, if &A equals &B, control passes to a CL command that has a label named X.
+
+IF COND(&TESTSW) THEN(CHGVAR VAR(&A) VALUE(23))
+
+If &TESTSW has a logical value of 1 (true), the CHGVAR command is processed to set &A to decimal 23; if &TESTW has a logical value of 0 (not true), the Change Variable (CHGVAR) command is not processed.
+
+IF COND((&ALPHA *EQ &BETA) *AND *NOT &GAMMA)
+THEN(RETURN)
+
+If the value of &ALPHA equals the value of &BETA and if &GAMMA is a logical 0, then return to the program or procedure that called this CL program or ILE CL procedure.
+
+IF &LOG1 THEN(IF (&A *GT 10) THEN(GOTO X))
+ELSE(GOTO Y)
+ELSE DO
+: (group of CL commands)
+ENDDO
+
+This is an example of nested IF commands. If &LOG1 has a logical value of 1 (true) and if &A is greater than 10, a branch is made to label X. If &LOG1 has a logical value of 1 and &A is not greater than 10, a branch is made to label Y. If &LOG1 has a logical value of 0 (false), &A is not compared to 10. Instead, the DO group of the second ELSE command is processed.
+
+IF &TEST THEN(DO)
+CHGVAR &A (&A + 1)
+GOTO X
+ENDDO
+ELSE DO
+CHGVAR &B (&B + 1)
+CALL EXTPGM (&B)
+ENDDO
+
+This example shows how the THEN parameter can be continued on the next line. If &TEST has a logical value of 1, the Do group specified in the THEN parameter is processed. Otherwise, the Do group specified by the ELSE command is processed.
+
+IF (&A *EQ YES) DO
+CHGVAR &B 1
+CHGVAR &C 'Z'
+ENDDO
+
+This example shows a Do group as the THEN parameter. The two Change Variable (CHGVAR) commands are processed if, in the relational expression, &A is equal to YES.
+
+IF %SWITCH(10XXXX10) THEN(GOTO X)
+
+This example shows how the built-in function %SWITCH is used to test the eight job switches in a job. Refer to the topic "Built-in functions for CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for a complete description of %SWITCH. In this example, job switches 1, 2, 7, and 8 are tested for the values indicated in the 8-character mask. If switches 1 and 7 contain 1s and switches 2 and 8 contain 0s, then control branches to the command having the label X. If any of the four switches do not contain the value indicated, the branch does not occur.
+
+DCL &NULLPTR *PTR ADDRESS(*NULL)
+IF COND(&PTRVAR *EQ *NULL) THEN(GOTO X)
+IF COND(&PTRVAR *EQ &NULLPTR) THEN(GOTO X)
+
+This example shows two ways to test if pointer variable &PTRVAR contains a null value. The pointer variable can be compared to the special value *NULL if the CL source is being compiled with the Create CL Module (CRTCLMOD) or Create Bound CL Program (CRTBNDCL) command. If the CL source is being compiled with the Create CL Program (CRTCLPGM) command, the CL pointer variable can be compared to another CL pointer variable, like &NULLPTR, that was declared with ADDRESS(*NULL) and has not been changed.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0816
+%SWITCH mask &1 not valid.
+
+Top

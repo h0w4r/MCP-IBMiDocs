@@ -1,0 +1,282 @@
+Reclaim Storage (RCLSTG)
+
+Reclaim Storage (RCLSTG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Reclaim Storage (RCLSTG) command corrects, where possible, objects that were incompletely updated (such as database files, libraries, device descriptions, directories and stream files) and user profiles containing incorrectly recorded object ownership information. Any unusable objects or fragments are deleted.
+
+This command reclaims all objects secured by an authorization list that is damaged or destroyed and assigns the objects to the authorization list QRCLAUTL.
+
+Because the amount of time required to run this command varies with the number of objects in auxiliary storage, the system will display a panel to the work station where the command was specified, showing the progress of the command's execution. The 'Time Remaining' column will show blanks for a RCLSTG step if no statistics have been collected yet that would enable the RCLSTG command to estimate the total time required for that step.
+
+You can specify *YES for the ESTIMATE parameter to get an estimate of how long the RCLSTG command will take to run. When ESTIMATE(*YES) is specified, messages that show the estimated amount of time are sent to the job log, and no reclaim function is performed.
+
+The RCLSTG command can also be used to reclaim storage when, during an IPL, not enough storage is available to make the system fully operational. In that case, the system operator can specify the command immediately after receiving the message about insufficient storage.
+
+If very little additional auxiliary storage is available, the system overhead required to run the RCLSTG command may need more than the remaining storage; in that case, the RCLSTG command fails.
+
+Note: The RCLSTG command can be a long-running function, depending on the number and type of objects in the system, and the amount of damage to them. Because RCLSTG touches each object multiple times, having enough memory can significantly reduce the time required to run RCLSTG. Conversely, having too little memory can lead to storage thrashing which can significantly increase the time required to run RCLSTG. If database file objects are damaged, the keyed access paths may need to be rebuilt; that operation takes a substantial amount of time. If the RCLSTG command can be run at the user's discretion, the user may want to avoid the operation until the required time can be scheduled.
+
+You can select to run just the directory recovery portion of RCLSTG by specifying SELECT(*DIR). This will reclaim only directories and objects related to the integrated file system.
+
+There are several reclaim commands that perform a subset of the RCLSTG's functions. These commands are: Reclaim Object Links (RCLLNK), Reclaim Database Cross-Reference (RCLDBXREF), Reclaim Objects by Owner (RCLOBJOWN), Reclaim Document Lib Object (RCLDLO), Reclaim Library (RCLLIB) and Reclaim Spool Storage (RCLSPLSTG). Refer to those commands for details on the functions that they perform.
+
+Restrictions:
+
+- This command is shipped with public *EXCLUDE authority and the QPGMR, QPGMR_NC, QSYSOPR, QSYSOPR_NC, QSRV, and QSRVBAS user profiles have private authorities to use the command.
+
+- If option *SYSBAS is specified on the ASPDEV parameter, all subsystems must be inactive before the RCLSTG command can be specified. The End System (ENDSYS) or End Subsystem (ENDSBS) command with *ALL specified on the SBS parameter can be used to make the subsystems inactive. You must have job control (*JOBCTL) authority to use the ENDSYS or the ENDSBS command.
+
+- Only permanent objects in auxiliary storage are reclaimed; temporary objects are reclaimed by running a system initial program load (IPL).
+
+- Before running the RCLSTG command after an IPL, you may need to wait several minutes for the IPL to complete. Use the Work with Active Jobs (WRKACTJOB) command to verify that no jobs are running.
+
+- If option *SYSBAS is specified for the ASPDEV parameter, this job must be in the controlling subsystem and must be the only job active in the system.
+
+- Network server descriptions (NWSD) must be varied-off in order to run RCLSTG.
+
+- When option *SYSBAS is specified for the ASPDEV parameter, all the auxiliary storage pool (ASP) devices configured in the system must be in the VARY OFF status.
+
+- If an auxiliary storage pool (ASP) device or an ASP group is specified on the ASPDEV parameter, it cannot have active users or be in use by a different job. The ASP device or group has to be in the AVAILABLE or FAILED status to allow the RCLSTG command to run. You must have use (*USE) authority to the device description. You must also have either object management (*OBJMGT) authority to the device description or job control (*JOBCTL) special authority.
+
+- The directory conversion function must not be active while RCLSTG runs. The Convert Directory (CVTDIR) command with OPTION(*CHECK) can be used to verify directory conversion is not active. Otherwise, option OMIT(*DIR) should be specified to omit the directory recovery portion of the reclaim function.
+
+- In order to provide an estimate of the amount of time that a future RCLSTG will require, statistics are collected when running the RCLSTG ESTIMATE(*NO) command. If you specify ESTIMATE(*YES) and these statistics are not available, escape message CPF8281 is issued.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+ESTIMATE | Estimate time required | *NO, *YES | Optional
+SELECT | Select | *ALL, *DBXREF, *DIR | Optional
+OMIT | Omit | *NONE, *DBXREF, *DIR | Optional
+ASPDEV | ASP device or group | Name, *SYSBAS | Optional
+
+Top
+
+Estimate time required (ESTIMATE)
+
+Specifies whether to calculate an estimate for the amount of time that RCLSTG command will take to run. The estimate is calculated by using statistics collected during previous RCLSTG operations and the values specified for the other RCLSTG parameters.
+
+*NO
+The estimate function is not performed. The reclaim function specified by the other parameters is performed.
+
+*YES
+The estimate function is performed for the type of reclaim specified by the other parameters. Nothing is reclaimed. If SELECT(*DBXREF) is specified, no estimate can be provided. Instead, the time it took to run the last RCLSTG SELECT(*DBXREF) is provided, if available. Messages are displayed showing the results of the estimate.
+
+Top
+
+Select (SELECT)
+
+Specifies whether to perform all reclaim functions or only one specific reclaim function.
+
+*ALL
+All reclaim functions are performed including, but not limited to, database cross-reference table reclaim and directory recovery functions.
+
+*DBXREF
+Only the database cross-reference table reclaim function is performed.
+
+*DIR
+Only the directory recovery portion of the reclaim function is performed.
+
+Top
+
+Omit (OMIT)
+
+Specifies the reclaim functions to be omitted from the reclaim operation.
+
+*NONE
+No reclaim functions are omitted.
+
+*DBXREF
+The database cross-reference table reclaim function is omitted.
+
+*DIR
+The directory recovery portion of the reclaim function is omitted.
+
+Top
+
+ASP device or group (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) to be reclaimed.
+
+*SYSBAS
+The system ASP and all basic ASPs are reclaimed. The system ASP has an ASP number of 1. Basic ASPs have ASP numbers of 2 through 32.
+
+auxiliary-storage-pool-device-name
+The specified ASP device is reclaimed. ASP devices have ASP numbers greater than 32. Reclaim storage for an ASP device can be run without being in restricted state. The ASP device must be in the AVAILABLE or FAILED status to reclaim it. You can submit multiple jobs, each performing RCLSTG on a different ASP device, to reclaim multiple ASP devices in parallel.
+
+auxiliary-storage-pool-group-name
+The primary ASP and the secondary ASPs within the ASP group are reclaimed. The name of any ASP within the ASP group is accepted. Primary and secondary ASPs have ASP numbers greater than 32. Reclaim storage for an ASP group can be run without being in restricted state. The ASP device must be in the AVAILABLE or FAILED status to reclaim it. You can submit multiple jobs, each performing RCLSTG on a different ASP group, to reclaim multiple ASP groups in parallel.
+
+Top
+
+Examples
+
+Example 1: Reclaim Storage of the System ASP and All Basic ASPs
+
+RCLSTG
+
+This command, specified interactively, locates all system objects. Objects without owners are given default owners, and those that are lost from their specified libraries are inserted into the QRCL library or the default library, or are deleted.
+
+Objects that are lost from their specified directories are inserted into the '/QReclaim' directory (if the object was originally located in the root file system) or the '/QOpenSys/QReclaim' directory (if the object was originally located in the QOpenSys file system).
+
+Lost objects that are deleted are certain user objects and certain system objects that are damaged and not usable.
+
+The QRCL library, which is created (when needed) by the RCLSTG command, is a permanent library.
+
+The '/QReclaim' and '/QOpenSys/QReclaim' directories, which are created (when needed) by the RCLSTG command, are permanent directories; but if they contain no objects at the end of the operation because they were all reclaimed, the directories are deleted.
+
+Example 2: Reclaim Storage to Reclaim the Database Cross-reference Table
+
+RCLSTG SELECT(*DBXREF)
+
+This command reclaims the database cross-reference table.
+
+Example 3: Reclaim Storage of the Entire System that Omits the Reclaim of the Database Cross-reference Table
+
+RCLSTG OMIT(*DBXREF)
+
+This command performs all reclaim storage functions but omits the reclaim of the database cross-reference table.
+
+Example 4: Reclaim Storage that Omits the Reclaim of the Directories
+
+RCLSTG OMIT(*DIR)
+
+This command performs all reclaim storage functions but omits the reclaim of the directories.
+
+Example 5: Reclaim Storage of an ASP Device
+
+RCLSTG ASPDEV(MYASPDEV)
+
+This command reclaims storage for the ASP device name MYASPDEV.
+
+Example 6: Reclaim Storage to Reclaim the Directory Portion of the System ASP and All Basic ASPs
+
+RCLSTG SELECT(*DIR)
+
+Objects that are lost from their specified directories are inserted into the '/QReclaim' directory (if the object was originally located in the root file system) or the '/QOpenSys/QReclaim' directory (if the object was originally located in the QOpenSys file system).
+
+Example 7: Reclaim Storage to Reclaim the Directories of an ASP Device
+
+RCLSTG SELECT(*DIR) ASPDEV(MYASPDEV)
+
+This command reclaims directories for the ASP device name MYASPDEV.
+
+Example 8: Estimate the Time that the Next Full RCLSTG Will Take to Run
+
+RCLSTG ESTIMATE(*YES)
+
+This command estimates the time that the next full RCLSTG will take to run for each one of the major steps:
+
+- Reading objects from disk.
+
+- File ID table recovery.
+
+- Directory recovery.
+
+- Object description verification.
+
+Messages are sent to the job log giving the estimated amount of time for each major RCLSTG step.
+
+Example 9: Estimate the Time that the Next RCLSTG of an ASP Device Will Take to Run
+
+RCLSTG ESTIMATE(*YES) ASPDEV(MYASPDEV)
+
+This command estimates the time that the next RCLSTG of ASP device name MYASPDEV will take. Messages are sent to the job log giving the estimated amount of time for each major RCLSTG step.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF180B
+Function &1 not allowed.
+
+CPF180C
+Function &1 not allowed.
+
+CPF2119
+Library &1 locked.
+
+CPF2120
+Library &1 locked.
+
+CPF2126
+&1 libraries not validated.
+
+CPF2127
+User profile &2 damaged.
+
+CPF5729
+Not able to allocate object &1.
+
+CPF8201
+User profile &1 does not exist or is damaged.
+
+CPF8204
+Commitment control cannot be active during RCLSTG or RCLOBJOWN.
+
+CPF8205
+Library &1 does not exist or is damaged.
+
+CPF8206
+Directory conversion cannot be active during RCLSTG or RCLLNK.
+
+CPF8209
+System not in proper state to reclaim storage.
+
+CPF8210
+Reclaim storage failed for auxiliary storage pool device or group &2.
+
+CPF8211
+Library &1 damaged. RCLSTG command ended.
+
+CPF8212
+SELECT(*DBXREF) or OMIT(*DBXREF) not allowed when reclaiming a UDFS ASP.
+
+CPF8214
+Estimate option cannot be performed.
+
+CPF8216
+SELECT(*DBXREF) or OMIT(*DBXREF) not allowed for a UDFS ASP.
+
+CPF8224
+Duplicate object found while moving or renaming member.
+
+CPF8232
+Commitment definitions prevent RCLSTG or RCLOBJOWN.
+
+CPF8251
+RCLSTG command ended. Library &1 damaged.
+
+CPF8252
+Error occurred during rebuild of damaged library &1.
+
+CPF8281
+Unable to estimate time required to run RCLSTG.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+CPFA473
+Network server &1 must be varied off.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+Top

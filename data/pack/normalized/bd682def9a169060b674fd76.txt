@@ -1,0 +1,807 @@
+Copy From Import File (CPYFRMIMPF)
+
+Copy From Import File (CPYFRMIMPF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Copy From Import File (CPYFRMIMPF) command copies all or part of an import file to the TOFILE. The term import file is used to describe a file created for purposes of copying data between heterogeneous databases. The import file (FROMSTMF or FROMFILE parameter) is called the from-file for this command.
+
+An important aspect of this command is its ability to copy the data in parallel. Parallelism is activated for files with at least 50,000 records. Records are not copied in parallel when the FROMSTMF is specified. By using the Change Query Attributes (CHGQRYA) command, the number of tasks used to perform the copy is determined by the DEGREE parameter of the CHGQRYA command. For the best performance in implementing this command, the number of tasks should be set to the number of CPUs + 1.
+
+For example, if the system has two CPUs, specify CHGQRYA DEGREE(*NBRTASKS 3)
+
+To use multiple tasks, you must have the Symmetric Multiprocessing Product (SMP) feature installed on the system.
+
+When copying from a tape file, any file in library QTEMP, a distributed file, or a logical file, only one task will be used. See the CHGQRYA command for more information.
+
+Some of the specific functions that can be performed by the CPYFRMIMPF command include the following:
+
+- Copying a from-file to an externally-described physical file. The to-file must exist on the system before the copy can occur.
+
+- Limiting the range of records copied based on starting and ending relative record numbers.
+
+- Adding records to an existing file member or replacing the contents of a receiving file member (MBROPT parameter).
+
+Error Handling: The escape message CPF2817 is sent for many different error conditions that can occur during a copy operation. At least one diagnostic message that indicates the specific error condition always comes before the escape message. More information on handling errors is in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Overrides: Overrides are processed for all files.
+
+Status Message: During the running of the CPYFRMIMPF command, message CPI2801 is sent as a status message informing the interactive user that a copy operation is occurring. More information on preventing status messages from appearing is in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Performance:
+
+To increase the performance of the copy:
+
+- Delete any logical keyed files based on the to-file.
+
+- Disable all constraints and triggers of the to-file.
+
+- Ensure the from-file records will be copied correctly by attempting to copy a few of the records, by using the FROMRCD and number of records option, before copying all the records.
+
+- Use the ERRLVL(*NOMAX) parameter after knowing the data can be copied correctly.
+
+Notes For Delimited Data:
+
+- A delimiter can not be a blank(' ') character.
+
+- A blank(' ') can not be contained within a numeric field.
+
+- Fields in the from-file that are longer than the corresponding fields in the to-file will be truncated (on the right).
+
+- If the data of the from-file does not represent all the fields in the to-file, the fields of the to-file will be set to null. If this happens and the to-file fields do not allow a null value, an error will occur and the record will not be copied to the to-file.
+
+- A null field in the from-file can be specified by two adjacent field delimiters, two adjacent string delimiters or a field delimiter followed by a record delimiter.
+
+- From-file field of all blank characters to be stored in a fixed-length field in the to-file, will preserve blank characters even though removal blanks is specified.
+
+- From-file field of all blank characters to be stored in a variable-length field in the to-file, will be represented as only one significant blank character when removal blanks is specified.
+
+Notes For Fixed Data: The information for each field of the fixed format file must be in the following order:
+
+Field Starting Ending Null
+Name Position Position Character Position
+_________________________________________________________
+Field1 1 10 11
+Field2 12 15 16
+*END
+
+The information for this Field Definition File would be:
+
+- The Field Name is the name of the field in the to-file.
+
+- The Starting Position indicates the byte position in the from-file to start copying data for the field.
+
+- The Ending Position indicates the byte position in the from-file to end copying data for the field.
+
+- The Null Character Position is the byte position in the from-file to indicate if the field is null. A value of 'Y' means the field is null. A value of 'N' means the field is not null. If this value is 0, no null character is provided.
+
+- The *END is the indicator for the end of the Field Definition File.
+The Field Definition File for the above example would be:
+
+Field1 1 10 11
+Field2 12 15 16
+*END
+
+- An alternative for creating the Field Definition File is using the keyword *COL instead of the actual column names. *COL indicates the positions of the data in the stream file for all the columns in the target files listed in order.
+An example of the corresponding file above Field Definition File using *COL:
+
+*COL 1 10 11
+*COL 12 15 16
+*END
+
+Notes For LOB and XML data fields:
+
+LOB and XML data fields require the use of secondary stream files that contain the LOB, or XML data and a Field Definition File that describes the offsets of the fields in the data file. Each record that represents a LOB, or XML in the import file contains the name of a secondary stream file, instead of the data.
+
+Note: In the following example, there are 3 secondary stream files (lob1.dat, lob2.dat, and lob3.dat) inside of the directory "/lobdata", which contain the actual LOB data to import.
+
+Using the following FDF:
+
+Field Starting Ending Null
+Name Position Position Character Position
+_________________________________________________________
+Field1 1 10 42
+Field2 12 40 44
+*END
+
+The import file would be 44 characters (based on the above FDF) in record length, containing the following data:
+
+0 1 2 3 4 /Character
+12345678901234567890123456789012345678901234 /Position
+aaaaaaaaaa /lobdata/lob1.dat N N
+bbbbbb /lobdata/lob2.dat N N
+/lobdata/lob3.dat Y N
+cccccccccc N Y
+
+Restrictions:
+
+- The from-file and to-file cannot be the same file.
+
+- The to-file must exist prior to the copy.
+
+- The to-file will not have the same relative record numbers as the from-file.
+
+- The from-file must be a source file, or a valid file with 1 field that is not a numeric data type.
+
+- If the from-file is defined with the SHARE(*YES) option for the file, unpredictable results can occur. Therefore, if the file is defined with SHARE(*YES), the user should make sure the file is not opened by any process prior to the copy.
+Note: Do not precede an entry with an asterisk unless that entry is a "special value" that is shown (on the display itself or in the help information) with an asterisk.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMSTMF | From stream file | Path name | Optional, Positional 2
+FROMFILE | From file | Element list | Optional, Positional 3
+Element 1: File | Qualified object name
+Qualifier 1: File | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Member | Name, *FIRST, *ALL
+TOFILE | To data base file | Element list | Required, Positional 1
+Element 1: File | Qualified object name
+Qualifier 1: File | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Member | Name, *FIRST, *FROMMBR, *ALL
+MBROPT | Replace or add records | *ADD, *REPLACE, *UPDADD | Optional
+STMFLEN | Stream file record length | Integer, *TOFILE | Optional
+FROMCCSID | From CCSID | 1-65533, *FILE | Optional
+TOCCSID | To CCSID | 1-65533, *FILE | Optional
+RCDDLM | Record delimiter | Character value, *ALL, *CRLF, *LF, *CR, *LFCR, *EOR | Optional
+DTAFMT | Record format of import file | *DLM, *FIXED | Optional
+STRDLM | String delimiter | Character value, *DBLQUOTE, *NONE | Optional
+STRESCCHR | String escape character | Character value, *STRDLM, *NONE | Optional
+RMVBLANK | Remove blanks | *NONE, *LEADING, *TRAILING, *BOTH | Optional
+FLDDLM | Field delimiter | Character value, ',', *TAB | Optional
+FLDDFNFILE | Field definition file | Element list | Optional
+Element 1: File | Qualified object name
+Qualifier 1: File | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Member | Name, *FIRST, *ALL
+DECPNT | Decimal point | *PERIOD, *COMMA | Optional
+DECFLTRND | Decimal float rounding mode | *HALFEVEN, *HALFDOWN, *HALFUP, *UP, *CEILING, *DOWN, *FLOOR | Optional
+DATFMT | Date format | *ISO, *USA, *EUR, *JIS, *MDY, *DMY, *YMD, *JUL, *YYMD | Optional
+DATSEP | Date separator | '/', '-', '.', ',', *BLANK | Optional
+TIMFMT | Time format | *ISO, *USA, *EUR, *JIS, *HMS | Optional
+TIMSEP | Time separator | ':', '.', *BLANK | Optional
+FROMRCD | Copy from record number | Element list | Optional
+Element 1: Copy from record number | Unsigned integer, *FIRST
+Element 2: Number of records to copy | Unsigned integer, *END
+ERRLVL | Errors allowed | Unsigned integer, *NOMAX | Optional
+ERRRCDFILE | Error record file | Single values: *NONE
+Other values: Element list | Optional
+Element 1: File | Qualified object name
+Qualifier 1: File | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Member | Name, *FIRST, *ALL
+ERRRCDOPT | Replace or add records | *ADD, *REPLACE | Optional
+RPLNULLVAL | Replace null values | *NO, *FLDDFT | Optional
+IDCOL | Identity column | *GEN, *FROMFLD | Optional
+RMVCOLNAM | Remove column names | *NO, *YES | Optional
+
+Top
+
+From stream file (FROMSTMF)
+
+Specifies the path name of the stream file from which data is to be copied. Either this parameter or the FROMFILE parameter is required.
+
+path-name
+Specify the path name of the input stream file.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+From file (FROMFILE)
+
+Specifies the from-file and file member that contains the records to be copied. Either this parameter or the FROMSTMF parameter is required.
+
+The from-file can be any of the following file types:
+
+- source physical file
+
+- DDM file
+
+- distributed physical file
+
+- program-described physical file
+
+- single-format logical file
+
+- physical file with one (non-numeric) field
+
+- tape file.
+
+Element 1: File
+
+Qualifier 1: File
+
+name
+Specify the name of the file that contains the records to be copied.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Element 2: Member
+
+*FIRST
+The first member (in order of creation date) of the from-file is used. Specifying *FIRST is not allowed if the from-file has no members, unless a member name was specified on an OVRDBF (Override with Database File) command for the from-file.
+
+*ALL
+All members of the specified from-file are to be copied. *ALL is not valid for a tape file.
+
+name
+Specify the name of the file member to be used.
+
+Top
+
+To data base file (TOFILE)
+
+Specifies the output database file and member to receive the copied records. The output file is also referred to as the to-file .
+
+The to-file can be any of the following file types:
+
+- source physical file
+
+- DDM file
+
+- distributed physical file
+
+- program-described physical file
+
+- externally-described physical file.
+
+This is a required parameter.
+
+Element 1: File
+
+Qualifier 1: File
+
+name
+Specify the name of the file to receive the copied records.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Element 2: Member
+
+*FIRST
+The first member (in order of creation date) of the output file is used. Specifying *FIRST is not allowed if the to-file has no members, unless a member name was specified on an OVRDBF (Override with Database File) command for the to-file.
+
+*ALL
+The data is copied to the correct to-member of the partitioned table. *ALL is only valid for partitioned tables.
+
+*FROMMBR
+Corresponding from-file and to-file member names are used.
+
+name
+Specify the name of the file member to receive the copied records. If a member with the specified name does not already exist in the file, the member will be created.
+
+Top
+
+Replace or add records (MBROPT)
+
+Specifies whether the copy operation replaces, adds, or updates the records in a database file member if a member with the specified name already exists. If the member does not exist, it is created and added to the database file.
+
+Note: If *ADD or *UPDADD is specified and the to-file contains no records, the copy operation completes normally. If *REPLACE is specified and the to-file contains no records, the copy operation ends abnormally.
+
+*ADD
+The copied records are added to the end of the existing member records.
+
+*REPLACE
+The copied records replace the existing member records.
+
+*UPDADD
+The system updates the duplicate key records and adds the new records to the end of the existing records. Additional information is available in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Stream file record length (STMFLEN)
+
+The maximum record length of any record of the stream file when *DLM is specified for the Record format of import file (DTAFMT) parameter, or the actual record length of all the records of the stream file when *FIXED is specified for the DTAFMT parameter.
+
+*TOFILE
+The record length of the to-file record is used.
+
+record-length
+Specify the length to be used for each record of the stream file.
+
+Top
+
+From CCSID (FROMCCSID)
+
+Specifies the coded character set identifier (CCSID) of the from-file.
+
+*FILE
+The from-file CCSID is used. If the from-file is a tape file, the job's default CCSID is used.
+
+1-65533
+Specify the CCSID to be used when the CCSID of the from-file is 65535, or if the from-file is a tape file. If the from-file CCSID is not 65535, or the from-file is not a tape file, an error message will be sent.
+
+Top
+
+To CCSID (TOCCSID)
+
+Specifies the coded character set identifier (CCSID) to use for the to-file fields.
+
+*FILE
+The data is converted to the to-file field CCSID. If the CCSID of the to-file field is 65535, the field is not converted and it is treated as binary data.
+
+1-65533
+Specify the CCSID to be used when the CCSID of the to-file field is 65535. If the CCSID of the to-file field is not 65535, this parameter is ignored.
+
+Top
+
+Record delimiter (RCDDLM)
+
+Specifies the record delimiter to be used.
+
+If the FROMFILE parameter is specified, valid values are *EOR or a character value. If the FROMSTMF parameter is specified, valid values are *CR, *CRLF, *LF, *LFCR or *ALL.
+
+*EOR
+End of record.
+
+*ALL
+First occurrence of any single or double character combination of carriage-return and line-feed.
+
+*CRLF
+Carriage-return followed by line-feed.
+
+*LF
+Line-feed.
+
+*CR
+Carriage-return.
+
+*LFCR
+Line-feed followed by carriage-return.
+
+character-value
+Specify the single character which indicates the end of a single record.
+
+Top
+
+Record format of import file (DTAFMT)
+
+Specifies the format of the data in the from-file.
+
+*DLM
+The data contains delimiter characters. Refer to parameter descriptions for STRDLM, FLDDLM, and RCDDLM for information on string, field, and record delimiter characters.
+
+*FIXED
+The data format is fixed. The data is in fixed columns in each record. The description of the format of the data is contained in the file member identified by the FLDDFNFILE parameter. Refer to the parameter description for RCDDLM for information on the record delimiter character.
+
+Top
+
+String delimiter (STRDLM)
+
+Specifies the string delimiter for the data of the fields being copied from. This character indicates the start and end of character, date, time, and timestamp strings in the from-file. Depending on the utility used to create the from-file, some types of strings may appear in the from-file without string delimiter characters.
+
+The specified delimiter character will be converted from the coded character set identifier (CCSID) of the job to the CCSID of the from-file.
+
+*DBLQUOTE
+The double quote character is used as the string delimiter.
+
+*NONE
+No delimiter is expected as the string delimiter. The blank character ( ) represents the *NONE value.
+
+character-value
+Specify the character value for the string delimiter.
+
+Top
+
+String escape character (STRESCCHR)
+
+Specifies the character to be looked for within string fields in the from-file. Character fields in the from-file may contain characters that have a special meaning to CPYFRMIMPF. These characters include the string delimiter and the string escape character itself. As a result, CPYFRMIMPF could misinterpret the data and produce unexpected results.
+
+The string escape character precedes such characters in the data and revokes their special meaning. CPYFRMIMPF can then determine if the character is data or a string delimiter. The escape characters are not imported into the to-file.
+
+This parameter describes the method that the export utility used for character fields that contained the string escape character or string delimiter.
+
+The specified string escape character will be converted from the coded character set identifier (CCSID) of the job to the CCSID of the from-file. If the from-file CCSID is 1200, 1208, or 13488 the string escape character is converted to the job CCSID, or the job's default CCSID when the job CCSID is 65535.
+
+*STRDLM
+The string delimiter is used as the escape character. If a character data field contains two adjacent string delimiter characters, they are interpreted as a single data character.
+
+*NONE
+No string escape character is present in the data. If any string delimiter characters are present in the data, they will be treated as string delimiters.
+
+character-value
+Specify the character to be used as the escape character.
+
+Top
+
+Remove blanks (RMVBLANK)
+
+Specifies whether blanks are removed or retained.
+
+*LEADING
+Leading blanks are removed.
+
+*TRAILING
+Trailing blanks are removed.
+
+*BOTH
+Leading and trailing blanks are removed.
+
+*NONE
+All leading and trailing blanks are retained.
+
+Top
+
+Field delimiter (FLDDLM)
+
+Specifies the field delimiter for the record being copied from. This value is used to determine where one field ends and the next field begins.
+
+','
+The comma character is the default name of the field delimiter.
+
+*TAB
+The horizontal tab character is used as field delimiter.
+
+character-value
+Specify the character value for the field delimiter.
+
+Top
+
+Field definition file (FLDDFNFILE)
+
+Specifies the field definition file which defines the format of the data when *FIXED is specified for the Record format of import file (DTAFMT) parameter. If DTAFMT(*FIXED) is specified, this parameter is required.
+
+The field definition file can be any of the following file types:
+
+- source physical file
+
+- DDM file
+
+- distributed physical file
+
+- program-described physical file
+
+- externally-described physical file with one field.
+
+Element 1: File
+
+Qualifier 1: File
+
+name
+Specify the name of the file that contains the fixed field definition.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Element 2: Member
+
+*FIRST
+The first member (in order of creation date) in the field definition file is used.
+
+name
+Specify the name of the field definition file member to use.
+
+Top
+
+Decimal point (DECPNT)
+
+Specifies the decimal point character to be used when copying numeric data from the from-file.
+
+*PERIOD
+A period (.) is used for the decimal point character.
+
+*COMMA
+A comma (,) is used for the decimal point character.
+
+Top
+
+Decimal float rounding mode (DECFLTRND)
+
+Specifies the mode that will be used when rounding decimal floating point data.
+
+*HALFEVEN
+Round to nearest; if equidistant, round so that the final digit is even. If the discarded digits represent greater than half (0.5) the value of a one in the next left position then the result coefficient should be incremented by 1 (rounded up). If they represent less than half, then the result coefficient is not adjusted (that is, the discarded digits are ignored). Otherwise (they represent exactly half) the result coefficient is unaltered if its rightmost digit is even, or incremented by 1 (rounded up) if its rightmost digit is odd (to make an even digit). This is the default value for the parameter.
+
+*HALFDOWN
+Round to nearest; if equidistant, round down. If the discarded digits represent greater than half (0.5) of the value of a one in the next left position then the result coefficient should be incremented by 1 (rounded up). Otherwise (the discarded digits are 0.5 or less) the discarded digits are ignored.
+
+*HALFUP
+Round to nearest; if equidistant, round up. If the discarded digits represent greater than or equal to half (0.5) of the value of a one in the next left position then the result coefficient should be incremented by 1 (rounded up). Otherwise the discarded digits are ignored.
+
+*UP
+Round away from 0; if all of the discarded digits are zero the result is unchanged other than the removal of discarded digits. Otherwise, the result coefficient should be incremented by 1 (rounded up).
+
+*CEILING
+Round towards +infinity. If all of the discarded digits are zero or if the sign is negative the result is unchanged other than the removal of discarded digits. Otherwise, the result coefficient should be incremented by 1 (rounded up).
+
+*DOWN
+Round towards 0. The discarded digits are ignored, this is the same as truncation and is conceptually the same as 'round to zero'.
+
+*FLOOR
+Round towards -infinity. If all of the discarded digits are zero or if the sign is positive the result is unchanged other than the removal of discarded digits. Otherwise, the sign is negative and the result coefficient should be incremented by 1.
+
+Top
+
+Date format (DATFMT)
+
+Specifies the date format to be used when copying date fields from the from-file.
+
+*ISO
+The International Organization for Standardization (ISO) date format yyyy-mm-dd is used.
+
+*USA
+The United States date format mm/dd/yyyy is used.
+
+*EUR
+The European date format dd.mm.yyyy is used.
+
+*JIS
+The Japanese Industrial Standard date format yyyy-mm-dd is used.
+
+*MDY
+The date format mm/dd/yy is used.
+
+*DMY
+The date format dd/mm/yy is used.
+
+*YMD
+The date format yy/mm/dd is used.
+
+*JUL
+The Julian date format yy/ddd is used.
+
+*YYMD
+The date format yyyymmdd is used.
+
+Top
+
+Date separator (DATSEP)
+
+Specifies the date separator for the date format. The separator is ignored for DATFMT of *ISO, *USA, *EUR, and *JIS because these formats have a fixed date separator.
+
+'/'
+A forward slash is used as the date separator character.
+
+'-'
+A hyphen is used as the date separator character.
+
+'.'
+A period is used as the date separator character.
+
+','
+A comma is used as the date separator character.
+
+*BLANK
+A blank is used as the date separator character.
+
+Top
+
+Time format (TIMFMT)
+
+Specifies the time format to be used when copying time fields from the from-file.
+
+*ISO
+The International Organization for Standardization (ISO) time format hh.mm.ss is used.
+
+*USA
+The United States time format hh:mm xx is used, where xx is AM or PM.
+
+*EUR
+The European time format hh.mm.ss is used.
+
+*JIS
+The Japanese Industrial Standard time format hh:mm:ss is used.
+
+*HMS
+The hh:mm:ss format is used.
+
+Top
+
+Time separator (TIMSEP)
+
+Specifies the time separator for the time format. This parameter is ignored if *ISO, *USA, *EUR, or *JIS is specified for the Time format (TIMFMT) parameter because those time formats define the required time separator character.
+
+':'
+A colon is used as the time separator character.
+
+'.'
+A period is used as the time separator character.
+
+*BLANK
+A blank is used as the time separator character.
+
+Top
+
+Copy from record number (FROMRCD)
+
+Specifies which records are copied from the from-file.
+
+Element 1: Copy from record number
+
+*FIRST
+The copy operation begins with the first record in the from-file.
+
+1-4294967288
+Specify the record number of the first record to be copied from the from-file.
+
+Element 2: Number of records to copy
+
+*END
+Records are copied until the end-of-file condition is indicated.
+
+1-4294967288
+Specify the number of records to be copied from the from-file. If an end-of-file condition is reached before this number of records has been copied, no error message is issued and the copy operation ends normally.
+
+Top
+
+Errors allowed (ERRLVL)
+
+Specifies the maximum number of recoverable read or write errors for the to-file that are tolerated during the copy operation.
+
+*NOMAX
+No maximum number of errors is specified, and all recoverable errors are tolerated. The copy operation continues regardless of the number of recoverable errors found.
+
+number-of-errors
+Specify the maximum number of recoverable errors allowed. If one more recoverable error occurs than the value specified here, the copy operation ends.
+
+Top
+
+Error record file (ERRRCDFILE)
+
+Specifies the database file where the records that are in error should be written.
+
+The error record file can be any of the following file types:
+
+- source physical file
+
+- DDM file
+
+- distributed physical file
+
+- program-described physical file
+
+- externally-described physical file.
+
+Single values
+
+*NONE
+No error record file is provided.
+
+Element 1: File
+
+Qualifier 1: File
+
+name
+Specify the name of the error record file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Element 2: Member
+
+*FIRST
+The first member (in order of creation date) in the error file is used.
+
+name
+Specify the error file member to be used to contain the from-file records which contained errors.
+
+Top
+
+Replace or add records (ERRRCDOPT)
+
+Specifies how error records are added to the error record file.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+*REPLACE
+The system deletes any existing records and adds the new records.
+
+Top
+
+Replace null values (RPLNULLVAL)
+
+Specifies whether null field values will be replaced when copying import file records.
+
+*NO
+If a field in the to-file is null capable a null value will be used. Otherwise an error will be sent.
+
+*FLDDFT
+If a null value is detected when parsing an import file record, the corresponding field in the database file record is assigned a default value based on the field type or DDS default value.
+
+Top
+
+Identity column (IDCOL)
+
+Specifies, if the to-file is an SQL table which contains a column with the IDENTITY attribute or a column with the ROWID data type, whether the value for the column will be generated by the system or the default value is used.
+
+*GEN
+A system-generated value will be inserted into the Identity Column or ROWID column.
+
+*FROMFLD
+If a value exists in the Identity Column or ROWID column of the fromfile field, this value will be inserted into the Identity Column of the to-file.
+
+Top
+
+Remove column names (RMVCOLNAM)
+
+Specifies if the column names should be removed from the from file.
+
+*NO
+The copy will begin with the first record from the from file.
+
+*YES
+The copy will begin with the second record from the from file because the first record contains the column names.
+
+Top
+
+Examples
+
+Example 1: Copying Physical File Import File
+
+CHGQRYA DEGREE(*NBRTASKS 3)
+:
+CPYFRMIMPF FROMFILE(IMPFILE) TOFILE(DB2FILE)
+FLDDLM(';') RCDDLM(X'07')
+DATFMT(*JIS) TIMFMT(*JIS)
+
+The Change Query Attribute (CHGQRYA) is run prior to CPYFRMIMPF to allow the copy processing to be done by three tasks running in parallel.
+
+All records of file IMPFILE will be copied to the externally-described physical file DB2FILE. Fields in the from-file are delimited by semi-colon (;) characters. Each record in the from file is delimited by a hexadecimal '07' character. Input date fields are are in yyyy-mm-dd format. Input time fields are in hh:mm:ss format.
+
+Example 2: Copying Tape File Import File
+
+OVRTAPF FILE(QTAPE) DEV(TAP02) SEQNBR(3)
+:
+CPYFRMIMPF FROMFILE(QTAPE) TOFILE(DB2WHS) ERRFILE(IMPERR)
+
+The Override Tape File (OVRTAPF) parameter is run prior to CPYFRMIMPF to indicate that tape device TAP02 should be used for doing the copy. The from-file must be the third file on the tape mounted on TAP02.
+
+All records of the from-file will be copied to the externally described physical file DB2WHS. Fields in the from-file are delimited by comma (,) characters. Input date fields are are in yyyy-mm-dd (ISO) format. Input time fields are in hh.mm.ss (ISO) format. From-file records that are found to contain errors and cannot be added to file DB2WHS are added to error file IMPERR.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2817
+Copy command ended because of error.
+
+Top

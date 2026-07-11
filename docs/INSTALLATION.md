@@ -16,11 +16,12 @@ Esto instala dos binarios y el data pack local de la versión publicada:
 - `ibmi-docs-mcp`: servidor MCP por stdio.
 - `data/pack`: corpus documental local con `manifest.json`, `raw/`, `normalized/` e `ibmi-docs.sqlite`.
 
-Durante `postinstall` también se preparan en la caché local el modelo de embeddings E5 y el reranker
-cross-encoder BGE. Después de instalar, las consultas funcionan en modo local-only.
+Durante `postinstall` también se instalan en la caché local el bi-encoder E5-base afinado para IBM i,
+la cabeza neuronal query→corpus y el reranker cross-encoder mMARCO MiniLM incluidos en el paquete. Después de instalar, las consultas
+funcionan en modo local-only.
 
-El adaptador neuronal IBM i ya viene dentro del paquete y `postinstall` valida su integridad. El
-banco de preguntas usado durante desarrollo no se instala ni se consulta en runtime.
+El banco de preguntas usado durante desarrollo no se instala ni se consulta en runtime. Solo viajan
+los pesos ONNX cuantizados resultantes del fine-tuning y el corpus documental oficial.
 
 El servidor MCP público arranca por defecto en perfil `agent`: expone una entrada principal
 (`ibmi_docs_assist`) y oculta tools avanzadas o de mantenimiento para que el agente no se distraiga
@@ -236,7 +237,7 @@ ibmi-docs doctor
 ibmi-docs diagnostics
 ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; necesito pasos y validación" --language CLLE --ibmi-version 7.5 --depth deep
 ibmi-docs resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples
-ibmi-docs resolve "Diagnostica RNF0004 en una compilación RPGLE" --language RPGLE
+ibmi-docs resolve "Diagnostica RNF5393 en una compilación RPGLE" --language RPGLE
 ibmi-docs resolve "Compara CRTRPGMOD entre IBM i 7.3 y 7.6"
 ibmi-docs search "DDS UNIQUE physical logical file" --category dds --limit 3
 ibmi-docs report-query "SND-MSG Send a Message to the Joblog" --category ile-rpg --expected-title "SND-MSG" --out snd-msg-ranking.md

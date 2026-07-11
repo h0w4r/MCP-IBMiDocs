@@ -1,0 +1,186 @@
+Add CRG Node Entry (ADDCRGNODE)
+
+Add CRG Node Entry (ADDCRGNODE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Add Cluster Resource Group Node Entry (ADDCRGNODE) command is used to add a new node to the recovery domain of an existing cluster resource group. This command results in the preferred recovery domain and the current recovery domain being updated.
+
+For primary-backup model cluster resource groups, the node can be added as another backup node, or as a replicate node in the cluster resource group's recovery domain. If the cluster resource group has a status of Active, and some backup nodes have a status other, than active, the recovery domain may be reordered so that all backup nodes with a status of active are ordered before nodes with a status other than active.
+
+For peer model cluster resource groups, the node can be added as a peer node or a replicate node. If the cluster resource group has a status of Active and a peer node is added, the node will be added as an active access point.
+
+A node can be added to a resilient device cluster resource group even if it has no device entries. Device entries must be added using the Add Cluster Resource Group Device Entry (ADDCRGDEVE) command before the cluster resource group can be started.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command. In addition if the the user profile is not the owner of the Cluster Resource Group object, the profile must have *ALLOBJ special authority on all nodes in the CRG's recovery domain and on the node being added to the recovery domain.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- The node being added to the recovery domain must not already be a member of this cluster resource group's recovery domain.
+
+- Cluster Resource Services must be active on the node processing the request.
+
+- There must be at least one active node in the recovery domain.
+
+- The node being added must be active in the cluster.
+
+- The cluster resource group exit program must exist on each node in the recovery domain, including the node being added.
+
+- The node being added must be unique in the recovery domain of the cluster resource group specified.
+
+- If a node is being added to a resilient device cluster resource group:
+
+A node can be added to a cluster resource group even if it has no device entries. Device entries must be added using the Add Cluster Resource Group Device Entry (ADDCRGDEVE) command before the cluster resource group can be started.
+
+The node must be in the same device domain as the other nodes in the recovery domain.
+
+The node being added must be able to access the hardware resources represented by the configuration objects in the cluster resource group.
+
+All members of an auxiliary storage pool group must be configured in the cluster resource group before ownership of the auxiliary storage pool can be changed.
+
+If a server takeover IP address is specified in the cluster resource group and the cluster resource group is active, the server takeover IP address must exist. IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as server takeover IP addresses.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CRG | Cluster resource group | Name | Required, Positional 1
+RCYDMN | Recovery domain node list | Element list | Required, Positional 2
+Element 1: Node identifier | Name
+Element 2: Node role | *CRGTYPE, *BACKUP, *REPLICATE, *PEER
+Element 3: Backup sequence number | *LAST
+Element 4: Site name | Name, *NONE
+Element 5: Data port IP address | Single values: *NONE
+Other values (up to 4 repetitions): Character value
+CLUSTER | Cluster | Name, * | Optional
+
+Top
+
+Cluster resource group (CRG)
+
+Specifies the cluster resource group that will have the new node added to its recovery domain.
+
+This is a required parameter.
+
+name
+Specify the cluster resource group.
+
+Top
+
+Recovery domain node list (RCYDMN)
+
+Specifies the node and role for the node being added to the recovery domain of the cluster resource group specified for the Cluster resource group (CRG) parameter.
+
+This is a required parameter.
+
+Element 1: Node identifier
+
+Specifies the node being added.
+
+name
+Specify the name of the cluster node.
+
+Element 2: Node role
+
+Specifies the role the node being added is to have in the recovery domain of the cluster resource group specified. For primary-backup model cluster resource groups a node can have one of three roles: primary, backup, or replicate. For peer model cluster resource groups a node can have one of two roles: peer or replicate. Any number of nodes can be designated as a peer or replicate. The following summarizes the valid values for the node being added:
+
+*CRGTYPE
+The node role will be set based on the type of the cluster resource group. If the type of cluster resource group is *PEER the default for the node role will be *PEER. For any other type of cluster resource group the default will be *BACKUP.
+
+*BACKUP
+The new node will be added as a backup node.
+
+*REPLICATE
+The new node will be added as a replicate. Replicates are not ordered and cannot become an access point unless changed to a proper role for the given cluster resource group type.
+
+*PEER
+The new node will be added as a peer. Peer nodes are not ordered and can become an active access point for the cluster resources.
+
+Element 3: Backup sequence number
+
+Specifies the backup order for a node with role of *BACKUP.
+
+*LAST
+The new node will be added as the last backup in the recovery domain.
+
+Element 4: Site name
+
+Specifies the site name of the recovery domain node. This is valid only for a device cluster resource group for cross site mirroring. A site contains a subset of recovery domain nodes in the same physical location. All nodes at a site have access to the same copy of auxiliary storage pool.
+
+*NONE
+The recovery domain node does not have a site name.
+
+name
+Specify the site name for a recovery domain node.
+
+Element 5: Data port IP address
+
+Specifies the data port IP address for the recovery domain node. This is valid only for a device cluster resource group, specifically for geographic mirroring. The data port IP address is used to send updates from a source node that owns the production copy of auxiliary storage pool to a target node that owns the mirror copy of auxiliary storage pool. The data port IP address may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+
+An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+
+If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+
+Single values
+
+*NONE
+The recovery domain node does not have a data port IP address.
+
+Other values (up to 4 repetitions)
+
+character-value
+Specify the data port IP address for the recovery domain node.
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the name of the cluster.
+
+*
+The cluster that has been configured on this system is used.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Examples for ADDCRGNODE
+
+Example 1: Adding a Backup Node to a CRG Recovery Domain
+
+ADDCRGNODE CRG(MYCRG) RCYDMN(NODE1 *BACKUP)
+
+This command adds node NODE1 to the recovery domain of cluster resource group MYCRG. The node is added as the last backup node.
+
+Example 2: Adding a Node with Multiple Data Port IP Addresses
+
+ADDCRGNODE CRG(MYCRG)
+RCYDMN(NODE1 *BACKUP *LAST MYSITE
+('1.1.1.1' '2001:0DB8:101::0230:D9FF'))
+
+This command adds node NODE1 to the recovery domain of cluster resource group MYCRG. The node is added as the last backup node in the site MYSITE with 2 data port IP addresses.
+
+Top
+
+Error messages for ADDCRGNODE
+
+*ESCAPE Messages
+
+HAE0019
+Node &1 not added to cluster resource group &2.
+
+Top

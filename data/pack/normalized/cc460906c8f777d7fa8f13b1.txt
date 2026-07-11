@@ -1,0 +1,369 @@
+Add Mounted FS (ADDMFS)
+
+Add Mounted FS (ADDMFS)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add Mounted File System (ADDMFS) command makes the objects in a file system accessible to the integrated file system name space. The file system to be made accessible can be either:
+
+- A user-defined file system (*UDFS) on the local system.
+
+- A remote file system accessed through a local Network File System client (*NFS).
+
+- A user-written file system (*UWFS), a set of exit programs registered to the local system. These programs are called for each file system operation and can access local objects and/or remote objects.
+
+The directory that is the destination for the mount, the Directory to mount over (MNTOVRDIR) parameter, must exist.
+
+This command can also be issued using the following alternative command name:
+
+- MOUNT
+
+For more information about Network File System commands, see i5/OS Network File System Support book, SC41-5714
+
+Restrictions:
+
+- The user must have input/output (I/O) system configuration (*IOSYSCFG) special authority to use this command.
+
+- The user must have write (*W) authority to the directory to be mounted over.
+
+- The user must have execute (*X) authority to each directory in the path.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+TYPE | Type of file system | *NFS, *UDFS, *UWFS | Required, Key, Positional 1
+MFS | File system to mount | Path name | Required, Key, Positional 2
+MNTOVRDIR | Directory to mount over | Path name | Required, Key, Positional 3
+OPTIONS | Mount options | Character value, *DFT | Optional
+CCSID | Coded character set ID | Element list | Optional
+Element 1: Data file CCSID | 1-65533, *ASCII, *JOBCCSID, *BINARY
+Element 2: Path name CCSID | 1-65533, *ASCII, *JOBCCSID
+CODEPAGE | Code page | Element list | Optional
+Element 1: Data file code page | 1-32767, *ASCII, *JOBCCSID, *BINARY
+Element 2: Path name code page | 1-32767, *ASCII, *JOBCCSID
+
+Top
+
+Type of file system (TYPE)
+
+Specifies the type of file system to be mounted. The type of mount determines the correct form for the File system to mount (MFS) parameter.
+
+*NFS
+The file system specified for the MFS parameter is a Network File System. The MFS parameter must be of the form hostname:pathname where hostname can either be the name of a system or an IP address, and pathname must be an absolute path name.
+
+*UDFS
+The file system specified for the MFS parameter is a user-defined file system. The MFS parameter must be in one of the following forms:
+
+- /dev/qaspXX/udfsname.udfs where XX is one of the valid system or basic user auxiliary storage pool (ASP) numbers on the system, and udfsname is the name of the user-defined file system. All other parts of the name must appear as in the example above.
+
+- /dev/aspname/udfsname.udfs, where aspname is one of the valid independent ASP names on the system, and udfsname is the name of the user-defined file system. All other parts of the name must appear as in the example above.
+
+- /dev/QASP01/udfsname.tmpudfs, where udfsname is the name of the user-defined file system. Because the name ends with '.tmpudfs', all objects created in the file system will be temporary objects that will be deleted when the file system is unmounted, the system is restarted, or the Reclaim Storage (RCLSTG) command is used. Because temporary user-defined file systems only exist in the system ASP, 'QASP01' must be specified as the ASP name.
+
+The name part of the path must be unique within the specified qaspXX or aspname directory.
+
+*UWFS
+The file system specified for the MFS parameter is a user-written file system. The MFS parameter must be of the form file-system-name:unique-id where file-system-name must be the name of a registered user-written file system. The unique-id is a sequence of characters that has meaning to the file system. It might be a pathname, similar to NFS, but could be any arbitrary string, such as "SYSTEMA:USER18:VOLUME1".
+
+This is a required parameter.
+
+Top
+
+File system to mount (MFS)
+
+Specifies the path name of the file system to be mounted. It can be the path to a local Block Special File (*BLKSF), a remote NFS path name, or a user-written file system identifier. See the Type of file system (TYPE) parameter to determine the correct format for the MFS parameter.
+
+This is a required parameter.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Directory to mount over (MNTOVRDIR)
+
+Specifies the path name of the existing directory that the file system will be mounted over. This directory gets 'covered' by the mounted file system. This directory must exist.
+
+Multiple file systems can be mounted over the same directory, one on top of the other. However, only the topmost mounted file system is accessible, and the file systems must later be unmounted in the opposite order from which they were mounted (last-in first-out order).
+
+This is a required parameter.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Mount options (OPTIONS)
+
+The options list contains a character string of mount options. The options are separated by commas. For some options, an equal '=' and a value follow the option. If an option is not specified, the default value for that option will be used. The options list may contain spaces.
+
+*DFT
+The default value for the options string for the mount of a Network File System (*NFS) is:
+
+'rw,suid,retry=5,rsize=32768,wsize=32768,timeo=20,retrans=5,
+acregmin=30,acregmax=60,acdirmin=30,acdirmax=60,hard,async,
+sec=sys,vers=3:2,cachetimeo=60,nocache,tcp'
+
+The default value for the options string for the mount of a user-defined file system (*UDFS) is:
+
+'rw,suid'
+
+The default value for the options string for the mount of a user-written file system (*UWFS) is:
+
+'rw,vers=1'
+
+For the mount of a Network File System, all of the following options are valid. For the mount of a user-defined file system, only the ro, rw, suid and nosuid options are valid. For the mount of a user-written file system, the valid options will vary by file system, but could include any of the following. If options are specified that are not valid for the file system type to be mounted, the file system can choose to ignore them or return an error.
+
+options-list
+The following are the available options and their descriptions:
+
+rw|ro
+This option specifies the protection for the mounted file system. Either ro (read-only) or rw (read-write) may be specified. If neither is specified, rw is assumed. Only rw may be specified for temporary user-defined file systems.
+
+suid|nosuid
+If suid is specified, setuid execution is allowed. This means that bits other than the permission bits may be set. If nosuid is specified, setuid execution is not allowed.
+
+hard|soft
+Specifies whether the file system is hard or soft mounted. Hard mounted means that operations on them are retried until they are acknowledged by the server. Soft mounted means that a timeout error is returned if a remote operation fails the number of times specified on the retrans option. If neither is specified, hard is assumed for NFS.
+
+rsize=n
+Specifies the size of the read buffer in bytes. The read buffer is used for data transfer between the client and the remote server on a read request. The allowed range is 512 to 524288. If rsize is not specified, the default value of 32768 is assumed for NFS. For better performance, the read buffer should be a multiple of the application buffer size.
+
+wsize=n
+Specifies the size of the write buffer in bytes. The write buffer is used for data transfer between the client and the remote server on a write request. The allowed range is 512 to 524288. If wsize is not specified, the default value of 32768 is assumed for NFS. For better performance, the write buffer should be a multiple of the application buffer size.
+
+timeo=n
+Specifies the amount of time, in tenths of seconds, to wait for the client to respond on each try. The allowed range is 0 to 10000. If timeo is not specified, the default value of 20 tenths of a second (2 seconds) is assumed for NFS.
+
+retry=n
+Specifies the number of times to retry the mount operation. The allowed range is 0 to 10000. If retry is not specified, the default value of 5 retransmission attempts is assumed for NFS.
+
+retrans=n
+Specifies the number of times to retry the transmission to the server. The allowed range is 0 to 10. If retrans is not specified, the default value of 5 retransmission attempts is assumed for NFS.
+
+acregmin=n
+Specifies the minimum number of seconds to hold locally stored file attributes after file updates. The allowed range is 1 to 3600. If acregmin is not specified, the default value of 30 seconds is assumed for NFS.
+
+acregmax=n
+Specifies the maximum number of seconds to hold locally stored file attributes after file updates. The allowed range is 1 to 2,000,000,000. If acregmax is not specified, the default value of 60 seconds is assumed for NFS.
+
+acdirmin=n
+Specifies the minimum number of seconds to hold locally stored directory attributes after a directory update. The allowed range is 1 to 3600. If acdirmin is not specified, the default value of 30 seconds is assumed for NFS.
+
+acdirmax=n
+Specifies the maximum number of seconds to hold locally stored directory attributes after a directory update. The allowed range is 1 to 2,000,000,000. If acdirmax is not specified the default value of 60 seconds is assumed for NFS.
+
+nocto
+Specifies whether to force the refresh of remote attributes when opening a file. If this option is specified, attributes are not refreshed from the server when opening a file, and changes are not sent to the server on the last close. If nocto is not specified, the default value of no suppression is assumed for NFS.
+
+noac
+Specifies whether to suppress local storage of attributes and names. If this option is specified, local storage of attributes and names is suppressed. If noac is not specified, the default value of no suppression is assumed for NFS. If noac is specified, values specified for agregmin, agregmax, agdirmin, and agdirmax may be specified but are not used.
+
+async
+Specifies whether to allow asynchronous write requests. If async is not specified, only synchronous write requests will be used for NFS.
+
+cachetimeo=n
+Specifies the amount of time in seconds, for the client to revalidate data cache consistency. The allowed range is 1 to 10000. If cachetimeo is not specified, the default value of 60 seconds is assumed for NFS.
+
+nocache
+Specifies whether to disable the data cache. If nocache is not specified, data cache will be enabled by default for NFS.
+
+sec=flavor[:flavor...]
+Specifies an ordered list of security flavors that may be used to access the mount point. Allowable flavor values are:
+
+sys
+UNIX-like (user ids, group ids). This is the default value for NFS. Corresponds to an integer-value of 1.
+
+krb5
+Kerberos 5, no integrity or privacy. For NFS, only valid when NFS version 4 specified. Corresponds to an integer-value of 390003.
+
+krb5i
+Kerberos 5, with integrity.For NFS, only valid when NFS version 4 specified. Corresponds to an integer-value of 390004.
+
+krb5p
+Kerberos 5, with privacy. For NFS, only valid when NFS version 4 specified. Corresponds to an integer-value of 390005.
+
+integer-value
+An integer value indicating a security flavor
+
+vers=version[:version...]
+Specifies the file system version or versions allowed for the mount. For NFS, the following rules apply:
+
+- If this option is specified, only the specified NFS versions will be used to attempt the mount, in the order they are provided.
+
+- The default used if this option is not specified is vers=3:2.
+
+- Allowable version numbers are: 2:3:4.
+
+For user-written file systems, only one version may be specified for the mount. The version number must match a registered version number for the file-system-name used in the MFS parameter. The default value used for user-written file systems is vers=1.
+
+udp|tcp
+Specifies whether the file system uses the UDP (connectionless) or TCP (connection-oriented) transport protocol to communicate with a remote server. For NFS, the tcp option requires the NFS Block I/O Daemon job to be active to manage connections. If neither is specified, tcp is assumed for NFS.
+
+Top
+
+Coded character set ID (CCSID)
+
+Specifies, for Network File Systems, a pair of coded character set identifiers (CCSIDs) to identify a specific character representation to be used. The first CCSID specifies what encoding scheme should be assumed for data files on the remote system. The second CCSID specifies what encoding scheme should be assumed for path names on the remote system.
+
+This parameter is not valid for user-defined file systems.
+
+User-written file systems can choose to use the value, ignore the value, or return an error.
+
+Element 1: Data file CCSID
+
+*BINARY
+No conversion is used.
+
+*ASCII
+The ASCII equivalent of the default job CCSID associated with the current job is used.
+
+*JOBCCSID
+The CCSID from the default job CCSID is used.
+
+1-65533
+Specify a CCSID to be assumed for data files on the remote system.
+
+Element 2: Path name CCSID
+
+*ASCII
+The ASCII equivalent of the default job CCSID associated with the current job is used.
+
+*JOBCCSID
+The CCSID from the default job CCSID is used.
+
+1-65533
+Specify a CCSID to be assumed for path names on the remote system. Only CCSIDs that can be converted into UCS-2 level 1 (1200) are supported. See Globalization information in the iSeries Information Center at http://www.ibm.com/eserver/iseries/infocenter for a list of supported conversions.
+
+Top
+
+Code page (CODEPAGE)
+
+Specifies, for Network File Systems, a pair of code pages. The first code page specifies what code page should be assumed for data files on the remote system. The second code page specifies what code page should be assumed for path names on the remote system.
+
+This parameter is not valid for user-defined file systems.
+
+User-written file systems can choose to use the value, ignore the value, or return an error.
+
+Note: This parameter is replaced by Coded character set ID (CCSID) but the CODEPAGE parameter can still be used. However, because this parameter may be removed in a later release, whenever possible use the CCSID parameter.
+
+Element 1: Data file code page
+
+Note: A code page that has the same number of bytes per character as the original data should be specified.
+
+*BINARY
+No conversion is used.
+
+*ASCII
+The ASCII equivalent of the default job coded character set identifier (CCSID) associated with the current job is used.
+
+*JOBCCSID
+The default job coded character set identifier (CCSID) associated with the current job is used.
+
+1-32767
+Specify a code page to be assumed for data files on the remote system. Only code pages that correspond to single-byte or double-byte encoding schemes are supported. Code pages that correspond to mixed-byte encoding schemes are not supported.
+
+Element 2: Path name code page
+
+*ASCII
+The ASCII equivalent of the default job coded character set identifier (CCSID) associated with the current job is used.
+
+*JOBCCSID
+The default job coded character set identifier (CCSID) associated with the current job is used.
+
+1-32767
+Specify a code page to be assumed for path names on the remote system. Only code pages whose CCSIDs can be converted into UCS-2 level 1 (1200) are supported. See Globalization information in the iSeries Information Center at http://www.ibm.com/eserver/iseries/infocenter for a list of supported conversions.
+
+Top
+
+Examples
+
+Example 1: Mounting a User-Defined File System
+
+ADDMFS TYPE(*UDFS) MFS('/DEV/QASP03/PROD1')
+MNTOVRDIR('DIRB')
+
+This command mounts a user-defined file system PROD1 over the directory, DIRB. It uses the defaults for the other parameters.
+
+Example 2: Mounting a Network File System
+
+ADDMFS TYPE(*NFS) MFS('RAINFALL:/QSYS.LIB/RAY.LIB')
+MNTOVRDIR('/mystuff')
+
+This command mounts the /qsys.lib/ray.lib file system from the remote system RAINFALL into the directory /mystuff.
+
+Example 3: Mounting a Network File System with OPTIONS
+
+ADDMFS TYPE(*NFS) MFS('RAINFALL:/QSYS.LIB/RAY.LIB')
+MNTOVRDIR('/mystuff')
+OPTIONS('ro,nosuid,rsize=256, retrans=10')
+CODEPAGE(*ASCII *JOBCCSID) CCSID(*ASCII *JOBCCSID)
+
+This command mounts the /qsys.lib/ray.lib file system from the remote system RAINFALL into the directory /mystuff. In addition it specifies to mount as read-only, not allow setuid execution, set the read buffer to 256 bytes, and the retransmission attempts to 10. The job CCSID is used to determine the coded character set identifier to use for remote path names.
+
+Example 4: Mounting a User-Written File System with OPTIONS
+
+ADDMFS TYPE(*UWFS) MFS('RainfallFS:RAINSYS-VOLUME1')
+MNTOVRDIR('/mystuff')
+OPTIONS('rw,vers=2,rsize=524288,wsize=524288')
+CCSID(*ASCII *JOBCCSID)
+
+This command mounts an instance of the RainfallFS file system with version number 2. The remote-id is RAINSYS-VOLUME1, which has special meaning to the file system. The instance will be mounted over the directory /mystuff. In addition, it specifies to mount the file system as read-write, set the read buffer to 524,288 bytes, and the write buffer to 524,288 bytes. The job CCSID is used to determine the coded character set identifier to use for remote path names.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPDBCC2
+A non-recoverable error occurred when attempting to resolve the name.
+
+CPF3BCB
+Encoding scheme &1 of CCSID &2 not supported.
+
+CPFA09C
+Not authorized to object. Object is &1.
+
+CPFA09E
+Object in use. Object is &1.
+
+CPFA0A2
+Information passed to this operation was not valid.
+
+CPFA0A9
+Object not found. Object is &1.
+
+CPFA0D0
+CCSID conversion error occurred.
+
+CPFA0D9
+Character string not converted.
+
+CPFA1B0
+Unrecognized option found on options list.
+
+CPFA1B8
+*IOSYSCFG authority required to use &1.
+
+CPFA1BB
+An option value on the options list was not valid.
+
+CPFA1C6
+The value supplied for the File system to mount (MFS) parameter does not have the correct form.
+
+CPFA1CE
+Cannot find an address for the specified system name.
+
+CPFBC56
+Mount request for system name &2 failed.
+
+Top

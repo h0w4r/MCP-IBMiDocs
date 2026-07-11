@@ -1,0 +1,228 @@
+Change Variable (CHGVAR)
+
+Change Variable (CHGVAR)
+
+Last Updated: 2025-04-08
+
+Where allowed to run:
+
+- Batch program (*BPGM)
+
+- Interactive program (*IPGM)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Variable (CHGVAR) command changes the value of a Control Language (CL) variable or part of a character variable. The value can be changed to the value of a constant, to the value of another variable, or to the value gotten from the evaluation of an expression or a built-in function. Expressions and built-in functions are described in "Expressions in CL Commands" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Also, implicit conversion between decimal and character values is performed by the rules given in the VALUE parameter description.
+
+The binary built-in function (%BINARY or %BIN) can be used in either the CL variable name (VAR) parameter or the New value (VALUE) parameter as a substitute for a decimal variable. When used with the VAR parameter, the specified portion of the character variable is changed to the signed binary integer equivalent value of the arithmetic expression given in the VALUE parameter. When used within the VALUE parameter, the specified portion of the character variable is treated as a signed binary integer converted to a decimal number when used in evaluating the value of the VALUE parameter. A 2-byte binary integer is converted to a decimal (5 0) number and a 4-byte binary number is converted to decimal (10 0) number. The result of the evaluated expression is then assigned to the specified in the VAR parameter.
+
+The substring built-in function (%SUBSTRING or %SST) can be used in either the VAR or the VALUE parameter as a substitute for a character variable. When used with the VAR parameter, the specified portion of the character variable is changed to the value of the expression given in the VALUE parameter. When used within the VALUE parameter, the specified portion of the character variable is used in evaluating the value of the VALUE parameter. 2-byte binary integers are converted to decimal (5 0) numbers and 4-byte binary numbers are converted to decimal (10 0) numbers. The result of the evaluated expression is then assigned to the variable specified in the VAR parameter.
+
+The substring built-in function can be used to retrieve or change all or part of the local data area associated with a job.
+
+The %SWITCH built-in function can be used in the VALUE parameter as a substitute for a logical variable declared in the program. %SWITCH contains an 8-character mask that indicates which of the eight job switches in a job are tested for 1s and 0s. When %SWITCH is specified for the VALUE parameter, the logical variable specified by the VAR parameter is set to '1' if the logical results of the built-in function are all true. If any of the job switches tested results in a false condition, the variable is set to '0'.
+
+Coding Decimal Values for Decimal Variables
+
+When a numeric value is specified for a decimal variable:
+
+- It can be coded with or without a decimal point (specified as either a period or a comma) and with or without a plus or minus sign.
+
+- If a negative value is specified, a minus sign (-) must precede the value.
+
+- If a decimal point is not specified in the coded value, it is assumed to be on the right of the last digit specified; that is, the coded value is assumed to be an integer (whole number).
+
+- If the number of either integer or fractional digits specified is greater than the defined number of integer or fractional digits, an error message is sent to the user.
+
+For example, if a decimal variable is defined as a five-position decimal value of which two positions are the fraction portion, the following values can be coded:
+
+Specified Assumed
+Value Value
+------------ --------
+2.7 or 2,7 2.70
+27 or 27.00 27.00
+-27 -27.00
+
+Coding Character Values for Decimal Variables
+
+When a character value is specified for a decimal variable:
+
+- Only the digits 0 through 9, a decimal point (specified as either a period or a comma), and a plus sign (+) or minus sign (-) can be used.
+
+- If a plus sign or minus sign is specified, it must be placed immediately in front of (no blanks between) the first digit in the character value. If no sign character is specified, the value is converted as a positive value.
+
+- The number of decimal positions in the converted result is determined by the decimal point specified in the character value. If no decimal point is specified, it is assumed to be to the right of the last digit in the converted value.
+
+- Decimal alignment occurs in the converted result. The number of decimal positions in the converted result is determined by the number declared for the variable. If the specified character value has more decimal positions than the declared variable, the extra positions on the right are truncated. If the integer portion of the character value has more digits than that declared for the variable, an error message is sent to the user.
+
+The following examples show the results of converting the indicated character values for character variable &A to decimal values for decimal variable &B.
+
+CHGVAR VAR(&B) VALUE(&A)
+
+| Character Variable &A | Decimal Variable &B |
+| | |
+|---------+--------------+--------+----------------|
+| Length | Specified | Length | Converted |
+| | Value | | Result |
+|---------+--------------+--------+----------------|
+| 10 | '+123.1' | 5, 2 | 123.10 |
+| 10 | '+123.00' | 5, 0 | 123 |
+| 10 | '-123' | 5, 2 | -123.00 |
+|---------+--------------+--------+----------------|
+
+When the binary built-in function is used instead of the decimal variable &B, the decimal value is converted to a signed binary number.
+
+Coding Character Values for Character Variables
+
+When a character string is specified for a character variable, it must be enclosed in single quotation marks if it contains special characters or consists entirely of numeric characters. For example, 'ABC 67', which contains a blank, or '37.92', which contains a decimal point and consists entirely of numeric characters. If 37.92 is not enclosed in apostrophes, it is handled as a decimal value instead of a character value.
+
+Character variables are padded with blanks (or are truncated) on the right if the character string for the VALUE parameter is shorter (or longer) than the variable specified by the VAR parameter.
+
+If a character variable is set equal to a portion of another character variable, specify, as parameters on the substring built-in function, the name of the variable containing the substring, the starting character position, and the number of characters being replaced. The starting position and the number of characters can be specified in CL variables.
+
+Coding Decimal Values for Character Variables
+
+When a decimal value is specified for a character variable:
+
+- The same digits, decimal point, and sign character (if the value is negative) are used in the converted result. The value is right-justified in the character variable and padded on the left with zeros, if needed (this is unique to converted CL decimal values).
+
+- The converted result has as many decimal positions as were specified in the decimal value or as defined for the decimal variable being used. If no decimal positions are specified in the decimal value or defined for the decimal variable, no decimal point is placed in the result.
+
+- A minus sign is placed in the leftmost position of the character variable if the specified decimal value is negative. No plus sign is placed in the character variable for positive values.
+
+The following examples show the results of converting the indicated decimal values for decimal variable &B to character values for character variable &A.
+
+CHGVAR VAR(&A) VALUE(&B)
+
+When the binary built-in function is used instead of the decimal variable &B, the signed binary number is converted to a decimal number.
+
+| Decimal Variable &B | Character Variable &A |
+| | |
+|--------+--------------+---------+----------------|
+| Length | Specified | Length | Converted |
+| | Value | | Result |
+|--------+--------------+---------+----------------|
+| 5, 2 | 23.00 or +23 | 7 | 0023.00 |
+| 5, 2 | -3.9 | 7 | -003.90 |
+| 5, 2 | -123.67 | 7 | -123.67 |
+|--------+--------------+---------+----------------|
+
+Note: The character variable must be long enough to accommodate the decimal point and sign character if the value can have a decimal point and a negative value in it. In the last example, although the decimal value is defined as (5, 2), the character variable must be at least 7 characters long for the value shown. In the next-to-last example, the character variable could only be 5 characters long and the converted result -3.90 would be valid.
+
+The substring built-in function can be used to change a substring of a character variable specified in the VAR parameter to a decimal value in the VALUE parameter.
+
+Coding Logical or Character Values for Logical Variables
+
+The value for a logical variable must be a logical value of either '1' or '0'. It must be enclosed in single quotation marks. However, the %SWITCH built-in function can be used in place of a logical variable in the VALUE parameter. Refer to for a description of the %SWITCH built-in function.
+
+Coding Numeric or Character Values for Integer Variables
+
+The rules for integer variables are the same as the rules for decimal variables except that no fractional digits may be specified. For assignments to unsigned integer variables, the constant value cannot be a negative number.
+
+Assigning a Null Value to a Pointer Variable
+
+To set a CL pointer variable to a null value, the special value *NULL can be used if the CL source is being compiled with the Create CL Module (CRTCLMOD) or Create Bound CL Program (CRTBNDCL) command. If the CL source is being compiled with the Create CL Program (CRTCLPGM) command, set the CL pointer variable from another CL pointer variable that was declared with ADDRESS(*NULL) and has not been changed.
+
+Note: Values for decimal and character variable types can be specified in hexadecimal form (X'580F' for decimal 58.0). However, if character values are specified in hexadecimal form, care should be used because no validity checking is performed on the hexadecimal string.
+
+Restrictions:
+
+- This command is valid only in a CL program or ILE CL procedure.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+VAR | CL variable name | CL variable name | Required, Positional 1
+VALUE | New value | Character value | Required, Positional 2
+
+Top
+
+CL variable name (VAR)
+
+Specifies the CL variable whose value is to be changed. The type of variable does not have to be the same as the type of constant or variable specified in the VALUE parameter, unless an expression is being evaluated or the VAR parameter specifies a logical variable.
+
+If the substring built-in function or the binary built-in function is used to change a portion of a character variable (that is, a substring of the character string in the variable) specified in VAR to a value specified in the VALUE parameter, specify the name of the character variable, followed by the starting position and the number of characters being changed within the character string specified by the variable name.
+
+This is a required parameter.
+
+Top
+
+New value (VALUE)
+
+Specifies the expression that is used to change the value of the variable. Variables, constants, or a built-in function can be used within the expression. For a description of expressions, see "Expressions in CL Commands" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+This is a required parameter.
+
+Top
+
+Examples
+
+Example 1: Changing Decimal Variables
+
+CHGVAR &A &B
+
+The value of variable &A is set to the value of the variable &B. If &B has a value of 37.2, then the value of &A becomes 37.2 also.
+
+CHGVAR &Y (&Y + 1)
+
+The value of variable &Y is increased by 1. If &Y has a value of 216, its value is changed to 217.
+
+Example 2: Changing Logical Variables
+
+CHGVAR &X (&Y *OR &Z)
+
+The value of the logical variable &X is set to the value of the result of the OR operation of the logical variable &Y with the logical variable &Z. Both variables must be logical variables when *OR is used. If &Y equals '0' and &Z equals '1', then &X is set to '1'.
+
+CHGVAR &A %SWITCH(10XXXX10)
+
+The value of the logical variable &A is determined by the logical results of the built-in function, %SWITCH. Positions 1, 2, 7, and 8 of the 8-character mask indicate that the corresponding job switches for the job are to be tested for the values indicated in the mask. Job switches 1 and 7 are tested for 1s, and switches 2 and 8 are tested for 0s. (Switches 3 through 6 are not tested.) If all four switches contain the values specified in the %SWITCH mask, the logical result of the built-in function is true, and the variable &A is set to a '1'. If any of the four switches contain a value not indicated in the mask, the result is false and &A is set to '0'.
+
+Example 3: Changing Character Variables
+
+CHGVAR VAR(&A) VALUE(AB *CAT CD)
+CHGVAR &A ('AB' *CAT 'CD')
+
+These two commands set the value of the variable &A equal to the character string ABCD, which is the result of the concatenation of the two character strings AB and CD. The first command is coded in keyword form with unquoted strings; the second command is coded in positional form with the VALUE parameter specifying two quoted character strings.
+
+CHGVAR &VAR1 &VAR2
+
+This example shows a 6-character variable whose value is changed by a shorter character string. If &VAR1 = ABCDEF and &VAR2 = XYZ before the command is processed, the result in &VAR1 = XYZ padded on the right with three blanks.
+
+CHGVAR &VAR1 '12'
+
+Assuming &VAR1 is a character variable that is 6 characters long, the result in &VAR1 = 12 padded on the right with four blanks. The apostrophes are required in this example.
+
+CHGVAR VAR(%SUBSTRING(&A 4 3)) VALUE(REP)
+or
+CHGVAR VAR(%SST(&A 4 3)) VALUE(REP)
+
+The substring built-in function is used to change 3 characters of the character constant in the variable named &A. If &A has a value of ABCDEFGH, the fourth, fifth, and sixth characters in &A are set to REP, and the result is ABCREPGH.
+
+CHGVAR VAR(%SST(*LDA 1 512)) VALUE(' ')
+
+The substring built-in function is used to change all of the local data area to blanks.
+
+CHGVAR VAR(%BINARY(&A 1 2)) VALUE(20)
+
+or
+
+CHGVAR VAR(%BIN(&A 1 2)) VALUE(20)
+
+The binary built-in function is used to change the first 2 characters of the character variable named &A to the signed binary value of the number 20, or hexadecimal number X'0014'. If the character variable named &A has a length of 10, characters 3 through 10 of variable &A are not changed.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0816
+%SWITCH mask &1 not valid.
+
+Top

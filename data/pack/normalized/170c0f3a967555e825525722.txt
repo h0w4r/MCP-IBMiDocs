@@ -1,0 +1,621 @@
+Override ICF Pgm Device Entry (OVRICFDEVE)
+
+Override ICF Pgm Device Entry (OVRICFDEVE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Override with ICF Program Device Entry (OVRICFDEVE) command can be used to temporarily add the program device entry and the remote location name to the intersystem communications function (ICF) file, or to override a program device entry with the specified remote location name and attributes for an ICF file.
+
+Note: Using this command does not cause a file to be overridden immediately. Information provided on this command is stored until the file is used, at which time the file is overridden.
+
+More information on how overrides processing is performed is in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/, the Application Display Programming book, SC41-5715, and the Printing category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+PGMDEV | Program device | Character value | Required, Positional 1
+RMTLOCNAME | Remote location | Communications name, *REQUESTER | Optional, Positional 2
+CMNTYPE | Communication type | *ALL, *APPC, *ASYNC, *BSCEL, *FINANCE, *INTRA, *RETAIL, *SNUF | Optional, Positional 3
+DEV | Device | Name, *LOC | Optional
+LCLLOCNAME | Local location | Communications name, *LOC, *NETATR | Optional
+MODE | Mode | Communications name, *NETATR | Optional
+RMTNETID | Remote network identifier | Communications name, *LOC, *NETATR, *NONE | Optional
+FMTSLT | Format select | *PGM, *RECID, *RMTFMT | Optional
+APPID | Application identifier | Name, *DEVD, *USER | Optional
+BATCH | Batch activity | *NO, *YES | Optional
+HOST | Host type | *DEVD, *CICS, *IMS, *IMSRTR | Optional
+ENDSSNHOST | End session with host | *RSHUTD, *TERMSELF | Optional
+SPCHOSTAPP | Special host application | *DEVD, *NONE, *FLASH | Optional
+INZSELF | Initialize self | *NO, *YES | Optional
+HDRPROC | Header processing | *SYS, *USER | Optional
+MSGPTC | Message protection | *YES, *NO | Optional
+EMLDEV | Emulation device | Single values: *NONE
+Other values: Element list | Optional
+Element 1: Device type | 3278, 3284, 3286, 3287, 3288, 3289
+Element 2: Data format | *UNFORMAT, *FIELD, *NOFIELD, *EXTFIELD
+CNVTYPE | Conversation type | *SYS, *USER, *SRCPGM | Optional
+BLOCK | Blocking type | Single values: *DEVD, *NONE, *ITB, *IRS, *NOSEP, *USER
+Other values: Element list | Optional
+Element 1: Blocking type | *SEP
+Element 2: Record separator, if *SEP | Hexadecimal value, X'1E'
+RCDLEN | Record length | 1-32767, *DEVD | Optional
+BLKLEN | Block length | 1-32767, *DEVD | Optional
+TRNSPY | Transmit in transparent mode | *DEVD, *NO, *YES | Optional
+DTACPR | Data compression | *DEVD, *NO, *YES | Optional
+TRUNC | Truncate trailing blanks | *DEVD, *NO, *YES | Optional
+OVRFLWDTA | Overflow data | *DISCARD, *RETAIN | Optional
+GRPSEP | Group separator type | *DEVD, *EOT, *DEV3740, *OFCSYS | Optional
+RMTBSCEL | Remote BSCEL | *DEVD, *NO, *YES | Optional
+INLCNN | Initial connection | *CTLD, *DIAL, *ANS | Optional
+SECURE | Secure from other overrides | *NO, *YES | Optional
+OVRSCOPE | Override scope | *ACTGRPDFN, *CALLLVL, *JOB | Optional
+
+Top
+
+Program device (PGMDEV)
+
+Specifies the program device name for an ICF file whose attributes are being overridden. The total number of devices that may be added to an ICF file is determined by the MAXPGMDEV parameter on the Create ICF File (CRTICFF) command or the Change ICF File (CHGICFF) command.
+
+This is a required parameter.
+
+character-value
+Specify the name of the ICF program device entry with which the program communicates. This name is used in device-specific input/output operations to identify the program device and the session attributes. The program device name must be unique, although the same remote location name may be specified more than once. This allows more than one session to be at the same remote location, or to have different attribute values for each session at the same remote location. This program device name must be unique throughout the entries for the ICF file. If an override command is entered a second time for the same program device, then both (according to the override process rules) define the same program device entry.
+
+Note: Refer to the APPC Programming book, SC41-5443 for information on how the system uses the RMTLOCNAME, DEV, LCLLOCNAME, and RMTNETID parameters to select an APPC device description.
+
+Top
+
+Remote location (RMTLOCNAME)
+
+Specifies the remote location name with which your program communicates. A remote location must be specified using the Add ICF Program Device Entry (ADDICFDEVE) command or an applied program device override. If a remote location is not given, an escape message is sent when the program device is acquired.
+
+communications-name
+Specify the name of the remote location with which your program communicates. The remote location does not need to exist at the time this command is run but must exist, either configured on the system or in the advanced peer-to-peer networking (APPN) network, for this remote location at the time the program acquires the program device. A given remote location may be added many times using different program device names. When running, however, only one program device name associated with each asynchronous (ASYNC), binary synchronous communications equivalence link (BSCEL), or system network architecture upline facility (SNUF) remote location may be acquired by the file at any one time. For each remote advanced program-to-program communication (APPC) location, more than one associated program device name may be acquired by the file at one time. For each SNUF remote location, there may be many devices. The system determines which device to use unless a device is specified on the Device (DEV) parameter.
+
+*REQUESTER
+The name used to refer to the communications device through which the program was started is used. The session that is assigned when the program device is acquired is the same session on which the Program Start request was received. If the program is not started as a result of a Program Start request, the acquire of the program device fails. The target program always uses *REQUESTER as the remote location name in the ICF file to connect to the session that the source program uses to send the Program Start request.
+*REQUESTER is valid only for a target communications job. If *REQUESTER is specified in any other type of job, an escape message is sent when the program device is acquired. When *REQUESTER is used in an acquire operation, the following parameters are ignored:
+
+- DEV
+
+- LCLLOCNAME
+
+- MODE
+
+- RMTNETID
+
+Top
+
+Communication type (CMNTYPE)
+
+Specifies the communications type of the ICF device. This parameter is used only for prompting purposes; it is ignored when the command is run. The value specified for this parameter determines the subset of other parameters that are displayed (prompted) for the user.
+
+*ALL
+All parameters appear in the interactive prompt.
+
+*APPC
+Only the APPC parameters appear in the interactive prompt.
+
+*ASYNC
+Only the asynchronous parameters appear in the interactive prompt.
+
+*BSCEL
+Only the BSCEL parameters appear in the interactive prompt.
+
+*FINANCE
+Only the FINANCE parameters appear in the interactive prompt.
+
+*RETAIL
+Only the RETAIL parameters appear in the interactive prompt.
+
+*INTRA
+Only the INTRA parameters appear in the interactive prompt.
+
+*SNUF
+Only the SNUF parameters appear in the interactive prompt.
+
+Top
+
+Device (DEV)
+
+Specifies the communications device that is used in the remote location. This parameter applies to all communications types, but should be specified only for the APPC, INTRA, and SNUF communications types. If the device is not valid for the remote location, an escape message is sent when the program device is acquired. If the Add ICF Program Device Entry (ADDICFDEVE) command is not run for the specified program device and this parameter is not overridden, DEV(*LOC) is used.
+
+*LOC
+The device associated with the remote location is used. If several devices can be associated with the remote location, the system determines which device is used.
+
+name
+Specify the name of the device with which your program communicates. The device name applies to all communications types, but it should be specified only for the APPC and SNUF communications types if you want to indicate a specific device for the remote location. If the device name is not valid for the remote location, an escape message is sent when the program device is acquired.
+
+Top
+
+Local location (LCLLOCNAME)
+
+Specifies the name of your location. This parameter applies to the APPC communications type only. If the Add ICF Program Device Entry (ADDICFDEVE) command is not run for the specified program device and this parameter is not overridden, LCLLOCNAME(*LOC) is used.
+
+*LOC
+The local location name associated with the remote location name is used.
+
+*NETATR
+The LCLLOCNAME value specified in the system network attributes is used.
+
+communications-name
+Specify the name of your location. The local location name is specified only in APPC if you want to indicate a specific local location name for the remote location. If the local location name is not valid for the remote location or remote location and device, an escape message is sent when the program device is acquired.
+
+Top
+
+Mode (MODE)
+
+Specifies the mode name used. This parameter applies only to the APPC communications type. If the Add ICF Program Device Entry (ADDICFDEVE) command is not run for the specified program device and this parameter is not overridden, MODE(*NETATR) is used.
+
+*NETATR
+The mode in the network attributes is used.
+
+*BLANK.
+The mode name consisting of 8 blanks characters is used.
+
+communications-name
+Specify a mode name for the APPC communications device. If the mode is not valid for any combination of remote location device, local location, and remote network ID, an escape message is sent when the program device is acquired.
+
+Top
+
+Remote network identifier (RMTNETID)
+
+Specifies the remote network ID that is used with the remote location. This parameter applies to the APPC communications type only. If the Add ICF Program Device Entry (ADDICFDEVE) command is not run for the specified program device and this parameter is not overridden, RMTNETID(*LOC) is used.
+
+*LOC
+Any remote network ID for the remote location may be used. If several remote network IDs are associated with the remote location, the system automatically selects the remote network ID.
+
+*NETATR
+The remote network identifier specified in the network attributes is used.
+
+*NONE
+No remote network identifier is used.
+
+communications-name
+Specify a remote network ID for the APPC communications device.
+
+Top
+
+Format select (FMTSLT)
+
+Specifies the record format selection that is used for input operations. If the Add ICF Program Device Entry (ADDICFDEVE) command is not run for the specified program device, and this parameter is not overridden, FMTSLT(*PGM) is used.
+
+*PGM
+The program determines record format selections. If an input (read) operation with a record format name is specified, that format is always selected. If a record format is not specified for the input operation, the default format (the first record format in the file) is always selected.
+
+This also means that if there are any record identification keywords specified in the data description specifications (DDS) for the file, or if any remote formats are received, they are not taken into consideration when the record is selected.
+
+*RECID
+The record identification keywords specified in the DDS for the file are used to do record selection. If there are no record identification keywords in the file, an error message is sent, the acquire operation of the program device ends, and the device is not acquired.
+
+*RMTFMT
+The remote format names received from the sending system are used to do record selection. If the device is not an APPC device and *RMTFMT is specified, a run time error occurs at the time the program device is acquired.
+
+Top
+
+Application identifier (APPID)
+
+Specifies (in characters) the VTAM identifier of the Customer Information Control System for Virtual Storage (CICS/VS) or Information Management System/Virtual Storage (IMS/VS) host subsystem sent with the sign-on message. This parameter applies to SNUF devices only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, APPID(*DEVD) is used.
+
+*DEVD
+The application identifier specified in the device description is used.
+
+*USER
+The application program can send messages or a sign-on to the host. This is valid only when using the 3270 program interface.
+
+name
+Specify the application identifier that is sent with the sign-on message.
+
+Top
+
+Batch activity (BATCH)
+
+Specifies, for CICS/VS and IMS/VS, whether this session is used for batch jobs. This parameter applies to SNUF, Retail, and INTRA devices only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, BATCH(*NO) is used.
+
+*NO
+Batch jobs do not occur.
+
+*YES
+Batch jobs occur and SNUF does not assemble physical records into logical records. If *YES is specified, *NO must also be specified on the Message protection (MSGPTC) parameter.
+
+Top
+
+Host type (HOST)
+
+Specifies the host or remote subsystem with which this session communicates. This parameter applies to SNUF devices only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, HOST(*DEVD) is used.
+
+*DEVD
+The host system specified in the device description is used.
+
+*CICS
+The session communicates with CICS/VS.
+
+*IMS
+The session communicates with IMS/VS.
+
+*IMSRTR
+The session communicates with IMS/VS using the ready-to-receive option.
+
+Top
+
+End session with host (ENDSSNHOST)
+
+Specifies how the SNA upline facility (SNUF) ends the session with the host.
+
+*RSHUTD
+SNUF sends a request for a turn off command to the host.
+
+*TERMSELF
+SNUF sends an end-session command to the host. This value may have to be used if the value *RSHUTD fails to end a session with a non-IBM host.
+
+Top
+
+Special host application (SPCHOSTAPP)
+
+Specifies whether SNUF customizes support for special host applications outside the CICS or IMS application layer.
+
+*DEVD
+The special host application specified in the device description is used.
+
+*NONE
+SNUF does not customize support for special host applications.
+
+*FLASH
+SNUF customizes support for the Federal Reserve Flash application.
+
+Top
+
+Initialize self (INZSELF)
+
+Specifies whether a formatted INIT-SELF is built in place of the unformatted sign-on normally sent by SNUF to the host.
+
+*NO
+The unformatted default sign-on provided by SNUF is used.
+
+*YES
+The formatted INIT-SELF provided by SNUF is used.
+
+Top
+
+Header processing (HDRPROC)
+
+Specifies, for both Customer Information Control System for Virtual Storage (CICS/VS) and Information Management System for Virtual Storage (IMS/VS), whether received function management headers are passed to the application program. This parameter applies to the SNA upline facility (SNUF) communications type only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, HDRPROC(*SYS) is used.
+
+*SYS
+SNUF removes function management headers before passing data to the program.
+
+*USER
+Function management headers are passed.
+
+Top
+
+Message protection (MSGPTC)
+
+Specifies, for both CICS/VS and IMS/VS, whether message protection is used for this session. This parameter applies to the SNUF communications type only. If the ADDICFDEVE command is not run for the specified program device, MSGPTC(*YES) is used.
+
+*YES
+Message protection is used. SNUF saves messages until they are responded to and tries to resynchronize if errors occur. *YES is valid only when *NO is also specified in the Batch activity (BATCH) parameter.
+
+*NO
+Message protection is not used.
+
+Top
+
+Emulation device (EMLDEV)
+
+Specifies that this program device entry is used to send and receive 3270 data streams. The emulation device parameter consists of an emulation device type and an emulation device data format. The emulation device data format specifies the format of the type 3270 data stream being sent or received. A 20- or 32-byte common header that contains type 3270 command and data flow information is located at the start of the I/O buffer that is sending or receiving the type 3270 data stream. This parameter applies only to SNUF communications. This parameter can be specified as a list of two values (elements) or as a single value (*NONE).
+
+Single values
+
+*NONE
+This program device entry is not used to send and receive 3270 data streams.
+
+Element 1: Device type
+
+3278
+The data stream is for a 3278, 3277, or 3279 display device.
+
+3284
+The data stream is for a 3284 printer device.
+
+3286
+The data stream is for a 3286 printer device.
+
+3287
+The data stream is for a 3287 printer device.
+
+3288
+The data stream is for a 3288 printer device.
+
+3289
+The data stream is for a 3289 printer device.
+
+Element 2: Data format
+
+*UNFORMAT
+An unformatted 3270 data stream is sent or received. The user application program must translate the data stream into a display or printer image.
+
+*FIELD
+A formatted 3270 data stream is sent or received. The formatted 3270 data stream contains a display or printer image that contains field definitions. The field definitions indicate the location and characteristics of the fields. *FIELD is valid only if *NO is specified on the BATCH parameter.
+
+*NOFIELD
+A formatted 3270 data stream is sent or received. The formatted 3270 data stream contains a display or printer image without field definitions. *NOFIELD is valid only if *NO is specified on the BATCH parameter.
+
+*EXTFIELD
+A formatted 3270 data stream is sent or received. The formatted 3270 data stream contains a display image followed by field definitions. The field definitions indicate the location and characteristics of fields. *EXTFIELD is valid only if *NO is specified on the BATCH parameter and 3278 is specified as the emulation device type.
+
+Top
+
+Conversation type (CNVTYPE)
+
+Specifies the conversation type for which the application program is designed. This parameter is valid for advanced program-to-program communications (APPC) communications types only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, CNVTYPE(*SYS) is used. More information on the APPC communications type can be found in the APPC Programming book, SC41-5443.
+
+*SYS
+The APPC mapped conversation support for the LU 6.2 architecture is used.
+
+*USER
+The APPC basic conversation support for the LU 6.2 architecture is used.
+
+*SRCPGM
+The target program accepts the conversation type specified by the source program.
+
+Top
+
+Blocking type (BLOCK)
+
+Specifies whether the system or the user controls whether records are combined into blocks when they are sent. This parameter is for the BSCEL communications type. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, BLOCK(*DEVD) is used.
+
+With this parameter, you may specify one of the following conditions of record formatting:
+
+- No blocking or deblocking: The record format described in the DDS is the format for both the record and the block.
+
+- User blocking or deblocking: Specify the BSCEL controls needed to describe the record format of the system.
+
+- System blocking with record separator characters: Specify the record separator character used by the system to determine record boundaries in the block.
+
+- System blocking of fixed-length records: The system uses fixed-length records, and blocks or deblocks records accordingly.
+
+If you specify a parameter value other than *NONE or *USER, records are blocked as required by the system for output, and are deblocked on input.
+
+Single values
+
+*DEVD
+The block option in the device description is used.
+
+*NONE
+Blocking or deblocking is not done by the system.
+
+*ITB
+The records are blocked or deblocked based on the location of an intermediate text block (ITB) control character. For input files, a record is delimited by locating the next intermediate text block character. An end-of-text or end-of-transmission block character is used as an intermediate text block character to delimit a block. For output files, an ITB character is added after the record. If it is the last character of the block, the ITB is replaced by an end-of-text or end-of-transmission block character.
+
+*IRS
+The records are blocked or deblocked based on the location of an interrecord separator (IRS) character. For input files, a record is delimited by locating the next IRS character. For output files, an IRS character is added after the record.
+
+*NOSEP
+No record separator character is contained in the block that is sent to or received from the device. The system blocks and deblocks the records using a fixed-length record, as specified in the DDS format specifications.
+
+*USER
+The program gives all control characters, including record separator characters, BSCEL framing characters, transparency characters, and so forth, necessary to send records.
+
+Element 1: Blocking type
+
+*SEP
+The records are blocked or deblocked based on the location of a user-specified record separator character. For input files, a record is delimited by locating the next record separator character. For output files, a record separator character is added after the record.
+
+Element 2: Record separator, if *SEP
+
+X'1E'
+The record separator character X'1E' is used.
+
+hexadecimal-value
+Specify a record separator character that is unique and has a length of 1 byte. The record separator character may be specified as 2 hexadecimal characters, as in BLOCK(*SEP X'FD'), or the character may be specified as a single character, as in BLOCK(*SEP @).
+
+Top
+
+Record length (RCDLEN)
+
+Specifies the maximum record length (in bytes) for data sent and received. This parameter applies to the SNUF and BSCEL communications types only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, RCDLEN(*DEVD) is used.
+
+*DEVD
+The record length specified in the device description is used. If a record is longer than the specified record length, a run time error occurs at the time the record is sent or received.
+
+1-32767
+Specify the maximum record length to use for this device file. The value must be at least the size of the largest record sent. If a record is longer than the specified record length, a run time error occurs when the record is sent or received. Valid values range from 1 through 32767 for SNUF communication. For BSCEL communication, the maximum record length is 8192 bytes.
+
+Top
+
+Block length (BLKLEN)
+
+Specifies the maximum block length (in bytes) for data sent. This parameter applies to the BSCEL and SNUF communications types only. If the Add ICF Program Device Entry (ADDICFDEVE) command is not run for the specified program device, or is not overridden, this parameter defaults to *DEVD.
+
+*DEVD
+The block length specified in the device description is used.
+
+1-32767
+Specify the maximum block length of records sent when this device file is used. The value must be at least the size of the largest record sent. Valid values range from 1 to 32767 for SNUF communication. For BSCEL communication, the maximum block length is 8192 bytes.
+
+Top
+
+Transmit in transparent mode (TRNSPY)
+
+Specifies whether text is sent in transparent text mode. Transparent text mode allows all 256 extended binary-coded decimal interchange code (EBCDIC) character codes to be sent. Use this feature when sending packed or binary data fields. This parameter is for the BSCEL communications type only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, TRNSPY(*DEVD) is used.
+
+*DEVD
+The text transparency option specified in the device description is used.
+
+*NO
+Text transparency is not used.
+
+*YES
+Text transparency is used, which allows all 256 EBCDIC character codes to be sent. *YES is valid only when *NONE, *NOSEP, or *USER is specified in the Blocking type (BLOCK) parameter.
+
+Top
+
+Data compression (DTACPR)
+
+Specifies whether blanks in BSCEL data are compressed for output and decompressed for input. *YES cannot be specified if *YES is specified in the Transmit in transparent mode (TRNSPY) parameter. This parameter is for the BSCEL communications type only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, DTACPR(*DEVD) is used.
+
+*DEVD
+The data compression option specified in the device description is used.
+
+*NO
+No data compression or decompression occurs.
+
+*YES
+Data is compressed for output and decompressed for input.
+
+Top
+
+Truncate trailing blanks (TRUNC)
+
+Specifies whether trailing blanks are removed from output records. *YES cannot be specified if *NOSEP is specified in the Blocking type (BLOCK) parameter. If *YES is specified and *YES is also specified in the Data compression (DTACPR) parameter, then truncation is ignored. This parameter is for BSCEL communications type only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, DTACPR(*DEVD) is used.
+
+*DEVD
+The trailing blanks specified in the device description are used.
+
+*NO
+Trailing blanks are not removed from output records.
+
+*YES
+Trailing blanks are removed from output records.
+
+Top
+
+Overflow data (OVRFLWDTA)
+
+Specifies whether overflow data is discarded or kept.
+
+*DISCARD
+Overflow data is not kept.
+
+*RETAIN
+Overflow data is kept.
+
+Top
+
+Group separator type (GRPSEP)
+
+Specifies a separator for groups of data, such as data sets and documents. This parameter is for the BSCEL communications type only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, GRPSEP(*DEVD) is used.
+
+*DEVD
+The group separator option specified in the device description is used.
+
+*EOT
+The BSCEL control character EOT (end-of-transmission) is used as a data group separator.
+
+*DEV3740
+A null record (STXETX) is used as a data group separator.
+
+*OFCSYS
+A block sent with the BSCEL control character ETX (end-of-information) is used as a data group separator.
+
+Top
+
+Remote BSCEL (RMTBSCEL)
+
+Specifies whether the type of BSCEL session is with a BSCEL system. This parameter applies to the BSCEL communications type only. If the ADDICFDEVE command is not run for the specified program device and this parameter is not overridden, RMTBSCEL(*DEVD) is used.
+
+*DEVD
+The option for BSCEL specified in the device description is used.
+
+*NO
+An attribute of *NO indicates the remote system cannot recognize BSCEL commands or messages. In most cases, *NO is used when communicating with remote systems such as a 3741 Data Entry Station, an Office System 6, a 5230 Data Collection System, or a System/38.
+
+*YES
+The remote system can recognize the BSCEL transaction starting commands, transaction ending commands, and online messages. In most cases, *YES indicates that the remote system is either another iSeries computer, AS/400 system, a System/38, a System/36, or a System/34 with BSCEL support.
+
+Top
+
+Initial connection (INLCNN)
+
+Specifies the method of making a connection on the line for the session being acquired. This parameter is valid for the BSCEL communications type only. If the Add ICF Program Device Entry (ADDICFDEVE) command is not run for the specified program device, or is not overridden, this parameter defaults to *CTLD.
+
+*CTLD
+The initial connection option specified in the controller description is used.
+
+*DIAL
+The local system starts the call.
+
+*ANS
+The remote system starts the call, and the local system answers the call.
+
+Top
+
+Secure from other overrides (SECURE)
+
+Specifies whether this program device is protected from the effects of override commands issued in earlier programs.
+
+*NO
+This program device override is not protected from other program device overrides. Its values can be overridden by the effects of any program device override commands issued in earlier programs.
+
+*YES
+This program device override is protected from the effects of any program device override commands issued in earlier programs.
+
+Top
+
+Override scope (OVRSCOPE)
+
+Specifies the extent of influence (scope) of the override.
+
+*ACTGRPDFN
+The scope of the override is determined by the activation group of the program that calls this command. When the activation group is the default activation group, the scope equals the call level of the calling program. When the activation group is not the default activation group, the scope equals the activation group of the calling program.
+
+*CALLLVL
+The scope of the override is determined by the current call level. All open operations done at a call level that is the same as or higher than the current call level are influenced by this override.
+
+*JOB
+The scope of the override is the job in which the override occurs.
+
+Top
+
+Examples
+
+Example 1: Overriding the Device Entry with the Record Format Selection Attributes
+
+OVRICFDEVE PGMDEV(BSCEL2) RMTLOCNAME(BSCNYC)
+FMTSLT(*RECID)
+
+This command overrides the program device named BSCEL2 with a corresponding remote location named BSCNYC for any ICF file associated with the job. The program device is overridden with the attributes of FMTSLT(*RECID).
+
+Example 2: Overriding the Device Entry with the Record Format Selection and the Conversation Type Attributes
+
+OVRICFDEVE PGMDEV(APPC1) RMTLOCNAME(*REQUESTER)
+FMTSLT(*RMTFMT) CNVTYPE(*SYS)
+
+This command overrides the program device entry named APPC1 with a remote location name of *REQUESTER. The program device entry is overridden with the FMTSLT(*RMTFMT) and CNVTYPE(*SYS) attributes.
+
+Example 3: Overriding an Entry for Associated ICF Files
+
+OVRICFDEVE PGMDEV(JOE) RMTLOCNAME(LU0MPLS)
+
+This command overrides the program device entry named JOE with a remote location named LU0MPLS for any ICF file associated with the job.
+
+Example 4: Specifying the Communications Device
+
+OVRICFDEVE PGMDEV(APPC) RMTLOCNAME(APPCMPLS) DEV(MPLSLINE2)
+
+This command overrides the program device entry named APPC with a remote location named APPCMPLS using device MPLSLINE2.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF180C
+Function &1 not allowed.
+
+CPF1892
+Function &1 not allowed.
+
+Top

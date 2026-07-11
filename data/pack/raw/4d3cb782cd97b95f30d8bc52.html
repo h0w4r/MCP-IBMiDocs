@@ -1,0 +1,532 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="RSTS36LIBM.Top_Of_Page"></a>
+<h1>Restore S/36 Library Members  (RSTS36LIBM)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#RSTS36LIBM.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#RSTS36LIBM.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#RSTS36LIBM.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM"></a>
+<p>The Restore System/36 Library Members (RSTS36LIBM) command reads a file containing library members, creates database source or data file members on this system, and copies the member data from the file into each restored member.
+</p>
+<p>The input file can be a diskette file, tape file, or database physical file on this system.
+</p>
+<p>The file could have been created on a System/36, a System/34, or a System/32 using either the FROMLIBR or SAVELIBR system operator control language (OCL) procedure (or the equivalent use of $MAINT), or by using the Save System/36 Library Members (SAVS36LIBM) command.
+</p>
+<p>Diskette files created on a System/34 using the BACKUP procedure or $BACK utility are not accepted by this command.  Compressed SAVELIBR diskette files (used by IBM to distribute system libraries for System/36 after release 5.0) are not accepted by this command.
+</p>
+<p>In System/36 terms, the input file format could be a SAVELIBR diskette file or tape file, a record-mode LIBRFILE diskette file, tape file, or physical file, or a sector-mode LIBRFILE diskette file, tape file, or physical file.  In other words, the input file can be any diskette file, tape file, or physical file created by the System/36 $MAINT SSP utility.
+</p>
+<p>If the library identified by the value specified for the <strong>To library</strong> prompt (TOLIB parameter) does not exist, it is created.  Also, the source files QS36SRC and QS36PRC are created if they do not exist in the restore-to library.  If the restore operation creates the library, the new library is owned by the user running the RSTS36LIBM command and the library is created with a default authority of *ALL (that is, the same as AUT(*ALL)).
+</p>
+<p>If a sector-mode FROMLIBR file or a SAVELIBR file created on a System/36 is being restored, data files QS36LOD and QS36SBR may also be created to hold restored load and subroutine members.  Restored load and subroutine members are not converted on the current system.
+</p>
+<p><strong>Restrictions</strong>:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The following authorities are required when running on a system using resource security:
+<ol class="cds--list--ordered--temporary list--ordered--indented">
+<li class="cds--list__item">*SECADM and *ALLOBJ authorities
+</li>
+<li class="cds--list__item">*USE authority for this command and *USE authority for the Create Library (CRTLIB) command if the library needs to be created
+</li>
+<li class="cds--list__item">*USE authority for the CRTSRCPF command if QS36SRC or QS36PRC must be created
+</li>
+<li class="cds--list__item">*USE authority for the CRTPF command if QS36LOD or QS36SBR must be created
+</li>
+<li class="cds--list__item">*CHANGE authority for the library specified in the TOLIB parameter
+</li>
+<li class="cds--list__item">*CHANGE and *OBJMGMT authority for file QS36SRC in the specified library if restoring source library members
+</li>
+<li class="cds--list__item">*CHANGE and *OBJMGMT authority for file QS36PRC in the specified library if restoring procedure library members
+</li>
+<li class="cds--list__item">*CHANGE and *OBJMGMT authority for file QS36LOD in the specified library if restoring load library members
+</li>
+<li class="cds--list__item">*CHANGE and *OBJMGMT authority for file QS36SBR in the specified library if restoring subroutine library members
+</li>
+<li class="cds--list__item">*USE authority for the diskette device description object, *USE authority for device file QSYSDKT in library QSYS if restoring from diskette
+</li>
+<li class="cds--list__item">*USE authority for the tape device description object and *USE authority for device file QSYSTAP in library QSYS, if restoring from tape
+</li>
+<li class="cds--list__item">*USE authority for the file and *USE authority for the library that contains the file (PHYFILE parameter) if restoring from a database physical file
+</li>
+</ol>
+</li>
+<li class="cds--list__item">No object-level or record-level operations should be active for files QS36SRC, QS36PRC, QS36SBR, and QS36LOD while members are being restored by RSTS36LIBM.  If the necessary files cannot be allocated exclusively, no members are restored.
+</li>
+<li class="cds--list__item">The member name or generic member name specified (TOMBR parameter) must meet i5/OS naming standards.
+<p>If a generic member name or *ALL is specified, a member may be selected to be restored that has a name containing characters not allowed in an i5/OS <span class="var">simple</span> object name.  In this case, the member name is restored using the i5/OS <span class="var">extended</span> name syntax (for example, A!B would become ''A!B'').
+</p>
+</li>
+</ul>
+<p>If the name contains a blank, a single quotation mark (') a double quotation mark ("), an asterisk (*), a question mark (?), or a device control character (hexadecimal '00'-'3F' or hexadecimal 'FF'), these characters are replaced by underlines and the member is restored using the resulting simple or extended name (for example, A*/? would become A_/_ and A? would become A_).
+</p>
+<p>An informational message is sent each time invalid characters are replaced to get a valid name.  An additional informational message is sent if the resulting name change caused a member to be replaced.  No message is sent if a member is restored using the extended name syntax without replacing invalid characters.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="RSTS36LIBM.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.TOMBR"><strong>TOMBR</strong></a></td>
+<td class="valigntop">To member</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, *ALL</td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.TOLIB"><strong>TOLIB</strong></a></td>
+<td class="valigntop">To library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.DEV"><strong>DEV</strong></a></td>
+<td class="valigntop">Device</td>
+<td class="valigntop">Single values: *PHYFILE<br>Other values (up to 4 repetitions): <span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.SRCMBRS"><strong>SRCMBRS</strong></a></td>
+<td class="valigntop">S/36 source members</td>
+<td class="valigntop"><strong class="underlined">*ALL</strong>, *SRC, *PRC, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.MBROPT"><strong>MBROPT</strong></a></td>
+<td class="valigntop">Data base member option</td>
+<td class="valigntop"><strong class="underlined">*NEW</strong>, *OLD, *ALL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.IGCDTA"><strong>IGCDTA</strong></a></td>
+<td class="valigntop">User specified DBCS data</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.FROMLABEL"><strong>FROMLABEL</strong></a></td>
+<td class="valigntop">File label</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.CRTDATE"><strong>CRTDATE</strong></a></td>
+<td class="valigntop">Creation date</td>
+<td class="valigntop"><span class="var">Date</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.SEQNBR"><strong>SEQNBR</strong></a></td>
+<td class="valigntop">Sequence number</td>
+<td class="valigntop">1-9999, <strong class="underlined">*SEARCH</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.VOL"><strong>VOL</strong></a></td>
+<td class="valigntop">Volume identifier</td>
+<td class="valigntop">Values (up to 50 repetitions): <span class="var">Character value</span>, <strong class="underlined">*MOUNTED</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36LIBM.ENDOPT"><strong>ENDOPT</strong></a></td>
+<td class="valigntop">End of tape option</td>
+<td class="valigntop"><strong class="underlined">*REWIND</strong>, *LEAVE, *UNLOAD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RSTS36LIBM.PHYFILE"><strong>PHYFILE</strong></a></td>
+<td class="valigntop">Physical file</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Physical file</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#RSTS36LIBM.OBJMBRS"><strong>OBJMBRS</strong></a></td>
+<td class="valigntop">S/36 object members</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *SBR, *LOD, *ALL</td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="RSTS36LIBM.TOMBR"></a>
+<h2>To member (TOMBR)</h2>
+<p>Specifies the names of the members to restore.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>All members of the specified member types are restored.
+</dd>
+<dt><strong class="italic">member-name</strong></dt>
+<dd>The members having the specified member name are restored.
+</dd>
+<dt><strong class="italic">generic*-member-name</strong></dt>
+<dd>All members that have the specified generic member name are restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.TOLIB"></a>
+<h2>To library (TOLIB)</h2>
+<p>Specifies the library to contain the members to restore from the input file.
+</p>
+<p>This is a required parameter.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.DEV"></a>
+<h2>Device (DEV)</h2>
+<p>Specifies the names of the devices to use for the restore operation.  A maximum of four device names may be specified.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong>*PHYFILE</strong></dt>
+<dd>The input file is the database physical file specified by the <strong>Physical file</strong> prompt (PHYFILE parameter).
+</dd>
+<dt><strong class="italic">device-name</strong></dt>
+<dd>Specify the name of the diskette unit or the names of one or more tape devices that are to be used for the restore operation.  If more than one tape device is used, specify the names of the devices in the order in which they are used.  A maximum of four tape device names can be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.SRCMBRS"></a>
+<h2>S/36 source members (SRCMBRS)</h2>
+<p>Specifies which source member types (source and procedure members on System/36) are restored.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>Restore all source and procedure members in the input file that match the member name specified on the <strong>To member</strong> prompt (TOMBR parameter).
+</dd>
+<dt><strong>*SRC</strong></dt>
+<dd>Restore only System/36 source members (to file QS36SRC) that match the member name specified on the <strong>To member</strong> prompt (TOMBR parameter).
+</dd>
+<dt><strong>*PRC</strong></dt>
+<dd>Restore only System/36 OCL procedure members (to file QS36PRC) that match the member name specified on the <strong>To member</strong> prompt (TOMBR parameter).
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>Do not restore any System/36 source or procedure library members.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.MBROPT"></a>
+<h2>Data base member option (MBROPT)</h2>
+<p>Specifies, for database files currently on the system, which file members are restored.
+</p>
+<dl>
+<dt><strong class="underlined">*NEW</strong></dt>
+<dd>Only new members (members that don't already exist in the appropriate file) are restored.
+</dd>
+<dt><strong>*OLD</strong></dt>
+<dd>Only old members (members that already exist in the appropriate file) are restored.  The existing member is replaced by the copy of the member restored from the file.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All members are restored.  Members that don't already exist are created, and members that do exist are replaced.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.IGCDTA"></a>
+<h2>User specified DBCS data (IGCDTA)</h2>
+<p>Specifies whether the source and procedure members being restored can contain double-byte character set (DBCS) data.  This attribute is used if the restore operation needs to create source files QS36SRC and QS36PRC to hold the restored library members.
+</p>
+<p>
+<strong>Note:     </strong>If the QS36SRC or QS36PRC source file already exists in the library specified on the <strong>To library</strong> prompt (TOLIB parameter) and the file's DBCS capability does not match this parameter, an error message is sent and no members are restored.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>The source or procedure members being restored cannot contain double-byte character set data.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>The source or procedure members being restored can contain double-byte character set data.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.FROMLABEL"></a>
+<h2>File label (FROMLABEL)</h2>
+<p>Specifies the label value (eight characters maximum) of the diskette or tape file that contains the members to be restored.  If *PHYFILE is not specified for the <strong>Device</strong> prompt (DEV parameter), a value must be specified here.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.CRTDATE"></a>
+<h2>Creation date (CRTDATE)</h2>
+<p>Specifies the creation date of the diskette file or tape file used for the restore operation.  The specified date is changed to Julian format (cyyddd) for tape or international format (yymmdd) for diskette.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.SEQNBR"></a>
+<h2>Sequence number (SEQNBR)</h2>
+<p>Specifies, when tape is used, which sequence number is used for the restore operation.
+</p>
+<dl>
+<dt><strong class="underlined">*SEARCH</strong></dt>
+<dd>The volume in the device is searched for a data file with an identifier that matches the FROMLABEL parameter value; when a match is found, the object is restored.  If the last operation on the device specified *LEAVE for the <strong>End of tape option (ENDOPT)</strong> parameter, indicating that the tape is positioned at the location where the last operation ended, the file search starts with the first data file beyond the current tape position.  If *LEAVE was not used for the <strong>End of tape option (ENDOPT)</strong> parameter of the last operation, or if the tape was manually rewound since the operation, the search starts with the first data file on the volume.
+</dd>
+<dt><strong class="italic">1-16777215</strong></dt>
+<dd>Specify the sequence number of the file to be used for the restore operation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.VOL"></a>
+<h2>Volume identifier (VOL)</h2>
+<p>Specifies the volume identifiers of the tapes or diskettes used for restoring the file.
+</p>
+<dl>
+<dt><strong class="underlined">*MOUNTED</strong></dt>
+<dd>The volume currently placed in the device is used.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">volume-identifier</strong></dt>
+<dd>Specify the volume identifiers of the tapes or diskettes used for restoring the file.  A maximum of 50 volume identifiers can be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.ENDOPT"></a>
+<h2>End of tape option (ENDOPT)</h2>
+<p>Specifies, only when tape is used, what positioning operation is automatically performed on the tape volume after the restore operation ends. This parameter applies only to the last reel used.
+</p>
+<dl>
+<dt><strong>*REWIND</strong></dt>
+<dd>The tape is rewound, but not unloaded.
+</dd>
+</dl>
+<dl>
+<dt><strong>*LEAVE</strong></dt>
+<dd>The tape is not rewound.
+</dd>
+</dl>
+<dl>
+<dt><strong>*UNLOAD</strong></dt>
+<dd>The tape is automatically rewound and unloaded after the operation ends.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.PHYFILE"></a>
+<h2>Physical file (PHYFILE)</h2>
+<p>Specifies the name of the database physical file that is used as the input file for the restore operation.  If the specified file does not exist or is not a physical file, no library members are restored.  If the file contains multiple members, the first member of the file is used.
+</p>
+<p>The possible library values are:
+</p>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>The library list is used to locate the file.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the file.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the file is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36LIBM.OBJMBRS"></a>
+<h2>S/36 object members (OBJMBRS)</h2>
+<p>Specifies which object member types (load and subroutine members on System/36) are restored.  Because the System/36 and the i5/OS are not object compatible, any restored members are not immediately useable after the restore operation.  IBM-supplied commands or user-written operations must be run to convert the object member to a useable i5/OS object.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>System/36 load or subroutine library members are not restored.
+</dd>
+<dt><strong>*SBR</strong></dt>
+<dd>Only System/36 subroutine members (to file QS36SBR) that match the member name specified on the <strong>To member</strong> prompt (TOMBR parameter) are restored.
+</dd>
+<dt><strong>*LOD</strong></dt>
+<dd>Only System/36 load members (to file QS36LOD) that match the member name specified on the <strong>To member</strong> prompt (TOMBR parameter) are restored.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All load and subroutine members in the input file that match the member name specified on the <strong>To member</strong> prompt (TOMBR parameter) are restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RSTS36LIBM.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Restoring All Members</strong>
+</h3>
+<p>
+</p><pre>RSTS36LIBM   TOMBR(XYZ1)  TOLIB(JOHNSON)  DEV(I1)
+             SRCMBRS(*PRC)  MBROPT(*ALL)  FROMLABEL('XYZ1')
+</pre>
+<p></p>
+<p>This command restores the single OCL procedure member XYZ1 as a member of source file QS36PRC in library JOHNSON. Assuming I1 refers to a diskette device, the input diskette file must have the label XYZ1.
+</p>
+<h3><strong>Example 2: Restoring Members from a File</strong>
+</h3>
+<p>
+</p><pre>RSTS36LIBM   TOMBR(X*)  TOLIB(ORDER)  DEV(*PHYFILE)
+             PHYFILE(NETLIB/S36SRC)
+</pre>
+<p></p>
+<p>This command restores all source and procedure members with names starting with the character 'X' and that do not already exist as members of QS36SRC and QS36PRC in library ORDER. The members are restored from file S36SRC in library NETLIB.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RSTS36LIBM.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF2C4A</strong></dt>
+<dd>Device &amp;1 not correct for command.
+</dd>
+<dt><strong>CPF2C4B</strong></dt>
+<dd>Duplicate device &amp;1 specified in device name list.
+</dd>
+<dt><strong>CPF2C4C</strong></dt>
+<dd>Diskette device &amp;1 included in multiple device specification.
+</dd>
+<dt><strong>CPF2C41</strong></dt>
+<dd>&amp;2 members restored, &amp;3 members not restored, &amp;4 members excluded.
+</dd>
+<dt><strong>CPF2C42</strong></dt>
+<dd>No members restored to library &amp;1, &amp;4 members excluded.
+</dd>
+<dt><strong>CPF2C46</strong></dt>
+<dd>Input file &amp;1 cannot be processed by RSTS36LIBM.
+</dd>
+<dt><strong>CPF2C48</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C49</strong></dt>
+<dd>Output file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C5E</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C50</strong></dt>
+<dd>File description for file &amp;1 is not available.
+</dd>
+<dt><strong>CPF2C52</strong></dt>
+<dd>Error occurred during attempt to create file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF2C53</strong></dt>
+<dd>Member &amp;3 not added to file &amp;1 in library &amp;2 because error occurred.
+</dd>
+<dt><strong>CPF2C57</strong></dt>
+<dd>DBCS attribute not same as existing file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF2C70</strong></dt>
+<dd>Input file &amp;1 contains incorrect control statement record.
+</dd>
+<dt><strong>CPF2C71</strong></dt>
+<dd>NAME keyword on COPY statement  missing or incorrect.
+</dd>
+<dt><strong>CPF2C72</strong></dt>
+<dd>LIBRARY keyword on COPY statement missing or incorrect.
+</dd>
+<dt><strong>CPF9807</strong></dt>
+<dd>One or more libraries in library list deleted.
+</dd>
+<dt><strong>CPF9808</strong></dt>
+<dd>Cannot allocate one or more libraries on library list.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9812</strong></dt>
+<dd>File &amp;1 in library &amp;2 not found.
+</dd>
+<dt><strong>CPF9814</strong></dt>
+<dd>Device &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9824</strong></dt>
+<dd>Not authorized to command &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+<dt><strong>CPF9826</strong></dt>
+<dd>Cannot allocate file &amp;2.
+</dd>
+<dt><strong>CPF9830</strong></dt>
+<dd>Cannot assign library &amp;1.
+</dd>
+<dt><strong>CPF9845</strong></dt>
+<dd>Error occurred while opening file &amp;1.
+</dd>
+<dt><strong>CPF9847</strong></dt>
+<dd>Error occurred while closing file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9849</strong></dt>
+<dd>Error while processing file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+</dl>
+<p><strong class="underlined">*STATUS Messages</strong>
+</p>
+<dl>
+<dt><strong>CPI2C12</strong></dt>
+<dd>Copying file &amp;1 in library &amp;2 label &amp;3 to work file.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

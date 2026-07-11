@@ -69,11 +69,33 @@ jobs:
             'dist/src/cli.js',
             'postinstall.cjs',
             'data/pack/manifest.json',
-            'data/pack/ibmi-docs.sqlite'
+            'data/pack/ibmi-docs.sqlite.parts.json',
+            'models/ibmi-e5-base-finetuned-v1/model-manifest.json',
+            'models/ibmi-reranker-finetuned-v1/model-manifest.json'
           )
           foreach ($file in $required) {
             if ($packed -notcontains $file) {
               throw "Falta archivo runtime requerido en npm pack: $file"
+            }
+          }
+          $sqliteParts = (Get-Content data/pack/ibmi-docs.sqlite.parts.json -Raw | ConvertFrom-Json).parts.name
+          foreach ($part in $sqliteParts) {
+            $packedPath = "data/pack/$part"
+            if ($packed -notcontains $packedPath) {
+              throw "Falta fragmento SQLite requerido en npm pack: $packedPath"
+            }
+          }
+          $modelDirectories = @(
+            'models/ibmi-e5-base-finetuned-v1',
+            'models/ibmi-reranker-finetuned-v1'
+          )
+          foreach ($modelDirectory in $modelDirectories) {
+            $manifest = Get-Content "$modelDirectory/model-manifest.json" -Raw | ConvertFrom-Json
+            foreach ($part in $manifest.onnxParts.name) {
+              $packedPath = "$modelDirectory/onnx/$part"
+              if ($packed -notcontains $packedPath) {
+                throw "Falta fragmento ONNX requerido en npm pack: $packedPath"
+              }
             }
           }
           $forbiddenPrefixes = @(
@@ -91,6 +113,13 @@ jobs:
           }
           if ($packed -contains 'dist/ibmi-docs-pack.tgz') {
             throw 'El paquete npm no debe incluir archivos .tgz generados; solo el data pack desempaquetado runtime.'
+          }
+          $fullOnnx = $packed | Where-Object { $_ -match '^models/.+/onnx/model_quantized\.onnx$' }
+          if ($fullOnnx) {
+            throw 'Los ONNX completos superan el límite de GitHub y deben reconstruirse desde fragmentos en postinstall.'
+          }
+          if ($packed -contains 'data/pack/ibmi-docs.sqlite') {
+            throw 'El SQLite completo debe reconstruirse desde fragmentos en postinstall y no duplicarse en npm.'
           }
 
       - name: Create data pack archive artifact

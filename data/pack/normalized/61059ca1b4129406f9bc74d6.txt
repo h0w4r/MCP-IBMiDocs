@@ -1,0 +1,323 @@
+Change Query Attributes (CHGQRYA)
+
+Change Query Attributes (CHGQRYA)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Query Attributes (CHGQRYA) command specifies attributes for database queries and database file keyed access path builds, rebuilds, and maintenance that are run in a job. Database queries include the open of a SQL view and the running of SQL data manipulation statements.
+
+Restrictions:
+
+- To use this command, you must have job control (*JOBCTL) special authority or be authorized to the SQL Administrator function of IBM i through Application Administration in System i Navigator. The Change Function Usage (CHGFCNUSG) command, with a function ID of QIBM_DB_SQLADM, can also be used to change the list of authorized users.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JOB | Job name | Single values: *
+Other values: Qualified job name | Optional, Key
+Qualifier 1: Job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+QRYTIMLMT | Query processing time limit | 0-2147352578, *SAME, *NOMAX, *SYSVAL | Optional
+DEGREE | Parallel processing degree | Single values: *SAME, *NONE, *IO, *OPTIMIZE, *MAX, *SYSVAL, *ANY
+Other values: Element list | Optional
+Element 1: Processing option | *NBRTASKS
+Element 2: Number of tasks | 2-9999
+ASYNCJ | Asynchronous job usage | *SAME, *DIST, *LOCAL, *ANY, *NONE | Optional
+APYRMT | Apply CHGQRYA to remote | *SAME, *YES, *NO | Optional
+QRYOPTLIB | Query options file library | Name, *SAME | Optional
+QRYSTGLMT | Query temporary storage limit | 0-2147352578, *SAME, *NOMAX | Optional
+
+Top
+
+Job name (JOB)
+
+Specifies the job for which the query attributes are to be changed.
+
+Single values
+
+*
+The query attributes of the job running the CHGQRYA command are to be changed.
+
+Qualifier 1: Job name
+
+name
+Specify the name of the job whose query attributes are to be changed. If no job user name or job number qualifiers are specified, all of the jobs currently in the system are searched for the specified simple job name. If duplicates of the specified job name are found, you need to specify a job user name or job number that uniquely identifies the job to be changed.
+
+Qualifier 2: User
+
+name
+Specify the name of the user of the job whose query attributes are to be changed.
+
+Qualifier 3: Number
+
+000000-999999
+Specify the number of the job whose query attributes are to be changed.
+
+Top
+
+Query processing time limit (QRYTIMLMT)
+
+Specifies a limit for database queries allowed to be started based on the estimated number of elapsed seconds that the query requires to process.
+
+The initial value of the QRYTIMLMT attribute for a job is *SYSVAL.
+
+*SAME
+The value does not change.
+
+*NOMAX
+There is no maximum number of estimated elapsed seconds.
+
+*SYSVAL
+The query time limit should be obtained from the system value QQRYTIMLMT.
+
+0-2147352578
+Specify the maximum value that is checked against the estimated number of elapsed seconds required to run a query. If the estimated elapsed seconds is greater than this value, the query is not started.
+When 0 is specified all database queries issue a CPA4259 inquiry message or call an exit program if registered with the Query Governor Exit Point. Setting a query time limit of 0 can be useful when attempting to tune database queries for better performance. The technical description of the CPA4259 inquiry message or the database monitor, if activated using the FTRQRYGOVR parameter of the Start Database Monitor (STRDBMON) command, can be used to explain the type of access plan used by the query.
+
+Top
+
+Parallel processing degree (DEGREE)
+
+Specifies the parallel processing option and, optionally, the number of tasks that can be used when running database queries and database file keyed access path builds, rebuilds, and maintenance in the job.
+
+The specified parallel processing option determines the types of parallel processing allowed. There are two types of parallel processing:
+
+- Input/Output (I/O) parallel processing
+With I/O parallel processing, the database manager uses multiple tasks for each query to do the I/O processing. The central processor unit (CPU) processing is still done serially.
+
+- Symmetric Multiprocessing (SMP)
+SMP assigns both the CPU and I/O processing to tasks that will run the query in parallel. Actual CPU parallelism requires a system with multiple processors. SMP parallelism can only be used if the system feature, DB2 Symmetric Multiprocessing, is installed.
+
+Use of SMP parallelism can affect the order in which records are returned. Applications which depend on records being returned from database queries in arrival sequence or keyed access path sequence that have not explicitly defined the ordering sequence in the query, should not be run in jobs which have specified a parallel processing option that enables SMP processing.
+
+The initial value of the DEGREE attribute for a job is *SYSVAL.
+
+Single values
+
+*SAME
+The value does not change.
+
+*NONE
+No parallel processing is allowed for database query processing or database file keyed access path build, rebuild, or maintenance.
+
+*IO
+Any number of tasks can be used when the database query optimizer chooses to use I/O parallel processing for queries. SMP parallel processing is not allowed.
+
+*OPTIMIZE
+The query optimizer can choose to use any number of tasks for either I/O or SMP parallel processing to process the query or database file keyed access path build, rebuild, or maintenance. SMP parallel processing is used only if the system feature, DB2 Symmetric Multiprocessing, is installed. Use of parallel processing and the number of tasks used is determined with respect to the number of processors available in the system, this job's share of the amount of active memory available in the pool in which the job is run, and whether the expected elapsed time for the query or database file keyed access path build or rebuild is limited by CPU processing or I/O resources. The query optimizer chooses an implementation that minimizes elapsed time based on the job's share of the memory in the pool.
+
+*MAX
+The query optimizer chooses to use either I/O or SMP parallel processing to process the query. SMP parallel processing will only be used if the system feature, DB2 Symmetric Multiprocessing, is installed. The choices made by the query optimizer are similar to those made for parameter value *OPTIMIZE except the optimizer assumes that all active memory in the pool can be used to process the query or database file keyed access path build, rebuild, or maintenance.
+
+*SYSVAL
+The processing option used is set to the current value of the system value, QQRYDEGREE.
+
+*ANY
+This value has the same meaning as *IO. The *ANY value is maintained for compatibility with prior releases.
+
+Element 1: Processing option
+
+*NBRTASKS
+The number of tasks to be used for SMP parallel processing is specified by the second element of the DEGREE parameter.
+
+Element 2: Number of tasks
+
+2-9999
+Specify the number of tasks to be used when the query optimizer chooses to use SMP parallel processing to process a query. I/O parallelism is also allowed. SMP parallel processing is used only if the system feature, DB2 Symmetric Multiprocessing, is installed.
+Using a number of tasks less than the number of processors available on the system restricts the number of processors used simultaneously for running a given query or database file keyed access path build, rebuild, or maintenance. A larger number of tasks ensures that the query or database file keyed access path build, rebuild, or maintenance is allowed to use all of the processors available on the system to run the query. Too many tasks can degrade performance because of the over-commitment of active memory and the overhead cost of managing all of the tasks.
+
+Top
+
+Asynchronous job usage (ASYNCJ)
+
+Specifies the circumstances in which asynchronous (temporary writer) jobs can be used to help process database queries in the job.
+
+The specified usage option determines which types of database queries can use asynchronous jobs (running in parallel) to help in completing the query.
+
+An asynchronous job is a separate job on the system that handles query requests from jobs that are running database queries. For each request, the asynchronous job processes the request and puts the results into a temporary file. This intermediate temporary file is then used by the main job to complete the database query.
+
+The advantage of using an asynchronous job is that it can be processing its request at the same time (in parallel) that the main job is processing another step of the database query. The disadvantage of using an asynchronous job is that it may encounter a situation that it cannot handle in the same way as the main job. For example, the asynchronous job may receive an inquiry message from which it would have to cancel, whereas the main job could have chosen to ignore the message and continue.
+
+There are two different types of database queries that can use asynchronous jobs:
+
+- Distributed queries
+These are database queries that involve distributed files. Distributed files are provided through the system feature DB2 Multisystem.
+
+- Local queries
+These are database queries that involve only files local to the system where the database queries are being run.
+
+The initial value of the ASYNCJ attribute for a job is *LOCAL.
+
+*SAME
+The value does not change.
+
+*DIST
+Asynchronous jobs may be used for database queries that involve distributed files.
+
+*LOCAL
+Asynchronous jobs may be used for database queries that involve only files local to the system where the database queries are being run.
+In addition, for queries involving distributed files, this option allows the communications required to be asynchronous. This allows each system involved in the query of the distributed files to run its portion of the query at the same time (in parallel) as the other systems.
+
+*ANY
+Asynchronous jobs may be used for any database query.
+
+*NONE
+No asynchronous jobs are allowed to be used for database query processing.
+In addition, all processing for queries involving distributed files occurs synchronously. Therefore, no inter-system parallel processing will occur.
+
+Top
+
+Apply CHGQRYA to remote (APYRMT)
+
+Specifies, for database queries involving distributed files, whether or not the query attributes are applied to the jobs on the remote systems associated with this job. The query attributes applied are those from this command and those specified in the QAQQINI file in the library specified for the Query options file library (QRYOPTLIB) parameter.
+
+The specified option determines whether the query attributes specified for the job are applied to the associated jobs on the systems applicable to the distributed file or files.
+
+The initial value of the APYRMT attribute for a job is *YES.
+
+*SAME
+The value does not change.
+
+*YES
+The query attributes for the job are applied to the remote jobs used in processing database queries involving distributed files. The query attributes applied are those specified on this command and those in the QAQQINI file in the library specified for the QRYOPTLIB parameter. For attributes where *SYSVAL is specified, the system value on the remote system is used for the remote job. This option requires that, if CHGQRYA was used for this job, the remote jobs must have authority to use the CHGQRYA command.
+
+*NO
+The CHGQRYA attributes for the job are not applied to the remote jobs. The remote jobs will use the attributes associated to them on their systems.
+
+Top
+
+Query options file library (QRYOPTLIB)
+
+Specifies which library currently contains, or will contain, the query options file (QAQQINI).
+
+The query options file is used to set or modify the attributes used by the Query Optimizer that will determine how a query will be implemented in the job specified.
+
+The query options file uses a system-supplied trigger program associated with the file QAQQINI in order to process any changes made to the file. A template for the file is shipped in the library QSYS with the base trigger program already attached. In order to maintain and use the query options file correctly, it is recommended that Create Duplicate Object (CRTDUPOBJ) be used to create a copy of the file QAQQINI into the library specified for this parameter.
+
+For more information, refer to the DB2 for i SQL programming topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ or Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+The initial value of the QRYOPTLIB attribute for a job is QUSRSYS.
+
+*SAME
+The value does not change.
+
+name
+Specify the name of the library where the QAQQINI query options file is (or will be) located.
+
+Top
+
+Query temporary storage limit (QRYSTGLMT)
+
+Specifies a temporary storage limit for database queries. If the query is expected to use more than the specified amount of storage, the query will not be allowed to start. The value specified is in megabytes.
+
+The initial value of the QRYSTGLMT attribute for a job is *NOMAX.
+
+*SAME
+The value does not change.
+
+*NOMAX
+There is no maximum temporary storage limit.
+
+0-2147352578
+Specify the maximum amount of temporary storage that may be used. This value is checked against the estimated amount of temporary storage required to run the query, as calculated by the query optimizer. If the estimated amount of temporary storage is greater than this value, the query is not started. The value specified is in megabytes.
+When 0 is specified most database queries will exceed the specified temporary storage limit and will issue a CPA4259 inquiry message or call an exit program if registered with the Query Governor Exit Point. Setting a query temporary storage limit of 0 can be useful when attempting to tune database queries for better performance. The technical description of the CPA4259 inquiry message or the database monitor, if activated using the FTRQRYGOVR parameter of the Start Database Monitor (STRDBMON) command, can be used to explain the type of access plan used by the query.
+
+Top
+
+Examples
+
+Example 1: Changing the Query Time Limit
+
+CHGQRYA QRYTIMLMT(60)
+
+This command changes the query time limit to 60 seconds.
+
+Example 2: Controlling Query and Database Parallel Processing
+
+CHGQRYA DEGREE(*IO)
+
+This command specifies that any number of tasks may be used when the database query optimizer chooses to use I/O parallel processing for queries. SMP parallel processing is not allowed.
+
+Example 3: Controlling Query Parallel Processing
+
+CHGQRYA DEGREE(*OPTIMIZE)
+
+This command specifies that the query optimizer can choose to use any number of tasks for either I/O or SMP parallel processing to process a query, database file keyed access path build or rebuild, or database file I/O keyed access path maintenance. SMP parallel processing will only be used if the system feature DB2 Symmetric Multiprocessing is installed.
+
+Example 4: Controlling Query Parallel Processing
+
+CHGQRYA DEGREE(*MAX)
+
+This command specifies that the query optimizer can assume that all active memory in the pool can be used to process a query, database file keyed access path build or rebuild, or database file I/O keyed access path maintenance and can choose to use any number of tasks for either I/O or SMP parallel processing to process a query, database file keyed access path build or rebuild, or database file I/O keyed access path maintenance. SMP parallel processing will only be used if the system feature DB2 Symmetric Multiprocessing is installed.
+
+Example 5: Controlling Query Number of Tasks
+
+CHGQRYA DEGREE(*NBRTASKS 12)
+
+This command specifies that the 12 tasks are to be used when the query optimizer chooses to use SMP parallel processing to process a query, database file keyed access path build or rebuild, or database file I/O keyed access path maintenance. I/O parallelism will also be allowed. SMP parallel processing will only be used if the system feature DB2 Symmetric Multiprocessing is installed.
+
+Example 6: Controlling Query Parallel Processing
+
+CHGQRYA DEGREE(*SYSVAL)
+
+This command specifies that the query, database file keyed access path build or rebuild, or database file I/O keyed access path maintenance, should be optimized with the current value of system value QQRYDEGREE when the query, database file keyed access path build or rebuild, or database file I/O keyed access path maintenance is run.
+
+Example 7: Disabling Asynchronous Job Usage for Distributed File Processing
+
+CHGQRYA ASYNCJ(*LOCAL)
+
+This command prevents asynchronous jobs from being used for queries involving distributed files.
+
+Example 8: Disabling Asynchronous Job Usage
+
+CHGQRYA ASYNCJ(*NONE)
+
+This command prevents asynchronous jobs from being used for any queries. In addition, for queries involving distributed files, communication to remote systems is done in a synchronous fashion.
+
+Example 9: Specifies Query Options File Library
+
+CHGQRYA QRYOPTLIB(QUSRSYS)
+
+This command specifies that library QUSRSYS is to be searched for the existence of the query options file (QAQQINI).
+
+Note: Use this command in addition to STRDBG UPDPROD(*YES) and all optimizer debug messages (local and remote) will show up in this job's job log.
+
+Example 10: Specifies Query Options File Library for a Different Job
+
+CHGQRYA QRYOPTLIB(LIB41) JOB(134543/QPGMR/DSP01)
+
+This command specifies that library LIB41 is to be searched for the existence of the query options file (QAQQINI) for job number 134543. The job name is DSP01 and was started by the user named QPGMR. This library may exist in more than one independent ASP (auxiliary storage pool); the library in the namespace of the originator's job will always be used.
+
+Example 11: Changing the Query Resource Limit
+
+CHGQRYA QRYSTGLMT(200)
+
+This command changes the query temporary storage limit to 200 megabytes.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1321
+Job &1 user &2 job number &3 not found.
+
+CPF436E
+Job &1 user &2 job number &3 is not active.
+
+CPF9810
+Library &1 not found.
+
+Top

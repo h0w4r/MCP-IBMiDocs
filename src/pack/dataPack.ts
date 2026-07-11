@@ -82,7 +82,15 @@ export async function archiveDataPack(options: ArchiveDataPackOptions): Promise<
   if (!info.ok) throw new Error(`No se puede archivar un pack inválido: ${packDir}: ${info.issues.join("; ")}`);
   const outFile = path.resolve(options.outFile);
   await fs.mkdir(path.dirname(outFile), { recursive: true });
-  await tar.c({ gzip: true, cwd: packDir, file: outFile }, ["."]);
+  await tar.c({
+    gzip: true,
+    cwd: packDir,
+    file: outFile,
+    // El release descargable lleva SQLite ya materializado; omitir sus
+    // fragmentos evita duplicar cientos de MB dentro del mismo archivo.
+    filter: (entryPath) => !/(^|\/)ibmi-docs\.sqlite\.part-\d+$/.test(entryPath)
+      && !entryPath.endsWith("ibmi-docs.sqlite.parts.json")
+  }, ["."]);
   return { outFile };
 }
 
@@ -99,14 +107,20 @@ export async function verifyDataPack(packDir: string): Promise<DataPackInfo> {
   if (fsSync.existsSync(manifestFile)) {
     try {
       const raw = await fs.readFile(manifestFile, "utf8");
-      if (/127\.0\.0\.1|localhost|52070/i.test(raw)) issues.push("El manifest contiene referencias loopback/RDi temporales no aptas para runtime.");
       const manifest = JSON.parse(raw) as { corpusVersion?: string; generatedAt?: string; documents?: unknown[] };
+      if (containsLoopbackEndpoint(manifest)) {
+        issues.push("El manifest contiene referencias loopback/RDi temporales no aptas para runtime.");
+      }
       corpusVersion = manifest.corpusVersion;
       generatedAt = manifest.generatedAt;
       documents = manifest.documents?.length ?? 0;
       if (!documents) issues.push("El manifest no contiene documentos.");
       for (const doc of manifest.documents ?? []) {
-        for (const key of ["rawHtmlPath", "normalizedTextPath"] as const) {
+        // El HTML original es un artefacto de trazabilidad del repositorio y
+        // de los data packs de archivo. El runtime npm necesita SQLite y texto
+        // normalizado; por ello solo este último es obligatorio al verificar
+        // una instalación final.
+        for (const key of ["normalizedTextPath"] as const) {
           const relative = String((doc as any)[key] ?? "");
           if (!relative) {
             issues.push(`Documento sin ${key}: ${(doc as any).id ?? "(sin id)"}`);
@@ -149,8 +163,10 @@ export async function lintContribution(inputDir: string): Promise<{ ok: boolean;
     issues.push("Falta manifest.json en la raíz de la contribución.");
   } else {
     const raw = await fs.readFile(manifestFile, "utf8");
-    if (/127\.0\.0\.1|localhost|52070/i.test(raw)) issues.push("No incluyas endpoints locales/RDi en contribuciones redistribuibles.");
     const manifest = JSON.parse(raw) as { documents?: Array<{ id?: string; title?: string; rawHtmlPath?: string; normalizedTextPath?: string; sha256?: string }> };
+    if (containsLoopbackEndpoint(manifest)) {
+      issues.push("No incluyas endpoints locales/RDi en contribuciones redistribuibles.");
+    }
     const ids = new Set<string>();
     for (const doc of manifest.documents ?? []) {
       if (!doc.id || !doc.title) issues.push(`Documento incompleto: ${JSON.stringify(doc).slice(0, 120)}`);
@@ -181,6 +197,30 @@ export async function lintContribution(inputDir: string): Promise<{ ok: boolean;
       "No agregues contenido exclusivo de RDi/Eclipse UI si no aporta a IBM i runtime/desarrollo."
     ])]
   };
+}
+
+/**
+ * Revisa únicamente propiedades que representan URLs o endpoints. Buscar el
+ * puerto en el JSON serializado completo producía falsos positivos cuando un
+ * hash o nombre de archivo contenía casualmente la secuencia 52070.
+ */
+function containsLoopbackEndpoint(value: unknown, key = ""): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => containsLoopbackEndpoint(item, key));
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value).some(([childKey, childValue]) =>
+      containsLoopbackEndpoint(childValue, childKey)
+    );
+  }
+  if (typeof value !== "string" || !/(?:url|endpoint)$/i.test(key)) return false;
+  try {
+    const parsed = new URL(value);
+    const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return /(?:^|\/)localhost(?::\d+)?(?:\/|$)|127\.0\.0\.1(?::\d+)?|\[?::1\]?(?::\d+)?/i.test(value);
+  }
 }
 
 async function materializeSource(source: string): Promise<string> {

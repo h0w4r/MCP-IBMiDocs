@@ -1,0 +1,183 @@
+Add Community for SNMP (ADDCOMSNMP)
+
+Add Community for SNMP (ADDCOMSNMP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add Community for SNMP (ADDCOMSNMP) command defines an SNMP community profile and adds it to the SNMP agent community list. An SNMP agent uses a community profile to determine whether or not to honor a request sent by an SNMP manager. The community profile consists of a community name, an object access specification, and a list of the SNMP managers that are part of the community. The community name combined with the ASCII community (ASCIICOM) parameter defines a community.
+
+Multiple community profiles, each having a unique community name may exist in the SNMP agent community list at one time. Similarly, the same internet address may appear in more than one community profile.
+
+The IBM i operating system agent does not support community views. A view is a subset of the objects in the management information base (MIB). Each IBM i community consists of all of the objects in the MIB.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority to use this command.
+
+- An SNMP manager sends three types of requests: get, get-next, and set. Get and get-next requests are used to read management information base (MIB) variables, and a set request is used to modify MIB variables. For a request from an SNMP manager to be accepted by the SNMP agent, all of the following must be true:
+
+The community name in the SNMP manager request specifies a defined community.
+
+The internet address of the manager that sent the request must be listed in the community profile.
+
+For a set request, the community object access must allow write operations to occur. For a get request or get-next request, read operations must be allowed.
+
+For a set request, the object specified in the request must be able to be changed. For a get request or get-next request, the object must be readable.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+COM | Community name | Character value | Required, Positional 1
+ASCIICOM | Translate community name | *YES, *NO | Optional
+INTNETADR | Manager internet address | Single values: *ANY
+Other values (up to 300 repetitions): Element list | Optional
+Element 1: Manager internet address | Character value
+Element 2: Manager internet address mask | Character value
+OBJACC | Object access | *SNMPATR, *READ, *WRITE, *NONE | Optional
+LOGSET | Log set requests | *SNMPATR, *YES, *NO | Optional
+LOGGET | Log get requests | *SNMPATR, *YES, *NO | Optional
+
+Top
+
+Community name (COM)
+
+Specifies the name of the SNMP community being added. Each SNMP community name must be unique.
+
+community-name
+Specify the name of the SNMP community being added. The name may contain characters that cannot be displayed.
+
+Top
+
+Translate community name (ASCIICOM)
+
+Specifies whether the community name is translated to ASCII characters when the community profile is added to the SNMP agent community list.
+
+*YES
+The community name is translated to ASCII characters when the community profile is added to the SNMP agent community list. This value should be specified if the SNMP manager system defines its community names entirely of ASCII characters. An error message is sent if the community name cannot be translated to ASCII characters.
+
+*NO
+The community name is not translated to ASCII characters when the community profile is added to the SNMP agent community list. This value should be specified if the SNMP manager system defines its community names using EBCDIC characters or characters that cannot be displayed.
+
+Top
+
+Manager internet address (INTNETADR)
+
+Specifies the internet addresses and internet address mask of the SNMP managers that are part of this community. The internet address may be an IPv4 or IPv6 address.
+
+Single values
+
+*ANY
+Allow any SNMP manager to be part of this community.
+
+Other values (up to 300 repetitions)
+
+Element 1: Manager Internet Address
+
+manager-internet-address
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host ID portion of the address. An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address. If the internet address is entered from a command line, the address must be enclosed in apostrophes. Up to 300 unique internet addresses may be specified. The same internet address may appear in more than one community profile.
+
+Element 2: IP address mask
+
+manager-internet-address-mask
+If the associated manager address is an IPv6 address, then the internet address mask is either an IPv6 address mask (for example, FFFF:FFFF::) or an integer from 0 to 128 specifying the number of IPv6 address prefix bits used to construct an IPv6 address mask. If the manager internet address is an IPv4 address, then internet address mask is either an IPv4 address mask (for example, 255.255.255.0) or an integer from 0 to 32 specifying the number of IPv4 address prefix bits used to construct an IPv4 address mask.
+
+Top
+
+Object access (OBJACC)
+
+Specifies the object access for the community.
+
+*SNMPATR
+The object access defined with the Change SNMP Attributes (CHGSNMPA) command is used for this community.
+
+*READ
+Allow SNMP managers that are part of this community to read all management information base (MIB) objects with get or get-next requests. Modification of MIB objects by SNMP managers is not permitted.
+
+*WRITE
+Allow SNMP managers that are part of this community to change all MIB objects that are able to change with set requests. Specifying *WRITE implies *READ access.
+
+*NONE
+Do not allow SNMP managers that are part of this community any access to MIB objects.
+
+Top
+
+Log set requests (LOGSET)
+
+Specifies whether set requests from SNMP managers in this community are logged in journal QSNMP in library QUSRSYS.
+
+*SNMPATR
+The value defined with the Change SNMP Attributes (CHGSNMPA) command is used for this community.
+
+*YES
+Set requests are logged.
+
+*NO
+Set requests are not logged.
+
+Top
+
+Log get requests (LOGGET)
+
+Specifies whether get requests and get-next requests from SNMP managers in this community are logged in journal QSNMP in library QUSRSYS.
+
+*SNMPATR
+The value defined with the Change SNMP Attributes (CHGSNMPA) command is used for this community.
+
+*YES
+Get requests and get-next requests are logged.
+
+*NO
+Get requests and get-next requests are not logged.
+
+Top
+
+Examples
+
+ADDCOMSNMP COM(ROCHESTER)
+INTNETADR(('8.6.5.4' '255.255.255.0'))
+OBJACC(*WRITE)
+
+This command adds the community ROCHESTER to the SNMP agent community list. SNMP managers with internet addresses 8.6.5.4 and 8.6.5.3 are the only managers in the community and are able to change all MIB objects.
+
+Example 2
+
+ADDCOMSNMP COM(PUBLIC2)
+INTNETADR(('10.4.120.97' 16)( '9.71.128.4'
+'255.255.255.0') ('192.4.52.1' '255.255.0.0'))
+
+This command adds community PUBLIC2 to the SNMP agent community list. SNMP managers with internet addresses 10.4.120.97, 9.71.128.4, and 192.4.52.1 are the only managers in the community and are able to change all MIB objects. Note that the first internet mask is equal to 255.255.0.0 mask. All of the other community values are unchanged.
+
+Example 3
+
+ADDCOMSNMP COM(PRIVATE)
+INTNETADR(('2001:db8::10f' 64)('2001:db8::10e'
+'FFFF:FFFF:FFFF:FFFF::'))
+
+This command adds community PRIVATE to the SNMP agent community list. SNMP managers with internet addresses 2001:db8::10f and 2001:db8::10e are the only managers in the community and are able to change all MIB objects. Note that the prefix length of the first internet address is equal to the second colon hexadecimal notation FFFF:FFFF:FFFF:FFFF:: mask. All of the other community values are unchanged.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+TCP4001
+Error occurred accessing SNMP configuration information.
+
+TCP4008
+Community already exists. Reason code &3.
+
+TCP8050
+*IOSYSCFG authority required to use &1.
+
+Top

@@ -1,0 +1,525 @@
+Compare Journal Images (CMPJRNIMG)
+
+Compare Journal Images (CMPJRNIMG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Compare Journal Images (CMPJRNIMG) command gives you the capability to compare and note the differences between (1) the before and after images of record-level changes (updates, deletes, rollback-updates, and rollback-deletes) for a specific file member (IMAGES(*BOTH) must be specified for the Start Journal Physical File (STRJRNPF) command), or (2) the after and previous after images of a particular relative record (IMAGES(*AFTER) is specified for the STRJRNPF command). The output of the command is directed to a printer.
+
+If before and after images are compared, the journaled changes can be compared for only one or all of the records in the specific file or member. The comparison can also be limited by a specific journal receiver range, or by a range of journal entries in a specific journal receiver range.
+
+The printed output shows the record image before the change was made, followed by the record image after the change, followed by a line that indicates (with asterisks) the specific change in the record on a character-by-character basis, instead of on a field-by-field basis. If the journaled file has null-capable fields, the null value indicators that correspond to the before-image of the record are compared with the null value indicators that correspond to the after-image of the record. This is done on a field-by-field basis.
+
+If there is no journal entry satisfying the search value specified, the command ends.
+
+Restrictions:
+
+- The result of the comparison is sent only to the system printer.
+
+- The file and member specified must currently exist on the system and must have been journaled.
+
+- Only one member can be processed per command.
+
+- The comparison of journal images ends if one of the following conditions occurs:
+
+The member was saved with storage freed.
+
+The member was restored.
+
+The member was cleared.
+
+The member was reorganized.
+
+The member was deleted.
+
+The member was in use when the system ended abnormally.
+
+Journaling the member was stopped.
+
+The member had the journaled changes applied or removed (by the Apply Journaled Changes (APYJRNCHG) command or the Remove Journaled Changes (RMVJRNCHG) command).
+
+- If the sequence number is reset in the range of receivers specified, the first occurrence of the FROMENT, FROMENTLRG, TOENT, or TOENTLRG value is used if the prompt is specified.
+
+- The FROMENT, FROMENTLRG, and FROMTIME parameters are mutually exclusive, as are the TOENT, TOENTLRG, and TOTIME parameters.
+
+- The JOB, PGM, and USRPRF parameters cannot be used to specify selection criteria if one or more journal receivers in the specified receiver range was attached to a journal with a receiver size option (RCVSIZOPT) or a fixed length data option (FIXLENDTA) that would have omitted this data was in effect.
+
+- This command cannot be used on or with a remote journal.
+
+- If this command is used to compare journal images for a file that contains any fields of data type BLOB (binary large object), CLOB (character large object), or DBCLOB (double-byte character large object), these fields are not included in the comparison. All other fields in the file are compared.
+
+- This command cannot be used if one or more journal receivers in the specified range was attached to a journal that had MINENTDTA (minimize entry specific data) specified for *FILE objects.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | File | Qualified object name | Required, Positional 1
+Qualifier 1: File | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MBR | Member | Name, *FIRST | Optional, Positional 2
+RCVRNG | Range of journal receivers | Single values: *CURRENT
+Other values: Element list | Optional, Positional 3
+Element 1: Starting journal receiver | Qualified object name
+Qualifier 1: Starting journal receiver | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Ending journal receiver | Single values: *CURRENT
+Other values: Qualified object name
+Qualifier 1: Ending journal receiver | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMENTLRG | Starting large sequence number | Character value, *FIRST | Optional
+FROMTIME | Starting date and time | Element list | Optional
+Element 1: Starting date | Date
+Element 2: Starting time | Time
+TOENTLRG | Ending large sequence number | Character value, *LAST | Optional
+TOTIME | Ending date and time | Element list | Optional
+Element 1: Ending date | Date
+Element 2: Ending time | Time
+CMPOPT | Compare option | *BOTH, *AFTER | Optional
+RCDNBR | Record number | Unsigned integer, *ALL | Optional
+JOB | Job name | Single values: *ALL
+Other values: Qualified job name | Optional
+Qualifier 1: Job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+PGM | Program | Name, *ALL | Optional
+USRPRF | User profile | Name, *ALL | Optional
+CCIDLRG | Commit cycle large identifier | Character value, *ALL | Optional
+OUTFMT | Output format | *CHAR, *HEX | Optional
+FROMENT | Starting sequence number | 1-9999999999, *FIRST | Optional
+TOENT | Ending sequence number | 1-9999999999, *LAST | Optional
+CMTCYCID | Commit cycle identifier | 1-9999999999, *ALL | Optional
+
+Top
+
+File (FILE)
+
+Specifies the name and library of the physical database file for which the journal record-level changes are being compared.
+
+This is a required parameter.
+
+physical-file-name
+Specify the name of the physical file.
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Member (MBR)
+
+Specifies the name of the file member whose journal entries are being compared.
+
+*FIRST
+Entries for the first member in the file are being compared.
+
+member-name
+Specify the name of the file member for which record-level changes are being compared.
+
+Top
+
+Range of journal receivers (RCVRNG)
+
+Specifies the starting and ending journal receivers used in the comparison of before and after journal entry images. The system starts the comparison with the starting journal receiver (specified on the first value) and proceeds through receivers until the ending journal receiver (specified on the last value) is processed.
+
+If any problem (such as damaged receivers or receiver not found) occurs in the receiver chain or if a problem occurs during the operation, the comparison ends.
+
+Note: The second element (ending-journal-receiver) can only be specified if a value is specified for the first element (starting-journal-reveiver).
+
+Note: If the maximum number of receivers in the range is exceeded (2045), an exception is sent and no entries are compared.
+
+Single values
+
+*CURRENT
+The journal receiver that is currently attached when starting to compare journal entries is used.
+
+Element 1: Starting journal receiver
+
+Qualifier 1: Starting journal receiver
+
+name
+Specify the name of the first journal receiver that contains the journal entries being compared.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the job's library list are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the journal receiver. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the library where the journal receiver is located.
+
+Element 2: Ending journal receiver
+
+Single values
+
+*CURRENT
+The journal receiver that is currently attached when starting to compare journal entries is used.
+
+Qualifier 1: Ending journal receiver
+
+name
+Specify the name of the last journal receiver that contains the journal entries being compared.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the job's library list are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the journal receiver. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the library where the journal receiver is located.
+
+Top
+
+Starting large sequence number (FROMENTLRG)
+
+Specifies the first journal entry (the from entry) being compared.
+
+Note: You can input a value for either the Starting sequence number field (FROMENT) or the Starting large sequence number field (FROMENTLRG) but not for both.
+
+*FIRST
+The first journal entry in the specified journal receiver range is the first entry considered for the comparison operation.
+
+starting-sequence-number
+Specify the journal entry sequence number at which the journal entry comparison operation begins. The acceptable range is 1 to 18,446,744,073,709,551,600.
+
+Top
+
+Starting date and time (FROMTIME)
+
+Specifies the date and time of the first journal entry being compared.
+
+Element 1: Starting date
+
+starting-date
+Specify the starting date. The starting date and time of the first journal entry occurring at or after the specified starting date and time becomes the starting point for the range of journal entries to be compared.
+
+Element 2: Starting time
+
+starting-time
+Specify the starting time. The starting date and time of the first journal entry occurring at or after the specified starting date and time becomes the starting point for the range of journal entries to be compared.
+The time can be specified in 24-hour format with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Top
+
+Ending large sequence number (TOENTLRG)
+
+Specifies the last journal entry considered in the comparison.
+
+Note: You can input a value for either the Ending sequence number field (TOENT) or the Ending large sequence number field (TOENTLRG) but not for both.
+
+*LAST
+The last journal entry in the last journal receiver specified is the final entry being compared.
+
+ending-sequence number
+Specify the sequence number of the last journal entry being compared. The acceptable range is 1 to 18,446,744,073,709,551,600.
+
+Note: The values specified for the FROM and TO parameters can be the same (for example, FROMENTLRG(234) and TOENTLRG(234) can be specified).
+
+Top
+
+Ending date and time (TOTIME)
+
+Specifies the date and time of the last journal entry being compared.
+
+Element 1: Ending date
+
+ending-date
+Specify the ending date. The ending date and time of the first journal entry occurring at or before the specified ending date and time becomes the ending point for the range of journal entries to be compared.
+
+Element 2: Ending time
+
+ending-time
+Specify the ending time. The ending date and time of the first journal entry occurring at or before the specified ending date and time becomes the ending point for the range of journal entries to be compared.
+The time can be specified in 24-hour format with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Top
+
+Compare option (CMPOPT)
+
+Specifies the types of record images (before or after images) being compared for record-level changes in the specified file.
+
+*BOTH
+The before images of the journal entries are compared with the after images of the journal entries.
+
+*AFTER
+The after images of the journal entries in the file record are compared with previous after images.
+If this value is specified, the default value *ALL must be specified on the following parameters:
+
+- Job name (JOB) parameter
+
+- Program (PGM) parameter
+
+- User profile (USRPRF) parameter
+
+- Commit cycle identifier (CMTCYCID) parameter
+
+- Commit cycle large identifier (CCIDLRG) parameter
+
+Also, a relative record number must be specified on the Record number (RCDNBR) parameter.
+
+Top
+
+Record number (RCDNBR)
+
+Specifies the relative record number in the file for which the journal entry images are being compared.
+
+*ALL
+The recorded changes for all journal entry records in the physical file member are compared.
+
+relative-record-number
+Specify the relative record number in the physical file member for which before/after or after/after images are being compared. If a value is specified, only changes for the specified journal entry record are compared.
+
+Top
+
+Job name (JOB)
+
+Specifies that the comparison is of journal entries for a particular job.
+
+Single values
+
+*ALL
+The comparison is not limited to entries for a particular job.
+
+Other values
+
+job-identifier
+Specify the job name, the user name, and the job number of the job to use. You can also specify that the job name only, or that the job name and the user name be used.
+
+job-name
+Specify the job name of the job.
+
+user-name
+Specify the user name of the job.
+
+job-number
+Specify the system-assigned job number.
+
+Top
+
+Program (PGM)
+
+Specifies that the comparison is of journal entries for a particular program.
+
+*ALL
+The comparison is not limited to entries for a particular program.
+
+program-name
+Specify the name of the program whose record-level journal entry changes are considered for comparison. Only journal changes for this program are considered for comparison.
+
+Top
+
+User profile (USRPRF)
+
+Specifies that the comparison is of journal entries for a particular user profile name. The user profile name is the user profile under which the job that causes the entries to be journaled is run.
+
+*ALL
+The comparison is not limited to entries for a particular user profile.
+
+user-profile-name
+Specify the name of the user profile whose record-level changes are compared. Only journal changes for this user profile are considered for comparison.
+
+Top
+
+Commit cycle large identifier (CCIDLRG)
+
+Specifies the commit cycle identifier of the specific journal that participated in a logical unit of work for which a comparison of journal entries is made.
+
+Note: You can input a value for either the Commit cycle identifier field (CMTCYCID) or the Commit cycle large identifier field (CCIDLRG) but not for both.
+
+*ALL
+The journal entries for all commit cycle identifiers are included in the comparison.
+
+commit-cycle-identifier
+Specify the commit cycle identifier of the journal entries to be considered for comparison. A journal entry's commit cycle identifier can be found by using the Display Journal (DSPJRN) command and selecting option five. The acceptable range is 1 to 18,446,744,073,709,551,600.
+
+Top
+
+Output format (OUTFMT)
+
+Specifies the format in which the record images being compared are shown.
+
+*CHAR
+The record images are shown in character format.
+
+*HEX
+The record images are shown in hexadecimal format.
+
+Top
+
+Starting sequence number (FROMENT)
+
+Specifies the first journal entry (the from entry) being compared.
+
+Note: You can input a value for either the Starting sequence number field (FROMENT) or the Starting large sequence number field (FROMENTLRG) but not for both.
+
+*FIRST
+The first journal entry in the specified journal receiver range is the first entry considered for the comparison operation.
+
+starting-sequence-number
+Specify the journal entry sequence number at which the journal entry comparison operation begins. The acceptable range is 1 to 9,999,999,999.
+
+Top
+
+Ending sequence number (TOENT)
+
+Specifies the last journal entry considered in the comparison.
+
+Note: You can input a value for either the Ending sequence number field (TOENT) or the Ending large sequence number field (TOENTLRG) but not for both.
+
+*LAST
+The last journal entry in the last journal receiver specified is the final entry being compared.
+
+ending-sequence number
+Specify the sequence number of the last journal entry being compared. The acceptable range is 1 to 9,999,999,999.
+
+Note: The values specified for the FROM and TO parameters can be the same (for example, FROMENT(234) and TOENT(234) can be specified).
+
+Top
+
+Commit cycle identifier (CMTCYCID)
+
+Specifies the commit cycle identifier of the specific journal that participated in a logical unit of work for which a comparison of journal entries is made.
+
+Note: You can input a value for either the Commit cycle identifier field (CMTCYCID) or the Commit cycle large identifier field (CCIDLRG) but not for both.
+
+*ALL
+The journal entries for all commit cycle identifiers are included in the comparison.
+
+commit-cycle-identifier
+Specify the commit cycle identifier of the journal entries to be considered for comparison. A journal entry's commit cycle identifier can be found by using the Display Journal (DSPJRN) command and selecting option five. The acceptable range is 1 to 9,999,999,999.
+
+Top
+
+Examples
+
+Example 1: Comparing Before-Images with After-Images
+
+CMPJRNIMG FILE(QGPL/PF)
+
+This command compares the journaled record-level changes for the first member of file PF in the QGPL library. The entries compared are in the journal receiver that is currently attached when the comparison begins, starting with the first entry and ending with the last entry. All entries with both before-images and after-images that satisfy the selection values are eligible to be compared. The before-images of the entries are compared with the after-images of the entries.
+
+Example 2: Comparing After-Images with Previous After-Images
+
+CMPJRNIMG FILE(MYLIB/PAYROLL) MBR(APRIL)
+RCVRNG((RCVLIB/RCV3) (*CURRENT))
+FROMENT(200) TOENT(500)
+CMPOPT(*AFTER) RCDNBR(999) OUTFMT(*HEX)
+
+This command compares the journaled record-level changes for the member named APRIL in file PAYROLL in MYLIB, beginning with receiver RCV3 in RCVLIB and ending with the journal receiver that is currently attached at the start of the comparison. The range of entries compared starts with entry 200 and ends with entry 500. Only the after-images and previous after-images are compared. The comparison is limited to record number 999. The output is printed in hexadecimal format.
+
+Example 3: Specifying Journal Entry Date and Time
+
+CMPJRNIMG FILE(USERLIB/MYFILE) MBR(*FIRST)
+RCVRNG((RCV2) (USERLIB/RCV5))
+FROMTIME('7/04/87' 120000) TOENT(1000)
+
+This command compares the journaled record-level changes for the first member of file MYFILE in USERLIB, beginning with receiver RCV2 in *LIBL and ending with receiver RCV5 in USERLIB. The date and time of the first journal entry to be compared is 7/4/87 12:00:00, and the ending record sequence number considered for the comparison is 1000.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF7002
+File &1 in library &2 not a physical file.
+
+CPF7006
+Member &3 not found in file &1 in &2.
+
+CPF701B
+Journal recovery of an interrupted operation failed.
+
+CPF7027
+Operation cannot be performed beyond entry &4.
+
+CPF7028
+Member &3 file &1 in &2 never journaled.
+
+CPF7029
+Image comparison failed. Ending sequence number &4.
+
+CPF7036
+File &1 in &2 not journaled with before images.
+
+CPF7038
+No entries compared for member &3.
+
+CPF705A
+Operation failed due to remote journal.
+
+CPF7053
+Values for RCVRNG parameter not correct; reason code &1.
+
+CPF7054
+FROM and TO values not valid.
+
+CPF709C
+JOB, PGM, and USRPRF not valid for receiver range.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9815
+Member &5 file &2 in library &3 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9846
+Error while processing file &1 in library &2.
+
+CPF9850
+Override of printer file &1 not allowed.
+
+Top

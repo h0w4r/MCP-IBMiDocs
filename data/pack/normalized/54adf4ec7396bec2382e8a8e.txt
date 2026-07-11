@@ -1,0 +1,194 @@
+Send Reply (SNDRPY)
+
+Send Reply (SNDRPY)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Send Reply (SNDRPY) command sends a reply message to the sender of an inquiry message. The message that is answered is the one having the specified message reference key that was received at the specified message queue.
+
+A reply handling exit program can be registered in the system registration facility for exit point QIBM_QMH_REPLY_INQ. A reply handling exit program can accept, reject or replace a reply value. If the reply is rejected by an exit program, diagnostic message CPD2476 (Reply rejected by a reply handling exit program) is sent to the program running this SNDRPY command. This is followed by an escape message CPF2422 (Reply not valid). If the reply is replaced by an exit program, the send reply function sends a diagnostic message to itself. The message is CPD2479 (Reply handling exit program requested to replace a reply value). After the reply is sent, CPF2458 (Reply replaced by a reply handling exit program) will be sent as a diagnostic message and a status message to the program running this SNDRPY command. The status message can be monitored if the program needs to be aware of the condition when a reply value other than what was specified was sent.
+
+If the specified message queue is not allocated to the job in which this command is entered, it is implicitly allocated by this command for the duration of the command.
+
+The SYSTOOLS.REPLY_INQUIRY_MESSAGES scalar function performs a similar function.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+MSGKEY | Message key | Character value | Required, Positional 1
+MSGQ | Message queue | Qualified object name | Required, Positional 2
+Qualifier 1: Message queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+RPY | Reply | Character value, *DFT | Optional, Positional 3
+RMV | Remove message | *YES, *NO | Optional
+RJTDFTRPY | Reject default reply | *NOALWRJT, *ALWRJT | Optional
+CCSID | Coded character set ID | 1-65535, *HEX, *JOB | Optional
+
+Top
+
+Message key (MSGKEY)
+
+Specifies the message reference key of the message that the reply answers.
+
+This is a required parameter.
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the message queue that received the inquiry message to be answered.
+
+This is a required parameter.
+
+Qualifier 1: Message queue
+
+name
+Specify the name of the message queue.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the message queue. If no current library entry exists in the library list, QGPL is used.
+
+name
+Specify the library where the message queue is located.
+
+Top
+
+Reply (RPY)
+
+Specifies the reply that the program sends as a response to the inquiry message.
+
+*DFT
+The default reply stored in the message description of the inquiry message that was sent is sent as the reply. If no default is specified in the message description of the inquiry message, the system default reply, *N, is used.
+
+'reply-text'
+Enter the text (enclosed in apostrophes if it contains blanks or special characters) or a CL variable that contains the text that is sent as the program's reply to the inquiry message. The number of characters allowed for the reply and their format are defined by the validity specifications given in the Add Message Description (ADDMSGD) command for the specified inquiry message. However, if no validity specifications are defined for replies in the ADDMSGD command, as many as 132 characters can be used in the reply text.
+
+Coded Character Set Identifier (CCSID) Considerations
+
+If the inquiry message that this reply is being sent to is an immediate message, the text supplied for the RPY parameter is assumed to be in the CCSID of the job running this command unless a coded character set identifier is supplied in the CCSID parameter. If the inquiry message that this reply is sent to is a predefined message, the text supplied in the RPY parameter is assumed to be 65535 and is not converted. For more information about the message handler and its use of CCSIDs, see the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Remove message (RMV)
+
+Specifies whether the inquiry message and its reply are removed from the specified message queue.
+
+*YES
+The message and its reply are removed from the message queue when the reply is sent.
+
+*NO
+The message and its reply are held in the message queue. The inquiry message cannot be replied to more than once, but it can be received or displayed multiple times.
+
+Top
+
+Reject default reply (RJTDFTRPY)
+
+Specifies whether a reply handling exit program will be allowed to reject a default reply. A default reply is requested by using blanks as the value for the reply parameter. A reply handling exit program can be registered via the system registration facility for exit point QIBM_QMH_REPLY_INQ. If a default reply is not being sent, this parameter is ignored and a reply handling exit program can reject or replace the reply value.
+
+*NOALWRJT
+A reply handling exit program will not be allowed to reject a default reply.
+
+*ALWRJT
+A reply handling exit program will be allowed to reject a default reply. If an exit program rejects the reply, message CPD2476 (Reply rejected by a reply handling exit program) will be sent as a diagnostic message to the program using this command. The CPD2476 will be followed by a CPF2422 (Reply not valid) escape message that the program using this command should monitor for to handle and recover from error situations.
+
+Top
+
+Coded character set ID (CCSID)
+
+Specifies the coded character set identifier (CCSID) that the supplied reply text is in. If the inquiry message that this reply is sent to is a predefined message, this parameter is ignored and the text supplied for the RPY parameter is assumed to be 65535 and is not converted. For more information about the message handler and its use of CCSIDs, see the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+*JOB
+The reply text is assumed to be in the CCSID of the job running this command.
+
+*HEX
+The reply text is not converted. CCSID 65535 is used.
+
+coded-character-set-identifier
+Specify a valid CCSID in which you want your reply text to be considered in. Valid values range from 1 through 65535. This command will validate the CCSID. See the Globalization information in the iSeries Information Center at http://www.ibm.com/eserver/iseries/infocenter for a list of valid CCSID values.
+
+Top
+
+Examples
+
+SNDRPY MSGKEY(&KEY) MSGQ(SMITH) RPY(YES)
+
+This command sends a reply of YES to the message whose reference key is specified by &KEY, which was received at message queue SMITH. Because the reply contains only one word, the reply does not have to be enclosed in apostrophes.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2401
+Not authorized to library &1.
+
+CPF2403
+Message queue &1 in &2 not found.
+
+CPF2408
+Not authorized to message queue &1.
+
+CPF2410
+Message key not found in message queue &1.
+
+CPF2411
+Not authorized to message file &1 in &2.
+
+CPF2420
+Reply already sent for inquiry or notify message.
+
+CPF2422
+Reply not valid.
+
+CPF2432
+Cannot send reply to message type other than *INQ or *NOTIFY.
+
+CPF2433
+Function not allowed for system log message queue &1.
+
+CPF2460
+Message queue &1 could not be extended.
+
+CPF247E
+CCSID &1 is not valid.
+
+CPF2471
+Length of field not valid.
+
+CPF2477
+Message queue &1 currently in use.
+
+CPF2547
+Damage to message file QCPFMSG.
+
+CPF2548
+Damage to message file &1 in &2.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9838
+User profile storage limit exceeded.
+
+*STATUS Messages
+
+CPF2458
+Reply replaced by reply handling exit program.
+
+Top

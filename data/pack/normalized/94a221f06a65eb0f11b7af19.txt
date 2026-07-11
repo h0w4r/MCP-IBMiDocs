@@ -1,0 +1,200 @@
+Add Server Storage Link (ADDNWSSTGL)
+
+Add Server Storage Link (ADDNWSSTGL)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add Server Storage Link (ADDNWSSTGL) command is used to add a network storage space link to a Network server description (NWSD).
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+NWSSTG | Network server storage space | Name | Required, Positional 1
+NWSD | Network server description | Communications name | Required, Positional 2
+DYNAMIC | Dynamic storage link | *NO, *YES | Optional, Positional 3
+TYPE | Network server type | Character value, *NWSD | Optional
+ACCESS | Access | *UPDATE, *READ, *SHRUPD | Optional
+DRVSEQNBR | Drive sequence number | 1-64, *CALC, *QR | Optional
+STGPTHNBR | Storage path number | 1-4, *DFTSTGPTH, *MLTPTHGRP | Optional
+
+Top
+
+Network server storage space (NWSSTG)
+
+Specifies the name of the network server storage space.
+
+This is a required parameter.
+
+Top
+
+Network server description (NWSD)
+
+Specifies the name of the network server description to which this link is to be added.
+
+This is a required parameter.
+
+Top
+
+Dynamic storage link (DYNAMIC)
+
+Specifies whether this network server storage space is to be linked as dynamic storage using the next available location, or linked as static storage using the drive sequence number specified by the DRVSEQNBR parameter.
+
+Note: The specified value is not used and is changed to *YES if the Network server description (NWSD) was configured with any value other than *IXSVR for the Network server type (TYPE) parameter.
+
+*NO
+The network server storage space is linked in the standard linking method using the DRVSEQNBR parameter. The NWSD must be in a VARIED OFF state to perform this operation.
+
+*YES
+The network server storage space is linked using dynamic linking. It will use the next available sequence number.
+
+Top
+
+Network server type (TYPE)
+
+Describes the type of network server description to which this link is added.
+
+Note: This parameter is present only for compatibility with previous releases. The value specified is not syntax checked and no verification is done to ensure that the network server description matches the specified TYPE value.
+
+Top
+
+Access (ACCESS)
+
+Specifies the server's access method to the network server storage space.
+
+*UPDATE
+The network server storage space is accessed in READ/WRITE mode. The network server storage space can be written to by the server.
+
+*READ
+The network server storage space is accessed in READ-only mode. Write requests to the network server storage space are not allowed from this server. Multiple servers may be linked to this storage space.
+
+*SHRUPD
+The network server storage space is accessed in shared update mode. The network server storage space can be written to by the server. Multiple servers may be linked to this storage space.
+
+Notes:
+
+- DYNAMIC(*YES) must be specified when ACCESS(*SHRUPD) is specified.
+
+- Shared disk access methods must be deployed on all network server descriptions which share links to the network server storage space.
+
+Top
+
+Drive sequence number (DRVSEQNBR)
+
+Specifies the order in which the network server storage spaces are presented to the server. Each network server storage space must be given a unique sequence number.
+
+*CALC
+The system will assign the lowest available sequence number.
+
+*QR
+The special value used for linking the quorum resource disk for a Windows cluster.
+This value must be used when linking a *NTFSQR format disk as the quorum resource disk for a Windows cluster. The quorum resource disk must be linked with ACCESS(*SHRUPD) and it must be the first *SHRUPD link when Server connection *IXSVR is configured for the Network server type (TYPE) parameter in the Network server description (NWSD). Each server in a Windows cluster must be linked to one and only one quorum resource disk. The quorum resource disk must also be linked to each server with DYNAMIC(*YES) specified.
+
+1-64
+Specify the sequence number used to link to the network server storage space. The valid values for this parameter depends on the Network server description (NWSD) values configured for the Network server type (TYPE) parameter for Server connection and Server operating system.
+When Server connection *ISCSI and Server operating system *WIN32, *WIN64, *LINUX32 or *LINUX64:
+
+- Only ACCESS(*UPDATE) is valid for DRVSEQNBR values 1 and 2.
+
+- When ACCESS(*UPDATE) or ACCESS(*SHRUPD), a value between 3 and 64 must be specified.
+
+When Server connection *ISCSI and Server operating system *ESX:
+
+- Only ACCESS(*UPDATE) is valid for DRVSEQNBR values 1.
+
+- When ACCESS(*UPDATE) or ACCESS(*SHRUPD), a value between 2 and 64 must be specified.
+
+When Server connection *ISCSI and Server operating system *ESXE:
+
+- When ACCESS(*UPDATE) or ACCESS(*SHRUPD), a value between 1 and 64 must be specified.
+
+When Server connection *GUEST:
+
+- Any access mode can be specified for a value between 1 and 64.
+
+Note: If a non-sequential number is specified for the Network server description (NWSD) configured with Server connection *IXSVR or *ISCSI, the number may not match the logical unit number on the integrated server and unexpected results may occur on drive assignments and applications.
+
+When Server connection *IXSVR or *WINDOWSNT and Server operating system *WIN32 or *LINUX32:
+
+- When DYNAMIC(*NO), a value between 3 and 18 must be specified.
+
+- When DYNAMIC(*YES) and ACCESS(*UPDATE), a value between 1 and 16 must be specified.
+
+- When DYNAMIC(*YES) and ACCESS(*SHRUPD), a value between 1 and 15 must be specified.
+This is only valid when Server operating system *WIN32 is configured and a quorum resource disk for a Windows cluster has already been linked with Drive sequence number DRVSEQNBR(*QR).
+
+Top
+
+Storage path number (STGPTHNBR)
+
+Specifies the storage path number in the network server description (NWSD) that is used by this network server storage space.
+
+Note: This parameter is only valid when Server connection specified *ISCSI for the Network server type (TYPE) parameter.
+
+See Storage path (STGPTH) parameter of the network server description on the CRTNWSD or CHGNWSD commands.
+
+*DFTSTGPTH
+The network server storage space is linked to the relative storage path of the file server defined in the Default storage path (DFTSTGPTH) parameter of the network server description.
+
+*MLTPTHGRP
+The network server storage space is linked using a multiple path group as defined on the Multi-path group (MLTPTHGRP) parameter of the network server description.
+
+1-4
+The network server storage space is linked using a specific file server storage path number. Use the DSPNWSD command with OPTION(*STGPTH) to see which storage paths are valid.
+
+Top
+
+Examples
+
+Example 1:Linking Storage Spaces to a Network Server Description
+
+ADDNWSSTGL NWSSTG(PARTS) NWSD(WNTSVR) DRVSEQNBR(3)
+ADDNWSSTGL NWSSTG(DATA) NWSD(WNTSVR) DRVSEQNBR(*CALC)
+
+These commands link storage space PARTS to the Windows network server description at drive sequence 3, and storage space DATA at the next available sequence number.
+
+Example 2:Linking a Dynamic Storage Space
+
+ADDNWSSTGL NWSSTG(DATAUPD) NWSD(W2KSVR) DYNAMIC(*YES)
+
+This command dynamically links the storage to the Windows network server description to the next available dynamic storage sequence.
+
+Example 3: Linking Quorum and Shared Storage Spaces
+
+ADDNWSSTGL NWSSTG(QUORUM) NWSD(DNETSVR1) DYNAMIC(*YES)
+ACCESS(*SHRUPD) DRVSEQNBR(*QR)
+ADDNWSSTGL NWSSTG(QUORUM) NWSD(DNETSVR2) DYNAMIC(*YES)
+ACCESS(*SHRUPD) DRVSEQNBR(*QR)
+ADDNWSSTGL NWSSTG(DATASHR) NWSD(DNETSVR1) DYNAMIC(*YES)
+ACCESS(*SHRUPD) DRVSEQNBR(*CALC)
+ADDNWSSTGL NWSSTG(DATASHR) NWSD(DNETSVR2) DYNAMIC(*YES)
+ACCESS(*SHRUPD) DRVSEQNBR(*CALC)
+
+These commands allow two Windows network server descriptions DNETSVR1 and DNETSVR2 to share storage space DATASHR with read/write access.
+
+Example 4: Linking a Storage Path
+
+ADDNWSSTGL NWSSTG(DATAUPD) NWSD(W2KSVR)
+STGPTHNBR(*DFTSTGPTH)
+
+This command links the storage to the Windows network server description using the default storage path identified in the NWSD.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF26BA
+Add network server storage link command failed.
+
+Top

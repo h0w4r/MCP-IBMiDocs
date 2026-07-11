@@ -1,0 +1,271 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="CHGCRGPRI.Top_Of_Page"></a>
+<h1>Change CRG Primary  (CHGCRGPRI)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>Yes
+</td>
+<td class="valigntop alignright">
+<a href="#CHGCRGPRI.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#CHGCRGPRI.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#CHGCRGPRI.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRGPRI"></a>
+<p>The Change Cluster Resource Group Primary (CHGCRGPRI) command performs an administrative switchover of the cluster resource group by changing the current roles of nodes in the recovery domain.  The primary point of access for the cluster resource group is changed as specified in Switch type (SWTTYP) parameter.
+</p>
+<p>This command is not valid for peer model cluster resource groups.
+</p>
+<p>If a backup node does not exist in the recovery domain, the switchover will fail.
+</p>
+<p>This command will cause the cluster resource group exit program to be called with an action code of Switchover on all active nodes in the recovery domain.
+</p>
+<p>When switching over cluster resource groups of different types, the order of switchover is important. Device cluster resource group objects should be done first followed by data cluster resource group objects and finally application cluster resource group objects. If you are changing the primary point of access for a data or a device cluster resource group, you should also ensure that the applications using this data are quiesced.
+</p>
+<p>This command will do the following for all cluster resource group types:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Set the cluster resource group status Switchover Pending.
+</li>
+<li class="cds--list__item">Call the cluster resource group exit program on all active nodes in the recovery domain with an action code of Switchover, if an exit program is specified for the cluster resource group.
+</li>
+<li class="cds--list__item">Set the cluster resource group status to Active if the exit program completes successfully.
+</li>
+<li class="cds--list__item">Set the cluster resource group status to Indoubt if the exit program is unsuccessful and the original state of the cluster resource group cannot be recovered.
+</li>
+</ol>
+<p>This command will do the following for resilient application cluster resource groups:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Cancel the cluster resource group exit program job with a Cancel Job Immediate on the current primary.  (<strong>Note:</strong> The application and exit program code should provide cancel handlers to clean up resources the job uses if it is cancelled).
+</li>
+<li class="cds--list__item">End the takeover IP interface on the current primary.
+</li>
+<li class="cds--list__item">Start the takeover IP interface on the new primary.
+</li>
+<li class="cds--list__item">Start the cluster resource group exit program on the new primary.
+</li>
+<li class="cds--list__item">Set the cluster resource group status to Active if the TCP/IP address and the cluster resource group exit program job are started.
+</li>
+<li class="cds--list__item">Set the cluster resource group status to Indoubt if either the TCP/IP address or the cluster resource group exit program job are not started.
+</li>
+</ol>
+<p>This command will do the following for resilient device cluster resource groups:
+</p>
+<ol class="cds--list--ordered--temporary list--ordered--indented">
+<li class="cds--list__item">The configuration objects must exist on all active nodes in the recovery domain and the resource names in the configuration objects must be the same on all active nodes.
+</li>
+<li class="cds--list__item">The current primary node must be the current owner for the hardware resources of the configuration objects specified in the cluster resource group.
+</li>
+<li class="cds--list__item">For the configuration objects specified in the cluster resource group, vary the configuration objects off if they are varied on and end the server takeover IP addresses if they are active on the current primary node.  The devices are varied off and moved to the new primary before the exit program is called on the current primary.  If any of the devices in the cluster resource group are a primary auxiliary storage pool, all members of the auxiliary storage pool group will be varied off.  Before varying the devices off, cluster resource services will attempt to end all jobs which are using auxiliary storage pools configured in the cluster resource group.  There are some system server jobs which will not be cancelled.  If those server jobs are performing long running operations against data on an auxiliary storage pool, the devices may not vary off and the switchover will fail.
+</li>
+<li class="cds--list__item">For the configuration objects specified in the cluster resource group, vary the configuration objects on and start the server takeover IP address on the new primary node if the entry in the cluster resource group indicates the configuration objects is to be varied on.  If any of the devices in the cluster resource group are a primary auxiliary storage pool, all members of the auxiliary storage pool group will be varied on if the primary specifies the vary on value.  The exit program is called on the new primary after the devices are moved to the new primary and varied on.
+</li>
+<li class="cds--list__item">A separate batch job is submitted to vary each configuration object on or off. On IBM i 7.3 and later, the job is submitted to the QSYS/QSYSNOMAX job queue.
+</li>
+<li class="cds--list__item">Cluster Resource Services varies the configuration objects in parallel based on the object type. All configuration objects of the type must either complete the vary (successfully or not) or be in vary pending before configuration objects of the next type are varied.
+</li>
+<li class="cds--list__item">Set the cluster resource group status to Active if the devices can be successfully switched to the new primary.
+</li>
+<li class="cds--list__item">If the device entry in the cluster resource group indicates the device should be varied on and the vary on or the start of the server takeover IP address fails for some reason, the switchover will not complete successfully.  The exit program will be called with an action code of Undo and the devices will be moved back to the original primary node.
+</li>
+<li class="cds--list__item">If the devices can not be switched to the new primary, then the switchover fails. The exit program will be called with an action code of Undo (15) and the devices will be moved back to the original primary node and/or the role of auxiliary storage pool will be swapped back as before (for cross site mirroring where the new primary node is at a different site than the current primary node).
+</li>
+<li class="cds--list__item">If the device entry in the cluster resource group indicates the device should be varied on and the vary on or the start of the server takeover IP address fails for some reason, the switchover will not complete successfully.  The devices remain on the new primary, and the exit program will be called with an action code dependent data of Configuration Object Online Failure (16). Configuration objects that had successfully varied on will remain varied on.
+</li>
+<li class="cds--list__item">Set the cluster resource group status to Indoubt if the devices cannot be successfully switched to the new primary node and cannot be returned to the same state on the old primary node.
+</li>
+</ol>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+</li>
+<li class="cds--list__item">This command cannot be called from a cluster resource group exit program.
+</li>
+<li class="cds--list__item">Cluster Resource Services must be started on the node processing the request.
+</li>
+<li class="cds--list__item">The status of the cluster resource group being switched must be Active.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="CHGCRGPRI.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRGPRI.CRG"><strong>CRG</strong></a></td>
+<td class="valigntop">Cluster resource group</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRGPRI.SWTTYP"><strong>SWTTYP</strong></a></td>
+<td class="valigntop">Switch type</td>
+<td class="valigntop"><strong class="underlined">*CURRCYDMN</strong>, *SAMESITE, *CRSSITE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRGPRI.EXITPGMDTA"><strong>EXITPGMDTA</strong></a></td>
+<td class="valigntop">Exit program data</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*SAME</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRGPRI.CLUSTER"><strong>CLUSTER</strong></a></td>
+<td class="valigntop">Cluster</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="CHGCRGPRI.CRG"></a>
+<h2>Cluster resource group (CRG)</h2>
+<p>Specifies the cluster resource group.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster resource group that is to be switched over.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRGPRI.SWTTYP"></a>
+<h2>Switch type (SWTTYP)</h2>
+<p>Specifies the switch type, which determines the method of selection of the new primary node.
+</p>
+<dl>
+<dt><strong class="underlined">*CURRCYDMN</strong></dt>
+<dd>Specify that the primary point of access for the CRG is changed as follows:
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The first backup node in the current recovery domain becomes the new primary node.
+</li>
+<li class="cds--list__item">The current primary node is assigned the role of the last active backup in the current recovery domain.
+</li>
+</ol>
+<p>If the first backup is not the desired primary, first use the Change Cluster Resource Group (CHGCRG) command to arrange the backup nodes in recovery domain to the desired order.
+</p>
+</dd>
+<dt><strong>*SAMESITE</strong></dt>
+<dd>Specify that the primary point of access for the CRG is changed as follows:
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The first backup node in the site containing the current primary node becomes the new primary node.
+</li>
+<li class="cds--list__item">The current primary node is assigned the role of the last active backup within the site.
+</li>
+</ol>
+<p>This only applied to device cluster resource groups.
+</p>
+</dd>
+<dt><strong>*CRSSITE</strong></dt>
+<dd>Specify that the primary point of access for the CRG is changed as follows:
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The first backup node in the site that does not contain the current primary node becomes the new primary node.
+</li>
+<li class="cds--list__item">The current primary node is assigned the role of the first active backup within the site.
+</li>
+</ol>
+<p>This only applied to device cluster resource groups.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRGPRI.EXITPGMDTA"></a>
+<h2>Exit program data (EXITPGMDTA)</h2>
+<p>Specifies up to 256 bytes of data that is passed to the cluster resource group exit program when it is called. This parameter may contain any scalar data except pointers. For example, it can be used to provide state information. This data will be stored with the specified cluster resource group and copied to all nodes in the recovery domain. Pointers in this area will not resolve correctly on all nodes and should not be placed in the data. The data specified will replace the existing exit program data stored with the cluster resource group. If blanks are specified, then the exit program data stored with the cluster resource group will be cleared. This parameter must be set to *SAME if no exit program is specified for the cluster resource group.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The exit program data stored with the cluster resource group specified will be passed to the exit program.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the exit program data that will be passed to the cluster resource group exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRGPRI.CLUSTER"></a>
+<h2>Cluster (CLUSTER)</h2>
+<p>Specifies the name of the cluster.
+</p>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The cluster that has been configured on this system is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CHGCRGPRI.COMMAND.EXAMPLES"></a>
+<h2>Examples for CHGCRGPRI</h2>
+<h3><strong>Example 1: Switchover to the next backup node in the current recovery domain.</strong>
+</h3>
+<p>
+</p><pre>CHGCRGPRI   CRG(MYCRG) SWTTYP(*CURRCYDMN)
+</pre>
+<p></p>
+<p>This command changes the primary point of access for the cluster resource group MYCRG to the first backup node in the current recovery domain.  The role of the current primary node is changed to become the last backup.  The resilient resources associated with the cluster resource group are now accessed through the new primary node.
+</p>
+<h3><strong>Example 2: Switchover to the first backup node in the current site.</strong>
+</h3>
+<p>
+</p><pre>CHGCRGPRI   CRG(MYCRG) SWTTYP(*SAMESITE)
+</pre>
+<p></p>
+<p>This command changes the primary point of access for the cluster resource group MYCRG to the first backup node in the site containing the current primary node.  The role of the current primary node is changed to become the last backup in the site.  The resilient resources associated with the cluster resource group are now accessed through the new primary node.
+</p>
+<h3><strong>Example 2: Switchover to the first backup node in the other site.</strong>
+</h3>
+<p>
+</p><pre>CHGCRGPRI   CRG(MYCRG) SWTTYP(*CRSSITE)
+</pre>
+<p></p>
+<p>This command changes the primary point of access for the cluster resource group MYCRG to the first backup node in the site that does not contain the current primary node.  The role of the current primary node is changed to become the first backup in the site.  The resilient resources associated with the cluster resource group are now accessed through the new primary node.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CHGCRGPRI.ERROR.MESSAGES"></a>
+<h2>Error messages for CHGCRGPRI</h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>HAE001E</strong></dt>
+<dd>Primary node of cluster resource group &amp;1 not changed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRGPRI.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

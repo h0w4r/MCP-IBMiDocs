@@ -1,0 +1,170 @@
+Add Cluster Node Entry (ADDCLUNODE)
+
+Add Cluster Node Entry (ADDCLUNODE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Add Cluster Node Entry (ADDCLUNODE) command is used to add a node to the membership list of an existing cluster.
+
+If the START parameter is set to *NO, the node that is being added will have a status of New and Cluster Resource Services will not be started on that node. The Start Cluster Node (STRCLUNOD) command can be called from a program running on one of the active nodes in the cluster to start Cluster Resource Services on a node that does not have a status of Active.
+
+If the START parameter on this command is set to *YES, Cluster Resource Services will be started on the node that is being added. If Cluster Resource Services is successfully started, the status for the added node will be set to Active. Successful completion of this command results in Cluster Resource Services jobs (QCSTCTL, QCSTCRGM, and a job for each cluster resource group object in the cluster) started as system jobs. If the Cluster Resource Services cannot be started, the status of the added node will be set to New.
+
+During the activation of Cluster Resource Services, the allow add to cluster (ALWADDCLU) network attribute is checked to see whether the node being added should be part of the cluster and whether to validate the cluster request through the use of X.509 digital certificates. If validation is required, the requesting node and the node being added must have the following installed on the systems:
+
+- Operating System option 34 (Digital Certificate Manager)
+
+- Cryptographic Access Provider Product (AC2 or AC3)
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the cluster to run this command.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- This command cannot be issued on the node being added. You must issue the command from a node in the cluster that has a status of Active. If Cluster Resource Services has not been started on any of the nodes in the cluster, you must issue this command from the node where the cluster was originally created, and the START parameter must be set to *NO.
+
+- The node being added to the cluster must not already be a member of this or any other cluster. A node can be a member of only one cluster.
+
+- If the START parameter is set to *YES, the node must be IP reachable (TCP/IP active and the INETD server started).
+
+- The command will fail if any node in the cluster has a status of Partition.
+
+- If the START parameter is set to *YES, the potential node version of the node being added must be equal to the current cluster version or up to one level higher than the current cluster version. The potential node version and the current cluster version can be retrieved by using the Display Cluster Information (DSPCLUINF) command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+NODE | Node list | Element list | Required, Positional 1
+Element 1: Node identifier | Name
+Element 2: IP address | Values (up to 2 repetitions): Character value
+START | Start indicator | *YES, *NO | Optional
+DEVDMN | Device domain | Name, *CURRENT, *NONE | Optional
+ADMDMN | Cluster administrative domain | Name, *CURRENT, *NONE | Optional
+CLUSTER | Cluster | Name, * | Optional
+
+Top
+
+Node identifier (NODE)
+
+Specifies information about the node which will be placed in the cluster membership list.
+
+This is a required parameter.
+
+Element 1: Node identifier
+
+A name that uniquely identifies a node.
+
+node-identifier
+Specify a name for the system.
+
+Element 2: IP address
+
+The cluster interface address is an IP address that is used by Cluster Resource Services to communicate with other nodes in the cluster. A maximum of 2 interface addresses per node can be specified.
+
+character-value
+Specify an IP address to be used to communicate with other nodes in the cluster. The IP addresses may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+
+An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+
+If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+
+Top
+
+Start indicator (START)
+
+Specifies whether or not Cluster Resource Services is to be started on the node being added.
+
+*YES
+Cluster Resource Services will be started on the node.
+
+*NO
+Cluster Resource Services will not be started on any node.
+
+Top
+
+Device domain (DEVDMN)
+
+Specifies the device domain to which the node will be added automatically. This parameter must be *NONE if the start indicator (START) parameter is *NO.
+
+*CURRENT
+The node will be added to an existing device domain by PowerHA. If there is no existing device domain or if there are multiple ones, the node will not be added to any device domain.
+
+*NONE
+The node will not be added to a device domain.
+
+name
+Specify the name of the device domain to which the node will be added.
+
+Top
+
+Cluster administrative domain (ADMDMN)
+
+Specifies the admin domain to which the node will be added automatically. This parameter must be *NONE if the start indicator (START) parameter is *NO.
+
+*CURRENT
+The node will be added to an existing admin domain by PowerHA. If there is no existing admin domain or if there are multiple ones, the node will not be added to any admin domain.
+
+*NONE
+The node will not be added to a admin domain.
+
+name
+Specify the name of the admin domain to which the node will be added.
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the name of the cluster.
+
+*
+The cluster that has been configured on this system is used.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Examples for ADDCLUNODE
+
+Example 1: Add a cluster node.
+
+ADDCLUNODE NODE(NODE1 ('192.0.2.10'))
+
+This command adds node NODE1 to the cluster that has been configured on this system. Node NODE1 is added to the cluster membership list and Cluster Resource Services is started on NODE1. Interface address 192.0.2.10 will be used by Cluster Resource Services to communicate with the new node. If there is an existing device domain, the node is also added to that device domain. If there is an existing admin domain, the node is also added to that admin domain.
+
+Example 2: Add a cluster node and add it to a device domain.
+
+ADDCLUNODE NODE(NODE1 ('192.0.2.10'))
+START(*YES) DEVDMN(DEVDMN) ADMDMN(ADMDMN)
+
+This command adds node NODE1 to the cluster that has been configured on this system. Node NODE1 is added to the cluster membership list and Cluster Resource Services is started on NODE1. Interface address 192.0.2.10 will be used by Cluster Resource Services to communicate with the new node. The node is added to device domain named DEVDMN. The node is also added to admin domain named ADMDMN.
+
+Example 3: Add a cluster node but do not start it.
+
+ADDCLUNODE NODE(NODE1 ('2001:DB8::::ffff:c000:20a'))
+START(*NO) DEVDMN(*NONE) ADMDMN(*NONE)
+
+This command adds node NODE1 to the cluster that has been configured on this system. Node NODE1 is added to the cluster membership list but Cluster Resource Services is not started on NODE1. The node is not added to any device domain. The node is not added to any admin domain.
+
+Top
+
+Error messages for ADDCLUNODE
+
+*ESCAPE Messages
+
+HAE000D
+ADDCLUNODE command to add cluster node &1 in cluster &2 failed.
+
+Top

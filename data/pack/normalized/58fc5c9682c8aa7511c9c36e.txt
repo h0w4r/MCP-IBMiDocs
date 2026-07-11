@@ -1,0 +1,234 @@
+Add Problem Action Entry (ADDPRBACNE)
+
+Add Problem Action Entry (ADDPRBACNE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add Problem Action Entry (ADDPRBACNE) command adds an entry to the specified problem filter. This entry describes the actions to take for a problem entry. A problem entry is assigned to the specified group by a selection entry in the specified problem filter.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILTER | Filter | Qualified object name | Required, Positional 1
+Qualifier 1: Filter | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+GROUP | Group | Name | Required, Positional 2
+ASNUSER | User assigned | Simple name, *NOCHG, *NONE | Optional
+SNDDTAQ | Send to data queue | Single values: *NONE
+Other values (up to 5 repetitions): Element list | Optional
+Element 1: Data queue | Qualified object name
+Qualifier 1: Data queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Data queue key | Character value, *NONE, X''
+
+Top
+
+Filter (FILTER)
+
+Specifies the name of the filter.
+
+This is a required parameter.
+
+Qualifier 1: Filter
+
+name
+Specify the name of the filter.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the filter. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library where the filter is located.
+
+Top
+
+Group (GROUP)
+
+Specifies the group for which the actions are applied. The group name is assigned from selection criteria from a selection entry in the filter. Selection entries are added to the filter with the ADDPRBSLTE command.
+
+This is a required parameter.
+
+Top
+
+User assigned (ASNUSER)
+
+Specifies the user assigned to the problem log entry.
+
+*NOCHG
+No new value is assigned to the problem log entry.
+
+*NONE
+No user is assigned to the problem log entry.
+
+assigned-user
+Specify a user name.
+
+Top
+
+Send to data queue (SNDDTAQ)
+
+Specifies the data queue for the problem notification record. Keyed data queues are supported.
+
+Single values
+
+*NONE
+No data queue is used.
+
+Other values (up to 5 repetitions)
+
+Element 1: Data queue
+
+Qualifier 1: Data queue
+
+name
+Specify the name of the data queue.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the data queue. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library where the data queue is located.
+
+Element 2: Data queue key
+
+*NONE
+No key is used on the data queue.
+
+character-value
+Specify the data queue key.
+
+NOTES:
+
+- If an exact match is not found for the group name when a filter is applied, the default action entry is used to assign actions. The default action entry is automatically added to the filter when it is created. The default values are ASNUSER(*NONE) and SNDDTAQ(*NONE).
+
+- A keyed data queue is a queue with a key assigned to each entry on the queue. When retrieving entries, a key can be specified and the entries with that key are retrieved on a FIFO order. The key that is specified on the *SNDDTAQ parameter is assigned to the problem notification record when placed on a keyed data queue.
+
+An 80-byte record is enqueued on the data queue specified by the user. This record is received when the QRCVDTAQ program is called. The data queue does not have to be used solely for problems; alerts and problems can share the same data queue.
+
+If a key is specified, it is used when enqueueing the record on the queue. If the data queue is non-keyed, the record is enqueued without a key.
+
+Note: The time stamp used is the system standard time stamp. This time is already stored in the problem record.
+
+Record Format
+
+Position Type Value Description
+-------- ---- ------------- --------------------------------
+1-10 CHAR *PRBFTR Problem filtering notification
+11-11 CHAR Function Function performed
+1 - Problem created
+2 - Problem changed
+3 - Problem deleted
+12-19 CHAR Function TOD TOD time stamp for function
+20-29 CHAR Group Group problem was filtered into
+30-39 CHAR Problem ID Problem ID number
+40-59 CHAR Origin System System where problem originated
+60-60 CHAR Last Event Last event committed into the
+history log (see note)
+61-68 CHAR Event TOD TOD time stamp for Last Event
+69-80 CHAR Reserved Reserved for future use
+
+Note: Valid Last Event values are the following:
+
+'01'X Problem entry opened
+'02'X Request received
+'03'X Opened by Alert
+'04'X Reported by HMC
+'05'X Reported by Service Partition
+'06'X Reported by current i5/OS Partition
+'10'X Problem analyzed
+'11'X Verification test ran
+'12'X Recovery procedure ran
+'20'X Prepared to report
+'21'X Service request sent
+'22'X Problem answered
+'23'X Response sent
+'24'X Reported by voice
+'25'X Fixes transmitted
+'30'X Fix verified
+'41'X Analyzed remotely
+'42'X Remote verification ran
+'43'X Remote recovery ran
+'50'X Alert created
+'51'X APAR created
+'52'X APAR data saved
+'54'X APAR data restored
+'55'X APAR data deleted
+'60'X Problem changed by Change Problem (CHGPRB) command
+'61'X Problem deleted by Delete Problem (DLTPRB) command
+'99'X Problem entry closed
+
+Top
+
+Examples
+
+ADDPRBACNE FILTER(MYLIB/MYFILTER) GROUP(IOWA)
+ASNUSER(SYSOPR)) SNDDTAQ(*LIBL/PROBDTAQ)
+
+The actions defined for group IOWA are: enqueue the problem on data queue PROBDTAQ; and assign the problem to user SYSOPR.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2150
+Object information function failed.
+
+CPF2151
+Operation failed for &2 in &1 type *&3.
+
+CPF7A82
+Error occurred while applying the problem filter.
+
+CPF812F
+Filter damaged.
+
+CPF91DB
+Group &4 already exists.
+
+CPF91DE
+Filter &1/&2 at maximum size.
+
+CPF91EB
+Filter type &3 not correct for this operation.
+
+CPF91EC
+Internal processing error occurred.
+
+CPF91E8
+Internal processing error occurred.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9807
+One or more libraries in library list deleted.
+
+CPF9808
+Cannot allocate one or more libraries on library list.
+
+Top

@@ -1,0 +1,338 @@
+Copy From Query File (CPYFRMQRYF)
+
+Copy From Query File (CPYFRMQRYF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Copy From Query File (CPYFRMQRYF) command copies either all or part of a file that is opened with the Open Query File (OPNQRYF) command to a physical file, DDM file, program-described printer file, or tape file. Alternatively, *PRINT can be specified for the To file (TOFILE) parameter to print the selected records using the IBM-supplied printer file, QSYSPRT.
+
+Note: For more information on DDM files, see the Distributed database programming topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+This command can:
+
+- Add records to an existing physical file member or replace contents of a receiving physical file member by using the MBROPT parameter.
+
+- Copy records from an open query file format that is different than the to-file record format and convert records when copying to a source physical file. When the formats are different, the copy operation can:
+
+Map fields that have the same name in the open query file format and the to-file record format
+
+Drop fields from the open query file format that do not exist in the to-file record format
+
+Copy the records directly, disregarding the differences between the open query file format and the to-file record format
+
+- Select a printout format when TOFILE(*PRINT) is specified. The records can be listed in character format, or in both character and hexadecimal format (OUTFMT parameter).
+
+- If the to-file does not exist before the copy operation, create the file (CRTFILE parameter) so that it has the same format as the open query file. Only the name, type, length, and decimal positions of each field in the open query format are used.
+
+- Copy a specified number or all of the records from an open query file depending if NBRRCDS(*END) was used or if a specific number was specified on the NBRRCDS parameter.
+
+Additional information about CPYFRMQRYF is in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ and the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- The open query file used by the CPYFRMQRYF command must not use any DDM files (specified on the FILE parameter of the OPNQRYF command).
+
+- A member cannot be copied to itself. This restriction means that a member specified by the TOFILE and TOMBR parameters of the CPYFRMQRYF command cannot have the same name as any member specified on the FILE parameter of the OPNQRYF command, nor can the member have the same qualified name as any physical file members used by logical files that are on the FILE parameter of the OPNQRYF command.
+
+- When the CRTFILE(*YES) parameter is specified and the FROMOPNID parameter identifies a query file that has an associated trigger, the file created (TOFILE parameter) does not have the associated trigger. The Add Physical File Trigger (ADDPFTRG) command must be used to add a trigger to the file.
+
+- In multithreaded jobs, this command is not threadsafe if the OPNQRYF command is not run in a threadsafe manner, or if copying to multiple database members, device files (except SPOOL(*YES) print files), distributed files, or DDM files of type *SNA. This command fails for distributed files that use relational databases of type *SNA and DDM files of type *SNA. It is threadsafe ONLY when copying to single database file members (local or DDM of type *IP) or SPOOL(*YES) print files provided the OPNQRYF command is run in a threadsafe manner.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMOPNID | From open file identifier | Name | Required, Positional 1
+TOFILE | To file | Single values: *PRINT
+Other values: Qualified object name | Required, Positional 2
+Qualifier 1: To file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TOMBR | To member or label | Name, *FIRST | Optional
+MBROPT | Replace or add records | *NONE, *ADD, *REPLACE | Optional
+CRTFILE | Create file | *NO, *YES | Optional
+OUTFMT | Print format | *CHAR, *HEX | Optional
+NBRRCDS | Number of records to copy | Unsigned integer, *END | Optional
+FMTOPT | Record format field mapping | Single values: *NONE, *NOCHK, *CVTSRC
+Other values (up to 2 repetitions): *MAP, *DROP | Optional
+ERRLVL | Errors allowed | Unsigned integer, 0, *NOMAX | Optional
+
+Top
+
+From open file identifier (FROMOPNID)
+
+Specifies the name used on the OPNQRYF command for identifying the open identifier for the query file. You must specify an open identifier associated with an open query file that allows input, update, or all operations specified by the OPNID and OPTION parameters on the OPNQRYF command.
+
+This is a required parameter.
+
+Top
+
+To file (TOFILE)
+
+Specifies the file that receives the copied records.
+
+Note: A device file can be a tape file or a program-described printer file.
+
+This is a required parameter.
+
+Single values
+
+*PRINT
+The data is copied to a system printer device file (QSYSPRT) and formatted according to the value specified for the Print format (OUTFMT) parameter.
+
+The IBM-supplied printer file, QSYSPRT, may not be overridden to a different file name, and it must have the RPLUNPRT(*YES) and CTLCHAR(*NONE) attributes.
+
+Qualifier 1: To file
+
+name
+Specify the name of the physical file or device file that receives the copied records. If CRTFILE(*YES) is specified and the specified file cannot be found, the file name must be qualified with a library name. When the physical to-file is created, it is placed in the specified library.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the physical file or device file. If no library is specified as the current library, QGPL is used.
+
+name
+Specify the name of the library where the physical file or device file is located.
+
+Top
+
+To member or label (TOMBR)
+
+Specifies the name of the file member that receives the copied records.
+
+If the to-file is a printer file, *FIRST must be specified for this parameter.
+
+*FIRST
+The first member of the specified file is used.
+
+name
+Specify the name of the physical to-file member, or the label identifier of the tape to-file that receives the records. If a member with the specified name does not already exist in the physical to-file, the copy operation attempts to add a member with the specified name to the file.
+
+Top
+
+Replace or add records (MBROPT)
+
+Specifies whether the new records replace or are added to the existing records.
+
+Note: If the copy is to an existing physical file, this parameter must specify either *ADD or *REPLACE. If the to-file does not exist but CRTFILE(*YES) is specified, the copy operation assumes MBROPT(*ADD) for all records copied to the file after it is created, regardless of the value specified on this parameter. The copied records are always physically added to the end of a database file member in the same order that they are retrieved from the open query file.
+
+*NONE
+This parameter does not apply to this copy operation. When the to-file is an existing physical file, *NONE is not allowed; either *ADD or *REPLACE must be specified to indicate whether records should be added or replaced in each to-file member used.
+
+*ADD
+The copied records are added to the existing records in each to-file member that is used.
+
+*REPLACE
+The system clears the existing member and adds the new records.
+
+Top
+
+Create file (CRTFILE)
+
+Specifies whether a physical file is created to receive the data if the to-file does not exist. If the to-file already exists when this command is started, this parameter is ignored.
+
+*NO
+The to-file must exist when this command is started. A physical file is not created to receive the data.
+
+*YES
+If the to-file does not exist, a physical file is created that has the name specified on the To file (TOFILE) parameter. If the open query file format contains a user-defined type, datalink, or LOB field type, the physical file created will be an SQL table. In all other instances the to-file created will be a database physical file that is not an SQL table. In addition to the normal copy operation validity checks, the following special conditions must all be true for the copy operation to create a to-file:
+
+- A library name must be specified on the TOFILE parameter. The default value *LIBL is not allowed.
+
+- There cannot be an override to a different file or library name. The values specified on this command for the to-file must be used.
+
+- The user running this command must be authorized to add the file to the TOFILE library and must have operational authority to the Create Physical File (CRTPF) command.
+
+Top
+
+Print format (OUTFMT)
+
+Specifies whether records are printed in character format, or in both character and hexadecimal format. This parameter is used only when *PRINT is specified for the To file (TOFILE) parameter.
+
+*CHAR
+Records are printed in character format.
+
+*HEX
+Records are printed in both character and hexadecimal format.
+
+Top
+
+Number of records to copy (NBRRCDS)
+
+Specifies the number of records copied to the to-file.
+
+*END
+Records are copied until the end-of-file condition is indicated.
+
+1-4294967288
+Specify the number of records to copy. Fewer records are copied if an end-of-file condition occurs before the specified number of records have been copied.
+
+Top
+
+Record format field mapping (FMTOPT)
+
+Specifies, when the open query file is copied to a physical to-file, what field-level record format processing (if any) is done. If the to-file is a source physical file, *CVTSRC must be specified on this parameter. The coded character set identifiers (CCSIDs) for character and DBCS fields in the open query format are determined by the CCSID of the job in which the Open Query File (OPNQRYF) command is run. All CCSIDs other than 65535 are reset to the job CCSID of the OPNQRYF command, unless the OPNQRYF job CCSID is 65535, in which case the CCSIDs are unchanged. If the open query file format and to-file record formats are identical and the to-file is a data physical file, any FMTOPT value except *CVTSRC can be specified to perform the copy operation.
+
+Note: Change the job CCSID to 65535 before running the OPNQRYF command if you plan to use the CPYFRMQRYF command.
+
+Single values
+
+*NONE
+No field mapping or field dropping is done during the copy operation. This value is valid only if the open query file and to-file have the same record format, or if the to-file is not a database file. The record formats are the same only if every field exists in both the open query file and to-file formats, and has the same starting position and attributes in both formats. Attributes include CCSIDs, whether or not a field is null-capable, and the date/time format and separator (if the field is a date/time field). Null values are copied if *NONE is valid and both files are database files.
+
+*NOCHK
+If the record formats of the open query file and the to-file are different, the copy operation continues despite the differences. Record data is copied directly (left to right) from one file to the other.
+
+*CVTSRC
+This value is used to copy to a source file. It is valid only when the to-file is a source file. If the to-file is a source file, sequence number and date fields are added, and the open query file record data is copied to the source data part of each to-file record. Null values are ignored and no conversion of date/time data occurs.
+
+Other values (up to 2 repetitions)
+
+*MAP
+Fields with the same name in the open query file and to-file record formats are copied, and fields in the to-file that do not exist in the open query file format are set to the default value specified on the DFT keyword for the data description specification (DDS) of the to-file (or zero for numeric fields, blanks for character fields, current date/time for date/time fields, or the null value for null-capable fields). If *MAP is specified, *DROP can also be specified. Mapped fields may have different starting positions in the open query file and to-file record formats. *MAP allows for the conversion of date/time data and for the copying of null values.
+
+*DROP
+This value must be specified for field-level mapping if any of the field names in the open query file record format do not exist in the to-file format. If *DROP is specified, *MAP can also be specified. When *DROP is specified, all the field names that exist in both record formats must have the same attributes and relative positions in the open query file and to-file record formats, or *MAP must also be specified.
+
+Top
+
+Errors allowed (ERRLVL)
+
+Specifies the maximum number of recoverable read or write errors that are tolerated for the file during the copy operation. The recoverable error count is reset at the beginning of each CPYFRMQRYF operation. If the number of recoverable errors handled is larger than the number specified on the ERRLVL parameter, the copy operation ends and a message is sent.
+
+0
+If a recoverable error occurs, the copy operation ends.
+
+*NOMAX
+No maximum number of errors is specified. All recoverable errors are tolerated. The copy operation continues regardless of the number of recoverable errors found.
+
+integer
+Specify the maximum number of recoverable errors that is allowed for the copy operation. If more errors occur than the value specified here, the copy operation ends.
+
+Top
+
+Examples
+
+Example 1: Building a File with a Subset of Records
+
+OPNQRYF FILE(CUSTOMER/ADDRESS) QRYSLT('STATE *EQ "TEXAS"')
+:
+CPYFRMQRYF FROMOPNID(ADDRESS) TOFILE(TEXAS/ADDRESS)
+CRTFILE(*YES)
+
+These commands create a file from the CUSTOMER/ADDRESS file containing records that have a value of Texas in the STATE field.
+
+Example 2: Printing Records Based on Selection
+
+OPNQRYF FILE(FILEA) QRYSLT('CITY *EQ "CHICAGO"')
+:
+CPYFRMQRYF FROMOPNID(FILEA) TOFILE(*PRINT)
+
+These commands print all records from FILEA where the value of the CITY field is Chicago.
+
+Example 3: Copying a Subset of Records to a Diskette
+
+OPNQRYF FILE(FILEB) QRYSLT('FIELDB *EQ "10"') OPNID(MYID)
+:
+CPYFRMQRYF FROMOPNID(MYID) TOFILE(DISK1)
+
+These commands copy to a diskette file all records from FILEB where the value of FIELDB is 10.
+
+Example 4: Creating a Copy of the Output from a Dynamic Join
+
+Assume a user wants to create a physical file with the format and data of FILEA and FILEB. Assume the files contain the following fields:
+
+FILEA FILEB JOINAB
+----- ----- ------
+Cust Cust Cust
+Name Amt Name
+addr Amt
+
+OPNQRYF FILE(FILEA FILEB) FORMAT(JOINAB)
+JFLD((FILEA/CUST FILEB/CUST))
+MAPFLD((CUST 'FILEA/CUST')) OPNID(QRYFILE)
+:
+CPYFRMQRYF FROMOPNID(QRYFILE) TOFILE(MYLIB/FILEC)
+CRTFILE(*YES)
+
+These commands join FILEA and FILEB and save a copy of the results in a new physical file MYLIB/FILEC. The format of the file will be like JOINAB. The file will contain the data from the join of FILEA and FILEB using the Cust field. File FILEC in library MYLIB can be processed like any other physical file with CL commands (for example, Display Physical File Member (DSPPFM)) and utilities (for example, Query/400).
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2816
+File &1 in &2 not copied because of error.
+
+CPF2817
+Copy command ended because of error.
+
+CPF2858
+File attributes not valid for printed output.
+
+CPF2859
+Shared open data path not allowed.
+
+CPF2864
+Not authorized to file &1 in library &2.
+
+CPF2875
+Wrong file member or label opened.
+
+CPF2883
+Error creating file &1 in library &2.
+
+CPF2888
+Member &3 not added to file because of error.
+
+CPF2909
+Error clearing member &3 in file &1 in &2.
+
+CPF2949
+Error closing member &3 in file &1 in &2.
+
+CPF2952
+Error opening file &1 in library &2.
+
+CPF2971
+Error reading member &3 in file &1.
+
+CPF2972
+Error writing to member &3 in file &1.
+
+CPF2975
+Error while reading from keyed file.
+
+CPF2976
+Number of errors greater than ERRLVL value.
+
+CPF3140
+Operation canceled for member &2 file &1 in library &3.
+
+CPF3143
+Increments not allowed for member &2.
+
+CPF3148
+New records need too much space for member &2.
+
+CPF3150
+Data base copy failed for member &2.
+
+CPF9212
+Cannot load or unload DDM file &2 in &3.
+
+Top

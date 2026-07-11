@@ -1,0 +1,309 @@
+Receive Network File (RCVNETF)
+
+Receive Network File (RCVNETF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Receive Network File (RCVNETF) command receives a network file and copies the records into a physical database file or a save file. Once the file has been received, it is removed from the queue of network files.
+
+If the original file is a save file, it must be received into a save file. Before a file can be received, the file specified by the TOFILE parameter must already exist.
+
+When a source physical file is sent, the source sequence number and change date in positions 1 through 12 of the record are sent with the file. These are kept if the file is received into a source physical file, and are truncated if the file is received into a nonsource physical file. When a file that was originally a nonsource physical file is received into a source physical file, the source sequence numbers are created and placed in front of the records.
+
+If the file is a physical file, the record length of the to-file must be at least as large as the record length of the original file. If the record length of the to-file is larger than that of the original file, the records are padded to the end with the default record value for the to-file.
+
+This command does not perform any CCSID translation on the contents of the file. However, the user ID and address of both the recipient and the originator are translated from the multinational character set 697/500 to the current job CCSID.
+
+Restrictions:
+
+- A user with security officer authority can receive the files sent to any user. Users with other than security officer authority can receive only files sent to them or to their group profile.
+
+- The user must have read authority to the library containing the to-file, and use and add authority to the to-file. The following additional authority may be required:
+
+Object management authority, if a member is added to the file.
+
+Object management authority and delete authority, if a save file or existing physical file member is cleared.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMFILE | From file | Character value | Required, Positional 1
+TOFILE | To file | Qualified object name | Optional, Positional 2
+Qualifier 1: To file | Name, *FROMFILE
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMMBR | Member to be received | Character value, *ONLY | Optional, Positional 3
+TOMBR | To member | Name, *FROMMBR, *FIRST | Optional, Positional 4
+MBROPT | Replace or add records | *REPLACE, *ADD | Optional
+NBR | File number | Integer, *LAST, *ONLY, *FIRST | Optional
+USER | User | Name, *CURRENT | Optional
+FROMTYPE | From file type | *NETFILE, *SRC | Optional
+
+Top
+
+From file (FROMFILE)
+
+Specifies the name of the file that is received. This is the name of the file on the sending system.
+
+This is a required parameter.
+
+Top
+
+To file (TOFILE)
+
+Specifies the name of the file into which the network file is received. Overrides to this file are ignored.
+
+The possible values are:
+
+*FROMFILE
+The network file is received into a file of the same name as the file sent.
+
+file-name
+Specify the name and library of the receiving file.
+
+The possible library values are:
+
+*LIBL
+The library list is used to locate the file.
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the file is located.
+
+Top
+
+Member to be received (FROMMBR)
+
+Specifies the name of the file member that is received.
+
+The possible values are:
+
+*ONLY
+Only one member is received for this file. If *ONLY is specified on the File number prompt (NBR parameter), only one member per file is on the arrived file queue.
+
+member-name
+Specify the name of the member that is received. A member name cannot be specified if the file is a save file.
+
+Top
+
+To member (TOMBR)
+
+Specifies the database file member that receives the data.
+
+The possible values are:
+
+*FROMMBR
+The data is received into a member with the same name as the member specified on the Member to be received prompt (FROMMBR parameter).
+
+*FIRST
+The first member in the file receives the output.
+
+member-name
+Specify the name of the member that receives the records. A member name cannot be specified if the file is a save file.
+
+Top
+
+Replace or add records (MBROPT)
+
+Specifies whether the new records replace or are added to the existing records.
+
+The possible values are:
+
+*REPLACE
+The system clears the existing member and adds the new records.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+Top
+
+File number (NBR)
+
+Specifies the number of the file member that is received. This number is used to identify the member that is received when there is more than one member of the same name available for the file.
+
+The possible values are:
+
+*LAST
+The last network file member with the specified member name is received. The last member is determined as the last member to arrive at your system.
+
+Note: The file member that arrived last at the user's system may not have been the last one sent by the sending user. The network does not guarantee the arrival sequence of separately sent files.
+
+*ONLY
+Only one file member of the specified file name is received.
+
+member-number
+Specify the number of the member that is received.
+
+Top
+
+User (USER)
+
+Specifies the user to whom the file was sent.
+
+The possible values are:
+
+*CURRENT
+The files sent to the current user are received.
+
+user-name
+Specify the name of the user to whom the files were sent. Only users with security officer authority can specify a name other than their own or their group profile.
+
+Top
+
+From file type (FROMTYPE)
+
+Specifies the type of file that is received. This option should be used mainly when the file is a System i5 or System/38 source file which was sent by a System/370 VM or MVS user. Since VM or MVS cannot identify whether the file is a source file, you can indicate whether the file is a source file or a non-source file.
+
+The possible values are:
+
+*NETFILE
+The network file type is used to determine whether file type conversion is needed.
+If the file is a non-source file and is:
+
+- Received into a non-source file, the file is received unchanged.
+
+- Received into a source file, the sequence numbers and date fields are added.
+
+If the file is a source file and is:
+
+- Received into a non-source file, the sequence numbers and date fields are removed (the first 12 bytes of each record).
+
+- Received into a source file, the file is received unchanged.
+
+*SRC
+The file being received is a source file. The sequence numbers and date fields are in the file. If the file is received into another source file, the sequence numbers and date fields are not added to the file being received. If the file is received into a non-source file, the sequence numbers and date fields are removed (the first 12 bytes of each record).
+
+Note: *SRC must not be specified if the network file does not contain sequence numbers and date fields in the first 12 bytes of each record.
+
+Top
+
+Examples
+
+Example 1: Receiving a Member
+
+RCVNETF FROMFILE(FILEA) TOFILE(FILEB/FILEA)
+FROMMBR(PAYROLL)
+
+This command receives member PAYROLL of file FILEA into member PAYROLL of file FILEA in library FILEB. If there is an existing member of that name, the records in the member are replaced. If multiple members of that name are available, the last one to arrive at the destination system is received.
+
+Example 2: Receiving a Network File
+
+RCVNETF FROMFILE(PERSONNEL) NBR(*LAST) USER(USR1)
+
+This command receives a network file named PERSONNEL, which was sent to user USR1, into a file with the same name. Because the FROMMBR parameter is not specified, there must be only one member name available for this file. Because USR1 is specified, only someone with a user profile of USR1, someone with a group profile of USR1, or someone with security officer authority can use this command.
+
+Example 3: Receiving a Source File
+
+RCVNETF FROMFILE(FILEA) TOFILE(FILEB/FILEA)
+FROMMBR(PAYROLL) FROMTYPE(*SRC)
+
+This command specifies that the file being received is a source file and the sequence numbers and date fields are not added to the file being received.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2204
+User profile &1 not found.
+
+CPF2207
+Not authorized to use object &1 in library &3 type *&2.
+
+CPF4101
+File &2 in library &3 not found or inline data file missing.
+
+CPF5715
+File &1 in library &2 not found.
+
+CPF8057
+File &1 in &2 not a physical file or save file.
+
+CPF8059
+Member name not allowed for save file.
+
+CPF8060
+No files compare to the specified selection.
+
+CPF8062
+Record length of network file larger than receiving file.
+
+CPF8063
+Cannot assign necessary resource.
+
+CPF8070
+Not allowed to process files for user &1.
+
+CPF8077
+More than one file with same name found. See previously displayed messages.
+
+CPF8080
+MBROPT(*ADD) not allowed for save file.
+
+CPF8081
+File &5 member &6 number &7 already processed.
+
+CPF8082
+Cannot get network file &5 member &6 number &7.
+
+CPF9005
+System resource required to complete this request not available.
+
+CPF9006
+User not enrolled in system distribution directory.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9807
+One or more libraries in library list deleted.
+
+CPF9808
+Cannot allocate one or more libraries on library list.
+
+CPF9810
+Library &1 not found.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9843
+Object &1 in library &3 type &2 cannot be accessed.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9846
+Error while processing file &1 in library &2.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9848
+Cannot open file &1 in library &2 member &3.
+
+CPF9849
+Error while processing file &1 in library &2 member &3.
+
+Top

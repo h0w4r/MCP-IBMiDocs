@@ -1,0 +1,181 @@
+Change ASP Activity (CHGASPACT)
+
+Change ASP Activity (CHGASPACT)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change ASP Activity (CHGASPACT) command can be used to:
+
+- suspend database transactions and database and Integrated File System file change operations for the system and configured basic auxiliary storage pools (ASP)s or independent ASPs
+
+- resume suspended transactions and file operations for the system and configured basic auxiliary storage pools (ASP)s or independent ASPs
+
+- force to disk changed pages associated with the system and configured basic auxiliary storage pools (ASP)s or independent ASPs.
+
+An ASP may be suspended in order to facilitate vary on after performing a flash copy or geographic mirror detach followed by a vary on. The vary on will go through recovery steps that will rollback incomplete transactions, rebuild access paths, update database records of journaled files and take other recovery actions. Switchover has tracking of changes that occur while the switch is in progress.
+
+Restrictions:
+
+- You must have job control (*JOBCTL) special authority to run this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+ASPDEV | ASP device | Name, *SYSBAS | Required, Positional 1
+OPTION | Option | *SUSPEND, *RESUME, *FRCWRT | Required, Positional 2
+SSPOPT | Suspend option | *ALL, *DDL | Optional
+SSPTIMO | Suspend timeout | Integer | Optional
+SSPTIMOACN | Suspend timeout action | *CONT, *END | Optional
+SSPFRCWRT | Suspend force write | *NO, *YES | Optional
+
+Top
+
+ASP device (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device on which the command is to operate.
+
+This is a required parameter.
+
+*SYSBAS
+The operation is to be performed on the system ASP (ASP number 1) and all configured basic ASPs (ASP numbers 2-32).
+
+name
+Specify the name of the independent ASP device on which the operation is to be performed.
+
+Top
+
+Option (OPTION)
+
+Specifies the option to perform. This is a required parameter.
+
+*SUSPEND
+Activity for the auxiliary storage pool (ASP) specified for the ASP device (ASPDEV) parameter will be suspended. The behavior of this option depends on the suspend option (SSPOPT) parameter specified.
+
+*RESUME
+Activity for the specified device will be resumed. This parameter value is only valid for an ASP that is currently suspended. Transaction or operation requests whose initiation is currently halted will start. New transaction or operation requests will not be suspended.
+
+*FRCWRT
+Data for the specified ASP will be forced to disk. The ASP will remain active during this operation. Forcing changed data to disk should reduce the time it takes to vary off an ASP or to switch an ASP from one system to another.
+
+Top
+
+Suspend option (SSPOPT)
+
+Specifies the suspend option value for suspend operations.
+
+Note: This is a required parameter if OPTION(*SUSPEND) is specified. This parameter is ignored if any other OPTION value is specified.
+
+*ALL
+All activity for the auxiliary storage pool (ASP) specified for the ASP device (ASPDEV) parameter will be suspended and the specified ASP will be quiesced. Initiation of new transactions or new file (database or integrated file system) operations will be temporarily halted.
+
+*DDL
+Only data definition language (DDL) operations for the specified ASP device (ASPDEV) will be suspended. The ASP will not be quiesced.
+
+Top
+
+Suspend timeout (SSPTIMO)
+
+Specifies the timeout value for suspend operations.
+
+Note: This is a required parameter if OPTION(*SUSPEND) is specified. This parameter is ignored if any other OPTION value is specified. Note that suspend continues even after the timeout expires. The timeout is the maximum amount of time before the command completes.
+
+Number
+Specify the number of seconds to allow for the operation to complete.
+
+Top
+
+Suspend timeout action (SSPTIMOACN)
+
+Specifies the action to take if the suspend timeout value specified for the SSPTIMO parameter is reached.
+
+*CONT
+The suspend should continue, even if the ASP was not able to be quiesced within the specified time.
+
+*END
+The suspend operation should be cancelled if the ASP was not able to be quiesced within the specified time.
+
+Top
+
+Suspend force write (SSPFRCWRT)
+
+Specifies whether the suspend operation should also perform an OPTION(*FRCWRT) as part of the suspend operation.
+
+Note: This parameter is only valid if OPTION(*SUSPEND) is specified. This parameter is ignored if any other OPTION value is specified.
+
+*YES
+Activity for the ASP device will be suspended and an OPTION(*FRCWRT) will be performed as part of the suspend operation.
+
+*NO
+Data for the specified ASP device will not be forced to disk as part of the suspend operation. This may reduce the time required for the suspend operation but may increase the amount of time required for an ASP device to vary on.
+
+Top
+
+Examples
+
+Example 1: Suspend Activity for System and Basic User ASPs
+
+CHGASPACT ASPDEV(*SYSBAS) OPTION(*SUSPEND)
+SSPTIMO(30) SSPTIMOACN(*CONT)
+
+This command suspends activity to the system auxiliary storage pool (ASP) and any configured basic user ASPs, and allows the suspend to continue if the quiesce was unable to complete within 30 seconds.
+
+Example 2: Resume Activity to Suspended System and Basic User ASPs
+
+CHGASPACT ASPDEV(*SYSBAS) OPTION(*RESUME)
+
+This command resumes activity to previously-suspended system ASP and configured basic user ASPs.
+
+Example 3: Suspend Activity to an Independent ASP
+
+CHGASPACT ASPDEV(MYASP) OPTION(*SUSPEND)
+SSPTIMO(60) SSPTIMOACN(*END)
+
+This command suspends activity to the independent ASP associated with ASP device MYASP. If the independent ASP cannot be quiesced within 60 seconds, the suspend request is ended.
+
+Example 4: Force Independent ASP Changed Pages From Main Memory to Disk
+
+CHGASPACT ASPDEV(MYASP) OPTION(*FRCWRT)
+
+This command forces all changed pages for independent ASP MYASP to be written to disk.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF222E
+&1 special authority is required.
+
+CPFB717
+Suspend Access timed out and did not complete successfully.
+
+CPFBA44
+Operation or action key not valid.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9899
+Error occurred during processing of command.
+
+Top

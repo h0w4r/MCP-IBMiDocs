@@ -1,0 +1,447 @@
+Add TCP/IP Route (ADDTCPRTE)
+
+Add TCP/IP Route (ADDTCPRTE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add TCP/IP Route (ADDTCPRTE) command is used to identify a route to a remote network or a route to a remote destination system in the Transmission Control Protocol/Internet Protocol (TCP/IP) configuration.
+
+Five parameter values uniquely define an IPv4 route. These values are the route destination (RTEDEST), the subnet mask (SUBNETMASK), the type of service (TOS), the IPv4 address of the next system on the route (NEXTHOP), and the preferred binding interface (BINDIFC).
+
+Four parameter values uniquely define an IPv6 route. These values are the route destination (RTEDEST), the address prefix length (ADRPFXLEN), the IPv6 address of the next system on the route (NEXTHOP), and the binding line description (BINDLIND).
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority to run this command.
+
+- An route cannot be added unless the internet address specified by the NEXTHOP parameter can be reached directly through a network associated with a previously defined TCP/IP interface. An interface can be added using the ADDTCPIFC command.
+
+- A route destination value of 127.nnn.nnn.nnn (where nnn is any value from 0 to 255) is not allowed. It is a reserved value for *LOOPBACK.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+RTEDEST | Route destination | Character value, *DFTROUTE, *DFTMCAST, *DFT6ROUTE, *DFT6MCAST | Required, Positional 1
+SUBNETMASK | Subnet mask | Character value, *NONE, *HOST | Optional, Positional 2
+TOS | Type of service | *MINDELAY, *MAXTHRPUT, *MAXRLB, *MINCOST, *NORMAL | Optional, Positional 3
+NEXTHOP | Next hop | Character value | Optional
+ADRPFXLEN | Address prefix length | 1-128, 64, *HOST, *NONE | Optional
+BINDIFC | Preferred binding interface | Character value, *NONE | Optional
+BINDLIND | Binding line description | Element list | Optional
+Element 1: Binding line description | Name
+Element 2: Virtual LAN identifier | 1-4094, *NONE
+MTU | Maximum transmission unit | 576-16388, *IFC | Optional
+METRIC | Route metric | 1-16, 1 | Optional
+REDST | Route redistribution | *NO, *YES | Optional
+DUPRTEPTY | Duplicate route priority | 1-10, *MEDIUM, *HIGH, *LOW | Optional
+TEXT | Text 'description' | Character value, *BLANK | Optional
+
+Top
+
+Route destination (RTEDEST)
+
+Specifies the route destination being added.
+
+For an IPv4 route, you must specify all 4 bytes that make up an internet address though some of the bytes may be equal to 0. For example, a route to all the hosts on the 9.5.11 subnetwork is identified by entering 9.5.11.0 for the route destination. Used in combination with a subnetmask, type of service value, and next hop, the route destination uniquely identifies a route to a network or system.
+
+For an IPv6 route, the entire 16 byte IPv6 address must be specified, and the suffix portion of the RTEDEST field must be zero. For example, a RTEDEST with value 1234:5678:: and address prefix length (ADRPFXLEN) of 32 is a valid combination, but a RTEDEST with value 1234:5678:8000:: and ADRPFXLEN of 32 is not.
+
+This is a required parameter.
+
+*DFTROUTE
+Specifies that a default IPv4 route is being added. A default route is used by the system to send data to a remote destination for which a specific route is not defined. The default routes are used based on the availability of the next hop gateway and the type of service (TOS). If the application requests a specific TOS, the TOS of the default route used must match the TOS requested. If no default route is found that matches the requested TOS, the first available default route with a TOS of *NORMAL is used.
+
+*DFTMCAST
+Use the *DFTMCAST special value to indicate that the static IPv4 route you are adding is a default multicast route. A default multicast route is used by an application when sending data to a multicast destination address and a specific outgoing interface is not specified.
+
+Note: When RTEDEST(*DFTMCAST) is specified, then SUBNETMASK(*NONE) must also be specified and the NEXTHOP parameter must be a local TCP/IP interface (on this system).
+
+*DFT6ROUTE
+Specifies that a default IPv6 route is being added. A default IPv6 route is used by the system to send data to a remote IPv6 destination for which a specific route is not defined. If *DFT6ROUTE is specified, ADRPFXLEN must specify *NONE.
+
+*DFT6MCAST
+Specifies that a default IPv6 multicast route is being added. A default IPv6 multicast route is used by an application when sending data to a IPv6 multicast destination address and a specific outgoing physical interface is not specified. If *DFT6MCAST is specified, ADRPFXLEN must specify *NONE.
+
+character-value
+Specify the route destination being added. For an IPv4 route, the route destination can be specified in the form nnn.0.0.0, for Class A, nnn.nnn.0.0 for Class B, and nnn.nnn.nnn.0 for Class C, or nnn.nnn.nnn.nnn for any combination thereof, where nnn is a decimal number ranging from 0 through 255.
+Any combination thereof means that you may specify a route, such as 9.5.0.0 to the hosts on the 9.5 subnet, even though all 9.5.x.x addresses are class A network addresses.
+
+Exceptions:
+
+- The first byte (octet) must be greater than 0 and less than 255.
+
+- The last byte (octet) may not equal 255.
+
+- The last byte (octet) may not equal 0 if *HOST is specified for the SUBNETMASK value.
+
+- Routes to a broadcast address are not allowed.
+
+For an IPv6 route, the route destination is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. "::" may be used once in the route destination to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the route destination. The suffix portion of the route destination must contain zeros.
+
+Top
+
+Subnet mask (SUBNETMASK)
+
+Specifies a bit mask that identifies to TCP/IP which bits of the value specified for the route destination (RTEDEST) compose the network and subnet portions of the internet address. By defining the network portion and subnetwork portion of the RTEDEST address, the subnet mask also defines which bits of the RTEDEST address make up the host portion.
+
+The mask is a 32-bit combination that is logically ANDed with the internet address to determine a particular subnetwork. The bits of the mask set to the value one (1) determine the network and subnetwork portions of the address. The bits set to the value zero (0) determine the host portion of the address.
+
+SUBNETMASK is ignored if RTEDEST contains an IPv6 address.
+
+*NONE
+No subnet mask is used. A subnet mask is not used when specifying default routes. For example, when RTEDEST(*DFTMCAST) or RTEDEST(*DFTROUTE) is specified, SUBNETMASK(*NONE) must also be specified.
+
+*HOST
+The internet address value specified in the route destination field is a host address. The subnetmask value is calculated to be 255.255.255.255.
+
+character-value
+Specify the mask of the subnet field. The internet address is in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. For example, a destination route's internet address value of 129.35.192.0 identifies a Class B subnetwork. The network ID part of its address is 129.35. The portion of the subnetmask that is associated with the network portion of a particular class of address must equal 255. Therefore, the upper 2 bytes must be equal to 255.255 in the subnetmask. The subnetmask in this example may be 255.255.192.0 if the third octet is used as the subnetwork ID portion of the internet address.
+
+Top
+
+Type of service (TOS)
+
+Specifies the type of service to be used. The type of service defines how the internet hosts and routers should make trade-offs between throughput, delay, reliability, and cost.
+
+TOS is ignored if RTEDEST contains an IPv6 address.
+
+*NORMAL
+Normal service is used for delivery of data.
+
+*MINDELAY
+Minimize delay means that prompt delivery is important for data on this connection.
+
+*MAXTHRPUT
+Maximize throughput means that a high data rate is important for data on this connection.
+
+*MAXRLB
+Maximize reliability means that a higher level of effort to ensure delivery is important for data on this connection.
+
+*MINCOST
+Minimize monetary cost means that lower cost is important for data on this connection.
+
+Top
+
+Next hop (NEXTHOP)
+
+Specifies the internet address of the next system (gateway) on the route.
+
+A route cannot be added unless the internet address specified by the NEXTHOP parameter can be reached directly through a network associated with a previously defined TCP/IP interface. An interface can be added by using the Add TCP/IP Interface (ADDTCPIFC) command.
+
+Note: If RTEDEST specifies an IPv4 address, NEXTHOP must contain an IPv4 address. If RTEDEST specifies an IPv6 address, NEXTHOP must contain an IPv6 address.
+
+character-value
+Specify the internet address.
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host ID portion of the address.
+
+An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+
+:: (null IPv6 address), ::1 (IPv6 loopback address) and addresses beginning with FF (IPv6 multicast address) are not allowed.
+
+If the internet address is entered from a command line, the address must be enclosed in apostrophes.
+
+Note: If you are adding a *DFTMCAST (default multicast route) the *NEXTHOP internet address must be local, on this system, and not one hop away.
+
+Top
+
+Address prefix length (ADRPFXLEN)
+
+Specifies the IPv6 address prefix length (in bits) of the RTEDEST parameter. The address prefix length specifies how much of the leftmost portion of an IPv6 address is the subnet prefix. This parameter applies only if RTEDEST is an IPv6 address.
+
+64
+The default is 64 since most IPv6 networks have a 64 bit interface ID (address suffix).
+
+*HOST
+The RTEDEST field specifies the IPv6 address of a specific host system. *HOST corresponds to a value of 128.
+
+*NONE
+No address prefix length is specified.
+
+1-128
+Specify how much of the leftmost portion of the RTEDEST IPv6 address is the subnet prefix.
+
+Top
+
+Preferred binding interface (BINDIFC)
+
+Specifies the IP interface this route will be bound to. The bind is absolute.
+
+Note: This parameter is useful only when there are multiple interfaces defined on your system for the same network. BINDIFC allows you to define which interface should be used to reach the network for a particular route destination. In this way you can distribute traffic (load balancing) across multiple interfaces so all routes do not use the same interface to reach the network.
+
+If the IP interface you specify is active, this route will bind to it, otherwise it will follow the normal route binding rules (which are also used when BINDIFC is defined as *NONE).
+
+BINDIFC is ignored if RTEDEST contains an IPv6 address.
+
+*NONE
+No particular IP interface will be bound to this route. The first active IP interface on the network defined by the NEXTHOP and SUBNETMASK parameters will be used. This is the default value.
+
+character-value
+Specify the internet address (IP address) of the interface you want this route to bind to. The binding is preferred and absolute.
+
+Top
+
+Binding line description (BINDLIND)
+
+Specifies the line description (LIND) object to which this route will be bound. This value must be specified for an IPv6 route and is ignored for an IPv4 route.
+
+Element 1: Binding line description
+
+name
+Specify the name of the line description. The line description must be for an Ethernet line, and must already have at least one IPv6 interface using it.
+
+Element 2: Virtual LAN identifier Specifies the virtual LAN identifier of the associated line. This identifies the virtual LAN to which this route will be bound according to IEEE standard 802.1Q. This parameter is only valid for lines configured for Ethernet adapters that support the 802.1Q standard.
+
+*NONE
+The binding line is not part of a virtual LAN.
+
+1-4094
+Specify the virtual LAN identifier of the associated line.
+
+Top
+
+Maximum transmission unit (MTU)
+
+Specifies the maximum size (in bytes) of IP datagrams that can be transmitted through this route. A datagram is a basic unit of information passed over an internet network. For IPv4, the minimum size of any maximum transmission unit value is 576 bytes. For IPv6, the minimum value is 1280 bytes.
+
+*IFC
+For an IPv4 route, the maximum transmission unit (MTU) is the MTU of the interface that is associated with this route. For an IPv6 route, the MTU is the maximum frame size of the binding line description (BINDLIND) associated with the route.
+
+576-16388
+Specify a value for the maximum transmission unit in bytes. The maximum MTU that can be specified for this route depends on the type of physical connection to the network. The following table lists the maximum MTU values that can be specified based on the line type:
+
+Ethernet 802.3
+8992
+
+Ethernet Version 2
+9000
+
+Notes:
+
+- TCP/IP uses the route MTU value to calculate the size of the datagrams it sends. If you are using path MTU discovery, specify MTU(*IFC). This will allow the TCP/IP support to calculate the most efficient MTU for this route. If you are not using path MTU discovery, and you do not know the smallest MTU used by host systems along the entire path of this route, use 576 (for IPv4 routes) or 1280 (IPv6 routes).
+
+- The MTU of a route cannot exceed the MTU of the interface on which the NEXTHOP value is accessed. If the interface's MTU value was specified as *LIND, the interface's MTU value is derived from the line description. If the route's MTU value is specified as *IFC and the interface's MTU value is specified as *LIND, both values are derived from the line description.
+
+- The actual MTU value used for a route is resolved during interface activation. This value is the minimum of either the specified MTU value for the route or the MTU value determined from the associated interface used by the route.
+
+Top
+
+Route metric (METRIC)
+
+Allows you to assign a routing metric "cost" value to this route. The metric cost of a route is a factor in determining the desirability of the route. The metric value range is from 1 to 16. A metric value of 1 is close (one router hop) and therefore desirable. Desirability decreases as the metric value (distance) increases. A metric value of 16 is considered unreachable (an infinite distance away).
+
+You can discourage the routing table from choosing this route by specifying a metric value that is higher than the actual number of hops to the destination and therefore reduce traffic on this route.
+
+METRIC is ignored if RTEDEST contains an IPv6 address.
+
+1
+A routing metric cost value of 1 is used.
+
+1-16
+Specify the metric value to be used.
+
+Top
+
+Route redistribution (REDST)
+
+Specifies whether this static route information will be shared with other routers. You can reduce traffic on this route by specifying *NO.
+
+REDST is ignored if RTEDEST contains an IPv6 address.
+
+*NO
+This route will not be shown or shared with other routers.
+
+*YES
+This route will be shown to any requesting router.
+
+Note: REDST(*YES) is analogous to the RIPv1 specification of STATIC. REDST(*NO) is analogous to the RIPv1 specification of PASSIVE.
+
+Top
+
+Duplicate route priority (DUPRTEPTY)
+
+Specifies the duplicate route priority of this static route. This value determines which route is selected when multiple routes with the same value for route destination, subnet mask, and type of service (for IPv4 routes) or route destination and address prefix length (for IPv6 routes) satisfy the primary route selection criteria. Routes with a higher duplicate route priority (DUPRTEPTY) are used before routes with a lower one. The values allowed for this parameter are 1 (lowest priority) to 10 (highest priority).
+
+*MEDIUM
+Specify medium priority. *MEDIUM corresponds to a value of 5.
+
+*HIGH
+Specify high priority. *HIGH corresponds to a value of 10.
+
+*LOW
+Specify low priority. *LOW corresponds to a value of 1.
+
+1-10
+Specify the duplicate route priority value to be used.
+
+Note: IPv4 routes have 10 different priority values. IPv6 routes have only 3: *HIGH, *MEDIUM, and *LOW. For an IPv6 route, if 1, 2, or 3 are specified for DUPRTEPTY, the route will have *LOW priority. If 4, 5, or 6 are specified for DUPRTEPTY, the IPv6 route will have *MEDIUM priority. If values 7, 8, 9, or 10 are specified for DUPRTEPTY, the IPv6 route will have *HIGH priority.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies text that briefly describes the route.
+
+*BLANK
+No text is specified.
+
+character-value
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Examples
+
+Example 1: Adding an IPv4 Route
+
+ADDTCPRTE RTEDEST('132.65.8.0') SUBNETMASK('255.255.255.0')
+TOS(*MINDELAY) NEXTHOP('148.92.6.40') MTU(*IFC)
+
+This command specifies the following for this route:
+
+- A route destination of a class B network.
+
+- Subnetting through the third octet.
+
+- A minimum delay type of service for the interface.
+
+- This route is connected to or can be reached by going through a gateway identified as 148.92.6.40.
+
+- The maximum transmission unit (MTU) is to be calculated based on the interface associated with the next hop for this route.
+
+Example 2: Adding an IPv4 Route with a Specific MTU
+
+ADDTCPRTE RTEDEST('9.10.45.0') SUBNETMASK('255.255.255.0')
+TOS(*MAXRLB) NEXTHOP('9.5.11.128') MTU(1994)
+TEXT('Route with specific MTU')
+
+This command specifies the following for this route:
+
+- A route destination of a class A network.
+
+- Subnetting through the third octet.
+
+- A maximum reliability type of service for the interface.
+
+- This route is connected to or can be reached by going through a gateway identified as 9.5.11.128.
+
+- A maximum transmission unit (MTU) of 1994.
+
+- A text description of the route.
+
+Example 3: Adding IPv4 Default Routes
+
+ADDTCPRTE RTEDEST(*DFTROUTE) SUBNETMASK(*NONE) TOS(*MINCOST)
+NEXTHOP('186.49.126.108') MTU(*IFC)
+ADDTCPRTE RTEDEST(*DFTROUTE) SUBNETMASK(*NONE) TOS(*NORMAL)
+NEXTHOP('129.65.34.98') MTU(576)
+
+These commands specify that:
+
+- Two default routes are used for this host.
+
+- Data may be routed over either default route.
+
+- Processing will use the first *DFTROUTE specified that also has the same type of service requested by the application.
+
+- Minimum cost (*MINCOST) type of service is used for the first route and normal (*NORMAL) type of service is used for the second route.
+
+- A maximum transmission unit (MTU) of *IFC is used for the first route and 576 for the second route.
+
+Note: You cannot specify a subnetmask on a default route entry. It must equal *NONE.
+
+Example 4: Adding an IPv6 Network Route
+
+ADDTCPRTE RTEDEST('1234::') ADRPFXLEN(16)
+NEXTHOP('5678::1234') BINDLIND(ETHLINE 123) MTU(*IFC)
+
+This command specifies the following:
+
+- A route to IPv6 subnetwork 1234::/16 (route destination of 1234:: and ADRPFXLEN of 16).
+
+- A next hop of 5678::1234.
+
+- The route is to be bound to line description ETHLINE on virtual LAN 123.
+
+- The MTU value is determined from the maximum frame size defined in line description ETHLINE.
+
+Example 5: Adding an IPv6 Default Route
+
+ADDTCPRTE RTEDEST(*DFT6ROUTE) ADRPFXLEN(*NONE)
+NEXTHOP('1212::3434') BINDLIND(ETHLINE2) MTU(1280)
+
+This command specifies the following:
+
+- A default IPv6 route.
+
+- A next hop of 1212::3434.
+
+- The route is to be bound to line description ETHLINE2.
+
+- An MTU value of 1280.
+
+Example 6: Adding an IPv6 Host Route
+
+ADDTCPRTE RTEDEST('AAAA::BBBB') ADRPFXLEN(*HOST)
+NEXTHOP('3434::1212') BINDLIND(ETHLINE3)
+TEXT('IPv6 host route')
+
+This command specifies the following:
+
+- A route to IPv6 host address AAAA::BBBB.
+
+- A next hop of 3434::1212.
+
+- The route is to be bound to line description ETHLINE3.
+
+- A text description is specified for the route.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+TCP1D03
+&1 member record length not correct.
+
+TCP1D04
+Error occurred processing member &1 of &2/&3.
+
+TCP1901
+Internet address &2 not valid.
+
+TCP1902
+Internet address &1 not valid.
+
+TCP1908
+Internet address &1 not valid.
+
+TCP261C
+Process completed successfully.
+
+TCP2665
+&2 &1 not added successfully.
+
+TCP2666
+&2 &1 not added.
+
+TCP8050
+*IOSYSCFG authority required to use &1.
+
+TCP9509
+Line &1 not found.
+
+TCP9999
+Internal system error in program &1.
+
+Top

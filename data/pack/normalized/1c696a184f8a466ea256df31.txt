@@ -1,0 +1,194 @@
+Remove PF Constraint (RMVPFCST)
+
+Remove PF Constraint (RMVPFCST)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Remove Physical File Constraint (RMVPFCST) command can be used to remove one or more constraint relationships between physical files. The constraint relationships that can be removed with this command are referential constraints, unique constraints, primary key constraints, and check constraints.
+
+Restrictions:
+
+- You must have object management (*OBJMGT) or object alter (*OBJALTER) authority to the physical file specified for the File (FILE) parameter.
+
+- You must have execute (*EXECUTE) authority to the library that contains the physical file.
+
+- You cannot remove a constraint relationship from a file that your user job has open.
+
+- This command is conditionally threadsafe. In multithreaded jobs, this command is not threadsafe for distributed files and fails for distributed files that use relational databases of type *SNA.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | File | Qualified object name | Required, Positional 1
+Qualifier 1: File | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+CST | Constraint name | Single values: *ALL, *CHKPND
+Other values (up to 300 repetitions): Character value | Required, Positional 2
+TYPE | Constraint type | *ALL, *REFCST, *UNQCST, *PRIKEY, *CHKCST | Optional, Positional 3
+RMVCST | Remove constraint | *RESTRICT, *REMOVE, *KEEP | Optional
+
+Top
+
+File (FILE)
+
+Specifies the physical file from which a constraint is to be removed. For a referential constraint, this file can be a dependent file only.
+
+This is a required parameter.
+
+Qualifier 1: File
+
+name
+Specify the name of the physical file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Constraint name (CST)
+
+Specifies the name of the constraint relationship being removed.
+
+This is a required parameter.
+
+Single values
+
+*ALL
+All of the constraint relationships for the file specified on the FILE parameter are removed.
+
+*CHKPND
+The constraint relationships that have records that are possibly in violation of the constraints (check pending) are removed. A check pending state occurs when the system has not yet determined that the values of a dependent file are all valid in relation to its parent key or record values for the check constraint expression are valid. Only referential and check constraints can be in check pending.
+
+Other values (up to 300 repetitions)
+
+character-value
+Specify the name of the constraint.
+
+Note: The case is preserved when lowercase characters are specified.
+
+Top
+
+Constraint type (TYPE)
+
+Specifies the type of constraint relationship named on the CST parameter that is being removed from the physical file.
+
+*ALL
+All types of primary key and unique constraints are removed. The following are examples of the CST parameter dependencies:
+
+- CST(*ALL) TYPE(*ALL) - All constraints are removed
+
+- CST(*CHKPND) TYPE(*ALL) - All referential and check constraints in check pending are removed
+
+- CST(ABC) TYPE(*ALL) - The constraint ABC is removed
+
+Note: This value is ignored for referential constraints when the RMVCST parameter is specified.
+
+*REFCST
+The referential constraints are removed. The following are examples of the CST parameter dependencies:
+
+- CST(*ALL) TYPE(*REFCST) - All referential constraints are removed
+
+- CST(*CHKPND) TYPE(*REFCST) - All referential constraints in check pending are removed
+
+- CST(ABC) TYPE(*REFCST) - The referential constraint ABC is removed
+
+*UNQCST
+The unique constraints are removed.
+
+Note: If the unique constraint is a primary key, the unique constraint is removed, but the primary key definition and the file's access path are not removed.
+
+The following are examples of the CST parameter dependencies:
+
+- CST(*ALL) TYPE(*UNQCST) - All unique constraints (except the primary key constraint) are removed
+
+- CST(*CHKPND) TYPE(*UNQCST) - Not valid; unique constraints cannot be in check pending
+
+- CST(ABC) TYPE(*UNQCST) - The unique constraint ABC is removed (unless it is a primary key constraint)
+
+*PRIKEY
+The primary key constraint is removed. The following are examples of the CST parameter dependencies:
+
+- CST(*ALL) TYPE(*PRIKEY) - The primary key constraint is removed
+
+- CST(*CHKPND) TYPE(*PRIKEY) - Not valid; primary key constraints cannot be in check pending
+
+- CST(ABC) TYPE(*PRIKEY) - The primary key constraint ABC is removed
+
+*CHKCST
+The check constraints are removed. The following are examples of the CST parameter dependencies:
+
+- CST(*ALL) TYPE(*CHKCST) - All check constraints are removed
+
+- CST(*CHKPND) TYPE(*CHKCST) - All check constraints in check pending are removed
+
+- CST(XYZ) TYPE(*CHKCST) - The check constraint XYZ is removed
+
+Top
+
+Remove constraint (RMVCST)
+
+Specifies how much of the constraint relationship on the dependent file is removed when a primary key or unique constraint that is also a parent key is removed from the parent file of a referential constraint.
+
+Note: This parameter is ignored if *REFCST is specified for the Constraint type (TYPE) parameter.
+
+*RESTRICT
+The constraint is not removed if the constraint is either defined or established between the parent file and the dependent file. Neither the foreign key access path nor the foreign key of the dependent file is removed.
+
+*REMOVE
+The constraint and the constraint definition between the parent file and the dependent file are removed. The corresponding foreign key is removed. The foreign key access path of the dependent file is removed only if one exists and is not shared.
+
+*KEEP
+The constraint between the parent file and the dependent file is removed, but the constraint definition is not removed. The corresponding foreign key and the foreign key access path of the dependent file are not removed.
+
+Top
+
+Examples
+
+In these examples, the unique constraint UNIQUE_Department_NUMBER and the referential constraint EMPLOYEE_Department were added to the files by issuing the following Add Physical File Constraint (ADDPFCST) commands:
+
+ADDPFCST FILE(MYLIB/DEPARTMENTS) TYPE(*UNQCST)
+KEY(DEPTNUM) CST(UNIQUE_Department_NUMBER)
+ADDPFCST FILE(MYLIB/PERSONNEL) TYPE(*REFCST) KEY(DEPTNO)
+CST(EMPLOYEE_Department)
+
+Example 1: Removing a Unique Constraint
+
+RMVPFCST FILE(MYLIB/DEPARTMENTS) CST(*ALL) TYPE(*ALL)
+
+This command removes the unique constraint UNIQUE_Department_NUMBER from the file DEPARTMENTS located in the library MYLIB.
+
+Example 2: Removing a Referential Constraint
+
+RMVPFCST FILE(MYLIB/PERSONNEL) CST(EMPLOYEE_Department)
+TYPE(*REFCST) RMVCST(*RESTRICT)
+
+This command removes the referential constraint EMPLOYEE_Department from the dependent file PERSONNEL located in the library MYLIB. Because the parent file had not yet been established (the PRNFILE had not been specified on the ADDPFCST command) the removal is not restricted.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF32B1
+Constraint(s) not removed from file &1.
+
+Top

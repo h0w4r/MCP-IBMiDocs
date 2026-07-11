@@ -1,0 +1,388 @@
+Change Logical File (CHGLF)
+
+Change Logical File (CHGLF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Logical File (CHGLF) command changes the attributes of a logical file and its members. The changed attributes are used for all members subsequently added to the file unless other values are specified or default for the add operation. To change the attributes of a specific member, use the Change Logical File Member (CHGLFM) command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | Logical file | Qualified object name | Required, Key, Positional 1
+Qualifier 1: Logical file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+SYSTEM | System | *LCL, *RMT, *FILETYPE | Optional, Key
+FRCRBDAP | Force rebuild of access path | *NO, *YES | Optional
+MAXMBRS | Maximum members | Integer, *SAME, *NOMAX | Optional
+ACCPTHSIZ | Access path size | *SAME, *MAX4GB, *MAX1TB | Optional
+MAINT | Access path maintenance | *SAME, *IMMED, *REBLD, *DLY | Optional
+RECOVER | Access path recovery | *SAME, *NO, *AFTIPL, *IPL | Optional
+FRCACCPTH | Force keyed access path | *SAME, *NO, *YES | Optional
+UNIT | Preferred storage unit | 1-255, *SAME, *ANY, *SSD | Optional
+FMTSLR | Rcd format selector program | Single values: *SAME, *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: Rcd format selector program | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FRCRATIO | Records to force a write | Integer, *SAME, *NONE | Optional
+WAITFILE | Maximum file wait time | Integer, *SAME, *IMMED, *CLS | Optional
+WAITRCD | Maximum record wait time | Integer, *SAME, *IMMED, *NOMAX | Optional
+SHARE | Share open data path | *SAME, *NO, *YES | Optional
+LVLCHK | Record format level check | *SAME, *YES, *NO | Optional
+KEEPINMEM | Keep in memory | *SAME, *NO, *YES | Optional
+TEXT | Text 'description' | Character value, *SAME, *BLANK | Optional
+
+Top
+
+Logical file (FILE)
+
+Specifies the logical file to be changed.
+
+This is a required parameter.
+
+Note: If a Distributed Data Management (DDM) file is specified, the logical file and the remote system are contained in the DDM file. For more information, see the System (SYSTEM) parameter description.
+
+Qualifier 1: Logical file
+
+name
+Specify the name of the logical file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library, QGPL is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+System (SYSTEM)
+
+Specifies whether the logical file is changed on the local system or on a remote system.
+
+*LCL
+The logical file is changed on the local system.
+
+*RMT
+The logical file is changed on a remote system using distributed data management (DDM). The logical file name specified for the Logical file (FILE) parameter must be the name of the DDM file (created using the CRTDDMF command). The DDM file contains the name of the logical file to be changed and the name of the remote system on which the file is to be changed.
+
+*FILETYPE
+If the name specified on the FILE parameter is a DDM file, the logical file is changed on the remote system specified by the Remote location (RMTLOCNAME) parameter of the CRTDDMF command for the DDM file. If the name specified on the FILE parameter is not a DDM file, the logical file on the local system is changed.
+
+Top
+
+Force rebuild of access path (FRCRBDAP)
+
+Specifies whether to force the rebuild of access paths that are associated with join logical files or with files that have keyed sequence access paths.
+
+Note: For a join logical file, this parameter applies to all join secondary access paths even if the join logical file is not a keyed file.
+
+*NO
+The access paths will not explicitly be marked as having to be rebuilt.
+
+*YES
+The access paths will be marked invalid and will be rebuilt asynchronously by the database server job.
+
+Top
+
+Maximum members (MAXMBRS)
+
+Specifies the maximum number of members that the logical file can have at any time. The maximum number of members specified must be greater than or equal to the current number of members in the file.
+
+*SAME
+The maximum number of members does not change.
+
+*NOMAX
+No maximum is specified for the number of members; the system maximum of 32767 members per file is used.
+
+integer
+Specify the value for the maximum number of members that the logical file can have. Valid values range from 1 through 32767.
+
+Top
+
+Access path size (ACCPTHSIZ)
+
+Specifies the maximum size of auxiliary storage that can be occupied by the following kinds of access paths:
+
+- The access paths that are associated with a database file that has a keyed sequence access path.
+
+- The access paths that are created for referential or unique constraints.
+
+Changing the value for this file causes the access paths that are owned by the file to be rebuilt.
+
+Note: This parameter does not apply to access paths that are created for queries that refer to the data in the file.
+
+*SAME
+The value does not change.
+
+*MAX1TB
+The maximum amount of auxiliary storage the access paths associated with this file can occupy is determined by the logical page size as shown below:
+
+Logical Maximum
+Page Size Auxiliary Storage
+8K 4TB
+16K 8TB
+32K-512K 16TB
+
+*MAX4GB
+The access paths associated with this file can occupy a maximum of four gigabytes (4,294,967,296 bytes) of auxiliary storage.
+
+Top
+
+Access path maintenance (MAINT)
+
+Specifies the type of access path maintenance used for all members of the logical file. This parameter is valid only for keyed files or join files.
+
+Note: For a join logical file, this parameter applies to all join secondary access paths, even if the join file is not a keyed file.
+
+*SAME
+The files access path maintenance does not change.
+
+*IMMED
+The access path is continuously (immediately) maintained for each logical file member. The access path is changed each time a record is changed, added to, or deleted from the member. The records are changed through a logical file that uses the physical file member containing the data regardless of whether the logical file is opened or closed. *IMMED is specified for all files requiring unique keys to ensure uniqueness in all inserts and update operations.
+
+*REBLD
+The access path is rebuilt when a file member is opened. The access path is continuously maintained until the member is closed; then access path maintenance is ended. *REBLD is not valid for access paths that contain unique key values.
+
+*DLY
+The maintenance of the access path is delayed until the member is opened for use. Then the access path is changed only for records that are added, deleted, or changed since the file was last closed. *DLY is not valid for access paths that require unique key values.
+
+Top
+
+Access path recovery (RECOVER)
+
+Specifies, for files having immediate or delayed maintenance on their access paths, when recovery processing of the file is done if a system failure occurs while the access path is being changed. This parameter is valid only if a keyed access path is used.
+
+*SAME
+The recovery attribute of the file does not change.
+
+*NO
+The access path of the file is not rebuilt. The file's access path, if not valid, is rebuilt when the file is opened.
+
+*AFTIPL
+The file has its access path rebuilt after the IPL operation is completed. This option allows other jobs not using this file to begin processing immediately after the IPL is completed.
+
+*IPL
+The file has its access path rebuilt during the IPL operation. This ensures that the file's access path is rebuilt before the first user program tries to use it; however, no jobs are started until after all files that specify *IPL have their access paths rebuilt.
+
+Top
+
+Force keyed access path (FRCACCPTH)
+
+Specifies, for files with keyed access paths only, whether access path changes are forced to auxiliary storage along with the associated records in the file. Specifying *YES minimizes (but does not remove) the chance that an abnormal end will cause damage to the access path, which then requires it to be rebuilt.
+
+*SAME
+The force access path attribute of the file does not change.
+
+*NO
+The changed access path and changed records are not forced to auxiliary storage whenever the access path is changed.
+
+*YES
+The changed access path and changed records are forced to auxiliary storage whenever the access path is changed. If this value is specified, *REBLD must not be specified for the Access path maintenance (MAINT) parameter.
+
+Top
+
+Preferred storage unit (UNIT)
+
+Specifies the preferred storage media for the file.
+
+*ANY
+No storage media is preferred. Storage will be allocated from any available storage media.
+
+*SSD
+Solid state disk storage media is preferred. Storage may be allocated from solid state disk storage media, if available.
+
+integer
+A value ranging from 1 through 254 is equivalent to specifying *ANY. A value of 255 is equivalent to specifying *SSD.
+
+Top
+
+Rcd format selector program (FMTSLR)
+
+Specifies the record format selector program that is called when the logical file member contains more than one logical record format. The user-written selector program is called when a record is inserted into the database file and a record format name is not included in the high-level-language program. This parameter is not valid if the logical file has only one record format.
+
+Single values
+
+*SAME
+The selector program called does not change.
+
+*NONE
+There is no selector program for this logical file. The file cannot have more than one logical record format, or the high-level-language program itself must specify the record format name.
+
+Qualifier 1: Rcd format selector program
+
+name
+Specify the name of the format selector program called when a record is inserted into a member having more than one format.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the program. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Records to force a write (FRCRATIO)
+
+Specifies the number of inserted, changed, or deleted records that are processed before they are forced to auxiliary (permanent) storage. The force write ratio specified for a logical file is less than or equal to the smallest force write ratio of its physical files. If a larger force write ratio is specified, it is ignored and a message is sent informing you of the action. If a physical file associated with this logical file is being recorded in the journal, it is recommended that a larger force write ratio, or *NONE, be specified.
+
+*SAME
+The files force write ratio does not change.
+
+*NONE
+There is no force write ratio; the system determines when the records are written to auxiliary storage.
+
+integer
+Specify the number of new or changed records that are processed before those records are forced into auxiliary storage.
+
+Top
+
+Maximum file wait time (WAITFILE)
+
+Specifies the number of seconds that the program waits for the file resources and session resources to be allocated when the file is opened, or for the device or session resources to be allocated when an acquire operation is performed to the file. If the file resources are not allocated in the specified wait time, an error message is sent to the program.
+
+Note: An immediate allocation of the device by the device resource is required when an acquire operation is performed to the file.
+
+*SAME
+The wait attribute of the file does not change.
+
+*IMMED
+The program does not wait. Immediate allocation of file resources is required.
+
+*CLS
+The default wait time specified in the class description is used as the wait time for the file resources that are allocated.
+
+1-32767
+Specify the number of seconds that the program waits for the file resources to be allocated.
+
+Top
+
+Maximum record wait time (WAITRCD)
+
+Specifies the number of seconds that the program waits for a record that is changed or deleted. If the record is not allocated in the specified wait time, an error message is sent to the program.
+
+*SAME
+The record wait attribute of the file does not change.
+
+*IMMED
+The program does not wait; when a record is locked, an immediate allocation of the record is required.
+
+*NOMAX
+The wait time is the maximum allowed by the system (32,767 seconds).
+
+1-32767
+Specify the number of seconds that the program waits for the file resources to be allocated.
+
+Top
+
+Share open data path (SHARE)
+
+Specifies whether the open data path (ODP) is shared with other programs in the same routing step. When an ODP is shared, the programs accessing the file share facilities such as the file status and the buffer.
+
+*SAME
+The ODP sharing value of the member does not change.
+
+*NO
+The ODP is not shared with other programs in the routing step. A new ODP for the file is created and used every time a program opens the file.
+
+*YES
+The same ODP is shared with each program in the job that also specifies *YES when it opens the file.
+
+Top
+
+Record format level check (LVLCHK)
+
+Specifies whether the record format level identifiers in the program are checked against those in the logical file when the file is opened. If so, the record format identifiers in the program must match those in the logical file. This value can be overridden by the Override with Database File (OVRDBF) command at run time.
+
+*SAME
+The level check value of the member does not change.
+
+*YES
+The level identifiers of the record formats are checked when the file is opened. If the level identifiers do not match, an error message is sent to the program requesting the open operation, and the file is not opened.
+
+*NO
+The level identifiers are not checked when the file is opened.
+
+Top
+
+Keep in memory (KEEPINMEM)
+
+Specifies whether one or more access paths for a file member should be brought into a main storage pool by the SQL Query Engine (SQE) when the access path(s) are used in the query to improve the performance.
+
+*SAME
+The keep in memory attribute does not change.
+
+*NO
+The member's access path(s) will not be brought into a main storage pool.
+
+*YES
+The member's access path(s) may be brought into a main storage pool.
+
+Note: The Query Options File (QAQQINI) parameter MEMORY_POOL_PREFERENCE can be used to specify the preferred main storage pool that should be used.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the text that briefly describes the object.
+
+*SAME
+The text that describes the file does not change.
+
+*BLANK
+No text is specified.
+
+character-value
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Examples
+
+Example 1: Changing the Format Selector Program
+
+CHGLF FILE(QGPL/INV) FMTSLR(INVFMTS)
+
+This command changes the logical file INV that is stored in the QGPL library, resulting in the new format selector program, INVFMTS, which is being used with the logical file. *LIBL is used to find the format selector program.
+
+Example 2: Changing a File Located on the Remote System
+
+CHGLF FILE(QGPL/DDMF) FMTSLR(INVFMTS) SYSTEM(*RMT)
+
+This command changes the format selector program for file INV located in the QGPL library on the remote system. Prior to specifying this command, this user had created a DDMF file by specifying the command CRTDDMF FILE(QGPL/DDMF) RMTFILE(QGPL/INV) RMTLOCNAME(AS400).
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF326A
+Operation not successful for file &1 in library &2.
+
+CPF327F
+Operation not successful for file &1 in library &2.
+
+CPF7304
+File &1 in &2 not changed.
+
+Top

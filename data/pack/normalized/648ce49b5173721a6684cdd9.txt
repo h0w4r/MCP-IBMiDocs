@@ -1,0 +1,296 @@
+Change Auditing Value (CHGAUD)
+
+Change Auditing Value (CHGAUD)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Auditing Value (CHGAUD) command sets up or changes auditing on an object or group of objects. An object name pattern can be used to change authority for a group of related objects.
+
+The CHGAUD command can also be used to change auditing of a directory tree where the directory, its contents, and the contents of all of its subdirectories are to have auditing changed. If SUBTREE(*ALL) is specified, this command will attempt to change the auditing of all objects within the subtree. A diagnostic message will be sent for each object that could not have its auditing changed and, when all of the objects have been attempted, an escape message will be sent. If all of the objects had auditing changed with no errors, a completion message will be sent.
+
+If a symbolic link object is encountered, either specified in the Object (OBJ) parameter or encountered in the processing of a subtree, the value specified for the Symbolic link (SYMLNK) parameter will be applied to that symbolic link object. If processing a subtree, the processing of that branch of the subtree then stops because a symbolic link object itself cannot have subtrees.
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+You must have audit (*AUDIT) special authority to use this command. Users with *AUDIT special authority can turn auditing on or off for an object regardless of whether they have authority to the object.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Path name | Required, Positional 1
+OBJAUD | Object auditing value | *NONE, *USRPRF, *CHANGE, *ALL | Optional, Positional 2
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+SYMLNK | Symbolic link | *NO, *YES | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies the object, or a pattern to match multiple objects, for which auditing values are to be changed.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+This is a required parameter.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+path-name
+Specify the path name of the objects whose auditing value is to be changed.
+The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+Top
+
+Object auditing value (OBJAUD)
+
+Specifies the object auditing value to associated with the object.
+
+*NONE
+Using or changing this object does not cause an audit entry to be sent to the security journal.
+
+*USRPRF
+The user profile of the user accessing this object is used to determine if an audit record is sent for this access. The OBJAUD parameter of the Change User Audit (CHGUSRAUD) command is used to turn auditing on for a specific user.
+
+*CHANGE
+All change accesses to this object by all users are logged.
+
+*ALL
+All change or read accesses to this object by all users are logged.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to change the objects within the subtree if the object specified by the Object (OBJ) parameter is a directory or a library.
+
+*NONE
+The objects specified by the OBJ parameter are changed. If the object is a directory or a library, it will be changed, but the directory or library contents will not be changed.
+
+*ALL
+The objects specified by the OBJ parameter are changed. If the object is a directory or a library, it will be changed as well as the contents of the directory or library and the contents of all subdirectories.
+
+Note: Pattern matching from the OBJ parameter only applies to the first level objects. If the first level object is a directory or a library, the pattern matching does not apply to the directory or library contents or the contents of the subdirectories.
+
+Note: This command may run a long time when SUBTREE(*ALL) is specified if there are many subdirectories to be processed.
+
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Symbolic link (SYMLNK)
+
+If the object is a symbolic link, specifies whether or not to change the symbolic link or the object pointed to by the symbolic link.
+
+*NO
+The symbolic link object is not changed. The object pointed to by the symbolic link is changed.
+
+*YES
+If the object is a symbolic link, the symbolic link is changed. The object pointed to by the symbolic link is not changed.
+
+Top
+
+Examples
+
+Example 1: Changing object auditing value of a file
+
+CHGAUD OBJ('/QSYS.LIB/PAYROLL.LIB/PAYFILE.FILE')
+OBJAUD(*CHANGE)
+
+This command changes the object auditing value of the PAYFILE file in the PAYROLL library. The auditing value of the PAYFILE file is changed so that all change access to the file by all users is logged by the system.
+
+The following examples use the chart below:
+
+* sym1 (symbolic link to dir1)
+*
+*
+* dir1
+* * * *
+* * * *
+* * * *
+* dir2.1 dir2.2 dir2.3
+* * * *
+* * * *
+* dir3.1 dir3.2 sym3.3 (symbolic link to dirA)
+*
+*
+* dirA
+* * * *
+* * * *
+* * * *
+* dirB.1 dirB.2 dirB.3
+*
+
+Example 2: Changing object auditing value of a symbolic link when SYMLNK(*NO)
+
+CHGAUD OBJ('/sym1') OBJAUD(*CHANGE) SUBTREE(*ALL) SYMLNK(*NO)
+
+This command will first determine if there are subtrees to process. Since the object specified in the OBJ parameter is a symbolic link, the SUBTREE parameter will be ignored because a symbolic link object does not have subtrees. Next, the object pointed to by symbolic link sym1 (dir1) will be the target of the operation because the SYMLNK parameter specifies that the symbolic link object not be the target of the operation.
+
+In this example, the object auditing value for dir1 is changed so that all change access to the directory by all users is logged by the system. It does not change the object auditing value of the symbolic link object (sym1) and it does not change the object auditing value of the contents of dir1.
+
+Example 3: Changing object auditing value of a symbolic link when SYMLNK(*YES)
+
+CHGAUD OBJ('/sym1') OBJAUD(*CHANGE) SUBTREE(*ALL) SYMLNK(*YES)
+
+This command will first determine if there are subtrees to process. Since the object specified in the OBJ parameter is a symbolic link, the SUBTREE parameter will be ignored because a symbolic link object does not have subtrees. Next, the symbolic link object (sym1) will be the target of the operation because the SYMLNK parameter specifies that the symbolic link object be the target of the operation.
+
+In this example, the object auditing value for sym1 is changed so that all change access to the symbolic link by all users is logged by the system. It does not change the object auditing value of the object pointed to by the symbolic link (dir1) and it does not change the object auditing value of the contents of dir1.
+
+Example 4: Changing object auditing value of a directory when SUBTREE(*ALL) and SYMLNK(*NO)
+
+CHGAUD OBJ('/dir1') OBJAUD(*CHANGE) SUBTREE(*ALL) SYMLNK(*NO)
+
+This command will first determine if there are subtrees to process. Since the object specified in the OBJ parameter is a directory, the subtrees will be processed. When the processing of the tree encounters a *SYMLNK object, the value for the SYMLNK parameter will be applied to that *SYMLNK object. When the SYMLNK parameter is *NO, the object the symbolic link points to will be the target of the operation. The processing of that branch of the tree then stops because the *SYMLNK object itself does not have a subtree.
+
+In this example, the object auditing value for dir1, dir2.1, dir2.2, dir2.3, dir3.1, dir3.2, dirA is changed so that all change access to those directories by all users is logged by the system. The object auditing value of sym3.3, dirB.1, dirB.2, dirB.3 is not changed.
+
+Example 5: Changing object auditing value of a directory when SUBTREE(*ALL) and SYMLNK(*YES)
+
+CHGAUD OBJ('/dir1') OBJAUD(*CHANGE) SUBTREE(*ALL) SYMLNK(*YES)
+
+This command will first determine if there are subtrees to process. Since the object specified in the OBJ parameter is a directory, the subtrees will be processed. When the processing of the tree encounters a *SYMLNK object, the value for the SYMLNK parameter will be applied to the *SYMLNK object. When the SYMLNK parameter is *YES, the symbolic link object will be the target of the operation. The processing of that branch of the tree then stops because the *SYMLNK object itself does not have a subtree.
+
+In this example, the object auditing value for dir1, dir2.1, dir2.2, dir2.3, dir3.1, dir3.2, sym3.3 is changed so that all change access to those directories and symbolic link by all users is logged by the system. The object auditing value of dirA, dirB.1, dirB.2, dirB.3 is not changed.
+
+Example 6: Changing object auditing value of a directory when SUBTREE(*NONE) and SYMLNK(*NO)
+
+CHGAUD OBJ('/dir1') OBJAUD(*CHANGE) SUBTREE(*NONE) SYMLNK(*NO)
+
+This command will not process subtrees. Since the object specified in the OBJ parameter is not a symbolic link, the SYMLNK parameter will be ignored.
+
+The object auditing value of dir1 is changed so that all change access to the directory by all users is logged by the system.
+
+NOTE:
+
+The only way to have dirB.1, dirB.2, and dirB.3 be the target of the operation is to specify them individually in the OBJ parameter of the command, or to specify the command with OBJ('/dirA') and SUBTREE(*ALL).
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPE3526
+Journal damaged.
+
+CPE3527
+Journal inactive.
+
+CPE3528
+Journal space or system storage error.
+
+CPE3529
+Journal is remote.
+
+CPE3530
+New journal receiver is needed.
+
+CPE3531
+New journal is needed.
+
+CPE3532
+Object already journaled.
+
+CPE3450
+Descriptor not valid.
+
+CPFA0AA
+Error occurred while attempting to obtain space.
+
+CPFA0AB
+Operation failed for object. Object is &1.
+
+CPFA0AD
+Function not supported by file system.
+
+CPFA0A2
+Information passed to this operation was not valid.
+
+CPFA0A3
+Path name resolution causes looping.
+
+CPFA0A4
+Too many open files for process.
+
+CPFA0A7
+Path name too long.
+
+CPFA0A9
+Object not found. Object is &1.
+
+CPFA0B1
+Requested operation not allowed. Access problem.
+
+CPFA0DE
+Object type not valid for request. Object is &1.
+
+CPFA0D4
+File system error occurred. Error number &1.
+
+CPFA08B
+Path name cannot begin with *.
+
+CPFA08C
+Pattern not allowed in path name directory.
+
+CPFA085
+Home directory not found for user &1.
+
+CPFA086
+Matching quote not found in path name.
+
+CPFA087
+Path name contains null character.
+
+CPFA088
+Path name pattern not valid.
+
+CPFA089
+Pattern not allowed in path name.
+
+CPFA091
+Pattern not allowed in user name.
+
+CPFA092
+Path name not converted.
+
+CPFA094
+Path name not specified.
+
+CPFBC50
+Path name or path names not found.
+
+CPF22B0
+Not authorized to change the auditing value.
+
+CPF223A
+&1 objects changed, &2 objects not changed.
+
+CPF22F0
+Unexpected errors occurred during processing.
+
+CPF4ACF
+Operation failed for object &1 in &2 type *&3 due to replication errors.
+
+Top

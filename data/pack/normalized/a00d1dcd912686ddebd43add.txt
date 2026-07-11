@@ -1,0 +1,191 @@
+Dump Cluster Trace (DMPCLUTRC)
+
+Dump Cluster Trace (DMPCLUTRC)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Dump Cluster Trace (DMPCLUTRC) command is used for problem analysis. It dumps cluster-related trace and debug information to a file. The information is dumped locally on one or more cluster nodes, for one or more cluster resource groups. Each cluster resource group that is dumped has a file member in the file. The name of the file member is the name of the cluster resource group. The information dumped is dependent on the particular cluster resource group. The amount of information dumped is determined by the dump level. Only nodes that have an active Cluster Resource Services job for the specified cluster resource group will have a dump output.
+
+Restrictions:
+
+- To use this command, you must have either service (*SERVICE) special authority or be authorized to the Service Trace function of the operating system through iSeries Navigator's Application Administration support.
+
+- You must also have use (*USE) authority to any cluster resource group object that is to be dumped with this command.
+
+- The cluster must be at version 3 or greater for this command to work remotely (work on any node other than the node issuing the command).
+
+- Cluster Resource Services must either be active or in the process of starting on the node that this command is issued from.
+
+- Only nodes that have a job for the desired cluster resource group may participate in this command.
+
+- To determine if this command succeeded, check the affected nodes for a dump file. If a file is not there, then check the job log for the associated cluster job for messages.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CLUSTER | Cluster | Name | Required, Positional 1
+CRG | Cluster resource group | Name, *ALL | Required, Positional 2
+NODE | Node identifier | Name, *ALL, *LOCAL | Optional
+LEVEL | Level | *BASIC, *ERROR, *INFO, *VERBOSE | Optional
+FILE | Physical file | Qualified object name | Optional
+Qualifier 1: Physical file | Name, *NODE
+Qualifier 2: Library | Name, QGPL, *CURLIB
+OVERWRITE | Overwrite option | *YES, *NO | Optional
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the cluster name for which information is to be dumped or printed.
+
+This is a required parameter.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Cluster resource group (CRG)
+
+Specifies the cluster resource group that is to be dumped.
+
+*ALL
+All groups, including the reserved names QCSTCTL and QCSTCRGM.
+
+name
+Specify the name of the cluster resource group to be dumped. The reserved names for the Cluster Control and Cluster Resource Group Manager groups, QCSTCTL and QCSTCRGM, respectively, may also be specified.
+
+This is a required parameter.
+
+Top
+
+Node identifier (NODE)
+
+Specifies the cluster node that is to be dumped.
+
+*LOCAL
+The local node, that is, the node this command is issued on.
+
+*ALL
+All active nodes in the cluster.
+
+name
+Specifies the name of the cluster node.
+
+Top
+
+Level (LEVEL)
+
+Specifies the dump level. The amount and kind of information in each level is dependent on the particular cluster resource group being dumped.
+
+*BASIC
+Specifies the basic level of dump information. This dumps information that is maintained continuously as flight recorder information.
+
+*ERROR
+Specifies the error level of dump information. This dumps error information, and includes the *BASIC level information.
+
+*INFO
+Specifies the informational level of dump information. This dumps completion and warning information, and includes the *ERROR level.
+
+*VERBOSE
+Specifies the verbose level of dump information. This dumps detailed trace and debugging information, and includes the *INFO level.
+
+Top
+
+Physical file (FILE)
+
+Specifies the physical file that the dump is written to. The file is written on each node that the dump is requested on in accordance with the OVERWRITE parameter. The same library name is used on all nodes. If a file name is specified other than *NODE, then the file name will also be the same on all nodes.
+
+Qualifier 1: Physical file
+
+*NODE
+The cluster node identifier is used as the file name. For example, if a cluster node identifier is NODE1, then the file name is NODE1. If multiple nodes are being dumped, then each node will have a different file name.
+
+name
+Specify the name of the physical file. This name is used on all nodes.
+
+Qualifier 2: Library
+
+QGPL
+The file will be created in library QGPL.
+
+*CURLIB
+The current library of the job that is invoking this command is used. The library is determined before a dump request is sent to any other node.
+
+name
+Specify the name of the library that contains the physical file. The same library is used on all specified nodes. No dump is taken on any node that does not have the library.
+
+Top
+
+Overwrite option (OVERWRITE)
+
+Specifies whether the specified file will be overwritten or not. If the file exists, it will be deleted and re-created. This parameter is checked on a per node basis. If *NO is specified along with multiple nodes, then only those nodes that do not have the file will have dumps taken. A CPDBB07 message is sent to the job log of every Cluster Resource Services job that participates in the dump that indicates success, failure, or the file cannot be overwritten on the node.
+
+*YES
+The specified file will be overwritten.
+
+*NO
+The specified file will not be overwritten. If the file exists, no dump on the specified node occurs.
+
+Top
+
+Examples
+
+Example 1: Dumping One Cluster Resource Group on One Node
+
+DMPCLUTRC CLUSTER(EXAMPLE) CRG(CRG1) NODE(NODE1)
+
+This command dumps cluster resource group CRG1 on the node NODE1 in cluster EXAMPLE. On NODE1, a file is created with the name QGPL/NODE1. It has one member named CRG1.
+
+Example 2: Dumping One Cluster Resource Group on All Nodes
+
+DMPCLUTRC CLUSTER(EXAMPLE) CRG(CRG1) NODE(*ALL)
+LEVEL(*ERROR) FILE(QGPL/*NODE) OVERWRITE(*NO)
+
+This command dumps error information from cluster resource group CRG1 on all cluster nodes if the file does not exist. Each node checks individually for the file already existing. The name of the file is QGPL/node-identifier.
+
+Example 3: Dumping All Cluster Resource Groups on All Nodes
+
+DMPCLUTRC CLUSTER(EXAMPLE) CRG(*ALL) NODE(*ALL)
+LEVEL(*INFO) FILE(MYLIB/DUMP) OVERWRITE(*YES)
+
+This command dumps all cluster resource groups on all nodes. The library name is determined by the job that invoked this command. If that library name is MYLIB, then each node has a file named MYLIB/DUMP, with one file member per group dumped in addition to members for QCSTCTL and QCSTCRGM. The file will be destroyed if it exists and re-created for the dump.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF222E
+&1 special authority is required.
+
+CPF98A2
+Not authorized to &1 command or API.
+
+CPFBB02
+Cluster &1 does not exist.
+
+CPFBB09
+Cluster node &1 does not exist in cluster &2.
+
+CPFBB0F
+Cluster resource group &1 does not exist in cluster &2.
+
+CPFBB70
+Request &1 not compatible with current cluster version.
+
+CPFBBA0
+Cluster node &1 in cluster resource group &2 is not responding.
+
+Top

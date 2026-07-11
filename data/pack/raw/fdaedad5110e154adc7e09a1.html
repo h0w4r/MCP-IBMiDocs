@@ -1,0 +1,990 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="STRDBMON.Top_Of_Page"></a>
+<h1>Start Database Monitor  (STRDBMON)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>Conditional
+</td>
+<td class="valigntop alignright">
+<a href="#STRDBMON.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#STRDBMON.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#STRDBMON.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON"></a>
+<p>The Start Database Monitor (STRDBMON) command starts the collection of database performance statistics for a specified job, for all jobs on the system or for a selected set of jobs.  The statistics are placed in a user-specified database file and member. If the file or member do not exist, one is created based on the QAQQDBMN file in library QSYS. If the file or member do exist, the record format of the specified file is verified to insure it is the same.
+</p>
+<p>For each monitor started using the STRDBMON command, the system generates a monitor ID that can be used to uniquely identify each individual monitor.  The monitor ID can be used on the ENDDBMON command to uniquely identify which monitor is to be ended.  The monitor ID is returned in the informational message CPI436A which is generated for each occurrence of the STRDBMON command.  The monitor ID can also be found in column QQC101 of the QQQ3018 database monitor record.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">There are two types of monitors. A private monitor is a monitor over one, specific job (or the current job). A public monitor is a monitor which collects data across multiple jobs.  Only one (1) monitor can be started on a specific job at a time (i.e. only one private monitor can be active over any specific job).  For example, STRDBMON JOB(*) followed by another STRDBMON JOB(*) within the same job is not allowed.  There can be a maximum of ten (10) public monitors active at any one time.  For example, STRDBMON JOB(*ALL) followed by another STRDBMON JOB(*ALL) is allowed providing the maximum number of public monitors does not exceed 10.  You may have 10 public monitors and 1 private monitor active at the same time for any specific job.
+</li>
+<li class="cds--list__item">If multiple monitors specify the same output file, only one copy of the database statistic records will be written to the specified output file for each job.  For example, STRDBMON OUTFILE(LIB/TABLE1) JOB(*) and STRDBMON OUTFILE(LIB/TABLE1) JOB(*ALL) both use the same output file.  For the current job, you will not get two copies of the database statistic records, one copy for the private monitor and one copy for the public monitor. You will get only one copy of the database statistic records.
+</li>
+<li class="cds--list__item">QTEMP cannot be specified as the library on the OUTFILE parameter unless JOB(*) was also specified.
+</li>
+<li class="cds--list__item">This command is conditionally threadsafe.  For multithreaded jobs, this command is not threadsafe and may fail when the OUTFILE parameter is a distributed file or is a Distributed Data Management (DDM) file.
+</li>
+<li class="cds--list__item">Any public monitor requires the file specified for the OUTFILE parameter to be in a library that resides in the system ASP.
+</li>
+<li class="cds--list__item">When this command is used with a JOB parameter which is generic or applies to other users jobs, you must have job control (*JOBCTL) special authority or be authorized to the SQL Administrator function of IBM i through Application Administration in System i Navigator.  The Change Function Usage (CHGFCNUSG) command, with a function ID of QIBM_DB_SQLADM, can also be used to change the list of authorized users.
+</li>
+</ol>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="STRDBMON.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#STRDBMON.OUTFILE"><strong>OUTFILE</strong></a></td>
+<td class="valigntop">File to receive output</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File to receive output</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="3"><a href="#STRDBMON.OUTMBR"><strong>OUTMBR</strong></a></td>
+<td class="valigntop">Output member options</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Member to receive output</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Replace or add records</td>
+<td class="valigntop">
+<strong class="underlined">*REPLACE</strong>, *ADD</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="6"><a href="#STRDBMON.JOB"><strong>JOB</strong></a></td>
+<td class="valigntop">Job name</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="6">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Name</td>
+<td class="valigntop">
+Single values: <strong class="underlined">*</strong><br>Other values: <span class="var">Qualified job name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Name</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: User</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 3: Number</td>
+<td class="valigntop">000000-999999, *ALL</td>
+</tr><tr>
+<td class="valigntop">Element 2: Filter operator</td>
+<td class="valigntop">
+<strong class="underlined">*EQ</strong>, *NE</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.TYPE"><strong>TYPE</strong></a></td>
+<td class="valigntop">Type of records</td>
+<td class="valigntop"><strong class="underlined">*DETAIL</strong>, *BASIC, *SUMMARY</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FRCRCD"><strong>FRCRCD</strong></a></td>
+<td class="valigntop">Force record write</td>
+<td class="valigntop">0-32767, <strong class="underlined">*CALC</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.INLNBRRCD"><strong>INLNBRRCD</strong></a></td>
+<td class="valigntop">Initial number of records</td>
+<td class="valigntop">0-2147483646, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.RUNTHLD"><strong>RUNTHLD</strong></a></td>
+<td class="valigntop">Run time threshold</td>
+<td class="valigntop">0-2147483647, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.STGTHLD"><strong>STGTHLD</strong></a></td>
+<td class="valigntop">Storage threshold</td>
+<td class="valigntop">0-2147483647, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.INCSYSSQL"><strong>INCSYSSQL</strong></a></td>
+<td class="valigntop">Include system SQL</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES, *INI</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="5"><a href="#STRDBMON.FTRFILE"><strong>FTRFILE</strong></a></td>
+<td class="valigntop">Filter by database file</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values (up to 10 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Generic name, name</span></td>
+</tr><tr>
+<td class="valigntop">Element 2: Filter operator</td>
+<td class="valigntop">
+<strong class="underlined">*EQ</strong>, *NE</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#STRDBMON.FTRUSER"><strong>FTRUSER</strong></a></td>
+<td class="valigntop">Filter by user profile</td>
+<td class="valigntop">Values (up to 10 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: User</td>
+<td class="valigntop">
+<span class="var">Generic name, name</span>, *NONE, *CURRENT</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Filter operator</td>
+<td class="valigntop">
+<strong class="underlined">*EQ</strong>, *NE</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRINTNETA"><strong>FTRINTNETA</strong></a></td>
+<td class="valigntop">Filter by internet address</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong>, *LOCAL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRLCLPORT"><strong>FTRLCLPORT</strong></a></td>
+<td class="valigntop">Filter by local port number</td>
+<td class="valigntop">0-65535, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRQRYGOVR"><strong>FTRQRYGOVR</strong></a></td>
+<td class="valigntop">Filter by query governor</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *ALL, *COND</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRCLTACG"><strong>FTRCLTACG</strong></a></td>
+<td class="valigntop">Filter by accounting string</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRCLTAPP"><strong>FTRCLTAPP</strong></a></td>
+<td class="valigntop">Filter by application name</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRCLTPGM"><strong>FTRCLTPGM</strong></a></td>
+<td class="valigntop">Filter by program name</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRCLTUSR"><strong>FTRCLTUSR</strong></a></td>
+<td class="valigntop">Filter by client user ID</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRCLTWS"><strong>FTRCLTWS</strong></a></td>
+<td class="valigntop">Filter by work station</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.FTRSQLCODE"><strong>FTRSQLCODE</strong></a></td>
+<td class="valigntop">Filter by SQLCODE</td>
+<td class="valigntop">-99999-99999, <strong class="underlined">*NONE</strong>, *NONZERO, *ERROR, *WARN</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.HOSTVAR"><strong>HOSTVAR</strong></a></td>
+<td class="valigntop">Host Variable Values</td>
+<td class="valigntop"><strong class="underlined">*BASIC</strong>, *SECURE, *CONDENSED</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRDBMON.COMMENT"><strong>COMMENT</strong></a></td>
+<td class="valigntop">Comment</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*BLANK</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="STRDBMON.OUTFILE"></a>
+<h2>File to receive output (OUTFILE)</h2>
+<p>Specifies the file to which the performance statistics are to be written.  If the file does not exist, it is created based on model file QAQQDBMN in library QSYS.  If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created. Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Qualifier 1: File to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the job's library list are searched until the first match is found.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, the QGPL library is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.OUTMBR"></a>
+<h2>Output member options (OUTMBR)</h2>
+<p>Specifies the name of the database file member that receives the output of the command.
+</p>
+<h3><strong>Element 1: Member to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the <strong>File to receive output (OUTFILE)</strong> parameter.  If the member already exists, you have the option to add new records to the end of the existing member or clear the member and then add the new records.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file member that receives the output.  If it does not exist, the system creates it.
+</dd>
+</dl>
+<h3><strong>Element 2: Replace or add records</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*REPLACE</strong></dt>
+<dd>The system clears the existing member and adds the new records.
+</dd>
+</dl>
+<dl>
+<dt><strong>*ADD</strong></dt>
+<dd>The system adds the new records to the end of the existing records.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.JOB"></a>
+<h2>Job name (JOB)</h2>
+<p>Specifies the job(s) for which the database monitor is to be started.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The database monitor for the job running the STRDBMON command is to be started.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All jobs on the system are monitored, including jobs waiting on job queues.
+</dd>
+</dl>
+<h3><strong>Element 1: Job name</strong>
+</h3>
+<h3><strong>Qualifier 1: Job name</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the job whose database monitor is to be started.  If no job user name or job number qualifiers are specified, all of the jobs currently in the system are searched for the specified simple job name. If duplicates of the specified job name are found, you need to specify a job user name or job number that uniquely identifies the job to be monitored.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic job name to be monitored. All jobs matching the specified generic name, including jobs waiting on job queues, will be monitored.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: User</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the user of the job whose database monitor is to be started.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the user whose jobs are to be monitored.  All jobs matching the specified generic name, including jobs waiting on job queues, will be monitored.
+</dd>
+</dl>
+<h3><strong>Qualifier 3: Number</strong>
+</h3>
+<dl>
+<dt><strong class="italic">000000-999999</strong></dt>
+<dd>Specify the number of the job whose database monitor is to be started.
+</dd>
+</dl>
+
+<h3><strong>Element 2: Filter operator</strong>
+</h3>
+<p>The filter operator makes it possible to avoid starting a database monitor for specified jobs.
+</p>
+<dl>
+<dt><strong class="underlined">*EQ</strong></dt>
+<dd>The database monitor will be started for the specified jobs.
+</dd>
+<dt><strong>*NE</strong></dt>
+<dd>The database monitor will be started for all jobs that are not equal to the Job Name rule.  For example, to start a database monitor for all jobs where the job name does not begin with QZDA use the *NE operator.
+<p>STRDBMON OUTFILE(MONLIB/DBMONFILE) JOB(*ALL/*ALL/QZDA* *NE)
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.TYPE"></a>
+<h2>Type of records (TYPE)</h2>
+<p>Specifies the type of database records to place in the outfile.
+</p>
+<dl>
+<dt><strong class="underlined">*DETAIL</strong></dt>
+<dd>Both basic and detail database monitor records are collected.  The detail database monitor record (QQQ3019) contains a count of the number of synchronous and asynchronous reads and writes to the database, as well as other database counts.
+</dd>
+<dt><strong>*BASIC</strong></dt>
+<dd>Only the basic database monitor records are collected.
+</dd>
+<dt><strong>*SUMMARY</strong></dt>
+<dd>Only the basic database monitor records are collected.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FRCRCD"></a>
+<h2>Force record write (FRCRCD)</h2>
+<p>Specifies the number of records to be held in the buffer before forcing the records to be written to the file when running with a private monitor.
+</p>
+<dl>
+<dt><strong class="underlined">*CALC</strong></dt>
+<dd>The system will calculate the number of records to be held in the buffer.
+</dd>
+<dt><strong class="italic">number-of-records</strong></dt>
+<dd>Specify the number of records to be held.  Valid values range from 0 through 32767.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.INLNBRRCD"></a>
+<h2>Initial number of records (INLNBRRCD)</h2>
+<p>Specifies the number of records that can be inserted into the monitor file before an automatic extension occurs.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>A initial number of records was not specified.
+</dd>
+<dt><strong class="italic">number-of-records</strong></dt>
+<dd>Specify the number of records that can be inserted into the monitor file before an automatic extension occurs.  Valid values range from 0 to 2147483646.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.RUNTHLD"></a>
+<h2>Run time threshold (RUNTHLD)</h2>
+<p>Specifies a filtering threshold based on the estimated run time of the SQL statement as calculated by the query optimizer.  Monitor records will be created only for those SQL statements whose estimated run time meets or exceeds the specified run time threshold. If the estimated run time of the SQL statement is less than the specified threshold then no monitor records will be created for that SQL statement.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>A run time threshold is not specified. All monitor records will be created.
+</dd>
+<dt><strong class="italic">runtime-threshold</strong></dt>
+<dd>Specify the run time threshold, in seconds.  Monitor records will be created for all SQL statements whose estimated run time meets or exceeds this value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.STGTHLD"></a>
+<h2>Storage threshold (STGTHLD)</h2>
+<p>Specifies a filtering threshold based on the estimated temporary storage usage of the SQL statement.  Monitor records will be created only for those SQL statements whose estimated temporary storage meets or exceeds the specified storage threshold.  If the estimated temporary storage of the SQL statement is less than the specified threshold then no monitor records will be created for that SQL statement.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>A storage threshold is not specified. All monitor records will be created.
+</dd>
+<dt><strong class="italic">storage-threshold</strong></dt>
+<dd>Specify the storage threshold, in megabytes.  Monitor records will be created for all SQL statements whose estimated temporary storage meets or exceeds this value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.INCSYSSQL"></a>
+<h2>Include system SQL (INCSYSSQL)</h2>
+<p>Specifies whether or not monitor records will be created for system-generated SQL statements. Monitor records will always be created for user-specified SQL statements.  This option determines if monitor records will also be created for SQL statements generated internally by the system.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>No monitor records will be created for system-generated SQL statements.  Monitor records will only be created for user-specified SQL statements.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Monitor records will be created for both user-specified and system-generated SQL statements.
+</dd>
+<dt><strong>*INI</strong></dt>
+<dd>Monitor records will be generated based on the value of the SQL_DBMON_OUTPUT option in the current INI file.  A value of *USER or *DEFAULT creates monitor records for just user-specified SQL statements.  A value of *SYSTEM creates monitor records for just system-generated SQL statements.  A value of *ALL creates monitor records for both user-specified and system-generated SQL statements.  If no INI file exists, then a default value of *NO will be used for the INCSYSSQL option.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRFILE"></a>
+<h2>Filter by database file (FTRFILE)</h2>
+<p>Specifies a filter based on the name of the file and library used within the SQL statement.  The files used in the SQL statements will be compared to the files specified.  The specified file name can be either the 10-byte short name or the 256-byte long name.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No filtering by file is specified.
+</dd>
+</dl>
+<h3><strong>Element 1: Data base file</strong>
+</h3>
+<h3><strong>Qualifier 1: Data base file</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>Monitor records will be created for any SQL statement that uses any file in the specified library when the *EQ filter operator is used.  If none of the files used in the SQL statement come from the specified library, no monitor records will be created for the SQL statement.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>The files used in the SQL statements will be compared to the files specified to determine if a monitor record should be created.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>The files used in the SQL statements will be compared to the files whose name starts with the specified prefix to determine if a monitor record should be created.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>The files used in the SQL statement will be compared to the files from the library specified to determine if a monitor record should be created.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>The files used in the SQL statement will be compared to the files from the library that matches the generic prefix to determine if a monitor record should be created.
+</dd>
+</dl>
+
+<h3><strong>Element 2: Filter operator</strong>
+</h3>
+<p>Specifies the rule for how each filter should be applied.  The filter operator makes it possible to filter on matched values or unmatched values.  If multiple filter values are specified, the filters which use *EQ are logically combined with an OR predicate while the filters which use *NE are logically combined with an AND predicate.
+</p>
+<dl>
+<dt><strong class="underlined">*EQ</strong></dt>
+<dd>Monitor records will be created when the filter criteria produces a matching result.
+<p>For example, to capture the SQL statements executed using the file LIB41/TABLE01 use the *EQ operator.
+</p>
+<p>STRDBMON OUTFILE(MONLIB/DBMONFILE) JOB(*ALL/*ALL/ALL) FTRFILE((LIB41/TABLE01 *EQ))
+</p>
+</dd>
+<dt><strong>*NE</strong></dt>
+<dd>Monitor records will be created when the filter criteria is not equal to the files specified in the SQL statement.
+<p>For example, to capture the SQL statements executed using files like LIB41/TABLE*, but avoid capturing the statements if file LIB41/TABLE01, use the *EQ and *NE operators.
+</p>
+<p>STRDBMON OUTFILE(MONLIB/DBMONFILE) JOB(*ALL/*ALL/*ALL) FTRFILE((LIB41/TABLE* *EQ) (LIB41/TABLE01 *NE))
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRUSER"></a>
+<h2>Filter by user profile (FTRUSER)</h2>
+<p>Specifies a filter based on a user or group profile name.  The user executing the SQL statements will be compared to the profile filter criteria to determine if a monitor record should be created.
+</p>
+<h3><strong>Element 1: User</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Filtering by user is not specified.
+</dd>
+<dt><strong>*CURRENT</strong></dt>
+<dd>The user profile of who is invoking the STRDBMON command is the user used to compare with the user executing the SQL statement to determine if a monitor records should be created.
+</dd>
+<dt><strong class="italic">user-name</strong></dt>
+<dd>The user executing the SQL statements will be compared to the user or group profile specified to determine if a monitor record should be created.
+</dd>
+<dt><strong class="italic">generic-user-name</strong></dt>
+<dd>The user executing the SQL statements will be compared to all user or group profiles whose name starts with the specified prefix to determine if a monitor record should be created.
+</dd>
+</dl>
+<h3><strong>Element 2: Filter operator</strong>
+</h3>
+<p>Specifies the rule for how each filter should be applied.  The filter operator makes it possible to filter on matched values or unmatched values.  If multiple filter values are specified, the filters which use *EQ are logically combined with an OR predicate while the filters which use *NE are logically combined with an AND predicate.
+</p>
+<dl>
+<dt><strong class="underlined">*EQ</strong></dt>
+<dd>Monitor records will be created when the filter criteria produces a matching result.
+<p>For example, to capture the SQL statements executed interactively by any user that is a member of the AUDITGROUP group profile, use the *EQ operator.
+</p>
+<p>STRDBMON OUTFILE(MONLIB/PRIVUSERS) JOB(*ALL/*ALL/QPADEV*) FTRUSER((AUDITGROUP *EQ))
+</p>
+</dd>
+<dt><strong>*NE</strong></dt>
+<dd>Monitor records will be created when the filter criteria is not equal to the user executing the SQL statement.
+<p>For example, to capture the SQL statements executed by any user that is a member of the AUDITGROUP group profile, but avoid capturing the statement if the user is DEVLPR1, use both the *EQ and *NE operators.
+</p>
+<p>STRDBMON OUTFILE(MONLIB/PRIVUSERS) JOB(*ALL/*ALL/QPADEV*) FTRUSER((AUDITGROUP *EQ) (DEVLPR1 *NE))
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRINTNETA"></a>
+<h2>Filter by internet address (FTRINTNETA)</h2>
+<p>Specifies filtering based on the client's TCP/IP address or client's TCP/IP  host name.  Monitor records will be created only for jobs running on behalf of the specified TCP/IP address or host name.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Internet address filtering is not specified.
+</dd>
+<dt><strong>*LOCAL </strong></dt>
+<dd>Monitor records will be created for those jobs that have no TCP/IP client association.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Monitor records will be created for TCP/IP database server jobs.  Jobs named QRWTSRVR and QZDASOINIT are examples of these server jobs.
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">IP version 4 address in dotted decimal form.  Specify an internet protocol version 4 address in the form nnn.nnn.nnn.nnn where each nnn is a number in the range 0 through 255.
+</li>
+<li class="cds--list__item">IP version 6 address in colon hexadecimal form.  Specify an internet protocol version 6 address in the form xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx where each xxxx is a hex number in the range 0 through FFFF.   IP version 6 includes the IPv4-mapped IPv6 address form (for example, ::FFFF:1.2.3.4).  For IP version 6, the compressed form of the address is allowed.
+</li>
+<li class="cds--list__item">IP host domain name.  Specify an internet host domain name of up to 254 characters in length.
+</li>
+</ol>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRLCLPORT"></a>
+<h2>Filter by local port number (FTRLCLPORT)</h2>
+<p>Specifies filtering based on the local TCP/IP port number.  Monitor records will be created for TCP/IP database server jobs running on behalf of the specified local TCP/IP port.  Jobs named QRWTSRVR and QZDASOINIT are examples of these server jobs.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Port filtering is not specified.
+</dd>
+<dt><strong class="italic">1-65535 </strong></dt>
+<dd>Specify the number of the local port for which monitor records are to be created.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRQRYGOVR"></a>
+<h2>Filter by query governor (FTRQRYGOVR)</h2>
+<p>Specifies filtering based on the query governor limits.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Query governor filtering is not specified.
+</dd>
+<dt><strong>*ALL </strong></dt>
+<dd>Monitor records will be collected when a query governor limit is exceeded, regardless if the query is cancelled or not.
+</dd>
+<dt><strong>*COND </strong></dt>
+<dd>Monitor records will be collected when a query governor limit is exceeded based on one of the following criteria:
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Query governor exit program returns 2 indicating that exceeded limit should be ignored, but Database Monitor records should be collected anyway.
+</li>
+<li class="cds--list__item">Query governor exit program returns 3 indicating that the query should be cancelled.
+</li>
+<li class="cds--list__item">Query governor exit program returns 0 indicating that the inquiry message should be issued and the response to the inquiry message is to cancel the query.
+</li>
+<li class="cds--list__item">Query governor exit program fails and the response to the inquiry message is to cancel the query.
+</li>
+<li class="cds--list__item">There is no query governor exit program in effect and the response to the inquiry message is to cancel the query.
+<p>For more information on the query governor exit program, refer to the query governor exit program (QIBM_QQQ_QUERY_GOVR) documentation in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+</li>
+</ol>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRCLTACG"></a>
+<h2>Filter by accounting string (FTRCLTACG)</h2>
+<p>Specifies a filter based on the client special register accounting string.  Monitor records will be created for SQL statements executed where the client special register accounting string matches this filter value.
+</p>
+<p>The value of the accounting string can be changed through four interfaces. The Set Client Information (SQLESETI) API can change the client special register. The SYSPROC.WLM_SET_CLIENT_INFO() procedure can change the client special register.  In CLI, SQLSetConnectAttr() can be used to set the SQL_ATTR_INFO_ACCTSTR connection attribute.  In JDBC, the setClientInfo connection method can be used to set the ClientAccounting connection property.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Filtering by accounting string is not specified.
+</dd>
+<dt><strong class="italic">accounting string</strong></dt>
+<dd>Monitor records will be created for SQL statements executed where the client special register accounting string matches this filter value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRCLTAPP"></a>
+<h2>Filter by application name (FTRCLTAPP)</h2>
+<p>Specifies a filter based on the client special register application name.  Monitor records will be created for SQL statements executed where the client special register application name matches this filter value.
+</p>
+<p>The value of the accounting string can be changed through four interfaces. The Set Client Information (SQLESETI) API can change the client special register. The SYSPROC.WLM_SET_CLIENT_INFO() procedure can change the client special register.  In CLI, SQLSetConnectAttr() can be used to set the SQL_ATTR_INFO_APPLNAME connection attribute.  In JDBC, the setClientInfo connection method can be used to set the ApplicationName connection property.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Filtering by accounting string is not specified.
+</dd>
+<dt><strong class="italic">application name</strong></dt>
+<dd>Monitor records will be created for SQL statements executed where the client special register application name matches this filter value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRCLTPGM"></a>
+<h2>Filter by program name (FTRCLTPGM)</h2>
+<p>Specifies a filter based on the client special register program ID.  Monitor records will be created for SQL statements executed where the client special register program ID matches this filter value.
+</p>
+<p>The value of the accounting string can be changed through four interfaces.  The Set Client Information (SQLESETI) API can change the client special register.  The SYSPROC.WLM_SET_CLIENT_INFO() procedure can change the client special register.  In CLI, SQLSetConnectAttr() can be used to set the SQL_ATTR_INFO_PROGRAMID connection attribute. In JDBC, the setClientInfo connection method can be used to set the ClientProgramID connection property.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Filtering by accounting string is not specified.
+</dd>
+<dt><strong class="italic">application name</strong></dt>
+<dd>Monitor records will be created for SQL statements executed where the client special register program ID matches this filter value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRCLTUSR"></a>
+<h2>Filter by client user ID (FTRCLTUSR)</h2>
+<p>Specifies a filter based on the client special register user ID. Monitor records will be created for SQL statements executed where the client special register user ID matches this filter value.
+</p>
+<p>The value of the accounting string can be changed through four interfaces.  The Set Client Information (SQLESETI) API can change the client special register.  The SYSPROC.WLM_SET_CLIENT_INFO() procedure can change the client special register.  In CLI, SQLSetConnectAttr() can be used to set the SQL_ATTR_INFO_USERID connection attribute.  In JDBC, the setClientInfo connection method can be used to set the ClientUser connection property.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Filtering by accounting string is not specified.
+</dd>
+<dt><strong class="italic">application name</strong></dt>
+<dd>Monitor records will be created for SQL statements executed where the client special register user ID matches this filter value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRCLTWS"></a>
+<h2>Filter by work station (FTRCLTWS)</h2>
+<p>Specifies a filter based on the client special register workstation name.  Monitor records will be created for SQL statements executed where the client special register workstation name matches this filter value.
+</p>
+<p>The value of the accounting string can be changed through four interfaces. The Set Client Information (SQLESETI) API can change the client special register. The SYSPROC.WLM_SET_CLIENT_INFO() procedure can change the client special register.  In CLI, SQLSetConnectAttr() can be used to set the SQL_ATTR_INFO_WRKSTNNAME connection attribute.  In JDBC, the setClientInfo connection method can be used to set the ClientHostName connection property.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Filtering by accounting string is not specified.
+</dd>
+<dt><strong class="italic">application name</strong></dt>
+<dd>Monitor records will be created for SQL statements executed where the client special register workstation name matches this filter value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.FTRSQLCODE"></a>
+<h2>Filter by SQLCODE (FTRSQLCODE)</h2>
+<p>Specifies a filter based on the results of SQL statement execution.  This filter provides a way to collect monitor records based upon the results of SQL statements.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Filtering by SQLCODE is not specified.
+</dd>
+<dt><strong>*NONZERO</strong></dt>
+<dd>Any SQL statements which complete execution with an SQLCODE that is non-zero will be collected. When the SQLCODE = 0, the SQL statement has completed with unqualified success.
+</dd>
+<dt><strong>*ERROR</strong></dt>
+<dd>Any SQL statements which complete execution with an SQLCODE that is less than zero will be collected.  When the SQLCODE &lt; 0, the SQL statement has failed.
+</dd>
+<dt><strong>*WARN</strong></dt>
+<dd>Any SQL statements which complete execution with an SQLCODE that is greater than zero will be collected.  When the SQLCODE &gt; 0, the SQL statement has succeeded, but a warning condition is indicated.
+</dd>
+<dt><strong class="italic">-99999-99999</strong></dt>
+<dd>Monitor records will be created only for those SQL statements that complete with an SQLCODE that exactly matches the specified value.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.HOSTVAR"></a>
+<h2>System monitor data retention (HOSTVAR)</h2>
+<p>Specifies how host variable values are handled in the database monitor records.
+</p>
+<dl>
+<dt><strong class="underlined">*BASIC</strong></dt>
+<dd>Host variable values are written in the QQQ3010 database monitor record.
+</dd>
+<dt><strong>*SECURE</strong></dt>
+<dd>No host variable values are captured.  This option can be used to avoid capturing sensitive data in the monitor output. By choosing this option, anyone using the monitor output will have less data to work with.  This option applies to both explicitly coded host variable and parameter values as well as implicit variables generated due to implicit generation of parameter markers for literal values.
+</dd>
+<dt><strong>*CONDENSED</strong></dt>
+<dd>Instead of capturing the host variable values within the QQQ3010 database monitor record, the host variable values are written to the QQDBCLOB1 column in the QQQ1000 database monitor record.  This option is a more efficient implementation of capturing host variable values.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table24" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRDBMON.COMMENT"></a>
+<h2>Comment (COMMENT)</h2>
+<p>User-specified description that is associated with the database monitor. The description is stored in the monitor record that has a record ID of 3018.
+</p>
+<dl>
+<dt><strong class="underlined">*BLANK</strong></dt>
+<dd>Text is not specified.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify up to 100 characters of text.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table25" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="STRDBMON.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Starting Public Monitoring</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(QGPL/FILE1)  OUTMBR(MEMBER1 *ADD)
+           JOB(*ALL)  FRCRCD(10)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs on the system. The performance statistics are added to the member named MEMBER1 in the file named FILE1 in the QGPL library. Ten records will be held before being written to the file.
+</p>
+<h3><strong>Example 2: Starting Private Monitoring</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(*LIBL/FILE3)  OUTMBR(MEMBER2)
+           JOB(134543/QPGMR/DSP01)  FRCRCD(20)
+</pre>
+<p></p>
+<p>This command starts database monitoring for job number 134543.  The job name is DSP01 and was started by the user named QPGMR. The performance statistics are added to the member named MEMBER2 in the file named FILE3. Twenty records will be held before being written to the file.
+</p>
+<h3><strong>Example 3: Starting Private Monitoring to a File in a Library in an Independent ASP</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(134543/QPGMR/DSP01)
+</pre>
+<p></p>
+<p>This command starts database monitoring for job number 134543.  The job name is DSP01 and was started by the user named QPGMR. The performance statistics are added to the member name DBMONFILE (since OUTMBR was not specified) in the file named DBMONFILE in the library named LIB41. This library may exist in more than one independent auxiliary storage pool (ASP); the library in the name space of the originator's job will always be used.
+</p>
+<h3><strong>Example 4: Starting Public Monitoring For All Jobs That Begin With 'QZDA'</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL/*ALL/QZDA*)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs that whose job name begins with 'QZDA'.  The performance statistics (monitor records) are added to member DBMONFILE (since OUTMBR was not specified) in file DBMONFILE in library LIB41. This library may exist in more than one independent auxiliary storage pool (ASP); the library in the name space of the originator's job will always be used.
+</p>
+<h3><strong>Example 5: Starting Public Monitoring and Filtering SQL Statements That Run Over 10 Seconds</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL)  RUNTHLD(10)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs.  Monitor records are created only for those SQL statements whose estimated run time meets or exceeds 10 seconds.
+</p>
+<h3><strong>Example 6: Starting Public Monitoring and Filtering SQL Statements That Have an Estimated Temporary Storage Over 200 Megabytes</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL)  STGTHLD(200)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs.  Monitor records are created only for those SQL statements whose estimated temporary storage meets or exceeds 200 megabytes.
+</p>
+<h3><strong>Example 7: Starting Private Monitoring and Filtering Over a Specific File</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE) JOB(*)
+           FTRFILE(LIB41/TABLE1)
+</pre>
+<p></p>
+<p>This command starts database monitoring for the current job.  Monitor records are created only for those SQL statements that use file LIB41/TABLE1.
+</p>
+<h3><strong>Example 8: Starting Private Monitoring for the Current User</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*)  FTRUSER(*CURRENT)
+</pre>
+<p></p>
+<p>This command starts database monitoring for the current job.  Monitor records are created only for those SQL statements that are executed by the current user.
+</p>
+<h3><strong>Example 9: Starting Public Monitoring For Jobs Beginning With 'QZDA' and Filtering Over Run Time and File</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL/*ALL/QZDA*)
+           RUNTHLD(10)  FTRUSER(DEVLPR1)  FTRFILE(LIB41/TTT*)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs whose job name begins with 'QZDA'.  Monitor records are created only for those SQL statements that meet all of the following conditions:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The estimated run time, as calculated by the query optimizer, meets or exceeds 10 seconds
+</li>
+<li class="cds--list__item">Was executed by user 'DEVLPR1'.
+</li>
+<li class="cds--list__item">Use any file whose name begins with 'TTT' and resides in library LIB41.
+</li>
+</ul>
+<h3><strong>Example 10: Starting Public Monitoring and Filtering SQL Statements That Have Internet Address 9.10.111.77.</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL)
+           FTRINTNETA(9.10.111.77)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs.  Monitor records are created only for TCP/IP database server jobs that are using the client IP version 4 address of 9.10.111.77.
+</p>
+<h3><strong>Example 11: Starting Public Monitoring and Filtering SQL Statements That Have a Port Number of 8471</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL)  FTRLCLPORT(8471)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs.  Monitor records are created only for TCP/IP database server jobs that are using the local port number 8471.
+</p>
+<h3><strong>Example 12: Starting Public Monitoring Based on Feedback from the Query Governor</strong>
+</h3>
+<p>
+</p><pre>CHGSYSVAL QQRYTIMLMT(200)
+STRDBMON   OUTFILE(LIB41/DBMONFILE) JOB(*ALL) FTRQRYGOVR(*COND)
+</pre>
+<p></p>
+<p>This commands starts database monitoring for all jobs whose estimated run time is expected to exceed 200 seconds, based on the response to the query governor.  In this example data will be collected only if the query is cancelled or a return code of 2 is returned by a query governor exit program. The query can be cancelled by a user response to the inquiry message CPA4259 (that is issued because the query exceeded the query governor limits) or it can be cancelled by the program logic inside the registered query governor exit program.
+</p>
+<h3><strong>Example 13: Starting Public Monitoring and Filtering SQL Statements Run From IBM i Access Client Solutions Run SQL Scripts</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL)
+FTRCLTAPP('IBM i Access Client Solutions - Run SQL Scripts')
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs.  Monitor records are created only for those statements where the client special register CLIENT APPLNAME is System i Navigator - Run SQL Scripts.
+</p>
+<h3><strong>Example 14: Starting Public Monitoring and Filtering for the client user dbmusr1</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL)
+           FTRCLTUSR(dbmusr1)
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs.  Monitor records are created only for those statements where the client special register CLIENT_USERID is dbmusr1.
+</p>
+<h3><strong>Example 15: Starting Public Monitoring and Filtering SQL Statements Using FTRUSER</strong>
+</h3>
+<p>
+</p><pre>STRDBMON   OUTFILE(LIB41/DBMONFILE)  JOB(*ALL)
+           FTRUSER((STC* *NE) (S*) (TS*) (TSA* *NE))
+</pre>
+<p></p>
+<p>This command starts database monitoring for all jobs.  Monitor records are created only for those statements where the user profile is logically equivalent to: User profile NOT LIKE 'STC%' AND user profile NOT LIKE 'TSA%' AND (user profile LIKE 'S%' OR user profile LIKE 'TS%')
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table26" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="STRDBMON.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF1321</strong></dt>
+<dd>Job &amp;1 user &amp;2 job number &amp;3 not found.
+</dd>
+<dt><strong>CPF222E</strong></dt>
+<dd>&amp;1 special authority is required.
+</dd>
+<dt><strong>CPF4269</strong></dt>
+<dd>Not authorized to object &amp;1 in &amp;2 type *&amp;3.
+</dd>
+<dt><strong>CPF436A</strong></dt>
+<dd>Record format for file &amp;1 in &amp;2 does not match model file.
+</dd>
+<dt><strong>CPF436B</strong></dt>
+<dd>&amp;1 can not be specified on the OUTFILE parameter.
+</dd>
+<dt><strong>CPF436C</strong></dt>
+<dd>Job &amp;4 is already being monitored.
+</dd>
+<dt><strong>CPF436E</strong></dt>
+<dd>Job &amp;1 user &amp;2 job number &amp;3 is not active.
+</dd>
+<dt><strong>CPF43A2</strong></dt>
+<dd>Address specified on FTRINTNETA parameter is not valid.
+</dd>
+</dl>
+<p><strong class="underlined">*STATUS Messages</strong>
+</p>
+<dl>
+<dt><strong>CPI436A</strong></dt>
+<dd>Database monitor started for job &amp;1, monitor ID &amp;2.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table27" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRDBMON.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

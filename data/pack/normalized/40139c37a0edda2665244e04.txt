@@ -1,0 +1,270 @@
+Display Messages (DSPMSG)
+
+Display Messages (DSPMSG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Display Messages (DSPMSG) command is used by the display station user to show the messages received at the specified message queue. If the message queue is not allocated to the job in which this command is entered or to any other job, it is implicitly allocated by this command for the duration of the command. When the messages are shown, options are also shown that allow the user to either remove one or more messages from the queue or to enter a reply to each inquiry message.
+
+The QSYS2.MESSAGE_QUEUE_INFO view and QSYS2.MESSAGE_QUEUE_INFO table function return similar information.
+
+Note: Refer to the section entitled "Handling Messages" in the Basic system operations topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for a description of how to print a single message description or a group of message descriptions.
+
+Restrictions:
+
+- DSPMSG cannot be specified when another job has already allocated the message queue by specifying the ALCOBJ command operating in the *EXCL lock state.
+
+- The DSPMSG command allows the user to see, but not remove, messages for the job when the message queue is in the *BREAK or *NOTIFY mode for another job.
+
+- When the message queue is in the *BREAK mode for another job, the break handling program for the message queue determines whether the user is allowed to respond to inquiry messages. If PGM(*DSPMSG) is specified, the user can reply to inquiry messages, but if PGM(user-program) is specified, no reply to inquiry messages is allowed.
+
+- If multiple jobs show the same inquiry message, and all jobs reply to the message, only the first reply to the message is valid. Subsequent replies from other jobs cause error messages to be issued.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+MSGQ | Message queue | Single values: *WRKUSR, *SYSOPR, *USRPRF, *WRKSTN
+Other values: Qualified object name | Optional, Positional 1
+Qualifier 1: Message queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTPUT | Output | *, *PRINT, *PRTWRAP | Optional
+MSGTYPE | Message type | *ALL, *INFO, *INQ, *COPY | Optional
+START | Messages to display first | *LAST, *FIRST | Optional
+SEV | Severity code filter | 0-99, 0, *MSGQ | Optional
+ASTLVL | Assistance level | *PRV, *USRPRF, *BASIC, *INTERMED | Optional
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the message queue from which messages are shown.
+
+Note: The special values *WRKSTN and *WRKUSR should be specified for this parameter only when you are in an interactive job.
+
+Single values
+
+*WRKUSR
+Messages are shown from the work station's message queue if there are any messages on it. After the user exits that display, messages are shown from the current user's user profile message queue. If there are no messages on the work station's message queue, only the messages from the user profile message queue are shown.
+
+*SYSOPR
+Messages from the system operator message queue (QSYSOPR) are shown.
+
+*WRKSTN
+Messages are shown from the work station's own message queue.
+
+*USRPRF
+Messages from the current user profile message queue are shown.
+
+Qualifier 1: Message queue
+
+message-queue-name
+Specify the name of the message queue from which messages are shown.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the message queue. If no current library entry exists in the library list, QGPL is used.
+
+library-name
+Specify the library where the message queue is located.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether the output from the command is displayed at the requesting work station or printed with the job's spooled output.
+
+*
+The output is shown (if requested by an interactive job) or printed with the job's spooled output (if requested by a batch job). Immediate messages can be 512 bytes long.
+
+*PRINT
+The output is printed with the job's spooled output.
+
+Only one line of message text will be printed for each message. This will be the first 105 bytes of the first level message text.
+
+*PRTWRAP
+The output is printed with the job's spooled output. If the message does not fit on one line, additional lines are printed to accommodate up to 512 bytes of the first level message text.
+
+When the output is printed, two or more lines are printed for each message. The last line contains the following information:
+
+- Qualified job name of the job that sent the message. This consists of the following three fields:
+
+Job name
+
+User name
+
+Job number
+
+- Name of the program that sent the message
+
+- Instruction number in program that sent the message. For non-program message queues this is always zeroes.
+
+- The date and time the message was sent.
+
+- The name of the user profile that the thread was running under when the message was sent.
+
+Top
+
+Message type (MSGTYPE)
+
+Specifies the type of messages in the message queue that are shown.
+
+*ALL
+All messages that are in the message queue are shown.
+
+*INFO
+Only informational messages (those not requiring a reply) are shown.
+
+*INQ
+Only inquiry messages (those requiring a reply) are shown.
+
+*COPY
+Copies of the inquiry messages that were sent to other message queues and still require replies are shown.
+
+Top
+
+Messages to display first (START)
+
+Specifies, whether the newest messages or the oldest messages in the message queue are shown first. The display station user can use the Page Up or Page Down key to see other messages if the message list occupies more than one display screen. This parameter is ignored if the output is directed to a spooled printer file.
+
+*LAST
+If the intermediate view (Display Message) is displayed, the last (newest) message on the message queue is shown on the bottom line of the display. The display station user can press the Page Up key to show older messages.
+If the Basic view (Work with Messages) is displayed, the last (newest) message on the MSGQ is shown on the top line of the display. The display station user can press the Page Down key to show older messages.
+
+*FIRST
+If the intermediate view (Display Message) is displayed, the first (oldest) message on the message queue is shown on the top line of the display. The display station user can press the Page Down key to show newer messages.
+If the basic view (Work with Messages) is displayed the first (oldest) message on the message queue is shown on the bottom of the display. The display station user can press the Page Up key to show newer messages.
+
+Top
+
+Severity code filter (SEV)
+
+Specifies the lowest severity level that a message can have and still be delivered to a user in break or notify mode. Messages arriving at the message queue whose severities are lower than that specified here do not interrupt the job or turn on the message-waiting light; they are held in the queue until they are displayed by the Display Message (DSPMSG) command.
+
+00
+All messages in the specified message queue are shown.
+
+*MSGQ
+All messages having a severity code greater than or equal to the severity code specified for the message queue are shown.
+
+severity-code
+Specify a value, 00 through 99, that specifies the lowest severity code that a message can have and still be shown.
+
+Top
+
+Assistance level (ASTLVL)
+
+Specifies which user interface to display.
+
+*PRV
+The previous user interface used is displayed.
+
+*USRPRF
+The user interface stored in the current user profile is used.
+
+*BASIC
+The Operational Assistant user interface is used.
+
+Note: This user interface separates messages into two categories: (1) messages needing a reply and (2) messages not needing a reply. New messages are shown at the top of each list.
+
+*INTERMED
+The system user interface is used.
+
+Note: The DSPMSG command online help information assumes the *INTERMED user interface is shown. If the *BASIC user interface is shown, see the online help information for the Work with Messages (WRKMSG) command.
+
+Top
+
+Examples
+
+Example 1: Displaying Messages From Work Station Message Queue and User Profile Message Queue
+
+DSPMSG
+
+This command displays messages in the requester's work station message queue followed by the user profile message queue. If there are no messages in the work station queue, the user profile message queue is shown immediately.
+
+Example 2: Displaying Informational Messages
+
+DSPMSG MSGQ(SMITH) MSGTYPE(*INFO)
+
+This command displays, at the requester's work station, any informational messages in the message queue named SMITH.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2203
+User profile &1 not correct.
+
+CPF2204
+User profile &1 not found.
+
+CPF2213
+Not able to allocate user profile &1.
+
+CPF2217
+Not authorized to user profile &1.
+
+CPF2225
+Not able to allocate internal system object.
+
+CPF2401
+Not authorized to library &1.
+
+CPF2403
+Message queue &1 in &2 not found.
+
+CPF2408
+Not authorized to message queue &1.
+
+CPF2433
+Function not allowed for system log message queue &1.
+
+CPF2450
+Work station message queue &1 not allocated to job.
+
+CPF2451
+Message queue &1 is allocated to another job.
+
+CPF2477
+Message queue &1 currently in use.
+
+CPF2513
+Message queue &1 cannot be displayed.
+
+CPF2537
+Too many records written to file &2 in &3.
+
+CPF8127
+&8 damage on message queue &4 in &9. VLIC log-&7.
+
+CPF8176
+Message queue for device description &4 damaged.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9846
+Error while processing file &1 in library &2.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+Top

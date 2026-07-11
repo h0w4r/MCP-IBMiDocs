@@ -1,0 +1,255 @@
+Change Writer (CHGWTR)
+
+Change Writer (CHGWTR)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Writer (CHGWTR) command allows you to change the following attributes of an active printer writer:
+
+- Change the form type to be processed by this writer
+
+- Change the number of file separators for this writer
+
+- Change the output queue to be used for this writer
+
+This command lets you process all files of a given form type together. Spooled files are not necessarily in form type sequence when they reside on the output queue, so this helps the operator to manage the output without continually having to change forms. It also lets you change and use another output queue for this printer without ending and starting the writer each time.
+
+If changes are made while the writer is in hold (HLD) status, the changes do not take effect until after the writer is released. The changes are then made based on the value specified on the OPTION parameter.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+WTR | Writer | Name, *SYSVAL | Required, Positional 1
+OUTQ | Output queue | Single values: *SAME, *DEV
+Other values: Qualified object name | Optional, Positional 2
+Qualifier 1: Output queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FORMTYPE | Form type options | Element list | Optional, Positional 3
+Element 1: Form type | Character value, *SAME, *ALL, *STD, *FORMS
+Element 2: Message option | *SAME, *INQMSG, *MSG, *NOMSG, *INFOMSG
+FILESEP | File separators | 0-9, *SAME, *FILE | Optional
+SEPDRAWER | Drawer for separators | 1-255, *SAME, *DEVD, *FILE | Optional
+OPTION | When to change writer | *NORDYF, *FILEEND | Optional
+
+Top
+
+Writer (WTR)
+
+Specifies the printer writer being changed.
+
+This is a required parameter.
+
+*SYSVAL
+The writer started to the system default printer is to be changed.
+
+name
+Specify the name of the printer writer you wish to change.
+
+Top
+
+Output queue (OUTQ)
+
+Specifies the output queue which this writer will use to process spooled files. The output queue must be available before the writer is changed. If the output queue is in a primary or secondary auxiliary storage pool, the output queue must be in the library name space of the writer job.
+
+Single values
+
+*SAME
+The output queue being used remains the same.
+
+*DEV
+The output queue associated with the printer device for the spooled file is used.
+
+Qualifier 1: Output queue
+
+name
+Specify the name of the output queue.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the output queue. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library in which the output queue is located.
+
+Top
+
+Form type options (FORMTYPE)
+
+Specifies the form type to be used when processing output for the writer. A file's form type is originally derived from the form type that was used to produce the spooled file.
+
+Note: The form load message is issued when the spooled file to be printed has a form type different from the form type of the last spooled file that was printed on the device. The last form type printed is kept from the last STRPRTWTR, CHGWTR, or VRYCFG command issued.
+
+Consider the following example:
+
+- The last spooled file printed on printer PRT01 had the form type *STD.
+
+- The user changes the form type on PRT01 to XYZ using the following command:
+
+CHGWTR PRT01 FORMTYPE(XYZ)
+
+- No spooled file with the form type XYZ is printed on PRT01.
+
+- The user then sends a spooled file with the form type *STD to PRT01. The form load message is not issued, despite the intervening CHGWTR command, because the last spooled file printed on PRT01 had the same form type as the spooled file being printed.
+The form load message would be issued if a spooled file with the form type XYZ were actually printed on PRT01.
+
+Element 1: Form type
+
+*SAME
+The current form type value does not change.
+
+*ALL
+All form types are processed by the writer.
+
+*FORMS
+All available files with the same form type are processed as a group before the writer moves on to the next form type. The writer initially chooses the first available file on the queue. After the first file is complete, all files with the same form type as the first are processed. Then, the writer again chooses the first available file on the queue, and the process is repeated.
+
+*STD
+The writer processes spooled files with form type *STD.
+
+form-type
+Specify the type of form to be used by the writer. Only files with this form type are processed.
+
+Element 2: Message option
+
+*SAME
+The current message attribute does not change.
+
+*INQMSG
+An inquiry message is sent to the message queue when a spooled file has a form type that is different than the form type in the printer.
+
+*INFOMSG
+An informational message is sent to the message queue when no spooled files requiring this form type remain in the output queue.
+
+*MSG
+An inquiry message is sent to the message queue when a spooled file has a form type that is different than the form type in the printer and an informational message is sent when no spooled files requiring this form type remain in the output queue.
+
+*NOMSG
+Neither an inquiry message nor an informational message is sent to the message queue.
+
+Top
+
+File separators (FILESEP)
+
+Specifies the number of file separator pages to print before each file.
+
+*SAME
+The number of file separators remains the same.
+
+*FILE
+Print the number of file separator pages that is specified for each individual file.
+
+0-9
+Specify the number of file separator pages to print.
+
+Top
+
+Drawer for separators (SEPDRAWER)
+
+Specifies which paper drawer is selected for printing separators.
+
+*SAME
+The drawer specified for separator pages does not change.
+
+*DEVD
+The value stored in the device description for the printer is used.
+
+*FILE
+The separator pages are printed from the same drawer as the spooled file.
+
+1
+The separator pages are printed from drawer 1.
+
+2
+The separator pages are printed from drawer 2.
+
+3
+The separator pages are printed from drawer 3.
+
+1-255
+Specify a number to indicate the drawer from which the separator pages are printed.
+
+Note: For some printers, SEPDRAWER(3) implies an envelope drawer.
+
+Top
+
+When to change writer (OPTION)
+
+Specifies when the change occurs.
+
+*NORDYF
+The change occurs when there are no files on the output queue that meet the writer's current form type selection values.
+
+*FILEEND
+The change occurs at the end of the current file (For example, when the current report finishes printing).
+
+Top
+
+Examples
+
+CHGWTR WTR(MYWTR) FORMTYPE(MYFORM *NOMSG) OPTION(*FILEEND)
+
+This command changes writer MYWTR, which has been producing files of some other form type, to produce files with a form type of MYFORM at the end of the file now being produced. The writer is also prevented from sending an informational message when it runs out of eligible files with form type MYFORM.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1842
+Cannot access system value &1.
+
+CPF2207
+Not authorized to use object &1 in library &3 type *&2.
+
+CPF3313
+Writer &1 not active nor on job queue.
+
+CPF3330
+Necessary resource not available.
+
+CPF3331
+Not authorized to control writer &3/&2/&1.
+
+CPF3357
+Output queue &1 in library &2 not found.
+
+CPF3456
+Cannot change writer &1 to output queue &4 in library &5.
+
+CPF3457
+Cannot change writer &1.
+
+CPF3458
+Change writer &1 not allowed. End writer pending.
+
+CPF3459
+Writer &1 not eligible for change.
+
+CPF3460
+Change writer &1 not allowed.
+
+CPF3463
+Output queue for device &1 not found.
+
+CPF3464
+Not authorized to output queue &1 in library &2.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+Top

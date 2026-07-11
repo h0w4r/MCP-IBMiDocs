@@ -1,0 +1,746 @@
+Restore Library using BRM (RSTLIBBRM)
+
+Restore Library using BRM (RSTLIBBRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Restore Library using BRM (RSTLIBBRM) command allows you to restore a library that is in the BRMS media information. Any library that was saved by the Save Library using BRM (SAVLIBBRM) command or was in a control group that was saved can be restored by the RSTLIBBRM command. The RSTLIBBRM command restores the whole library, which includes the library description, object descriptions and contents of the objects in the library.
+
+Note: Using the RSTLIBBRM command allows you to restore selected copies of a library from the BRMS media content information. For instance, a recovery request for a copy of a library will restore the full backup of the library that corresponds to the copy requested in the Save level (SAVLVL) parameter, plus the last incremental backup of that library preceding the next full backup of the library, plus any object level saves that are between the two full saves. This assures that the copy that you requested has all changes applied prior to the next full save.
+
+Virtual media and devices can be used with this command. The following restrictions apply to the use of virtual media and virtual devices.
+
+- The Device (DEV) parameter is limited on only one device or *MEDCLS special value for serial operations.
+
+- Execute authority is required to the Load or Unload Image Catalog (LODIMGCLG) command.
+
+- *CHANGE authority is required to the image catalogs.
+
+- Execute (*X) authority is required to each directory in the image catalog path name.
+
+- Read, write, execute (*RWX) authority is required to each image file in the parent directory that will be loaded or mounted.
+
+- *USE authority is required to the virtual devices using the image catalogs.
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Restrictions:
+
+- You must have authority to the Restore Library (RSTLIB) command to use this command.
+
+- You must have save system (*SAVSYS) special authority, or have all of the following object authorities:
+
+You must have *ADD and *READ authority to the QSYS library to restore libraries which do not exist.
+
+You must have *OBJEXIST authority to restore over objects contained in a library.
+
+- You must have *USE authority to any auxiliary storage pool device specified for the Auxiliary storage pool (RSTASP) parameter.
+
+- You can restore data from a TSM server device by using this command. You can only specify one TSM device or *MEDCLS, which must select a TSM device. The TSM device selected can either be *APPC, which supports the SNA network protocol, or *NET, which supports the TCP/IP protocol.
+
+- You can restore data from an optical device by using this command. You can only specify one optical device or *MEDCLS, which must select an optical device.
+
+- *ALLOBJ special authority is required to use any value other than *NONE for the ALWOBJDIF parameter.
+
+- These additional restrictions apply when applying journal changes:
+
+You must have authority to the APYJRNCHG command.
+
+You must have *EXECUTE authority to the libraries containing the files, journals and journal receivers.
+
+You must have *OBJEXIST authority to restore any files that already exist on the system.
+
+You must have *CHANGE and *OBJMGT authority to apply journal changes to journaled files.
+
+You must have *USE authority to any journal or journal receiver used to apply journal changes.
+
+- This command should not be used by control group *EXIT item processing as results will be unpredictable.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SAVLIB | Library | Single values: *MEDINF, *RSTLST
+Other values (up to 50 repetitions): Generic name, name | Required, Positional 1
+DEV | Device | Values (up to 4 repetitions): Name, *MEDCLS | Required, Positional 2
+PRLRSC | Parallel device resources | Element list | Optional, Positional 3
+Element 1: Minimum resources | 1-32, *SAV, *NONE, *AVAIL
+Element 2: Maximum resources | 1-32, *MIN, *AVAIL
+SAVLVL | Save level | 1-99, *CURRENT, *SAVDATE | Optional
+SAVDATE | Save level time reference | Element list | Optional
+Element 1: Save date | Date
+Element 2: Save time | Time, *LATEST
+SAVASP | Saved auxiliary storage pool | Character value, *ANY, *SYSTEM | Optional
+ENDOPT | End of media option | *REWIND, *LEAVE, *UNLOAD | Optional
+OPTION | Option | *ALL, *NEW, *OLD, *FREE | Optional
+MBROPT | Database member option | *MATCH, *ALL, *NEW, *OLD | Optional
+SPLFDTA | Spooled file data | *NEW, *NONE | Optional
+OMITLIB | Libraries to omit | Single values: *NONE
+Other values (up to 300 repetitions): Generic name, name | Optional
+OMITOBJ | Objects to omit | Values (up to 300 repetitions): Element list | Optional
+Element 1: Object | Qualified object name
+Qualifier 1: Object | Generic name, name, *NONE, *ALL
+Qualifier 2: Library | Generic name, name, *ALL
+Element 2: Object type | Character value
+RSTINCR | Restore incremental | *YES, *NO | Optional
+ALWOBJDIF | Allow object differences | Single values: *NONE, *ALL, *COMPATIBLE
+Other values (up to 4 repetitions): *AUTL, *FILELVL, *OWNER, *PGP | Optional
+PVTAUT | Private authorities | *NO, *YES | Optional
+STRJRN | Start journaling | *NO, *YES | Optional
+RSTLIB | Restore to library | Name, *SAVLIB | Optional
+RSTASP | Auxiliary storage pool | Character value, *SAVASP, *SYSTEM | Optional
+FROMSYS | From system | Character value, *LCL | Optional
+RSTLST | Restore list of libraries | Name | Optional
+OUTPUT | Output | *NONE, *OUTFILE | Optional
+OUTFILE | File to receive output | Qualified object name | Optional
+Qualifier 1: File to receive output | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+SELECT | Select | Values (up to 300 repetitions): Element list | Optional
+Element 1: Include or omit | *INCLUDE, *OMIT
+Element 2: Object | Qualified object name
+Qualifier 1: Object | Generic name, name, *ALL
+Qualifier 2: Library | Generic name, name, *ALL
+Element 3: Object type | Character value, *ALL
+Element 4: Object attribute | Generic name, name, *ALL, *BLANK
+Element 5: File member | Generic name, name, *ALL, *ALLMBR
+
+Top
+
+Library (SAVLIB)
+
+Specifies the name of the library that you want to restore.
+
+This is a required field.
+
+Single values
+
+*MEDINF
+You want to restore BRMS media information. The QUSRBRM library contains the BRMS media information.
+
+Note: Recovery for library level information consists of seven objects that are restored to the QUSRBRM library. Recovery for object level information consists of the eight objects that are restored to the QUSRBRM library. The first seven objects are required for library level recovery and the eighth object is required for object level recovery.
+
+*RSTLST
+Indicates you want to restore a list of libraries. A list name is required on the Restore a list of libraries (RSTLST) parameter.
+
+Other values (up to 50 repetitions)
+
+library-name
+Specify the name of the library that you want to restore. The library name must be an entry in the BRMS media content information.
+
+generic*-library-name
+Specify one or more generic names of groups of libraries that you want to restore. A generic name is a character string that contains one or more characters followed by an asterisk (*). If an * is not specified with the name, the system assumes that the name is a complete library name.
+
+Top
+
+Device (DEV)
+
+Specifies the name of the devices used for the restore operation. The device must already be in the BRMS device table.
+
+Note: Multiple systems can share the use of a tape device or a Media library device (MLB). When the device is a tape device (not an MLB device), BRMS can help you manage the use of the device by multiple systems if you indicate that the device is shared.
+
+You can restore data from a TSM (ADSM) server using this command. You can only specify one TSM type server or *MEDCLS, which must select a TSM server. The device selected can either be *APPC, which supports SNA network protocol, or *NET, which supports TCPIP protocol.
+
+This is a required parameter.
+
+*MEDCLS
+BRMS determines the media class of the media on which the requested item is saved. Once the media class is determined, a device supporting the density specified in the media class is selected to perform the save operation.
+
+Note: The special value *MEDCLS can be specified up to four times on the Device (DEV) parameter only if the parallel Min Resource is of value *NONE. Otherwise, *MEDCLS can only be specified once. BRMS will attempt to use the maximum number of devices that can be allocated for this operation.
+
+To perform a parallel restore with more devices, the value *MEDCLS can and may only be specified once and parallel minimum and maximum resources must be greater than one or *SAV.
+
+device-name
+Specify the names of one or more devices used for the restore operation. If you are using more than one device (up to a maximum of four), specify the names of the devices in the order in which they are used.
+
+Note: When doing a serial restore, only one media library device can be specified. When doing a parallel restore, multiple media library devices can be specified.
+
+Top
+
+Parallel device resources (PRLRSC)
+
+Specifies the minimum and maximum number of device resources to be used in a restore operation.
+
+Element 1: Minimum Resources
+
+Specifies the minimum number of device resources required for a parallel restore.
+
+Note: If a Media Library Device (MLB) is being used and the required resources are not available, the command will wait for the MLB to become available for a time period specified by the user. The wait time is determined by the value specified on the *MLB device description for INLMNTWAIT. If a *TAP device is being used and the required resources are not available, the command will fail.
+
+Note: Transferring save files to tape does not support parallel operations.
+
+*SAV
+Specifies that the same number of device resources used for the save will be used for the restore. If the save was a serial save, then the restore will also be serial.
+
+*AVAIL
+Use any available devices up to the maximum specified. Specifying this value for the minimum will allow BRMS to use any available resources, but will complete using one resource if only one is available at the start of the command.
+
+*NONE
+No device resources are to be used. The restore will be performed as a serial restore.
+
+1-32
+Specify the minimum number of device resources to be used with this restore command, up to the maximum of what was used for the save.
+
+Element 2: Maximum Resources
+
+*MIN
+Uses the value specified for the minimum number of device resources.
+
+*AVAIL
+Use any available devices. Specifying this value for the maximum will allow BRMS to use any available resources but at a minimum use the value specified in the minimum element.
+
+1-32
+Specify the maximum number of device resources to be used with this restore command, up to the maximum of what was used for the save.
+
+Top
+
+Save level (SAVLVL)
+
+Specifies the copy of the library that you want to restore from the media content information.
+
+*CURRENT
+The most current copy of the library is restored. This will include the most recent library as well as all incremental backups of the library.
+
+*SAVDATE
+Specifies a save date that will be used to identify the level of object you want to restore. The save date is specified on Save level time reference (SAVDATE) parameter.
+
+save-level-number
+Specify the age of the copy that you want to restore from the media content information. You can specify a copy number from 1 - 99. For instance, if you want to restore the next to the last most recent copy specify 1.
+
+Top
+
+Save level time reference (SAVDATE)
+
+Specifies a time reference point for the object you want to restore.
+
+Element 1: Save date
+
+Specifies a date for the object you want to restore. The object is not restored if there is no save of the object on the specified date.
+
+Note: A value must be specified for this parameter if *SAVDATE is specified for the Save level (SAVLVL) parameter.
+
+save-date
+Specify the date that the library to be restored was saved. The date must be entered in the job date format.
+
+Element 2: Save time
+
+Specifies a time for the object you want to restore. The object whose save time is on or before the time specified and on the save date specified is restored.
+
+Note: This value will be ignored if *SAVDATE is not specified for the Save level (SAVLVL) parameter.
+
+*LATEST
+The latest time that is available for the save date is included.
+
+save-time
+Specify the save time for the specified save date that indicates which objects are to be restored.
+
+Top
+
+Saved Auxiliary storage pool (SAVASP)
+
+Specifies the auxiliary storage pool (ASP) from which the library or object was saved.
+
+*ANY
+A library or object that was saved from any ASP will be restored.
+
+*SYSTEM
+A library or object that was saved from the system ASP will be restored.
+
+number
+A library or object that was saved from the specified user ASP number will be restored. The range of the ASP number is 2-32.
+
+name
+A library or object that was saved from the specified independent ASP name will be restored.
+
+Top
+
+End of media option (ENDOPT)
+
+Specifies the operation that is automatically done on the tape or optical volume after the save operation ends. If more than one volume is included, this parameter applies only to the last volume used; all other volumes are rewound and unloaded when the end of the volume is reached.
+
+Note: For optical devices, *UNLOAD is the only special value supported, *REWIND and *LEAVE will be ignored.
+
+If you specify *LEAVE and the device is a shared device, the device will not be varied off after the save operation. If you specify *LEAVE and the device is not a shared device, the device will be varied off after the save operation.
+
+*REWIND
+The volume is automatically rewound but not unloaded after the recovery operation ends.
+
+*LEAVE
+The volume does not rewind or unload after the operation ends. It remains at the current position on the device.
+
+*UNLOAD
+The volume is automatically rewound and unloaded after the recovery operation ends.
+
+Top
+
+Option (OPTION)
+
+Specifies how to handle restoring each object.
+
+*ALL
+All the objects in the saved library are restored to the library. Old objects on tape or in a save file replace the current versions in the library on the system. Objects not having a current version are added to the library on the system. Objects presently in the library, but not on the media, remain in the library.
+
+*FREE
+The saved objects are restored only if they exist in the system library with their space freed. The saved version of each object is restored in the system in its previously freed space. This option restores objects that had their space freed when they were saved. If any saved objects are no longer part of the current version of the library, or if the space is not free for any object, the object is not restored. The restore operation continues, and all of the freed objects are restored.
+
+*NEW
+Only the objects in the saved library that do not exist in the current version of the library on the system are added to the library. Only objects not known to the library on the system are restored; known objects are not restored. This option restores objects that were deleted after they were saved or that are new to this library. If any saved objects have a version already in the library on the system, they are not restored, and an informational message is sent for each one, but the restore operation continues.
+
+*OLD
+Only the objects in the library having a saved version are restored; that is, the version of each object currently in the library is replaced by the saved version. Only objects known to the library are restored. If any saved objects are no longer part of the online version of the library, they are not added to the library; an informational message is sent for each one, but the restore continues.
+
+Top
+
+Database member option (MBROPT)
+
+Specifies for database files that exist on the system, which members are restored. If *MATCH is used, the member list in the saved file must match, member for member, the current version in the system. All members are restored for files that do not exist, if the file is restored.
+
+*MATCH
+The saved members are restored if the lists of the members where they exist are a match, member for member, for the lists of the current system version. MBROPT(*MATCH) is not valid when *ALL is specified on the Allow object differences (ALWOBJDIF) parameter.
+
+*ALL
+All members in the saved file are restored.
+
+*NEW
+Only new members (members not known to the system) are restored.
+
+*OLD
+Only members already known to the system are restored.
+
+Top
+
+Spooled file data (SPLFDTA)
+
+Specifies whether saved spooled file data and attributes are restored for restored output queues.
+
+*NEW
+Specifies new saved spooled file data and attributes are restored for saved output queues. The saved spooled files will be restored to the same output queue from which these were saved if there is no existing spooled file on the system having the same attributes.
+
+*NONE
+Specifies no spooled file data or attributes are restored for restored output queues.
+
+Top
+
+Libraries to omit (OMITLIB)
+
+Specifies a list of libraries to be excluded from the restore operation.
+
+Single values
+
+*NONE
+No libraries are excluded from the restore operation.
+
+Other values (up to 300 repetitions)
+
+generic*-library-name
+Specify the generic name. A generic name is a character string of one or more characters followed by an asterisk (*): for example, ABC*. The asterisk (*) substitutes for any valid characters. A generic name specifies all libraries with names that begin with the generic prefix, for which the user has authority. If an asterisk is not included with the generic (prefix) name, the system assumes it to be the complete library name.
+
+library-name
+Specify the name of the library to be excluded. You can specify a maximum of 300 libraries.
+
+Top
+
+Object to omit (OMITOBJ)
+
+Specifies the objects to be excluded from the restore operation. Up to 300 objects or generic object values can be specified.
+
+If the OMITOBJ parameter is not specified, no objects are excluded from the restore operation.
+
+Element 1: Object
+
+Qualifier 1: Object
+
+*NONE
+No objects are excluded from the restore operation.
+
+*ALL
+Objects in the specified libraries are excluded, depending on the value specified for the object type.
+
+generic*-object-name
+Specify the generic name of the object. A generic name is a character string of one or more characters followed by the asterisk (*); for example, ABC*. The asterisk (*) substitutes for any valid characters. A generic name specifies all objects with names that begin with the generic prefix, for which the user has authority. If an asterisk is not included with the generic (prefix) name, the system assumes it to be the complete object name.
+
+object-name
+Specify the name of the object that will be excluded from the restore operation.
+
+Qualifier 2: Library
+
+*ALL
+The specified objects are excluded from all libraries that are part of the restore operation.
+
+generic*-library-name
+Specify the generic name of the library. A generic name is a character string of one or more characters followed by the asterisk (*); for example, ABC*. The asterisk (*) substitutes for any valid characters. A generic name specifies all libraries with names that begin with the generic prefix, for which the user has authority. If an asterisk is not included with the generic (prefix) name, the system assumes it to be the complete library name.
+
+library-name
+Specify the name of the library that contains the object to be excluded from the restore operation.
+
+Element 2: Object type
+
+*ALL
+All object types are excluded from the restore operation, depending on the value specified for the object name.
+
+object-type
+Specify the type of the object to be excluded from the restore operation.
+
+Top
+
+Restore incremental (RSTINCR)
+
+Specifies whether or not to restore any incremental or object level saves of the object. Currently the Restore Library BRM (RSTLIBBRM) command will restore the full backup of the library that corresponds to the copy requested in the Save level (SAVLVL) parameter, plus the last incremental backup of that library preceding the next full backup of the library, plus any object level saves that are between the two full saves. This assures that the copy that you requested has all changes restored prior to the next full save.
+
+*YES
+Specifies to restore all incremental and object level saves since the last full save of the object.
+
+*NO
+Specifies not to restore any of the incremental and object level saves since the last full save of the object.
+
+Top
+
+Allow object differences (ALWOBJDIF)
+
+Specifies whether differences are allowed between the saved objects and the restored objects. These differences include:
+
+- Authorization list: The authorization list of an object on the system is different than the authorization list of an object from the save operation. Or the system on which a new object with an authorization list is being restored is different from the system on which it was saved.
+
+- File level identifier: The creation date and time of the database file on the system does not match the creation date and time of the file that was saved.
+
+- Member level identifier: The creation date and time of the database file member on the system does not match the creation date and time of the member that was saved.
+
+- Ownership: The owner of an object on the system is different than the owner of an object from the save operation.
+
+- Primary Group: The primary group of an object on the system is different than the primary group of an object from the save operation.
+
+Note: To use this parameter, you need *ALLOBJ special authority.
+
+Single values
+
+*NONE
+None of the differences listed above are allowed on the restore operation.
+
+*ALL
+All of the differences listed above are allowed on the restore operation. File level identifier and member level identifier differences are handled differently than the *FILELVL value. If there is a file level difference and *ALL is specified on the Data base member option (MBROPT) parameter, the existing version of the file is renamed and the saved version of the file is restored. If there is a member level difference, the existing version of the member is renamed and the saved version of the member is restored. This value will restore the saved data, but the result may not be correct. For other differences, see the description of each individual value to determine how differences are handled. *COMPATIBLE is usually preferable to the value *ALL since it only allows differences that are compatible with existing database files.
+
+*COMPATIBLE
+All of the differences listed above are allowed on the restore operation. See the description of each individual value to determine how differences are handled. This value allows differences that are compatible with existing database files. This value is usually preferable to the value *ALL which also allows differences that are not compatible with existing database files.
+
+Other values (up to 4 repetitions)
+
+*AUTL
+Authorization list differences are allowed.
+If an object already exists on the system with a different authorization list than the saved object, the object is restored with the authorization list of the object on the system. New objects that are being restored to a system that is different from which they were saved are restored and linked to their authorization list. If the authorization list does not exist on the new system, the public authority is set to *EXCLUDE.
+
+If this value is not specified, authorization list differences are not allowed. If an object already exists on the system with a different authorization list than the saved object, the object is not restored. New objects that are being restored to a system that is different from which they were saved are restored, but they are not linked to the authorization list, and the public authority is set to *EXCLUDE.
+
+*FILELVL
+File level identifier and member level identifier differences are allowed.
+An attempt will be made to restore existing physical files even though the physical file on the save media may have a different file level identifier or member level identifier than the physical file on the system. The physical file data will only be restored for those physical files whose format level identifiers on the save media match the format level identifiers of the corresponding physical file on the system.
+
+If this value is not specified, file level identifier and member level identifier differences are not allowed. If an object already exists on the system with a different file level identifier or member level identifier than the saved object, the object is not restored.
+
+*OWNER
+Ownership differences are allowed.
+If an object already exists on the system with a different owner than the saved object, the object is restored with the owner of the object on the system.
+
+If this value is not specified, ownership differences are not allowed. If an object already exists on the system with a different owner than the saved object, the object is not restored.
+
+*PGP
+Primary group differences are allowed.
+If an object already exists on the system with a different primary group than the saved object, the object is restored with the primary group of the object on the system.
+
+If this value is not specified, primary group differences are not allowed. If an object already exists on the system with a different primary group than the saved object, the object is not restored.
+
+Top
+
+Private authorities (PVTAUT)
+
+Specifies whether to restore private authorities with the objects that are restored.
+
+Note: You must have all object (*ALLOBJ) special authority to restore private authorities.
+
+*NO
+No private authorities are restored.
+
+*YES
+Private authorities are restored with the objects that have had the authorities saved. If no private authorities were saved with the object, then just the object will be restored.
+
+Top
+
+Start journaling (STRJRN)
+
+Specifies whether to start journaling for new objects that are restored.
+
+Notes:
+
+- Journal information that was saved will be restored for new objects whether journaling is started or not.
+
+- Journaling will not be changed for existing objects.
+
+*YES
+Journaling will be started for new objects that were being journaled when they were saved.
+
+*NO
+Journaling will not be started for the objects that are restored.
+
+Top
+
+Restore to library (RSTLIB)
+
+Specifies whether the library contents are restored to the same library from which they were saved, or to a different library.
+
+*SAVLIB
+The library contents are restored to the same library or libraries in which they were saved.
+
+library-name
+Specify the name of the library to which the saved library contents are restored.
+
+Note: If a Structured Query Language (SQL) database is restored to a library other than the one in which it was saved, the journals are not restored.
+
+Top
+
+ASP (RSTASP)
+
+Specifies whether libraries and objects are restored to the auxiliary storage pool from which they were saved or to a different auxiliary storage pool. Libraries and their contained objects can only be restored to the system (1) auxiliary storage pool, a basic user (2-32) auxiliary storage pool, a primary auxiliary storage pool or a secondary auxiliary storage pool.
+
+More information about object types which can be restored to auxiliary storage pools can be found in the Backup and Recovery book.
+
+*SAVASP
+The library and objects are restored to the ASP from which they were saved.
+
+*SYSTEM
+The library and objects are restored to the system (1) auxiliary storage pool.
+
+auxiliary-storage-pool-name
+The library and objects are restored to the auxiliary storage pool identified by this name. This can be the name of any available basic user auxiliary storage pool (2-32) or any available primary or secondary auxiliary storage pool.
+
+auxiliary-storage-pool-number
+The library and objects are restored to the system (1) or basic auxiliary storage pools (2-32) identified by this number. The range of auxiliary storage pool number is 1-32.
+
+Top
+
+From system (FROMSYS)
+
+Specifies the location and network identification of the system from which you want to restore media information to the local system.
+
+Note: Use the Display Network Attributes (DSPNETA) command to view the system network attributes.
+
+*LCL
+Specifies that the from-system is the local system. BRMS uses the Default local location name (LCLLOCNAME) network attribute and not the System name (SYSNAME) network attribute to determine the current system name. In most cases, the systems have the same value specified for LCLLOCNAME as for SYSNAME.
+
+location-name
+Specifies the Default local location name (LCLLOCNAME) network attribute of the remote system for the network operation. The current system Local network ID (LCLNETID) network attribute is used to connect with the remote system.
+
+network-id.location-name
+Specifies the Local network ID (LCLNETID) and the Default local location name (LCLLOCNAME) network attributes of the remote system for the network operation. Specify these values using the format nnnnnnnn.cccccccc where nnnnnnnn is the LCLNETID and cccccccc is the LCLLOCNAME.
+
+If the FROMSYS parameter is specified and the connection to the remote system could not be established then the command will not use local data to perform the restore operation. Use the Work with Media Information (WRKMEDIBRM) or Start Recovery using BRM (STRRCYBRM) commands to select and restore the object.
+
+Top
+
+Restore list of libraries (RSTLST)
+
+Specifies the object list that contains the names of the libraries to be restored. To create a *BKU type object list, use the Work with Lists using BRM (WRKLBRM) command and add a new list of *BKU and type *OBJ.
+
+Note: Special value *RSTLST must be specified for the SAVLIB parameter. Otherwise, any specified value is ignored.
+
+list-name
+Specify the name of an object list that contains the list of libraries to be restored.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether a listing that shows information about the status of the objects is created and directed to an output file. The listing shows the restore information and shows all objects restored, not restored, and excluded. Information about each object's security is listed for the restored objects.
+
+*NONE
+No output is created.
+
+*OUTFILE
+The output is directed to the database file specified for the File to receive output (OUTFILE) parameter.
+
+Note: You must specify a database file name for the OUTFILE parameter when OUTPUT(*OUTFILE) is specified.
+
+Top
+
+File to receive output (OUTFILE)
+
+Specifies the database file to which the output of the command is directed. If the file does not exist, this command creates a database file in the specified library. If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created. Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+
+Qualifier 1: File to receive output
+
+name
+Specify the name of the database file to which the command output is directed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the file. If the file is not found, one is created in the current library. If no current library exists, the file will be created in the QGPL library.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Note: If a new file is created, the system uses the IBM-supplied file QASRRSTO with format name QSRRST as a model.
+
+Top
+
+Output member options: (OUTMBR)
+
+Specifies the name of the database file member that receives the output of the command.
+
+Element 1: Member to receive output
+
+*FIRST
+The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the File to receive output (OUTFILE) parameter. If the member already exists, you have the option to add new records to the end of the existing member or clear the member and then add the new records.
+
+name
+Specify the name of the file member that receives the output. If it does not exist, the system creates it.
+
+Element 2: Replace or add records
+
+*REPLACE
+The system clears the existing member and adds the new records.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+Top
+
+Select (SELECT)
+
+Specifies the selection criteria for the objects to be restored. You can select from objects in libraries specified for the Saved library (SAVLIB) parameter.
+
+Element 1: Include or omit
+
+Specifies whether the selected objects should be included or omitted from the restore operation.
+
+*INCLUDE
+The selected objects are restored, unless overridden by an *OMIT specification, or unless omitted by the Libraries to omit (OMITLIB) parameter or the Objects to omit (OMITOBJ) parameter.
+
+*OMIT
+The selected objects are not included in the restore operation.
+
+Element 2: Object
+
+Qualifier 1: Object
+
+*ALL
+All object names are selected.
+
+generic-name
+Specify the generic name of the objects to be selected.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+name
+Specify the name of the object to be selected.
+
+Qualifier 2: Library
+
+*ALL
+All library names specified for the Saved library (SAVLIB) parameter are selected.
+
+generic-name
+Specify the generic name of the libraries to be selected.
+
+name
+Specify the name of the library to be selected.
+
+Element 3: Object type
+
+*ALL
+All object types are selected.
+
+character-value
+Specify the object type to be selected.
+To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt). For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Element 4: Object attribute
+
+*ALL
+All object attributes are selected.
+
+*BLANK
+Only objects that have no attribute value are selected.
+
+attribute-value
+Specify the attribute of the objects to be selected.
+
+generic-attribute-value
+Specify the generic attribute of the objects to be selected.
+
+Element 5: File member
+
+Specifies the database file members to select.
+
+If *ALL is specified, the objects selected by the previous elements are included or omitted.
+
+If any value other than *ALL is specified, the objects selected by the previous elements are included, even if the objects are not database files. If the objects selected are database files, the file members selected are included or omitted.
+
+*ALL
+All file members are selected. For an *OMIT specification, the selected file or object is also omitted.
+
+*ALLMBR
+All file members are selected. For an *OMIT specification, the selected file or object is included and all file members are omitted.
+
+generic-name
+Specify the generic name of the file members to be selected. The selected file or object is included even if it does not contain the specified members.
+
+name
+Specify the name of the file member to be selected. The selected file or object is included even if it does not contain the specified member.
+
+Top
+
+Examples for RSTLIBBRM
+
+Example 1: Restoring a Library using BRMS
+
+RSTLIBBRM SAVLIB(MYLIB) DEV(*MEDCLS) COPY(2) RSTASP(3)
+
+This command restores a library called MYLIB. Any device that supports the media class assigned to the media containing MYLIB can be used in the restore operation. The second copy of the library in the media information is restored to auxiliary storage pool (ASP) 3.
+
+Top
+
+Error messages for RSTLIBBRM
+
+*ESCAPE Messages
+
+BRM1177
+Cannot establish connection with remote system &1.
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM2112
+ASP &2 not valid.
+
+CPF4040
+Access denied for user &1.
+
+BRM40A2
+BRMS product initialization required.
+
+CPF3700
+All CPF37xx messages could be signaled. xx is from 01 to FF.
+
+CPF3800
+All CPF38xx messages could be signaled. xx is from 01 to FF.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top

@@ -1,0 +1,164 @@
+Change Network Job Entry (CHGNETJOBE)
+
+Change Network Job Entry (CHGNETJOBE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Network Job Entry (CHGNETJOBE) command changes an existing network job entry in the system. The network job entry is used to determine the action taken when an input stream is sent to a user using the Submit Network Job (SBMNETJOB) command.
+
+This entry determines whether the input stream is automatically submitted, placed on the queue of network files for a user, or rejected. The entry also specifies the user profile that is used for checking the authority to the job description referred to in the input stream. There should be one entry for each user or distribution group who submit jobs to the system. There is a network attribute, JOBACN (Job Action), that provides overall control of network job submission; its value must be *SEARCH before the network job table is searched for an action. If the network attribute is *REJECT, all incoming jobs are rejected. If the network attribute is *FILE, all incoming network jobs are saved in the user's queue of network files regardless of the network job entry.
+
+Each network job entry is identified by the two-part user ID of the sender. When an input stream arrives, the user ID of the sending user is used to find a network job entry. If no entry is found, the second part of the user ID is used to find an entry, using *ANY for the first part. If this search fails, a search is made using *ANY for both parts of the user ID. If no entry is found, the job is rejected.
+
+Restrictions:
+
+- This command is shipped with public *EXCLUDE authority.
+
+- The internal value for a node identifier may differ from the characters shown by the CHGNETJOBE command depending on the type of work station (language) you are using. If the byte-string value specified for the FROMUSRID parameter does not match the rules for an internal node identifier value, or if it does not match the internal value for any defined node (ignoring case differences), an error may be reported.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMUSRID | User ID | Element list | Required, Key, Positional 1
+Element 1: User ID | Character value
+Element 2: User ID qualifier | Character value
+ACTION | Network job action | *SAME, *FILE, *REJECT, *SUBMIT | Optional, Positional 2
+SBMUSER | User profile | Name, *SAME | Optional, Positional 3
+MSGQ | Message queue | Single values: *SAME, *USRPRF, *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: Message queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+JOBQ | Job queue | Single values: *SAME
+Other values: Qualified object name | Optional
+Qualifier 1: Job queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+
+Top
+
+User ID (FROMUSRID)
+
+Specifies the two-part user ID of the user who submits an input stream to this system. Any input streams received from the user are handled as specified in this network job entry. Both parts of the user ID are required. A special value of *ANY can be entered for the first part or for both parts of the user ID.
+
+Note: Depending on the type of work station you are using, the internal value for a user identifier may differ from the characters shown by the Work with Network Job Entry (WRKNETJOBE) command. If the byte-string value specified for the FROMUSRID parameter does not match the rules for an internal user identifier value, or if it does not match the internal value for any enrolled user, an error may be reported.
+
+This is a required parameter.
+
+Top
+
+Network job action (ACTION)
+
+Specifies the action that is taken for a job controlled by this entry.
+
+*SAME
+The option in the job entry remains the same.
+
+*REJECT
+The input stream is rejected.
+
+*FILE
+The input stream is placed on the queue of network files received for the user to whom the input stream is sent.
+
+*SUBMIT
+The input stream is submitted to a batch job queue. The user profile specified in the network job entry is used to check for the required authority to the job queues.
+
+Top
+
+User profile (SBMUSER)
+
+Specifies the user profile name under which the jobs are submitted. This user profile is used to check the authority to the job queues and job descriptions specified in the input stream. The value specified for this parameter is effective if ACTION(*SUBMIT) is specified either on this command or on the Add Network Job Entry (ADDNETJOBE) command.
+
+*SAME
+The user profile that submits the jobs in the job entry does not change.
+
+user-profile
+Specify the name of the user profile that is used to submit the jobs.
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the name and library of the message queue to which messages are sent after an input stream arrives. A message is also sent to the history log (QHST) when an input stream is received.
+
+*SAME
+The message queue in the job entry does not change.
+
+*USRPRF
+The message queue of the user profile to whom the job was sent is used.
+
+*NONE
+No message is sent to a user; however, a message is sent to the history log.
+
+message-queue-name
+Specify the name of the message queue that is used to receive messages.
+
+The possible library values are:
+
+*LIBL
+The library list is used to locate the message queue.
+
+*CURLIB
+The current library for the job is used to locate the message queue. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the message queue is located.
+
+Top
+
+Job queue (JOBQ)
+
+Specifies the name and library of the job queue on which the job entries are placed. A job is placed on this queue for each job in the input stream that specified *RDR on the Job queue prompt (JOBQ parameter) of the BCHJOB command. If *RDR is not specified on the BCHJOB command, the job queue specified on the BCHJOB command or in the job description is used. (The job queue for each job in the input stream can be different.) This parameter is valid only if ACTION(*SUBMIT) is specified on this command, in the existing network job entry, or in a subsequent Change Network Job Entry (CHGNETJOBE) command.
+
+*SAME
+The job queue in the job entry does not change.
+
+job-queue-name
+Specify the name of the job queue that is used.
+
+The possible library values are:
+
+*LIBL
+The library list is used to locate the job queue.
+
+*CURLIB
+The current library for the job is used to locate the job queue. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the job queue is located.
+
+Top
+
+Examples
+
+CHGNETJOBE FROMUSRID(JOHN SMITH) SBMUSER(ANDERSON)
+
+This command changes the network job entry that is used to determine the action taken for any input stream received from user JOHN SMITH. The option and the message queue in the existing entry are not changed. The user profile that is used to check the authority to the job queues and job descriptions specified in the input stream is changed to ANDERSON.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF8050
+Network job table could not be accessed.
+
+CPF8051
+*ANY not correct for second part of user ID.
+
+CPF8053
+Network job entry &1 &2 not changed.
+
+CPF9040
+Wrong characters used in User ID or address, or List identifier &1 &2.
+
+Top

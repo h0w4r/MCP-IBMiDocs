@@ -1,0 +1,295 @@
+Remove Message (RMVMSG)
+
+Remove Message (RMVMSG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: Compiled CL program or interpreted REXX (*BPGM *IPGM *BREXX *IREXX)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Remove Message (RMVMSG) command is used by a program to remove the specified message, or a group of messages, from the specified message queue. If an unanswered inquiry message is removed, the default reply is sent before it is removed. If the specified message queue is not allocated to the job in which this command is issued and no other job has the message queue allocated, it is implicitly allocated by this command for the duration of the command.
+
+Restrictions:
+
+- This command is valid only in a compiled CL program.
+
+- To remove a message from the message queue, you must have change (*CHANGE) authority for the queue and use (*USE) authority for the library in which the queue is located.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+PGMQ | Call stack entry message queue | Single values: *ALLINACT, *EXT
+Other values: Element list | Optional
+Element 1: Relationship | *SAME, *PRV
+Element 2: Call stack entry identifier | Element list
+Element 1: Call stack entry | Character value, *
+Element 2: Module | Name, *NONE
+Element 3: Bound program | Name, *NONE
+MSGQ | Message queue | Single values: *PGMQ
+Other values: Qualified object name | Optional
+Qualifier 1: Message queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MSGKEY | Message key | Character value | Optional
+CLEAR | Clear | *BYKEY, *ALL, *KEEPUNANS, *OLD, *NEW | Optional
+RMVEXCP | Remove unhandled exception | *YES, *NO | Optional
+RJTDFTRPY | Reject default reply | *NOALWRJT, *ALWRJT | Optional
+
+Top
+
+Call stack entry message queue (PGMQ)
+
+Specifies the call message queue from which the messages are to be removed. Messages can be removed from the external queue (*EXT) or from a message queue associated with a call stack entry.
+
+Notes:
+
+- If CLEAR(*BYKEY) is specified, the PGMQ parameter is ignored.
+
+- If values are specified for this parameter, values cannot be specified for the Message queue (MSGQ) parameter.
+
+Single values
+
+*ALLINACT
+All messages for inactive call stack entries are to be removed from the user's job message queue. If this value is specified, *ALL must be specified for the Clear (CLEAR) parameter.
+
+*EXT
+The message is to be removed from the external message queue of the job.
+
+Element 1: Relationship
+
+Two parameter elements are used to specify the call stack entry message queue from which a message is to be removed. The first element specifies whether the message queue is associated with the program or procedure identified by the second element, or if it is associated with the caller of the program or procedure.
+
+*SAME
+The message is to be removed from the message queue of the program or procedure identified by the second element of this parameter.
+
+*PRV
+The message is to be removed from the message queue of the program or procedure that called the program or procedure identified by the second element of this parameter.
+
+Note: If the message queue previous to the one identified by the second value is for an ILE program entry procedure (PEP), the message will be removed from the message queue immediately previous to the PEP message queue; effectively this would be two message queues previous to the one identified by the program or qualified procedure.
+
+Element 2: Call stack entry identifier
+
+The second element of this parameter is used to provide the information needed to identify a call stack entry. It has three elements. Element 1 specifies an OPM program or ILE procedure name or a special value. Element 2 specifies an ILE module name which is used as a qualifier for the value specified in element 1. Element 3 can specify either an OPM program name or an ILE program name or a service program name, depending on what is specified in element 1. Element 3 is also used as a qualifier for what is specified in element 1.
+
+Element 1: Call stack entry
+
+*
+Specifies the OPM program or ILE procedure running this command.
+
+name
+Specify the name of the OPM program or ILE procedure used to identify the call stack entry.
+A procedure name alone may not identify the correct procedure since several different procedures with the same name can run in a job. A procedure can be further identified by specifying element 2 or by specifying both element 2 and 3.
+
+The system begins its search for the specified program or procedure name with the most recently called program or procedure.
+
+If this element identifies an OPM program, the name specified can be a maximum of 10 characters. If this element identifies an ILE procedure, the name specified can be a maximum of 256 characters.
+
+Nested procedure names can be specified by separating each procedure name with a colon (:). When specifying nested procedure names, the outermost procedure name is identified first, followed by its contained procedures. The innermost procedure name is identified last in the string.
+
+Partial names of programs or procedures can be specified by placing three less-than symbols (<<<) at the beginning of the name or by placing three greater-than symbols (>>>) at the end of the name. If both the greater-than symbols and the less-than symbols are used, the program or procedure name specified is limited to 250 characters.
+
+When searching for a partial program or procedure name:
+
+- The less-than symbols (<<<) are truncated when specified only at the beginning of a program or procedure name and the remaining character string is right-justified. The remaining characters in the specified string are compared to the current program or procedure on the call stack, starting with the last position of the program or procedure name and comparing backward.
+
+- The greater-than symbols (>>>) are truncated when specified only at the end of a program or procedure name. The remaining characters in the specified string are compared to the current program or procedure on the call stack, starting with the first position of the program or procedure name.
+
+- The less-than symbols (<<<) and the greater-than symbols (>>>) are truncated when both are specified for a program or procedure name. The remaining characters are used to scan and compare the entire length of the specified string with the current program or procedure on the call stack.
+
+Element 2: Module
+
+*NONE
+No ILE module qualifier is provided.
+
+name
+Specify the ILE module name to be used to identify the message queue. This name identifies the module into which the procedure was compiled.
+
+Element 3: Program
+
+*NONE
+No program qualifier is provided.
+
+name
+Specify the program name to be used to identify the message queue. This name identifies the program to which the procedure was bound.
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the message queue from which one or more messages are to be removed. If this parameter is specified, the Call stack entry message queue (PGMQ) parameter cannot be specified.
+
+Single values
+
+*PGMQ
+The call message queue specified for the Call stack entry message queue (PGMQ) parameter is the only queue from which the messages are to be removed. If CLEAR(*KEEPUNANS) is specified, MSGQ(*PGMQ) cannot be specified.
+
+Qualifier 1: Message queue
+
+name
+Specify the name of the message queue from which one or more messages are to be removed.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the message queue. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the library where the message queue is located.
+
+Top
+
+Message key (MSGKEY)
+
+Specifies the name of the control language (CL) variable that contains the message reference key of the message to be removed. This parameter can be specified only if CLEAR(*BYKEY) is specified.
+
+Top
+
+Clear (CLEAR)
+
+Specifies whether one or more messages are to be removed from the queue.
+
+*BYKEY
+The message identified by the control language (CL) variable named in the Message key (MSGKEY) parameter is to be removed from the message queue.
+
+*ALL
+All messages are to be removed from the specified message queue.
+
+*KEEPUNANS
+All messages except unanswered inquiry messages are to be removed from the specified message queue. If this value is specified, MSGQ(*PGMQ) cannot be specified, a message queue name must be specified.
+
+*OLD
+All old messages in the specified message queue are to be removed from the queue.
+
+*NEW
+All new messages in the specified message queue are to be removed from the queue.
+
+Top
+
+Remove unhandled exception (RMVEXCP)
+
+Specifies the action to be taken when an unhandled exception message is found. An unhandled exception message is an escape, notify, or status message that has been sent to an ILE procedure. When this command is run, the ILE procedure has not yet taken action to tell the system that the exception is handled. One action that the ILE procedure can take is to call a CL program that will remove the exception message. More information on actions that an ILE procedure can take to handle an exception is in the ILE Concepts book, SC41-5606.
+
+This parameter is valid only when working with a message queue that is associated with a call stack entry for an ILE procedure. This parameter is ignored when working with a message queue associated with a call stack entry for an OPM (original program model) program.
+
+*YES
+The unhandled exception message on the specified message queue is removed. As a result, the exception is handled.
+
+*NO
+The unhandled exception message on the specified message queue is not removed. The message remains on the queue as an unhandled exception message.
+
+Top
+
+Reject default reply (RJTDFTRPY)
+
+Removing an unanswered inquiry message causes the default reply to be sent to the inquiry message. This value indicates whether a reply handling exit program will be allowed to reject a default reply that is sent as a result of using this command. A reply handling exit program can be registered via the system registration facility for exit point QIBM_QMH_REPLY_INQ.
+
+*NOALWRJT
+A reply handling exit program will not be allowed to reject a default reply.
+
+*ALWRJT
+A reply handling exit program will be allowed to reject a default reply. If an exit program rejects the reply, message CPD2476 (Reply rejected by a reply handling exit program) will be sent as a diagnostic message to the program using this command. The CPD2476 will be followed by a CPF2422 (Reply not valid) escape message that the program using this command should monitor for to handle and recover from error situations.
+
+Top
+
+Examples
+
+Example 1: Removing a Message
+
+RMVMSG MSGQ(SMITH) MSGKEY(&KEY)
+
+This command removes the message with the reference key specified in the CL variable &KEY from the message queue named SMITH.
+
+Example 2: Keeping Unanswered Messages
+
+RMVMSG MSGQ(SMITH) CLEAR(*KEEPUNANS)
+
+This command removes all messages except the unanswered inquiry messages from the message queue named SMITH.
+
+Example 3: Removing Messages Using a Partial Procedure Name
+
+RMVMSG PGMQ(*SAME 'PROCESS_ORDER>>>') CLEAR(*ALL)
+
+This command removes all messages from the most recent procedure whose name begins with PROCESS_ORDER.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF24A6
+Value for messages to remove not valid.
+
+CPF24AD
+Messages to remove must be *ALL if program message queue is *ALLINACT.
+
+CPF2401
+Not authorized to library &1.
+
+CPF2403
+Message queue &1 in &2 not found.
+
+CPF2407
+Message file &1 in &2 not found.
+
+CPF2408
+Not authorized to message queue &1.
+
+CPF241A
+Clear option &1 in system program is not valid.
+
+CPF2410
+Message key not found in message queue &1.
+
+CPF2411
+Not authorized to message file &1 in &2.
+
+CPF2419
+Message identifier &1 not found in message file &2 in &3.
+
+CPF2422
+Reply not valid.
+
+CPF2450
+Work station message queue &1 not allocated to job.
+
+CPF2451
+Message queue &1 is allocated to another job.
+
+CPF247A
+Call stack entry not found.
+
+CPF2477
+Message queue &1 currently in use.
+
+CPF2479
+Call stack entry not found.
+
+CPF2483
+Message file currently in use.
+
+CPF2499
+Message identifier &1 not valid.
+
+CPF8127
+&8 damage on message queue &4 in &9. VLIC log-&7.
+
+CPF8176
+Message queue for device description &4 damaged.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9838
+User profile storage limit exceeded.
+
+Top

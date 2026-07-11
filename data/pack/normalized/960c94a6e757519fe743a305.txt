@@ -1,0 +1,220 @@
+Create Journal Receiver (CRTJRNRCV)
+
+Create Journal Receiver (CRTJRNRCV)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Create Journal Receiver (CRTJRNRCV) command creates a journal receiver. Once a journal receiver is attached to a journal (with the Create Journal (CRTJRN) or Change Journal (CHGJRN) command), journal entries can be placed in it. A preferred auxiliary storage pool(ASP), and a storage space threshold value can be specified for the journal receiver.
+
+Restrictions:
+
+- A journal receiver cannot be created in library QTEMP.
+
+- This command cannot be used to create a journal receiver for a remote journal.
+
+- If the library to contain the journal receiver is on an independent ASP then ASP(*LIBASP) must be specified.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JRNRCV | Journal receiver | Qualified object name | Required, Positional 1
+Qualifier 1: Journal receiver | Simple name
+Qualifier 2: Library | Name, *CURLIB
+ASP | ASP number | 1-32, *LIBASP | Optional
+THRESHOLD | Journal receiver threshold | 1-1000000000, 1500000, *NONE | Optional
+TEXT | Text 'description' | Character value, *BLANK | Optional
+UNIT | Preferred storage unit | 1-255, *ANY | Optional
+AUT | Authority | Name, *EXCLUDE, *LIBCRTAUT, *CHANGE, *ALL, *, *USE | Optional
+
+Top
+
+Journal receiver (JRNRCV)
+
+Specifies the name and library of the journal receiver that is being created.
+
+This is a required parameter.
+
+Qualifier 1: Journal receiver
+
+receiver-name
+Specify the name of the journal receiver being created.
+
+Qualifier 2: Library
+
+*CURLIB
+The journal receiver is created in the current library. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the journal receiver is to be created.
+
+Top
+
+ASP number (ASP)
+
+Specifies the auxiliary storage pool (ASP) from which the system allocates storage for the journal receiver.
+
+*LIBASP
+The storage space for the journal receiver is allocated from the same auxiliary storage pool as the storage space of the journal receiver's library.
+
+ASP-identifier
+Specify a value ranging from 1 through 32 to specify the identifier of the ASP from which to have the storage space of the journal receiver allocated. Valid values depend on how ASPs are defined on the system.
+
+Note: The value of 1 is the system ASP, any other value indicates a user ASP.
+
+Top
+
+Journal receiver threshold (THRESHOLD)
+
+Specifies a storage space threshold value (in KB) for the journal receiver. If the threshold value is exceeded during journaling, one of the following occurs:
+
+- The message CPF7099 is sent to the journal message queue if the journal has the MNGRCV(*USER) attribute.
+
+- The system attempts to create and attach a new receiver if the journal has the MNGRCV(*SYSTEM) attribute. When the old receiver is detached, the message CPF7020 is sent to the journal message queue. If the attempt fails due to lock conflicts, the system sends the message CPI70E5 and then tries again every ten minutes (or as often as requested via the MNGRCVDLY parm) until the change journal operation is successful.
+
+- When the system cannot determine if the journal has the MNGRCV(*SYSTEM) attribute, or if the attempt to create and attach a new journal receiver fails because of something other than a lock conflict, the message CPI70E3 is sent.
+
+The journal message queue is specified on the CRTJRN (Create Journal) or CHGJRN (Change Journal) command.
+
+Note: The value for the MNGRCV parameter is specified for the journal on the CRTJRN or CHGJRN command. If you have not specified MNGRCV(*SYSTEM), and the threshold value is exceeded, you may want to take some action, such as issuing a CHGJRN command.
+
+Note: If RCVSIZOPT(*RMVINTENT) is specified for the journal, the internal space occupied by the internal entries applies toward the receiver threshold. Sometime after the journal receiver is detached, the space for the internal entries will be freed. At that time the size of the journal receiver will be less than the specified threshold value.
+
+1500000
+This is the default threshold value. Each 1000KB specifies 1,024,000 bytes of storage space.
+
+*NONE
+No threshold value is specified. The message CPF7099 is not sent and MNGRCV(*SYSTEM) cannot be specified when attaching this receiver to a journal.
+
+1-1000000000
+Specify the journal receiver threshold value in kilobytes (KB) of storage. Each 1000 KB specifies 1,024,000 bytes of storage space. A value less than 100,000 will automatically be reset to 100,000. When the size of the space for the journal receiver is larger than the size specified by this value, a message is sent to the identified message queue if appropriate, and journaling continues.
+
+Notes:
+
+- If you plan to attach this journal receiver to a journal that does not have one of the *MAXOPT values from the RCVSIZOPT parameter specified, the maximum threshold you should specify is 1,919,999 in kilobytes.
+
+- If you specify a value less than 100,000, the value will automatically be reset to 100,000. Otherwise you may see the threshold exceeded message too frequently. Also, if the threshold value is too small, the threshold exceeded message may occur when the journal receiver is attached to a journal either with the Create Journal (CRTJRN) command or the Change Journal (CHGJRN) command.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the text that briefly describes the object.
+
+*BLANK
+No text is specified.
+
+'description'
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Preferred storage unit (UNIT)
+
+This parameter is no longer supported. It has been kept strictly for syntactic compatibility with releases prior to Version 1 Release 3 Modification 0 of the operating system.
+
+To isolate the journal receiver to a disk arm, use the ASP parameter. For more information on using user ASPs, see the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+You can specify either *ANY or a value from 1 through 32 for this parameter.
+
+Top
+
+Authority (AUT)
+
+Specifies the authority you are giving to users who do not have specific authority for the object, who are not on an authorization list, and whose group profile or supplemental group profiles do not have specific authority for the object.
+
+*EXCLUDE
+The user cannot access the object.
+
+*LIBCRTAUT
+The system determines the authority for the object by using the value specified for the Create authority (CRTAUT) parameter on the Create Library command (CRTLIB) for the library containing the object to be created. If the value specified for the CRTAUT parameter is changed, the new value will not affect any existing objects.
+
+*CHANGE
+The user can perform all operations on the object except those limited to the owner or controlled by object existence (*OBJEXIST) and object management (*OBJMGT) authorities. The user can change and perform basic functions on the object. *CHANGE authority provides object operational (*OBJOPR) authority and all data authority. If the object is an authorization list, the user cannot add, change, or remove users.
+
+*ALL
+The user can perform all operations except those limited to the owner or controlled by authorization list management (*AUTLMGT) authority. The user can control the object's existence, specify the security for the object, change the object, and perform basic functions on the object. The user also can change ownership of the object.
+
+*USE
+The user can perform basic operations on the object, such as running a program or reading a file. The user cannot change the object. Use (*USE) authority provides object operational (*OBJOPR), read (*READ), and execute (*EXECUTE) authorities.
+
+name
+Specify the name of an authorization list to be used for authority to the object. Users included in the authorization list are granted authority to the object as specified in the list. The authorization list must exist when the object is created.
+
+Top
+
+Examples
+
+CRTJRNRCV JRNRCV(MYLIB/JRNRCLA) ASP(3)
+THRESHOLD(100000) AUT(*ALL)
+TEXT('RECEIVER FOR WEEK 37')
+
+This command creates a journal receiver named JRNRCLA in library MYLIB. Storage space for the journal receiver is allocated from user auxiliary storage pool (ASP) 3. When the size of JRNRCLA is larger than 100000 kilobytes (102,400,000 bytes), the message CPF7099 is sent to the journal message queue, if the journal to which this receiver is attached has the MNGRCV(*USER) attribute. The public authority to the journal receiver is *ALL.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2108
+Object &1 type *&3 not added to library &2.
+
+CPF2283
+Authorization list &1 does not exist.
+
+CPF70FD
+Internal system journal status object recreated.
+
+CPF7010
+Object &1 in &2 type *&3 already exists.
+
+CPF7011
+Not enough storage or resources.
+
+CPF7012
+Auxiliary storage pool &4 not found for object &1.
+
+CPF70FD
+Internal system journal status object recreated.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9839
+Object &1 not created.
+
+CPF9840
+Object &1 not created.
+
+CPF9873
+ASP status is preventing access to object.
+
+CPF9875
+Resources exceeded on ASP &1. Press HELP.
+
+Top

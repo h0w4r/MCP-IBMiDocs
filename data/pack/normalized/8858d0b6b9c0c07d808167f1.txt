@@ -1,0 +1,1220 @@
+Restore Library (RSTLIB)
+
+Restore Library (RSTLIB)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Restore Library (RSTLIB) command restores to the system one library or a group of libraries that was saved by the Save Library (SAVLIB) command. The Restore Library (RSTLIB) command restores the whole library, which includes the library description, object descriptions, and contents of the objects in the library.
+
+For job queues, message queues, user queues, and logical files, only the object descriptions are restored, because only the definitions are saved. Also, logical file access paths may be restored if they were saved. More information on restoring access paths is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. The contents of spooled files on output queues can be restored, if they were saved, by specifying *NEW for the Spooled file data (SPLFDTA) parameter.
+
+This command can be used to restore libraries whose objects had their storage freed by the corresponding SAVLIB command of the restore operation, or libraries deleted by the Delete Library (DLTLIB) command. If the data portions of the objects in the saved libraries were not freed, each library is copied into the same area of storage that it previously occupied. If the storage was freed, the system finds the needed storage to store the library contents (the object description and data portion of every file, module, program, service program, Structured Query Language (SQL) package, and journal receiver in the library). If the library does not exist on the system because it has been deleted or is being restored on a different system, the system must find the storage for everything that is in the library, including the library description.
+
+If an object is being restored over an existing object on the system, the owner, primary group, public and private authorities, authorization list, and object auditing value of the existing object are retained. The Allow object differences (ALWOBJDIF) parameter may affect whether the object is restored, and the Private authorities (PVTAUT) parameter may add saved private authorities to the existing private authorities. Existing objects that are in use, such as output queues that are actively spooling, are not restored. Existing data queues are not restored.
+
+If an object is being restored as new to the system, the saved owner name, primary group name, public authority, and object auditing value are used. The ALWOBJDIF parameter may affect whether the saved authorization list name is used, and the PVTAUT parameter may restore saved private authorities. If the owner user profile does not exist, the system default owner (QDFTOWN) becomes the owner of the object. If the primary group does not exist, *NONE is used.
+
+If a library is being restored over an existing library on the system, the default public authority and auditing values for objects created in the existing library are retained. If the library is being restored as new; these values are restored from the media.
+
+Note: This command ignores all file overrides currently in effect for the job, except for the output file.
+
+Restrictions:
+
+- This command is shipped with no public authority (*EXCLUDE).
+
+- You must have save system (*SAVSYS) special authority, or have all of the following object authorities:
+
+Read (*READ) and add (*ADD) authorities for, or be the owner of, each library specified.
+
+Object existence (*OBJEXIST) authority for, or be the owner of, each object in the library if the object already exists in the library on the system. *OBJEXIST and use (*USE) authorities are required for message queue objects. If the object does not exist, add (*ADD) authority for the user profiles that own the objects to be restored. For spooled file data, *OBJEXIST authority is required for the output queue to which it is restored.
+If you do not have the correct authority for all the libraries and objects specified, only those for which you have authority are restored.
+
+If VOL(*SAVVOL) is specified, *USE authority to the saved-from library.
+
+*USE authority for the save file is required when restoring libraries from a save file. *USE authority for the device description and the device file are required when restoring libraries from a tape or optical device.
+
+- You must have use (*USE) authority for the Create Save File (CRTSAVF) command when restoring a save file that does not currently exist on the system.
+
+- When using a media definition, you must have *USE authority to the media definition and execute (*EXECUTE) authority to the media definition library.
+
+- When saving or restoring to an existing database file using the OUTFILE parameter, you must have *EXECUTE authority to the library where the output file is located.
+
+- The current versions of programs on the system should not be run while the library that contains those programs is being restored. If any OPM program is running while it is being restored, the running program may fail or behave unpredictably.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SAVLIB | Saved library | Single values: *NONSYS, *ALLUSR, *IBM, *ANY, *SELECT
+Other values (up to 300 repetitions): Generic name, name | Required, Positional 1
+DEV | Device | Single values: *SAVF, *MEDDFN
+Other values (up to 4 repetitions): Name | Required, Positional 2
+VOL | Volume identifier | Single values: *MOUNTED, *SAVVOL
+Other values (up to 75 repetitions): Character value | Optional, Positional 3
+SEQNBR | Sequence number | 1-16777215, *SEARCH | Optional, Positional 4
+LABEL | Label | Character value, *SAVLIB | Optional
+ENDOPT | End of media option | *REWIND, *LEAVE, *UNLOAD | Optional
+STRLIB | Starting library | Name, *FIRST | Optional
+SAVF | Save file | Qualified object name | Optional
+Qualifier 1: Save file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MEDDFN | Media definition | Qualified object name | Optional
+Qualifier 1: Media definition | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OPTFILE | Optical file | Path name, * | Optional
+OMITLIB | Libraries to omit | Single values: *NONE
+Other values (up to 300 repetitions): Generic name, name | Optional
+OPTION | Option | *ALL, *NEW, *OLD, *FREE | Optional
+MBROPT | Data base member option | *MATCH, *ALL, *NEW, *OLD | Optional
+DFRID | Defer ID | Name, *DFT, *NONE | Optional
+SPLFDTA | Spooled file data | *NEW, *NONE | Optional
+PVTAUT | Private authorities | *NO, *YES | Optional
+STRJRN | Start journaling | *YES, *NO | Optional
+SAVDATE | Date when saved | Date | Optional
+SAVTIME | Time when saved | Time | Optional
+ALWOBJDIF | Allow object differences | Single values: *NONE, *COMPATIBLE, *ALL
+Other values (up to 4 repetitions): *AUTL, *FILELVL, *OWNER, *PGP | Optional
+FRCOBJCVN | Force object conversion | Single values: *SYSVAL, *NO
+Other values: Element list | Optional
+Element 1: Convert during restore | *YES
+Element 2: Objects to convert | *RQD, *ALL
+RSTLIB | Restore to library | Name, *SAVLIB | Optional
+RSTASPDEV | Restore to ASP device | Name, *SAVASPDEV | Optional
+RSTASP | Restore to ASP number | 1-32, *SAVASP | Optional
+OUTPUT | Output | *NONE, *PRINT, *OUTFILE | Optional
+OUTFILE | File to receive output | Qualified object name | Optional
+Qualifier 1: File to receive output | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+INFTYPE | Type of output information | *OBJ, *MBR | Optional
+OMITOBJ | Objects to omit | Values (up to 300 repetitions): Element list | Optional
+Element 1: Object | Qualified object name
+Qualifier 1: Object | Generic name, name, *NONE, *ALL
+Qualifier 2: Library | Generic name, name, *ALL
+Element 2: Object type | Character value, *ALL
+SELECT | Select | Values (up to 300 repetitions): Element list | Optional
+Element 1: Include or omit | *INCLUDE, *OMIT
+Element 2: Object | Qualified object name
+Qualifier 1: Object | Generic name, name, *ALL
+Qualifier 2: Library | Generic name, name, *ALL
+Element 3: Object type | Character value, *ALL
+Element 4: Object attribute | Character value, *ALL, *BLANK
+Element 5: File member | Generic name, name, *ALL, *ALLMBR
+
+Top
+
+Saved library (SAVLIB)
+
+Specifies the libraries to be restored to the system.
+
+Notes:
+
+- If you specify more than one library, or a special value, or a generic value:
+
+The Device (DEV) parameter must not specify *SAVF.
+
+The Restore to library (RSTLIB) parameter must specify *SAVLIB.
+
+The Label (LABEL) parameter must specify *SAVLIB.
+
+The Optical file (OPTFILE) parameter must specify * or end with /*.
+
+- For values *NONSYS and *IBM, all other operations on the system must be ended before this option is specified. This requires ending all subsystems through the End Subsystem (ENDSBS) command or the End System (ENDSYS) command.
+
+- The tape or optical file that you select to restore may contain a library that does not match the value that you specify for this parameter. This parameter is used to determine the default LABEL value for a tape file and the default OPTFILE value for an optical file, but the restore operation does not verify that this parameter matches the saved library.
+
+This is a required parameter.
+
+Single values
+
+*NONSYS
+Libraries saved by the Save Library (SAVLIB) command with LIB(*NONSYS) specified are restored.
+You can do a RSTLIB SAVLIB(*IBM) and a RSTLIB SAVLIB(*ALLUSR) from a SAVLIB LIB(*NONSYS).
+
+*ALLUSR
+All user libraries are restored. All libraries with names that do not begin with the letter Q are restored except for the following:
+
+#CGULIB #DSULIB #SEULIB
+#COBLIB #RPGLIB
+#DFULIB #SDALIB
+
+Although the following Qxxx libraries are provided by IBM, they typically contain user data that changes frequently. Therefore, these libraries are considered "user libraries", and are also restored:
+
+QDSNX QSYS2 QUSRINFSKR QWQCENT
+QGPL QSYS2xxxxx QUSRNOTES QWQREPOS
+QGPL38 QS36F QUSROND
+QMPGDATA QUSER38 QUSRPOSGS
+QMQMDATA QUSRADSM QUSRPOSSA
+QMQMPROC QUSRBRM QUSRPYMSVR
+QPFRDATA QUSRDIRCF QUSRRDARS
+QRCL QUSRDIRCL QUSRSYS
+QRCLxxxxx QUSRDIRDB QUSRVI
+QSRVAGT QUSRIJS QUSRVxRxMx
+
+*IBM
+Restores all IBM-supplied libraries except for the following:
+
+QDOC QRCYxxxxx QTEMP QUSRPYMSVR
+QDOCxxxx QRECOVERY QUSER38 QUSRRDARS
+QDSNX QRPLOBJ QUSRADSM QUSRSYS
+QGPL QRPLxxxxx QUSRBRM QUSRVI
+QGPL38 QSPL QUSRDIRCF QUSRVxRxMx
+QMPGDATA QSPLxxxx QUSRDIRCL QWQCENT
+QMQMDATA QSRV QUSRDIRDB QWQREPOS
+QMQMPROC QSRVAGT QUSRIJS
+QPFRDATA QSYS QUSRINFSKR
+QPTFOBJ1 QSYSxxxxx QUSRNOTES
+QPTFOBJ2 QSYS2 QUSROND
+QRCL QSYS2xxxxx QUSRPOSGS
+QRCLxxxxx QS36F QUSRPOSSA
+
+Note: A different library name, in the format QUSRVxRxMx, can be created by the user for each previous release supported by IBM to contain any user commands to be compiled in a CL program for the previous release. For the QUSRVxRxMx user library, VxRxMx is the version, release, and modification level of a previous release that IBM continues to support.
+
+The following libraries with names that do not begin with the letter Q are also restored:
+
+#CGULIB #DSULIB #SEULIB
+#COBLIB #RPGLIB
+#DFULIB #SDALIB
+
+*ANY
+Restores the first version of all saved libraries found on the tape beginning with the sequence number specified for the Sequence number (SEQNBR) parameter, or restores all saved libraries found on the optical media in the directory specified for the Optical file (OPTFILE) parameter.
+
+*SELECT
+The libraries identified in the Select (SELECT) parameter are restored. Only one library can be specified in the selection criteria when restoring from a save file.
+
+Other values (up to 300 repetitions)
+
+generic-name
+Specify the generic name of the library to be restored.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+name
+Specify the name of the library to be restored. The name of the library being restored must be the same as the name that was used when the library was saved.
+
+Top
+
+Device (DEV)
+
+Specifies the name of the device used for the restore operation. The device name must already be known on the system by a device description.
+
+This is a required parameter.
+
+Single values
+
+*SAVF
+The restore operation is done using the save file specified for the Save file (SAVF) parameter.
+
+*MEDDFN
+The restore operation is done using the devices and media identified in the media definition specified for the Media definition (MEDDFN) parameter.
+
+Other values
+
+optical-device-name
+Specify the name of the optical device used for the restore operation.
+
+tape-media-library-device-name
+Specify the name of the tape media library device used for the restore operation.
+
+tape-device-name
+Specify the names of one or more tape devices used for the restore operation. If a virtual tape device is used, it must be the only device specified. If you are using more than one tape device (up to a maximum of four), specify the names of the devices in the order in which they are used. When more than one tape volume is to be restored, using more than one tape device permits one tape volume to be rewound while another tape device processes the next tape volume. To use more than one device in parallel, a media definition must be specified.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifiers of the media or the cartridge identifiers of tapes in a tape media library device, from which the objects are being restored. The volumes must be in the same order as they were when the data was saved. The volume that contains the beginning of the file to be restored should be placed in the device.
+
+Note: The first version of the saved library that is found on the media is restored, unless a specific version is identified by the Date when saved (SAVDATE) and Time when saved (SAVTIME) parameters or, for tape, the Sequence number (SEQNBR) parameter.
+
+Single values
+
+*MOUNTED
+The objects are restored from the volumes placed in the device specified for the Device (DEV) parameter. For a media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command.
+
+Note: This value cannot be specified when using an optical media library device.
+
+*SAVVOL
+The system, by using the save or restore history information, determines which volumes contain the most recently saved version of the library. If the device type of the device specified for the Device DEV) parameter does not match the device type of the most recently saved version of the library, an error message is sent to the user, and the function is ended. If *SAVVOL is specified, the SAVDATE and SAVTIME parameters cannot be specified. If *SAVVOL is specified, *SEARCH must be specified for the SEQNBR parameter.
+
+Other values (up to 75 repetitions)
+
+character-value
+Specify the identifiers of one or more volumes in the order in which they are placed in a device and used to restore the data.
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies, when tape is used, which sequence number is used for the restore operation.
+
+*SEARCH
+The volume in the device is searched for a data file with an identifier that matches the FROMLABEL parameter value; when a match is found, the object is restored. If the last operation on the device specified *LEAVE for the End of tape option (ENDOPT) parameter, indicating that the tape is positioned at the location where the last operation ended, the file search starts with the first data file beyond the current tape position. If *LEAVE was not used for the End of tape option (ENDOPT) parameter of the last operation, or if the tape was manually rewound since the operation, the search starts with the first data file on the volume.
+
+1-16777215
+Specify the sequence number of the file to be used for the restore operation.
+
+If *NONSYS, *ALLUSR, or *IBM is specified for the Saved library (SAVLIB) parameter, the sequence number specifies the location of the file QFILE. The QFILE file is at the beginning of the *NONSYS, *ALLUSR, or *IBM save operation. The QFILE file contains the list of libraries saved.
+
+Top
+
+Label (LABEL)
+
+Specifies the name that identifies the data file to be used for the restore operation. This label must have been specified on the save command.
+
+*SAVLIB
+The file label is the name specified for the Saved library (SAVLIB) parameter.
+
+character-value
+Specify the data file identifier of the data file used for the restore operation. A maximum of 17 characters can be used. This option is valid only for a single-library restore.
+
+Top
+
+End of media option (ENDOPT)
+
+Specifies the operation that is automatically done on the tape or optical volume after the restore operation ends. If more than one volume is used, this parameter applies only to the last volume used; all other volumes are unloaded when the end of the volume is reached.
+
+Note: This parameter is valid only if a tape or optical device name is specified for the DEV parameter. For optical devices, *UNLOAD is the only special value supported, *REWIND and *LEAVE will be ignored.
+
+*REWIND
+The tape is automatically rewound, but not unloaded, after the operation has ended.
+
+*LEAVE
+The tape does not rewind or unload after the operation ends. It remains at the current position on the tape drive.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends. Some optical devices will eject the volume after the operation ends.
+
+Top
+
+Starting library (STRLIB)
+
+Specifies the name of the starting library for a *NONSYS, *IBM, or *ALLUSR restore operation.
+
+If an unrecoverable media error occurs during the restore operation, this parameter can be used to restart the operation.
+
+Note: In the recovery steps that follow, *NONSYS is specified for the Saved library (SAVLIB) parameter of this command. If you are restoring IBM-supplied libraries or all user-created libraries and IBM-supplied libraries, specify *IBM or *ALLUSR instead.
+
+The basic recovery steps for a restore operation are:
+
+- Look at the job log to determine the library where the previous restore library (RSTLIB SAVLIB(*NONSYS)) command failed. Find the last library restored, which is indicated by a successful restore completion message.
+
+- Load the first tape of the SAVLIB LIB(*NONSYS) media.
+
+- Type the following command, and then press the Enter key:
+
+RSTLIB SAVLIB(*NONSYS) DEV(TAP01) ENDOPT(*LEAVE)
+STRLIB(library-name) OMITLIB(library-name)
+
+where the library-name for the STRLIB and OMITLIB parameters is the library where the last RSTLIB failed. This starts the restore operation on the library after the library where the restore operation failed.
+
+- When you are prompted, load the volume containing the starting library.
+
+- After the restore operation is complete, restore the library where the restore operation failed using the media from a previous save operation.
+
+Note: Consider removing the tape with the media error from the next save rotation cycle to avoid another tape error.
+
+Note: This parameter is valid only if *NONSYS, *IBM, or *ALLUSR is specified for the SAVLIB parameter.
+
+*FIRST
+The restore operation begins with the first library saved.
+
+name
+Specify the name of the library with which to start the restore operation.
+
+Top
+
+Save file (SAVF)
+
+Specifies the save file used to restore the data.
+
+Note: A value must be specified for this parameter if *SAVF is specified for the Device (DEV) parameter.
+
+Qualifier 1: Save file
+
+name
+Specify the name of save file to be used.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is used to locate the save file. If no current library entry exists in the library list, the QGPL library is used.
+
+name
+Specify the name of the library where the save file is located.
+
+Top
+
+Media definition (MEDDFN)
+
+Specifies the media definition (*MEDDFN) object that identifies the devices and media used to restore the data. For information about creating and using a media definition, see the Recovering your system book, SC41-5304, and the Create Media Definition API in the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+If a media definition is specified, the VOL, SEQNBR, SAVF, and OPTFILE parameters cannot be specified. The volume identifiers and sequence numbers are specified in the media definition.
+
+Qualifier 1: Media definition
+
+name
+Specify the name of the media definition to be used.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Optical file (OPTFILE)
+
+Specifies the path name of the optical file that is used for the restore operation, beginning with the root directory of the volume.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+*
+The system searches the root directory of the optical volume for the default name generated by the corresponding save operation.
+
+'optical-directory-path-name/*'
+The system searches the specified directory of the optical volume for the default name generated by the corresponding save operation.
+
+'optical-file-path-name'
+Specify the path name of the optical file.
+
+Top
+
+Libraries to omit (OMITLIB)
+
+Specifies a list of libraries to be excluded from the restore operation.
+
+Single values
+
+*NONE
+No libraries are excluded from the restore operation.
+
+Other values (up to 300 repetitions)
+
+generic-name
+Specify the generic name of the libraries to be excluded.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+library-name
+Specify the name of the library to be excluded from the restore operation.
+
+Top
+
+Option (OPTION)
+
+Specifies how to handle restoring each object.
+
+*ALL
+All the objects in the saved library are restored to the library. Objects in the saved library replace the current versions in the system library. Objects not having a current version are added to the system library. Objects presently in the library, but not on the media, remain in the library.
+
+*NEW
+Only the objects in the saved library that do not exist in the current version of the system library are added to the library. Only objects not known to the system library are restored; known objects are not restored. This option restores objects that were deleted after they were saved or that are new to this library. If any saved objects have a version already in the system library, they are not restored, and an informational message is sent for each one, but the restore operation continues.
+
+*OLD
+Only the objects in the library having a saved version are restored; that is, the version of each object currently in the library is replaced by the saved version. Only objects known to the library are restored. If any saved objects are no longer part of the online version of the library, they are not added to the library; an informational message is sent for each one, but the restore continues.
+
+*FREE
+The saved objects are restored only if they exist in the system library with their space freed. The saved version of each object is restored on the system in its previously freed space. This option restores objects that had their space freed when they were saved. If any saved objects are no longer part of the current version of the library, or if the space is not free for any object, the object is not restored and an informational message is sent for each one. The restore operation continues, and all of the freed objects are restored.
+
+Top
+
+Data base member option (MBROPT)
+
+Specifies, for database files that exist on the system, which members are restored. If *MATCH is used, the member list in the saved file must match, member for member, the current version on the system. All members are restored for files that do not exist, if the file is restored.
+
+*MATCH
+The saved members are restored if the lists of the members where they exist match, member for member, the lists of the current system version. MBROPT(*MATCH) is not valid when *ALL is specified for the Allow object differences (ALWOBJDIF) parameter.
+
+*ALL
+All members in the saved file are restored.
+
+*NEW
+Only new members (members not known to the system) are restored.
+
+*OLD
+Only members already known to the system are restored.
+
+Top
+
+Defer ID (DFRID)
+
+Specifies the identifier to be used if you want to defer the restore or the start journal requests for objects that depend on other objects that are not yet available. To complete the restore or start journal requests for deferred objects, restore the objects that they depend on, and specify the same Defer ID. If any objects remain deferred when the other objects are available, use the Restore Deferred Objects (RSTDFROBJ) command, and specify the same Defer ID. This parameter allows you to restore all objects in a set of libraries when the libraries with dependent objects are restored before the libraries with the objects they depend on.
+
+Deferred objects include:
+
+- Logical files when based-on files are missing. A deferred logical file does not exist on the system until the restore is complete.
+
+- SQL materialized query tables (MQTs) when based-on files are missing. A deferred MQT exists on the system, but any functions that are performed on the MQT that require access to the based-on files will fail.
+
+- Start journal requests for file (*FILE), data area (*DTAARA), data queue (*DTAQ), and library (*LIB) objects when journals are missing. When deferred objects are processed, journaling is started if the journals are available.
+
+Notes:
+
+- If the following conditions are true, the restore of a deferred object may be completed automatically when the objects it depends on are restored:
+
+The deferred object is restored to the same library from which it was saved.
+
+The same Defer ID is specified for the restore operations for both the deferred object and the objects it depends on.
+
+*DFT
+If *NONSYS, *ALLUSR, or *IBM is specified for the Saved library (SAVLIB) parameter, and you have save system (*SAVSYS) special authority, identifier QRSTLIB is used. Objects will be deferred if they depend on other objects that are not available. In most cases, the deferred objects will be completed as this restore operation proceeds to restore the other objects.
+If any other value is specified for the SAVLIB parameter, or you do not have *SAVSYS special authority, no identifier is used. Objects will not be deferred if they depend on other objects that are not available.
+
+*NONE
+Objects will not be deferred if they depend on other objects that are not available.
+
+name
+Specify an identifier to defer the restore of objects that depend on other objects that are not yet available. You must have save system (*SAVSYS) special authority to specify a name.
+
+Top
+
+Spooled file data (SPLFDTA)
+
+Specifies whether to restore spooled file data and attributes.
+
+*NEW
+For each output queue that is restored, spooled file data that was saved with the output queue is restored, if it does not already exist on the system.
+
+*NONE
+No spooled file data is restored.
+
+Top
+
+Private authorities (PVTAUT)
+
+Specifies whether to restore private authorities with the objects that are restored.
+
+*NO
+No private authorities are restored.
+
+*YES
+Private authorities are restored with the objects. Objects will be restored only from save operations that specified that private authorities should be saved with the objects.
+
+Note: You must have all object (*ALLOBJ) special authority to specify this value.
+
+Top
+
+Start journaling (STRJRN)
+
+Specifies whether to start journaling for new objects that are restored.
+
+Notes:
+
+- Journal information that was saved will be restored for new objects whether journaling is started or not.
+
+- Journaling will not be changed for existing objects.
+
+*YES
+Journaling will be started for new objects that were being journaled when they were saved.
+
+*NO
+Journaling will not be started for the objects that are restored.
+
+Top
+
+Date when saved (SAVDATE)
+
+Specifies the date when the library was saved. If the most recently saved version is not restored, or if more than one saved version is on the volumes, type the date that specifies which version of the library is restored.
+
+If a volume identifier or *MOUNTED is specified for the Volume identifier (VOL) parameter, but this parameter is not specified, the first version of the library found on the volume is restored. This parameter is not valid with VOL(*SAVVOL).
+
+date
+Specify the date that the library to be restored was saved. The date must be entered in the job date format.
+
+Top
+
+Time when saved (SAVTIME)
+
+Specifies the time when the library was saved, if the current version is not restored.
+
+If a volume identifier or *MOUNTED is specified for the Volume identifier (VOL) parameter, but this parameter is not, the first version of the library found on the volume is restored. This parameter is valid only if the Date when saved (SAVDATE) parameter is also specified.
+
+time
+Specify the time that the library to be restored was saved. The time can be specified with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Top
+
+Allow object differences (ALWOBJDIF)
+
+Specifies whether differences are allowed between the saved objects and the restored objects.
+
+Notes:
+
+- You must have all object (*ALLOBJ) special authority to specify any value other than *NONE for this parameter.
+
+- If differences are found, the final message for the restore operation is an escape message rather than the normal completion message.
+
+The types of differences include:
+
+- Authorization list: The saved object had an authorization list, and either the object exists on the system but does not have the same authorization list, or the object does not exist and it is being restored to a different system than the save system.
+
+Note: This parameter has no effect when the saved object did not have an authorization list. If the object exists, it is restored with the authorization list of the existing object. If it does not exist, it is restored with no authorization list.
+
+- File level id: The creation date and time of the database file on the system does not match the creation date and time of the file that was saved.
+
+- Member level id: The creation date and time of the database file member on the system does not match the creation date and time of the member that was saved.
+
+- Ownership: The owner of an object on the system is different than the owner of an object from the save operation.
+
+- Primary Group: The primary group of an object on the system is different than the primary group of an object from the save operation.
+
+Single values
+
+*NONE
+None of the differences listed above are allowed on the restore operation. See the description of each individual value to determine how differences are handled.
+
+*COMPATIBLE
+All of the differences listed above are allowed on the restore operation. See the description of each individual value to determine how differences are handled. This value allows differences that are compatible with existing physical database files. This value also allows file level differences with existing logical database files. This value is usually preferable to the value *ALL, which also allows differences that are not compatible with existing database files.
+
+*ALL
+All of the differences listed above are allowed on the restore operation. File level id and member level id differences are handled differently than the *FILELVL value. If there is a file level difference and *ALL is specified for the Data base member option (MBROPT) parameter, the existing version of the file is renamed and the saved version of the file is restored. If there is a member level difference, the existing version of the member is renamed and the saved version of the member is restored. This value will restore the saved data, but the result may not be correct. You will need to choose whether the restored data or the renamed data is correct, and you will need to make the necessary corrections to the database. For other differences, see the description of each individual value to determine how differences are handled.
+
+Other values (up to 4 repetitions)
+
+*AUTL
+Authorization list differences are allowed. If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is restored with the authorization list of the existing object. If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored and it is linked to the authorization list. If the authorization list does not exist, the public authority is set to *EXCLUDE.
+If this value is not specified, authorization list differences are not allowed. If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is not restored. If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored, but it is not linked to the authorization list, and the public authority is set to *EXCLUDE.
+
+*FILELVL
+File level id and member level id differences are allowed. An attempt will be made to restore existing physical files even though the physical file on the save media may have a different file level id or member level id than the physical file on the system. The physical file data will only be restored for those physical files whose format level identifiers on the save media match the format level identifiers of the corresponding physical file on the system.
+If this value is not specified, file level id and member level id differences are not allowed. If an object already exists on the system with a different file level id or member level id than the saved object, the object is not restored.
+
+*OWNER
+Ownership differences are allowed. If an object already exists on the system with a different owner than the saved object, the object is restored with the owner of the object on the system.
+If this value is not specified, ownership differences are not allowed. If an object already exists on the system with a different owner than the saved object, the object is not restored.
+
+*PGP
+Primary group differences are allowed. If an object already exists on the system with a different primary group than the saved object, the object is restored with the primary group of the object on the system.
+If this value is not specified, primary group differences are not allowed. If an object already exists on the system with a different primary group than the saved object, the object is not restored.
+
+Top
+
+Force object conversion (FRCOBJCVN)
+
+Specifies whether to convert user objects to the format required for use in the current version of the operating system, or to be compatible with the current machine, when the objects are restored.
+
+Notes:
+
+- This parameter applies only to user objects of the *MODULE, *PGM, *SRVPGM, and *SQLPKG object types.
+
+- An object must have creation data (either observable or unobservable) to be converted.
+
+- If an object needs to be converted (because it is formatted for an earlier version of the operating system or is incompatible with the current machine), but is not converted during this restore operation, the object is automatically converted the first time it is used.
+
+Single values
+
+*SYSVAL
+The objects are converted based on the value of the QFRCCVNRST system value.
+
+*NO
+The objects are not converted during the restore operation.
+
+Note: If FRCOBJCVN(*NO) is specified, then the QFRCCVNRST system value must have a value of either "0" or "1".
+
+Element 1: Convert during restore
+
+*YES
+The objects are converted during the restore operation.
+
+Notes:
+
+- If FRCOBJCVN(*YES *RQD) is specified, then the QFRCCVNRST system value must have a value of "0", "1", or "2". FRCOBJCVN(*YES *RQD) will override a QFRCCVNRST value of "0" or "1". If FRCOBJCVN(*YES *ALL) is specfied, then QFRCCVNRST can have any valid value and FRCOBJCVN(*YES *ALL) overrides the QFRCCVNRST system value.
+
+- Specifying this value increases the time of the restore operation, but avoids the need to convert the objects when they are first used.
+
+Element 2: Objects to convert
+
+*RQD
+The objects are converted only if they require conversion to be used by the current operating system or to be compatible with the current machine. If the objects do not have all creation data (either observable or unobservable), the objects cannot be converted and will not be restored.
+
+*ALL
+All objects are converted regardless of their current format and machine compatibility, including compatible objects already in the current format. However, if the objects do not have all creation data (either observable or unobservable), the objects cannot be converted and will not be restored.
+
+Top
+
+Restore to library (RSTLIB)
+
+Specifies whether the library contents are restored to the same library in which they were saved, or to a different library.
+
+*SAVLIB
+The library contents are restored to the same library or libraries in which they were saved.
+
+name
+Specify the name of the library where the saved library contents are restored. If *NONSYS, *IBM, or *ALLUSR is specified for the Saved library (SAVLIB) parameter, a library name cannot be specified for this parameter.
+
+Note: If a Structured Query Language (SQL) database is restored to a library other than the one in which it was saved, the journals are not restored.
+
+Top
+
+Restore to ASP device (RSTASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device to which the data is to be restored.
+
+Note: You can specify either the RSTASPDEV parameter or the RSTASP parameter, but not both.
+
+*SAVASPDEV
+The data is restored to the same ASP from which it was saved.
+
+name
+Specify the name of the ASP device to be used.
+
+Top
+
+Restore to ASP number (RSTASP)
+
+Specifies whether objects are restored to the auxiliary storage pool (ASP) from which they were saved or to the system ASP (ASP number 1) or to a basic user ASP (ASP numbers 2 through 32).
+
+Some objects cannot be restored to user ASPs. More information about object types which can be restored to user ASPs is in the Recovering your system book, SC41-5304. If the library exists in, or is being restored to the system ASP, journals, journal receivers, and save files can be restored to basic user ASPs. All other object types will be restored to the ASP of the library.
+
+ATTENTION: System or product libraries (libraries that begin with a Q or #) must not be created in or restored to a user ASP. Doing so can cause unpredictable results.
+
+*SAVASP
+The objects are restored to the ASP from which they were saved.
+
+1-32
+Specifies the ASP number. When the specified ASP is 1, the specified objects are restored to the system ASP, and when the specified ASP is 2 through 32, the objects are restored to the basic user ASP specified.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether a listing that shows information about the status of the objects is created and directed to an output file. The listing shows the restore information and shows all objects restored, not restored, and excluded. Information about each object's security is listed for the restored objects.
+
+*NONE
+No output is created.
+
+*PRINT
+The output is printed with the job's spooled output.
+
+*OUTFILE
+The output is directed to the database file specified for the File to receive output (OUTFILE) parameter.
+
+Note: You must specify a database file name for the OUTFILE parameter when OUTPUT(*OUTFILE) is specified.
+
+Top
+
+File to receive output (OUTFILE)
+
+Specifies the database file to which the output of the command is directed. If the file does not exist, this command creates a database file in the specified library. If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created. Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+
+Qualifier 1: File to receive output
+
+name
+Specify the name of the database file to which the command output is directed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the file. If the file is not found, one is created in the current library. If no current library exists, the file will be created in the QGPL library.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Note: If a new file is created, the system uses the IBM-supplied file QASRRSTO with format name QSRRST as a model.
+
+Top
+
+Output member options (OUTMBR)
+
+Specifies the name of the database file member to which the output is directed when *OUTFILE is specified for the Output (OUTPUT) parameter.
+
+Element 1: Member to receive output
+
+*FIRST
+The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the File to receive output (OUTFILE) parameter.
+
+name
+Specify the name of the file member that receives the output. If OUTMBR(member-name) is specified and the member does not exist, the system creates it.
+If the member exists, you can add records to the end of the existing member or clear the existing member and add the records.
+
+Element 2: Replace or add records
+
+*REPLACE
+The existing records in the specified database file member are replaced by the new records.
+
+*ADD
+The new records are added to the existing information in the specified database file member.
+
+Top
+
+Type of output information (INFTYPE)
+
+Specifies the type of information which is printed or directed to the database file.
+
+*OBJ
+The list contains an entry for each object requested to be restored.
+
+*MBR
+The list contains an entry for each object, database file member, and spooled file requested to be restored.
+
+Top
+
+Objects to omit (OMITOBJ)
+
+Specifies the objects to be excluded from the operation. Up to 300 objects or generic object values can be specified.
+
+Element 1: Object
+
+Qualifier 1: Object
+
+*NONE
+No objects are excluded from the operation.
+
+*ALL
+All objects of the specified object type are excluded from the operation.
+
+generic-name
+Specify the generic name of the objects to be excluded.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+name
+Specify the name of the object to be excluded from the operation.
+
+Qualifier 2: Library
+
+*ALL
+The specified objects are excluded from all libraries that are part of the operation.
+
+generic-name
+Specify the generic name of the libraries that contain objects to be excluded.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+name
+Specify the name of the library that contains the object to be excluded from the operation.
+
+Element 2: Object type
+
+*ALL
+All object types are excluded from the operation, depending on the value specified for the object name.
+
+character-value
+Specify the object type of the objects to be excluded from the operation.
+To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt). For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Select (SELECT)
+
+Specifies the selection criteria for the objects to be restored. You can select from objects in libraries specified for the Saved library (SAVLIB) parameter.
+
+Element 1: Include or omit
+
+Specifies whether the selected objects should be included or omitted from the restore operation.
+
+*INCLUDE
+The selected objects are restored, unless overridden by an *OMIT specification, or unless omitted by the Libraries to omit (OMITLIB) parameter or the Objects to omit (OMITOBJ) parameter.
+
+*OMIT
+The selected objects are not included in the restore operation.
+
+Element 2: Object
+
+Qualifier 1: Object
+
+*ALL
+All object names are selected.
+
+generic-name
+Specify the generic name of the objects to be selected.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+name
+Specify the name of the object to be selected.
+
+Qualifier 2: Library
+
+*ALL
+All library names specified for the Saved library (SAVLIB) parameter are selected.
+
+generic-name
+Specify the generic name of the libraries to be selected.
+
+name
+Specify the name of the library to be selected.
+
+Element 3: Object type
+
+*ALL
+All object types are selected.
+
+character-value
+Specify the object type to be selected.
+To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt). For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Element 4: Object attribute
+
+*ALL
+All object attributes are selected.
+
+*BLANK
+Only objects that have no attribute value are selected.
+
+attribute-value
+Specify the attribute of the objects to be selected.
+
+generic-attribute-value
+Specify the generic attribute of the objects to be selected.
+
+Element 5: File member
+
+Specifies the database file members to select.
+
+If *ALL is specified, the objects selected by the previous elements are included or omitted.
+
+If any value other than *ALL is specified, the objects selected by the previous elements are included, even if the objects are not database files. If the objects selected are database files, the file members selected are included or omitted.
+
+*ALL
+All file members are selected. For an *OMIT specification, the selected file or object is also omitted.
+
+*ALLMBR
+All file members are selected. For an *OMIT specification, the selected file or object is included and all file members are omitted.
+
+generic-name
+Specify the generic name of the file members to be selected. The selected file or object is included even if it does not contain the specified members.
+
+name
+Specify the name of the file member to be selected. The selected file or object is included even if it does not contain the specified member.
+
+Top
+
+Examples
+
+Example 1: Restoring New Objects
+
+RSTLIB SAVLIB(JOE) DEV(TAP01) OPTION(*NEW)
+
+This command restores the saved version of library JOE from tape device TAP01. The only objects that are restored in the library are new objects (ones that were in the library when they were saved and later deleted).
+
+Example 2: Printing Output
+
+RSTLIB SAVLIB(*NONSYS) DEV(TAP01) OUTPUT(*PRINT)
+DFRID(*DFT)
+
+This command restores all the saved nonsystem libraries to the system from tape. The contents of the libraries are restored exactly as they were saved. New objects (on tape) are added to the system; old objects in the system are overlaid by the version of the old objects on tape. Because OUTPUT(*PRINT) is specified, a printout of all objects (restored and not restored) for each library, is sent to the printer with the job's spooled output. Each library after the first library starts on a new page. After each library, a completion message states how many objects were restored and how many were not restored. At the end of the printout, a list of any objects that were deferred is printed, and a final completion message states how many libraries were restored and how many were not restored.
+
+Example 3: Specifying Where the Restore Operation Begins
+
+RSTLIB SAVLIB(*NONSYS) DEV(TAP01) STRLIB(MIKESLIB)
+
+This command restores the saved nonsystem libraries beginning with library MIKESLIB from the tape device, TAP01. The first tape of the nonsystem save must be loaded. An inquiry message instructs the user to load the tape containing MIKESLIB. If necessary, the same message is sent until the tape containing MIKESLIB is found.
+
+Example 4: Restoring a Version From a Specific Date and Time
+
+RSTLIB SAVLIB(PAYROLL) DEV(TAP01) SAVDATE(060193)
+SAVTIME(103214) RSTLIB(OLDPAY) VOL(PAY)
+
+This command restores the version of the PAYROLL library from the device TAP01, whose volume identifier is PAY. The version to be restored was saved at 10:32:14 on the date 06/01/93. All of the objects in the saved PAYROLL library are restored to the library OLDPAY. All new files are restored. Old files are restored only if the member lists of the files on the tape match the member lists of the files on the system.
+
+Example 5: Restoring From Multiple Tape Volumes
+
+RSTLIB SAVLIB(QGPL) DEV(TAP01) VOL(QGPL QGPL)
+
+This command restores the QGPL library from two tape volumes both named QGPL. Even though the volume identifiers are the same, they must both be specified.
+
+Example 6: Restoring From Multiple Tape Devices Serially
+
+RSTLIB SAVLIB(USRLIB) DEV(TAP01 TAP02 TAP03)
+VOL(USRA USRB USRC USRD) ENDOPT(*UNLOAD)
+
+This command restores library USRLIB from four volumes on three tape devices. Volume USRA is put on tape device TAP01, volume USRB on TAP02, volume USRC on TAP03, and volume USRD on TAP01. The operator removes volume USRA from TAP01, so that TAP01 can be used by volume USRD. If the tape volumes are put in the wrong order, an error message is sent to the system operator message queue.
+
+Example 7: Restoring From Multiple Devices in Parallel
+
+RSTLIB SAVLIB(USRLIB) DEV(*MEDDFN) MEDDFN(LIBA/MEDDFNA)
+
+This command restores library USRLIB using the devices and volumes specified in the media definition named MEDDFNA in library LIBA. For information about creating and using a media definition, see the Backup, Recovery, and Availability topic in the Information Center.
+
+Example 8: Restoring a Specific Version
+
+RSTLIB SAVLIB(LIB1) DEV(TAP01) MBROPT(*ALL)
+SAVDATE(082392) SAVTIME(123251)
+RSTLIB(LIB2) OUTPUT(*PRINT)
+
+This command restores the version of library LIB1 from the device TAP01. The version to be restored was saved at 12:32:51 on the date 08/23/92. All of the objects in the saved library LIB1 are restored to library LIB2. A list of restored objects and those not restored is given. All files and file members are restored.
+
+Example 9: Restoring a Library From a Save File
+
+RSTLIB SAVLIB(LIB1) DEV(*SAVF) SAVF(SAVF1)
+
+This command restores library LIB1 from the save file SAVF1.
+
+Example 10: Restoring to a Basic User ASP
+
+RSTLIB SAVLIB(LIB1) DEV(*SAVF) SAVF(SAVF1) RSTASP(2)
+
+This command restores the library named LIB1 from the save file named SAVF1. The library and all objects in the saved version of LIB1 are restored to basic user auxiliary storage pool (ASP) 2 unless:
+
+- The library already exists in a different ASP.
+
+- ASP 2 contains a journal, journal receiver, or SAVF which is part of a library in the system ASP.
+
+- ASP 2 does not exist on the system.
+
+- There are object types in the library which cannot be restored to user ASPs. These objects will not be restored.
+
+Example 11: Restoring to an Independent ASP
+
+RSTLIB SAVLIB(LIB1) DEV(*SAVF) SAVF(SAVF1)
+RSTASPDEV(DIVISION1)
+
+This command restores the library named LIB1 from the save file named SAVF1. The library and all objects in the saved version of LIB1 are restored to the independent ASP named DIVISION1 unless:
+
+- The library already exists in the system ASP, a basic user ASP, or a different independent ASP in the same linked ASP group as DIVISION1.
+
+- ASP DIVISION1 is not available on the system.
+
+- There are object types in the library which cannot be restored to independent ASPs. These objects will not be restored.
+
+Example 12: Restoring More Than One Library From Tape
+
+RSTLIB SAVLIB(*ANY) DEV(TAP01) SEQNBR(75)
+
+This command restores the first saved version of each library from tape device TAP01 starting at tape file sequence number 75.
+
+Example 13: Restoring More Than One Library From Optical
+
+RSTLIB SAVLIB(A* B*) DEV(OPT01) OPTFILE('/BACKUP/*')
+
+This command restores all libraries whose names start with A or B that are found in directory BACKUP on the optical volume in device OPT01.
+
+Example 14: Restoring Spooled Files
+
+RSTLIB SAVLIB(JOE) DEV(TAP01) SPLFDTA(*NEW)
+
+This command restores the saved version of library JOE from tape device TAP01. Any spooled files that do not currently exist on the system and that were saved with output queues in this library are restored.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF370C
+Not authorized to ALWOBJDIF parameter.
+
+CPF3705
+&2 &1 in &3 not journaled.
+
+CPF3706
+&2 &1 not restored to library &3.
+
+CPF3707
+Save file &1 in &2 contains no data.
+
+CPF3709
+Tape devices do not support same densities.
+
+CPF372C
+Library &1 not restored to ASP &2.
+
+CPF3727
+Duplicate device &1 specified on device name list.
+
+CPF3728
+Device &1 specified with other devices.
+
+CPF373E
+Library &1 not restored to ASP &2.
+
+CPF3730
+Not authorized to &2 &1 in library &3.
+
+CPF3731
+Cannot use &2 &1 in library &3.
+
+CPF3732
+&2 &1 status error during restore operation.
+
+CPF3733
+&2 &1 in &3 previously damaged.
+
+CPF3738
+Device &1 used for save or restore is damaged.
+
+CPF3739
+Database file &1 member in &3 damaged.
+
+CPF3740
+Object &1 type &2 in &3 not found.
+
+CPF3743
+File cannot be restored, displayed, or listed.
+
+CPF3748
+Object information for library &1 damaged.
+
+CPF375F
+File not selected. Cannot restore from save type file &1.
+
+CPF3752
+No record of save operation exists for library &1.
+
+CPF3757
+&2 &1 not restored to &3.
+
+CPF3758
+&2 &1 not restored to &3.
+
+CPF376B
+File &1 not found.
+
+CPF3767
+Device &1 not found.
+
+CPF3768
+Device &1 not valid for command.
+
+CPF3769
+Data encrypted or not save data.
+
+CPF3770
+No objects saved or restored for library &1.
+
+CPF3773
+&1 objects restored. &2 not restored to &4.
+
+CPF3779
+&1 libraries restored; &4 partially restored; &2 not restored.
+
+CPF378B
+Library &1 not created.
+
+CPF3780
+Specified file for library &1 not found.
+
+CPF3782
+File &1 in &2 not a save file.
+
+CPF3783
+Cannot determine VOL(*SAVVOL) location. No objects restored.
+
+CPF3784
+Restore device specified in the DEV parameter does not match VOL(*SAVVOL) device.
+
+CPF3785
+Not all subsystems ended.
+
+CPF3791
+While processing &2 &1 in &3, encountered end of file &4.
+
+CPF3793
+Machine or ASP storage limit reached.
+
+CPF3794
+Save or restore operation ended unsuccessfully.
+
+CPF3796
+Storage limit exceeded for user profile &4.
+
+CPF37A5
+RSTASP &1 is not online.
+
+CPF37B8
+Not authorized to restore private authorities.
+
+CPF37C2
+Not authorized to use DFRID.
+
+CPF380E
+User profile &1 not restored. Not able to create UID or GID.
+
+CPF3805
+Objects from save file &1 in &2 not restored.
+
+CPF3807
+Data decompression error for save file &1 in &2.
+
+CPF3812
+Save file &1 in &2 in use.
+
+CPF3818
+Starting library &1 not found.
+
+CPF384F
+&2 &1 not restored to library &3.
+
+CPF3894
+Cancel reply received for message &1.
+
+CPF38A2
+ASP device &1 not correct.
+
+CPF38A6
+Only one library allowed with specified parameters.
+
+CPF5729
+Not able to allocate object &1.
+
+CPF9809
+Library &1 cannot be accessed.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9829
+Auxiliary storage pool &1 not found.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+OPT1498
+Volume name list exhausted on device &1.
+
+OPT1502
+Attempted to process past the end of a multi-volume set.
+
+OPT1605
+Media or device error occurred.
+
+*STATUS Messages
+
+CPF3770
+No objects saved or restored for library &1.
+
+CPF3773
+&1 objects restored. &2 not restored to &4.
+
+Top

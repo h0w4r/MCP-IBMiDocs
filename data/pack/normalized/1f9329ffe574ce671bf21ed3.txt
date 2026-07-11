@@ -1,0 +1,73 @@
+Examples: Create QIBM_QZDA_INIT exit programs with CL commands
+
+Examples: Create QIBM_QZDA_INIT exit programs with CL commands
+
+Last Updated: 2025-10-07
+
+You can create IBM® i QIBM_QZDA_INIT
+exit programs using CL commands.
+
+The following example illustrates how to set up a QIBM_QZDA_INIT
+user exit program with control language (CL) commands.
+
+Note: Read the Code example disclaimer for important legal information.
+
+/******************************************************************/
+/* IBM i - Sample User Exit Program */
+/* */
+/* Exit Point Name : QIBM_QZDA_INIT */
+/* */
+/* Description : The following Control Language program */
+/* handles ODBC security by rejecting requests */
+/* from users who use ODBC and signon using a */
+/* user profile of 'GUEST'. It is a shell */
+/* program for developing exit programs */
+/* tailored for your environment. */
+/******************************************************************/
+PGM PARM(&FLAG &REQUEST)
+
+/******************************************************************/
+/* Program call parameter declarations */
+/******************************************************************/
+DCL VAR(&FLAG) TYPE(*CHAR) LEN(1)
+DCL VAR(&REQUEST) TYPE(*CHAR) LEN(285)
+/******************************************************************/
+/* Parameter declares for Request Format */
+/******************************************************************/
+DCL VAR(&USER) TYPE(*CHAR) LEN(10) /* User profile */
+DCL VAR(&SRVD) TYPE(*CHAR) LEN(10) /* Server Id (*SQL) */
+DCL VAR(&FORMAT) TYPE(*CHAR) LEN(10) /* Format ZDAI0100 */
+DCL VAR(&FUNC) TYPE(*CHAR) LEN(4) /* Function Id 0 */
+DCL VAR(&INTTYP) TYPE(*CHAR) LEN(63) /* Interface type */
+DCL VAR(&INTNAM) TYPE(*CHAR) LEN(127) /* Interface name */
+DCL VAR(&INTLVL) TYPE(*CHAR) LEN(63) /* Interface level */
+
+/******************************************************************/
+/* Extract the various parameters from the structure. */
+/******************************************************************/
+CHGVAR VAR(&USER) VALUE(%SST(&REQUEST 1 10))
+CHGVAR VAR(&SRVID) VALUE(%SST(&REQUEST 11 10))
+CHGVAR VAR(&FORMAT) VALUE(%SST(&REQUEST 21 8))
+CHGVAR VAR(&FUNC) VALUE(%SST(&REQUEST 29 4))
+CHGVAR VAR(&INTTYP) VALUE(%SST(&REQUEST 33 63))
+CHGVAR VAR(&INTNAM)) VALUE(%SST(&REQUEST 96 127))
+CHGVAR VAR(&INTLVL) VALUE(%SST(&REQUEST 223 63))
+
+/******************************************************************/
+/* Set return code to allow the request. */
+/******************************************************************/
+CHGVAR VAR(&FLAG) VALUE('1')
+/******************************************************************/
+/* If interface type is ODBC and User is 'GUEST' reject the */
+/* signon attempt. */
+/******************************************************************/
+
+IF ((%SST(&INTTYP 1 4) *EQ 'ODBC') *AND +
+(&USER = 'GUEST ')) THEN(DO)
+
+/*************************************************************/
+/* Set return code to NOT allow the request. */
+/*************************************************************/
+CHGVAR VAR(&FLAG) VALUE('0')
+ENDDO
+ENDPGM

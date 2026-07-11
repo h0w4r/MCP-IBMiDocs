@@ -1,0 +1,831 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="CHGCRG.Top_Of_Page"></a>
+<h1>Change Cluster Resource Group  (CHGCRG)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>Yes
+</td>
+<td class="valigntop alignright">
+<a href="#CHGCRG.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#CHGCRG.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#CHGCRG.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG"></a>
+<p>The Change Cluster Resource Group (CHGCRG) command changes some of the attributes of a cluster resource group. The cluster resource group object is changed on all active nodes in the recovery domain. Recovery domain nodes that are not active at the time of the change will have the change made when they become active again.
+</p>
+<p>For primary-backup model cluster resource groups, changing the node role to primary or changing the takeover IP address can only be done when the cluster resource group status is Inactive or Indoubt. If the cluster resource group is active, the Change Cluster Resource Group Primary (CHGCRGPRI) command can be used to assign the primary role to the first backup node.
+</p>
+<p>For peer model cluster resource groups:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The recovery domain role can be changed from peer to replicate or replicate to peer by specifying one or more recovery domain nodes. The full recovery domain does not need to be specified.
+</li>
+<li class="cds--list__item">If the cluster resource group is Active (10) and:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The role is changed from peer to replicate, the node becomes an inactive access point.
+</li>
+<li class="cds--list__item">The role is changed from replicate to peer, the node becomes an active access point.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">There must be at least one node designated as peer if the cluster resource group is Active (10).
+</li>
+</ul>
+<p>The following fields may be changed without causing the cluster resource group exit program to be called:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">text description
+</li>
+<li class="cds--list__item">exit program data
+</li>
+<li class="cds--list__item">user profile
+</li>
+<li class="cds--list__item">takeover IP address
+</li>
+<li class="cds--list__item">job name
+</li>
+<li class="cds--list__item">allow application restart
+</li>
+<li class="cds--list__item">number of restarts
+</li>
+<li class="cds--list__item">the cluster resource group exit program
+</li>
+<li class="cds--list__item">failover message queue
+</li>
+<li class="cds--list__item">failover wait time
+</li>
+<li class="cds--list__item">failover default action
+</li>
+<li class="cds--list__item">cluster resource group exit program format name
+</li>
+<li class="cds--list__item">application identifier
+</li>
+</ul>
+<p>This command will do the following for all cluster resource group types:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Call the cluster resource group exit program with an action code of Change on all active nodes in the recovery domain when either the preferred or current role is changed, if an exit program is specified for the cluster resource group. The cluster resource group status is set to Change Pending.  If the exit program completes successfully, the cluster resource group status is reset to its value at the time the command was called. If the exit program fails and the cluster resource group cannot be restored to its original condition, the cluster resource group status is set to Indoubt.
+</li>
+<li class="cds--list__item">Change the cluster resource group without calling the exit program if neither node role, site name nor data port IP addresses are changed.
+</li>
+<li class="cds--list__item">Change the name to be used for batch jobs submitted by cluster resource group. If the cluster resource group status is Active, batch jobs already submitted will not be changed. Any jobs submitted after the change will use the new name. This is true for other attributes associated with a submitted exit program such as the user profile, the restart count and so on. Changes to the cluster resource group will not affect an exit program that was previously submitted and is either on a job queue or is running.
+</li>
+<li class="cds--list__item">For primary-backup model cluster resource groups, if the current node role in the recovery domain is changed and the cluster resource group is active with more than one backup node and some of the backup nodes have a status of inactive or ineligible, the recovery domain may automatically be reordered so that all backup nodes with a status of active are ordered before the backup nodes that have a status other than active.
+</li>
+</ul>
+<p>This command will do the following for application cluster resource groups:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the Cluster Resource Services configures the takeover IP address, it will remove the current address and add the new address when the takeover IP address is changed. If either the add or remove address function fails, the command will fail.
+</li>
+<li class="cds--list__item">If the cluster resource group is active and the role of a node is being changed from replicate to backup, verify the takeover IP address exists and is not active on the node being changed. If the takeover IP address does not exist or is active on the node being changed, the command will fail.
+</li>
+</ul>
+<p>This command will do the following for device cluster resource groups:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the role of the current primary node is being changed, ownership of the devices specified in the cluster resource group is switched from the current primary to the new primary if the current primary has none of the devices varied on. If any devices are varied on, an error message is returned. In addition, the new primary node must be active. All members of an auxiliary storage pool group must be configured in the cluster resource group before ownership can be changed.  Devices are not varied on after the ownership is switched.
+</li>
+</ul>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+</li>
+<li class="cds--list__item">This command cannot be called from a cluster resource group exit program.
+</li>
+<li class="cds--list__item">Cluster Resource Services must be active on the node processing the request.
+</li>
+<li class="cds--list__item">Primary-backup model cluster resource groups must have a status of Inactive or Indoubt to designate a new primary node.
+</li>
+<li class="cds--list__item">If defined, the exit program must exist on all nodes in the recovery domain when the cluster resource group exit program is changed.
+</li>
+<li class="cds--list__item">There must be at least one active node in the recovery domain.
+</li>
+<li class="cds--list__item">If defined, the failover message queue must exist on all nodes in the recovery domain when the cluster resource group is changed.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="CHGCRG.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.CRG"><strong>CRG</strong></a></td>
+<td class="valigntop">Cluster resource group</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Key, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.RCYDMNACN"><strong>RCYDMNACN</strong></a></td>
+<td class="valigntop">Recovery domain action</td>
+<td class="valigntop"><strong class="underlined">*SAME</strong>, *CHGPREFER, *CHGCUR</td>
+<td class="valigntop">Optional, Key, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="7"><a href="#CHGCRG.RCYDMN"><strong>RCYDMN</strong></a></td>
+<td class="valigntop">Recovery domain node list</td>
+<td class="valigntop">Values (up to 128 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="7">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Node identifier</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*SAME</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Node role</td>
+<td class="valigntop">
+<strong class="underlined">*SAME</strong>, *BACKUP, *PRIMARY, *REPLICATE, *PEER</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Backup sequence number</td>
+<td class="valigntop">
+1-127, <strong class="underlined">*SAME</strong>, *LAST</td>
+</tr>
+<tr>
+<td class="valigntop">Element 4: Site name</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*SAME</strong>, *NONE</td>
+</tr>
+<tr>
+<td class="valigntop">Element 5: Data port IP address action</td>
+<td class="valigntop">
+<strong class="underlined">*SAME</strong>, *ADD, *REMOVE</td>
+</tr>
+<tr>
+<td class="valigntop">Element 6: Data port IP address</td>
+<td class="valigntop">
+Single values: <strong class="underlined">*SAME</strong>, *NONE<br>Other values (up to 4 repetitions): <span class="var">Character value</span></td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CHGCRG.EXITPGM"><strong>EXITPGM</strong></a></td>
+<td class="valigntop">CRG exit program</td>
+<td class="valigntop">Single values: <strong class="underlined">*SAME</strong>, *NONE<br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: CRG exit program</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*CURLIB</strong></td>
+</tr><tr>
+<td class="valigntop"><a href="#CHGCRG.USRPRF"><strong>USRPRF</strong></a></td>
+<td class="valigntop">User profile</td>
+<td class="valigntop"><span class="var">Simple name</span>, <strong class="underlined">*SAME</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.EXITPGMFMT"><strong>EXITPGMFMT</strong></a></td>
+<td class="valigntop">Exit program format name</td>
+<td class="valigntop"><strong class="underlined">*SAME</strong>, EXTP0100, EXTP0101, EXTP0200, EXTP0201</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.EXITPGMDTA"><strong>EXITPGMDTA</strong></a></td>
+<td class="valigntop">Exit program data</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*SAME</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.JOB"><strong>JOB</strong></a></td>
+<td class="valigntop">Exit program job</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*SAME</strong>, *CRG, *JOBD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.TKVINTNETA"><strong>TKVINTNETA</strong></a></td>
+<td class="valigntop">Takeover IP address</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*SAME</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.ALWRESTART"><strong>ALWRESTART</strong></a></td>
+<td class="valigntop">Allow application restarts</td>
+<td class="valigntop"><strong class="underlined">*SAME</strong>, *NO, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.NBRRESTART"><strong>NBRRESTART</strong></a></td>
+<td class="valigntop">Number of application restarts</td>
+<td class="valigntop">0-3, <strong class="underlined">*SAME</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.APPID"><strong>APPID</strong></a></td>
+<td class="valigntop">Application identifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*SAME</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.TEXT"><strong>TEXT</strong></a></td>
+<td class="valigntop">Text description</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*SAME</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#CHGCRG.FLVMSGQ"><strong>FLVMSGQ</strong></a></td>
+<td class="valigntop">Failover message queue</td>
+<td class="valigntop">Single values: <strong class="underlined">*SAME</strong>, *NONE<br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Failover message queue</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop"><a href="#CHGCRG.FLVWAITTIM"><strong>FLVWAITTIM</strong></a></td>
+<td class="valigntop">Failover wait time</td>
+<td class="valigntop"><span class="var">Integer</span>, <strong class="underlined">*SAME</strong>, *NOWAIT, *NOMAX</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.FLVDFTACN"><strong>FLVDFTACN</strong></a></td>
+<td class="valigntop">Failover default action</td>
+<td class="valigntop"><strong class="underlined">*SAME</strong>, *PROCEED, *CANCEL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.CRGTYPE"><strong>CRGTYPE</strong></a></td>
+<td class="valigntop">Cluster resource group type</td>
+<td class="valigntop"><strong class="underlined">*CRG</strong>, *DATA, *APP, *DEV, *PEER</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#CHGCRG.CLUSTER"><strong>CLUSTER</strong></a></td>
+<td class="valigntop">Cluster</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="CHGCRG.CRG"></a>
+<h2>Cluster resource group (CRG)</h2>
+<p>Specifies the cluster resource group to be changed.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.RCYDMNACN"></a>
+<h2>Recovery domain action (RCYDMNACN)</h2>
+<p>Specifies the type of action to take for the recovery domain.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The recovery domain is not being changed.
+</dd>
+<dt><strong>*CHGPREFER</strong></dt>
+<dd>The preferred roles for nodes in the recovery domain are to be changed. The RCYDMN parameter contains the new node roles.
+</dd>
+<dt><strong>*CHGCUR</strong></dt>
+<dd>The current roles for nodes in the recovery domain are to be changed. The RCYDMN parameter contains the new node roles. For a device cluster resource group, the site name and data port IP address also can be changed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.RCYDMN"></a>
+<h2>Recovery domain node list (RCYDMN)</h2>
+<p>Specifies the changes for the recovery domain. For primary-backup model cluster resource groups, this specifies the roles for nodes that compose the recovery domain. The full recovery domain must be specified.  For peer model cluster resource groups, this specifies the roles for the nodes being changed. Only those nodes being changed must be specified.
+</p>
+<h3><strong>Element 1: Node identifier</strong>
+</h3>
+<p>Specifies the node whose role is being changed in the recovery domain of the cluster resource group specified. The node specified must currently be defined in the recovery domain of the cluster resource group specified.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The recovery domain will not be changed. This value must be used if RCYDMNACN(*SAME) is specified.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the node.
+</dd>
+</dl>
+<h3><strong>Element 2: Node role</strong>
+</h3>
+<p>Specifies the role of the node in the recovery domain of the cluster resource group. A role must be defined for each node in the recovery domain.  For primary-backup model cluster resource groups a node can have one of three roles: primary, backup, or replicate. Only one node can be designated as the primary. For peer model cluster resource groups a node can have one of two roles: peer or replicate. Any number of nodes can be designated as a peer or replicate.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The node role is not changed.
+</dd>
+<dt><strong>*BACKUP</strong></dt>
+<dd>The node role will be set as a backup node. The node can take over as the access point for the cluster resources.
+</dd>
+<dt><strong>*PRIMARY</strong></dt>
+<dd>The node role will be set as the primary node. This node can become an active access point for the cluster resources. The cluster resource group must have a status of Inactive.
+</dd>
+<dt><strong>*REPLICATE</strong></dt>
+<dd>The new node role will be set as a replicate. Replicate nodes are not ordered and cannot become an access point unless its role is changed to the proper value for the cluster resource group type.
+</dd>
+<dt><strong>*PEER</strong></dt>
+<dd>The new node will be set as a peer node. Peer nodes are not ordered. This node can become an active access point for the cluster resources.
+</dd>
+</dl>
+<h3><strong>Element 3: Backup sequence number</strong>
+</h3>
+<p>Specifies the backup order for a node with role of *BACKUP. If there is already a node with the same backup order and it is also not changed at the same time, the command will fail. At the completion of the request the nodes with backup roles will be sequentially renumbered from the first backup to the last. The first backup will always be 1.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The backup sequence number is not changed.
+</dd>
+<dt><strong>*LAST</strong></dt>
+<dd>The node will be added as the last backup in the recovery domain.
+</dd>
+<dt><strong class="italic">integer</strong></dt>
+<dd>Specify the backup sequence number.
+</dd>
+</dl>
+<h3><strong>Element 4: Site name</strong>
+</h3>
+<p>Specify the site name of the recovery domain node. This is valid only for a device cluster resource group. Can only change from a site name to *NONE or from *NONE to a site name. Cannot change from one site name to another site name.  A site name can be changed only if all configuration objects in the cluster resource group are for auxiliary storage pool devices.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The site name is not changed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>The recovery domain node does not have a site name.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the site name for a recovery domain node.
+</dd>
+</dl>
+<h3><strong>Element 5: Data port IP address action</strong>
+</h3>
+<p>Specifies the type of action to take for the data port IP address.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The data port IP address is not changed.
+</dd>
+<dt><strong>*ADD</strong></dt>
+<dd>Add one or more data port IP address to the recovery domain node.
+</dd>
+<dt><strong>*REMOVE</strong></dt>
+<dd>Remove one or more data port IP address from the recovery domain node.
+</dd>
+</dl>
+<h3><strong>Element 6: Data port IP address</strong>
+</h3>
+<p>Specify the data port IP address for the recovery domain node. This is valid only for a device cluster resource group, specifically for geographic mirroring.  The data port IP address is used to send updates from a source node that owns the production copy of auxiliary storage pool to a target node that owns the mirror copy of auxiliary storage pool.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The recovery domain node data port IP address is not changed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>The recovery domain node does not have a data port IP address.
+</dd>
+</dl>
+<h3><strong>Other values (up to 4 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the data port IP address for the recovery domain node.  When adding a data port IP address, it must already exist on the specified node.  User is responsible for starting/ending data port IP address. The data port IP address may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+<p>An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+</p>
+<p>An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+</p>
+<p>If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.EXITPGM"></a>
+<h2>CRG exit program (EXITPGM)</h2>
+<p>Specifies the exit program that is used to handle action codes that are passed to it due to operations on the cluster resource group. The exit program cannot be in an independent auxiliary storage pool. The action codes are described in the Cluster Resource Group Exit Program section of the API reference manual.  If the exit program is changed for an active application cluster resource group, the job currently running which was submitted to handle the Start action code continues running the prior exit program.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The current exit program is not changed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>The cluster resource group does not have an exit program.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: CRG exit program</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the exit program.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*CURLIB</strong></dt>
+<dd>The exit program exists in the current library for the job.  If no library is specified as the current library for the job, the QGPL library is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library where the exit program exists. QTEMP is not a valid library name.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.USRPRF"></a>
+<h2>User profile (USRPRF)</h2>
+<p>Specifies the user profile under which the exit program should be run. The user profile must exist on all nodes in the recovery domain.
+</p>
+<p>The following user profiles are not valid:
+</p>
+<ol class="cds--list--ordered--temporary list--ordered--indented">
+<li class="cds--list__item">QDBSHR
+</li>
+<li class="cds--list__item">QDOC
+</li>
+<li class="cds--list__item">QDTFOWN
+</li>
+<li class="cds--list__item">QRJE
+</li>
+<li class="cds--list__item">QLPAUTO
+</li>
+<li class="cds--list__item">QLPOINSTALL
+</li>
+<li class="cds--list__item">QSECOFR
+</li>
+<li class="cds--list__item">QSPL
+</li>
+<li class="cds--list__item">QSYS
+</li>
+<li class="cds--list__item">QTSTRQS
+</li>
+</ol>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The current user profile is not changed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>There is no exit program so no user profile is needed.
+</dd>
+<dt><strong class="italic">simple-name</strong></dt>
+<dd>Specify the name of the user profile to use for running the exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.EXITPGMFMT"></a>
+<h2>Exit program format name (EXITPGMFMT)</h2>
+<p>Specifies the format which should be used for the information passed to the user when a cluster resource group exit program is called.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The exit program format name is not changed.
+</dd>
+<dt><strong>EXTP0100</strong></dt>
+<dd>Exit program information defined in EXTP0100 format will be passed to user.
+</dd>
+<dt><strong>EXTP0101</strong></dt>
+<dd>Exit program information defined in EXTP0101 format will be passed to user.  This format includes IPv6 support.
+</dd>
+<dt><strong>EXTP0200</strong></dt>
+<dd>Exit program information defined in EXTP0200 format will be passed to user.  Additional information such as site name and data port IP address on each node are passed to the exit program. This format is not allowed for a peer cluster resource group.
+</dd>
+<dt><strong>EXTP0201</strong></dt>
+<dd>Exit program information defined in EXTP0201 format will be passed to user.  Additional information such as site name and data port IP address on each node are passed to the exit program. This format includes IPv6 support and is not allowed for a peer cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.EXITPGMDTA"></a>
+<h2>Exit program data (EXITPGMDTA)</h2>
+<p>Specifies up to 256 bytes of data that is passed to the cluster resource group exit program when it is called. This parameter may contain any scalar data except pointers. For example, it can be used to provide state information. This data will be stored with the specified cluster resource group and copied to all nodes in the recovery domain. Pointers in this area will not resolve correctly on all nodes and should not be placed in the data. The data specified will replace the existing exit program data stored with the cluster resource group, if the command completes successfully.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The exit program data is not changed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>There is no exit program data.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify up to 256 bytes of data to be passed to the cluster resource group exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.JOB"></a>
+<h2>Exit program job (JOB)</h2>
+<p>Specifies the name given the batch job that is submitted by the cluster resource group. This job will call the cluster resource group exit program with the action code generated by the command being used.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The job name is not changed.
+</dd>
+<dt><strong>*CRG</strong></dt>
+<dd>The name of the cluster resource group will be used.
+</dd>
+<dt><strong>*JOBD</strong></dt>
+<dd>The job name in the job description for the specified user profile will be used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name to be given to the batch job submitted for running the exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.TKVINTNETA"></a>
+<h2>Takeover IP address (TKVINTNETA)</h2>
+<p>Specifies the internet interface address that is to be associated with an application. This is the takeover IP address that will be switched between systems. The IP addresses may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+</p>
+<p>An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+</p>
+<p>An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.  IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as takeover IP addresses.
+</p>
+<p>If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+</p>
+<p>If the value is not *SAME and the Cluster Resource Services configured the takeover IP address, this command will remove the current IP address and add this IP address to the node. If either the add or remove address function fails, the command will fail. The cluster resource group must be Inactive to change this field.  This field is only valid for an application cluster resource resource group.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The takeover IP address is not changed.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the takeover IP address for the application cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.ALWRESTART"></a>
+<h2>Allow application restarts (ALWRESTART)</h2>
+<p>Specifies whether or not to restart an application if the cluster resource group exit program fails.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>Allow application restart is not changed.
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>Do not attempt to restart the application. The cluster resource group exit program is called with an action code of Failover.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Attempt to restart the application on the same node. The cluster resource group exit program will be called with an action code of Restart. If the application cannot be restarted in the specified maximum number of attempts, the cluster resource group exit program will be called with an action code of Failover.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.NBRRESTART"></a>
+<h2>Number of application restarts (NBRRESTART)</h2>
+<p>Specifies the number of times a cluster resource group exit program can be called on a same node before failure occurs.  Maximum number of restarts is 3. If the cluster resource group is currently active, any change does not take affect until failover occurs or the cluster resource group exit program job ends.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The number of restart attempts is not changed.
+</dd>
+<dt><strong class="italic">0-3</strong></dt>
+<dd>Specify the number of times that restart will be attempted before doing a failover.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.APPID"></a>
+<h2>Application identifier (APPID )</h2>
+<p>Specifies the application identifier. This defines the purpose of the cluster resource group.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The current application identifier is not changed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>The application identifier is removed.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the application that supplied the peer cluster resource group. The name can be up to 20 characters.  The recommended format is 'vendor-id.name' where vendor-id is an identifier for the vendor creating the cluster resource group and name is the application name. For example, QIBM.ExamplePeer, indicates it is supplied by IBM for the ExamplePeer application. It is not recommended to use QIBM unless the cluster resource group is supplied by IBM.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.TEXT"></a>
+<h2>Text description (TEXT)</h2>
+<p>Specifies the text used to briefly describe the cluster resource group object.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The current text description is not changed.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the new text to describe the cluster resource group object.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.FLVMSGQ"></a>
+<h2>Failover message queue (FLVMSGQ)</h2>
+<p>Specifies the message queue to receive messages (CPABB01) dealing with failover.  If this field is set, the specified message queue must exist on all nodes in the recovery domain after the exit program completes. The message queue cannot be in an independent auxiliary storage pool.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The current failover message queue is not changed.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>No messages will be sent when a failover occurs for this cluster resource group.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: Failover message queue</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the failover message queue.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library that contains the message queue to receive the failover message. The library name cannot be *CURLIB, QTEMP, or *LIBL.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.FLVWAITTIM"></a>
+<h2>Failover wait time (FLVWAITTIM)</h2>
+<p>Specifies the number of minutes to wait for a reply to the failover message that was enqueued on the failover message queue.  This parameter is ignored when the FLVMSGQ parameter is *NONE.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The current failover wait time is not changed.
+</dd>
+<dt><strong>*NOWAIT</strong></dt>
+<dd>Failover proceeds without user intervention.
+</dd>
+<dt><strong>*NOMAX</strong></dt>
+<dd>Wait forever until a response is given to the failover inquiry message.
+</dd>
+<dt><strong class="italic">integer</strong></dt>
+<dd>Specify the number of minutes to wait for a response to the failover inquiry message. If no response is received in the specified number of minutes, the failover default action field will be looked at to decide how to proceed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.FLVDFTACN"></a>
+<h2>Failover default action (FLVDFTACN )</h2>
+<p>Specifies the default action to be taken if a response to the failover message is not received in the failover wait time limit.  This parameter is ignored if the failover message queue (FLVMSGQ) parameter is *NONE or if the failover wait time (FLVWAITTIM) parameter is *NOMAX..
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The current failover default action is not changed.
+</dd>
+<dt><strong>*PROCEED</strong></dt>
+<dd>Proceed with failover.
+</dd>
+<dt><strong>*CANCEL</strong></dt>
+<dd>Do not attempt failover.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.CRGTYPE"></a>
+<h2>Cluster resource group type (CRGTYPE)</h2>
+<p>Specifies the type of the cluster resource group that is to be changed.
+</p>
+<dl>
+<dt><strong class="underlined">*CRG</strong></dt>
+<dd>The type of the cluster resource group with the name specified in Cluster resource group (CRG) parameter is used.
+</dd>
+<dt><strong>*DATA</strong></dt>
+<dd>The cluster resource group is a data cluster resource group.
+</dd>
+<dt><strong>*APP</strong></dt>
+<dd>The cluster resource group is an application cluster resource group.
+</dd>
+<dt><strong>*DEV</strong></dt>
+<dd>The cluster resource group is a device cluster resource group.
+</dd>
+<dt><strong>*PEER</strong></dt>
+<dd>The cluster resource group is a peer cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="CHGCRG.CLUSTER"></a>
+<h2>Cluster (CLUSTER)</h2>
+<p>Specifies the name of the cluster.
+</p>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The cluster that has been configured on this system is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CHGCRG.COMMAND.EXAMPLES"></a>
+<h2>Examples for CHGCRG</h2>
+<h3><strong>Example 1: Changing the Exit Program Data</strong>
+</h3>
+<p>
+</p><pre>CHGCRG   CRG(MYCRG)
+         EXITPGMDTA('replace this data')
+         TEXT('CRG FOR PAYROLL APPLICATION DATA')
+</pre>
+<p></p>
+<p>This command changes a cluster resource group called MYCRG in the cluster. The exit program data is replaced with the character string specified. The text description for the cluster resource group object is also changed to the value specified. All other fields are unchanged.
+</p>
+<h3><strong>Example 2: Changing the Recovery Domain</strong>
+</h3>
+<p>
+</p><pre>CHGCRG   CRG(MYCRG)
+         EXITPGMFMT(*SAME) TEXT('CRG FOR CROSS SITE MIRRORING')
+         RCYDMNACN(*CHGCUR)
+         RCYDMN((NODE1 *SAME *SAME *SAME *ADD ('1.1.1.1')))
+</pre>
+<p></p>
+<p>This command changes a cluster resource group called MYCRG in the cluster. The text description for the cluster resource group object is changed to the value specified. A data port IP address is added for node NODE1.
+</p>
+<p>
+</p><pre>CHGCRG   CRG(MYCRG) CRGTYPE(*DEV)
+         EXITPGMFMT(*SAME) TEXT('CRG FOR CROSS SITE MIRRORING')
+         RCYDMNACN(*CHGCUR)
+         RCYDMN((NODE1 *SAME *SAME *SAME *REMOVE
+         ('2001:0DB8:101::0230:D9FF')))
+</pre>
+<p></p>
+<p>This command changes a device cluster resource group called MYCRG in the cluster. The text description for the cluster resource group object is changed to the value specified. A data port IP address is removed for node NODE1.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="CHGCRG.ERROR.MESSAGES"></a>
+<h2>Error messages for CHGCRG</h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>HAE001D</strong></dt>
+<dd>Cluster resource group &amp;1 not changed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#CHGCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

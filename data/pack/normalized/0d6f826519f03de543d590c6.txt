@@ -1,0 +1,443 @@
+Save System (SAVSYS)
+
+Save System (SAVSYS)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Save System (SAVSYS) command saves a copy of the Licensed Internal Code and the QSYS library in a format compatible with the installation of the operating system. It does not save objects from any other library. In addition, it saves security and configuration objects that can also be saved using the Save Security Data (SAVSECDTA) and Save Configuration (SAVCFG) commands.
+
+To save the system data on offline storage, the system writes a copy of the objects onto the media. The libraries and objects are not affected on the system. This command cannot be used to free any space occupied by these objects. The history information for the data area QSAVUSRPRF in QSYS is updated with the date, time, and place where user profiles are saved. The history information for the data area QSAVSYS in QSYS is updated with the date, time, and place where the system is saved. The history information for the data area QSAVCFG in QSYS is updated with the date, time, and place where configuration objects are saved. The history information is not updated for the individual objects. To display the information in these data areas, run the Display Object Description (DSPOBJD) command, and specify DETAIL(*FULL). Save the information from the display of QSAVUSRPRF for the location where the user profiles are saved.
+
+When using this command, it is important to use the device on the system that is defined as the initial program load (IPL) device. The IPL device was defined by the service representative when the system was installed. If an IPL device is not used when using this command, then the system cannot be restored using the SAVSYS media (if densities or media types are incompatible).
+
+Restrictions:
+
+- You must have save system (*SAVSYS) special authority to run this command
+
+- All subsystems must be inactive before the SAVSYS command can be specified. The End System (ENDSYS) or End Subsystem (ENDSBS) command can be used to make the subsystems inactive. You must have job control (*JOBCTL) special authority to use the ENDSYS or the ENDSBS command.
+
+- Tapes created using this command that will be used for installation should be initialized with a density that is supported by the current IPL tape unit. If this is not done, the current IPL tape will have to be changed to a tape device that supports the density of the created SAVSYS tapes before installation begins.
+
+- Tapes created using the SAVSYS command should not be used for automatic installation.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DEV | Device | Values (up to 4 repetitions): Name | Required, Positional 1
+VOL | Volume identifier | Single values: *MOUNTED
+Other values (up to 75 repetitions): Character value | Optional, Positional 2
+EXPDATE | File expiration date | Date, *PERM | Optional
+ENDOPT | End of media option | *REWIND, *LEAVE, *UNLOAD | Optional
+USEOPTBLK | Use optimum block | *YES, *NO | Optional
+OMIT | Omit | Single values: *NONE
+Other values (up to 2 repetitions): *CFG, *SECDTA | Optional
+OUTPUT | Output | *NONE, *PRINT, *OUTFILE | Optional
+OUTFILE | File to receive output | Qualified object name | Optional
+Qualifier 1: File to receive output | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+ASPDEV | ASP device | Name, *ALLAVL, *, *SYSBAS, *CURASPGRP | Optional
+CLEAR | Clear | *NONE, *ALL, *AFTER, *REPLACE | Optional
+DTACPR | Data compression | *DEV, *NO, *YES, *LOW, *MEDIUM, *HIGH, *ZLIB | Optional
+COMPACT | Data compaction | *DEV, *NO | Optional
+
+Top
+
+Device (DEV)
+
+Specifies the name of the device used for the save operation. The device name must already be known on the system by a device description.
+
+This is a required parameter.
+
+optical-device-name
+Specify the name of the optical device used for the save operation.
+
+tape-media-library-device-name
+Specify the name of the tape media library device used for the save operation.
+
+tape-device-name
+Specify the names of one or more tape devices used for the save operation. If a virtual tape device is used, it must be the only device specified. If multiple tape devices are used, they must have compatible media formats and their names must be specified in the order in which they are used. Using more than one tape device permits one tape volume to be rewound and unloaded while another tape device processes the next tape volume.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifiers of the volumes, or the cartridge identifiers of tapes in a tape media library device, on which the data is saved. The volumes must be placed in the device in the same order as specified for this parameter.
+
+Single values
+
+*MOUNTED
+The data is saved on the volumes placed in the device. For a media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command.
+
+Note: This value cannot be specified when using an optical media library device.
+
+Other values (up to 75 repetitions)
+
+character-value
+Specify the identifiers of one or more volumes in the order in which they are placed in a device and used to save the data.
+
+Top
+
+File expiration date (EXPDATE)
+
+Specifies the expiration date of the file created by the save operation. If a date is specified, the file is protected and cannot be overwritten until the specified expiration date.
+
+*PERM
+The files are protected permanently.
+
+date
+Specify the date when protection for the files ends.
+
+Top
+
+End of media option (ENDOPT)
+
+Specifies the operation that is automatically done on the tape or optical volume after the save operation ends. If more than one volume is used, this parameter applies only to the last volume used; all other volumes are unloaded when the end of the volume is reached.
+
+Note: This parameter is valid only if a tape or optical device name is specified for the DEV parameter. For optical devices, *UNLOAD is the only special value supported, *REWIND and *LEAVE will be ignored.
+
+*REWIND
+The tape is automatically rewound, but not unloaded, after the operation has ended.
+
+*LEAVE
+The tape does not rewind or unload after the operation ends. It remains at the current position on the tape drive.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends. Some optical devices will eject the volume after the operation ends.
+
+Top
+
+Use optimum block (USEOPTBLK)
+
+Specifies whether or not the optimum block size is used for the save operation.
+
+Note: Specifying USEOPTBLK(*YES) may result in a tape that can be duplicated only to a device that supports the same block size.
+
+*YES
+The optimum block size supported by the device is used for Save commands. If the block size that is used is larger than a block size that is supported by all device types, then:
+
+- Performance may improve.
+
+- The tape file that is created is only compatible with a device that supports the block size used. Commands such as Duplicate Tape (DUPTAP) do not duplicate files unless the files are being duplicated to a device which supports the same block size that was used.
+
+- The value for the DTACPR parameter is ignored.
+
+*NO
+The optimum block size supported by the device is not used. Save commands use the default block size supported by all device types. The tape volume can be duplicated to any media format using the Duplicate Tape (DUPTAP) command.
+
+Note: Not all files will be saved with optimum block size.
+
+Top
+
+Omit (OMIT)
+
+Specifies what data to omit from the save system operation.
+
+Single values
+
+*NONE
+All of the security data and configuration data are included in the save system operation.
+
+Other values (up to 2 repetitions)
+
+*CFG
+All of the configuration data is omitted from the save system operation. You can use the SAVCFG (Save Configuration) command to save just the configuration object information.
+
+*SECDTA
+All of the security data is omitted from the save system operation. You can use the SAVSECDTA (Save Security Data) command to save just the system security data.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether a list with information about the saved objects is created. The information can be printed with the job's spooled output or directed to a database file.
+
+*NONE
+No output listing is created.
+
+*PRINT
+The output is printed with the job's spooled output.
+
+*OUTFILE
+The output is directed to the database file specified for the File to receive output (OUTFILE) parameter.
+
+Note: You must specify a database file name for the File to receive output (OUTFILE) parameter when OUTPUT(*OUTFILE) is specified.
+
+Top
+
+File to receive output (OUTFILE)
+
+Specifies the database file to which the output of the command is directed. If the file does not exist, this command creates a database file in the specified library. If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created. Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+
+Qualifier 1: File to receive output
+
+name
+Specify the name of the database file to which the command output is directed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the file. If the file is not found, one is created in the current library. If no current library exists, the file will be created in the QGPL library.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Note: If a new file is created, the system uses the IBM-supplied file QASAVOBJ with format name QSRSAV as a model.
+
+Top
+
+Output member options (OUTMBR)
+
+Specifies the name of the database file member to which the output is directed when *OUTFILE is specified for the Output (OUTPUT) parameter.
+
+Element 1: Member to receive output
+
+*FIRST
+The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the File to receive output (OUTFILE) parameter.
+
+name
+Specify the name of the file member that receives the output. If OUTMBR(member-name) is specified and the member does not exist, the system creates it.
+If the member exists, you can add records to the end of the existing member or clear the existing member and add the records.
+
+Element 2: Replace or add records
+
+*REPLACE
+The existing records in the specified database file member are replaced by the new records.
+
+*ADD
+The new records are added to the existing information in the specified database file member.
+
+Top
+
+ASP device (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device from which private authorities are to be saved.
+
+*ALLAVL
+The private authorities from the system ASP (ASP number 1), all basic user ASPs (ASP numbers 2-32), and all available independent ASPs are saved.
+
+*
+The private authorities from the system ASP, all basic user ASPs, and, if the current thread has an ASP group, all independent ASPs in the ASP group are saved.
+
+*SYSBAS
+The private authorities from the system ASP and all basic user ASPs are saved.
+
+*CURASPGRP
+If the current thread has an ASP group, the private authorities from all independent ASPs in the ASP group are saved.
+
+name
+Specify the ASP device name from which private authorities are to be saved.
+
+Top
+
+Clear (CLEAR)
+
+Specifies whether active data on the media is automatically cleared or replaced. Active data is any file on the media that has not expired. Clearing active data removes all files from the volume. Replacing active data on optical media initializes the first volume, and replaces only the optical files created by this operation on any volumes after the first volume.
+
+Notes:
+
+- Clearing a tape does not initialize it. You should initialize tapes to a standard label format before the save command is issued by using the Initialize Tape (INZTAP) command and specifying a value for the NEWVOL parameter.
+
+- Clearing an optical volume does initialize it.
+
+- If a volume that is not initialized is encountered during the save operation, an inquiry message is sent and an operator can initialize the volume.
+
+*NONE
+None of the media is automatically cleared. If the save operation encounters active data on the first volume, an inquiry message is sent, allowing the operator to either end the save operation or clear the media. If the save operation encounters active data after the first volume, an inquiry message is sent, allowing the operator to either end the save operation, clear the tape, or replace the optical file.
+
+*ALL
+All of the media is automatically cleared.
+
+*AFTER
+All media after the first volume is automatically cleared. If the save operation encounters active data on the first tape, an inquiry message is sent, allowing the operator to either end the save operation or clear the media. If the save operation encounters the specified optical file on the first volume, an inquiry message is sent, allowing the operator to either end the save operation or replace the file.
+
+*REPLACE
+Active data on the media is automatically replaced. The first optical volume is initialized. Other optical volumes are not initialized. Tapes are automatically cleared in the same way as the *ALL value.
+
+Top
+
+Data compression (DTACPR)
+
+Specifies whether data compression is used. If the save is running while other jobs on the system are active and software compression is used, the overall system performance may be affected.
+
+Note: If *DEV is specified for both this parameter and the Data compaction (COMPACT) parameter, only device data compaction is performed if device data compaction is supported on the device. Otherwise, data compression is performed.
+
+If *YES is specified for this parameter and *DEV is specified for the COMPACT parameter, both device data compaction and device data compression are performed if supported on the device.
+
+*DEV
+If the save is to tape and the target device supports compression, hardware compression is performed. Otherwise, no data compression is performed.
+
+*NO
+No data compression is performed.
+
+*YES
+If the save is to tape and the target device supports compression, hardware compression is performed. If compression is not supported, or if the save data is written to optical media or to a save file, software compression is performed. Low software compression is used for all devices except optical DVD, which uses medium software compression.
+
+*LOW
+Software data compression is performed with the SNA algorithm. Low compression is usually faster and the compressed data is usually larger than if medium, high, or zlib compression is used.
+
+*MEDIUM
+Software data compression is performed with the TERSE algorithm. Medium compression is usually slower than low compression but faster than high compression. The compressed data is usually smaller than if low compression is used and larger than if high or zlib compression is used.
+
+*HIGH
+Software data compression is performed with the LZ1 algorithm. High compression is usually the slowest and the compressed data is usually smaller than if low or medium compression is used and larger than if zlib compression is used.
+
+*ZLIB
+Software data compression is performed with the ZLIB deflate algorithm. Zlib compression takes advantage of hardware acceleration if available and is usually faster than medium or high compression. If hardware acceleration is unavailable then zlib compression is usually slower than medium compression but faster than high compression. The compressed data is usually always the smallest.
+
+Top
+
+Data compaction (COMPACT)
+
+Specifies whether device data compaction is performed.
+
+*DEV
+Device data compaction is performed if the data is saved to tape and all tape devices specified for the Device (DEV) parameter support the compaction feature.
+
+Note: If *DEV is specified for both the Data compression (DTACPR) parameter and this parameter, only device data compaction is performed if device data compaction is supported on the device. Otherwise, data compression is performed if supported on the device.
+
+If *YES is specified for the DTACPR parameter and *DEV is specified for this parameter, both device data compaction and device data compression are performed if supported on the device.
+
+*NO
+Device data compaction is not performed.
+
+Top
+
+Examples
+
+Example 1: Tapes Cleared Automatically
+
+SAVSYS DEV(TAP01) CLEAR(*ALL)
+
+This command saves licensed internal code, system objects, all user profiles (including private authority for objects), and all line, controller, and device descriptions. They are saved on the tape put on the TAP01 tape drive. Each uncleared tape is automatically cleared when it is encountered, and the save operation continues without operator intervention.
+
+Example 2: Operating Receives Message of Exceeded Storage Capacity
+
+SAVSYS DEV(TAP01) VOL(ABCDE)
+
+The system data is saved on the TAP01 tape drive, starting on the tape volume labeled ABCDE. If the save operation exceeds the storage capacity of one tape, a message requesting that another volume be put on the TAP01 tape drive is shown to the operator.
+
+Example 3: Saving Data on Two Tape Drives in Alternating Order
+
+SAVSYS DEV(TAP01 TAP02)
+
+The system data is saved on tape drives TAP01 and TAP02 in alternating order. If the save operation exceeds the storage capacity of two tapes, a message requesting that another volume be put on TAP01 is shown to the operator. The tapes are rewound at the completion of the save system operation.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2206
+User needs authority to do requested function on object.
+
+CPF222E
+&1 special authority is required.
+
+CPF3703
+&2 &1 in &3 not saved.
+
+CPF3709
+Tape devices do not support same densities.
+
+CPF372B
+Not all objects were saved.
+
+CPF3727
+Duplicate device &1 specified on device name list.
+
+CPF3728
+Device &1 specified with other devices.
+
+CPF3733
+&2 &1 in &3 previously damaged.
+
+CPF3735
+Storage limit exceeded for user profile &1.
+
+CPF3738
+Device &1 used for save or restore is damaged.
+
+CPF3767
+Device &1 not found.
+
+CPF3768
+Device &1 not valid for command.
+
+CPF3772
+SAVSYS completed. One or more objects not saved.
+
+CPF3785
+Not all subsystems ended.
+
+CPF3793
+Machine or ASP storage limit reached.
+
+CPF3794
+Save or restore operation ended unsuccessfully.
+
+CPF3797
+Objects from library &3 not saved. Save limit exceeded.
+
+CPF3798
+Installation &2 &1 in &3 not found.
+
+CPF384E
+USEOPTBLK(*YES) not valid for CD-ROM premastering.
+
+CPF3873
+Licensed program &1 option &2 release &4 not saved.
+
+CPF388B
+Optical file path name not valid.
+
+CPF3894
+Cancel reply received for message &1.
+
+CPF38A4
+ASP device &1 not correct.
+
+CPF9814
+Device &1 not found.
+
+CPF9833
+*CURASPGRP or *ASPGRPPRI specified and thread has no ASP group.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9846
+Error while processing file &1 in library &2.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9850
+Override of printer file &1 not allowed.
+
+CPF9851
+Overflow value for file &1 in &2 too small.
+
+CPF9860
+Error occurred during output file processing.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+Top

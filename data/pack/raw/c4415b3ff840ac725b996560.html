@@ -1,0 +1,1304 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="STRRCYBRM.Top_Of_Page"></a>
+<h1>Start Recovery using BRM  (STRRCYBRM)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#STRRCYBRM.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#STRRCYBRM.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#STRRCYBRM.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM"></a>
+<p>The Start Recovery using BRM (STRRCYBRM) command recovers items ranging from a single library to the entire system.  Any library or group of libraries that were saved by a BRMS save command can be restored by this command.  Recovery is based on entries in the BRMS media inventory contents information.
+</p>
+<p>Recovery using the STRRCYBRM uses the most recent times and dates of entries in the BRMS media content information.  This reflects the order in which libraries and objects were saved.  For instance, a recovery request for a library will restore the most recent full backup of a library, the latest incremental backup of that library, and all object level saves that have dates after the last full save.
+</p>
+<p>BRMS always uses non-duplicated media information when selecting items for recovery regardless of whether the location of the media if a value of *ALL is specified for the <strong>Volume location (LOC) </strong>parameter. If you want to select recovery items from duplicated media information, then specify *YES on the <strong>Use duplicate media (USEDUPMED) </strong>parameter.
+</p>
+<p>The design of the STRRCYBRM command concerning libraries is to report all the resources needed to recover a library in its entirety.  This means that during the search of media information a full backup is required as a starting point in recovering the library.  If a full backup is not found meeting the search criteria, any subsequent saves of objects for that library are ignored.  This could happen if control group A saves libraries full and control group B saves libraries incremental and the STRRCYBRM OPTION(*CTLGRP) CTLGRP((B) is issued.  This could also happen if the time period specified does not have a full backup of the library.
+</p>
+<p>
+<strong>Note:     </strong>Prior to processing a restore, you should use the report option (*REPORT) to produce a report of the steps required to restore a portion of the system or the entire system.  The report that is produced is the Recovery Analysis report.  The report, if printed, is written to printer file QP1ARCY.
+</p>
+<p>
+<strong>Note:     </strong>When you are restoring multiple items, such as a *SYSTEM , *SYSBAS or *SAVSYS, it is advisable to first run a Recovery Analysis Report to assist you in evaluating the steps required to restore the requested items.  For instance, BRMS cannot install the Licensed Internal Code and restore the operating system for you automatically.  The report assists you in locating the required volumes and identifies the manual steps needed to restore the Licensed Internal Code, the operating system, the BRMS product and required system libraries.
+</p>
+<p>After you have performed the manual steps, BRMS is able to provide automated assistance in restoring the remainder of the system.  The steps required to restore the system are provided in the Recovery Analysis report.
+</p>
+<p>To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+</p>
+<h2><strong>Restrictions: </strong>
+</h2>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">You must have authority to the following restore commands:
+<p>
+</p><pre>    Restore Object (RST)
+    Restore Document Library Object (RSTDLO)
+    Restore Library (RSTLIB)
+    Restore Object (RSTOBJ)
+    Restore Configuration (RSTCFG)
+    Restore User Profiles (RSTUSRPRF)
+    Restore System Information (RSTSYSINF)
+</pre>
+<p></p>
+<p>and must have the object authorities required by those commands as outlined in Appendix D of the IBM i Security Reference.
+</p>
+</li>
+<li class="cds--list__item">To restore libraries and objects:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">You must have *ADD and *READ authority to the QSYS library to restore libraries which do not exist.
+</li>
+<li class="cds--list__item">You must have *OBJEXIST authority to restore over objects contained in a library.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">To restore documents and folders:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">You must be enrolled in the system distribution directory.
+</li>
+<li class="cds--list__item">You must have *CHANGE authority to the parent folder and *ALL authority to the document if it already exists on the system.
+</li>
+<li class="cds--list__item">You must have *EXECUTE authority to the document library.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">To restore directories and files:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">You must have *W and *OBJEXIST authority to file if it already exists on the system.
+</li>
+<li class="cds--list__item">You must have *WX authority to the parent directory.
+</li>
+<li class="cds--list__item">You must have *ADD authority to the owning user profile of the directory into which the parent directories are created.
+</li>
+<li class="cds--list__item">You must have *ALLOBJ special authority to create parent directories with a user profile other than your own.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">You must have *USE authority to any auxiliary storage pool device when recovering objects to auxiliary storage pool devices.
+</li>
+<li class="cds--list__item">These additional restrictions apply when *APYJRNCHG is specified for the <strong>Option (OPTION) </strong>parameter:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">You must have authority to the APYJRNCHG command.
+</li>
+<li class="cds--list__item">You must have *EXECUTE authority to the libraries containing the files, journals and journal receivers.
+</li>
+<li class="cds--list__item">You must have *OBJEXIST authority to restore any files that already exist on the system.
+</li>
+<li class="cds--list__item">You must have *CHANGE and *OBJMGT authority to apply journal changes to journaled files.
+</li>
+<li class="cds--list__item">You must have *USE authority to any journal or journal receiver used to apply journal changes.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">This command should not be used by control group *EXIT item processing as results will be unpredictable.
+</li>
+</ol>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="STRRCYBRM.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.OPTION"><strong>OPTION</strong></a></td>
+<td class="valigntop">Option</td>
+<td class="valigntop"><strong class="underlined">*SYSTEM</strong>, *ALLDLO, *ALLUSR, *APYJRNCHG, *ASP, *ASPDEV, *CTLGRP, *IBM, *JOURNAL, *LIB, *LNKLIST, *RCYEXITPGM, *RESUME, *SAVSYS, *SYSBAS</td>
+<td class="valigntop">Optional, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.ACTION"><strong>ACTION</strong></a></td>
+<td class="valigntop">Action</td>
+<td class="valigntop"><strong class="underlined">*REPORT</strong>, *RESTORE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="7"><a href="#STRRCYBRM.PERIOD"><strong>PERIOD</strong></a></td>
+<td class="valigntop">Time period for recovery</td>
+<td class="valigntop">Single values: *DAYS<br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="7">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Start time and date</td>
+<td class="valigntop">
+<span class="var">Element list</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Beginning time</td>
+<td class="valigntop">
+<span class="var">Time</span>, <strong class="underlined">*AVAIL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Beginning date</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*BEGIN</strong>, *CURRENT</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: End time and date</td>
+<td class="valigntop">
+<span class="var">Element list</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Ending time</td>
+<td class="valigntop">
+<span class="var">Time</span>, <strong class="underlined">*AVAIL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Ending date</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*END</strong>, *CURRENT</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.DAYS"><strong>DAYS</strong></a></td>
+<td class="valigntop">Time period in days</td>
+<td class="valigntop">1-365, <strong class="underlined">7</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.USESAVF"><strong>USESAVF</strong></a></td>
+<td class="valigntop">Use save files</td>
+<td class="valigntop"><strong class="underlined">*YES</strong>, *NO</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.USEADSM"><strong>USEADSM</strong></a></td>
+<td class="valigntop">Use TSM</td>
+<td class="valigntop"><strong class="underlined">*YES</strong>, *NO</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.ASP"><strong>ASP</strong></a></td>
+<td class="valigntop">Auxiliary storage pool</td>
+<td class="valigntop">1-32, <strong class="underlined">*SYSTEM</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.LIB"><strong>LIB</strong></a></td>
+<td class="valigntop">Library</td>
+<td class="valigntop"><span class="var">Generic name, name</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.LIST"><strong>LIST</strong></a></td>
+<td class="valigntop">List</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#STRRCYBRM.JRN"><strong>JRN</strong></a></td>
+<td class="valigntop">Journal</td>
+<td class="valigntop">Single values: <strong class="underlined">*JRNLST</strong><br>Other values (up to 25 repetitions): <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Journal</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop" rowspan="4"><a href="#STRRCYBRM.ASPDEV"><strong>ASPDEV</strong></a></td>
+<td class="valigntop">ASP device</td>
+<td class="valigntop">Values (up to 25 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: From system</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*LCL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Auxiliary storage pool</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*ALL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Objects</td>
+<td class="valigntop">
+<strong class="underlined">*ALL</strong>, *LIB, *LNK</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#STRRCYBRM.CTLGRP"><strong>CTLGRP</strong></a></td>
+<td class="valigntop">Control group selection</td>
+<td class="valigntop">Single values: <strong class="underlined">*SELECT</strong><br>Other values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Control group</td>
+<td class="valigntop">
+<span class="var">Name</span>, *NONE, *BKUGRP, *SYSGRP, *SYSTEM</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Sequence number</td>
+<td class="valigntop">
+1-99, <strong class="underlined">1</strong></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.OMITLIB"><strong>OMITLIB</strong></a></td>
+<td class="valigntop">Libraries to omit</td>
+<td class="valigntop">Single values: *NONE<br>Other values (up to 25 repetitions): <span class="var">Generic name, name</span>, <strong class="underlined">*DELETE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.ALWDUP"><strong>ALWDUP</strong></a></td>
+<td class="valigntop">Allow duplicate entries</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.LOC"><strong>LOC</strong></a></td>
+<td class="valigntop">Volume locations to include</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong><br>Other values (up to 10 repetitions): <span class="var">Name</span>, *HOME</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.OMITLOC"><strong>OMITLOC</strong></a></td>
+<td class="valigntop">Volume locations to omit</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values (up to 10 repetitions): <span class="var">Name</span>, *HOME</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.SHWDLTLIB"><strong>SHWDLTLIB</strong></a></td>
+<td class="valigntop">Show deleted libraries</td>
+<td class="valigntop"><strong class="underlined">*YES</strong>, *NO</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.OVERRIDE"><strong>OVERRIDE</strong></a></td>
+<td class="valigntop">Override recovery element</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="9"><a href="#STRRCYBRM.RCYELEM"><strong>RCYELEM</strong></a></td>
+<td class="valigntop">Recovery element override</td>
+<td class="valigntop">Values (up to 3 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="9">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Recovery element</td>
+<td class="valigntop">
+<strong class="underlined">*ALLSYS</strong>, *SAVSYS, *SECDTA, *SAVCFG</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Time period for recovery</td>
+<td class="valigntop">
+<span class="var">Element list</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Start time and date</td>
+<td class="valigntop">
+<span class="var">Element list</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Beginning time</td>
+<td class="valigntop">
+<span class="var">Time</span>, <strong class="underlined">*AVAIL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Beginning date</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*BEGIN</strong>, *CURRENT</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: End time and date</td>
+<td class="valigntop">
+<span class="var">Element list</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Ending time</td>
+<td class="valigntop">
+<span class="var">Time</span>, <strong class="underlined">*AVAIL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Ending date</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*END</strong>, *CURRENT</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.FROMSYS"><strong>FROMSYS</strong></a></td>
+<td class="valigntop">From system</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*LCL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.PRTSYSINF"><strong>PRTSYSINF</strong></a></td>
+<td class="valigntop">Print system information</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.USEDUPMED"><strong>USEDUPMED</strong></a></td>
+<td class="valigntop">Use duplicate media</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.USRRCYINF"><strong>USRRCYINF</strong></a></td>
+<td class="valigntop">User recovery information</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *ADD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.RCYORDLST"><strong>RCYORDLST</strong></a></td>
+<td class="valigntop">Recovery order list</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRRCYBRM.VOLSUMORD"><strong>VOLSUMORD</strong></a></td>
+<td class="valigntop">Volume summary order</td>
+<td class="valigntop"><strong class="underlined">*VOLNAME</strong>, *RCYRPT, *VOLCRTDAT</td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="STRRCYBRM.OPTION"></a>
+<h2>Option (OPTION)</h2>
+<p>Specifies what you want to restore from the BRMS media content inventory.
+</p>
+<dl>
+<dt><strong class="underlined">*SYSTEM</strong></dt>
+<dd>You want to restore the system (1) and basic user (2-32) auxiliary storage pools and auxiliary storage pool devices based on the BRMS media content information.
+</dd>
+<dt><strong>*ALLDLO</strong></dt>
+<dd>You want to restore all documents, folders, and distribution objects (mail) from the media content information that meet the specified starting and ending date.
+</dd>
+<dt><strong>*ALLUSR</strong></dt>
+<dd>You want to restore all user libraries that were saved using the *ALLUSR special value.
+<p>Refer to the Special Values table for the Save Library (SAVLIB) Command in the Saving Libraries section of the IBM i Backup and Recovery book for a list of libraries which can be restored using this special value.
+</p>
+</dd>
+<dt><strong>*APYJRNCHG</strong></dt>
+<dd>You want to apply journaled changes. Specify the journals using the <strong>Journal (JRN)</strong> parameter.  The value of the <strong>From system (FROMSYS)</strong> parameter will be ignored if this value is specified.
+<p>If you want to apply journaled changes to a point in time, specify the point in time on the <strong>End time and date </strong>prompt of the <strong>Time period for recovery (PERIOD) </strong>parameter.
+</p>
+</dd>
+<dt><strong>*ASP</strong></dt>
+<dd>You want to restore the system (1) or basic user (2-32) auxiliary storage pool.  You must specify the auxiliary storage pool using the <strong>Auxiliary storage pool (ASP) </strong> parameter.  If you are restoring system (1) auxiliary storage pool, only user data is restored, not the operating system.
+</dd>
+<dt><strong>*ASPDEV</strong></dt>
+<dd>You want to restore auxiliary storage pool devices.  Specify the systems, auxiliary storage pool devices, and objects using the <strong>ASP device (ASPDEV)</strong> parameter.  The value of the <strong>From system (FROMSYS)</strong> parameter will be ignored if this value is specified.
+</dd>
+<dt><strong>*CTLGRP</strong></dt>
+<dd>You want to restore a control group and its associated save items from the media content information.  You must specify the control group name in the <strong>Control group selection (CTLGRP)</strong> parameter.
+<p>
+<strong>Note:     </strong>When you select *NONE in the CTLGRP parameter you are indicating that you want to restore saved items from the media content information file not associated with a control group name.
+</p>
+<p>Additionally you have the option of selecting up to 300 control groups to restore when you use the *SELECT option in the CTLGRP parameter.  You can sequence the order in which the selected control groups are restored by using the <strong>Sequence number</strong> element of the CTLGRP parameter.
+</p>
+</dd>
+<dt><strong>*IBM</strong></dt>
+<dd>You want to restore all system (IBM) libraries that were saved using the *IBM special value.
+<p>Refer to the Special Values table for the Save Library (SAVLIB) Command in the Saving Libraries section of the IBM i Backup and Recovery book for a list of libraries which can be restored using this special value.
+</p>
+</dd>
+<dt><strong>*JOURNAL</strong></dt>
+<dd>You want to print journal report. Specify the journals using the <strong>Journal (JRN)</strong> parameter.  Journal receiver chain report will be printed from the backup history for the specified journal. Journal exception report will be printed if BRMS detect required journal receiver were not fully saved or not saved during specified period.  The value of the <strong>From system (FROMSYS)</strong> parameter will be ignored if this value is specified.
+<p><strong>Time period for recovery (PERIOD) </strong>parameter can be specified for required period.
+</p>
+</dd>
+<dt><strong>*LIB</strong></dt>
+<dd>You want to restore a library from the media content information.  You must specify the library name in the <strong>Library (LIB)</strong> parameter.  The latest version of the library is restored from the BRMS media content information by using the latest full save plus any incremental and object saves subsequent to the latest full save.
+</dd>
+<dt><strong>*LNKLIST</strong></dt>
+<dd>You want to restore all integrated file system objects that were specified in a list from the media content information that meet the specified starting and ending date.  Specify the backup link list using the <strong>List (LIST)</strong> parameter when using this special value.
+</dd>
+<dt><strong>*RCYEXITPGM</strong></dt>
+<dd>Any objects that have been recovered and are waiting for a recovery exit program to be called to reestablish relationships between related objects will be called passing the list of objects that were restored.
+<p>This step is required to successfully rebuild objects that specified recovery exit processing when the objects were saved.
+</p>
+<p>During a complete system recovery, steps are provided to restore all system and user data back to the system. Some of these objects were saved requesting that a recovery exit program be called via the <strong>Recovery exit program (RCYEXITPGM)</strong> parameter. The objects are all restored by BRMS in the appropriate recovery step, and each object that requires a call to a recovery exit program is put into a list.  After all data for the recovery is restored, the exit program is called for each package through processing of this option.
+</p>
+<p>A package is a related group of media files that were grouped together during the save operation by specifying a value on the <strong>Package identifier (PKGID)</strong> parameter.
+</p>
+<p>In a recovery of a single object or package that had requested a recovery exit program be called on recovery, this step will be done in the same way, the objects will be restored and the exit program will be called with the list of objects.
+</p>
+</dd>
+<dt><strong>*RESUME</strong></dt>
+<dd>You want to start the recovery from the point where the recovery stopped.
+</dd>
+<dt><strong>*SAVSYS</strong></dt>
+<dd>You want to restore the operating system based on the BRMS media content information.
+</dd>
+<dt><strong>*SYSBAS</strong></dt>
+<dd>You want to restore only the system (1) and basic user auxiliary storage pools (2-32) based on the BRMS media content information.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.ACTION"></a>
+<h2>Action (ACTION)</h2>
+<p>You can either specify whether you want to create a Recovery Analysis Report or perform an actual recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*REPORT</strong></dt>
+<dd>You want to create the Recovery Analysis Report.  This is recommended prior to restoring the system or *IBM to assure that the required media is available and that all necessary saves have been performed.
+<p>The STRRCYBRM produces multiple reports depending on the print options you select as well as the current conditions that it detects. Listed below are the printer files and associated reports that can be produced when the STRRCYBRM command processes:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">QP1ARCY   - Recovery Report
+</li>
+<li class="cds--list__item">QP1A2RCY  - Recovery Volume Summary Report
+</li>
+<li class="cds--list__item">QP1AASP   - Display ASP Information
+</li>
+<li class="cds--list__item">QP1AJR    - Journal Receiver Chain Report
+</li>
+<li class="cds--list__item">QP1AJREXC - Journal Receiver Exception Report
+</li>
+</ul>
+</dd>
+<dt><strong>*RESTORE</strong></dt>
+<dd>You want to restore the requested items from the BRMS media content information.
+<p>
+<strong>Note:     </strong>If you specify *RESTORE and have specified *SYSTEM for the <strong>Option (OPTION)</strong> parameter, you will be returned to the Perform Recovery display.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.PERIOD"></a>
+<h2>Time period for recovery (PERIOD)</h2>
+<p>Specifies the period of time for which the recovery items are selected for recovery.  Selected items are either included in the recovery report or recovered.  This is dependent on the value specified in the <strong>Action (ACTION)</strong> parameter.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*DAYS</strong></dt>
+<dd>Use the <strong>Time period in days (DAYS)</strong> parameter to select recovery items.
+</dd>
+</dl>
+<h3><strong>Other values</strong>
+</h3>
+<h3><strong>Element 1: Start time and date</strong>
+</h3>
+<h3><strong>Element 1: Beginning time</strong>
+</h3>
+<p>One of the following is used to specify the beginning creation time at which or after recovery items are included.  Any items created before the specified time and date are not included in the selected recovery items.
+</p>
+<dl>
+<dt><strong class="underlined">*AVAIL</strong></dt>
+<dd>Any time that is available for the beginning date is included.
+</dd>
+<dt><strong class="italic">begin-time</strong></dt>
+<dd>Specify the beginning time for the specified beginning date that indicates which recovery items are to be included.
+<p>The time is specified in 24-hour format and can be specified with or without a time separator:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh=hours, mm=minutes and ss=seconds.  Hours, minutes, and seconds must each be exactly 2 digits (using leading zeros if necessary).
+</li>
+<li class="cds--list__item">With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds.  If you enter this command from the command line, the string must be enclosed in apostrophes.  If a time separator other than the separator specified for your job is used, this command will fail.
+</li>
+</ul>
+</dd>
+</dl>
+<h3><strong>Element 2: Beginning date</strong>
+</h3>
+<p>One of the following is used to specify the beginning date on or after which the recovery items must have been saved.  Any entries saved prior to the specified date are not included in the recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*BEGIN</strong></dt>
+<dd>Recovery items from the beginning of the media content information are recovered.
+</dd>
+<dt><strong>*CURRENT</strong></dt>
+<dd>Recovery items with a current date creation date and between the specified beginning and ending times (if specified) are recovered.
+</dd>
+<dt><strong class="italic">begin-date</strong></dt>
+<dd>Specify the beginning date.  The date must be specified in the job date format.
+</dd>
+</dl>
+
+
+<h3><strong>Element 2: End time and date</strong>
+</h3>
+<h3><strong>Element 1: Ending time</strong>
+</h3>
+<p>One of the following is used to specify the ending time before which recovery items are included.  Any items created after the specified time and date are not included in the recovery items selected for recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*AVAIL</strong></dt>
+<dd>Any time that is available for the ending date is included.
+</dd>
+<dt><strong class="italic">end-time</strong></dt>
+<dd>Specify the ending time for the specified ending date that indicates which recovery items are to be included.
+</dd>
+</dl>
+<h3><strong>Element 2: Ending date</strong>
+</h3>
+<p>One of the following is used to specify the ending date on which or before which the recovery items must have been saved.  Any recovery items created after the specified date are not included in the recovery operation.
+</p>
+<dl>
+<dt><strong class="underlined">*END</strong></dt>
+<dd>The recovery items to the end of the recovery information are recovered.
+</dd>
+<dt><strong>*CURRENT</strong></dt>
+<dd>Recovery items whose save date is on or before the current date are included in the recovery.
+</dd>
+<dt><strong class="italic">end-date</strong></dt>
+<dd>Specify the ending date.  The date must be specified in the job date format.
+</dd>
+</dl>
+
+
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.DAYS"></a>
+<h2>Time period in days (DAYS)</h2>
+<p>Specifies the number of days from which recovery items are selected.  For example, a time period of 7 days would include recovery items from midnight seven days ago through the current date and time.  Time period in days can be specified from 1 to 365.
+</p>
+<p>
+<strong>Note:     </strong>Time period in days is ignored unless *DAYS is specified for the <strong>Time period for recovery (PERIOD)</strong> parameter.
+</p>
+<dl>
+<dt><strong class="underlined">7</strong></dt>
+<dd>The default time period in days is seven.
+</dd>
+<dt><strong class="italic">time-period-in-days</strong></dt>
+<dd>Specify the time period in days that you want to use to select recovery items.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.USESAVF"></a>
+<h2>Use save files (USESAVF)</h2>
+<p>Specifies whether you want to use save files for recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*YES</strong></dt>
+<dd>You do want to use save files for recovery.  If the library that you want to recover is saved both on tape and a save file, and the save time and dates are the same, then BRMS will use the save file for recovery.
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>You do not want to use save files for recovery.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.USEADSM"></a>
+<h2>Use ADSM (USEADSM)</h2>
+<p>Specifies whether data stored on the TSM (ADSM) server is included in the recovery.  When the recovery includes data saved to TSM servers, additional steps are added to the recovery report to assist in the recovery of this data. During a full system recovery, the TSM server data is recovered after the system (1) and basic user (2-32) auxiliary storage pool data is recovered and after the initial IPL. This assures the necessary operating system resources are available for establishing the connection to the TSM server.  BRMS also makes recovery decisions based on where the recovery data resides. For example, when the current full backup is stored on a TSM server, but incremental backups are stored on tape, the BRMS report or plan will indicate that the full backup from the TSM server must occur first, followed by the recovery of the incremental saves from tape.
+</p>
+<dl>
+<dt><strong class="underlined">*YES</strong></dt>
+<dd>Include TSM data in the recovery report or plan.
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>Do not include TSM data in the recovery report or plan.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.ASP"></a>
+<h2>Auxiliary storage pool (ASP)</h2>
+<p>Specifies the system (1) or basic user (2-32) auxiliary storage pool that you want to restore.  The ASP parameter is a required field when the <strong>Option (OPTION)</strong> parameter is *ASP.  If you are restoring the system (1) auxiliary storage pool, only user data is restored, not the operating system.
+</p>
+<dl>
+<dt><strong class="underlined">*SYSTEM</strong></dt>
+<dd>You want to restore the system (1) auxiliary storage pool.
+</dd>
+<dt><strong class="italic">auxiliary-storage-pool-name</strong></dt>
+<dd>Specify the name of the basic user auxiliary storage pool that you want to restore.
+</dd>
+<dt><strong class="italic">auxiliary-storage-pool-number</strong></dt>
+<dd>Specify the number of the system (1) or basic user (2-32) auxiliary storage pool that you want to restore.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.LIB"></a>
+<h2>Library (LIB)</h2>
+<p>Specifies the name of the library that you want to restore.  Library is a required field when the Option field contains *LIB.
+</p>
+<dl>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library that you want to restore.
+</dd>
+<dt><strong class="italic">generic*-library-name</strong></dt>
+<dd>Specify one or more generic names of groups of libraries that you want to restore.  A generic name is a character string that contains one or more characters followed by an asterisk (*).  If an * is not specified with the name, the system assumes that the name is a complete library name.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.LIST"></a>
+<h2>List (LIST)</h2>
+<p>Specifies the name of the list for the recovery operation.
+</p>
+<p>When *LNKLIST is specified for the <strong>Option (OPTION)</strong> parameter the <strong>List (LIST)</strong> parameter specifies the name of the integrated file system list that you want to restore.  You can restore a single list or all lists.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All integrated file system lists are selected for recovery.
+</dd>
+<dt><strong class="italic">link-list-name</strong></dt>
+<dd>Specify the name of the integrated file system list that you want to restore.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.JRN"></a>
+<h2>Journal (JRN)</h2>
+<p>Specifies the qualified names of the journals to be included in the apply journal changes operation. Up to 25 qualified names can be specified.
+</p>
+<h3><strong>Restrictions:</strong>
+</h3>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">This parameter is only valid when *APYJRNCHG is specified for the <strong>Option (OPTION)</strong> parameter.
+</li>
+<li class="cds--list__item">*LCL must be specified for the <strong>From system (FROMSYS)</strong> parameter.
+</li>
+</ul>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*JRNLST</strong></dt>
+<dd>The names of the journals to be included in the apply journal changes operation are retrieved from a list of saved journals.
+</dd>
+</dl>
+<h3><strong>Qualifier 1: Journal </strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the journal to be included in the apply journal changes operation.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library </strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library containing the journal to be included in the apply journal changes operation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.ASPDEV"></a>
+<h2>ASP device (ASPDEV)</h2>
+<p>Specifies auxiliary storage pool devices which are to be included in the recovery of the current system.  Up to 25 iterations can be specified.
+</p>
+<h3><strong>Restrictions: </strong>
+</h3>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">This parameter is only valid when *SYSTEM or *ASPDEV is specified for the <strong>Option (OPTION)</strong> parameter.
+</li>
+<li class="cds--list__item">*LCL must be specified for the <strong>From system (FROMSYS)</strong> parameter.
+</li>
+</ul>
+<p>
+<strong>Note:     </strong>To include objects in auxiliary storage pool devices saved on other systems in the recovery, the current system must be receiving media content information from the systems which saved the auxiliary storage pool device information.
+</p>
+<p>
+<strong>Note:     </strong>To recover objects in auxiliary storage pool devices saved on other systems, the current system must have devices which support the density of the media volumes containing the saved items.
+</p>
+<h3><strong>Element 1: From system </strong>
+</h3>
+<p>Specifies the system where the auxiliary storage pool device was saved.
+</p>
+<dl>
+<dt><strong class="underlined">*LCL</strong></dt>
+<dd>Include auxiliary storage pool devices saved on the current system in the recovery.
+</dd>
+<dt><strong class="italic">system-name</strong></dt>
+<dd>Include auxiliary storage pool devices saved on the specified system in the recovery.
+</dd>
+<dt><strong class="italic">network-id.system-name</strong></dt>
+<dd>Include auxiliary storage pool devices saved on the specified system in the recovery.  Format of the system name is nnnnnnnn.cccccccc where nnnnnnnn is the network identifier and cccccccc is the default local location name.
+</dd>
+</dl>
+<h3><strong>Element 2: Auxiliary storage pool </strong>
+</h3>
+<p>Specifies the name of the auxiliary storage pool device.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>Include all auxiliary storage pool devices in the recovery.
+</dd>
+<dt><strong class="italic">auxiliary-storage-pool-name</strong></dt>
+<dd>Include the auxiliary storage pool device identified by this name in the recovery.
+</dd>
+</dl>
+<h3><strong>Element 3: Objects </strong>
+</h3>
+<p>Specifies the type of objects.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>Include all objects in the recovery.
+</dd>
+<dt><strong>*LIB</strong></dt>
+<dd>Include only library objects in the recovery.
+</dd>
+<dt><strong>*LNK</strong></dt>
+<dd>Include only directory and file objects in the recovery.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.CTLGRP"></a>
+<h2>Control group selection (CTLGRP)</h2>
+<p>Specifies the name of the control group that you want to restore.  The CTLGRP parameter is a required field when the <strong>Option (OPTION)</strong> parameter contains *CTLGRP.  You can specify a single control group or you can specify multiple control groups and sequence the order in which they are restored.
+</p>
+<p>When you want to select a control group or groups from a list of control groups, specify *SELECT in the CTLGRP parameter and press Enter.  You are taken to the Select and Sequence Control Groups display where all control groups that are in the media content information are displayed.  You can select and sequence each control group that you want to restore by putting a sequence number by each control group to establish a relative restore order.  Sequence numbers can range from 1 to 99.  Up to 300 control groups can be selected and can share the same sequence number.
+</p>
+<p>If the full and incremental saves are done in different control groups, it would be necessary to specify both control groups in order for the incremental entries to be selected.  For example you could specify STRRCYBRM OPTION(*CTLGRP) CTLGRP((A) (B)).
+</p>
+<p>A sequence number can be used with the control group names to ensure the sequence of the entries on the report.  Do not sequence the incremental control group ahead of the full control group.  If this is done, the full save will be restored over the incremental.  It is a good idea to use different sequence numbers for control groups that are running at the same time.  Otherwise there may be alot of loading and unloading of different tapes.  For instance, control group C runs at the same time as A, and D the same time as B.  In this case STRRCYBRM OPTION(*CTLGRP) CTLGRP((A 10) (C 10) (B 20) (D 20) may be an appropriate use of sequence numbers.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*SELECT</strong></dt>
+<dd>You want to select a control group or groups from a list of control groups to restore from the media content information.  This parameter can not be used in batch operations.
+</dd>
+</dl>
+<h3><strong>Other values (up to 300 repetitions)</strong>
+</h3>
+<h3><strong>Element 1: Control group </strong>
+</h3>
+<dl>
+<dt><strong>*NONE</strong></dt>
+<dd>You want to restore data that is not associated with a control group.
+</dd>
+<dt><strong>*BKUGRP</strong></dt>
+<dd>You want to restore the backup user data control group.
+</dd>
+<dt><strong>*SYSGRP</strong></dt>
+<dd>You want to restore the system data control group.
+</dd>
+<dt><strong>*SYSTEM</strong></dt>
+<dd>You want to restore the backup entire system control group.
+</dd>
+<dt><strong class="italic">control-group-name</strong></dt>
+<dd>Specify the name of the control group that you want to restore.
+</dd>
+</dl>
+<h3><strong>Element 2: Sequence number </strong>
+</h3>
+<dl>
+<dt><strong class="italic">sequence-number</strong></dt>
+<dd>Specify a number from 1 to 99 to indicate the order in which you want to restore selected control groups.  You can specify the same sequence number on several control groups.
+<p>
+<strong>Note:     </strong>The sequence number is ignored if *NONE is specified in the CTLGRP parameter.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.OMITLIB"></a>
+<h2>Libraries to omit (OMITLIB)</h2>
+<p>Specifies the libraries you want to omit from recovery.  You can choose to includes all libraries, or exclude deleted libraries and/or specifies libraries, and/or generic libraries. Up to 25 iterations can be specified.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*DELETE</strong></dt>
+<dd>Exclude deleted libraries from the recovery.  Please note that only libraries deleted before the last run of Start Maintenance for BRM (STRMNTBRM) will be omitted.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>Include all libraries in the recovery.
+</dd>
+</dl>
+<h3><strong>Other values (up to 25 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Exclude the named library from recovery.
+</dd>
+<dt><strong class="italic">*generic-library-name</strong></dt>
+<dd>Exclude libraries beginning with this generic name from recovery.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.ALWDUP"></a>
+<h2>Allow duplicate entries (ALWDUP)</h2>
+<p>Specifies whether to allow duplicate entries in the list of control groups that you can select to restore.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Duplicate control group entries are not allowed in the Select and Sequence Control Groups display.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Duplicates are allowed in the Select and Sequence Control Groups display.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.LOC"></a>
+<h2>Volume locations to include (LOC)</h2>
+<p>Specifies the locations that you want to include in the recovery.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>Include all locations that have been set up in BRMS.
+</dd>
+</dl>
+<h3><strong>Other values (up to 10 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong>*HOME</strong></dt>
+<dd>Include the home location in the recovery.
+</dd>
+<dt><strong class="italic">location-name</strong></dt>
+<dd>Specify the name of the location that you want to include in the recovery.  You can specify up to 10 locations.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.OMITLOC"></a>
+<h2>Volume locations to omit (OMITLOC)</h2>
+<p>Specifies the locations that you want to omit from the recovery.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No locations are omitted from the recovery.
+</dd>
+</dl>
+<h3><strong>Other values (up to 10 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong>*HOME</strong></dt>
+<dd>Omit the home location in the recovery.
+</dd>
+<dt><strong class="italic">location-name</strong></dt>
+<dd>Specify the name of the location that you want to omit from the recovery.  You can specify up to 10 locations.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.SHWDLTLIB"></a>
+<h2>Show deleted libraries (SHWDLTLIB)</h2>
+<p>Specifies whether to show the list of deleted libraries that have been excluded from the recovery report. The list of deleted libraries can become long and significantly increase the size of the recovery report.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is only used when special value *DELETED is specified on the <strong>Libraries to omit (OMITLIB)</strong> parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*YES</strong></dt>
+<dd>Show the list of deleted libraries in the recovery report.
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>Do not show the list of deleted libraries in the recovery report.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.OVERRIDE"></a>
+<h2>Override recovery element (OVERRIDE)</h2>
+<p>Specifies whether you want to use a different time period for a specific recovery element selected for recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Indicates that you do not want to specify a different date and time range for a specific recovery element.
+</dd>
+<dt><strong class="italic">*YES</strong></dt>
+<dd>Indicates that you want to specify a different date and time range for a specific recovery element.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.RCYELEM"></a>
+<h2>Recovery element override (RCYELEM)</h2>
+<p>Specifies the recovery element for which the new date and time period will be used in the recovery.
+</p>
+<p>
+<strong>Note:     </strong>This parameter will be ignored if *NO is specified in the OVERRIDE parameter.
+</p>
+<h3><strong>Element 1: Recovery element to override </strong>
+</h3>
+<p>Specifies the recovery element that will be included in the report for the new date and time period specified.
+</p>
+<p>
+<strong>Note:     </strong>When *ALLSYS is specified, no other recovery element is allowed.
+</p>
+<dl>
+<dt><strong class="underlined">*ALLSYS</strong></dt>
+<dd>Specifies that you want to recover all the system data, which includes *SAVSYS, *SECDTA and *SAVCFG.
+</dd>
+<dt><strong class="italic">*SAVSYS</strong></dt>
+<dd>Specifies that you want to recover the operating system based on the BRMS media content information.
+</dd>
+<dt><strong class="italic">*SECDTA</strong></dt>
+<dd>Specifies that you want to recover the security data.
+</dd>
+<dt><strong class="italic">*SAVCFG</strong></dt>
+<dd>Specifies that you want to recover the configuration data.
+</dd>
+</dl>
+<h3><strong>Element 2: Time period for recovery </strong>
+</h3>
+<p>Specifies the period of time for which the recovery items are selected for recovery.  Selected items are either included in the recovery report or recovered.  This is dependent on the value specified in the <strong>Action (ACTION)</strong> parameter.
+</p>
+<h3><strong>Element 1: Start time and date</strong>
+</h3>
+<h3><strong>Element 1: Beginning time</strong>
+</h3>
+<p>One of the following is used to specify the beginning time at which or after recovery items are included.  Any items created before the specified time and date are not included in the recovery items selected for recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*AVAIL</strong></dt>
+<dd>Any time that is available for the specified beginning date is included.
+</dd>
+<dt><strong class="italic">begin-time</strong></dt>
+<dd>Specify the beginning time for the specified beginning date that indicates which recovery items are to be included.
+<p>The time is specified in 24-hour format and can be specified with or without a time separator:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh=hours, mm=minutes and ss=seconds.  Hours, minutes, and seconds must each be exactly 2 digits (using leading zeros if necessary).
+</li>
+<li class="cds--list__item">With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds.  If you enter this command from the command line, the string must be enclosed in apostrophes.  If a time separator other than the separator specified for your job is used, this command will fail.
+</li>
+</ul>
+</dd>
+</dl>
+<h3><strong>Element 2: Beginning date</strong>
+</h3>
+<p>One of the following is used to specify the beginning date on or after which the recovery items must have been saved.  Any entries saved prior to the specified date are not included in the recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*BEGIN</strong></dt>
+<dd>Recovery items from the beginning of the media content information in BRMS are recovered.
+</dd>
+<dt><strong>*CURRENT</strong></dt>
+<dd>Recovery items whose save date is the current date, and between the specified beginning and ending times (if specified) are recovered.
+</dd>
+<dt><strong class="italic">begin-date</strong></dt>
+<dd>Specify the beginning date.  The date must be specified in the job date format.
+</dd>
+</dl>
+
+
+<h3><strong>Element 2: End time and date</strong>
+</h3>
+<h3><strong>Element 1: Ending time</strong>
+</h3>
+<p>One of the following is used to specify the ending time before which recovery items are included.  Any items created after the specified time and date are not included in the recovery items selected for recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*AVAIL</strong></dt>
+<dd>Any time that is available for the specified ending date is included.
+</dd>
+<dt><strong class="italic">end-time</strong></dt>
+<dd>Specify the ending time for the specified ending date that indicates which recovery items are to be included.
+</dd>
+</dl>
+<h3><strong>Element 2: Ending date</strong>
+</h3>
+<p>One of the following is used to specify the ending date on which or before which the recovery items must have been saved.  Any recovery items created after the specified date are not included in the recovery operation.
+</p>
+<dl>
+<dt><strong class="underlined">*END</strong></dt>
+<dd>The recovery items to the end of the media content information in BRMS are recovered.
+</dd>
+<dt><strong>*CURRENT</strong></dt>
+<dd>Recovery items whose save date is on or before the current date are included in the recovery.
+</dd>
+<dt><strong class="italic">end-date</strong></dt>
+<dd>Specify the ending date.  The date must be specified in the job date format.
+</dd>
+</dl>
+
+
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.FROMSYS"></a>
+<h2>From system (FROMSYS)</h2>
+<p>Specifies the location and network identification of the system from which you want to restore media information to the local system.
+</p>
+<p>
+<strong>Note:     </strong>Use the Display Network Attributes (DSPNETA) command to view the system network attributes.
+</p>
+<dl>
+<dt><strong class="underlined">*LCL</strong></dt>
+<dd>Specifies that the from-system is the local system.  BRMS uses the <strong>Default local location name (LCLLOCNAME)</strong> network attribute and not the <strong>System name (SYSNAME)</strong> network attribute to determine the current system name. In most cases, the systems have the same value specified for LCLLOCNAME as for SYSNAME.
+</dd>
+<dt><strong class="italic">location-name</strong></dt>
+<dd>Specifies the <strong>Default local location name (LCLLOCNAME)</strong> network attribute of the remote system for the network operation.  The current system <strong>Local network ID (LCLNETID)</strong> network attribute is used to connect with the remote system.
+</dd>
+<dt><strong class="italic">network-id.location-name</strong></dt>
+<dd>Specifies the <strong>Local network ID (LCLNETID)</strong> and the <strong>Default local location name (LCLLOCNAME)</strong> network attributes of the remote system for the network operation.  Specify these values using the format nnnnnnnn.cccccccc where nnnnnnnn is the LCLNETID and cccccccc is the LCLLOCNAME.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.PRTSYSINF"></a>
+<h2>Print system information (PRTSYSINF)</h2>
+<p>Specifies whether you want to include system information in recovery reports that you print when processing this command.  If you specify *YES, the Print System Information (PRTSYSINF) command is processed.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Do not included system information when recovery reports are printed.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Include system information when recovery reports are printed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table24" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.USEDUPMED"></a>
+<h2>Use duplicate media (USEDUPMED)</h2>
+<p>Specifies whether you want to use the original save media or duplicate save media when selecting history items for recovery.  You may want to use this option if you move your original media offsite and keep duplicates of the original media onsite.
+</p>
+<p>
+<strong>Note:     </strong>USEDUPMED is used to indicate that you want to include either the original save media or the duplicate save media, <strong>but not both.</strong>  If you want to include both the original save media and the duplicate save media in your recovery, create the QUSRBRM/Q1AIGNRDUP data area.
+</p>
+<p>The default value is *NO.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Specifies you want to use only the original save media when selecting history items for recovery.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Specifies you want to use duplicate media when selecting history items for recovery.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table25" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.USRRCYINF"></a>
+<h2>User recovery (USRRCYINF)</h2>
+<p>Specifies whether you want user recovery information added to the BRMS Recovery Report (QP1ARCY) created by this command.
+</p>
+<h3><strong>Usage notes: </strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">User recovery information can be included in the recovery report by adding records containing the information to the appropriate members of file QO1AUSRRCY in library QUSRBRM.  Add records to member PROLOG to include user recovery information to the prolog information in the report. Add records to members STEPnnn to include user recovery information to specific steps in the report, where nnn is the step number as it appears on the report. Up to 92 bytes of user recovery information can be added to each record. There is no limit to the number of records.
+</li>
+<li class="cds--list__item">User recovery information is added to the report following the BRMS information and before any saved items in the step. This information will be clearly highlighted on the report as user recovery information.
+</li>
+<li class="cds--list__item">Each record is read sequentially from the file member, starting from the first record and ending with the last record, and will be added to the report in the same order as read. Each record will be placed on the report following the last printed line starting in column 8.
+</li>
+<li class="cds--list__item">The user is responsible for all spacing, positioning and translation of the recovery information in each record.
+</li>
+<li class="cds--list__item">The user is responsible for assuring the accuracy of the user recovery information.
+</li>
+<li class="cds--list__item">The step numbers in the report differ depending on the value of the <strong>Option (OPTION) </strong>parameter and the content of the recovery. If the OPTION or content is changed, the names of the members in file QO1AUSRRCY may need to be renamed accordingly. The step numbers should be consistent if the report type and saved item content are consistent.
+</li>
+<li class="cds--list__item">No exception is signaled if user recovery information is requested but no records are found in the members.
+</li>
+</ol>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Specifies no user recovery information is available for the report.
+</dd>
+<dt><strong>*ADD</strong></dt>
+<dd>Specifies user recovery information is available and is to be added to the report.
+<p>
+<strong>Note:     </strong>This value can only be specified if *REPORT is specified for the <strong>Action (ACTION) </strong>parameter.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table26" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.RCYORDLST"></a>
+<h2>Recovery order list (RCYORDLST)</h2>
+<p>Specifies an object list that you want to use to determine the order of recovery.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Indicates that you are not using an object list to determine the order of recovery.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the object list that contains libraries that will determine the recovery order. These libraries will be listed prior to any other user libraries that will be recovered.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table27" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRRCYBRM.VOLSUMORD"></a>
+<h2>Volume summary order (VOLSUMORD)</h2>
+<p>Specifies the order you want the volumes to be listed in the BRMS Recovery Volume Summary Report (QP1A2RCY).
+</p>
+<dl>
+<dt><strong class="underlined">*VOLNAME</strong></dt>
+<dd>Specifies you want to order the volume list alphabetically.
+</dd>
+<dt><strong>*RCYRPT</strong></dt>
+<dd>Specifies you want to order the volume list using the initial order that the volumes appear in the BRMS Recovery Report (QP1ARCY).
+</dd>
+<dt><strong>*VOLCRTDAT</strong></dt>
+<dd>Specifies you want to order the volume list in descending order by the volume creation date.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table28" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="STRRCYBRM.COMMAND.EXAMPLES"></a>
+<h2>Examples for STRRCYBRM</h2>
+<h3><strong>Example 1: Print the Recovering Your Entire System Report</strong>
+</h3>
+<p>
+</p><pre>STRRCYBRM OPTION(*SYSTEM)
+</pre>
+<p></p>
+<p>This command produces a recovery report to assist you in restoring the entire system which includes the system (1) and basic user (2-32) auxiliary storage pools and any auxiliary storage pool devices.
+</p>
+<h3><strong>Example 2: Omit Libraries from the Recovering Your Entire System Report</strong>
+</h3>
+<p>
+</p><pre>STRRCYBRM OPTION(*SYSTEM) OMITLIB(*DELETE QSC*)
+</pre>
+<p></p>
+<p>This command produces a report to assist you in recovering the entire system which includes the system (1) and basic user (2-32) auxiliary storage pools and any auxiliary storage pool devices.  However, deleted libraries and libraries beginning with the generic name QSC* are omitted from the report.
+</p>
+<h3><strong>Example 3: Customize STEP 002 of the Recovering Your Entire System Report</strong>
+</h3>
+<p>Enter the following command to work with the user recovery information file.
+</p>
+<p>
+</p><pre>WRKMBRPDM FILE(QUSRBRM/QO1AUSRRCY) MBR(STEP002)
+</pre>
+<p></p>
+<p>Edit the member using option 2=Edit on member STEP002. Enter the detailed user recovery information you want added to the report. When finished, exit the Edit display and indicate on the Exit display to save the edit session changes.
+</p>
+<p>Run the following command to print the report and validate the user recovery information in STEP 002.  Use the same command to generate all future reports using the user recovery information.
+</p>
+<p>
+</p><pre>STRRCYBRM OPTION(*SYSTEM) USRRCYINF(*ADD)
+</pre>
+<p></p>
+<p>The above steps show how to customized STEP 002 in the Recovering Your Entire System Report by adding your own user recovery information. You might do this to provide your system operators with special detailed guidance unique to your recovery. You can do this with any or all steps in the report.
+</p>
+<h3><strong>Example 4: Print the Recovering Your Entire System Report for the Base System</strong>
+</h3>
+<p>
+</p><pre>STRRCYBRM OPTION(*SYSBAS)
+</pre>
+<p></p>
+<p>This command produces a report to assist you in restoring the base system which includes the system (1) and basic user (2-32) auxiliary storage pools, excluding any auxiliary storage pool devices.
+</p>
+<h3><strong>Example 5: Print the Recovering Your Entire System Report for Auxiliary Storage Pool 2</strong>
+</h3>
+<p>
+</p><pre>STRRCYBRM OPTION(*ASP) ASP(2)
+</pre>
+<p></p>
+<p>This command produces a report to assist you in restoring saved items to basic user auxiliary storage pool 2.
+</p>
+<h3><strong>Example 6: Restore Auxiliary Storage Pool Device MYASP</strong>
+</h3>
+<p>
+</p><pre>STRRCYBRM OPTION(*ASP) ACTION(*RESTORE) ASP(MYASP)
+</pre>
+<p></p>
+<p>This command present the <strong>Select Recovery Items</strong> display containing a list of storing objects saved items from auxiliary storage pool device MYASP.
+</p>
+<h3><strong>Example 7: Entire System Recovery Report with a Switched Auxiliary Storage Pool Device</strong>
+</h3>
+<p>
+</p><pre>STRRCYBRM ACTION(*REPORT) OPTION(*SYSTEM)
+          ASPDEV(SYSTEM_B  PAYROLL)
+</pre>
+<p></p>
+<p>This command produces a report to assist you in restoring the current system including auxiliary storage pool device PAYROLL saved on SYSTEM_B. SYSTEM_B is a system in the BRMS network and is networking media information about its saves to the current system.
+</p>
+<h3><strong>Example 8: Applying Journal Changes </strong>
+</h3>
+<p>
+</p><pre>STRRCYBRM OPTION(*APYJRNCHG) JRN(*JRNLST)
+</pre>
+<p></p>
+<p>This command prompts the BRMS <strong>Work with Journals using BRMS </strong>display. The display will be populated with the names of journals which have been saved using BRMS.  Use <strong>Option 1=Apply changes</strong> to show the associated journals receivers on the <strong>Apply Journal Changes using BRMS </strong>display, then use <strong>F16=Apply changes</strong> to apply journal changes.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table29" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="STRRCYBRM.ERROR.MESSAGES"></a>
+<h2>Error messages for STRRCYBRM</h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>BRM1177</strong></dt>
+<dd>Cannot establish connection with remote system &amp;1.
+</dd>
+<dt><strong>BRM1917</strong></dt>
+<dd>Feature not installed.
+</dd>
+<dt><strong>BRM1921</strong></dt>
+<dd>Feature not licensed.
+</dd>
+<dt><strong>BRM4040</strong></dt>
+<dd>Access denied for user &amp;1.
+</dd>
+<dt><strong>BRM40A2</strong></dt>
+<dd>BRMS product initialization required.
+</dd>
+<dt><strong>BRM61FF</strong></dt>
+<dd>Recovery completed with errors.
+</dd>
+<dt><strong>CPF9800</strong></dt>
+<dd>All CPF98xx messages could be signaled. xx is from 01 to FF.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table30" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRRCYBRM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

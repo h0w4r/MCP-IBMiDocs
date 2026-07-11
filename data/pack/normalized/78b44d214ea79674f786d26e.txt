@@ -1,0 +1,470 @@
+Save S/36 File (SAVS36F)
+
+Save S/36 File (SAVS36F)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Save System/36 File (SAVS36F) command can create:
+
+- a copy of a single database physical file or logical file to diskette, tape magnetic media or another database physical file in the same format as if a System/36 has saved the file.
+
+- a copy of multiple database physical files or logical files to diskette or tape magnetic media in the same format as if a System/36 had saved the files as a save all set. The files can be all files in a library, all files that are not part of a file group, all files in a specific file group, or all files that begin with a specified set of characters.
+
+A Save All Set is a group (set) of files that share the same group (set) name and that are saved (copied) to diskette or tape with one operation. The set of files can be restored (copied back from diskette or tape) with a single operation by referring to the set name (see the Restore System/36 Files (RSTS36F) command).
+
+File groups are defined by file names that contain a period. The characters preceding the period identify the file group, and the characters following the period identify the file within the group. As with file names within the System/36 environment, the maximum number of characters is eight, including the period. Files with names that do not contain a period are not part of a file group. The following examples show the names of files within a file group.
+
+PAYROL.A
+PAYROL.B Files in File Group PAYROL
+PAYROL.C
+A.ACCTS
+A.INV
+A.PROL Files in File Group A
+A.B.GO
+A.B.INV
+A.B.GO
+A.B.INV Files in File Group A.B
+
+The saved files can be restored to the following systems:
+
+- System/36 (RESTORE procedure or $COPY utility)
+
+- i5/OS (Restore System/36 File (RSTS36F) command)
+
+The SAVS36F command is intended for exchanging files with a System/36. For creating a backup version of a file, the i5/OS save commands (for example, Save Object (SAVOBJ) or Save Changed Object (SAVCHGOBJ)) should be used.
+
+Restrictions:
+
+- The following authorities are required (normally only applies when running on a system using resource security):
+
+*USE authority for this command.
+
+*USE authority for the file or group of files specified in the FROMFILE parameter.
+
+*USE authority for the library specified in the FROMLIB parameter.
+
+*CHANGE authority to the file specified on the PHYFILE parameter if saving to an existing physical file.
+
+*USE authority for the library specified in the PHYFILE parameter if saving to a physical file.
+
+*CHANGE authority for the library specified in the PHYFILE parameter if saving to a physical file and the file does not exist.
+
+*USE authority for the diskette device description object, *USE authority for device file QSYSDKT, in library QSYS if saving to diskette.
+
+*USE authority for the tape device description object, *USE authority for device file QSYSTAP, in library QSYS if saving to tape.
+
+*USE authority for the based-on physical file if saving a logical file.
+
+- All diskettes that are used for the save operation should be initialized using the INZDKT CL command or the equivalent System/36 environment function (INIT operator control language (OCL) procedure or $INIT SSP utility). For a two-sided diskette, use a sector size of 256 or 1024. For a one-sided diskette, use a sector size of 128 or 512. If tape is used, each tape volume used should have been initialized with standard labels using the INZTAP CL command or the equivalent System/36 environment function (TAPEINIT OCL procedure or $TINIT SSP utility). Use a density of 1600 bits per inch when initializing the tape.
+
+Note: If the tape or diskette has not been initialized as stated above, the System/36 will not be able to process the media.
+
+- Object-level and record-level functions, other than read operations, should not be attempted for a file being saved by SAVS36F. Concurrent activity against the file (for example, moving the file or adding or removing records) can cause:
+
+For a save operation of a single file (FROMFILE(file-name)), the save operation will end with escape message CPF9826 because the file cannot be allocated.
+
+For a save operation of multiple files (FROMFILE(*ALL or generic*-file-name)), the save function sends an inquiry message CPA2C6A because the file cannot be allocated. The message allows an ignore, retry and cancel response. The ignore response bypasses this file and attempts to save the next file selected.
+
+- When saving a single file to diskette, the diskette cannot already contain an active file with the same label and creation date as the new file to be created.
+
+- When saving multiple files to diskette, the diskette used for the save cannot contain any active files.
+
+- Not all physical and logical files can be saved with the SAVS36F command.
+
+Only logical files created under the System/36 environment (for example, through the BLDINDEX OCL procedure) or through a DDM request from a System/36 system can be saved. These files are saved as System/36 alternative index files.
+
+All physical files created under the System/36 environment (for example, through the BLDFILE OCL procedure) or through a DDM request from a System/36 system are saved using information stored within the i5/OS file description. These files are saved as System/36 sequential, direct, or indexed physical files.
+
+Any physical files created by i5/OS commands or utilities can be saved as long as the record length is not greater than 4096. These files are saved as System/36 sequential files.
+
+- To generate a save format which can be processed by the System/36 RESTORE procedure, the following information is not saved:
+
+If saving a logical file, only the description of the file is saved. The index (or access path) is not saved.
+
+If saving an indexed (keyed) physical file, the data is saved but the index is not. The index will be rebuilt after the file is restored.
+
+- The following restrictions apply to naming standards:
+
+When saving a single file, the specified name (FROMFILE parameter) must meet naming standards. If not, message CPF0001 is sent when the SAVS36F command is processed.
+
+If a file name is found during a save operation of multiple files (FROMFILE(*ALL or generic*-file-name)) that does not meet the System/36 naming standards, diagnostic message CPF2C0E is sent and the file is not saved.
+
+- Multiple files (FROMFILE(*ALL) or FROMFILE(generic*-name)) cannot be saved to a physical file.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMFILE | From file | Generic name, name, *ALL | Required, Positional 1
+FROMLIB | From library | Name | Required, Positional 2
+DEV | Device | Single values: *PHYFILE
+Other values (up to 4 repetitions): Name | Required, Positional 3
+GROUP | File group qualifier | Character value, *ALL, *NONE | Optional
+SET | Set identifier | Character value, #SAVE | Optional
+TOLABEL | File label | Character value | Optional
+SEQNBR | Sequence number | 1-9999, *END | Optional
+VOL | Volume identifier | Values (up to 50 repetitions): Character value, *MOUNTED | Optional
+RETAIN | Retention period | 0-999, 1 | Optional
+ENDOPT | End of tape option | *REWIND, *LEAVE, *UNLOAD | Optional
+DTACPR | Data compression | *YES, *NO | Optional
+PHYFILE | Physical file | Qualified object name | Optional
+Qualifier 1: Physical file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MBROPT | Data base member option | *NOREPLACE, *REPLACE | Optional
+CRTDATE | Creation date | Date, *LAST, *ALL | Optional
+
+Top
+
+From file (FROMFILE)
+
+Specifies the name of the file being saved. The file specified must exist in the library specified in the From library prompt (FROMLIB parameter).
+
+This is a required parameter.
+
+file-name
+Specify the name of a single file to save.
+
+*ALL
+All files in the specified library are saved. To further describe which files are saved, use the File group qualifier prompt (GROUP parameter).
+
+generic*-file-name
+Specify a generic name of a group of files in the specified library to save. All files with the same prefix as the generic name are saved. A generic name is specified as a character string of one or more characters, followed by an asterisk.
+
+Top
+
+From library (FROMLIB)
+
+Specifies which library contains the database files to be saved.
+
+This is a required parameter.
+
+Top
+
+Device (DEV)
+
+Specifies the name of a diskette unit or the names of one or more tape devices. A maximum of four tape device names can be specified. If more than one tape device is used, enter the names of the devices in the order in which they are used. Each device name must be already known on the system by a device description.
+
+This is a required parameter.
+
+*PHYFILE
+A database physical file receives the copied file. The qualified name of the physical file must be specified on the Physical file prompt (PHYFILE parameter). *PHYFILE is not valid if *ALL or a generic*-file-name is specified for the From file prompt (FROMFILE parameter).
+
+device-name
+Specifies the name of the diskette unit or the names of one or more tape devices used for the save operation.
+
+Top
+
+File group qualifier (GROUP)
+
+Specifies which file groups are to be saved. This parameter is valid only if *ALL is specified for the From file prompt (FROMFILE parameter).
+
+*ALL
+All files are saved.
+
+*NONE
+No files that belong to a file group are saved. Only files that do not belong to file group are saved.
+
+group-name
+Specify the name of a file group. All files that belong to that file group are saved. Files that do not belong to the specified file group are not saved. A group name can be up to 7 characters in length. The first character in the name must be an alphabetic character (A through Z, #, @, or $). The remaining characters can be any combination of characters (numeric, alphabetic, and special) except commas (,), apostrophes ('), quotation marks ("), question mark (?), asterisk (*), or blanks. The period, which indicates a file group name, must not be included as part of the group name.
+
+Top
+
+Set identifier (SET)
+
+Specifies the set identifier used to identify the entire set of files to be saved. This parameter is valid only if *ALL or a generic name is specified for the From file prompt (FROMFILE parameter).
+
+#SAVE
+The default set identifier is used.
+
+set-identifier
+Specify the set identifier used to identify the entire set of files to be saved. The set identifier can be up to 8 characters in length. The first character in the name must be an alphabetic character (A through Z, #, @, or $). The remaining characters can be any combination of characters (numeric, alphabetic, and special) except commas (,), apostrophes ('), quotation marks ("), question mark (?), asterisk (*), or blanks.
+
+Top
+
+File label (TOLABEL)
+
+Specifies the label value (eight characters maximum) given to the new diskette or tape file created by the save operation of a single file. If no value is specified, the value of the From file prompt (FROMFILE parameter) is used as the diskette or tape label.
+
+This parameter is not allowed if *ALL or a generic name is specified for From file prompt (FROMFILE parameter).
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies, only when tape is used, which sequence number is used for the save operation.
+
+*END
+The specified file or files are saved starting after the last sequence number on the first tape (that is, this file follows all other files currently on the tape volume). If the first tape is full, an error message is issued and the operation ends. If the sequence number to be assigned to the specified file is greater than 9999, an error message is issued and the operation ends.
+If multiple files are saved, the next file is saved to a file after the first file that was saved, and so on. If the sequence number to be assigned ever exceeds 9999, an error message is issued and the operation ends.
+
+file-sequence-number
+Specify the sequence number of the tape file that is used for the save operation. Valid values range from 1 through 9999.
+If this sequence number already exists on the tape volume, the tape label at that sequence number must match the TOLABEL parameter. The existing file at that sequence number is overwritten, and all subsequent files on the volume are not accessible after the save.
+
+If a new tape file is added to the tape, the sequence number must be one higher than the sequence number of the last tape file on that volume. No gaps are allowed in the series of sequence numbers.
+
+If multiple files are being saved, this sequence number is used for the first file. All remaining files are saved as if *END was specified on the parameter SEQNBR. If the sequence number to be assigned ever exceeds 9999, an error message is issued and the operation ends.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifiers of the tape volumes on which the object data is to be saved. The volumes must be placed in the device in the same order as the volume identifiers are specified for this parameter.
+
+*MOUNTED
+The volume currently placed in the device is used.
+
+volume-identifier
+Specify the volume identifiers of the tapes or diskettes used for the save operation. A maximum of 50 volume identifiers can be specified.
+
+Top
+
+Retention period (RETAIN)
+
+Specifies the retention period for the newly created tape or diskette file. The file is protected and cannot be written over until the day after the retention period ends.
+
+1
+A retention period of one day is used.
+
+retention-period
+Specify the number of days the tape or diskette file should be kept. If a retention period of 999 is specified, the tape or diskette file becomes a permanent file.
+
+Top
+
+End of tape option (ENDOPT)
+
+Specifies, only when tape is used, what operation is automatically performed on the tape volume after the save operation ends. This parameter applies only to the last reel used.
+
+*REWIND
+The tape is rewound, but not unloaded.
+
+*LEAVE
+The tape is not rewound.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+Top
+
+Data compression (DTACPR)
+
+Specifies, when a diskette is used, whether the data is compressed into System/36 compatible format before it is written to the diskette. If the save command is operating while other jobs on the system are active and data compression is used, the overall system performance may be affected. This parameter is not valid if *PHYFILE or a tape device is specified on the Device prompt (DEV parameter).
+
+The possible values are:
+
+*NO
+The data is not compressed before being written to the diskette.
+
+*YES
+The data is compressed before being written to the diskette.
+
+Top
+
+Physical file (PHYFILE)
+
+Specifies the name of the file that receives the copied file. If the specified file does not exist, it is created in the current library as a non-keyed, program-described file with a record length of 256. The copied records are put in the first member of the physical file. If the file has no members, a member is created using the system date.
+
+The possible library values are:
+
+*LIBL
+The library list is used to locate the file.
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the file is located.
+
+Top
+
+Data base member option (MBROPT)
+
+Specifies whether the new records replace or are added to the existing records.
+
+*NOREPLACE
+Specifies whether a file already exists by the name specified on the PHYFILE parameter in the specified library, an error message is sent and the data in that member is not replaced.
+
+*REPLACE
+The PHYFILE member is cleared before copying the first record.
+
+Top
+
+Creation date (CRTDATE)
+
+Specifies, for a date-differentiated file (maintained by the System/36 environment), which instance (member) of the file or files is saved. A date-differentiated file has the same name as another file but it has a different file creation date. On this system, date-differentiated files are multiple-member physical files.
+
+*LAST
+The most recently created member for the specified file or files are saved.
+
+*ALL
+All members in the date-differentiated file are saved. If the file being saved is not date differentiated, only the last member created in the file is saved. *ALL is valid only when *ALL or a generic file name is specified for From file prompt (FROMFILE parameter).
+
+file-creation-date
+Specify the creation date of the date-differentiated file member to save. A file creation date is valid only when a single file is saved, or a file name is specified on the From file prompt (FROMFILE parameter).
+
+Top
+
+Examples
+
+Example 1: Saving a Single File
+
+SAVS36F FROMFILE(PETE) FROMLIB(QS36F) DEV(I1)
+
+This command saves the file named PETE located in library QS36F. Assuming that I1 is the name of a diskette device description, the file is saved on the diskette placed in the diskette drive. The diskette file label is PETE (same as the FROMFILE name). If PETE is a date-differentiated physical file, the most recently created instance (member) of PETE is saved. The diskette file has a retention period of one day (the retention period ends at midnight of the following day).
+
+Example 2: Saving a Single File
+
+SAVS36F FROMFILE(MSTRPAY) FROMLIB(PAYLIB) DEV(T1 T2)
+TOLABEL('PAY.MSTR') RETAIN(999)
+
+This command saves the file named MSTRPAY located in library PAYLIB. Assuming that T1 and T2 are tape devices, the file is copied to the tapes on devices T1 and T2. The tape file label is PAY.MSTR and the tape file is a permanent file. The last tape used for the save is rewound at the end of the save operation.
+
+Example 3: Saving Multiple Files
+
+SAVS36F FROMFILE(*ALL) FROMLIB(QS36F) DEV(T1 T2)
+GROUP(*ALL) SET(ALLFL) RETAIN(999)
+
+This command saves all database physical and logical files in library QS36F (including all files that belong to a file group). If any of the files are date-differentiated files, only the last member created in each file is saved. Assuming that T1 and T2 are tape devices, the files are copied to the tape volumes that are placed in tape drives T1 and T2. The label of the tape files created are the same as the names of the files that are saved. The first tape file created is located after the last sequence number on the tape. The remaining files are located after that first file. The tape files created are permanent. The last tape used for the save is rewound at the end of the save operation. The set identifier associated with this save all set is ALLFL.
+
+Example 4: Saving Multiple Files
+
+SAVS36F FROMFILE(*ALL) FROMLIB(QS36F) DEV(T1 T2)
+GROUP(*NONE) CRTDATE(*LAST) SET(NOGFL) RETAIN(999)
+
+This command saves all database physical and logical files in library QS36F except those files that belong to a file group. If any of the files are date-differentiated files, only the last member created in each file is saved. Assuming that T1 and T2 are tape devices, the files are copied to the tape volumes that are placed in tape drives T1 and T2. The label of the tape files created is the same as the names of the files that are saved. The first tape file created is located after the last sequence number on the tape. The remaining files are located after that first file. The tape files created are permanent. The last tape used for the save is rewound at the end of the save operation. The set identifier associated with this save all set is NOGFL.
+
+Example 5: Saving Multiple Files
+
+SAVS36F FROMFILE(*ALL) FROMLIB(GRPLIB) DEV(I1)
+GROUP(GRP) CRTDATE(*ALL)
+
+This command saves all database physical and logical files in library GRPLIB that belong to file group GRP (GRP.01, GRP.02, and so on). If any of the files are date-differentiated files, all members in the files are saved. Assuming that I1 is a diskette drive, the files are copied to the diskette that is placed in the diskette drive. The label of the diskette files created is the same as the names of the files that are saved. The diskette files expire after one day. The set identifier associated with this save all set is #SAVE.
+
+Example 6: Saving Multiple Files
+
+SAVS36F FROMFILE(PAY*) FROMLIB(PAYROLL) DEV(I1)
+SET(PAYSET) CRTDATE(*LAST)
+VOL(PAYDKT) RETAIN(10)
+
+This command saves all database physical and logical files in library PAYROLL whose names begin with the characters PAY (PAY.01, PAYRATE, and so on). If any of the files are date-differentiated files, only the last member created is saved. Assuming that I1 is a diskette drive, the files are copied to a diskette with a volume identifier of PAYDKT. The label of the diskette files created is the same as the names of the files that are saved. The diskette files expire after ten days. The set identifier associated with this save all set is PAYSET.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2C4A
+Device &1 not correct for command.
+
+CPF2C4B
+Duplicate device &1 specified in device name list.
+
+CPF2C4C
+Diskette device &1 included in multiple device specification.
+
+CPF2C4F
+Diskette format not correct for DTACPR(*YES).
+
+CPF2C47
+Existing file &1 or member &3 in library &2 not replaced.
+
+CPF2C48
+Input file &1 in &2 not correct for command.
+
+CPF2C49
+Output file &1 in &2 not correct for command.
+
+CPF2C5B
+Not all files were saved.
+
+CPF2C5C
+Save operation ended before all files were saved.
+
+CPF2C5D
+No files saved from library &1.
+
+CPF2C5E
+Input file &1 in &2 not correct for command.
+
+CPF2C5F
+Tape file sequence numbers beyond 9999 not allowed.
+
+CPF2C50
+File description for file &1 is not available.
+
+CPF2C51
+Member information for file &1 in library &2 is not available.
+
+CPF2C52
+Error occurred during attempt to create file &1 in library &2.
+
+CPF2C54
+FROMFILE name &1 too long to use for TOLABEL parameter.
+
+CPF2C55
+TOLABEL parameter value &1 contains embedded blank(s).
+
+CPF2C56
+Physical file name &1 too long.
+
+CPF2C58
+Diskette format not acceptable for System/36.
+
+CPF2C59
+FROMFILE name &1 too long.
+
+CPF9810
+Library &1 not found.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9826
+Cannot allocate file &2.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9831
+Cannot assign device &1.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9848
+Cannot open file &1 in library &2 member &3.
+
+CPF9849
+Error while processing file &1 in library &2 member &3.
+
+*STATUS Messages
+
+CPI2C13
+Copying records from file &1 in library &2 member &3.
+
+Top

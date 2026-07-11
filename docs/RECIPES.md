@@ -7,7 +7,7 @@ sola respuesta final. No es necesario elegir categorías, buscar IDs ni encadena
 
 ```json
 {
-  "question": "Diagnostica RNF0004 durante la compilación de este fuente RPGLE y dime qué revisar.",
+  "question": "Diagnostica RNF5393 durante la compilación de este fuente RPGLE y dime qué revisar.",
   "language": "RPGLE",
   "code": "...fuente relacionado..."
 }

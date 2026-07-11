@@ -1,0 +1,236 @@
+Delete File (DLTF)
+
+Delete File (DLTF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Delete File (DLTF) command deletes one or more files from the system.
+
+If a database (physical or logical) file is deleted, all members contained in the file are also deleted. A physical file can be deleted only if no logical files are associated with it. If an intersystem communications function (ICF) file is deleted, all the program device entries contained in the file are also deleted. If the file being deleted is being used by a program (the file is open), the file is not deleted.
+
+A delete operation by generic name deletes every file with that generic name that is eligible to be deleted. For each file that cannot be deleted, a diagnostic message is sent. Files can be ineligible to be deleted for the following reasons:
+
+- Logical files must be deleted before the physical files on which they are based can be deleted.
+
+- SQL views must be deleted before the physical files, SQL tables, or SQL views on which they are based can be deleted.
+
+Restrictions:
+
+- You must have object existence (*OBJEXIST) and object operational (*OBJOPR) authorities for the file. You also need execute (*EXECUTE) authority for the library that contains the file.
+
+- If a physical file is being deleted and a logical file is using the data in the physical file, the logical file must be deleted first.
+
+- If a physical file or SQL view is referenced in the select-list of an SQL materialized query table, DLTF is not allowed. The materialized query table must be deleted first.
+
+- If the DLTF command is entered when debugging and UPDPROD(*NO) was specified on the Start Debug (STRDBG) or Change Debug (CHGDBG) command, a physical file that contains data and is in a production library cannot be deleted.
+
+- This command is conditionally threadsafe. In multithreaded jobs, this command is not threadsafe for distributed files and fails for distributed files that use relational databases of type *SNA. This command is also not threadsafe and fails for Distributed Data Management (DDM) files of type *SNA, when SYSTEM(*RMT) or SYSTEM(*FILETYPE) is specified.
+
+- *IOSYSCFG special authority is required to use this command for Distributed Data Management (DDM) files when SYSTEM(*RMT) or SYSTEM(*FILETYPE) is specified.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | File | Qualified object name | Required, Positional 1
+Qualifier 1: File | Generic name, name
+Qualifier 2: Library | Name, *LIBL, *CURLIB, *USRLIBL, *ALL, *ALLUSR
+SYSTEM | System | *LCL, *RMT, *FILETYPE | Optional
+RMVCST | Remove constraint | *RESTRICT, *REMOVE, *KEEP | Optional
+
+Top
+
+File (FILE)
+
+This is a required parameter.
+
+Specifies the file or files to be deleted. A specific file name or a generic file name can be specified.
+
+Files that are defined or established as parent or dependent files of a referential constraint can be deleted. If the file being deleted is a dependent file, the following items are also removed:
+
+- All constraint relationships for the dependent file
+
+- All foreign key access paths and foreign keys for the dependent file
+
+If the file being deleted is a parent file, the Remove constraint (RMVCST) parameter is used to specify the constraint relationships to be removed.
+
+Qualifier 1: File
+
+generic-name
+Specify the generic name of the file being deleted. A generic name can be specified as a character string that contains one or more characters followed by an asterisk (*).
+
+name
+Specify the name of the file to be deleted.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no current library exists in the library list, library QGPL is searched.
+
+*USRLIBL
+If a current library entry exists in the library list for the current thread, the current library and the libraries in the user portion of the library list are searched. If there is no current library entry, only the libraries in the user portion of the library list are searched.
+
+*ALL
+All libraries in the system, including QSYS, are searched. If an object name is specified (instead of a generic name), the first object found with that name is deleted.
+
+*ALLUSR
+All user libraries are searched. All libraries with names that do not begin with the letter Q are searched except for the following:
+
+#CGULIB #DSULIB #SEULIB
+#COBLIB #RPGLIB
+#DFULIB #SDALIB
+
+Although the following Qxxx libraries are provided by IBM, they typically contain user data that changes frequently. Therefore, these libraries are considered user libraries and are also searched:
+
+QDSNX QSYS2 QUSRINFSKR QWQCENT
+QGPL QSYS2xxxxx QUSRNOTES QWQREPOS
+QGPL38 QS36F QUSROND
+QMPGDATA QUSER38 QUSRPOSGS
+QMQMDATA QUSRADSM QUSRPOSSA
+QMQMPROC QUSRBRM QUSRPYMSVR
+QPFRDATA QUSRDIRCF QUSRRDARS
+QRCL QUSRDIRCL QUSRSYS
+QRCLxxxxx QUSRDIRDB QUSRVI
+QSRVAGT QUSRIJS QUSRVxRxMx
+
+- 'xxxxx' is the number of a primary auxiliary storage pool (ASP).
+
+- A different library name, in the format QUSRVxRxMx, can be created by the user for each previous release supported by IBM to contain any user commands to be compiled in a CL program for the previous release. For the QUSRVxRxMx user library, VxRxMx is the version, release, and modification level of a previous release that IBM continues to support.
+
+Top
+
+System (SYSTEM)
+
+Specifies whether the file is deleted from the local system or from a remote system.
+
+*LCL
+The file is deleted from the local system.
+
+*RMT
+The file is deleted from a remote system. A DDM file must be specified for the File (FILE) parameter. The DDM file identifies the file to be deleted and also identifies the remote system.
+
+*FILETYPE
+The file is deleted from the local system if a DDM file is not specified for the FILE parameter. If a DDM file is specified for the FILE parameter, the remote file identifier in the DDM file is deleted from the remote system.
+
+Top
+
+Remove constraint (RMVCST)
+
+Specifies how much of the constraint relationships are removed in the associated set of dependent files when you are deleting a parent file of a referential constraint.
+
+*RESTRICT
+The parent file is not deleted and the constraint relationship is not removed if a constraint relationship is defined or established between the parent file and a dependent file. Neither the foreign key access path nor the foreign key of the dependent file is removed.
+
+*REMOVE
+The constraint relationship between the parent file and a dependent file is removed. The corresponding foreign key access path (if one exists and is not shared) and foreign key of a dependent file are removed.
+
+*KEEP
+The constraint relationship is no longer established, but the constraint definition is not removed. Neither the foreign key access path nor the foreign key of the dependent file is removed.
+
+Top
+
+Examples
+
+Example 1: Deleting a Specific File
+
+DLTF FILE(BILLING/ORDERS)
+
+This command deletes the file named ORDERS in library BILLING. Only the BILLING library is searched for the file.
+
+Example 2: Deleting a Parent File of a Referential Constraint
+
+DLTF FILE(BILLING/QUERIES) RMVCST(*KEEP)
+
+This command deletes the file named QUERIES in the library BILLING. Because the QUERIES file is a parent file of a referential constraint, the established referential constraint is removed, but the definition of the constraint is not removed.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0601
+Not allowed to do operation to file &1 in &2.
+
+CPF0605
+Device file &1 in &2 saved with storage freed.
+
+CPF0607
+File deleted by another job.
+
+CPF0610
+File &1 in &2 not available.
+
+CPF0675
+Device file &1 in &2 is in use.
+
+CPF2105
+Object &1 in &2 type *&3 not found.
+
+CPF2110
+Library &1 not found.
+
+CPF2114
+Cannot allocate object &1 in &2 type *&3.
+
+CPF2117
+&4 objects type *&3 deleted. &5 objects not deleted.
+
+CPF2125
+No objects deleted.
+
+CPF2182
+Not authorized to library &1.
+
+CPF2189
+Not authorized to object &1 in &2 type *&3.
+
+CPF2190
+Not able to do remote delete or rename request.
+
+CPF320B
+Operation was not valid for database file &1.
+
+CPF3202
+File &1 in library &2 in use.
+
+CPF3203
+Cannot allocate object for file &1 in &2.
+
+CPF3219
+Cannot delete file or member of file &1 in &2.
+
+CPF3220
+Cannot do operation on file &1 in &2.
+
+CPF323C
+QRECOVERY library could not be allocated.
+
+CPF324B
+Cannot allocate dictionary for file &1.
+
+CPF3252
+Maximum number of machine locks exceeded.
+
+CPF326A
+Operation not successful for file &1 in library &2.
+
+CPF327F
+Operation not successful for file &1 in library &2.
+
+CPF3273
+File or member not created, deleted or changed.
+
+Top

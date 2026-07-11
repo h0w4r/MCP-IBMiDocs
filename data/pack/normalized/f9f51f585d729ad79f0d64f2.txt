@@ -1,0 +1,496 @@
+Start Backup using BRM (STRBKUBRM)
+
+Start Backup using BRM (STRBKUBRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Backup using BRM (STRBKUBRM) command selects a control group to back up. You can start the backup immediately or you can schedule it using the system job scheduler. Processing can be batch or interactive.
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Restrictions:
+
+- This command should not be used by control group *EXIT item processing as results will be unpredictable.
+
+- You must have *USE authority to backup item exit programs and *EXECUTE authority to libraries containing the backup item exit programs.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CTLGRP | Control group | Name, *BKUGRP, *SYSGRP, *SYSTEM | Required, Positional 1
+SCDTIME | Schedule time | Decimal number, *IMMED | Optional
+SBMJOB | Submit to batch | *YES, *CONSOLE, *CTLSBS, *NO | Optional
+STRSEQ | Starting sequence | Element list | Optional
+Element 1: Number | 1-9999, *FIRST
+Element 2: Library | Name, *FIRST
+APPEND | Append to media | *CTLGRPATR, *BKUPCY, *NO, *YES | Optional
+JOBD | Job description | Single values: *USRPRF
+Other values: Qualified object name | Optional
+Qualifier 1: Job description | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+JOBQ | Job queue | Single values: *JOBD
+Other values: Qualified object name | Optional
+Qualifier 1: Job queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+ACTIVITY | Activity | *CTLGRPATR, *FULL, *INCR | Optional
+RETENTION | Retention | Element list | Optional
+Element 1: Retention type | *CTLGRPATR, *DAYS, *PERM
+Element 2: Retain media | 1-9999, 35
+DEV | Device | Values (up to 4 repetitions): Name, *CTLGRPATR, *MEDCLS | Optional
+PRLRSC | Parallel device resources | Element list | Optional
+Element 1: Minimum resources | 1-32, *CTLGRPATR, *NONE, *AVAIL
+Element 2: Maximum resources | 1-32, *MIN, *AVAIL
+MEDCLS | Media class | Character value, *CTLGRPATR, *SYSPCY | Optional
+MOVPCY | Move policy | Name, *CTLGRPATR, *NONE | Optional
+OMITS | Omits | *PROCESS, *IGNORE | Optional
+ALWRTY | Allow retry | *NO, *YES | Optional
+RTYTIMLMT | Retry time limit | 1-99999, *NOMAX | Optional
+RTYSTRSEQ | Retry starting sequence | *ERRSEQ, *STRSEQ, *NXTSEQ | Optional
+
+Top
+
+Control group (CTLGRP)
+
+Specifies the name of the control group that you want to schedule for backup.
+
+Backup control groups are groups of libraries, special values and lists that share common backup characteristics. You can create multiple backup control groups to complete your backup strategy.
+
+This is a required field.
+
+*BKUGRP
+The default backup control group is processed. The default backup user data control group is set up in the BRMS backup policy.
+
+*SYSGRP
+The default system backup control group is processed. The default backup system data control group is set up when BRMS is installed.
+
+*SYSTEM
+The default backup control group is processed. The default backup entire system control group is set up in the BRMS backup policy.
+
+control-group-name
+Specify the name of the backup control group, such as DAILY that you want to process.
+
+Top
+
+Schedule time (SCDTIME)
+
+Specifies the time that you want BRMS to begin processing the backup.
+
+*IMMED
+The backups are to begin immediately.
+
+start-time
+Specify the time in hour and minutes that you want the backup to begin. The time is expressed in 24 hour clock format 'hhmm'.
+
+Top
+
+Submit to batch (SBMJOB)
+
+Specifies how you want to process the selected control group.
+
+*YES
+Submits the processing of the control group to batch. The job is dependent on the job queue and job description specified on subsequent parameters.
+
+*CONSOLE
+Transfers the processing of the control group to the system console. This special value is used with the console monitoring function in BRMS.
+
+*CTLSBS
+Submits the control group to the Q1ACTLSBS job queue in the controlling subsystem for batch processing.
+
+Note: This special value is not supported in restricted state.
+
+Note: If the control group requires all subsystems to be ended, this special value should only be used if the backup can complete without operator intervention because the interactive system console job is ended and will not be available.
+
+If the control group requires all subsystems to be ended, system reference code A900 3C70 is displayed while the system is in restricted state. Unresponsive restricted state backups can be ended and the interactive system console job restarted in two ways:
+
+- Start DST from the control panel, sign on to DST, select option 14 - End batch restricted state.
+
+- Specify a value for Maximum time for backup on the System Policy which is large enough to allow the backup job to complete but small enough to end the backup job if the controlling subsystem has not been restarted in the specified time.
+
+*NO
+Performs the processing of the control group within the current job.
+
+Top
+
+Starting sequence (STRSEQ)
+
+Specifies the sequence number and library from which you want to restart backup processing.
+
+Note: If you are not restarting a control group, then you will always start at the first sequence number in the control group, regardless of the values specified in the STRSEQ parameter.
+
+Note: You can use the Library element of this parameter when *IBM, *ALLUSR, *ALLPROD, *ALLTEST,*ASPnn or a generic library name is specified as the Save item in the specified sequence number in the control group.
+
+Note: When *ALLUSR is specified for a control group entry, library QUSRBRM will be the last library saved. The *ALLUSR backup has to include libraries starting with Q and run to completion for QUSRBRM to be saved.
+
+Element 1: Number
+
+*FIRST
+Backup processing starts with the first item in the control group.
+
+sequence-number
+Specify the sequence number within the control group from which you want to restart backup processing.
+
+Element 2: Library
+
+*FIRST
+Backup processing starts with the first library in the specified sequence number.
+
+library-name
+Specify the name of the library within the sequence number from which you want to restart backup processing.
+
+Top
+
+Append to media (APPEND)
+
+Specifies whether you want to append the backup data for the backup processing you are restarting to an active volume.
+
+*CTLGRPATR
+Use the value from the control group for Append to media .
+
+*BKUPCY
+Use the value from the backup policy for Append to media .
+
+*NO
+Do not append backup data for the backup you are restarting to an active volume.
+
+*YES
+Append the backup data for the backup you are restarting to an active volume. Backup data is written to the volume immediately following the last active file on the volume.
+
+Top
+
+Job description (JOBD)
+
+Specifies the job description to be used with this job.
+
+Single values
+
+*USRPRF
+The job description in the user profile under which the submitted job runs is used as the job description of the submitted job.
+
+Qualifier 1: Job description
+
+name
+Specify the name of the job description used for the job.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the job description.
+
+*CURLIB
+The current library for the job is used to locate the job description. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library where the job description is located.
+
+Top
+
+Job queue (JOBQ)
+
+Specifies the job queue in which this job is placed.
+
+Single values
+
+*JOBD
+The submitted job is placed on the job queue named in the specified job description.
+
+Qualifier 1: Job queue
+
+name
+Specify the name of the job queue on which the submitted job is placed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the job queue.
+
+*CURLIB
+The current library for the job is used to locate the job queue. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the name of the library where the job queue is located.
+
+Top
+
+Activity (ACTIVITY)
+
+The Activity parameter allows you to specify the activity that is to be used when processing the control group. You can specify that the Weekly activity attribute of the control group entries is to be used or specify a specific type of activity which will override the Weekly activity attribute of the control group entries.
+
+Activity overrides must be enabled for the control group specified in the CTLGRP parameter when specifying a value other than *CTLGRPATR for the Activity parameter. The backup policy will have the same name as the control group name.
+
+Diagnostic message BRM400A is sent by the STRBKUBRM validity checking program if activity overrides are disabled and the value for the ACTIVITY parameter is not *CTLGRPATR.
+
+*CTLGRPATR
+Specifies the Weekly activity attribute of the control group entries is to be used when processing the control group. This is the default value.
+
+*FULL
+Specifies the Weekly activity attribute of the control group entries is to be overriden and processed as a full save. The override applies to all days of the week.
+
+*INCR
+Specifies the Weekly activity attribute of the control group entries is to be overriden and processed as a incremental save. The type of incremental save is determined by the current value of the Incremental type attribute of the control group. The override applies to all days of the week. Each entry in the control group will be processed when the command is run regardless of the current value specified for the Weekly activity attribute for the entry. This includes exit entries. If the control group entry does not support incremental saves, the entry will not be processed and diagnostic message BRM400F will be entered into the job log.
+
+Top
+
+Retention (RETENTION)
+
+The Retention parameter allows you to specify the retention attributes that are to be applied to objects saved by the control group. You can specify that the retention attributes of the media policies defined in the control group are to be used or specify new retention attributes which will override the media policy retention attributes.
+
+Retention overrides must be enabled for the control group specified in the CTLGRP parameter when specifying a value other than *CTLGRPATR for element 1 of the Retention. The backup policy will have the same name as the control group name.
+
+Diagnostic message BRM400B is sent by the STRBKUBRM validity checking program if retention overrides are disabled and the value for element 1 of the Retention parameter is not *CTLGRPATR.
+
+Element 1: Retention type
+
+*CTLGRPATR
+Specifies the retention attributes of the media policies defined in the control group are to be applied to the saved objects. This is the default value.
+
+*DAYS
+Specifies days retention is to be applied to all objects saved by this control group. Saved objects remain active for the specified number of days, after which the saved objects expire. The number-of-days must be specified in element 2 when using this retention type.
+
+*PERM
+Specifies a permanent retention is to be applied to all objects saved by this control group. Permanent retention means the saved objects remain active indefinitely or until explicitly expired.
+
+Element 2: Retain media
+
+number-of-days
+Specifies a number of days from 1-9999 that saved objects remain active.
+
+Top
+
+Device (Dev)
+
+Specifies the device or devices to be used by this command.
+
+Single values
+
+*CTLGRPATR
+Use the value from the control group for Device.
+
+*MEDCLS
+Devices for this policy or control group are selected based on device types that support the density for the media class specified in the media policy. The *MEDCLS special value is used for devices that are part of a device pool, such as several systems that share a single or set of devices. Devices are specified in the Work with Devices display.
+
+Note: If you want to use more than one device for a serial save operation, the *MEDCLS can be repeated up to four times, once for each device used, except for virtual tape devices which is limited to a single value. The Parallel Device Resource (PRLRSC) parameter must be *NONE. BRMS will attempt to use the maximum number of devices that can be allocated for a save operation. If you want to use more than one device for a parallel save operation the *MEDCLS must only be specified once and the PRLRSC minimum and maximum responses must be greater than one.
+
+Other values (up to 4 repetitions)
+
+Specifies the name of the devices to be used for the save operation. the specified device name must already be in the BRMS device table.
+
+Note: Multiple systems can share the use of a tape device or a media library device (MLB). When the device is a tape device (not an MLB device), BRMS can help you manage the use of the stand alone device by multiple systems if you indicate the device is shared.
+
+device-name
+Specify the names of one or more devices used for the save operation. If you are using more than one device (up to a maximum of four), specify the names of the devices in the order in which they are used.
+
+Note: When doing a serial save, only one media library device or one virtual device can be specified. When doing a parallel save, multiple media library devices or virtual devices can be specified.
+
+Top
+
+Parallel device resources (PRLRSC)
+
+Specifies the minimum and maximum number of device resources to be used in a parallel save operation.
+
+Note: Transferring save files to tape does not support parallel operations.
+
+Element 1: Minimum Resources
+
+Specifies the minimum number of device resources required for a parallel save.
+
+Note: If a Media Library Device (MLB) is being used and the required resources are not available, the command will wait for the MLB to become available for a time period specified by the user. The wait time is determined by the value specified on the *MLB device description for INLMNTWAIT. If a *TAP device is being used and the required resources are not available, the command will fail.
+
+*CTLGRPATR
+Use the parallel resource settings that are specified in the control group.
+
+Note: The Maximum resourcevalue is ignored when this special value is specified.
+
+*NONE
+No device resources are to be used. The save will be performed as a serial save. *NONE must be specified when using a virtual tape device, an optical device, or a virtual optical device.
+
+*AVAIL
+Use any available devices up to the maximum of what was used for a save. Specifying this value for the minimum will allow BRMS to use any available resources, but will complete using one resource if only one is available at the start of the command.
+
+1-32
+Specify the minimum number of device resources to be used with this save command.
+
+Element 2: Maximum Resources
+
+Specifies the maximum number of device resources.
+
+Note: This value is ignored when Minimum resourcesis set to *CTLGRPATR.
+
+*MIN
+Uses the value specified for the minimum number of device resources.
+
+*AVAIL
+Use any available devices for the save operation. Specifying this value for the maximum will allow BRMS to use any available resources but at a minimum the value specified in the minimum element.
+
+1-32
+Specify the maximum number of device resources to be used with this save command.
+
+Top
+
+Media class (MEDCLS)
+
+Specifies the media class that you want to use for selection of output volumes used in this save operation.
+
+*CTLGRATR
+Use the media class that is specified in the control group.
+
+*SYSPCY
+The value for the media class in the system policy will used to select output volumes for this save operation.
+
+media-class
+Specify a media class that will be used to select output volumes for this save operation.
+
+Top
+
+Move policy (MOVPCY)
+
+Specifies the move policy that you want to use for output volumes created as a result of this save operation.
+
+*CTLGRPATR
+Use the value from the control group for Move Policy.
+
+*NONE
+There is not a move policy associated with the output volumes that are created as a result of this save operation.
+
+move-policy
+Specify a move policy that will be assigned to output volumes from this save operation.
+
+Top
+
+Omits (OMITS)
+
+Specifies whether omit items are to be processed or ignored when the backup control group is run.
+
+Note: This attribute does not apply to backup lists or the *SYSTEM backup control group.
+
+*PROCESS
+Process omit items during the save. Omit items will be excluded from the save
+
+*IGNORE
+Ignore omitted items during the save. Omit items will be included in the save.
+
+Top
+
+Allow retry (ALWRTY)
+
+Specifies whether to retry the backup if the backup control group ends abnormally.
+
+*NO
+Specifies not to retry the backup control group.
+
+*YES
+Specifies to retry the backup control group.
+
+Note: Messages BRM1820, BRM1970 and BRM1971 will be produced on an abnormal end of a backup control group. These messages will cause a retry when the special value *YES is specified. Use of this parameter could extend your backup past your backup window.
+
+Top
+
+Retry time limit (RTYTIMLMT)
+
+Specifies the time limit to use when the Allow retry (ALWRTY) parameter is set to *YES. If an abnormal end occurs within the specified time limit after the control group has begun processing, then the backup control group will be retried. No retry will be attempted if the control group ends abnormally after the specified time limit has elapsed. This parameter is not checked if the ALWRTY parameter has a value of *NO.
+
+*NOMAX
+Specifies no retry time limit.
+
+1 - 99999
+Specifies an amount of time in minutes.
+
+Top
+
+Retry starting sequence (RTYSTRSEQ)
+
+Specifies the control group sequence that will be used when retrying the backup control group. This parameter is not checked if the Allow retry (ALWRTY) parameter has a value of *NO.
+
+*ERRSEQ
+Specifies the sequence that the abnormal end occurred on.
+
+*STRSEQ
+Specifies the same sequence number and library that was used on the Starting sequence (STRSEQ) parameter of the STRBKUBRM command.
+
+*NXTSEQ
+Specifies the sequence that is following the sequence that an abnormal end occurred on.
+
+Note: In some cases, items in a backup control group are bundled together. In those cases, the *ERRSEQ will use the first sequence number in that bundled list. The *NXTSEQ will use the next sequence number following the last sequence number of that bundled list.
+
+Top
+
+Examples for STRBKUBRM
+
+Example 1: Backing up a Control Group
+
+STRBKUBRM CTLGRP(BACK01)
+
+This command submits a batch job for backup control group BACK01. The batch job is not scheduled, so it will start immediately assuming batch job processing is active.
+
+Example 2: Overriding the Save Activity
+
+STRBKUBRM CTLGRP(BACK01) ACTIVITY(FULL)
+
+This command submits a batch job for backup control group BACK01. The control group is set up to normally perform cumulative saves. When this backup is run, the cumulative saves will be overriden and a full save will be performed.
+
+Example 3: Overriding the Save Retention
+
+STRBKUBRM CTLGRP(BACK01) ACTIVITY(FULL)
+RETENTION(*DAYS 2555)
+
+This command submits a batch job for backup control group BACK01. The control group is set up to normally perform cumulative saves with a retention of 30 days. When this backup is run, the cumulative saves and retention will be overriden. A full save with a retention of 2555 days will be performed.
+
+Example 4: Overriding Omitted Save Items
+
+STRBKUBRM CTLGRP(BACK01) ACTIVITY(FULL)
+RETENTION(*DAYS 2555) OMITS(*IGNORE)
+
+This command submits a batch job for backup control group BACK01. The control group is set up to normally perform cumulative saves with a retention of 30 days and uses omits defined in the backup policy. When this backup is run, the cumulative saves, retention and omits will be overriden. A full backup which includes the omit items will be performed and a retention of 2555 days will be applied to the save.
+
+Example 5: Submit to System Save to Batch
+
+STRBKUBRM CTLGRP(*SYSTEM) SBMJOB(*CTLSBS)
+
+This command submits the *SYSTEM backup control group to the controlling subsystem for batch processing. Since the backup does not use the BRMS console monitor or any interactive processing, the backup requires complete media management automation.
+
+Top
+
+Error messages for STRBKUBRM
+
+*ESCAPE Messages
+
+BRM1034
+Control group &1 type &2 canceled.
+
+BRM1391
+Control group &2 type &3 canceled.
+
+BRM1393
+Control group &2 type &3 canceled.
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM4041
+Access denied for user &1.
+
+BRM40A2
+BRMS product initialization required.
+
+CPF3700
+All CPF37xx messages could be signaled. xx is from 01 to FF.
+
+CPF3800
+All CPF38xx messages could be signaled. xx is from 01 to FF.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top

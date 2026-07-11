@@ -1,0 +1,526 @@
+Change Journaled Object (CHGJRNOBJ)
+
+Change Journaled Object (CHGJRNOBJ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Journaled Object (CHGJRNOBJ) command changes the journaling attributes of a journaled object without the need to end and restart journaling for the object.
+
+The command can be used to change the Images (IMAGES) value for a database file (*FILE) or a data area (*DTAARA) object without the need to end and restart journaling for the object. Otherwise the Start Journal Physical File (STRJRNPF) command can be used to set this value for database files. The Start Journal (STRJRN) command or the Start Journal Object (STRJRNOBJ) command can be used to set this value for data areas.
+
+The command can be used to change the Omit journal entry (OMTJRNE) value for a database file (*FILE), an integrated file system stream file (*STMF) or directory (*DIR) object without the need to end and restart journaling for the object. Otherwise the Start Journal Physical File (STRJRNPF) command can be used to set this value for database files. The Start Journal (STRJRN) command can be used to set this value for integrated file system objects.
+
+The command can be used to change the New objects inherit journaling (INHERIT) value for an integrated file system directory (*DIR) object without the need to end and restart journaling for the object. Otherwise the Start Journal (STRJRN) command can be used to set this value for integrated file system objects.
+
+The command can be used to allow a database file (*FILE), that contains changes for partial transactions, to be used. Partial transactions can only exist for an object that can be changed under commitment control. Database file objects (*FILE) are the only objects that can be opened using commitment control.
+
+Partial transactions can exist for two reasons:
+
+- The most common reason that an object may have partial transactions is that the object was saved while it was in the middle of a transaction and this saved version has been restored. In this case, the preferred method to complete all partial transactions is to use the Apply Journaled Changes (APYJRNCHG) command or Remove Journaled Changes (RMVJRNCHG) command. If the journal receivers needed for APYJRNCHG or RMVJRNCHG are not available, then as a last resort, the Partial transactions (PTLTNS) parameter can be used to allow the database file to be opened and used, without completing the transactions.
+
+- The other reason that partial transactions may exist is that the object was involved in a long running rollback operation that was interrupted. In this case, APYJRNCHG and RMVJRNCHG cannot be used to complete the partial transactions. If there is no saved version of the file to restore, then as a last resort, the Partial transactions (PTLTNS) parameter can be used to allow the file to be opened and used, without completing the transaction.
+
+The command can be used to change the Inherit rules (INHRULES) value for a library (*LIB) without the need to end and restart journaling for the library. Otherwise the Start Journal Library (STRJRNLIB) command can be used to set this value for libraries. Use the Display Library Description (DSPLIBD) command to see the current inherit rules of a library.
+
+The command can be used to change the Remote journal filter (RMTJRNFTR) value for an object.
+
+If a change does not apply to an object type, the objects of that type are ignored and processing continues with the next object. Also, if the object already has the correct value for the attribute being changed no error will be returned.
+
+Restrictions:
+
+- Only one journaling attribute can be changed at a time.
+
+- Changing the IMAGES, OMTJRNE, INHERIT, INHRULES, or RMTJRNFTR parameters can only be done if the object specified is currently being journaled.
+
+- All object (*ALLOBJ) special authority is required if PTLTNS(*ALWUSE) is specified.
+
+- Lock Processing
+The object being modified is locked with a read exclusive lock (*EXCLRD).
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Objects | Values (up to 300 repetitions): Element list | Optional
+Element 1: Object | Qualified object name
+Qualifier 1: Object | Generic name, name, *ALL
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Object type | *FILE, *DTAARA, *DTAQ, *LIB
+OBJPATH | Objects | Values (up to 300 repetitions): Element list | Optional
+Element 1: Name | Path name
+Element 2: Include or omit | *INCLUDE, *OMIT
+OBJFID | File identifier | Values (up to 300 repetitions): Hexadecimal value | Optional
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+PATTERN | Name pattern | Values (up to 20 repetitions): Element list | Optional
+Element 1: Pattern | Character value, *
+Element 2: Include or omit | *INCLUDE, *OMIT
+ATR | Attribute | *IMAGES, *OMTJRNE, *INHERIT, *PTLTNS, *INHRULES, *RMTJRNFTR | Optional
+IMAGES | Images | *SAME, *AFTER, *BOTH | Optional
+OMTJRNE | Omit journal entry | *SAME, *NONE, *OPNCLOSYN | Optional
+INHERIT | New objects inherit journaling | *SAME, *NO, *YES | Optional
+PTLTNS | Partial transactions | *SAME, *ALWUSE | Optional
+INHRULES | Inherit rules | Single values: *SAME
+Other values (up to 20 repetitions): Element list | Optional
+Element 1: Object type | *ALL, *FILE, *DTAARA, *DTAQ
+Element 2: Operation | *ALLOPR, *CREATE, *MOVE, *RESTORE, *RSTOVRJRN
+Element 3: Rule action | *INCLUDE, *OMIT
+Element 4: Images | *OBJDFT, *AFTER, *BOTH
+Element 5: Omit journal entry | *OBJDFT, *NONE, *OPNCLO
+Element 6: Remote journal filter | *OBJDFT, *NO, *YES
+Element 7: Name filter | Generic name, name, *ALL
+RMTJRNFTR | Remote journal filter | *SAME, *NO, *YES | Optional
+
+Top
+
+Objects (OBJ)
+
+Specifies an object or list of objects for which their journaling attributes are to be changed.
+
+Element 1: Object
+
+Qualifier 1: Object
+
+*ALL
+All objects in the specified library of the specified type who are currently being journaled have their journaling attributes changed. The library name must be specified. If *ALL is specified and the user does not have the required authority for all objects in the library, a message is sent and the processing continues with the next object. *ALL is not allowed when *LIBL is specified for the library name.
+
+name
+Specify the name of the object that is to have its journaling attributes changed.
+
+generic-name
+Specify the generic name of the object for which changes are to be journaled. A generic name is a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, all objects of the specified object type that have names with the same prefix as the generic name will have their changes journaled. A generic name is not allowed when *LIBL is specified for the library name.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Element 2: Object type
+
+Specify the object type of the object that is to have its journaling attributes changed.
+
+*DTAARA
+Journaling attributes for data areas are changed.
+
+*DTAQ
+Journaling attributes for data queues are changed.
+
+*FILE
+Journaling attributes for database file members are changed.
+
+*LIB
+Journaling attributes for libraries are changed.
+
+Top
+
+Objects (OBJPATH)
+
+Specifies a maximum of 300 objects for which journaling attributes are to be changed. Only objects whose path name identifies an object of type *STMF, *DIR, or *SYMLNK that is in the "root" (/), QOpenSys, or user-defined file systems, or objects of type *FILE, *DTAARA, *DTAQ, or *LIB are supported. Objects found that match the specified selection criteria but are not currently being journaled are ignored.
+
+Element 1: Name
+
+path-name
+Specify the name of the object that is to have its journaling attributes changed.
+Symbolic links within the path name will not be followed.
+
+Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Element 2: Include or omit
+
+The second element specifies whether names that match the path name or a pattern should be included or omitted from the operation. Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+
+*INCLUDE
+The objects that match the object name pattern are to be included in the list of objects for which journaling attributes are to be changed, unless overridden by an *OMIT specification.
+
+*OMIT
+The objects that match the object name pattern are not to be included in the list of objects for which journaling attributes are to be changed. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+
+Top
+
+File identifier (OBJFID)
+
+Specifies a maximum of 300 file identifiers (FIDs) for which journaling attributes are to be changed. FIDs are a unique identifier associated with integrated file system related objects. This field is input in hexadecimal format. Only objects whose FID identifies an object of type *STMF, *DIR, or *SYMLNK that is in the "root" (/), QOpenSys, or user-defined file systems, or objects of type *FILE, *DTAARA, *DTAQ, or *LIB are supported.
+
+file-identifier
+Objects identified with the FID have their attributes changed.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether the directory subtrees are included in determining the objects for which journaling attributes are to be changed.
+
+Note: This parameter is only valid if one or more path names were specified on the Objects (OBJPATH) parameter.
+
+*NONE
+Only the objects that match the selection criteria are processed. The objects within selected directories are not implicitly processed.
+
+*ALL
+All objects that meet the selection criteria are processed in addition to the entire subtree of each directory that matches the selection criteria. The subtree includes all subdirectories and the objects within those subdirectories.
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Name pattern (PATTERN)
+
+Specifies a maximum of 20 patterns to be used to include or omit objects for which journaling attributes are to be changed.
+
+Note: This parameter is only valid if one or more path names were specified on the Objects (OBJPATH) parameter.
+
+Note: This parameter applies to objects that exist when the change journal object command is processed. This parameter does not apply to objects that will be created later in a journaled directory where new objects inherit journaling.
+
+Element 1: Pattern
+
+'*'
+All objects that match the OBJPATH parameter are to be included.
+
+name-pattern
+Specify the pattern to be used to include or omit objects for which journaling attributes will be changed. Only the last part of the path name will be considered for the name pattern match. Path name delimiters are not allowed in the name pattern.
+
+Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Element 2: Include or omit
+
+The second element specifies whether names that match the pattern should be included or omitted from the operation. Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+
+*INCLUDE
+The objects that match the object name pattern are included in the operation, unless overridden by an *OMIT specification.
+
+*OMIT
+The objects that match the object name pattern are not to be included in the operation. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+
+Top
+
+Attribute (ATR)
+
+Specifies which attribute will be selected to be changed.
+
+*IMAGES
+The attribute controlled by the Images (IMAGES) parameter is to be changed.
+
+*OMTJRNE
+The attribute controlled by the Omit journal entry (OMTJRNE) parameter is to be changed.
+
+*INHERIT
+The attribute controlled by the New objects inherit journaling (INHERIT) parameter is to be changed.
+
+*PTLTNS
+The attribute controlled by the Partial transactions (PTLTNS) parameter is to be changed.
+
+*INHRULES
+The attribute controlled by the Inherit rules (INHRULES) parameter is to be changed.
+
+*RMTJRNFTR
+The attribute controlled by the Remote journal filter (RMTJRNFTR) parameter is to be changed.
+
+Top
+
+Images (IMAGES)
+
+Specifies the kinds of images that are written to the journal receiver for changes to objects.
+
+*SAME
+This value does not change.
+
+*AFTER
+Only after images are generated for changes to objects.
+
+*BOTH
+The system generates both before and after images for changes to objects.
+
+Note: The value *BOTH is ignored for all object types except data area (*DTAARA) and database file (*FILE) objects.
+
+Top
+
+Omit journal entry (OMTJRNE)
+
+Specifies the journal entries that are omitted.
+
+*SAME
+This value does not change.
+
+*NONE
+No entries are omitted.
+
+*OPNCLOSYN
+Open and close entries are omitted for *FILE objects. Open, close and force entries are omitted for *DIR and *STMF objects. Open, close and force operations on the specified objects do not generate open, close and force journal entries. This prevents the use of TOJOBO and TOJOBC entries on the Apply Journaled Changes (APYJRNCHG) command, but it saves some storage space in the journal receivers.
+
+Note: The value *OPNCLOSYN is ignored for all object types except *FILE, *DIR and *STMF objects.
+
+Note: The value *OPNCLOSYN is the same as OMTJRNE(*OPNCLO) on the Start Journal Physical File (STRJRNPF) command for *FILE objects.
+
+Top
+
+New objects inherit journaling (INHERIT)
+
+Specifies whether new objects created within a journaled directory, moved into a journaled directory, or restored into a journaled directory should inherit the journal state of the parent directory.
+
+Note: The INHERIT parameter is ignored for all object types except *DIR objects.
+
+*SAME
+This value does not change.
+
+*NO
+New objects created within the directory, objects moved into the directory, and objects restored into the directory will not inherit the journal state of the parent directory.
+
+*YES
+New objects created within the directory, objects moved into the directory, and objects restored into the directory will inherit the journal state of the parent directory.
+
+Top
+
+Partial transactions (PTLTNS)
+
+Specifies whether an object that contains changes for partial transactions can be used or not.
+
+Note: The PTLTNS parameter is ignored for all object types except *FILE objects.
+
+Note: The PTLTNS parameter cannot be changed for objects replicated by Db2 Mirror.
+
+*SAME
+This value does not change.
+
+*ALWUSE
+The object that contains changes for partial transactions is changed to allow it to be used but the partial transactions are not themselves completed. Any changes to the object that are pending because of the partial transactions will remain in the object.
+
+Note: All object (*ALLOBJ) special authority is required if *ALWUSE is specified.
+
+Top
+
+Inherit rules (INHRULES)
+
+Specifies which objects created within a journaled library, moved into a journaled library, or restored into a journaled library should inherit the journal state of the library and which journaling attributes those objects should have.
+
+Each rule defines object types, object names, and operations that the rule applies to. Multiple rules can be defined for the same set of objects. If multiple rules are defined for the same object and operation, the last rule defined for that object will be applied.
+
+These rules only affect objects when they are created, moved into, or restored into the library. The journaling state and journaling attributes of objects within the library do not change if they are renamed. Once journaled, objects will not automatically end journaling if they are moved out of the library. Additionally, objects that are journaled prior to being moved into the library will not change their journaling state or attributes when they are moved.
+
+Single values
+
+*SAME
+The value does not change.
+
+Element 1: Object type
+
+Specify the object type of the objects that are identified by this rule.
+
+*ALL
+This rule applies to all object types that can be journaled.
+
+*DTAARA
+This rule applies to data areas.
+
+*DTAQ
+This rule applies to data queues.
+
+*FILE
+This rule applies to database physical files.
+
+Element 2: Operation
+
+Specifies the operation or operations identified by this rule.
+
+*ALLOPR
+This rule applies to all objects created in, moved into, or restored into the library. This is a combination of the values *CREATE, *MOVE, and *RESTORE. See their descriptions for further information.
+
+*CREATE
+This rule applies to all objects created in the library.
+
+*MOVE
+This rule applies to all objects moved into the library, if they are not already journaled.
+
+*RESTORE
+This rule applies to all objects restored into the library. If an object is restored over a currently existing object, the restored object will retain the same journal state and journaling attributes of the object it was restored over. If an object was never journaled when it was saved, journaling is started for the object when it is restored into the library. Otherwise, if an object was journaled when it was saved, it will first attempt to start journaling to the journal it was journaled to when it was saved, with the same journaling attributes it had when it was saved. If that journal does not exist, the object will start journaling to the same journal the library is journaled to, with the journaling attributes defined by this rule. A rule with *RESTORE specified will override any previous rule for the same object type with *RSTOVRJRN specified.
+If the accompanying rule action is set to *OMIT and the object is not restored over an existing object, the restored object will retain the same journal state and journaling attributes as it had when it was saved. The journal state of the library is ignored.
+
+*RSTOVRJRN
+This rule applies to all objects restored into the library. If an object is restored over a currently existing object, the restored object will retain the same journal state and journaling attributes of the object it was restored over. Otherwise, the object will start journaling to the same journal the library is journaled to, with the journaling attributes defined by this rule. A rule with *RSTOVRJRN specified will override any previous rule for the same object type with *RESTORE specified.
+If the accompanying rule action is set to *OMIT and the object is not restored over an existing object, the restored object will retain the same journal state and journaling attributes as it had when it was saved. The journal state of the library is ignored.
+
+Element 3: Rule action
+
+Specifies whether or not the objects that match object type and operation in this rule will be included or omitted from the list of objects that inherit the journal state of the library.
+
+*INCLUDE
+All objects that match the object type and operation will inherit the journal state of the library, and will use the journaling attributes defined by this rule.
+
+*OMIT
+All objects that match object type and operation will not inherit the journal state of the library. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously defined rule.
+
+Element 4: Images
+
+Specifies the kinds of images that are written to the journal receiver for changes to objects that inherit the journal state of the library.
+
+Note: This element is ignored if *OMIT is specified for Rule action.
+
+*OBJDFT
+The default value for each object type will be used for this journaling attribute when an object inherits the journal state of the library. Database files (*FILE) will have both before and after images generated by the system (*BOTH). All other object types will have only after images generated by the system (*AFTER).
+
+*AFTER
+Only after images are generated for objects that inherit the journal state of the library.
+
+*BOTH
+Both before and after images are generated for objects that inherit the journal state of the library.
+
+Note: The value *BOTH is only valid for data area (*DTAARA) and database file (*FILE) objects. If *BOTH is specified and *ALL is specified for Object type, the system will generate both before and after images for data areas and database files. All other object types will only generate after images.
+
+Element 5: Omit journal entry
+
+Specifies the journal entries that are omitted for objects that inherit the journal state of the library.
+
+Note: This element is ignored if *OMIT is specified for Rule action.
+
+*OBJDFT
+The default value for each object type will be used for this journaling attribute when an object inherits the journal state of the library. Database files (*FILE) will omit open and close entries. No other object types will omit journal entries.
+
+*NONE
+No journal entries will be omitted for objects that inherit the journal state of the library.
+
+*OPNCLO
+Open and close entries are omitted for database file (*FILE) objects that inherit the journal state of the library. This prevents the use of TOJOBO and TOJOBC entries on the Apply Journaled Changes (APYJRNCHG) command, but it saves some storage space in the journal receivers.
+
+Note: The value *OPNCLO is only valid for database files (*FILE). If *OPNCLO is specified and *ALL is specified for Object type, database files will omit open and close entries. All other object types will not omit any journal entries.
+
+Element 6: Remote journal filter
+
+Specifies whether or not the journal entries deposited for the objects that inherit the journal state of the library should be eligible for remote journal filtering by object.
+
+See the Change Remote Journal (CHGRMTJRN) command or the Change Journal State (QjoChangeJournalState) API for more information about remote journal filtering.
+
+Note: This element is ignored if *OMIT is specified for Rule action.
+
+*OBJDFT
+The default value for each object type will be used for this journaling attribute when an object inherits the journal state of the library. For all object types, journal entries deposited for the objects that inherit the journal state of the library will not be eligible for remote journal filtering by object.
+
+*NO
+Journal entries deposited for the objects that inherit the journal state of the library will not be eligible for remote journal filtering by object.
+
+*YES
+Journal entries deposited for the objects that inherit the journal state of the library will be eligible for remote journal filtering by object. When using remote journal filtering by object, journal entries for the object will not be sent to the target system.
+
+Element 7: Name filter
+
+Specifies the object names of the objects that are identified by this rule.
+
+*ALL
+This rule applies to all objects that match the other criteria.
+
+name
+This rule applies to all objects that match the other criteria and match the specified name.
+
+generic-name
+This rule applies to all objects that match the other criteria and match the specified generic name.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+Top
+
+Remote journal filter (RMTJRNFTR)
+
+Specifies whether or not the journal entries deposited for objects should be eligible for remote journal filtering by object.
+
+See the Change Remote Journal (CHGRMTJRN) command or the Change Journal State (QjoChangeJournalState) API for more information about remote journal filtering.
+
+*SAME
+This value does not change.
+
+*NO
+Journal entries deposited for objects will not be eligible for remote journal filtering by object.
+
+*YES
+Journal entries deposited for objects will be eligible for remote journal filtering by object. When using remote journal filtering by object, journal entries for the object will not be sent to the target system.
+
+Note: The value *YES is ignored for all object types except data area (*DTAARA), data queue (*DTAQ), and database file (*FILE) objects.
+
+Top
+
+Examples
+
+Example 1: Change File Journaling Attribute IMAGES
+
+CHGJRNOBJ OBJ((LIBA/FILEA *FILE)) ATR(*IMAGES) IMAGES(*BOTH)
+
+This command will change the attribute of file FILEA in library LIBA to now journal both before and after images for the file without having to end journaling and start journaling of the file.
+
+Example 2: Change File Journaling Attribute OMTJRNE
+
+CHGJRNOBJ OBJ((LIBB/FILEB *FILE)) ATR(*OMTJRNE)
+OMTJRNE(*OPNCLOSYN)
+
+This command will change the attribute of file FILEB in library LIBB to now omit open and close entries.
+
+Example 3: Change Object Journaling Attribute OMTJRNE
+
+CHGJRNOBJ OBJFID(00000000000000007E09BDB000000009)
+ATR(*OMTJRNE) OMTJRNE(*OPNCLOSYN)
+
+This command will change the attribute of the object represented by the specified file identifier to now omit open, close and force entries. This object can be an object of type *DIR or *STMF.
+
+Example 4: Change File Attribute PTLTNS
+
+CHGJRNOBJ OBJ((LIBC/FILEC *FILE)) ATR(*PTLTNS)
+PTLTNS(*ALWUSE)
+
+This command will change the file so that it can be used again, however the partial transactions are not themselves completed. This method should only be used in rare circumstances when the file could not be recovered by applying or removing the journaled changes.
+
+Example 5: Change Library Journaling Attribute INHRULES
+
+CHGJRNOBJ OBJ((LIBD *LIB)) ATR(*INHRULES)
+INHRULES((*FILE *CREATE *INCLUDE *BOTH *NONE *NO
+*ALL))
+
+This command will change the inherit rules of the library so that all database files created in library LIBD will automatically start journaling to the same journal as LIBD is journaled to. The files will be journaled with IMAGES(*BOTH), OMTJRNE(*NONE), and RMTJRNFTR(*NO).
+
+Example 6: Change File Journaling Attribute RMTJRNFTR
+
+CHGJRNOBJ OBJ((LIBE/FILEE *FILE)) ATR(*RMTJRNFTR)
+RMTJRNFTR(*YES)
+
+This command will change the attribute of file FILEE in library LIBE to allow entries deposited for this file to be filtered by remote journal filtering by object.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF7057
+*LIBL not allowed with *ALL or *ALLLIB or a generic name.
+
+CPF70B1
+&1 of &2 objects changed.
+
+CPF70B2
+&2 may not be specified with ATR(*&1).
+
+CPF70B3
+Not authorized to use the PTLTNS parameter.
+
+Top

@@ -1,0 +1,302 @@
+Copy To Stream File (CPYTOSTMF)
+
+Copy To Stream File (CPYTOSTMF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Copy To Stream File (CPYTOSTMF) command copies either a database file member or a save file to a stream file. Optional conversion of the data and reformatting is performed when copying a database file member. This command cannot be used to copy to or from a database file member on a remote system. Any overrides in effect for the database file member or the save file are not used by this command.
+
+This command can operate on regular files and on the /dev/null character special file. A regular file is a file that supports the integrated file system input/output (I/O) operations open, read, and write.
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- The database-member-path-name must be of the form name.object-type. For example, /QSYS.LIB/LIBA.LIB/FILEA.FILE/MBRA.MBR is the form required by the QSYS.LIB file system.
+
+- The save-file-path-name must be of the form name.object-type. For example, /QSYS.LIB/LIBA.LIB/SAVEFILEA.FILE is the form required by the QSYS.LIB file system.
+
+- The user must have the following authorities:
+
+Execute (*X) authority to directories in the path name prefix of the database file, save file, stream file or conversion table.
+
+Read and execute (*RX) authority to the database file or save file.
+
+Write (*W) authority to the stream file if the stream file already exists.
+
+Write and execute (*WX) authority to the stream file's parent directory if the stream file does not already exist.
+
+If a conversion table was specified, read (*R) authority to the conversion table.
+
+If AUT(*FILE) or AUT(*INDIRFILE) is specified, object management (*OBJMGT) to the database file and the stream file.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMMBR | From file member or save file | Path name | Required, Positional 1
+TOSTMF | To stream file | Path name | Required, Positional 2
+STMFOPT | Stream file option | *NONE, *ADD, *REPLACE | Optional
+CVTDTA | Data conversion options | *AUTO, *TBL, *NONE | Optional
+DBFCCSID | Database file CCSID | 1-65533, *FILE | Optional
+STMFCCSID | Stream file CCSID | 1-65533, *STMF, *PCASCII, *STDASCII | Optional
+TBL | Conversion table | Path name | Optional
+ENDLINFMT | End of line characters | *CRLF, *LF, *CR, *LFCR, *FIXED | Optional
+AUT | Authority | *DFT, *INDIR, *FILE, *INDIRFILE | Optional
+STMFCODPAG | Stream file code page | 1-32767, *STMF, *PCASCII, *STDASCII | Optional
+
+Top
+
+From file member or save file (FROMMBR)
+
+Specifies the path name of the database file member or save file from which data is copied. When copying from a member, the file may be a source physical file or a program-described physical file. Source physical files with multiple data fields are not supported.
+
+If the database file is a source physical file, the sequence number and date stamp are removed when the records are written to the stream file.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+To stream file (TOSTMF)
+
+Specifies the path name of the stream file to which data is copied. All directories in the path name must exist. New directories are not created. If the stream file does not exist, it is created.
+
+This command can operate on files of type *STMF and on the /dev/null character special file.
+
+Note: The QSYS.LIB and independent ASP QSYS.LIB file systems do not allow attributes to be set, so if the path name specified on the TOSTMF parameter is a QSYS member, diagnostic messages will appear in the joblog. The diagnostic messages will not prevent the copy operation from completing successfully and can be ignored.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Stream file option (STMFOPT)
+
+Specifies whether the copy operation replaces, adds, or fails to copy the records in a stream file if a stream file with the specified name already exists. If the stream file does not exist, it is created.
+
+*NONE
+No records are copied and the operation will fail.
+
+*ADD
+The records are added to the end of the existing stream file records.
+This value is not allowed when copying a save file.
+
+*REPLACE
+The records replace the existing stream file records.
+
+Top
+
+Data conversion options (CVTDTA)
+
+Specifies the process for converting the data from the database file member to the stream file.
+
+This parameter is ignored when copying a save file.
+
+*AUTO
+The data is converted during the copy operation using the coded character set identifier (CCSID) of the stream file and the database file CCSID.
+
+*TBL
+The data is converted using a conversion table. Only single-byte character sets are supported. The conversion table must be specified by the Conversion table (TBL) parameter. If a conversion table is not available, the operation will fail.
+
+*NONE
+Only the removal of the sequence numbers and date stamp from source physical files and the optional insertion of specified line-formatting characters into the stream file are performed. Database file CCSID to stream file CCSID conversion of other characters is not performed.
+
+Top
+
+Database file CCSID (DBFCCSID)
+
+Specifies the method of obtaining the database file CCSID.
+
+This parameter is ignored when copying a save file.
+
+*FILE
+The database file CCSID is used, unless it is 65535. If the database file CCSID is 65535, and the file is not a program-described file, the operation will fail. If the database file CCSID is 65535, and the file is a program-described file, the default job CCSID is used.
+
+1-65533
+Specify the database file coded character set identifier (CCSID).
+
+Top
+
+Stream file CCSID (STMFCCSID)
+
+Specifies the method of obtaining the stream file coded character set identifier (CCSID) used for data conversion.
+
+This parameter is ignored when copying a save file.
+
+This parameter can not be specified with the Stream file code page (STMFCODPAG) parameter.
+
+*STMF
+If the stream file exists, and data conversion is requested, the CCSID associated with the stream file is used to perform the conversion.
+If the stream file does not exist, the source database file CCSID is used and associated with the stream file.
+
+*STDASCII
+
+A CCSID in the IBM PC Data encoding scheme (x2100) is computed. If the stream file exists, and the stream file CCSID is not the same as the computed value, the operation will fail.
+
+If the stream file does not exist, the computed CCSID is associated with the target stream file and is used for data conversion if it is requested.
+
+*PCASCII
+
+A CCSID in the Microsoft Windows encoding scheme (x4105) is computed. ("Microsoft" and "Windows" are registered trademarks of Microsoft Corporation). If the stream file exists, and the stream file CCSID is not the same as the computed value, the operation will fail.
+
+If the stream file does not exist, the computed CCSID is associated with the target stream file and is used for data conversion if it is requested. This option allows the resulting data to be used by Microsoft Windows applications.
+
+1-65533
+Specify the CCSID used. If the stream file exists, this option is only valid if the CCSID associated with the stream file is the same as the specified value. Otherwise, the operation will fail. If the stream file does not exist, the specified CCSID is associated with the stream file when it is created.
+
+Top
+
+Conversion table (TBL)
+
+Specifies the path name of the conversion table used to convert data from the database file member to the stream file.
+
+Note: This parameter is required and valid only if CVTDTA(*TBL) is specified. This parameter is ignored when copying a save file.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+End of line characters (ENDLINFMT)
+
+Specifies the end-of-line characters to insert into the stream file during the copying of records.
+
+This parameter is ignored when copying a save file.
+
+If one of the end-of-line character options is selected (ENDLINFMT(*FIXED) is not specified) the database file records are transformed to variable-length stream file text lines as they are copied. Each database file record is trimmed of any trailing blanks. Then, the data is converted to the destination data format (if specified) and the end-of-line character is appended to the end of the text line. The text line is copied to the stream file.
+
+*CRLF
+Carriage-return followed by line-feed is appended to the end of each line.
+
+*LF
+Line-feed is appended to the end of each line.
+
+*CR
+Carriage-return is appended to the end of each line.
+
+*LFCR
+Line-feed followed by carriage-return is appended to the end of each line.
+
+*FIXED
+The lines in the stream file are written as fixed length records. CR and LF characters are not added at the end of each line, trailing blanks are not removed from the end of each record. The length of the stream file records equals the length of the database file records.
+If CVTDTA(*AUTO) is specified, the converted data will not be allowed to contract or expand. Therefore, the encoding schemes of the stream file CCSID and database file CCSID must be compatible. For example, if a stream file had a single-byte encoding scheme and the database file had a double-byte encoding scheme, the command will fail.
+
+Top
+
+Authority (AUT)
+
+Specifies the method used to assign authority information to the stream file.
+
+This parameter is ignored if the stream file already exists.
+
+*DFT
+The owner of the stream file will be granted *RWX data authority to the stream file. The primary group and *PUBLIC will have *NONE data authority to the stream file. Object authorities will be based on the object authorities for the directory where the stream file is to be created. The auditing value of the database file will be copied to the stream file.
+
+*INDIR
+The authority information for the stream file is based on the authority for the directory where the stream file is to be created. The stream file is assigned the same public authority, private authorities, primary group, primary group authority, and authorization list as the directory in which it is created. The auditing value assigned to the stream file is controlled by the directory's create object auditing value. If the target file system does not support the *INDIR special value, the command will fail.
+
+*FILE
+The authority information for the stream file is based on the authority for the object specified on the From file member or save file (FROMMBR) parameter. The stream file is assigned the same public authority, private authorities, primary group, primary group authority, authorization list, and auditing value as the member or save file being copied. If the target file system does not support one or more of these values, the unsupported values will be ignored.
+
+*INDIRFILE
+The authority information for copied objects is initially based on the authority for the directory where the objects are to be created. Then, authority information from the object specified on the FROMMBR parameter will be copied to the target object. The stream file is assigned the same public authority, private authorities, primary group, primary group authority, authorization list, and auditing value as the member or save file being copied, as well as any additional private authorities obtained from the directory. The resulting authority information will be similar to that produced by copying and pasting objects using the System i Navigator. If the target file system does not support the *INDIRFILE special value, the command will fail.
+
+Top
+
+Stream file code page (STMFCODPAG)
+
+Specifies a code page value to be used when determining the stream file coded character set identifier (CCSID).
+
+This parameter is ignored when copying a save file.
+
+This parameter can not be specified with the Stream file CCSID (STMFCCSID) parameter.
+
+Note: This parameter is replaced by STMFCCSID but the STMFCODPAG parameter can still be used. However, because this parameter may be removed in a later release, use the STMFCCSID parameter whenever possible.
+
+*STMF
+If this value is specified, no code page processing is performed.
+
+*STDASCII
+
+A CCSID in the IBM PC Data encoding scheme (x2100) is computed. If the stream file exists, and the stream file CCSID is not the same as the computed value, the operation will fail.
+
+If the stream file does not exist, the computed CCSID is associated with the target stream file and is used for data conversion if it is requested.
+
+*PCASCII
+
+A CCSID in the Microsoft Windows encoding scheme (x4105) is computed. ("Microsoft" and "Windows" are registered trademarks of Microsoft Corporation). If the stream file exists, and the stream file CCSID is not the same as the computed value, the operation will fail.
+
+If the stream file does not exist, the computed CCSID is associated with the target stream file and is used for data conversion if it is requested. This option allows the resulting data to be used by Microsoft Windows applications.
+
+1-32767
+Specify the code page used. A CCSID is computed from this value. If the stream file exists, this option is only valid if the CCSID associated with the stream file is the same as the computed value. Otherwise, the operation will fail. If the stream file does not exist, the computed CCSID is associated with the stream file when it is created.
+
+Top
+
+Examples
+
+Example 1: Copying Data from a Database File Member to a Stream File
+
+CPYTOSTMF FROMMBR('/QSYS.LIB/MYLIB.LIB/MYFILE.FILE/MYMBR.MBR')
+TOSTMF('STMF.TXT')
+
+This command copies the data contained in database file member /QSYS.LIB/MYLIB.LIB/MYFILE.FILE/MYMBR.MBR to a stream file named STMF.TXT in the current working directory. The database file member records are stripped of trailing blanks, and CR and LF characters are inserted at the end of each record since ENDLINFMT(*CRLF) is the default value. If the stream file STMF.TXT already exists in the current working directory, the copy operation is not performed since STMFOPT(*NONE) is the default value. Data conversion will not be performed because the stream file will be created with the same CCSID as the database file.
+
+Example 2: Copying Data from a Database File Member to a Stream File Using a Conversion Table
+
+CPYTOSTMF FROMMBR('/QSYS.LIB/FINANCE.LIB/STAFF.FILE/MNGR.MBR')
+TOSTMF('/MYDIR/FINANCE.MNG') CVTDTA(*TBL)
+DBFCCSID(37) STMFCCSID(437)
+TBL('/QSYS.LIB/QUSRSYS.LIB/TBL1.TBL')
+ENDLINFMT(*CRLF)
+
+This command copies the data contained in database file member /QSYS.LIB/FINANCE.LIB/STAFF.FILE/MNGR.MBR to a stream file named FINANCE.MNG in the user directory /MYDIR. The data is converted using the conversion table TBL1.TBL contained in the directory /QSYS.LIB/QUSRSYS.LIB. The records in the database file member are trimmed of any trailing blanks as represented in the specified database CCSID (37), appended with CR and LF characters, and written to the stream file. The inserted line-formatting characters: CR and LF, correspond to those of CCSID 437 specified on the STMFCCSID parameter. If the stream file exists, it must have a CCSID of 437.
+
+Example 3: Copying Data from a Database File Member to a Stream File Without Data Conversion
+
+CPYTOSTMF FROMMBR('/QSYS.LIB/FINANCE.LIB/STAFF.FILE/MNGR.MBR')
+TOSTMF('/MYDIR/FINANCE.MNG') CVTDTA(*NONE)
+ENDLINFMT(*FIXED)
+
+This command copies the data contained in database file member /QSYS.LIB/FINANCE.LIB/STAFF.FILE/MNGR.MBR to the stream file FINANCE.MNG in the user directory MYDIR without data conversion. The stream file data is written as fixed-length records of the same length as the database file records. No line-formatting characters are inserted since ENDLINFMT(*FIXED) is specified.
+
+Example 4: Copying Data from a Save File to a Stream File
+
+CPYTOSTMF FROMMBR('/QSYS.LIB/PACKAGE.LIB/SOFTWARE.FILE')
+TOSTMF('/MYDIR/SOFTWARE')
+
+This command copies the data contained in save file /QSYS.LIB/PACKAGE.LIB/SOFTWARE.FILE to the stream file /MYDIR/SOFTWARE. The stream file data is written as fixed-length records of the same length as the save file records. No line-formatting characters are inserted, nor is any data conversion performed.
+
+Example 5: Copying Data and Authority Information from a Database File Member to a Stream File
+
+CPYTOSTMF FROMMBR('/QSYS.LIB/MYLIB.LIB/MYFILE.FILE/MYMBR.MBR')
+TOSTMF('STMF.TXT') AUT(*FILE)
+
+This command performs the same processing as the first example. In addition, the stream file is assigned the same public, private and primary group authority, authorization list, primary group, and auditing value as the member being copied.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA085
+Home directory not found for user &1.
+
+CPFA097
+Object not copied. Object is &1.
+
+Top

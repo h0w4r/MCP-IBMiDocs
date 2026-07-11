@@ -1,0 +1,250 @@
+Chg Recovery for Access Paths (CHGRCYAP)
+
+Chg Recovery for Access Paths (CHGRCYAP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Recovery for Access Paths (CHGRCYAP) command is used to change the target access path recovery time for the system or for one or more auxiliary storage pools (ASPs). The system uses no more than the specified target access path recovery time when recovering access paths during an initial program load (IPL) or vary on of an independent ASP after an abnormal system end. Because the access path recovery time is a target, performance may range around the target.
+
+The time taken to rebuild access paths exposed while running the Copy File (CPYF), the Reorganize Physical File Member (RGZPFM), or the Restore Object (RSTOBJ) commands is not considered in the target access path recovery time of access paths protected with this command.
+
+You can use this command to manage the protection of access paths that are not already protected through journaling. Changes made with this command are an immediate change in policy; however, a little time may be needed for the system to adjust its performance to meet the new target.
+
+For more information on using this command, see the "Journal management" article in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- You must have job control (*JOBCTL) special authority to use this command.
+
+- This command is shipped with public *EXCLUDE authority, and the QPGMR and QSYSOPR user profiles have private authorities to use this command.
+
+- If the current access path recovery state is *OFF, the user must be in a restricted state to activate system-managed access-path protection by specifying a target access path recovery time value.
+
+- If no user auxiliary storage pools (ASPs) exist on the system, an access path recovery time for ASP 1 cannot be specified. The access path recovery time must be specified on the SYSRCYTIME parameter.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SYSRCYTIME | System recovery time | 1-1440, *SAME, *SYSDFT, *NONE, *MIN, *OFF | Optional, Positional 1
+ASPRCYTIME | ASP recovery time | Values (up to 32 repetitions): Element list | Optional
+Element 1: ASP number | 1-32
+Element 2: Recovery time | 1-1440, *SAME, *NONE, *MIN
+ASPDEVRCY | ASP device recovery time | Values (up to 223 repetitions): Element list | Optional
+Element 1: ASP device | Name
+Element 2: Recovery time | 1-1440, *SAME, *NONE, *MIN
+INCACCPTH | Include access paths | *SAME, *ALL, *ELIGIBLE | Optional
+
+Top
+
+System recovery time (SYSRCYTIME)
+
+Specifies the target access path recovery time to be used system-wide.
+
+Note: Changing from *OFF to another value must be done when the system is in a restricted state.
+
+*SAME
+The value does not change.
+
+*SYSDFT
+The system access path recovery time value is set to the system default value of 50 minutes.
+
+*NONE
+The time allotted to rebuild access paths is not limited. No access path protection is provided by the system. The system continues to monitor current exposure. The time it takes to rebuild the access paths is available for review through the Display Recovery for Access Paths (DSPRCYAP) or the Edit Recovery for Access Paths (EDTRCYAP) commands.
+
+*MIN
+Minimum access path recovery time for the system is used, which provides for the fastest access path recovery. All eligible access paths for the entire system are protected.
+
+*OFF
+The time allotted to rebuild the access paths is not limited. No access path protection is provided by the system. The system does not monitor current exposure.
+
+Note: Once system managed access path protection has been turned off, the system must be brought to a restricted state to turn it back on.
+
+system-access-path-recovery-time
+Specify the time (in minutes) to be targeted for access path recovery for the entire system. Valid values range from 1 through 1440.
+Note: The system may not be able to protect enough access paths to meet the target access path recovery time. You can review access path recovery status by using the DSPRCYAP command.
+
+Reasons that the target access path recovery time may not be met:
+
+- Access paths cannot be protected if two of the underlying physical files are journaled to different journals.
+
+- If the system access path recovery time value was changed just prior to the system crash, the new time value may not be in effect.
+
+- Access paths were exposed due to the CPYF, RGZPFM, or RSTOBJ command being run.
+
+- Damage was done to the internal system environment which maintains the system-managed access-path protection (SMAPP) support.
+
+Top
+
+ASP recovery time (ASPRCYTIME)
+
+Specifies the target access path recovery time per auxiliary storage pool. This parameter is valid and prompted only if the system has basic user ASPs.
+
+Element 1: Auxiliary storage pool ID
+
+ASP-identifier
+Specify the value ranging from 1 through 32 that is the identifier of the ASP to which the target access path recovery time applies. Valid values depend on the ASPs active on the system.
+
+Note: The value of 1 is the system ASP, any other value indicates a user ASP.
+
+To specify the target access path recovery time for an independent ASP, use the ASPDEVRCY parameter.
+
+Element 2: Recovery time
+
+*SAME
+The value does not change.
+
+*NONE
+The access paths for the specified ASP are protected only if they need to be protected to reach the system access path recovery time specified.
+
+*MIN
+All of the access paths for the specified ASP are protected. The system uses the minimum time needed for access path recovery.
+
+access-path-recovery-time
+Specify the number of minutes to be targeted for access path recovery for the specified ASP. If both the system access path recovery time and an ASP access path recovery time are specified, the system uses the value specifying the lesser amount of time. Valid values range from 1 through 1440.
+
+Top
+
+ASP device recovery time (ASPDEVRCY)
+
+Specifies the target access path recovery time per independent auxiliary storage pool. This parameter is valid and prompted only if the system has active or available independent ASPs.
+
+Element 1: Auxiliary storage pool ID
+
+ASP-device-name
+Specify the name of the independent ASP that is the identifier of the ASP to which the target access path recovery time applies. Valid names depend on the ASPs active or available on the system.
+
+Element 2: Recovery time
+
+*SAME
+The value does not change.
+
+*NONE
+The access paths for the specified ASP are protected only if they need to be protected to reach the specified system access path recovery time.
+
+*MIN
+All of the eligible access paths for the specified ASP are protected. The system uses the minimum time needed for access path recovery.
+
+access-path-recovery-time
+Specify the number of minutes to be targeted for access path recovery for the specified ASP. If both the system access path recovery time and an ASP access path recovery time are specified, the system uses the value specifying the lesser amount of time. Valid values range from 1 through 1440.
+
+Top
+
+Include access paths (INCACCPTH)
+
+Specifies whether the access path recovery time specification should include only those access paths which are considered eligible for protection or include all access paths. The access paths which are not eligible for protection are:
+
+- Access paths built over physical files which are journaled to separate journals.
+
+- Access paths built over a physical file which is journaled to a journal whose journal state is currently *STANDBY.
+
+Note: Access paths with *REBLD maintenance are not considered for access path protection and are not included in the not eligible time since these access paths are not recovered during an IPL or during the vary on of an independent ASP.
+
+Note: Access paths that have international components for unicode (ICU) sort sequence tables are considered for access path protection. However, some of these access paths may be too complex to be protected and will not be included in the not eligible time. Access paths with other sort sequence tables are considered.
+
+*SAME
+The value does not change.
+
+*ALL
+The access path recovery time specification includes all access paths, both those that are and those that are not eligible.
+
+*ELIGIBLE
+The access path recovery time specification includes only those access paths which are considered eligible for protection.
+
+Note: Since the not eligible access paths are not considered for protection, their rebuild times will not be factored into the estimated recovery time so the actual IPL or independent ASP vary on duration may be longer than the estimated time.
+
+Top
+
+Examples
+
+Example 1: Changing the System Recovery Time for Access Paths
+
+CHGRCYAP SYSRCYTIME(180)
+
+This command changes the target access path recovery time for the entire system to 180. This protects enough access paths to limit the time needed at IPL to recover all eligible access paths on the system to 180 minutes.
+
+The target access path recovery time includes access paths which are considered not eligible.
+
+Example 2: Changing the User ASP Recovery Times for Access Paths
+
+CHGRCYAP ASPRCYTIME((2 *MIN) (3 *NONE))
+INCACCPTH(*ELIGIBLE)
+
+This command changes the access path recovery times for user ASPs. The user ASP 2 is changed to *MIN, which protects all access paths on the ASP. The user ASP 3 is changed to *NONE, which protects access paths on the ASP only if needed to reach the system access path recovery time.
+
+The target access path recovery time includes only access paths which are considered eligible.
+
+Example 3: Changing the Independent ASP Recovery Times for Access Paths
+
+CHGRCYAP ASPRCYTIME((2 *MIN))
+ASPDEVRCY((WAREHUS1 20) (ORDERDB *MIN))
+INCACCPTH(*ALL)
+
+This command changes the access path recovery times for one basic user ASP and two independent user ASPs. The user ASP 2 is changed to *MIN, which protects all access paths on the ASP. The independent user ASP with ASP device name WAREHUS1 is changed to 20 minutes, which protects enough access paths on the ASP to acheive a vary on access path rebuild time of 20 minutes. The independent user ASP with ASP device name ORDERDB is changed to *MIN, which protects all access paths on the independent ASP.
+
+All target access path recovery times for the system (not just those specified on this command) will be defined to include all access paths. More eligible access paths will be protected to account for any access paths that are not eligible.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF70E6
+ASPRCYTIME parameter not valid.
+
+CPF70E8
+ASP &1 specified more than once.
+
+CPF70E9
+ASP &1 not configured or off-line.
+
+CPF70FA
+Recovery times reset before changes completed.
+
+CPF70FB
+No authority to use command.
+
+CPF70F4
+Error occurred.
+
+CPF70F7
+Restricted system required to change recovery times.
+
+CPF70F9
+Not all recovery time changes made active.
+
+CPF700F
+Access path recovery time for &1 set to *NONE.
+
+CPF701C
+Change to system access path recovery time canceled.
+
+CPF701D
+Error occurred during change of recovery times.
+
+CPF701E
+Access path protection cannot be turned *OFF.
+
+CPF702E
+Access path recovery times set to system defaults.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+Top

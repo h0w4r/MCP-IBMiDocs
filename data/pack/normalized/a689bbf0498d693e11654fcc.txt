@@ -1,0 +1,129 @@
+Print Profile Internals (PRTPRFINT)
+
+Print Profile Internals (PRTPRFINT)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Print Profile Internals (PRTPRFINT) command allows you to print a report containing information on the number of entries contained in a user profile (*USRPRF) object on each auxiliary storage pool (ASP). The number of entries in the user profile determines the size of the user profile.
+
+Four types of entries can be found in a user profile. These entries exist in the *USRPRF object for the system ASP and all basic user ASPs (*SYSBAS) and in the user profile extension object on each independent ASP (IASP).
+
+Owned object entries
+An owned object entry exists for every permanent and temporary object this user owns in *SYSBAS and every object this user owns on an IASP.
+
+Private authority entries
+A private authority entry exists for every permanent and temporary object in *SYSBAS to which this user is granted a private authority and every object on an IASP to which this user is granted a private authority.
+
+Authorized user entries
+An authorized user entry exists for every user that is granted a private authority to a permanent or temporary object this user owns in *SYSBAS and every object this user owns on an IASP.
+
+Primary group entries
+A primary group entry exists for every permanent and temporary object in *SYSBAS for which this user is the primary group and for every object in an IASP for which this user is the primary group.
+
+Each entry in the user profile causes the user profile (*USRPRF) object to grow. The combination of all of the entries determines the size of the user profile. There is a limit to the number of entries a user profile can contain for permanent objects in *SYSBAS, temporary objects in *SYSBAS, and on each IASP that is varied on. A user profile cannot exceed the limit of entries for the permanent objects in *SYSBAS, temporary objects in *SYSBAS, or on any IASP. Refer to the Maximum capacities topic in the Availability category in the IBM i documentation for the maximum number of entries a profile can contain for permanent objects in *SYSBAS, temporary objects in *SYSBAS, or on any IASP.
+
+You can also think of the total number of entries as determining how "full" a user profile is. The report produced by this command shows how full the user profile is by giving a percentage (rather than giving the actual number of entries in the profile.) The report also gives a percentage for each of the four types of entries in the *USRPRF object.
+
+For each user profile in the report, the ASP name field will show:
+
+- *SYSBAS for information about permanent objects in *SYSBAS.
+
+- *SYSBASTMP for information about temporary objects in *SYSBAS.
+
+- The ASP device name for information about objects on each IASP.
+
+Note: In the report, the total percentage full for a profile can be greater than 100% due to rounding.
+
+You can choose to run this report for all user profiles, a subset of profiles, a specific profile or all profiles that are at least a specified percentage full. For example, you can run the report for the CJW profile or you can run the report for all profiles that are at least 89.90% full.
+
+Recommendations to avoid profiles becoming full:
+
+- Do not have one profile own everything on your system. For example, have each application be owned by its own profile.
+
+- Do not use IBM-supplied profiles, such as QSECOFR and QPGMR, as owners of your application. As shipped from IBM, they already own many objects and can become full when they also own user (non-IBM) objects.
+
+- If you are granting private authorities to many objects for several users, you should consider using an authorization list to secure the objects. Authorization lists will cause one private authority entry for the authorization list in the user's profile rather than one private authority entry for each object. In the object owner's profile, authorization lists will cause an authorized object entry for every user granted authority to the authorization list rather than an authorized object entry for every object multiplied by the number of users granted the private authority.
+Authorization lists are especially useful if you are granting private authorities to files. Files are complex objects. For complex objects, you get an entry for each piece of the object. For example, in a file owner's profile, you have an ownership entry for each piece of the file, including an entry or two for each member. (Physical files have two entries per member.) If you grant a private authority to ten users and the file has 50 members, the result will be 100 authorized object entries in the file owner's profile. With an authorization list, the ownership entries will remain the same, but the authorized object entries will be reduced to one for each user granted authority to the authorization list securing the file.
+
+Do not confuse the percentage full of a user profile with the maximum storage (MAXSTG) that a user profile can own. They are two different concepts.
+
+Restriction: You must have all object (*ALLOBJ) special authority to run this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SELECT | Select by | *USRPRF, *PCTFULL | Optional
+USRPRF | User profile | Qualifier list | Optional
+Qualifier 1: User profile | Generic name, name, *ALL
+PCTFULL | Percent full | 0.01-100.0, 89.90 | Optional
+
+Top
+
+Select by (SELECT)
+
+Specifies what criteria is used to select the user profiles to include in the report.
+
+*USRPRF
+User profiles are selected for the report based on the profile name specified for the USRPRF parameter.
+
+*PCTFULL
+User profiles are selected for the report based on the value specified for the PCTFULL parameter.
+
+Top
+
+User profile (USRPRF)
+
+If *USRPRF was specified for the Select by (SELECT) parameter, you must specify the user profiles to be included in the report.
+
+*ALL
+All user profiles will be included in the report.
+
+user-name
+The name of the user profile to be included in the report.
+
+generic-user-name
+The generic name of the user profile to be included in the report. A generic name is a character string of one or more characters followed by an asterisk (*).
+
+Top
+
+Percent full (PCTFULL)
+
+If *PCTFULL was specified for the Select by (SELECT) parameter, you must enter a value which will be used as the percentage full. User profiles that are at least as full on any auxiliary storage pool (ASP) as the percentage specified on this parameter will be included in the report. The value specified must be between 0.01 and 100.00.
+
+89.90
+User profiles that are at least 89.9 percent filled with entries on any ASP will be included in the report.
+
+percent-full
+A value, ranging from 0.01 through 100.00, for the percent full selection value.
+
+Top
+
+Examples
+
+PRTPRFINT SELECT(*PCTFULL) PCTFULL(85.00)
+
+This command prints a report of user profile internal information for all of the user profiles that are at least 85 percent full.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFB304
+User does not have required special authorities.
+
+CPFB307
+Command &1 in use in another job.
+
+Top

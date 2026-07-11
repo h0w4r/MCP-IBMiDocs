@@ -1,0 +1,372 @@
+Power Down System (PWRDWNSYS)
+
+Power Down System (PWRDWNSYS)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Power Down System (PWRDWNSYS) command prepares the system for ending and then starts the power-down sequence. All active subsystems are notified that the system is being powered down; no new jobs or routing steps can be started by any subsystem. For example, jobs that are on a job queue will not be started. In addition, jobs that are on a job queue as a result of a Transfer Job (TFRJOB) command will not complete. They are removed from the job queue during the subsequent initial program load (IPL), and their job logs are produced.
+
+When the system is powered down with the *CNTRLD option, a vary off of configuration objects is initiated, but may not complete before the power down completes. When the system is powered down with the *IMMED option, no vary off of configuration objects is performed.
+
+Notes:
+
+- If network server descriptions are configured on the system, all NWSDs should be varied off before the PWRDWNSYS command is issued to ensure the integrity of system and user data associated with each network server.
+
+- If tape units are installed on the system, all tape reels that are on the device(s) should be unloaded before the system is powered down to ensure the integrity of data on the tapes.
+
+- If the system has a primary partition, powering down the primary partition will cause the other partitions to power down. Ensure the other partitions are ready to be powered down before powering down the primary partition.
+
+- If independent auxiliary storage pool (ASP) devices are configured on the system, all independent ASPs should be varied off before PWRDWNSYS command is issued to ensure the integrity of data associated with each independent ASP.
+
+- The registered Prepower down system exit point (QIBM_QWC_PWRDWNSYS) has two possible formats. Format PWRD0100 can be used to add a program that is called when the PWRDWNSYS command is used. Format PWRD0200 can be used to add one or more programs that are called when the PWRDWNSYS command is used. These exit programs can perform clean up functions before the system is powered down.
+
+- When changing the QENDJOBLMT and QPWRDWNLMT system values, specify values so that QPWRDWNLMT is greater than QENDJOBLMT. The values need to allow enough time for system-supplied end-of-job functions such as completing commitment control processing and closing database files.
+
+Restrictions:
+
+- To run this command, the user must have job control (*JOBCTL) authority.
+
+- When a value other than *NONE is specified on the Install PTF device (INSPTFDEV) parameter you must have all object (*ALLOBJ) special authority.
+
+- When *IMGCLG is specified on the IPL source (IPLSRC) parameter you need the following authorities:
+
+execute (*EXECUTE) authority to library QUSRSYS
+
+use (*USE) authority to the image catalog specified by the Image catalog (IMGCLG) parameter
+
+use (*USE) authority to the virtual device description
+
+execute (*X) authority to each directory in the image catalog path name
+
+- If you have a user exit program defined to the Prepower down system exit point (QIBM_QWC_PWRDWNSYS) for format PWRD0100, then the user must have use (*USE) authority to the user exit program and execute (*EXECUTE) authority to the library that contains that program. If not, then this user exit program will not be called and the system will continue to power down.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OPTION | How to end | *CNTRLD, *IMMED | Optional, Positional 1
+DELAY | Controlled end delay time | 1-99999, 3600, *NOLIMIT | Optional, Positional 2
+RESTART | Restart options | Element list | Optional
+Element 1: Restart after power down | *NO, *YES
+Element 2: Restart type | *IPLA, *SYS, *FULL
+IPLSRC | IPL source | *PANEL, A, B, D, *IMGCLG | Optional
+IMGCLG | Image catalog | Name | Optional
+VFYTYPE | Verify type | *UPGRADE, *LIC | Optional
+ENDSBSOPT | End subsystem option | Single values: *DFT
+Other values (up to 3 repetitions): *NOJOBLOG, *CHGPTY, *CHGTSL | Optional
+TIMOUTOPT | Timeout option | *CONTINUE, *MSD, *SYSREFCDE | Optional
+CONFIRM | Confirm | *ENVVAR, *INTERACT, *YES, *NO | Optional
+INSPTFDEV | Install PTF device | Name, *NONE, *SERVICE | Optional
+
+Top
+
+How to end (OPTION)
+
+Specifies whether the system allows the active subsystem to end processing of active jobs in a controlled manner (which lets the application program perform end processing), or whether the system ends the jobs immediately. In either case, the system does perform certain job-cleanup functions.
+
+*CNTRLD
+The subsystem, in the time specified by the Controlled end delay time (DELAY) parameter ends all active jobs in a controlled manner. During that time, programs running in those jobs are allowed to perform cleanup (end-of-job processing). When a job being ended has a signal handling procedure for the asynchronous signal SIGTERM, the SIGTERM signal is generated for that job. If the possibility exists that an active job could begin to loop or send an inquiry message to QSYSOPR, you should specify a time delay using the DELAY parameter.
+
+*IMMED
+The subsystem ends all active jobs immediately. When a job being ended has a signal handling procedure for the asynchronous signal SIGTERM, the SIGTERM signal is generated for that job and the QENDJOBLMT system value specifies a time limit. Other than by handling the SIGTERM signal, the programs running in those jobs are not allowed to perform any cleanup. A minimum amount of time is required when *IMMED is specified. The amount of time allowed for cleanup when *IMMED is specified is controlled by the system values QENDJOBLMT and QPWRDWNLMT.
+
+Note: The *IMMED value might cause undesirable results if data has been partially updated. This value should be used only after a controlled end has been attempted unsuccessfully.
+
+Note: When *IMMED is specified while the system is operating under auxiliary power, or if the delay time specified in the Controlled end delay time (DELAY) parameter ends while the system is under auxiliary power, the system is immediately powered-down without additional job cleanup activity.
+
+Top
+
+Controlled end delay time (DELAY)
+
+Specifies the amount of time, in seconds, that the system allows a controlled end to be performed by the active subsystems. If the end of job routines are not finished in the specified delay time, any remaining jobs are ended immediately.
+
+3600
+The amount of time in which to complete a controlled end of processing is limited to 3600 seconds.
+
+*NOLIMIT
+The system does not power down until the last job is complete.
+
+Note: If *NOLIMIT is specified, a batch job could begin to loop, and the system does not power down.
+
+1-99999
+Specify the maximum amount of delay time, in seconds, in which a controlled end can be performed.
+
+Top
+
+Restart after power down (RESTART)
+
+Specifies whether the system ends and powers down, or whether the system ends and then starts again in unattended mode.
+
+The second element of this parameter specifies the point from which the initial program load (IPL) restarts. Specifying *SYS rather than *FULL can reduce the time required to restart the system.
+
+Element 1: Restart after power down
+
+*NO
+The system ends and powers down.
+
+*YES
+If the system is on utility power, it undergoes end of processing (but does not power down) and then does an abbreviated IPL. If the system is on auxiliary power, it powers down and an automatic-IPL occurs when utility power is restored (if QPWRRSTIPL system value is set to '1'). When the system starts again or when an automatic-IPL occurs, the IPL proceeds in an unattended mode. In unattended mode, displays such as the IPL options display are not shown.
+
+Element 2: Restart type
+
+*IPLA
+The value specified on the Change IPL Attributes (CHGIPLA) command is used. To determine the current setting for this value, use the Display IPL Attributes (DSPIPLA) command.
+
+*SYS
+The operating system is restarted. The hardware will only be restarted when required by the system.
+
+*FULL
+All portions of the system, including the hardware, are restarted.
+
+Top
+
+IPL source (IPLSRC)
+
+Specifies whether an initial-program-load (IPL) is started from the A-source, B-source or D-source of the system. This parameter allows you to control which Licensed Internal Code (LIC) storage source of the system to IPL. Also, the source of the system determines where LIC program temporary fixes (PTFs) are applied. This parameter also allows the system to be upgraded to a new release from an install image on DASD.
+
+Source Considerations
+
+LIC has three storage areas known as the A-source, the B-source and the D-source. The D-source is the install media. The A- and B-sources are part of the system memory. Initially, the A- and B-sources are identical, but when Licensed Internal Code fixes are performed temporarily (PTF), the temporary fixes are stored on the B-source. When the same fixes become permanent, they are copied from the B-source to the A-source; therefore, the fixes reside on both the A-source and the B-source.
+
+When you want to send temporary fixes to the B-source, you must start the system from the A-source, which causes the fixes to be sent to the B-source.
+
+When you start the system from the A-source, you are running the system from the permanent fixes. When you start the system from the B-source, you are running the system from a mixture of temporary and permanent fixes. When you start the system from the D-source, you are using the Licensed Internal Code loaded from the install media.
+
+It is recommended that you specify RESTART(*YES); otherwise, you cannot be assured which source of the system is actually started. This precaution can save you some time.
+
+*PANEL
+The system is started from the source that is currently shown on the operator's panel, the A-source, the B-source, or the D-source.
+
+A
+The system is started from the A-source.
+
+B
+The system is started from the B-source.
+
+D
+The system is started from the D-source, the install media.
+
+*IMGCLG
+The system is started from the image catalog specified with the Image catalog (IMGCLG) parameter. RESTART(*YES) must be used when this option is selected.
+
+Top
+
+Image catalog (IMGCLG)
+
+Specifies the image catalog used when IPLSRC(*IMGCLG) is selected. After the system is powered down, an install using the specified image catalog is performed. See the Work with Catalog Entries (WRKIMGCLGE) command for more information. RESTART(*YES) must be used when this parameter is specified.
+
+name
+Specify the name of the image catalog in library QUSRSYS.
+
+Top
+
+Verify type (VFYTYPE)
+
+Specifies the type of image catalog to be verified.
+
+*UPGRADE
+The optical image catalog to be verified is for a complete software upgrade. The system will verify that the necessary images for a software upgrade exist and can be loaded into the virtual optical device. The following list shows the optical images in order for IBM i:
+
+- Licensed Internal Code (Required)
+
+- Operating system (Required)
+
+- Library QGPL (Required)
+
+- Library QUSRSYS (Required)
+
+- No-charge options
+
+- No-charge (bonus) licensed programs and options
+
+- Keyed set products
+
+- Single products
+
+- Secondary languages
+
+- Program temporary fixes
+
+The following list shows the required tape images in order for IBM i:
+
+- Licensed Internal Code
+
+- Operating system
+
+- Library QGPL
+
+- Library QUSRSYS
+
+*LIC
+The image catalog to be verified is for an install of the Licensed Internal Code only. The system will verify that the Licensed Internal Code image exists and can be loaded into the virtual optical device. To specify *LIC, the keylock position must be set to MANUAL.
+
+Top
+
+End subsystem option (ENDSBSOPT)
+
+Specifies the options to take when ending the active subsystems. In general, specifying these options will improve the performance of the PWRDWNSYS command. Each option has certain side effects that you need to analyze before using that option.
+
+This parameter has no effect on jobs that are already in the ending status.
+
+*DFT
+The subsystems will end with no special ending options.
+
+- Joblogs will be produced.
+
+- The run priority will not change.
+
+- The timeslice value will not change.
+
+*NOJOBLOG
+No joblogs will be created for jobs that are ended due to this command being invoked. This includes subsystem monitor jobs and all user jobs in the subsystem. This option can significantly reduce the amount of time necessary to complete the PWRDWNSYS command. However, if a problem occurs in a job, there will be no joblog to record the problem, which may make problem diagnosis difficult or impossible.
+
+Note: If OPTION(*IMMED) is specified, then no joblogs are produced during PWRDWNSYS regardless of the End subsystem option (ENDSBSOPT) parameter. However, these joblogs will still be produced on the next IPL of the system unless the *NOJOBLOG option is specified. Therefore, if you specify OPTION(*IMMED) ENDSBSOPT(*NOJOBLOG), the system will not power down more quickly, but the subsequent IPL may be faster.
+
+*CHGPTY
+The CPU priority of jobs that are ending is changed to a higher value (worse priority). The remaining active jobs on the system may have better performance when *CHGPTY is specified. However, jobs that are ending may take longer to finish. This option is ignored if the system is ending controlled. But if the DELAY time limit expires, this option will take effect immediately.
+
+*CHGTSL
+The timeslice of jobs that are ending is changed to a lower value. The remaining active jobs on the system may have better performance when *CHGTSL is specified. However, jobs that are ending may take longer to finish. This option is ignored if the system is ending controlled. But if the DELAY time limit expires, this option will take effect immediately.
+
+Top
+
+Timeout option (TIMOUTOPT)
+
+Specifies the option to take when the system does not end within the time limit specified by the QPWRDWNLMT system value. If this time limit is exceeded, the subsequent IPL will be abnormal regardless of the value specified for this parameter.
+
+*CONTINUE
+The system will ignore the timeout condition and continue powering the system down. If RESTART(*YES) is specified, the system will restart automatically. A minimum of information will be available for service to debug the system.
+
+*MSD
+The system will issue a main store dump which can be used by service to debug the system. If the main store dump manager is configured correctly, the system will restart after the dump is finished.
+
+*SYSREFCDE
+The system will display system reference code B900 3F10 and the system will stop. This will allow service to debug the system.
+
+Top
+
+Confirm (CONFIRM)
+
+Specifies whether the request should be confirmed before the system is powered down.
+
+*ENVVAR
+The value in environment variable QIBM_PWRDWNSYS_CONFIRM is used to determine whether the request should be confirmed. If the value is set to *INTERACT, *YES, or *NO, the action described below for that value is taken. If the environment variable is not defined or not set to one of these values, then a confirmation panel is displayed when the PWRDWNSYS command is issued in an interactive job. System initiated power downs do not use the environment variable.
+
+*INTERACT
+A confirmation panel is displayed when the PWRDWNSYS command is issued in an interactive job. There is no confirmation when the PWRDWNSYS command is issued in a non-interactive job.
+
+*YES
+A confirmation panel is displayed when the PWRDWNSYS command is issued in an interactive job. An inquiry message is sent to QSYSOPR when the PWRDWNSYS command is issued in a non-interactive job.
+
+*NO
+There is no confirmation when the PWRDWNSYS command is issued.
+
+Top
+
+Install PTF device (INSPTFDEV)
+
+Specifies whether Program Temporary Fixes (PTFs) should be installed before the system is powered down. PTFs are loaded from the specified device for all installed products. If an optical or tape device is specified, PTF groups will be copied from the media to the system when they do not already exist on the system or when the level of the PTF group on the media is higher than the level of the PTF group that exists on the system. Any special handling PTFs listed in PTF groups will be used during the PTF install. The Copy PTFs (CPYPTF) service attribute is used to determine if PTF save files and cover letters will be copied into *SERVICE when PTFs are loaded from an optical or tape device. After the PTFs are loaded, all PTFs are marked for delayed apply and will be applied during the next normal unattended IPL.
+
+Note: A device name or *SERVICE cannot be specified with the Image catalog (IMGCLG) parameter, IPLSRC(D), or IPLSRC(*IMGCLG).
+
+*NONE
+No PTFs are installed before the system is powered down.
+
+*SERVICE
+The PTFs sent from the service support system are installed before the system is powered down.
+
+name
+Specify the name of the optical or tape device from which the PTFs are installed before the system is powered down.
+
+Top
+
+Examples
+
+Example 1: Performing An Immediate End
+
+PWRDWNSYS OPTION(*IMMED)
+
+This command causes the system to perform an immediate end without allowing any active jobs to perform cleanup routines. Once the system completes its end functions, it starts the power-down sequence.
+
+Example 2: Specifying a Controlled End
+
+SBMJOB JOB(LASTJOB) JOBD(QBATCH) JOBPTY(9) JOBQ(QBATCH)
+RQSDTA('PWRDWNSYS *CNTRLD 3600')
+
+This command submits a low priority batch job that, when run, causes the system to perform a controlled end. The controlled end is allowed one hour (3600 seconds) for completion before any remaining jobs are ended. This method of issuing the PWRDWNSYS command could be used to allow other higher priority jobs on job queue QBATCH (including those that are on the queue as a result of the Transfer Job (TFRJOB) command) to be completed before the PWRDWNSYS command is run. There must be an active subsystem for which the QBATCH job queue is a source of work.
+
+Example 3: Specifying a Controlled End With No Time Limit
+
+PWRDWNSYS OPTION(*CNTRLD) RESTART(*YES)
+
+This command causes the system to perform a controlled end with no time limit. When all jobs in the system have completed, the system prepares for ending and starts an IPL.
+
+After PWRDWNSYS OPTION(*CNTRLD) is entered, and before the delay time ends, this command can be overridden by entering PWRDWNSYS OPTION(*IMMED). In this case, the values specified or defaulted for the RESTART parameter on the second command also override the values specified or defaulted for the first command.
+
+Example 4: Changing the IPL Source After Immediate End
+
+PWRDWNSYS OPTION(*IMMED) RESTART(*YES) IPLSRC(A)
+
+This command causes the system to end immediately and change the IPL source to A. When the system restarts, it IPLs on the A source.
+
+Example 5: Allowing the Operating System to Determine the Restart Point
+
+PWRDWNSYS OPTION(*IMMED) RESTART((*YES *SYS))
+
+This command causes the IPL to restart at the point determined by the operating system.
+
+Example 6: Changing the Time Out Option.
+
+PWRDWNSYS OPTION(*IMMED) TIMOUTOPT(*MSD)
+
+This command causes the system to end immediately. If the QPWRDWNLMT system value is exceeded, the system will dump the main storage. If the main store dump manager is configured correctly, the system will restart. Otherwise, the B900 3F10 system reference code will be displayed and the system will halt.
+
+Example 7: Installing a New Release of the Operating System.
+
+PWRDWNSYS RESTART(*YES) IPLSRC(*IMGCLG) IMGCLG(MYCAT1)
+
+This command causes the system to end and then start installing a new release of the operating system from the image catalog MYCAT1.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1001
+Wait time expired for system response.
+
+CPF1036
+System powering down with *CNTRLD option.
+
+CPF1037
+System powering down with *IMMED option.
+
+CPF1038
+No authority to use command.
+
+CPF1091
+Function check occurred in system arbiter.
+
+CPF18C7
+PWRDWNSYS not allowed to continue.
+
+CPF222E
+&1 special authority is required.
+
+CPF3615
+PTF install processing failed.
+
+CPFBC42
+Verification for image catalog &1 failed.
+
+Top

@@ -1,0 +1,266 @@
+Delete User Profile (DLTUSRPRF)
+
+Delete User Profile (DLTUSRPRF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Delete User Profile (DLTUSRPRF) command deletes a user profile from the system. The user of this command must have security administrator (*SECADM) special authority (which can be obtained through the program adopt operation), and object existence (*OBJEXIST) authority and use (*USE) authority for the user profile to be deleted.
+
+The message queue associated with this user profile is automatically deleted if the user profile is the owner of the message queue.
+
+If a user profile is damaged by system failure, it can be deleted by using the Delete User Profile (DLTUSRPRF) command and re-created by using the Create User Profile (CRTUSRPRF) command. After a user profile is re-created, the owned objects and primary group objects can be transferred back to it. Also, authorities that were granted to the damaged profile must be granted again to the new user profile by using the Grant Object Authority (GRTOBJAUT) command.
+
+Restrictions:
+
+- You must have use (*USE) and object existence (*OBJEXIST) authority to the user profile.
+
+- You must have *OBJEXIST, *USE, and delete (*DLT) authorities to delete a message queue associated with and owned by the user profile.
+
+- The user profile cannot be deleted if a user is currently running under the profile, or if it owns any objects and OWNOBJOPT(*NODLT) is specified. All objects in the user profile must first either be transferred to new owners by using the Change Object Owner (CHGOBJOWN) command or be deleted from the system. This can also be accomplished by specifying OWNOBJOPT(*DLT) to delete the objects or OWNOBJOPT(*CHGOWN user-profile-name) to change the ownership. Authority granted to the user does not have to be specifically revoked by the Revoke Object Authority (RVKOBJAUT) command; it is automatically revoked when the user profile is deleted.
+
+- To delete any object, you must have *OBJEXIST authority for the object.
+
+- The user profile cannot be deleted if it is the primary group for any object. All objects that the user is the primary group for must either be transferred to new users by using the Change Object Primary Group (CHGOBJPGP) command, or be deleted from the system. The transfer can be accomplished by specifying PGPOPT(*CHGPGP user-profile-name) to change the primary group.
+
+- This command calls the system distribution directory support to delete the user from the directory and to delete the user from distribution lists, if necessary. The system distribution directory support uses journaling and commitment control for the system distribution directory files (QUSURSYS/QAOS*). Commitment control must be inactive when this function is requested. If commitment control is active when this function is requested, the journal must be QUSRSYS/QAOSDIAJRN.
+
+- Adopted authority is not used when deleting, changing the owner, or changing the primary group of file system objects. File system objects are of type *DIR, *STMF, *SOCKET, *SYMLNK, *BLKSF, *CHRSF, or *FIFO. If the user profile running the DLTUSRPRF command does not have *ALLOBJ special authority, the user profile must have the following authority to the objects:
+
+When OWNOBJOPT(*DLT) is specified, the user profile must have *OBJEXIST authority for the object and *WX authority to the directory containing the object.
+
+When PGPOPT(*CHGPGP) is specified, the user profile must own the object.
+
+ADDITIONAL CONSIDERATIONS
+
+- Owned object types *USRPRF, *RCT, and *AUTHLR are not deleted from the system. Ownership of these object types is transferred to user profile QDFTOWN.
+
+- Owned objects of the type *PRDDFN are not deleted. Ownership is transferred to the user profile QSYS.
+
+- In addition to the above restrictions, all restrictions that apply to DLTLIB also apply to specifying OWNOBJOPT(*DLT). For example, if an object is in use, it cannot be deleted. Or, if a physical file has an associated logical file owned by another user, the physical file cannot be deleted.
+
+- Owned objects of type *LIB are not deleted from the system if the library contains objects owned by another user profile. The ownership of the library is transferred to the system user profile, QDFTOWN.
+
+- Owned objects of type *DIR are not deleted from the system if the directory contains objects owned by another user profile. The ownership of the directory is transferred to the system user profile, QDFTOWN.
+
+- Owned objects of type *BLKSF are not deleted from the system if the user-defined file system represented by the *BLKSF contains objects owned by another user profile. The ownership of the user-defined file system is transferred to the system user profile, QDFTOWN.
+
+- A user profile cannot be both the owner of the object and the primary group of the object. Therefore, if the new owner is already the primary group of an object that the current user owns, the transfer of ownership fails. Also, if the new primary group already owns an object that the current user is the primary group of, the transfer of primary groups fails.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+USRPRF | User profile | Name | Required, Positional 1
+OWNOBJOPT | Owned object option | Single values: *NODLT, *DLT
+Other values: Element list | Optional
+Element 1: Owned object value | *CHGOWN
+Element 2: User profile name if *CHGOWN | Name
+PGPOPT | Primary group option | Single values: *NOCHG
+Other values: Element list | Optional
+Element 1: Primary group value | *CHGPGP
+Element 2: New primary group | Name, *NONE
+Element 3: New primary group authority | *OLDPGP, *PRIVATE, *ALL, *CHANGE, *USE, *EXCLUDE
+EIMASSOC | EIM association | *DLT, *NODLT | Optional
+
+Top
+
+User profile (USRPRF)
+
+Specifies the user profile to be deleted.
+
+This is a required parameter.
+
+Note: The following IBM-supplied user profiles are not valid on this parameter:
+
+QANZAGENT, QAUTPROF, QCLUMGT, QCLUSTER, QCOLSRV, QDBSHR, QDBSHRDO, QDFTOWN, QDIRSRV, QDLFM, QDOC, QDSNX, QEJB, QEJBSVR, QFNC, QGATE, QIPP, QLPAUTO, QLPINSTALL, QLWISVR, QMSF, QNETSPLF, QNFSANON, QNTP, QPEX, QPGMR, QPGMR_NC, QRCL, QRSC, QSECOFR, QSECOFR_NC, QSNADS, QSPL, QSPLJOB, QSRV, QSRVAGT, QSRVBAS, QSYS, QSYSOPR, QSYSOPR_NC, QTCM, QTCP, QTFTP, QTMHHTTP, QTMHHTP1, QTSTRQS, QUSER, QUSER_NC, QWEBADMIN, QWSERVICE, QYCMCIMOM, QYPSJSVR
+
+name
+Specify the name of the user profile to be deleted.
+
+Top
+
+Owned object option (OWNOBJOPT)
+
+Specifies the type of operations to be performed on the owned objects of the user profile.
+
+Single values
+
+*NODLT
+The owned objects for the user profile are not changed, and the user profile is not deleted if the user owns any objects.
+
+*DLT
+The owned objects for the user profile are deleted. The user profile is deleted if the deletion of all owned objects is successful.
+
+Element 1: Owned object value
+
+*CHGOWN
+The owned objects for the user profile have ownership transferred to the specified user profile. The user profile is deleted if the transfer of all owned objects is successful.
+When *CHGOWN is specified, a user profile name must be specified for the new user profile. The new user profile owns all objects owned by the user profile specified for the User profile (USRPRF) parameter.
+
+Element 2: User profile name if *CHGOWN
+
+name
+Specify the name of the user profile to be the new owner.
+
+Top
+
+Primary group option (PGPOPT)
+
+Specifies the type of operations to be done on the objects the user profile to be deleted is the primary group for.
+
+Single values
+
+*NOCHG
+The objects the user profile is the primary group for do not change, and the user profile is not deleted if the user is the primary group for any objects.
+
+Element 1: Primary group value
+
+*CHGPGP
+The objects the user profile is the primary group for are transferred to the specified user profile. The user profile is deleted if the transfer of all objects is successful.
+When *CHGPGP is specified, a user profile name or *NONE must be specified. If a user profile name is specified, that user will be the primary group for all objects for which the user profile specified by the USRPRF parameter is the primary group. If *NONE is specified, all of the objects for which the user profile specified by the USRPRF parameter is the primary group for will no longer have a primary group.
+
+Element 2: New primary group
+
+*NONE
+The objects do not have a primary group.
+
+name
+Specify the name of the user profile to be the new primary group. The user profile specified must have a group ID number (gid).
+
+Element 3: New primary group authority
+
+*OLDPGP
+The new primary group has the same authority to the object as the old primary group.
+
+*PRIVATE
+If the new primary group has a private authority to the object, it will become the primary group for that object and the primary group authority will be what the private authority was. If the new primary group does not have a private authority to the object, it becomes the primary group but does not have any authority to the object.
+
+*ALL
+The new primary group has *ALL authority to the object.
+
+*CHANGE
+The new primary group has *CHANGE authority to the object.
+
+*USE
+The new primary group has *USE authority to the object.
+
+*EXCLUDE
+The new primary group has *EXCLUDE authority to the object.
+
+Top
+
+EIM association (EIMASSOC)
+
+Specifies whether Enterprise Identity Mapping (EIM) associations should be deleted for this user in the local registry. All types of associations for this user in the local registry will be deleted, including target, source, admin and policy.
+
+If this system is not configured for EIM, then no processing is done. If this system is configured for EIM, but the connect to EIM fails (for example, the LDAP server that EIM is configured to use is not active), then a QSYEIM job is submitted that will attempt to connect to EIM for one hour. Not being able to delete EIM associations does not cause the delete of the profile to fail.
+
+If associations are not deleted, a profile created with the same name will use these associations.
+
+*DLT
+EIM associations will be deleted.
+
+*NODLT
+EIM associations will not be deleted.
+
+Top
+
+Examples
+
+DLTUSRPRF USRPRF(JJADAMS)
+
+This command deletes the user profile named JJADAMS from the system if no objects are owned by the user profile, no user is currently running under it, and the user is not the primary group of any objects.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA030
+Object already in use.
+
+CPF22BF
+User profile &1 not deleted.
+
+CPF22B3
+User profile &1 not deleted.
+
+CPF22C1
+NEWOWN or OWNOBJOPT parameter cannot be the same as USRPRF parameter.
+
+CPF220A
+New owner &1 does not have a uid.
+
+CPF220B
+New primary group &1 does not have a gid.
+
+CPF220C
+Owner and primary group cannot be the same.
+
+CPF2203
+User profile &1 not correct.
+
+CPF2204
+User profile &1 not found.
+
+CPF221A
+User profile &1 not deleted.
+
+CPF221E
+User profile &1 not deleted.
+
+CPF221F
+PGPOPT and USRPRF parameters cannot be the same.
+
+CPF2213
+Not able to allocate user profile &1.
+
+CPF2215
+User profile &1 not deleted.
+
+CPF2217
+Not authorized to user profile &1.
+
+CPF2222
+Storage limit is greater than specified for user profile &1.
+
+CPF2225
+Not able to allocate internal system object.
+
+CPF2227
+One or more errors occurred during processing of command.
+
+CPF2229
+Not authorized to delete user profile.
+
+CPF2238
+Access path to user profiles damaged.
+
+CPF2258
+Group profile &1 not deleted.
+
+CPF2263
+Group information removed from &1 user profiles.
+
+CPF2265
+User profile &1 not deleted.
+
+CPF4ACF
+Operation failed for object &1 in &2 type *&3 due to replication errors.
+
+*STATUS Messages
+
+CPI2236
+Deleting owned objects.
+
+Top

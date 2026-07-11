@@ -1,0 +1,317 @@
+Add Remote Journal (ADDRMTJRN)
+
+Add Remote Journal (ADDRMTJRN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add Remote Journal (ADDRMTJRN) command associates a remote journal on the target system, as identified by the relational database directory entry, with the specified journal on the source system. The journal on the source system may be either a local journal or another remote journal. A maximum of 255 remote journals may be associated with a single journal on a source system.
+
+When adding a remote journal to a source journal, the remote journal is created on the target system using a combination of the attributes from the source journal and the input parameters provided on this command. The library that the remote journal will be created in must already exist on the target system prior to this command being used on the source system. When created by this command, the remote journal will be created with a journal type of *REMOTE and the remote journal will not have an attached journal receiver.
+
+Note: A receiver will be attached when the remote journal is activated using either the Change Remote Journal (CHGRMTJRN) command, or Change Journal State (QjoChangeJournalState) API.
+
+When adding the remote journal, the remote journal can either be created into the same named library as that of the source journal or into a redirected library on the target system. A redirected library provides a means for remote journals and any of their associated journal receivers to reside in different named libraries on the target system from the corresponding local journal and journal receivers on the local system. When specified, all validation for the journal library on the target system will be performed using the redirected library name. Similarly, the journal receivers that will later be created and associated with this remote journal can either reside in the same library as the source journal receivers on the source system, or into a distinct redirected library name on the target system. The journal receiver library redirection, if desired, must be specified when the remote journal is added using this command.
+
+When adding a remote journal on a target system, two remote journal types can be specified, *TYPE1 and *TYPE2. The remote journal type influences the redirection capabilities, journal receiver restore operations, and remote journal association characteristics.
+
+- Every *TYPE1 remote journal that is associated with the local journal must use the same redirection for both the remote journal and remote journal receiver. This allows a journal receiver to be saved from any system in the remote journal network and be restored to any system in the network and associated with either a local or remote journal.
+
+- Every *TYPE2 remote journal that is associated with the local journal can use different redirection for the remote journal or remote journal receiver. This restricts the save and restore options. The journal receiver can only be associated with the remote journal if it was saved from the system on which the remote journal resides. If the journal receiver was saved from the system with the local journal, then it cannot be associated with the remote journal on any system.
+
+If the specified journal already exists on the target system, the journal can be associated with the source journal if all of the following are true:
+
+- the journal is of type *REMOTE
+
+- the remote journal type matches the specified remote journal type
+
+- the remote journal was previously associated with this same source journal
+
+Also, the journal may or may not have an attached journal receiver.
+
+After the remote journal has been successfully added on the target system, the remote journal will have a journal state of *INACTIVE. A journal state of *INACTIVE for a remote journal means that the remote journal is currently not ready to receive journal entries from its source journal on the source system. The Change Remote Journal (CHGRMTJRN) command or Change Journal State (QjoChangeJournalState) API is used to activate a remote journal and start the replication of journal entries from the source journal to the remote journal.
+
+Once a remote journal has been added to a journal, the receiver that was attached to the source journal at the time of running this command or any subsequently attached receivers, will be protected from deletion if all journal entries for a given journal receiver have not yet been replicated to the remote journal. This protection ends when the remote journal is removed using the Remove Remote Journal (RMVRMTJRN) command or Remove Remote Journal (QjoRemoveRemoteJournal) API.
+
+Restrictions:
+
+- The Add Remote Journal (ADDRMTJRN) command may only be called from the source system.
+
+- A user profile must exist on the target system by the same name as the user profile that is running the Add Remote Journal (ADDRMTJRN) command on the source system. This restriction is irrespective of the selected communications protocol.
+
+- When adding a *TYPE1 remote journal to a source journal, the same journal and journal receiver library redirection must be specified that exists for any *TYPE1 remote journals which have already been added to the source journal. A remote journal will always use the redirected library, if any, that is specified for the local journal. The only way to change the value specified in the remote journal library field and the remote journal receiver library field is to do all of the following:
+
+Remove all of the associated *TYPE1 remote journals from the local journal.
+
+Delete the remote journal.
+
+Change the local journal to attach a new receiver.
+
+Add the remote journal specifying the new redirection.
+
+- QTEMP cannot be specified for the remote journal library, remote journal receiver library, or remote message queue library.
+
+- A remote journal whose name starts with a Q cannot specify a remote journal library that starts with a Q, unless the remote journal library is QGPL. This is required to prevent collisions between local and remote journals that are used for system functions.
+
+- A *TYPE1 remote journal cannot be added to a *TYPE2 remote journal.
+
+- The specified relational database (RDB) directory entry must meet the following rules:
+
+The communications protocol used for the RDB must be supported for remote journal functions.
+
+The remote location name in the RDB directory entry cannot refer to the *LOCAL database.
+
+The RDB directory entry cannot use an application requester driver program (*ARDPGM) to locate the target system.
+
+- The remote journal message queue on the remote system must be either in the same ASP group as the remote journal, or in the system ASP, or a basic user ASP.
+
+- The remote receiver library and remote journal library on the remote system must both exist in either the system and basic user ASP's or in the same ASP group. They cannot be in two different ASP groups.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+RDB | Relational database | Name | Required, Positional 1
+SRCJRN | Source journal | Qualified object name | Required, Positional 2
+Qualifier 1: Source journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TGTJRN | Target journal | Single values: *SRCJRN
+Other values: Qualified object name | Optional
+Qualifier 1: Target journal | Name
+Qualifier 2: Library | Name
+RMTRCVLIB | Remote receiver library | Name, *SRCRCVLIB | Optional
+RMTJRNTYPE | Remote journal type | *TYPE1, *TYPE2 | Optional
+MSGQ | Journal message queue | Qualified object name | Optional
+Qualifier 1: Journal message queue | Name, QSYSOPR
+Qualifier 2: Library | Name, QSYS
+DLTRCV | Delete receivers | *NO, *YES | Optional
+DLTRCVDLY | Delete receiver delay time | 1-1440, 10 | Optional
+TEXT | Text 'description' | Character value, *BLANK | Optional
+
+Top
+
+Relational database (RDB)
+
+Specifies the name of the relational database directory entry that contains the remote location name of the target system. This name should match the name of the *LOCAL relational database directory entry on the target system.
+
+This is a required parameter.
+
+relational-database-entry
+Specify a maximum of 18 characters for the name of the relational database directory entry.
+
+Top
+
+Source journal (SRCJRN)
+
+Specifies the name of the journal on the source system to which the remote journal is being added, and the library where it resides. The journal on the source system may be either a local journal or another remote journal.
+
+This is a required parameter.
+
+source-journal-name
+Specify the source journal to which the target journal is being added.
+
+The name of the source journal can be qualified by one of the following library values:
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Target journal (TGTJRN)
+
+Specifies the name of the remote journal on the target system.
+
+*SRCJRN
+The target journal name is exactly the same as the source journal name.
+
+library-name/target-journal-name
+Specify the target journal that is being added as a remote journal to the source journal.
+
+Top
+
+Remote receiver library (RMTRCVLIB)
+
+Specifies the name of the library for the remote journal receivers on the target system that will be associated with this remote journal.
+
+*SRCRCVLIB
+The journal receivers are created on the target system in the same library as they exist on the source system.
+
+remote-journal-receiver-library-name
+Specify the name of the library for the remote journal receivers on the target system that will be associated with this remote journal.
+
+Top
+
+Remote journal type (RMTJRNTYPE)
+
+Specifies the type of remote journal on the target system. The remote journal type influences the redirection capabilities, journal receiver restore operations, and remote journal association characteristics. See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for detailed descriptions of the differences.
+
+*TYPE1
+A *TYPE1 remote journal is added. Every *TYPE1 remote journal that is associated with the local journal must use the same redirection for both the remote journal and remote journal receiver. This allows a journal receiver to be saved from any system in the remote journal network and be restored to any system in the network and associated with either a local or remote journal.
+
+*TYPE2
+A *TYPE2 remote journal is added. Every *TYPE2 remote journal that is associated with the local journal can use different redirection for the remote journal or remote journal receiver. This restricts the save and restore options. The journal receiver can only be associated with the remote journal if it was saved from the system on which the remote journal resides. If the journal receiver was saved from the system with the local journal, then it cannot be associated with the remote journal on any system.
+
+Top
+
+Journal message queue (MSGQ)
+
+Specifies the name of the message queue associated with the remote journal. This value is only set for a journal that is created on the target system.
+
+QSYS/QSYSOPR
+The message is sent to the QSYSOPR message queue.
+
+library-name/journal-message-queue
+Specify the name of the journal message queue to which the journal messages are sent. If this message queue is not available when a message is to be sent, the message is sent to the QSYSOPR message queue.
+
+Note: Some messages that are sent to the journal message queue will also be sent to the QSYSOPR message queue and QHST.
+
+Top
+
+Delete receivers (DLTRCV)
+
+Specifies whether the system deletes the target journal receivers when they are no longer needed or keeps them on the target system for the user to delete after they have been detached by the target system. This value is only set for a journal that is created on the target system.
+
+*NO
+The journal receivers are not deleted by the system.
+
+*YES
+The journal receivers are deleted by the system.
+
+Top
+
+Delete receiver delay time (DLTRCVDLY)
+
+If the system cannot allocate an object needed to delete a journal receiver associated with the remote journal on the target system, this parameter specifies the time (in minutes) to be used to delay the next attempt to delete the target journal receiver. This value is only set for a journal that is created on the target system.
+
+10
+System waits 10 minutes before trying again.
+
+delete-receiver-delay-time
+System waits the specified number of minutes before trying again. Valid values range from 1 to 1440.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the text that briefly describes the remote journal on the target system. This value is only set for a journal that is created on the target system.
+
+*BLANK
+Text is not specified.
+
+'description'
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Examples
+
+Example 1: Adding a *TYPE1 remote journal, specifying values for the DLTRCV and TEXT parameters.
+
+ADDRMTJRN SRCJRN(LOCLIB/J) RDB(DETROIT) TGTJRN(RMTLIB/J)
+DLTRCV(*NO)
+TEXT('Remote Journal Created for Application Z')
+
+This command adds remote journal J in library RMTLIB to journal J in library LOCAL, and the DLTRCV parameter on the remote journal will be *NO, irrespective of the attribute of journal J in library LOCLIB. If journal J in RMTLIB does not already exist, then it is created, otherwise, it is reassociated with journal J in LOCLIB, if it meets the appropriate criteria.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF69A4
+Remote journal &1 in &2 not added.
+
+CPF695A
+Remote journal &1 in &2 not added.
+
+CPF695B
+Remote journal &1 in &2 not added.
+
+CPF695C
+Remote journal &1 in &2 not added.
+
+CPF695D
+Remote journal &1 in &2 not added.
+
+CPF695E
+Remote journal &1 in &2 not added.
+
+CPF695F
+Remote journal &1 in &2 not added.
+
+CPF6973
+Source journal not compatible with target system.
+
+CPF6982
+Relational database directory entry &1 not valid.
+
+CPF6983
+Remote journal &1 in &2 not added.
+
+CPF6984
+Remote journal &1 in &2 not added.
+
+CPF6985
+Remote journal &1 in &2 not added.
+
+CPF6988
+Remote journal &1 in &2 not added.
+
+CPF6989
+Remote journal &1 in &2 not added.
+
+CPF699B
+User profile &8 not found.
+
+CPF6991
+Remote journal &1 in &2 not added.
+
+CPF70DB
+Remote journal environment ended for journal &1 in library &2.
+
+CPF70D6
+Remote journal environment ended for journal &1 in library &2.
+
+CPF701B
+Journal recovery of an interrupted operation failed.
+
+CPF7010
+Object &1 in &2 type *&3 already exists.
+
+CPF7011
+Not enough storage or resources.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9830
+Cannot assign library &1.
+
+Top

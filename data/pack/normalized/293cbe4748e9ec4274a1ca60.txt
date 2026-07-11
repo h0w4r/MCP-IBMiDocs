@@ -1,0 +1,193 @@
+Start Copy Screen (STRCPYSCN)
+
+Start Copy Screen (STRCPYSCN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Copy Screen (STRCPYSCN) command allows you to copy the screens of another display station on your display station to observe what is happening and diagnose problems.
+
+If the STRCPYSCN command is used to copy displays from a source device that has the wide-display feature to an output device with a regular-width display, the command is accepted, but wide-display images are not shown and an informational message is sent to the target work station indicating that the display was not shown.
+
+If the STRCPYSCN command is used to copy displays from a source device that supports graphic DBCS characters, the command is accepted and character information is shown, but graphic DBCS characters appear as single byte. No message is sent.
+
+If the output device is not the requesting device, then the output device cannot be signed on. If the output device is signed on, a message is sent to the requester indicating that the device is not available for copying. If the source device is signed off after display copy has begun, the function automatically ends.
+
+Note: The copy display function can be ended by the target device.
+
+Restrictions:
+
+- Permission must be given from the user of the source work station.
+
+- When a request is made to begin display image copying, a break message is sent to the user of the source work station to inform the user that the displays are going to be copied. The user must reply to this message before any displays are copied.
+
+- *REQUESTER is not valid for the SRCDEV or OUTDEV parameters when the command is submitted to batch.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SRCDEV | Source device | Name, *REQUESTER | Required, Positional 1
+OUTDEV | Output device | Name, *REQUESTER, *NONE | Required, Positional 2
+JOBQ | Job queue | Qualified object name | Optional
+Qualifier 1: Job queue | Name, QCTL
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTFILE | File to receive output | Single values: *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: File to receive output | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+
+Top
+
+Source device (SRCDEV)
+
+Specifies the display station that is used as the source for the screen images to be copied.
+
+This is a required parameter.
+
+*REQUESTER
+Specifies that the screens are to be copied from the display station that issued this command.
+
+name
+Specify the name of the display station (other than the one that issued this command) whose screens are to be copied.
+
+Top
+
+Output device (OUTDEV)
+
+Specifies the output device for the copying process.
+
+This is a required parameter.
+
+*REQUESTER
+Specifies that screens are to be copied to the work station from which this command is issued. *REQUESTER cannot be specified here if it is also specified for the Source device (SRCDEV) parameter.
+
+*NONE
+Specifies that the copied screens do not go to a display station. If *NONE is specified here, then a value must be specified for the File to receive output (OUTFILE) parameter.
+
+name
+Specify the name of the display station (other than the one that issued this command) that will display the copied screens.
+
+Top
+
+Job queue (JOBQ)
+
+Specifies the job queue used to submit the job which shows the screens from the source device on the target device when the requesting device is not the target device. When *REQUESTER is specified on the Output device (OUTDEV) parameter, this parameter is ignored, since it defaults to the values for the target display station and then a submit job is not necessary.
+
+Qualifier 1: Job queue
+
+QCTL
+Job queue QCTL is to be used.
+
+name
+Specify the name of the job queue where the job which will process the copied screens is to be submitted.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the job queue. If no current library entry exists in the library list, QGPL is used.
+
+name
+Specify the name of the library where the job queue is located.
+
+Top
+
+File to receive output (OUTFILE)
+
+Specifies the database file to which the output of the command is directed. If the file does not exist, this command creates a database file in the specified library. If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created. Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+
+Qualifier 1: File to receive output
+
+name
+Specify the name of the database file to which the command output is directed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the file. If the file is not found, one is created in the current library. If no current library exists, the file will be created in the QGPL library.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Note: If a new file is created, system file QASCCPY in system library QSYS with a format name of QSCCPY1 is used as a model.
+
+Top
+
+Output member options (OUTMBR)
+
+Specifies the name of the database file member that receives the output of the command.
+
+Element 1: Member to receive output
+
+*FIRST
+The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the File to receive output (OUTFILE) parameter. If the member already exists, you have the option to add new records to the end of the existing member or clear the member and then add the new records.
+
+name
+Specify the name of the file member that receives the output. If it does not exist, the system creates it.
+
+Element 2: Replace or add records
+
+*REPLACE
+The system clears the existing member and adds the new records.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+Top
+
+Examples
+
+STRCPYSCN SRCDEV(WS2) OUTDEV(*REQUESTER)
+
+This command sends an inquiry message to the user of work station, WS2. The message indicates that the display station displays are about to be copied to another display station. If the user of that display does not wish this to happen, then a cancel (C) reply prevents the operation from beginning. To allow the operation to begin, the user responds with a go (G) reply to the message.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2207
+Not authorized to use object &1 in library &3 type *&2.
+
+CPF7AF4
+Library QTEMP is not valid for OUTFILE keyword.
+
+CPF7AF5
+From device cannot be used with to device.
+
+CPF7AF6
+Device &1 not available.
+
+CPF7AF7
+Device name &1 not correct.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9860
+Error occurred during output file processing.
+
+*NOTIFY Messages
+
+CPI7AF9
+Screen image not displayed.
+
+Top

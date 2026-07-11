@@ -1,0 +1,197 @@
+Add Cluster Monitor (ADDCLUMON)
+
+Add Cluster Monitor (ADDCLUMON)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Add Cluster Monitor (ADDCLUMON) command is used to add a cluster node monitor to the cluster. The monitor runs on some node within the cluster and waits for messages from a server. The server sends a message when it detects a failure for a system it is monitoring.
+
+In the absence of a cluster monitor, a failure such as a system crash due to a processor or memory failure is not detected by cluster resource services as a node failure. Rather, cluster resource services detects a failure in heartbeat communications and cannot determine if it is due to a node failure or a communications path failure. In this case, the cluster enters a partition state and failover does not occur.
+
+Two types of servers are supported: CIM servers and REST servers.
+
+For systems managed using the Hardware Management Console (HMC) the server runs on the HMC. The server is either Representational State Transfer (REST) or CIM. Older versions of the HMC run the CIM server, newer versions of the HMC replace the CIM server with a REST server. The HMC affords the most complete node failure detection since it is not part of the system and thus can continue to operate when a system has completely failed.
+
+Some systems such as a blade server or an entry level system may not be managed by an HMC but instead make use of the Integrated Virtualization Manager (IVM) in a Virtual I/O Server (VIOS) management partition. These systems use a CIM server. Since the VIOS is software running on the same system as a cluster node, some failures such as a hardware failure which takes down the whole system cannot be detected with this type of cluster monitor. When using VIOS, the CIM server must be started in the VIOS management partition by running the "startnetsvc cimserver" command in the VIOS partition.
+
+With the use of an HMC or VIOS and a cluster monitor, cluster partitions can be prevented for more situations. For example, suppose there are two cluster nodes: Node A and Node B. Each node is on a separate system. An HMC is attached to the system which contains Node A and the HMC is on a network which can communicate to Node B. A cluster node monitor is configured to run on Node B. Should Node A crash, the HMC sends a message to Node B and thus cluster resource services has additional information to know that this was really a node failure and not a heartbeat communication failure.
+
+When a cluster node is started and that node has had monitors added to it, cluster resource services will attempt to contact the server defined in each monitor. The node will be started even if some error occurs contacting the server.
+
+When an active cluster node is removed from the cluster and that node has had monitors added to it, cluster resource services will attempt to contact the server defined in each monitor. The node will be removed even if some error occurs contacting the server.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the cluster to run this command.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- The node the monitor is being added to must be active within the cluster.
+
+- The command will fail if any node in the cluster has a status of Partition.
+
+- To add cluster monitors for CIM servers:
+
+The 5770-UME Licensed Product (IBM Universal Manageability Enablement for i) must be installed and configured on the node to which the monitor is being added. The cimconfig command must be used to set the sslClientVerificationMode property to disabled and the enableAuthentication property to false.
+
+The 5733-SC1 Licensed Product (IBM Portable Utilities for i) must be installed on the node to which the monitor is being added.
+
+Operating system option 33 (Portable Application Solution Environment (PASE)) must be installed on the node to which the monitor is being added.
+
+The HMC version must be V8R8.5.0 or earlier.
+
+- To add cluster monitors for Representational State Transfer (REST) servers:
+
+The Extended Base Directory Support (Option 3 of the IBM i operating system) must be installed on the node to which the monitor is being added.
+
+The HMC version must be V8R8.5.0 or later.
+
+- The server associated with this monitor must be running and able to communicate with the node to which the monitor is being added.
+
+- This command can only be used with a cluster at cluster version 7 or greater.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CLUSTER | Cluster | Name | Required, Positional 1
+NODE | Node identifier | Name | Required, Positional 2
+TYPE | Monitor type | *CIMSVR, *RESTSVR | Optional, Positional 3
+CIMSVR | CIM server | Element list | Optional
+Element 1: CIM server host name | Character value
+Element 2: CIM server user id | Character value
+Element 3: CIM server user password | Character value
+RESTSVR | REST server | Element list | Optional
+Element 1: REST server host name | Character value
+Element 2: REST server user id | Character value
+Element 3: REST server user password | Character value
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the cluster to which the monitor is being added.
+
+This is a required parameter.
+
+name
+Specify the name of the cluster to which the node monitor is being added.
+
+Top
+
+Node identifier (NODE)
+
+Specifies the node on which the monitor will run and receive messages from a server.
+
+This is a required parameter.
+
+name
+Specifies the node on which the monitor will run and receive messages from a server.
+
+Top
+
+Monitor type (TYPE)
+
+Specifies the type of monitor to be added.
+
+*CIMSVR
+The type of monitor to be added is a CIM server.
+
+*RESTSVR
+The type of monitor to be added is a Representational State Transfer (REST) server.
+
+Top
+
+CIM server (CIMSVR)
+
+Specifies information about the CIM server which will send information about the system or logical partitions it is monitoring.
+
+Element 1: CIM server host name
+
+A name that uniquely identifies the HMC or VIOS partition and can be found in a domain name server to determine the HMC's or VIOS partition's IP address. The name can be the complete domain name or it can be a short name that can be uniquely found in a domain name server. For example, the domain name may be NYCHMC1.ABCCOMPANY.COM and its short name may be NYCHMC1.
+
+For additional information on valid names, refer to the HOSTNAME keyword on the ADDTCPHTE (Add TCP/IP Host Table Entry) command.
+
+One way to set up the domain name server function is to add the HMC or VIOS partition name and its internet address to the TCP/IP host table on the node where the cluster monitor is being added. For example, take option 10 on the Configure TCP/IP panel for the CFGTCP (Configure TCP/IP) command.
+
+character-value
+Specify a name for the HMC or VIOS partition.
+
+Element 2: CIM server user id
+
+The cluster node running the monitor must authenticate with the HMC or VIOS partition. A user id that is configured on the HMC or VIOS partition must be specified.
+
+character-value
+Specify a user id that is configured on the HMC or VIOS partition.
+
+Element 3: CIM server user password
+
+The cluster node running the monitor must authenticate with the HMC or VIOS partition. A password associated with the user id that is configured on the HMC or VIOS partition must be specified.
+
+character-value
+Specify the password for the user id.
+
+Top
+
+REST server (RESTSVR)
+
+Specifies information about the Representational State Transfer (REST) server which sends information about the system or logical partitions it is monitoring.
+
+Element 1: REST server host name
+
+A name that uniquely identifies the HMC partition and can be found in a domain name server to determine the HMC's IP address. The name can be the complete domain name or it can be a short name that can be uniquely found in a domain name server. For example, the domain name may be NYCHMC1.ABCCOMPANY.COM and its short name may be NYCHMC1.
+
+For additional information on valid names, refer to the HOSTNAME keyword on the ADDTCPHTE (Add TCP/IP Host Table Entry) command.
+
+One way to set up the domain name server function is to add the HMC partition name and its internet address to the TCP/IP host table on the node where the cluster monitor is being added. For example, take option 10 on the Configure TCP/IP panel for the CFGTCP (Configure TCP/IP) command.
+
+character-value
+Specify a name for the HMC partition.
+
+Element 2: REST server user id
+
+The cluster node running the monitor must authenticate with the HMC partition. A user id that is configured on the HMC partition must be specified.
+
+character-value
+Specify a user id that is configured on the HMC partition.
+
+Element 3: REST server user password
+
+The cluster node running the monitor must authenticate with the HMC partition. A password associated with the user id that is configured on the HMC partition must be specified.
+
+character-value
+Specify the password for the user id.
+
+Top
+
+Examples for ADDCLUMON
+
+ADDCLUMON CLUSTER(MYCLUSTER) NODE(NODE2) TYPE(*RESTSVR)
+RESTSVR(NYHMC hscroot Secret1)
+
+This command adds a Representational State Transfer (REST) monitor to run on node NODE2 to the cluster MYCLUSTER. It receives information from a Hardware Management Console (HMC) named NYHMC that is attached to and managing another node (NODE1). NODE2 authenticates to the HMC with a user id of hscroot and a password of Secret1.
+
+ADDCLUMON CLUSTER(MYCLUSTER) NODE(NODE2) TYPE(*CIMSVR)
+CIMSVR(NYHMC hscroot Secret1)
+
+This command adds a CIM monitor to run on node NODE2 to the cluster MYCLUSTER. It will receive information from a Hardware Management Console (HMC) named NYHMC that is attached to and managing another node (NODE1). NODE2 will authenticate to the HMC with a user id of hscroot and a password of Secret1.
+
+Top
+
+Error messages for ADDCLUMON
+
+*ESCAPE Messages
+
+HAE003F
+Cluster monitor not added to node &1 in cluster &2.
+
+Top

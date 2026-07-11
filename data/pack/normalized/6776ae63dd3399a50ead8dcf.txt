@@ -1,0 +1,184 @@
+Start NFS Server (STRNFSSVR)
+
+Start NFS Server (STRNFSSVR)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Network File System Server (STRNFSSVR) command starts one or all of the following Network File System (NFS) server daemons. For more information about these daemon jobs, see i5/OS Network File System Support book, SC41-5714
+
+SERVER(*ALL) should be used, which will start the daemons in the following order. (This order is the recommended order for starting the Network File System daemons.)
+
+- The Remote Procedure Call (RPC) RPCBind daemon
+
+- The block input/output (I/O) (BIO) daemon
+
+- The generic security service (GSS) daemon
+
+- The name registry (RGY) daemon
+
+- The server (SVR) daemon
+
+- The mount (MNT) daemon
+
+- The network status monitor (NSM) daemon
+
+- The network lock manager (NLM) daemon
+
+If just one daemon is to be started, be sure the appropriate order for starting NFS daemons and the possible consequences of starting daemons in an order other than that specified above are understood. For more information about starting NFS daemons, see i5/OS Network File System Support book, SC41-5714
+
+If the user attempts to start a daemon or daemons that are already running, they will not cause the command to fail, and it will continue to start other daemons that were requested to start. The command will issue diagnostic message CPDA1BA or CPDA1BD if the daemon is already running. However, for best results, end NFS daemons before attempting the STRNFSSVR command.
+
+To determine if an NFS daemon is running, use the Work with Active Jobs (WRKACTJOB) command and look in the subsystem QSYSWRK for existence of the following jobs:
+
+QNFSRPCD The RPCBind daemon
+QNFSBIOD The block I/O (BIO) daemon
+QNFSGSSD The generic security service (GSS) daemon
+QNFSRGYD The name registry (RGY) daemon
+QNFSNFSD The NFS server (SVR) daemon
+QNFSMNTD The mount (MNT) daemon
+QNFSNSMD The network status monitor (NSM) daemon
+QNFSNLMD The network lock manager (NLM) daemon
+
+Restrictions:
+
+- The user must have input/output (I/O) system configuration (*IOSYSCFG) special authority to use this command.
+
+- The user must be enrolled in the system distribution directory. Use the Add Directory Entry (ADDDIRE) command to enroll the user.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SERVER | Server daemon | *ALL, *RPC, *BIO, *GSS, *RGY, *SVR, *MNT, *NSM, *NLM | Required, Positional 1
+NBRSVR | Number of server daemons | 1-20, 1 | Optional, Positional 2
+NBRBIO | Number of block I/O daemons | 1-20, 1 | Optional
+RTVRPCREG | Retrieve RPC registration | *NO, *YES | Optional
+STRJOBTIMO | Timeout for start of daemon | 1-3600, 30, *NOMAX | Optional
+
+Top
+
+Server daemon (SERVER)
+
+Specifies the Network File System (NFS) daemon jobs to be started by this command. The specified daemon should not already be running.
+
+*ALL
+All NFS daemons will be started.
+
+*RPC
+The NFS RPCBind daemon will be started.
+
+*BIO
+Starts NFS block input/output (I/O) daemons. Additional daemons will be started if the number specified on the Number of block I/O daemons (NBRBIO) parameter is greater than the number of block I/O daemons already running on the system.
+
+*GSS
+The NFS generic security services daemon will be started.
+
+*RGY
+The NFS name resolution registry daemon will be started.
+
+*SVR
+Starts NFS server daemons. Additional daemons will be started if the number specified on the Number of server daemons (NBRSVR) parameter is greater than the number of server daemons already running on the system.
+
+*MNT
+The NFS mount daemon will be started.
+
+*NSM
+The NFS network status monitor daemon will be started.
+
+*NLM
+The NFS network lock manager daemon will be started.
+
+This is a required parameter.
+
+Top
+
+Number of server daemons (NBRSVR)
+
+Specifies the number of NFS server (*SVR) daemon jobs the user wants to have running. Additional daemons will be started if the number specified on this parameter is greater than the number of server daemons already running on the system. This parameter can only be used if SERVER(*SVR) or SERVER(*ALL) is specified.
+
+1
+One NFS server daemon job should be started if there are not already any NFS server daemons running.
+
+1-20
+Specify the number of NFS server daemon jobs the user wants to have running.
+
+Top
+
+Number of block I/O daemons (NBRBIO)
+
+Specifies the number of NFS block input/output (I/O) (*BIO) daemon jobs the user wants to have running. Additional daemons will be started if the number specified on this parameter is greater than the number of block I/O daemons already running on the system. This parameter can only be used if SERVER(*BIO) or SERVER(*ALL) is specified.
+
+1
+One NFS block I/O daemon job should be started if there are not already any NFS block I/O daemons running.
+
+1-20
+Specify the number of NFS block I/O daemon jobs the user wants to have running.
+
+Top
+
+Retrieve RPC registration (RTVRPCREG)
+
+Specifies whether to retrieve previously recorded registration information when the RPCBind daemon is started. If registration information is retrieved, any services already registered with the RPCBind daemon do not have to re-register with the RPCBind daemon. This parameter can only be used if SERVER(*RPC) or (SERVER(*ALL) is specified.
+
+*NO
+Do not retrieve registration information.
+
+*YES
+Retrieve registration information.
+
+Top
+
+Timeout for start of daemon (STRJOBTIMO)
+
+Specifies the number of seconds to wait for each daemon to successfully start. If a daemon has not started within the timeout value, the command will fail.
+
+30
+Default seconds before timeout.
+
+*NOMAX
+Wait forever for daemons to start; do not timeout.
+
+1-3600
+Specify a number of seconds to wait for daemons to start before timing out and failing the command. Timeout values less than 30 seconds are rounded up to 30 seconds.
+
+Top
+
+Examples
+
+Example 1: Start All NFS Daemons
+
+STRNFSSVR SERVER(*ALL) STRJOBTIMO(*NOMAX)
+
+This command starts all NFS daemons, and waits forever for them to start. No daemons should be previously running.
+
+Example 2: Start Only One Daemon
+
+STRNFSSVR SERVER(*MNT)
+
+This command starts the NFS mount daemon, and waits up to the default of 30 seconds for it to start. The mount daemon should not be already running, and other daemons have been started in the appropriate order.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA0D4
+File system error occurred. Error number &1.
+
+CPFA1B8
+*IOSYSCFG authority required to use &1.
+
+CPFA1BC
+Start of NFS server daemon or daemons failed.
+
+Top

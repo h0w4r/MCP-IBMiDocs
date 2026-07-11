@@ -1,0 +1,379 @@
+Allocate Object (ALCOBJ)
+
+Allocate Object (ALCOBJ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Allocate Object (ALCOBJ) command is used in a job or thread to reserve an object or list of objects for use later in the job or thread. If an object that is needed in the job is not specified in an ALCOBJ command, an allocation is attempted automatically when the object is used.
+
+Objects can be deallocated with the Deallocate Object (DLCOBJ) command. Allocated job-scoped locks are automatically released when the job ends. Allocated thread-scoped locks are automatically released when the thread ends. If a thread received a job-scoped lock, the job will continue to hold that lock after the requesting thread ends. Lock-space-scoped locks are not automatically released.
+
+The DLCOBJ command should not be issued for an object that was not explicitly allocated by the ALCOBJ command. If the DLCOBJ command is used this way, internal locks on the object are released, making the object capable of being deleted.
+
+NOTES:
+
+- When allocating database files, use the DLCOBJ command before deleting the file if the file being allocated is a logical file.
+
+- If a file is being allocated that is affected by a file override, the ALCOBJ command ignores the override and attempts to allocate the file named in the OBJ parameter.
+
+- When allocating distributed data management (DDM) files and distributed files, additional time is required for the command to complete because of the time required for communication and for allocating files on remote systems.
+
+- Work station message queues cannot be allocated. A work station message queue is associated with a work station device description of the same name. Therefore, to do an operation on a work station message queue that must be allocated, the user must allocate the associated device description. When the device description is allocated, the work station message queue is implicitly allocated.
+
+- When ALCOBJ is executed to get an EXCL lock on a program (*PGM), only the program object description is locked. The program code is not locked exclusively. Therefore, the program may still be run by another user. Changes are not allowed for the program object description while the actual program can still be used.
+
+- The system does not lock programs when calling them.
+
+- When ALCOBJ is executed to get an EXCL lock on a logical file member (*FILE), the lock occurs on both the logical file member and the associated physical file members. No other user can use the physical file members (not even through some other logical file member).
+
+- Allocating an object by specifying *LIBL for the object's library, changing the thread's library list, and then attempting to deallocate the object by specifying *LIBL for the object's library can result in issuing the deallocate against the wrong object. This could release internal locks.
+
+Restrictions:
+
+- This command cannot be used to allocate a device description, *DEVD, for an advanced program-to-program communications (APPC) device or for an intrasystem (INTRA) device.
+
+- This command can be used to allocate only the following database *FILE types:
+
+Physical files
+
+Logical files
+
+Distributed files
+This allocates the piece of the file on each node in the node group.
+
+DDM files
+This allocates both the DDM file on the local system and the file on the remote system that is identified in the DDM file.
+
+- The object must exist on the system.
+
+- The user issuing the command must have object operational (*OBJOPR) authority to the object and execute (*EXECUTE) authority to the object's library.
+
+- If the allocation cannot be completed, none of the locks are granted, and a message is sent to the thread that issued the command. If the command is issued from a program, the Monitor Message (MONMSG) command can be used to determine whether the allocation was successful.
+
+- In multithreaded jobs, this command is not threadsafe for distributed files. This command is also not threadsafe for distributed data management (DDM) files of type *SNA.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object specifications | Values (up to 50 repetitions): Element list | Required, Positional 1
+Element 1: Object | Qualified object name
+Qualifier 1: Object | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Object type | *AUTL, *BNDDIR, *CLD, *CRQD, *CSI, *CSPMAP, *CSPTBL, *DEVD, *DTAARA, *DTADCT, *DTAQ, *FCT, *FILE, *FNTRSC, *FNTTBL, *FORMDF, *IMGCLG, *IPXD, *LIB, *LOCALE, *MEDDFN, *MENU, *MGTCOL, *MODULE, *MSGQ, *NODL, *NTBD, *NWSCFG, *NWSD, *OVL, *PAGDFN, *PAGSEG, *PDFMAP, *PDG, *PGM, *PNLGRP, *PSFCFG, *QMFORM, *QMQRY, *QRYDFN, *SBSD, *SCHIDX, *SQLPKG, *SQLXSR, *SRVPGM, *SSND, *S36, *TIMZON, *USRIDX, *USRQ, *USRSPC, *VLDL, *WSCST
+Element 3: Lock state | *SHRRD, *SHRNUP, *SHRUPD, *EXCLRD, *EXCL
+Element 4: Member, if data base file | Name, *FIRST
+WAIT | Wait time | Integer, *CLS | Optional, Positional 2
+SCOPE | Lock scope | *JOB, *THREAD, *LCKSPC | Optional
+CONFLICT | Lock conflict action | *NORQSRLS, *RQSRLS | Optional
+MIRROR | Mirror | *YES, *NO | Optional
+
+Top
+
+Object specifications (OBJ)
+
+Specifies the name and library of one or more objects that are allocated to the job, thread, or lock space, the type of each object specified, the lock state of each object, and the member name (if the object is a database file or distributed data management (DDM) file).
+
+This is a required parameter.
+
+You can specify 50 values for this parameter.
+
+Element 1: Object
+
+Qualifier 1: Object
+
+name
+Specify the name of the object.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library where the object is located.
+
+Element 2: Object type
+
+object-type
+Specify the type of object to be allocated. Refer to the figure Valid Lock States by Object Type for more information.
+
+Element 3: Lock state
+
+*SHRRD
+The lock state is shared for read.
+
+*SHRNUP
+The lock state is shared, no update.
+
+*SHRUPD
+The lock state is shared for update.
+
+*EXCLRD
+The lock state is exclusive, allow read.
+
+*EXCL
+The lock state is exclusive, no read.
+
+Element 4: Member, if data base file
+
+Note: The following values can only be specified if the object type is a database file.
+
+*FIRST
+The first member of the database file is allocated.
+
+name
+Specify the name of the member to be allocated. If the specified file is a logical file, the physical file members associated with the members of the logical file are also allocated.
+
+You can specify all five lock states (*EXCL, *EXCLRD, *SHRUPD, *SHRNUP, and *SHRRD) for most, but not all, object types.
+
+Figure: Valid Lock States by Object Type
+
+Object Lock States
+Type Object Type Definition *EXCL *EXCLRD *SHRUPD *SHRNUP *SHRRD
+------- ---------------------- ----- ------- ------- ------- ------
+*AUTL Authorization List x x x x x
+*BNDDIR Binding directory x x x
+*CLD C Locale description x x x x x
+*CRQD Change request x x x x x
+description
+*CSI Communications side x x x x x
+information
+*DEVD Device Description x x
+*DTAARA Data area x x x x x
+*DTADCT Data dictionary x x x x x
+*DTAQ Data queue x x x x x
+*FCT Forms control table x x x x x
+*FILE File x x x x x
+*FNTRSC Font resource x x x x x
+*FNTTBL Font mapping table x x x x x
+*FORMDF Form definition x x x x x
+*IMGCLG Image catalog x x x x x
+*IPXD Internet packet x x x x x
+exchange description
+*LIB Library x x x x
+*LOCALE Locale space object x x x x x
+*MEDDFN Media definition x x x x x
+*MENU Menu x x x x x
+*MGTCOL Management collection x x x x x
+*MODULE Module x x x
+*MSGQ Message queue x x
+*NODL Node list x x x x x
+*NTBD NetBIOS description x x x x x
+*NWSCFG Network server x x x x x
+configuration
+*NWSD Network server x x x x x
+description
+*OVL Overlay x x x x x
+*PAGDFN Page definition x x x x x
+*PAGSEG Page segment x x x x x
+*PDFMAP PDF Map x x x x x
+*PDG Print descriptor group x x x x x
+*PGM Program x x x
+*PNLGRP Panel group x x x x x
+*PSFCFG Print service facility x x x x x
+configuration
+*QMFORM Query management form x x x x x
+*QMQRY Query management query x x x x x
+*QRYDFN Query definition x x x x x
+*S36 S/36 machine x x x x x
+description
+*SBSD Subsystem description x
+*SCHIDX Search index x x x x x
+*SQLPKG Structured Query x x x x x
+Language package
+*SQLXSR SQL XML schema x x x x x
+repository
+*SRVPGM Service program x x x x x
+*SSND Session description x x x x x
+*TIMZON Time zone description x x x x x
+*USRIDX User index x x x x x
+*USRQ User queue x x x x x
+*USRSPC User space x x x x x
+*VLDL Validation list object x x x x x
+*WSCST Workstation x x x x x
+customizing object
+'x' indicates the lock state is allowed for the object type.
+
+Note: Additional details about lock states can be found in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Multiple locks can be specified for the same object in the same job with duplicate or different lock states. Each lock is held separately. For example, if an *EXCL lock is already held for an object, and a second *EXCL lock request occurs, the second lock is acquired. Both locks must be released in the job (deallocated with the Deallocate Object (DLCOBJ) command) before another job can access the same object. If an object is already allocated with one lock state and user want to use a different lock state, first use the ALCOBJ command to request the new lock with the desired lock state and then use the DLCOBJ command to release the old lock (with the old lock state).
+
+When an exclusive lock is requested on a logical file member, the lock occurs on both the logical file member and the associated physical file members. No other user can use the physical file members (not even through some other logical file member).
+
+To determine whether a device description can be allocated, use information from the Work with Configuration Status (WRKCFGSTS) command.
+
+Top
+
+Wait time (WAIT)
+
+Specifies the number of seconds that the program waits for the object to be allocated. If the object cannot be allocated in the specified wait time, a message, which can be detected by a Monitor Message (MONMSG) command, is sent to the program. If one or more device descriptions are in the list of objects to be allocated, the system may wait more than the specified amount of time to attempt the allocation.
+
+When allocating distributed data management (DDM) files and distributed files, additional time is required for communications and for allocating files on remote systems. A separate wait time is used for each remote system. When allocating objects with a lock-space-scope, the lock space may override the wait time specified.
+
+*CLS
+The default wait time specified in the class description used by the routing step is used as the wait time for the object to be allocated.
+
+integer-number
+Specify the number of seconds that the program waits for all of the specified objects to be allocated. Valid values include 0 and numbers ranging from 1 through 32767. A value of 0 indicates no wait time.
+
+Top
+
+Lock scope (SCOPE)
+
+Specify the scope for this lock request.
+
+*JOB
+The lock is scoped to the job.
+
+*LCKSPC
+The lock is scoped to the lock space attached to the current thread. If no lock space is attached, the lock is scoped to the job.
+
+*THREAD
+The lock is scoped to the thread.
+
+All objects types supported by the OBJ parameter support job-scoped locks. All object types supported by the OBJ parameter support lock-space-scoped locks. When allocating DDM objects with a lock-space-scope, the lock on the remote system is scoped to the job.
+
+Locks scoped to a thread can never conflict with a lock scoped to its containing job, but may conflict with a lock scoped to a different job or any other thread (depending on the lock states involved).
+
+Figure: Object Types that Support Thread Scope Locks
+
+Object Thread
+Type Object Type Definition Scope
+------- ------------------------------------ ------
+*AUTL Authorization list
+*BNDDIR Binding directory
+*CLD C Locale description
+*CRQD Change request description
+*CSI Communications side information
+*DEVD Device Description x
+*DTAARA Data area x
+*DTADCT Data dictionary x
+*DTAQ Data queue x
+*FCT Forms control table
+*FILE File x
+*FNTRSC Font resource
+*FNTTBL Font mapping table
+*FORMDF Form definition
+*IMGCLG Image catalog x
+*IPXD Internet packet exchange description x
+*LIB Library x
+*LOCALE Locale space object x
+*MEDDFN Media definition
+*MENU Menu
+*MGTCOL Management collection x
+*MODULE Module
+*MSGQ Message queue x
+*NODL Node list
+*NTBD NetBIOS description x
+*NWSCFG Network server configuration
+*NWSD Network server description x
+*OVL Overlay
+*PAGDFN Page definition
+*PAGSEG Page segment
+*PDFMAP PDF Map x
+*PDG Print descriptor group
+*PGM Program x
+*PNLGRP Panel group
+*PSFCFG Print service facility configuration
+*QMFORM Query management form
+*QMQRY Query management query
+*QRYDFN Query definition
+*S36 S/36 machine description
+*SBSD Subsystem description x
+*SCHIDX Search index
+*SQLPKG Structured Query Language package
+*SQLXSR SQL XML schema repository
+*SRVPGM Service program x
+*SSND Session description
+*TIMZON Time zone description x
+*USRIDX User index x
+*USRQ User queue x
+*USRSPC User space x
+*VLDL Validation list object x
+*WSCST Workstation customizing object
+'x' indicates a thread-scoped lock is allowed for the object type.
+
+Top
+
+Lock conflict action (CONFLICT)
+
+Specify the action to be taken if a lock conflict exists. This parameter is only supported for database files and is ignored for all other objects. The supported database *FILE objects are:
+
+- physical file
+
+- logical file
+
+- distributed file
+
+*NORQSRLS
+No requests are sent to other jobs or threads which are holding conflicting locks.
+
+*RQSRLS
+A request is sent to the system code running in each job or thread that is holding a conflicting lock for the specified object. Notification of lock contention is not visible to user applications which hold conflicting locks. Only locks which are acquired implicitly by system code are eligible to be released. Locks acquired explicitly by user application code are not eligible to be released. If *RQSRLS specified for a distributed file, the request to release the lock is sent to each node in the node group that holds a conflicting lock.
+
+Top
+
+Mirror (MIRROR)
+
+Specify the action to be taken if the object is replicated by Db2 mirror. This parameter is only supported for database files (*FILE), data areas (*DTAARA), user spaces (*USRSPC) and user indexes (*USRIDX) and is ignored for all other objects. Locks for DDM files and DDM data areas are not replicated. Requests to lock a replicated object are not tracked when Db2 Mirror is suspended.
+
+*YES
+The command is run on both the source and target nodes.
+
+*NO
+The command is only run on the source node. The request is not replicated to the target node.
+
+Top
+
+Examples
+
+Example 1: Allocate File for Job
+
+ALCOBJ OBJ((LIBB/FILEA *FILE *EXCL MEMBERA)) SCOPE(*JOB)
+WAIT(60)
+
+This command exclusively allocates member MEMBERA of file FILEA in library LIBB to the job in which the ALCOBJ command is used. If MEMBERA is unavailable, the job will wait 60 seconds for it to become available.
+
+Example 2: Allocate Data Area for a Thread
+
+ALCOBJ OBJ((LIBY/DATAAREAX *DTAARA *EXCL ))
+SCOPE(*THREAD)
+
+This command exclusively allocates data area DATAAREAX in library LIBY to the requesting thread in which the ALCOBJ command is used.
+
+Example 3: Allocate File for Lock Space
+
+ALCOBJ OBJ((LIBB/FILEA *FILE *EXCL MEMBERA))
+SCOPE(*LCKSPC)
+
+This command exclusively allocates member MEMBERA of file FILEA in library LIBB to the lock space attached to the current thread. If no lock space is attached, the lock is scoped to the job.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1002
+Cannot allocate object &1.
+
+CPF1040
+Maximum number of objects allocated on system.
+
+CPF1085
+Objects not allocated.
+
+Top

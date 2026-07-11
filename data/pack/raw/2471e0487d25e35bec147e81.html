@@ -1,0 +1,1919 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="RTVJRNE.Top_Of_Page"></a>
+<h1>Retrieve Journal Entry  (RTVJRNE)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>Compiled CL program or interpreted REXX (*BPGM *IPGM *BREXX *IREXX)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#RTVJRNE.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#RTVJRNE.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#RTVJRNE.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE"></a>
+<p>The Retrieve Journal Entry (RTVJRNE) command allows you to get a particular journal entry and place the results in CL variables.  The CL variables contain information, such as the sequence number of the retrieved entry, and are useful in automating certain types of recovery functions.  The search for a journal entry can be restricted to an object, to a range of journal receivers, to a range of journal entries, to a journal code, to an entry type, to a job, to a program, to a user profile, or to a commit cycle identifier.  Multiple limitation criteria can be specified.  If more than one journal entry satisfies the search values specified, the first occurrence of a journal entry satisfying all of the specified search values is returned.  If there is no journal entry satisfying the search values specified, the command ends with an escape message, and the return CL variables (RTNSEQNBRLRG, RTNSEQNBR, RTNJRNCDE, RTNENTTYP, RTNRCV, RTNRCVLIB and RTNJRNE) remain the same.
+</p>
+<p>The order of the search through the journal entries can be ascending or descending.  The search order is determined by the value specified in the SEARCH parameter.  The value for the FROM parameter must come before the value specified for the TO parameter in the specified search order.
+</p>
+<p>The CL prompt for this command lists the minimum length for retrieved variables next to the correct parameters.  For character variables, a single number is shown.  For decimal variables, two numbers are shown.  The first number indicates the minimum variable length, and the second number indicates the minimum number of decimal positions.
+</p>
+<p>The following authorizations are required:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">*USE is required to the journal. *OBJEXIST is also required if no objects are specified or FILE(*ALLFILE) is specified, or if *IGNFILSLT or *IGNOBJSLT is specified for any journal code selected on the JRNCODE parameter, or if the journal is a remote journal, or if the JID parameter is specified.
+</li>
+<li class="cds--list__item">*USE is required to all journal receivers specified on the RCVRNG parameter.
+</li>
+<li class="cds--list__item">*USE is required for all objects that exist on the system in the QSYS file system that are specified on the FILE and OBJ paramters.
+</li>
+<li class="cds--list__item">*R is required for all objects in the integrated file system that are specified on the OBJPATH parameter, and all objects on the system in the integrated file system specified on the OBJFID parameter. *X is also required for all directories if SUBTREE(*ALL) is specified.
+</li>
+</ul>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the sequence number is reset in the range of the receivers specified, the first occurrence of FROMENTLRG or FROMENT is used, if they are specified.  If TOENTLRG or TOENT is specified, the first occurrence after the FROMENTLRG or FROMENT entry is used, if FROMENTLRG or FROMENT is specified. Otherwise the first occurrence is used.
+</li>
+<li class="cds--list__item">The FILE, OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, OBJJID, JRNCDE, ENTTYP, JOB, PGM, USRPRF, CCIDLRG, CMTCYCID, and DEPENT parameters can be used to specify a subset of all available entries within a range of journal entries.
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">If no values are specified using these parameters, all available journal entries are retrieved.
+</li>
+<li class="cds--list__item">If more than one of these parameters are specified, then a journal entry must satisfy all of the values specified on these parameters, except when *IGNFILSLT or *IGNOBJSLT is specified on the JRNCDE parameter.
+</li>
+<li class="cds--list__item">If a journal code is specified on the JRNCDE parameter and *IGNFILSLT is the second element of that journal code, then journal entries with the specified journal code are selected if they satisfy all selection criteria except what is specified on the FILE parameter.
+</li>
+<li class="cds--list__item">If a journal code is specified on the JRNCDE parameter and *IGNOBJSLT is the second element of that journal code, then journal entries with the specified journal code are selected if they satisfy all selection criteria except what is specified on the OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, and OBJJID parameters.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">The JOB, PGM, and USRPRF parameters cannot be used to specify selection criteria if one or more journal receivers in the specified receiver range was attached to the journal when a receiver size option (RCVSIZOPT) or a fixed length data option (FIXLENDTA) that would have omitted this data was in effect.
+</li>
+<li class="cds--list__item">If more than the maximum number of objects is identified (32767 objects), an error occurs and no entries are retrieved.  This restriction is ignored if *ALLFILE is specified or no objects are specified.
+</li>
+<li class="cds--list__item">When journal caching is being used, entries that are in the cache are not retrievable.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="RTVJRNE.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RTVJRNE.JRN"><strong>JRN</strong></a></td>
+<td class="valigntop">Journal</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Journal</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="5"><a href="#RTVJRNE.FILE"><strong>FILE</strong></a></td>
+<td class="valigntop">Journaled file</td>
+<td class="valigntop">Single values: *ALLFILE<br>Other values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File</td>
+<td class="valigntop"><span class="var">Name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *ALL, *NONE</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="6"><a href="#RTVJRNE.OBJ"><strong>OBJ</strong></a></td>
+<td class="valigntop">Objects</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="6">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Object</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Object</td>
+<td class="valigntop"><span class="var">Name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Object type</td>
+<td class="valigntop">
+*FILE, *DTAARA, *DTAQ, *LIB</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Member, if data base file</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong>, *ALL, *NONE</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RTVJRNE.OBJPATH"><strong>OBJPATH</strong></a></td>
+<td class="valigntop">Objects</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Name</td>
+<td class="valigntop">
+<span class="var">Path name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Include or omit</td>
+<td class="valigntop">
+<strong class="underlined">*INCLUDE</strong>, *OMIT</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.SUBTREE"><strong>SUBTREE</strong></a></td>
+<td class="valigntop">Directory subtree</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *ALL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RTVJRNE.PATTERN"><strong>PATTERN</strong></a></td>
+<td class="valigntop">Name pattern</td>
+<td class="valigntop">Values (up to 20 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Pattern</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Include or omit</td>
+<td class="valigntop">
+<strong class="underlined">*INCLUDE</strong>, *OMIT</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="7"><a href="#RTVJRNE.RCVRNG"><strong>RCVRNG</strong></a></td>
+<td class="valigntop">Range of journal receivers</td>
+<td class="valigntop">Single values: <strong class="underlined">*CURRENT</strong>, *CURCHAIN, *CURAVLCHN, *CURSEQCHN<br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="7">Optional, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Starting journal receiver</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Starting journal receiver</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Ending journal receiver</td>
+<td class="valigntop">
+Single values: <strong class="underlined">*CURRENT</strong><br>Other values: <span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Ending journal receiver</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#RTVJRNE.FROMENTLRG"><strong>FROMENTLRG</strong></a></td>
+<td class="valigntop">Starting large sequence number</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*FIRST</strong>, *LAST</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RTVJRNE.FROMTIME"><strong>FROMTIME</strong></a></td>
+<td class="valigntop">Starting date and time</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Starting date</td>
+<td class="valigntop">
+<span class="var">Date</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Starting time</td>
+<td class="valigntop">
+<span class="var">Time</span></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.TOENTLRG"><strong>TOENTLRG</strong></a></td>
+<td class="valigntop">Ending large sequence number</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*LAST</strong>, *FIRST</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RTVJRNE.TOTIME"><strong>TOTIME</strong></a></td>
+<td class="valigntop">Ending date and time</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Ending date</td>
+<td class="valigntop">
+<span class="var">Date</span></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Ending time</td>
+<td class="valigntop">
+<span class="var">Time</span></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.SEARCH"><strong>SEARCH</strong></a></td>
+<td class="valigntop">Search</td>
+<td class="valigntop"><strong class="underlined">*ASCEND</strong>, *DESCEND</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RTVJRNE.JRNCDE"><strong>JRNCDE</strong></a></td>
+<td class="valigntop">Journal codes</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong>, *CTL<br>Other values (up to 16 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Journal code value</td>
+<td class="valigntop">
+A, B, C, D, E, F, J, L, M, P, Q, R, S, T, U, Y</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Journal code selection</td>
+<td class="valigntop">
+<strong class="underlined">*ALLSLT</strong>, *IGNFILSLT, *IGNOBJSLT</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.ENTTYP"><strong>ENTTYP</strong></a></td>
+<td class="valigntop">Journal entry types</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong>, *RCD<br>Other values (up to 300 repetitions): <span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="4"><a href="#RTVJRNE.JOB"><strong>JOB</strong></a></td>
+<td class="valigntop">Job name</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong>, *<br>Other values: <span class="var">Qualified job name</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Job name</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: User</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 3: Number</td>
+<td class="valigntop">000000-999999</td>
+</tr><tr>
+<td class="valigntop"><a href="#RTVJRNE.PGM"><strong>PGM</strong></a></td>
+<td class="valigntop">Program</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.USRPRF"><strong>USRPRF</strong></a></td>
+<td class="valigntop">User profile</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.CCIDLRG"><strong>CCIDLRG</strong></a></td>
+<td class="valigntop">Commit cycle large identifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.DEPENT"><strong>DEPENT</strong></a></td>
+<td class="valigntop">Dependent entries</td>
+<td class="valigntop"><strong class="underlined">*ALL</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.OBJFID"><strong>OBJFID</strong></a></td>
+<td class="valigntop">File identifier</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Hexadecimal value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.OBJJID"><strong>OBJJID</strong></a></td>
+<td class="valigntop">Object journal identifier</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Hexadecimal value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.ENTFMT"><strong>ENTFMT</strong></a></td>
+<td class="valigntop">Entry format</td>
+<td class="valigntop"><strong class="underlined">*TYPE1</strong>, *TYPE2, *TYPE3, *TYPE4, *TYPE5</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.NULLINDLEN"><strong>NULLINDLEN</strong></a></td>
+<td class="valigntop">Null value indicators length</td>
+<td class="valigntop">1-8000</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.FMTMINDTA"><strong>FMTMINDTA</strong></a></td>
+<td class="valigntop">Format minimized data</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.INCENT"><strong>INCENT</strong></a></td>
+<td class="valigntop">Include entries</td>
+<td class="valigntop"><strong class="underlined">*CONFIRMED</strong>, *ALL</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.FROMENT"><strong>FROMENT</strong></a></td>
+<td class="valigntop">Starting sequence number</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*FIRST</strong>, *LAST</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.TOENT"><strong>TOENT</strong></a></td>
+<td class="valigntop">Ending sequence number</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*LAST</strong>, *FIRST</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.CMTCYCID"><strong>CMTCYCID</strong></a></td>
+<td class="valigntop">Commit cycle identifier</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*ALL</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.RTNSEQLRG"><strong>RTNSEQLRG</strong></a></td>
+<td class="valigntop">CL var for RTNSEQLRG    (20)</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.RTNJRNCDE"><strong>RTNJRNCDE</strong></a></td>
+<td class="valigntop">CL var for RTNJRNCDE     (1)</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.RTNENTTYP"><strong>RTNENTTYP</strong></a></td>
+<td class="valigntop">CL var for RTNENTTYP     (2)</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.RTNRCV"><strong>RTNRCV</strong></a></td>
+<td class="valigntop">CL var for RTNRCV       (10)</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.RTNRCVLIB"><strong>RTNRCVLIB</strong></a></td>
+<td class="valigntop">CL var for RTNRCVLIB    (10)</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.RTNJRNE"><strong>RTNJRNE</strong></a></td>
+<td class="valigntop">CL var for RTNJRNE       (1)</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RTVJRNE.RTNSEQNBR"><strong>RTNSEQNBR</strong></a></td>
+<td class="valigntop">CL var for RTNSEQNBR  (10 0)</td>
+<td class="valigntop"><span class="var">Decimal number</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="RTVJRNE.JRN"></a>
+<h2>Journal (JRN)</h2>
+<p>Specifies the journal from which the journal entry is retrieved.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Qualifier 1: Journal</strong>
+</h3>
+<dl>
+<dt><strong class="italic">journal-name</strong></dt>
+<dd>Specify the name of the journal.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.FILE"></a>
+<h2>Journaled physical file (FILE)</h2>
+<p>Specifies a maximum of 300 files whose journal entries are retrieved.  This parameter also specifies the physical file members whose journal entries are to be retrieved.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>To determine which journal entries are to be retrieved, based on the specified file or physical file member name, the following is done:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the journal is a local journal, and if the specified file or physical file member currently exists on the system, the journal identifier id determined from the specified file or physical file member.  All journal entries in the specified receiver range for that journal identifier are retrieved.
+</li>
+<li class="cds--list__item">If the journal is a remote journal, or if the specified file or physical file member does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified file or physical file member.  All journal entries in the specified receiver range for those journal identifiers are retrieved. Specify the library name or *CURLIB to have entries returned for the file.
+<p>There may be more than one journal identifier associated with a specified object within the specified receiver range.  This can happen when a journaled object is deleted, and then a new object is created with the same name and journaled to the same journal.
+</p>
+</li>
+</ul>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved, or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying a database file on this parameter, journal entries with the following journal code values are retrieved only if they satisfy the values specified on the other parameters:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code D (database file-level information entries).
+</li>
+<li class="cds--list__item">Journal code F (file member-level information entries).
+</li>
+<li class="cds--list__item">Journal code R (record-level information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNFILSLT is specified on that journal code.  If *ALLSLT is specified on that journal code, no journal entries with that code are retrieved.
+</li>
+</ul>
+</li>
+</ol>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*ALLFILE</strong></dt>
+<dd>The search for the entry being retrieved is not limited to a specified file name.  All journal entries are retrieved, regardless of which objects, if any, the entries are associated with.
+</dd>
+</dl>
+<h3><strong>Element 1: File</strong>
+</h3>
+<h3><strong>Qualifier 1: File</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for all physical or logical files in the specified library (the library name must be specified) whose journaled changes are currently in the journal receiver are retrieved.  If *ALL is specified and the user does not have the required authority to all of the files, an error occurs, and the command ends.
+</dd>
+<dt><strong class="italic">file-name</strong></dt>
+<dd>Specify the name of the database physical or logical file for which a journal entry is retrieved.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+<h3><strong>Element 2: Member</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>Journal entries for the database physical file and the first member in the file are retrieved. This value is not valid for remote journals.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for the database physical file and all the currently existing members in the file are retrieved.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>Only entries for the database file are retrieved. Entries for members of the file are not retrieved.
+</dd>
+<dt><strong class="italic">member-name</strong></dt>
+<dd>Specify the name of the member for which an entries are retrieved.
+</dd>
+</dl>
+<p>If *ALL is specified for the file-name element, this member name is used for all applicable physical files in the library.  For example, if library-name/*ALL *FIRST is specified on the FILE parameter, the journal entries of the first members of all applicable physical files in the specified library are retrieved.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.OBJ"></a>
+<h2>Objects (OBJ)</h2>
+<p>Specifies a maximum of 300 qualified object names whose journal entries are to be retreived  The possible object types are *FILE, *DTAARA, *DTAQ, and *LIB.  If *FILE is specified, this parameter also specifies the name of the physical file member whose journal entries are to be retrieved.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>To determine which journal entries are to be retrieved, based on the specified object name, the following is done:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the journal is a local journal, and if the specified object currently exists on the system, the journal identifier is determined from the specified object.  All journal entries in the specified receiver range for that journal identifier are retrieved.
+</li>
+<li class="cds--list__item">If the journal is a remote journal, or if the specified object does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified object.  All journal entries in the specified receiver range for those journal identifiers are retrieved. Specify the library name or *CURLIB to have entries returned for an object.
+<p>There may be more than one journal identifier associated with a specified object within the specified receiver range.  This can happen when a journaled object is deleted, and then a new object is created with the same name and journaled to the same journal.
+</p>
+</li>
+</ul>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying an object on this parameter, journal entries with the following journal code values are retrieved only if they satisfy the values specified on the other parameters in addition to the object name specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code D (database file-level information entries).
+</li>
+<li class="cds--list__item">Journal code E (data area information entries).
+</li>
+<li class="cds--list__item">Journal code F (file member-level information entries).
+</li>
+<li class="cds--list__item">Journal code Q (data queue information entries).
+</li>
+<li class="cds--list__item">Journal code R (record-level information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Journal code Y (library information entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are retrieved.
+</li>
+</ul>
+</li>
+</ol>
+<h3><strong>Element 1: Object</strong>
+</h3>
+<h3><strong>Qualifier 1: Object</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for all objects of the specified object type in the specified library (the library name must be specified) whose journaled changes are currently in the journal receiver are retrieved.  The library name must be specified.  If *ALL is specified and the user does not have the required authority for all objects in the library, a message is sent and the command ends.
+</dd>
+<dt><strong class="italic">object-name</strong></dt>
+<dd>Specify the name of the object whose journaled changes are to be retrieved.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+<h3><strong>Element 2: Object type</strong>
+</h3>
+<p>Specify the object type of the object whose journaled changes are to be retrieved.
+</p>
+<dl>
+<dt><strong>*FILE</strong></dt>
+<dd>Entries for database files and database physical file members are retrieved.
+</dd>
+<dt><strong>*DTAARA</strong></dt>
+<dd>Entries for data areas are retrieved.
+</dd>
+<dt><strong>*DTAQ</strong></dt>
+<dd>Entries for data queues are retrieved.
+</dd>
+<dt><strong>*LIB</strong></dt>
+<dd>Entries for libraries are retrieved.
+</dd>
+</dl>
+<h3><strong>Element 3: Member, if data base file</strong>
+</h3>
+<p>Specify the name of the member in the physical file whose journal entries are to be retrieved.
+</p>
+<p>
+<strong>Note:     </strong>If the specified object type is not *FILE, the member name element value is ignored.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>Journal entries for the database physical file and the first member in the file are retrieved. This value is not valid for remote journals.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>Journal entries for the database physical file and all the currently existing members in the file are retrieved.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>Only entries for the database file are retrieved. Entries for members of the file are not retrieved.
+</dd>
+<dt><strong class="italic">member-name</strong></dt>
+<dd>Specify the name of the member for which an entries are retrieved.
+</dd>
+</dl>
+<p>If *ALL is specified for the object-name element, this member name is used for all applicable physical files in the library.  For example, if library-name/*ALL *FILE *FIRST is specified on the OBJ parameter, the journal entries of the first members of all applicable physical files in the specified library are retrieved.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.OBJPATH"></a>
+<h2>Objects (OBJPATH)</h2>
+<p>Specifies a maximum of 300 objects whose journal entries are to be retrieved.  Only objects whose path name identifies an object of type *STMF, *DIR or *SYMLNK that are in the "root" (/), QOpenSys, and user-defined file systems are supported.  All other objects are ignored.
+</p>
+<p>This parameter is not valid for remote journals.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>Only objects that are currently linked with the specified path name and have a journal identifier associated with them are used in journal entry selection. If the specified object does exist, the journal identifier associated with that link is used for journal entry selection. If a specified object does not exist or does not have a journal identifier associated with it, that link is not used in selecting journal entries and no error is sent.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying an object on this parameter, journal entries with the following journal code values are retrieved only if they satisfy the values specified on the other parameters in addition to the object name specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code B (integrated file system information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are retrieved.
+</li>
+</ul>
+</li>
+</ol>
+<h3><strong>Element 1: Name</strong>
+</h3>
+<dl>
+<dt><strong class="italic">path-name</strong></dt>
+<dd>Entries for objects identified by the path name are retrieved.
+<p>A pattern can be specified in the last part of the path name.  An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes. Symbolic links within the path name will not be followed. If the path name begins with the tilde character, then the path is assumed to be relative to the appropriate home directory.
+</p>
+<p>Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is Unicode-enabled.  See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+</p>
+</dd>
+</dl>
+<h3><strong>Element 2: Include or omit</strong>
+</h3>
+<p>The second element specifies whether names that match the path name should be included or omitted from the operation.  Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+</p>
+<dl>
+<dt><strong class="underlined">*INCLUDE</strong></dt>
+<dd>The objects that match the object name pattern are to be included in determining what journal entries are retrieved, unless overridden by an *OMIT specification.
+</dd>
+<dt><strong>*OMIT</strong></dt>
+<dd>The objects that match the object name pattern are not to be included in determining what journal entries are retrieved.  This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.SUBTREE"></a>
+<h2>Directory subtree (SUBTREE)</h2>
+<p>Specifies whether the directory subtrees are included in determining the objects for which journal entries are to be retrieved.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is only valid if one or more path names were specified on the OBJPATH parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Only the objects that match the selection criteria are processed.  The objects within selected directories are not implicitly processed.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All objects that meet the selection criteria are processed in addition to the entire subtree of each directory that matches the selection criteria.  The subtree includes all subdirectories and the objects within those subdirectories.
+<p>Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree.  This includes, but is not limited to, the following:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Adding, removing, or renaming object links
+</li>
+<li class="cds--list__item">Mounting or unmounting file systems
+</li>
+<li class="cds--list__item">Updating the effective root directory for the process calling the command
+</li>
+<li class="cds--list__item">Updating the contents of a symbolic link
+</li>
+</ul>
+<p>In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing.  This is done so that the command is not likely to fail due to a lack of descriptors.  This process-scoped maximum value is not reset when the command completes.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.PATTERN"></a>
+<h2>Name pattern (PATTERN)</h2>
+<p>Specifies a maximum of 20 patterns to be used to include or omit objects for which journal entries are to be retrieved.
+</p>
+<p>Only the last part of the path name will be considered for the name pattern match. Path name delimiters are not allowed in the name pattern. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+</p>
+<p>If the Name Pattern parameter is not specified the default will be to match all patterns.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is only valid if one or more path names were specified on the OBJPATH parameter.
+</p>
+<h3><strong>Element 1: Pattern</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">'*'</strong></dt>
+<dd>All objects that match the input OBJPATH parameter are to be included.
+</dd>
+<dt><strong class="italic">name-pattern</strong></dt>
+<dd>Specify the pattern to be used to include or omit objects for which journal entries are retrieved.  Only the last part of the path name will be considered for the name pattern match.  Path name delimiters are not allowed in the name pattern.
+</dd>
+</dl>
+<p>If the Name Pattern parameter is not specified the default will be to match all patterns.
+</p>
+<p>Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is Unicode-enabled.  See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+</p>
+<h3><strong>Element 2: Include or omit</strong>
+</h3>
+<p>The second element specifies whether names that match the pattern should be included or omitted from the operation.  Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+</p>
+<dl>
+<dt><strong class="underlined">*INCLUDE</strong></dt>
+<dd>The objects that match the object name pattern are included in the operation, unless overridden by an *OMIT specification.
+</dd>
+<dt><strong>*OMIT</strong></dt>
+<dd>The objects that match the object name pattern are not to be included in the operation.  This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RCVRNG"></a>
+<h2>Range of journal receivers (RCVRNG)</h2>
+<p>Specifies the starting (first) and ending (last) journal receivers used in the search for a journal entry to be retrieved.  The system starts the search with the starting journal receiver (as specified by the first value) and proceeds through the receiver chain until the ending journal receiver (as specified by the second value) is processed.
+</p>
+<p>If *ASCEND is specified for the <strong>Search</strong> prompt (SEARCH parameter), journal receivers must be specified in the order of oldest to newest.  If *DESCEND is specified for the <strong>Search (SEARCH)</strong> parameter, journal receivers must be specified in the order of newest to oldest.
+</p>
+<p>
+<strong>Note:     </strong>If the maximum number of receivers (2045) in the range is surpassed, an error occurs and no journal entries are retrieved.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*CURRENT</strong></dt>
+<dd>The journal receiver that is currently attached when starting to retrieve journal entries is used.
+</dd>
+<dt><strong>*CURCHAIN</strong></dt>
+<dd>The journal receiver chain that includes the journal receiver that is currently attached when starting to retrieve journal entries is used.  This receiver chain does not cross a break in the chain.  If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to retrieve journal entries.
+</dd>
+<dt><strong>*CURAVLCHN</strong></dt>
+<dd>The journal receiver chain that includes the journal receiver that is attached when starting to retrieve journal entries is used.  This receiver chain does not cross a break in the chain.  If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to retrieve journal entries.  If journal receivers exist in the receiver chain that are not available because they were saved with the storage freed option, those journal receivers will be ignored and entries will be retrieved starting with the first available journal receiver in the chain.
+</dd>
+<dt><strong>*CURSEQCHN</strong></dt>
+<dd>The journal receiver chain that includes the journal receiver that is attached when starting to convert journal entries is used, starting with the most recent journal receiver in which the journal sequence number was reset if the journal sequence number was reset in the receiver chain. This receiver chain does not cross a break in the chain. If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to convert journal entries. If journal receivers exist in the receiver chain that are not available because they were saved with the storage freed option, those journal receivers will be ignored and entries will be converted starting with the first available journal receiver in the chain.
+</dd>
+</dl>
+<h3><strong>Element 1: Starting journal receiver</strong>
+</h3>
+<h3><strong>Qualifier 1: Starting journal receiver</strong>
+</h3>
+<dl>
+<dt><strong class="italic">starting-journal-receiver-name</strong></dt>
+<dd>Specify the name of the first journal receiver that contains journal entries to be retrieved.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the journal receiver.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the journal receiver is located.
+</dd>
+</dl>
+<h3><strong>Element 2: Ending journal receiver</strong>
+</h3>
+<h3><strong>Qualifier 1: Ending journal receiver</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*CURRENT</strong></dt>
+<dd>The journal receiver that is currently attached when starting to retrieve journal entries is used.
+</dd>
+<dt><strong class="italic">ending-journal-receiver</strong></dt>
+<dd>Specify the name of the last journal receiver containing journal entries to be searched.  If the end of the receiver chain is reached before a receiver of this name is found, an error message is sent and no journal entry is retrieved.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the journal receiver.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the journal receiver is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.FROMENTLRG"></a>
+<h2>Starting large sequence number (FROMENTLRG)</h2>
+<p>Specifies the first journal entry considered for retrieval.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Starting sequence number (FROMENT)</strong> parameter or the <strong>Starting large sequence number (FROMENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first journal entry in the specified journal receiver range is the first entry considered for retrieval.  If SEARCH(*DESCEND) is specified, FROMENT(*FIRST) is valid only if TOENTLRG(*FIRST) or TOENT(*FIRST) is also specified.
+</dd>
+<dt><strong>*LAST</strong></dt>
+<dd>The last journal entry in the specified journal receiver range is the first entry considered for retrieval.  If SEARCH(*ASCEND) is specified, FROMENT(*LAST) is valid only if TOENTLRG(*LAST) or TOENT(*LAST) is also specified.
+</dd>
+<dt><strong class="italic">starting-sequence-number</strong></dt>
+<dd>The journal entry with the assigned sequence number is the first entry considered for retrieval.  The possible range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.FROMTIME"></a>
+<h2>Starting date and time (FROMTIME)</h2>
+<p>Specifies the date and time of the first journal entry considered for retrieval.  The first journal entry found with the specified date and time or the next later journal entry is the starting point for the search.
+</p>
+<h3><strong>Element 1: Starting date</strong>
+</h3>
+<dl>
+<dt><strong class="italic">starting-date</strong></dt>
+<dd>Specify the date.  The starting date and time of the first journal entry occurring at or after the specified date and time becomes the starting point for the search.
+</dd>
+</dl>
+<h3><strong>Element 2: Starting time</strong>
+</h3>
+<dl>
+<dt><strong class="italic">starting-time</strong></dt>
+<dd>Specify the time.  The starting date and time of the first journal entry occurring at or after the specified date and time becomes the starting point for the search.
+<p>The time can be specified in 24-hour format with or without a time separator:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds.  If you enter this command from the command line, the string must be enclosed in apostrophes.  If a time separator other than the separator specified for your job is used, this command will fail.
+</li>
+<li class="cds--list__item">Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where <strong>hh</strong> = hours, <strong>mm</strong> = minutes, and <strong>ss</strong> = seconds.
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.TOENTLRG"></a>
+<h2>Ending large sequence number (TOENTLRG)</h2>
+<p>Specifies the last journal entry considered for retrieval.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Ending sequence number (TOENT)</strong> parameter or the <strong>Ending large sequence number (TOENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>The search continues until the last journal entry in the journal receiver range specified is processed.  If SEARCH(*DESCEND) is specified, TOENT(*LAST) is valid only if FROMENTLRG(*LAST) or FROMENT(*LAST) is also specified.
+</dd>
+<dt><strong>*FIRST</strong></dt>
+<dd>The search continues until the first journal entry in the journal receiver range specified is processed.  If SEARCH(*ASCEND) is specified, TOENT(*FIRST) is only valid if FROMENTLRG(*LAST) or FROMENT(*FIRST) is also specified.
+</dd>
+<dt><strong class="italic">ending-sequence-number</strong></dt>
+<dd>Specify the sequence number of the final journal entry considered for retrieval.  The possible range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+<p>
+<strong>Note:     </strong>The values specified for the FROMENT and TOENT parameter can be the same.  For example, FROMENT(234) and TOENT(234) can be specified.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.TOTIME"></a>
+<h2>Ending date and time (TOTIME)</h2>
+<p>Specifies the date and time of the last entry considered for retrieval.  The first journal entry found with the specified date and time, or the latest earlier journal entry is the ending point for the search.
+</p>
+<h3><strong>Element 1: Ending date</strong>
+</h3>
+<dl>
+<dt><strong class="italic">ending-date</strong></dt>
+<dd>Specify the ending date.  The ending date and time of the journal entry occurring at or before the specified date and time becomes the ending point for the search.
+</dd>
+</dl>
+<h3><strong>Element 2: Ending time</strong>
+</h3>
+<dl>
+<dt><strong class="italic">ending-time</strong></dt>
+<dd>Specify the time.  The ending date and time of the journal entry occurring at or before the specified date and time becomes the ending point for the search.
+<p>The time can be specified in 24-hour format with or without a time separator:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+</li>
+<li class="cds--list__item">With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds.  If you enter this command from the command line, the string must be enclosed in apostrophes.  If a time separator other than the separator specified for your job is used, this command will fail.
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.SEARCH"></a>
+<h2>Search (SEARCH)</h2>
+<p>Specifies the order in which the journal entries are searched to retrieve an entry.
+</p>
+<dl>
+<dt><strong class="underlined">*ASCEND</strong></dt>
+<dd>The journal entries are searched in ascending order (from the oldest entry to the newest entry).
+</dd>
+<dt><strong>*DESCEND</strong></dt>
+<dd>The journal entries are searched in descending order (from the newest entry to the oldest entry).
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.JRNCDE"></a>
+<h2>Journal codes (JRNCDE)</h2>
+<p>Specifies the journal codes of the journal entries being considered for retrieval.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The search for the entry is not limited to a specified journal code.
+</dd>
+<dt><strong>*CTL</strong></dt>
+<dd>The journal entries considered for retrieval are those used to control the journal functions.  The journal codes are <strong>J</strong> and <strong>F</strong>.
+</dd>
+</dl>
+<h3><strong>Element 1: Journal code value</strong>
+</h3>
+<dl>
+<dt><strong class="italic">journal-code</strong></dt>
+<dd>Specify the journal code to which journal entries are limited.  Only journal entries with the specified journal code are retrieved.
+<p>An explanation of the journal codes that can be specified is in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+</p>
+</dd>
+</dl>
+<h3><strong>Element 2: Journal code selection</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALLSLT</strong></dt>
+<dd>The journal entries with the specified journal code are retrieved only if all other selection parameters are satisfied.
+</dd>
+<dt><strong>*IGNFILSLT</strong></dt>
+<dd>Journal entries having the specified journal code are retrieved only if all selection parameters, except the FILE parameter, are satisfied.
+<p>
+<strong>Note:     </strong>This value is not valid for journal codes D, F, and R. This value is not valid if the OBJ, OBJPATH, OBJFID, or OBJJID parameters are specified.
+</p>
+</dd>
+<dt><strong>*IGNOBJSLT</strong></dt>
+<dd>Journal entries having the specified journal code are retrieved only if all selection parameters are satisfied except OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, and OBJJID.
+<p>
+<strong>Note:     </strong>This value is not valid for journal codes B, D, E, F, Q, R, and Y.  This value is not valid if the FILE parameter is specified.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.ENTTYP"></a>
+<h2>Journal entry types (ENTTYP)</h2>
+<p>Specifies whether to limit the journal entries retrieved to those of a specified journal entry type.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The search for the entry is not limited to a particular entry type.
+</dd>
+<dt><strong>*RCD</strong></dt>
+<dd>Only entries that have an entry type for record-level operations are retrieved.  The following entry types are valid:  BR, DL, DR, IL, PT, PX, UB, UP, and UR.
+</dd>
+</dl>
+<h3><strong>Other values</strong>
+</h3>
+<dl>
+<dt><strong class="italic">entry-type</strong></dt>
+<dd>Specify the entry type that limits the search for the entry.  Only journal entries that contain the specified entry type are considered for retrieval.  Up to 300 valid entry types can be specified.  More information on entry types is in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.JOB"></a>
+<h2>Job name (JOB)</h2>
+<p>Specifies that the journal entries searched for retrieval are limited to the journal entries for the specified job.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The search is not limited to entries for a specified job.
+</dd>
+<dt><strong>*</strong></dt>
+<dd>The search is limited to entries for the current job.
+</dd>
+</dl>
+<h3><strong>Other values</strong>
+</h3>
+<dl>
+<dt><strong class="italic">job-identifier</strong></dt>
+<dd>Specify the job name, the user name, and the job number of the job to use.  You can also specify that the job name only, or that the job name and the user name be used.
+<dl>
+<dt><strong class="italic">job-name</strong></dt>
+<dd>Specify the job name of the job.
+</dd>
+<dt><strong class="italic">user-name</strong></dt>
+<dd>Specify the user name of the job.
+</dd>
+<dt><strong class="italic">job-number</strong></dt>
+<dd>Specify the system-assigned job number.
+</dd>
+</dl>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.PGM"></a>
+<h2>Program (PGM)</h2>
+<p>Specifies that the journal entries considered for retrieval are limited to the journal entries created by the specified program.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The search is not limited to entries for a specified program.
+</dd>
+<dt><strong class="italic">program-name</strong></dt>
+<dd>Specify the name of the program whose journal entries are considered for retrieval.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.USRPRF"></a>
+<h2>User profile (USRPRF)</h2>
+<p>Specifies that the journal entries considered for retrieval are limited to the journal entries for a specified user profile.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The retrieval of journal entries is not limited to entries for a specified user profile.
+</dd>
+<dt><strong class="italic">user-profile-name</strong></dt>
+<dd>Specify the name of the user profile whose journal entries are considered for retrieval.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.CCIDLRG"></a>
+<h2>Commit cycle large identifier (CCIDLRG)</h2>
+<p>Specifies that the journal entries considered for retrieval are limited to the journal entries containing the specified commit cycle identifier.  A commit cycle consists of all journal entries sharing the same commit cycle identifier.  A journal entry's commit cycle identifier can be displayed by using the Display Journal (DSPJRN) command and entering option five.
+</p>
+<p>
+<strong>Note:     </strong>You can input a value for either the <strong>Commit cycle identifier</strong> field (CMTCYCID) or the <strong>Commit cycle large identifier</strong> field (CCIDLRG) but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The search is not limited to entries for a specified commit cycle identifier.
+</dd>
+<dt><strong class="italic">commit-cycle-identifier</strong></dt>
+<dd>Specify the commit cycle identifier of the journal entries to be retrieved.  The possible range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.DEPENT"></a>
+<h2>Dependent entries (DEPENT)</h2>
+<p>Specifies whether to retrieve the journal entries recording actions
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">that occur as a result of a trigger program
+</li>
+<li class="cds--list__item">on records that are part of a referential constraint
+</li>
+<li class="cds--list__item">that will be ignored during an Apply Journaled Changes (APYJRNCHG) or Remove Journaled Changes (RMVJRNCHG) operation.
+</li>
+</ul>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The journal entries relating to trigger programs, referential constraints and the entries which will be ignored by an Apply or Remove Journaled Changes operations are retrieved.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>The journal entries relating to trigger programs, referential constraints and the entries which will be ignored by an Apply or Remove Journaled Changes operations are not retrieved.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.OBJFID"></a>
+<h2>File identifier (OBJFID)</h2>
+<p>Specifies a maximum of 300 file identifiers (FID) for which journal entries are to be retrieved.  FIDs are a unique identifier associated with integrated file system related objects.  This field is input in hexadecimal format.  Only objects whose FID identifies an object of type *STMF, *DIR or *SYMLNK that are in the "root" (/), QOpenSys, and user-defined file systems are supported.  All other objects are ignored.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<p>To determine which journal entries are to be received, based on the specified file identifier, the following is done:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the journal is a local journal, and if the specified object currently exists on the system, the journal identifier is determined from the specified object.  All journal entries in the specified receiver range for that journal identifier are retrieved.
+</li>
+<li class="cds--list__item">If the journal is a remote journal, or if the specified object does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified object.  All journal entries in the specified receiver range for those journal identifiers are retrieved.
+</li>
+</ul>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying an object on this parameter, journal entries with the following journal code values are retrieved only if they satisfy the values specified on the other parameters in addition to the FID specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code B (integrated file system information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are retrieved.
+</li>
+</ul>
+</li>
+</ol>
+<dl>
+<dt><strong class="italic">file-identifier</strong></dt>
+<dd>Entries for objects identified with the FID are retrieved.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.OBJJID"></a>
+<h2>Object journal identifier (OBJJID)</h2>
+<p>Specifies a maximum of 300 journal identifiers for which journal entries are to be retrieved.  This field is input in hexadecimal format.  Hexadecimal zero is not valid.
+</p>
+<p>Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The journal identifier is the unique identifier associated with the object when journaling is started for that object.  The journal identifier stays constant, even if the object is renamed, moved or restored.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+</li>
+<li class="cds--list__item">When specifying a journal identifier on this parameter, journal entries with the following journal code values are converted for output only if they satisfy the values specified on the other parameters in addition to the journal identifier specification:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Journal code B (integrated file system information entries).
+</li>
+<li class="cds--list__item">Journal code D (database file-level information entries).
+</li>
+<li class="cds--list__item">Journal code E (data area information entries).
+</li>
+<li class="cds--list__item">Journal code F (file member-level information entries).
+</li>
+<li class="cds--list__item">Journal code J (journal receiver information entries).
+</li>
+<li class="cds--list__item">Journal code Q (data queue information entries).
+</li>
+<li class="cds--list__item">Journal code R (record-level information entries).
+</li>
+<li class="cds--list__item">Journal code U (user-generated entries).
+</li>
+<li class="cds--list__item">Journal code Y (library information entries).
+</li>
+<li class="cds--list__item">Other journal codes, if *IGNOBJSLT is the second element of the journal code.  If *ALLSLT is the second element of the journal code, no journal entries with that code are converted for output.
+</li>
+</ul>
+</li>
+</ol>
+<dl>
+<dt><strong class="italic">journal-identifier</strong></dt>
+<dd>Entries for objects associated with the specified journal identifier are retrieved.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table24" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.ENTFMT"></a>
+<h2>Entry format (ENTFMT)</h2>
+<p>Specifies the format of the retrieved journal entry.  For a description of what is represented by each of the fields in the journal entry, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+</p>
+<p>Lists showing detailed information on the format of the retrieved journal entries are in the RTNJRNE parameter description.
+</p>
+<p>
+<strong>Note:     </strong>If ENTFMT(*TYPE1) or ENTFMT(*TYPE2) is not specified, the NULLINDLEN parameter must be specified.
+</p>
+<p>
+<strong>Note:     </strong>If the <strong>Receiver size options</strong> field (RCVSIZOPT) for the journal was specified as *MAXOPT3, the sequence number, commit cycle identifier, the count of entries applied or removed or relative record number fields can reach a maximum value of 18,446,744,073,709,551,600.  The length of these fields for the ENTFMT(*TYPE1), ENTFMT(*TYPE2), ENTFMT(*TYPE3), and ENTFMT(*TYPE4) formats is defined to hold a 10 digit number.  Only the *TYPE5 format has fields large enough to hold this maximum value.  When returning these fields for a format other than *TYPE5, if a sequence number, commit cycle identifier, or count of entries applied or removed or relative record number larger than 10 digits is found, the field is set to -1 for that entry.
+</p>
+<dl>
+<dt><strong class="underlined">*TYPE1</strong></dt>
+<dd>The retrieved journal entries are formatted to include the minimum information that can be specified.
+</dd>
+<dt><strong>*TYPE2</strong></dt>
+<dd>The retrieved journal entries include the information returned when ENTFMT(*TYPE1) is specified, and the user profile field, which gives the name of the user who logged the retrieved journal entries, and the name of the system on which the entry was sent.
+</dd>
+<dt><strong>*TYPE3</strong></dt>
+<dd>The retrieved journal entries include the information returned when ENTFMT(*TYPE2) is specified, and the null value indicators.
+</dd>
+<dt><strong>*TYPE4</strong></dt>
+<dd>The retrieved journal entries include the information returned when ENTFMT(*TYPE3) is specified, the journal identifier, the physical file trigger indicator, and the referential constraint indicator.
+</dd>
+<dt><strong>*TYPE5</strong></dt>
+<dd>The retrieved journal entries include the information returned when OUTFILFMT(*TYPE4) is specified, in addition to the program library name, the program library ASP device name, the program library ASP number, the system sequence number, the logical unit of work, the transaction identifier, the thread identifier, the remote address, the address family, the remote port, the arm number, the receiver name, the receiver library name, the receiver library ASP device name and the receiver library ASP number.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table25" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.NULLINDLEN"></a>
+<h2>Null value indicators length (NULLINDLEN)</h2>
+<p>Specify the length used for the null value indicators portion of the retrieved entry.  This parameter is not valid if ENTFMT(*TYPE1) or ENTFMT(*TYPE2) is specified.  Valid values range from 1 to 8000 bytes.  If the retrieved journal entry has fewer null value indicators than the specified field length, the trailing bytes in the null value indicators field is set to 'F0'X.
+</p>
+<p>Null value indicators are present in journal entries for record level operations as follows:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The corresponding physical file has null capable fields.
+</li>
+<li class="cds--list__item">The record image has been minimized in the entry specific data.
+</li>
+</ol>
+<p>If the record image has not been minimized in the entry specific data, then there is one null value indicator per field in the physical file.  Each indicator is one character long and can be either:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">'F0'X = Corresponding field is not null.
+</li>
+<li class="cds--list__item">'F1'X = Corresponding field is null.
+</li>
+</ul>
+<p>If the record image has been minimized on file field boundaries in the entry specific data and FMTMINDTA(*YES) was specified on the RCVJRNE command, then there is one null value indicator per field in the physical file.  Each indicator is one character long and can be either:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">'F0'X = Corresponding field is not null.
+</li>
+<li class="cds--list__item">'F1'X = Corresponding field is null.
+</li>
+<li class="cds--list__item">'F9'X = Corresponding field was not changed and the default value for the field is returned.
+</li>
+</ul>
+<p>If the record image has been minimized on file field boundaries in the entry specific data and FMTMINDTA(*NO) was specified on the RTVJRNE command, then an internal value is returned for the null value indicator.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table26" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.FMTMINDTA"></a>
+<h2>Format minimized data (FMTMINDTA)</h2>
+<p>Specifies whether entry specific data which has been minimized on field boundaries will be returned in a readable format.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>The journal entries which have entry specific data that has been minimized on field boundaries will not be returned in a readable format.  Therefore, the entry specific data may not be viewable.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>The journal entries which have entry specific data that has been minimized on field boundaries will be returned in a readable format.  Therefore, the entry specific data is viewable and may be used for auditing purposes.  The fields that were changed are accurately reflected. The fields that were not changed and were not recorded display default data and are indicated by a value of 'F9'X in the null value indicators field.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table27" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.INCENT"></a>
+<h2>Include entries (INCENT)</h2>
+<p>Specifies whether only the confirmed, or both the confirmed and unconfirmed, journal entries are retrieved.  This parameter only applies when converting journal entries for output from a remote journal.
+</p>
+<p>Confirmed entries are those journal entries which have been sent to this remote journal and the state of the Input/Output (I/O) to auxiliary storage for the same journal entries on the local journal is known.
+</p>
+<p>Unconfirmed entries are those journal entries which have been sent to this remote journal, but the state of the Input/Output (I/O) to auxiliary storage for the same journal entries on the local journal is not known, or the object name information for those journal entries is not yet known to the remote journal.  Unconfirmed journal entries can only exist within the attached receiver of a remote journal.  This only applies if synchronous delivery mode is being used for a particular remote journal.
+</p>
+<dl>
+<dt><strong class="underlined">*CONFIRMED</strong></dt>
+<dd>Only those journal entries which have been confirmed are retrieved.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All confirmed and unconfirmed journal entries are retrieved.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table28" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.FROMENT"></a>
+<h2>Starting sequence number (FROMENT)</h2>
+<p>Specifies the first journal entry considered for retrieval.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Starting sequence number (FROMENT)</strong> parameter or the <strong>Starting large sequence number (FROMENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first journal entry in the specified journal receiver range is the first entry considered for retrieval.  If SEARCH(*DESCEND) is specified, FROMENT(*FIRST) is valid only if TOENTLRG(*FIRST) or TOENT(*FIRST) is also specified.
+</dd>
+<dt><strong>*LAST</strong></dt>
+<dd>The last journal entry in the specified journal receiver range is the first entry considered for retrieval.  If SEARCH(*ASCEND) is specified, FROMENT(*LAST) is valid only if TOENTLRG(*LAST) or TOENT(*LAST) is also specified.
+</dd>
+<dt><strong class="italic">starting-sequence-number</strong></dt>
+<dd>The journal entry with the assigned sequence number is the first entry considered for retrieval.  The possible range is 1 to 9,999,999,999.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table29" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.TOENT"></a>
+<h2>Ending sequence number (TOENT)</h2>
+<p>Specifies the last journal entry considered for retrieval.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Ending sequence number (TOENT)</strong> parameter or the <strong>Ending large sequence number (TOENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>The search continues until the last journal entry in the journal receiver range specified is processed.  If SEARCH(*DESCEND) is specified, TOENT(*LAST) is valid only if FROMENTLRG(*LAST) or FROMENT(*LAST) is also specified.
+</dd>
+<dt><strong>*FIRST</strong></dt>
+<dd>The search continues until the first journal entry in the journal receiver range specified is processed.  If SEARCH(*ASCEND) is specified, TOENT(*FIRST) is only valid if FROMENTLRG(*LAST) or FROMENT(*FIRST) is also specified.
+</dd>
+<dt><strong class="italic">ending-sequence-number</strong></dt>
+<dd>Specify the sequence number of the final journal entry considered for retrieval.  The possible range is 1 to 9,999,999,999.
+</dd>
+</dl>
+<p>
+<strong>Note:     </strong>The values specified for the FROMENT and TOENT parameter can be the same.  For example, FROMENT(234) and TOENT(234) can be specified.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table30" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.CMTCYCID"></a>
+<h2>Commit cycle identifier (CMTCYCID)</h2>
+<p>Specifies that the journal entries considered for retrieval are limited to the journal entries containing the specified commit cycle identifier.  A commit cycle consists of all journal entries sharing the same commit cycle identifier.  A journal entry's commit cycle identifier can be displayed by using the Display Journal (DSPJRN) command and entering option five.
+</p>
+<p>
+<strong>Note:     </strong>You can input a value for either the <strong>Commit cycle identifier</strong> field (CMTCYCID) or the <strong>Commit cycle large identifier</strong> field (CCIDLRG) but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The search is not limited to entries for a specified commit cycle identifier.
+</dd>
+<dt><strong class="italic">commit-cycle-identifier</strong></dt>
+<dd>Specify the commit cycle identifier of the journal entries to be retrieved.  The possible range is 1 to 9,999,999,999.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table31" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RTNSEQLRG"></a>
+<h2>CL var for RTNSEQLRG    (20) (RTNSEQLRG)</h2>
+<p>Specifies the name of the program CL character variable into which the journal entry sequence number of the retrieved journal entry is copied.  If a CL variable name is not specified, the journal entry sequence number is not copied into the program.  The specified variable must be a character variable that has a length of twenty positions.  If the retrieved sequence number is shorter than the length of the field, the number is padded on the right with blanks.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table32" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RTNJRNCDE"></a>
+<h2>CL var for RTNJRNCDE     (1) (RTNJRNCDE)</h2>
+<p>Specifies the name of the program CL character variable into which the journal code of the retrieved journal entry is copied.  If a CL variable name is not specified, the journal code of the retrieved journal entry is not copied into the program.  The specified variable must be a character variable with a minimum length of 1 character.  If the length of the variable is longer than 1 character, it is padded on the right with blanks.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table33" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RTNENTTYP"></a>
+<h2>CL var for RTNENTTYP     (2) (RTNENTTYP)</h2>
+<p>Specifies the name of the program CL character variable into which the entry type of the retrieved journal entry is copied.  If a CL variable name is not specified, the entry type of the retrieved journal entry is not copied into the program.  The specified variable must be a character variable with a minimum length of 2 characters.  If the length of the variable is longer than 2 characters, it is padded on the right with blanks.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table34" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RTNRCV"></a>
+<h2>CL var for RTNRCV       (10) (RTNRCV)</h2>
+<p>Specifies the name of the program CL character variable into which the journal receiver name from which the returned journal entry was retrieved is copied.  If the CL variable name is not specified, the journal receiver name is not copied into the program.  The specified variable must be a character variable with a minimum length of 10 characters.  If the length of the variable is longer than 10 characters, it is padded on the right with blanks.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table35" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RTNRCVLIB"></a>
+<h2>CL var for RTNRCVLIB    (10) (RTNRCVLIB)</h2>
+<p>Specifies the name of the CL character variable into which the name of the library containing the receiver of the retrieved journal entry is copied.  If the CL variable name is not specified, the journal receiver library name is not copied into the program.  The specified variable must be a character variable with a minimum length of 10 characters.  If the length of the variable is longer than 10 characters, it is padded on the right with blanks.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table36" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RTNJRNE"></a>
+<h2>CL var for RTNJRNE       (1) (RTNJRNE)</h2>
+<p>Specifies the name of the program CL character variable into which the retrieved journal entry is copied.  If a CL variable name is not specified, the retrieved journal entry is not copied into the program.  The specified variable must be a character variable.  If the retrieved journal entry is longer than the variable's field length, the entry is truncated.  If the entry is shorter, it is padded on the right with blanks.
+</p>
+<p>The following lists show detailed information on the format of the retrieved journal entries.
+</p>
+<p>The journal entry can be retrieved in one of the following possible formats:
+</p>
+<p>If ENTFMT(*TYPE1) is specified, then the format of the fields in the retrieved entry is as follows:
+</p>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table37" border="1" class="cds--data-table">
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             Field Attributes
+---------------------  ----------------------------
+ENTRY LENGTH           TYPE(*DEC) LEN(5 0)
+SEQUENCE NUMBER (1)    TYPE(*DEC) LEN(10 0)
+JOURNAL CODE           TYPE(*CHAR) LEN(1)
+JOURNAL ENTRY TYPE     TYPE(*CHAR) LEN(2)
+DATE                   TYPE(*CHAR) LEN(6)
+TIME                   TYPE(*DEC) LEN(6 0)
+JOB NAME               TYPE(*CHAR) LEN(10)
+USER NAME              TYPE(*CHAR) LEN(10)
+JOB NUMBER             TYPE(*DEC) LEN(6 0)
+PROGRAM NAME           TYPE(*CHAR) LEN(10)
+OBJECT NAME            TYPE(*CHAR) LEN(10)
+OBJECT LIBRARY         TYPE(*CHAR) LEN(10)
+MEMBER NAME            TYPE(*CHAR) LEN(10)
+COUNT/RRN (2)          TYPE(*DEC) LEN(10 0)
+FLAG                   TYPE(*CHAR) LEN(1)
+COMMIT CYCLE ID (3)    TYPE(*DEC) LEN(10 0)
+INCOMPLETE DATA        TYPE(*CHAR) LEN(1)
+MINIMIZED ENTRY DATA   TYPE(*CHAR) LEN(1)
+RESERVED               TYPE(*CHAR) LEN(6)
+ENTRY-SPECIFIC DATA    TYPE(*CHAR) LEN(up to 32642)
+Notes:
+(1)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(2)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(3)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+<p>If ENTFMT(*TYPE2) is specified, then the format of the fields in the retrieved entry is as follows:
+</p>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table38" border="1" class="cds--data-table">
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             Field Attributes
+---------------------  ----------------------------
+ENTRY LENGTH           TYPE(*DEC) LEN(5 0)
+SEQUENCE NUMBER (1)    TYPE(*DEC) LEN(10 0)
+JOURNAL CODE           TYPE(*CHAR) LEN(1)
+JOURNAL ENTRY TYPE     TYPE(*CHAR) LEN(2)
+DATE                   TYPE(*CHAR) LEN(6)
+TIME                   TYPE(*DEC) LEN(6 0)
+JOB NAME               TYPE(*CHAR) LEN(10)
+USER NAME              TYPE(*CHAR) LEN(10)
+JOB NUMBER             TYPE(*DEC) LEN(6 0)
+PROGRAM NAME           TYPE(*CHAR) LEN(10)
+OBJECT NAME            TYPE(*CHAR) LEN(10)
+OBJECT LIBRARY         TYPE(*CHAR) LEN(10)
+MEMBER NAME            TYPE(*CHAR) LEN(10)
+COUNT/RRN (2)          TYPE(*DEC) LEN(10 0)
+FLAG                   TYPE(*CHAR) LEN(1)
+COMMIT CYCLE ID (3)    TYPE(*DEC) LEN(10 0)
+USER PROFILE           TYPE(*CHAR) LEN(10)
+SYSTEM NAME            TYPE(*CHAR) LEN(8)
+INCOMPLETE DATA        TYPE(*CHAR) LEN(1)
+MINIMIZED ENTRY DATA   TYPE(*CHAR) LEN(1)
+RESERVED               TYPE(*CHAR) LEN(18)
+ENTRY-SPECIFIC DATA    TYPE(*CHAR) LEN(up to 32612)
+Notes:
+(1)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(2)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(3)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+<p>
+<strong>Note:     </strong>If ENTFMT(*TYPE3) is specified, the following information is not available in this format:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Incomplete Data indicating if the journal entry data is incomplete due to either LOB fields or Byte Stream File operations.
+</li>
+<li class="cds--list__item">Minimized Entry Specific Data indicating if the journal entry has minimized entry specific data because the journal had MINENTDTA specified for the object type of the journal entry.
+</li>
+</ul>
+<p>See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information on the incomplete data indicator, the minimized entry specific data indicator, and these journal entries.
+</p>
+<p>If ENTFMT(*TYPE3) is specified and a value is specified on the NULLINDLEN parameter, the format of the retrieved journal entry is as follows:
+</p>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table39" border="1" class="cds--data-table">
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             Field Attributes
+---------------------  ----------------------------
+ENTRY LENGTH           TYPE(*DEC) LEN(5 0)
+SEQUENCE NUMBER (3)    TYPE(*DEC) LEN(10 0)
+JOURNAL CODE           TYPE(*CHAR) LEN(1)
+JOURNAL ENTRY TYPE     TYPE(*CHAR) LEN(2)
+TIMESTAMP              TYPE(*TIMESTAMP) LEN(26)
+JOB NAME               TYPE(*CHAR) LEN(10)
+USER NAME              TYPE(*CHAR) LEN(10)
+JOB NUMBER             TYPE(*DEC) LEN(6 0)
+PROGRAM NAME           TYPE(*CHAR) LEN(10)
+OBJECT NAME            TYPE(*CHAR) LEN(10)
+OBJECT LIBRARY         TYPE(*CHAR) LEN(10)
+MEMBER NAME            TYPE(*CHAR) LEN(10)
+COUNT/RRN (4)          TYPE(*DEC) LEN(10 0)
+FLAG                   TYPE(*CHAR) LEN(1)
+COMMIT CYCLE ID (5)    TYPE(*DEC) LEN(10)
+USER PROFILE           TYPE(*CHAR) LEN(10)
+SYSTEM NAME            TYPE(*CHAR) LEN(8)
+NULL VALUE INDICATORS  TYPE(*CHAR) field-length (1)
+ENTRY-SPECIFIC DATA    TYPE(*CHAR) ((up to 32618)
+                         minus (field length))  (2)
+Notes:
+(1) The length of this field is the length
+specified on the NULLINDLEN parameter.
+(2) The length of this portion of the entry
+depends on the length specified on the RTNJRNE
+parameter and the length specified on the
+NULLINDLEN parameter.
+(3)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(4)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(5)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+<p>If ENTFMT(*TYPE4) is specified and a value is specified on the NULLINDLEN parameter, the format of the retrieved journal entry is as follows:
+</p>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table40" border="1" class="cds--data-table">
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             Field Attributes
+---------------------  ----------------------------
+ENTRY LENGTH           TYPE(*DEC)  LEN(5 0)
+SEQUENCE NUMBER (3)    TYPE(*DEC)  LEN(10 0)
+JOURNAL CODE           TYPE(*CHAR) LEN(1)
+JOURNAL ENTRY TYPE     TYPE(*CHAR) LEN(2)
+TIMESTAMP              TYPE(*TIMESTAMP) LEN(26)
+JOB NAME               TYPE(*CHAR) LEN(10)
+USER NAME              TYPE(*CHAR) LEN(10)
+JOB NUMBER             TYPE(*DEC)  LEN(6 0)
+PROGRAM NAME           TYPE(*CHAR) LEN(10)
+OBJECT NAME            TYPE(*CHAR) LEN(10)
+OBJECT LIBRARY         TYPE(*CHAR) LEN(10)
+MEMBER NAME            TYPE(*CHAR) LEN(10)
+COUNT/RRN (4)          TYPE(*DEC)  LEN(10 0)
+FLAG                   TYPE(*CHAR) LEN(1)
+COMMIT CYCLE ID (5)    TYPE(*DEC)  LEN(10)
+USER PROFILE           TYPE(*CHAR) LEN(10)
+SYSTEM NAME            TYPE(*CHAR) LEN(8)
+JOURNAL IDENTIFIER     TYPE(*CHAR) LEN(10)
+REF CONSTRAINT         TYPE(*CHAR) LEN(1)
+TRIGGER                TYPE(*CHAR) LEN(1)
+INCOMPLETE DATA        TYPE(*CHAR) LEN(1)
+IGNORE DURING          TYPE(*CHAR) LEN(1)
+APYJRNCHG OR RMVJRNCHG
+MINIMIZED ENTRY DATA   TYPE(*CHAR) LEN(1)
+RESERVED               TYPE(*CHAR) LEN(5)
+NULL VALUE INDICATORS  TYPE(*CHAR) field-length (1)
+ENTRY-SPECIFIC DATA    TYPE(*CHAR) ((up to 32598)
+                         minus (field length))  (2)
+Notes:
+(1) The length of this field is the length
+specified on the NULLINDLEN parameter.
+(2) The length of this portion of the entry
+depends on the length specified on the RTNJRNE
+parameter and the length specified on the
+NULLINDLEN parameter.
+(3)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(4)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(5)  When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+<p>If ENTFMT(*TYPE5) is specified and a value is specified on the NULLINDLEN parameter, the format of the retrieved journal entry is as follows:
+</p>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table41" border="1" class="cds--data-table">
+<tbody><tr>
+<td>
+<p>
+</p><pre>Field Name             Field Attributes
+---------------------  ----------------------------
+ENTRY LENGTH           TYPE(*DEC)  LEN(5 0)
+SEQUENCE NUMBER        TYPE(*CHAR) LEN(20)
+JOURNAL CODE           TYPE(*CHAR) LEN(1)
+JOURNAL ENTRY TYPE     TYPE(*CHAR) LEN(2)
+TIMESTAMP              TYPE(*TIMESTAMP) LEN(26)
+JOB NAME               TYPE(*CHAR) LEN(10)
+USER NAME              TYPE(*CHAR) LEN(10)
+JOB NUMBER             TYPE(*DEC)  LEN(6 0)
+PROGRAM NAME           TYPE(*CHAR) LEN(10)
+PROGRAM LIBRARY NAME   TYPE(*CHAR) LEN(10)
+PROGRAM ASP DEVICE     TYPE(*CHAR) LEN(10)
+NAME
+PROGRAM ASP NUMBER     TYPE(*DEC)  LEN(5 0)
+OBJECT NAME            TYPE(*CHAR) LEN(10)
+OBJECT LIBRARY         TYPE(*CHAR) LEN(10)
+MEMBER NAME            TYPE(*CHAR) LEN(10)
+COUNT/RRN              TYPE(*CHAR) LEN(20)
+FLAG                   TYPE(*CHAR) LEN(1)
+COMMIT CYCLE ID        TYPE(*CHAR) LEN(20)
+USER PROFILE           TYPE(*CHAR) LEN(10)
+SYSTEM NAME            TYPE(*CHAR) LEN(8)
+JOURNAL IDENTIFIER     TYPE(*CHAR) LEN(10)
+REF CONSTRAINT         TYPE(*CHAR) LEN(1)
+TRIGGER                TYPE(*CHAR) LEN(1)
+INCOMPLETE DATA        TYPE(*CHAR) LEN(1)
+IGNORE DURING          TYPE(*CHAR) LEN(1)
+APYJRNCHG OR RMVJRNCHG
+MINIMIZED ENTRY DATA   TYPE(*CHAR) LEN(1)
+OBJECT INDICATOR       TYPE(*CHAR) LEN(1)
+SYSTEM SEQUENCE        TYPE(*CHAR) LEN(20)
+NUMBER
+RECEIVER NAME          TYPE(*CHAR) LEN(10)
+RECEIVER LIBRARY NAME  TYPE(*CHAR) LEN(10)
+RECEIVER ASP DEVICE    TYPE(*CHAR) LEN(10)
+NAME
+RECEIVER ASP NUMBER    TYPE(*DEC)  LEN(5 0)
+ARM NUMBER             TYPE(*DEC)  LEN(5 0)
+THREAD IDENTIFIER      TYPE(*CHAR) LEN(8)
+THREAD IDENTIFIER HEX  TYPE(*CHAR) LEN(16)
+ADDRESS FAMILY         TYPE(*CHAR) LEN(1)
+REMOTE PORT            TYPE(*DEC)  LEN(5 0)
+REMOTE ADDRESS         TYPE(*CHAR) LEN(46)
+LOGICAL UNIT OF WORK   TYPE(*CHAR) LEN(39)
+TRANSACTION IDENTIFIER TYPE(*CHAR) LEN(140)
+OBJECT TYPE            TYPE(*CHAR) LEN(7)
+FILE TYPE INDICATOR    TYPE(*CHAR) LEN(1)
+NESTED COMMIT LEVEL    TYPE(*DEC)  LEN(7 0)
+RESERVED               TYPE(*CHAR) LEN(5)
+NULL VALUE INDICATORS  TYPE(*CHAR) field-length (1)
+ENTRY-SPECIFIC DATA    TYPE(*CHAR) ((up to 32212)
+                         minus (field length))  (2)
+Notes:
+(1) The length of this field is the length
+specified on the NULLINDLEN parameter.
+(2) The length of this portion of the entry
+depends on the length specified on the RTNJRNE
+parameter and the length specified on the
+NULLINDLEN parameter.
+</pre>
+<p></p>
+</td>
+</tr>
+</tbody></table></div></div>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table42" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RTVJRNE.RTNSEQNBR"></a>
+<h2>CL var for RTNSEQNBR  (10 0) (RTNSEQNBR)</h2>
+<p>Specifies the name of the program CL decimal variable into which the journal entry sequence number of the retrieved journal entry is copied.  If a CL variable name is not specified, the journal entry sequence number is not copied into the program.  The specified variable must be a decimal variable that has a length of ten positions with no decimal positions.  If the sequence number is larger than 9,999,999,999, this value is set to -1, left-aligned and padded on the right with blanks.  Use the <strong>CL var for RTNSEQLRG    (20) (RTNSEQLRG)</strong> parameter to retrieve a value larger than 9,999,999,999.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table43" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RTVJRNE.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1</strong>
+</h3>
+<p>Assume the following variables are specified:
+</p>
+<p>
+</p><pre>DCL  &amp;SEQ      TYPE(*DEC)  LEN(10 0)
+DCL  &amp;JRNENT   TYPE(*CHAR) LEN(200)
+DCL  &amp;RCVNAME  TYPE(*CHAR) LEN(10)
+DCL  &amp;RCVLIB   TYPE(*CHAR) LEN(10)
+</pre>
+<p></p>
+<p>and this command is run:
+</p>
+<p>
+</p><pre>RTVJRNE   JRN(MYLIB/JRNA)  ENTTYP(PR)
+          RTNSEQNBR(&amp;SEQ)  RTNJRNE(&amp;JRNENT)
+</pre>
+<p></p>
+<p>Since no starting journal entry is specified in this command, the first entry from the journal receiver that is currently attached to the journal JRNA in the library MYLIB, when starting to retrieve entries, is considered for retrieval. The first entry in any receiver is always an identifier for the previously-attached receiver. This first receiver entry is known as a type PR entry, and it contains the name of the previously attached receiver in its entry-specific data. The PR entry is the first entry in ascending order in the currently attached receiver; when it is found, the entry is placed into a CL variable named &amp;JRNENT.
+</p>
+<p>Change Variable (CHGVAR) can then be used to separate the name and library of the previous journal receiver, found in the entry specific data, as follows:
+</p>
+<p>
+</p><pre>CHGVAR   &amp;RCVNAME  (%SST(&amp;JRNENT 126 10))
+CHGVAR   &amp;RCVLIB   (%SST(&amp;JRNENT 136 10))
+</pre>
+<p></p>
+<h3><strong>Example 2</strong>
+</h3>
+<p>Assume the following variables are specified:
+</p>
+<p>
+</p><pre>DCL   &amp;ENTNO    TYPE(*DEC)  LEN(10 0)
+DCL   &amp;JCODE    TYPE(*CHAR) LEN(1)
+DCL   &amp;ETYPE    TYPE(*CHAR) LEN(2)
+DCL   &amp;RCVNAME  TYPE(*CHAR) LEN(10)
+DCL   &amp;RCVLIB   TYPE(*CHAR) LEN(10)
+DCL   &amp;JENTRY   TYPE(*CHAR) LEN(205)
+</pre>
+<p></p>
+<p>and this command is run:
+</p>
+<p>
+</p><pre>RTVJRNE   JRN(MYLIB/JRNLA)  OBJ(LIB1/A *FILE MBR3)
+          RCVRNG(RCVLIB/RCV30 RCVLIB/RCV27)  ORDER(*DESCEND)
+          JRNCDE(R)  ENTTYP(UP DL)  JOB(000666/QPGMR/PRESTRT)
+          PGM(WAKEUP)  USRPRF(MAC7)  ENTFMT(*TYPE2)
+          RTNSEQNBR(&amp;ENTNO)  RTNJRNCDE(&amp;JCODE)
+          RTNENTTYP(&amp;ETYPE)  RTNRCV(&amp;RCVNAME)
+          RTNRCVLIB(&amp;RCVLIB)  RTNJRNE(&amp;JENTRY)
+</pre>
+<p></p>
+<p>This command gets a journal entry, searching in descending order the journal receiver chain from receiver RCV30 in library RCVLIB to receiver RCV27 in library RCVLIB, journaled through journal JRNLA in library MYLIB, and copies the entry into the specified CL variables. The retrieved entry is an UPDATE or DELETE entry with journal code R from member MBR3 in file A in library LIB1, created in job 000666/QPGMR/PRESTRT in program WAKEUP by user profile MAC7.  The retrieved journal entry includes the user profile field. The sequence number of the retrieved entry is copied into CL variable &amp;ENTNO. The journal code of the retrieved entry is copied into CL variable &amp;JCODE. The entry type of the retrieved entry is copied into CL variable &amp;ETYPE. The name of the journal receiver from which the returned entry was retrieved is copied into &amp;RCVNAME. The library name of the journal receiver from which the returned entry was retrieved is copied into &amp;RCVLIB.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table44" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RTVJRNE.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF70A9</strong></dt>
+<dd>OBJPATH parameter not valid for a remote journal.
+</dd>
+<dt><strong>CPF70AC</strong></dt>
+<dd>Object for file identifier &amp;1 not found.
+</dd>
+<dt><strong>CPF70AE</strong></dt>
+<dd>Member *FIRST not allowed for a remote journal.
+</dd>
+<dt><strong>CPF70C3</strong></dt>
+<dd>File &amp;1 in library &amp;2 not a database file.
+</dd>
+<dt><strong>CPF7002</strong></dt>
+<dd>File &amp;1 in library &amp;2 not a physical file.
+</dd>
+<dt><strong>CPF7006</strong></dt>
+<dd>Member &amp;3 not found in file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF7007</strong></dt>
+<dd>Cannot allocate member &amp;3 file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF701B</strong></dt>
+<dd>Journal recovery of an interrupted operation failed.
+</dd>
+<dt><strong>CPF705C</strong></dt>
+<dd>INCENT(*ALL) not allowed for a local journal.
+</dd>
+<dt><strong>CPF7053</strong></dt>
+<dd>Values for RCVRNG parameter not correct; reason code &amp;1.
+</dd>
+<dt><strong>CPF7054</strong></dt>
+<dd>FROM and TO values not valid.
+</dd>
+<dt><strong>CPF7055</strong></dt>
+<dd>Maximum number of objects exceeded.
+</dd>
+<dt><strong>CPF7057</strong></dt>
+<dd>*LIBL not allowed with *ALL or *ALLLIB or a generic name.
+</dd>
+<dt><strong>CPF7060</strong></dt>
+<dd>Object not journaled in specified receiver range.
+</dd>
+<dt><strong>CPF7061</strong></dt>
+<dd>Conversion of journal entries failed.
+</dd>
+<dt><strong>CPF7062</strong></dt>
+<dd>No entries converted or received from journal &amp;1.
+</dd>
+<dt><strong>CPF7065</strong></dt>
+<dd>Entry type (ENTTYP) not valid for journal code (JRNCDE).
+</dd>
+<dt><strong>CPF7072</strong></dt>
+<dd>Retrieval of journal entry failed.
+</dd>
+<dt><strong>CPF7073</strong></dt>
+<dd>No entry retrieved from journal &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF7074</strong></dt>
+<dd>RCVRNG for specified SEARCH not valid.
+</dd>
+<dt><strong>CPF708D</strong></dt>
+<dd>Journal receiver found logically damaged.
+</dd>
+<dt><strong>CPF709C</strong></dt>
+<dd>JOB, PGM, and USRPRF not valid for receiver range.
+</dd>
+<dt><strong>CPF9801</strong></dt>
+<dd>Object &amp;2 in library &amp;3 not found.
+</dd>
+<dt><strong>CPF9802</strong></dt>
+<dd>Not authorized to object &amp;2 in &amp;3.
+</dd>
+<dt><strong>CPF9803</strong></dt>
+<dd>Cannot allocate object &amp;2 in library &amp;3.
+</dd>
+<dt><strong>CPF9809</strong></dt>
+<dd>Library &amp;1 cannot be accessed.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table45" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RTVJRNE.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

@@ -1,0 +1,168 @@
+Change CRG Device Entry (CHGCRGDEVE)
+
+Change CRG Device Entry (CHGCRGDEVE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Cluster Resource Group Device Entry (CHGCRGDEVE) command changes information about one or more configuration objects in a device cluster resource group. You can change the configuration action to be taken when the cluster resource group is switched over to a backup system. The entry being changed is found by searching the current entries for a matching configuration object name and configuration object type.
+
+If an exit program is specified for the cluster resource group, the cluster resource group exit program is called with an action code of Change Device Entry on all active nodes in the recovery domain. The cluster resource group status is set to Change Device Entry Pending. If the exit program completes successfully, the cluster resource group status is reset to its value at the time the command was called. If the exit program fails and the cluster resource group cannot be restored to its original condition, the cluster resource group status is set to Indoubt.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- Cluster Resource Services must be active on the node processing the request.
+
+- The number of configuration object entries in the configuration object array cannot exceed 256.
+
+- At least one node in the recovery domain must be active.
+
+- For a configuration object with type *DEVD, if a server takeover IP address is specified, it must exist on all nodes in the recovery domain. The server takeover IP address must be unique. It can only be associated with a primary auxiliary storage pool. IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as server takeover IP addresses.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CRG | Cluster resource group | Name | Required, Positional 1
+CFGOBJ | Configuration object list | Values (up to 256 repetitions): Element list | Required, Positional 2
+Element 1: Configuration object | Name
+Element 2: Configuration object type | *DEVD, *IPA
+Element 3: Configuration object online | *SAME, *OFFLINE, *ONLINE, *PRIMARY, *CURRENT
+Element 4: Server takeover IP address | Character value, *SAME, *NONE
+CLUSTER | Cluster | Name, * | Optional
+
+Top
+
+Cluster resource group (CRG)
+
+Specifies the cluster resource group which is to be changed.
+
+This is a required parameter.
+
+name
+Specify the name of the device cluster resource group.
+
+Top
+
+Configuration object list (CFGOBJ)
+
+Specifies detailed information about the resilient devices to be changed.
+
+This is a required parameter.
+
+Element 1: Configuration object
+
+Specifies the configuration which is in the cluster resource group.
+
+*SAME
+The current configuration object is not changed.
+
+name
+Specify the name of the configuration object.
+
+Element 2: Configuration object type
+
+This specifies the type of configuration object specified with configuration object name.
+
+*DEVD
+Configuration object of type device description.
+
+*IPA
+Configuration object of type IP address.
+
+Element 3: Configuration object online
+
+Specifies what configuration action to take when the cluster resource group is switched over or failed over to a backup node. Switchover and failover completion may be delayed if the varyon of devices takes a long time.
+
+This element is ignored for a secondary ASP and automatically set to *PRIMARY.
+
+*SAME
+The current configuration object online value is not changed.
+
+*OFFLINE
+Do not vary the configuration object on and do not start the server takeover IP address.
+
+*CURRENT
+Preserves the VARY status of the configuration object and the status of the server takeover IP address. If the configuration object was online prior to the switchover or failover, the configuration object will vary on after the switchover of failover completes and will start the server takeover IP address. If the configuration object was offline prior to the switchover or failover, the configuration object will not vary on after the switchover or failover completes and will not start the server takeover IP address.
+This value is not valid for a configuration object of type *IPA.
+
+*ONLINE
+Vary the configuration object on and start the server takeover IP address after a switchover or failover.
+
+*PRIMARY
+This is a secondary ASP. Vary on processing and starting of the server takeover IP address is determined by the corresponding primary ASP for this ASP group.
+This value is not valid for a configuration object of type *IPA.
+
+Element 4: Server takeover IP address
+
+Specifies a takeover IP address for servers associated with the relational database name in the device description for an auxiliary storage pool, or the IP address for a configuration object with type *IPA. For an auxiliary storage pool, this element is optional and can only be specified for a primary auxiliary storage pool. If specified, the takeover IP address may be an IPv4 address or IPv6 address.
+
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+
+An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address. IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as server takeover IP addresses.
+
+If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+
+For a configuration object with type *DEVD, if the configuration object is not a primary auxiliary storage pool, the element must be set to *NONE.
+
+For a configuration object with type *IPA, the element must be set to *SAME.
+
+*SAME
+The current server takeover IP address is not changed.
+
+*NONE
+There is no server takeover IP address associated with the relational database name in the device description for an auxiliary storage pool.
+
+character-value
+Specify the server takeover IP address for the relational database name.
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the name of the cluster.
+
+*
+The cluster that has been configured on this system is used.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Examples for CHGCRGDEVE
+
+Example 1: Change a device description configuration object.
+
+CHGCRGDEVE CRG(MYCRG) CFGOBJ((IASP01 *DEVD *ONLINE *NONE))
+
+This command changes configuration object IASP01 in device cluster resource group MYCRG. The configuration action is now set to vary the configuration object online in the event of a failover or switchover.
+
+Example 2: Change an IP address configuration object.
+
+CHGCRGDEVE CRG(MYCRG) CFGOBJ((IP01 *IPA *ONLINE *SAME))
+
+This command changes configuration object IP01 in the device cluster resource group MYCRG. The configuration action is now set to start the IP address in the event of a failover or switchover.
+
+Top
+
+Error messages for CHGCRGDEVE
+
+*ESCAPE Messages
+
+HAE0020
+Request to change device entries in cluster resource group &1 failed.
+
+Top

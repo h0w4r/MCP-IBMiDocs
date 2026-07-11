@@ -1,0 +1,241 @@
+Convert RJE Data (CVTRJEDTA)
+
+Convert RJE Data (CVTRJEDTA)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+Convert RJE Data
+
+The CVTRJEDTA command converts data written in communications format to data in FCFC or data format written to a device, DDM, or physical file.
+
+The INFILE must be in SNA or BSC communications format, and can be a DDM file.
+
+If a file in the list of input files causes an error condition, the command issues an error message and skips to the next input file in the list.
+
+If a DDM file is specified as the OUTFILE parameter, *FIRST must be specified as the MEMBER parameter.
+
+Note: If an FCT is specified in this command, the PGM parameter in the FCT entries is ignored.
+
+Error messages for CVTRJEDTA
+
+*ESCAPE Messages
+
+RJE0109
+Processing of command ended because of error.
+
+RJE0110
+Error(s) occurred during processing of command.
+
+RJE0196
+Record from host longer than expected length.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+INFILE | Input file | Values (up to 8 repetitions): Element list | Required, Positional 1
+Element 1: Input file | Qualified object name
+Qualifier 1: Input file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Member | Name, *FIRST, *ALL
+OUTFILE | Output file | Qualified object name | Required, Positional 2
+Qualifier 1: Output file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member | Name, *GEN, *FIRST | Optional, Positional 3
+FSN | File member sequence number | 0-999, 1 | Optional
+DTAFMT | Data format | *FCFC, *DATA | Optional
+OUTRCDLEN | Output record length | *FIXED, *FILE | Optional
+FCT | Forms control table | Single values: *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: Forms control table | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+
+Top
+
+Input File (INFILE)
+
+Specifies up to eight qualified names for communications format input files. If an input file does not contain data in communications format, an error message is issued.
+
+You cannot override the INFILE parameter with OVRDBF MBR(*ALL). If this is attempted, the file is skipped and an error message is sent. To format all the members of a physical file, use the *ALL option for the physical file member name.
+
+The possible library values are:
+
+- *LIBL: The library list for the job is used to locate the communications format input file.
+
+- *CURLIB: The current library for the job is used to locate the communications format input file. If no current library is specified, QGPL is used.
+
+- library-name: Specify the name of the library where the communications format input file is located.
+
+Element 1: Input File Names
+
+input-file-name: Specify up to eight names for communications format input files.
+
+Element 2: Member Names
+
+The possible values are:
+
+- *FIRST: The first member of the physical file is converted.
+
+- *ALL: All members of the physical file are converted.
+
+- member-name: Specify the name of the physical file members being converted.
+
+Top
+
+Output File (OUTFILE)
+
+Specifies the qualified name of the file that receives the formatted output of the command. This file is only used when no matching FCT entry is found.
+
+The possible library values are:
+
+- *LIBL: The library list for the job is used to locate the file. If the file is not found, one is created in the current library. If no current library exists, the file is created in the QGPL library.
+
+- *CURLIB: The current library for the job is used to locate the file. If no current library is specified, QGPL is used.
+
+- library-name: Specify the name of the library where the file is located.
+
+file-name: Specify the name of the diskette, DDM, physical, printer, or source physical file that receives the formatted output. Diskette and printer files must be program described, with a single record format and field.
+
+Top
+
+Output Member (OUTMBR)
+
+Specifies the file member to which output is directed. This parameter applies only if you specify a DDM, physical, or source physical file in the OUTFILE parameter.
+
+The possible values are:
+
+- *GEN: Creates a member name formatted as either Affffffccc or Bffffffccc where:
+
+A
+Indicates that the file member contains print data.
+
+B
+Indicates that the file member contains punch data.
+
+ffffff
+Up to the first six non-blank characters of the form type that was received from the host subsystem. Only A through Z, 0 through 9, $, #, @, and _ are valid in the form type that is used to generate member names.
+
+ccc
+A three-digit FSN controlled by the session to maintain member uniqueness.
+
+If a member name already exists in the file, the three-digit sequence number is incremented by one until a unique name is reached and a member is created, or until sequence numbers up to and including 999 have been tried without creating a member.
+
+If no member is created, the writer issues a message requesting you to either try again or to cancel this file.
+
+- *FIRST: The first member of the file is used.
+
+- member-name: Specify the name of the file member. If the member does not exist, an inquiry message is sent to the RJE message queue.
+
+Top
+
+File Member Seq Number (FSN)
+
+Specifies the initial three-digit FSN that is used to create member names. This parameter applies only if *GEN is specified for the MBR parameter.
+
+The possible values are:
+
+- 1: The three-digit FSN is 001.
+
+- file-sequence-number: Specify the initial three-digit FSN. Leading zeros are not required for FSNs less than 100.
+
+Top
+
+Data Format (DTAFMT)
+
+Specifies the format of the output data.
+
+The possible values are:
+
+- *FCFC: The output data is in first-character forms control (FCFC) format. If DEVTYPE(*PUN) is specified, *FCFC is not valid.
+The data can be written to a physical file in FCFC format and printed later using the Copy File (CPYF) command, specifying an FCFC printer file for the TOFILE parameter. The record length of the physical file must include one extra byte for the FCFC code.
+
+- *DATA: The output data is in data format. No FCFC codes are embedded in the data. Specify *DATA to send data to a physical file to be processed by a program.
+
+Top
+
+Output Rcd Lngth (OUTRCDLEN)
+
+Specifies the record length of the converted data.
+
+The possible values are:
+
+- *FIXED: RJE re-blocks the data according to its own defaults, which are as follows:
+
+When a printer output stream is being converted:
+
+If data is being written to a printer file, it is re-blocked to 132-byte records for 10 or fewer characters per inch (cpi), and 198-byte records when the cpi is greater than 10.
+
+If data is being written to a physical file, it is re-blocked to 132-byte records.
+
+When a punch output stream is being converted, the data is re-blocked to 80-byte records.
+
+For diskette files, the output stream is re-blocked to 128-byte records.
+
+- *FILE: RJE re-blocks the output stream as follows:
+
+When a printer output stream is being converted:
+
+If data is being written to a printer file, the record length is determined by the page width of the printer file.
+
+If data is being written to a physical file, the record length of the output data is determined by the record length of that file.
+
+When a punch output stream is being converted:
+
+If data is being written to a printer file, the record length is determined by the page width of the printer file.
+
+If data is being written to a physical file, the record length of the output data is determined by the record length of that file.
+
+For diskette files, the output stream is re-blocked to 128-byte records.
+
+The maximum record length that RJE supports, including carriage-control characters, is 255 bytes. To ensure record alignment, the record length (page width) of the output file must be greater than or equal to the logical record length of the data that is received from the host subsystem.
+
+Top
+
+Forms Cntrl Table (FCT)
+
+Specifies the qualified name of the FCT to be used when converting the data.
+
+The possible values are:
+
+- *NONE: An FCT is not used.
+The possible library values are:
+
+*LIBL: The library list for the job is used to locate the FCT.
+
+*CURLIB: The current library for the job is used to locate the FCT. If no current library is specified, QGPL is used.
+
+library-name: Specify the name of the library where the FCT is located.
+
+- forms-control-table-name: Specify the name of the FCT.
+
+Top
+
+Examples
+
+None
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+RJE0109
+Processing of command ended because of error.
+
+RJE0110
+Error(s) occurred during processing of command.
+
+RJE0196
+Record from host longer than expected length.
+
+Top

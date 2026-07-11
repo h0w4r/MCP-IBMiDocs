@@ -1,0 +1,152 @@
+Delete library (DLTLIB)
+
+Delete library (DLTLIB)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Delete Library (DLTLIB) command deletes a specified library from the system after all objects in the library have been deleted. If a library that is deleted contains objects, this command first deletes all of the objects and then deletes the library.
+
+If you do not have the authority to delete every object in the library, only those for which you do have the authority are deleted. In this case, the library and all the other objects in the library remain unchanged. If any object in the library is in use (locked by another thread or job), the object cannot be deleted.
+
+If a library has been damaged, you should not delete it without first trying to resolve the damage. In most cases, the damage can be resolved by starting the initial program load (IPL) sequence to rebuild a user library (including the QGPL library). Then, if the library is still damaged, it should be deleted. Either a saved version of the library can be restored in its place or the library can be recreated.
+
+If the library being deleted is currently journaled, an entry is deposited to the journal recording the change.
+
+Use the Display Library Description (DSPLIBD) command to display journal information for the library. Refer to the Start Journal Library (STRJRNLIB) command for more information about journaling a library.
+
+Note: For additional information regarding journaling, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- To delete a library, you must have use (*USE) and object existence (*OBJEXIST) authorities for the specified library and *OBJEXIST authority for every object in it. If you do not have *OBJEXIST authority for the library, nothing is deleted. If you do not have *OBJEXIST authority for one or more objects in the library, those objects and the library are not deleted.
+
+- A library cannot be deleted if it is in the library list for the current thread.
+
+- A library cannot be deleted if it is in the library list for any primary thread that is active on the system when the QLIBLCKLVL system value is set to lock libraries in the library list.
+
+- This command cannot be used to delete IBM system libraries. Message CPD2165 is sent if an IBM system library is specified and the DLTLIB command is not run.
+
+- If the QDOC library is deleted, it is created again during the next IPL.
+
+- This command is conditionally threadsafe. The following restriction applies:
+
+In multithreaded jobs, this command is not threadsafe for distributed files and fails for distributed files that use relational databases of type *SNA.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+LIB | Library | Name | Required, Positional 1
+ASPDEV | ASP device | Name, *, *CURASPGRP, *SYSBAS | Optional
+
+Top
+
+Library (LIB)
+
+Specifies the library to be deleted.
+
+This is a required parameter.
+
+name
+Specify the name of the library to be deleted.
+
+Top
+
+ASP device (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device where storage is allocated for the library to be deleted. If the library is not part of the thread's library name space, this parameter must be specified to ensure the correct library is the target of the delete library operation.
+
+*
+The ASPs that are currently part of the thread's library name space will be searched to find the library. This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and, if the thread has an ASP group, all primary and secondary ASPs in the ASP group.
+
+*CURASPGRP
+If the thread has an ASP group, the primary and secondary ASPs in the ASP group will be searched to find the library. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+
+*SYSBAS
+The system ASP (ASP 1) and all defined basic user ASPs (ASPs 2-32) will be searched to find the library. No primary or secondary ASPs will be searched, even if the thread has an ASP group.
+
+name
+Specify the name of the primary or secondary ASP device to be searched to find the library. The primary or secondary ASP must have been activated (by varying on the ASP device) and have a status of 'Available'. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+
+Note: To specify a specific auxiliary storage pool (ASP) device name, you must have *USE authority for each ASP device in the ASP group.
+
+Top
+
+Examples
+
+Example 1: Deleting a Library
+
+DLTLIB LIB(W)
+
+This command deletes library W after all of its objects have been deleted. If library W contains objects and you have the authority to delete all of those objects, library W and all of the objects are deleted. If you do not have authority to delete all of the objects, only those for which you have authority are deleted and the library is not deleted.
+
+Example 2: Deleting a Library in an Independent Auxiliary Storage Pool (ASP)
+
+DLTLIB LIB(INVENTORY) ASPDEV(SALES)
+
+This command deletes library INVENTORY in the independent auxiliary storage pool (ASP) named SALES after all of its objects have been deleted. The SALES ASP must have been activated (by varying on the ASP device) and have a status of 'Available'. If library INVENTORY contains objects and you have the authority to delete all of those objects, library INVENTORY and all of the objects are deleted. If you do not have authority to delete all of the objects, only those for which you have authority are deleted and the library is not deleted.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA030
+Object already in use.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+CPF210D
+Library &1 in use.
+
+CPF2110
+Library &1 not found.
+
+CPF2113
+Cannot allocate library &1.
+
+CPF2129
+Clear or delete of system library &1 canceled.
+
+CPF2161
+Cannot delete some objects in library &1.
+
+CPF2166
+Library name &1 not valid.
+
+CPF2167
+Library &1 on library list and cannot be deleted.
+
+CPF2168
+Library &1 not deleted.
+
+CPF218C
+&1 not a primary or secondary ASP.
+
+CPF2182
+Not authorized to library &1.
+
+CPF8122
+&8 damage on library &4.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9833
+*CURASPGRP or *ASPGRPPRI specified and thread has no ASP group.
+
+Top

@@ -1,0 +1,984 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="RMVJRNCHG.Top_Of_Page"></a>
+<h1>Remove Journaled Changes  (RMVJRNCHG)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#RMVJRNCHG.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#RMVJRNCHG.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#RMVJRNCHG.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG"></a>
+<p>The Remove Journaled Changes (RMVJRNCHG) command removes the changes that have been journaled for a particular journaled object.  The journaled changes are removed from the object from the specified starting point to the ending point.  The journal entries are processed in reverse of the order in which they were placed into the journal receiver, from the most recent to the oldest.  The starting point can be identified as the last journal entry in the specified journal receiver range, the point at which an object was last saved, or a particular entry in the receiver range.  The ending point can be the first journal entry or a particular entry in the specified journal receiver range, or the point at which an object was opened by a specified job.  The CMTBDY parameter can be used for handling changes that are pending.
+</p>
+<p>
+<strong>Note:     </strong>No database object level changes are processed by RMVJRNCHG.
+</p>
+<p>
+<strong>Note:     </strong>The Display Journal (DSPJRN) command can be used to help determine the desired starting and ending points.
+</p>
+<p>A list of journaled objects may be specified.  The journaled changes for all objects are removed in the order that the journal entries are found on the journal (the reverse of the order that the changes were originally made to the objects).
+</p>
+<p>If a journal code J entry type SX (Exit JRNSTATE(*STANDBY)) entry is found, the operation ends for all objects specified regardless of the OBJERROPT value specified.  Objects may be only partially updated from the journal entries.
+</p>
+<p>Additionally, the command can end for an individual object when journal entries list operations which cannot be replayed by the command.  If this happens, the operation will continue for the other objects specified if OBJERROPT(*CONTINUE) is used.  For example, the command ends for an object when a journal entry is found that indicates one of the following has occurred:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">A physical database file is cleared
+</li>
+<li class="cds--list__item">A physical database file member is saved and its storage is freed
+</li>
+<li class="cds--list__item">Journal initial program load (IPL) synchronization fails
+</li>
+<li class="cds--list__item">The system has already applied or removed the changes through the Apply Journal Changes (APYJRNCHG) command or the RMVJRNCHG command.
+</li>
+</ul>
+<p>See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for a complete listing of the various entries and how they are handled by this command including those entries which can stop the command.  Search for "actions of applying or removing journaled changes".
+</p>
+<p>The command also ends for an object on illogical conditions.  If the command ends due to illogical conditions and it is logically possible to restart the operation, you can issue the command again for that object, specifying a new starting sequence number. Be aware though, that most illogical conditions are the result of starting the remove at the wrong journal entry.
+</p>
+<p>Journal entry changes can be removed even if the sequence numbers have been reset.  The system handles this condition, sends an informational message, and continues the removal of journaled changes.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">This command is shipped with public *EXCLUDE authority and the QPGMR and QSRV user profiles have private authorities to use the command.
+</li>
+<li class="cds--list__item">The objects specified on this command must currently be having their changes journaled, and they must have been journaled to the specified journal throughout the period indicated on the command.
+</li>
+<li class="cds--list__item">Before images are required for the objects. See the appropriate start journaling command.
+</li>
+<li class="cds--list__item">The objects indicated on the command are allocated exclusively while the changes are being removed.  If an object cannot be allocated exclusively, the command ends and no journaled changes are removed from the objects.
+</li>
+<li class="cds--list__item">If there is no journal entry that represents the entry specified on the FROMENTLRG, FROMENT, TOENTLRG, or TOENT parameter, the command ends and no journaled changes are removed from the objects.
+</li>
+<li class="cds--list__item">If the journal sequence numbers have been reset in the range of the receivers specified, and a sequence number is specified on the FROMENTLRG, FROMENT, TOENTLRG, or TOENT parameter, the first occurrence of the sequence number specified on either parameter is used.
+</li>
+<li class="cds--list__item">The TOJOBO parameter cannot be used to specify when the remove journaled changes operation is to end if one or more journal receivers in the specified receiver range was attached to the journal when a receiver size option (RCVSIZOPT) or a fixed length data option (FIXLENDTA) that would have omitted this data was in effect.
+</li>
+<li class="cds--list__item">The TOJOBO parameter cannot be used if the object for which changes are being removed from was not recording open and close entries.  For further clarification, refer to the Omit journal entry (OMTJRNE) parameter for the STRJRN, STRJRNPF, and CHGJRNOBJ commands.
+</li>
+<li class="cds--list__item">This command cannot be used on or with a remote journal.
+</li>
+<li class="cds--list__item">The maximum number of objects that can have changes removed with this command is 12,000,000.  If more than 12,000,000 objects are included in the specifications, an error message is sent and no changes are removed.  You can change the values specified on this parameter so that the limit is not exceeded.
+</li>
+<li class="cds--list__item">RMVJRNCHG cannot be used to remove changes from journal receivers that may be missing journal entries due to remote journal filtering.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="RMVJRNCHG.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RMVJRNCHG.JRN"><strong>JRN</strong></a></td>
+<td class="valigntop">Journal</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Journal</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="5"><a href="#RMVJRNCHG.FILE"><strong>FILE</strong></a></td>
+<td class="valigntop">Journaled file identification</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Journaled physical file</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Journaled physical file</td>
+<td class="valigntop"><span class="var">Name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*ALL</strong>, *FIRST</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="6"><a href="#RMVJRNCHG.OBJ"><strong>OBJ</strong></a></td>
+<td class="valigntop">Objects</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="6">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Object</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Object</td>
+<td class="valigntop"><span class="var">Name</span>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Object type</td>
+<td class="valigntop">
+*FILE, *DTAARA</td>
+</tr>
+<tr>
+<td class="valigntop">Element 3: Member, if data base file</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*ALL</strong>, *FIRST</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="7"><a href="#RMVJRNCHG.RCVRNG"><strong>RCVRNG</strong></a></td>
+<td class="valigntop">Range of journal receivers</td>
+<td class="valigntop">Single values: <strong class="underlined">*CURRENT</strong>, *LASTSAVE<br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="7">Optional, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Starting journal receiver</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Starting journal receiver</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop">Element 2: Ending journal receiver</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Ending journal receiver</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#RMVJRNCHG.FROMENTLRG"><strong>FROMENTLRG</strong></a></td>
+<td class="valigntop">Starting large sequence number</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*LAST</strong>, *LASTSAVE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RMVJRNCHG.TOENTLRG"><strong>TOENTLRG</strong></a></td>
+<td class="valigntop">Ending large sequence number</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*FIRST</strong>, *COMMITSTART</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="4"><a href="#RMVJRNCHG.TOJOBO"><strong>TOJOBO</strong></a></td>
+<td class="valigntop">Fully qualified job name</td>
+<td class="valigntop"><span class="var">Qualified job name</span></td>
+<td class="valigntop" rowspan="4">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Fully qualified job name</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: User</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 3: Number</td>
+<td class="valigntop">000000-999999</td>
+</tr><tr>
+<td class="valigntop"><a href="#RMVJRNCHG.CMTBDY"><strong>CMTBDY</strong></a></td>
+<td class="valigntop">Commitment boundary</td>
+<td class="valigntop"><strong class="underlined">*YES</strong>, *NO</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RMVJRNCHG.OPTION"><strong>OPTION</strong></a></td>
+<td class="valigntop">Option</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *IGNINQMSG</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RMVJRNCHG.OBJERROPT"><strong>OBJERROPT</strong></a></td>
+<td class="valigntop">Object error option</td>
+<td class="valigntop"><strong class="underlined">*CONTINUE</strong>, *END</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RMVJRNCHG.OUTPUT"><strong>OUTPUT</strong></a></td>
+<td class="valigntop">Output</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *OUTFILE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RMVJRNCHG.OUTFILE"><strong>OUTFILE</strong></a></td>
+<td class="valigntop">File to receive output</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File to receive output</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="3"><a href="#RMVJRNCHG.OUTMBR"><strong>OUTMBR</strong></a></td>
+<td class="valigntop">Output member options</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Member to receive output</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Replace or add records</td>
+<td class="valigntop">
+<strong class="underlined">*REPLACE</strong>, *ADD</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RMVJRNCHG.DETAIL"><strong>DETAIL</strong></a></td>
+<td class="valigntop">Detail</td>
+<td class="valigntop"><strong class="underlined">*ALL</strong>, *ERR</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RMVJRNCHG.FROMENT"><strong>FROMENT</strong></a></td>
+<td class="valigntop">Starting sequence number</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*LAST</strong>, *LASTSAVE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RMVJRNCHG.TOENT"><strong>TOENT</strong></a></td>
+<td class="valigntop">Ending sequence number</td>
+<td class="valigntop">1-9999999999, <strong class="underlined">*FIRST</strong>, *COMMITSTART</td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="RMVJRNCHG.JRN"></a>
+<h2>Journal (JRN)</h2>
+<p>Specifies the journal that contains the journal entries being removed.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Qualifier 1: Journal</strong>
+</h3>
+<dl>
+<dt><strong class="italic">journal-name</strong></dt>
+<dd>Specify the name of the journal.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.FILE"></a>
+<h2>Journaled file identification (FILE)</h2>
+<p>Specifies a maximum of 300 physical database files whose journal entries are to be removed.  The member in the physical file whose journaled changes are to be removed can also be specified.
+</p>
+<p>Either the <strong>Journaled file identification (FILE)</strong> parameter or the <strong>Objects (OBJ)</strong> parameter must be specified, but not both.
+</p>
+<h3><strong>Element 1: Journaled physical file</strong>
+</h3>
+<h3><strong>Qualifier 1: Journaled physical file</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>Journaled changes are removed from all physical files in the specified library whose changes have been journaled to the specified journal.  The library name <span class="var">must</span> be specified. If *ALL is specified and you do not have the required authority to all of the objects, an error message is sent and the command ends.
+</dd>
+<dt><strong class="italic">file-name</strong></dt>
+<dd>Specify the name of the database physical file whose journaled changes are to be removed.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+<h3><strong>Element 2: Member</strong>
+</h3>
+<p>Specifies the name of the member in the file whose journaled changes are removed.  If *ALL is specified for the first element of this parameter, the value specified for the member name is used for all applicable files in the library.  For example, if *FIRST is specified for the member name, journal changes are removed from the first member of all applicable files in the library.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>Journaled changes are removed from all members in the file.
+</dd>
+<dt><strong>*FIRST</strong></dt>
+<dd>Journaled changes are removed from the first member in the file.
+</dd>
+<dt><strong class="italic">member-name</strong></dt>
+<dd>Specify the name of the member in the file whose journaled changes are removed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.OBJ"></a>
+<h2>Objects (OBJ)</h2>
+<p>Specifies a maximum of 300 objects whose journal entries are being removed.  The name of the member in the file whose journal entries are being removed can also be specified.
+</p>
+<p>Either the <strong>Journaled file identification (FILE)</strong> parameter or the <strong>Objects (OBJ)</strong> parameter must be specified, but not both.
+</p>
+<h3><strong>Element 1: Object</strong>
+</h3>
+<h3><strong>Qualifier 1: Object</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>All objects in the specified library of the specified type whose changes are being journaled to the specified journal have their journal entries removed.  The library name must be specified.  If *ALL is specified and you do not have the required authority to all of the objects, an error message is sent and the command ends.
+</dd>
+<dt><strong class="italic">object-name</strong></dt>
+<dd>Specify the name of the object whose journal entries are being removed.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+<h3><strong>Element 2: Object type</strong>
+</h3>
+<p>Specifies the object type of the object that has its journal entries removed.
+</p>
+<dl>
+<dt><strong>*FILE</strong></dt>
+<dd>Entries for database file members are removed.
+</dd>
+<dt><strong>*DTAARA</strong></dt>
+<dd>Entries for data areas are removed.
+</dd>
+</dl>
+<h3><strong>Element 3: Member, if data base file</strong>
+</h3>
+<p>Specifies the name of the member in the file that has its journal entries removed.  If *ALL is specified for the first element of this parameter, the value specified for the member name is used for all applicable files in the library.  For example, if *FIRST is specified for the member name, journal changes are removed from the first member of all applicable files in the library.
+</p>
+<p>
+<strong>Note:     </strong>If the specified object type is not *FILE, the member name element value is ignored.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>Journal entries are removed from all members in the file.
+</dd>
+<dt><strong>*FIRST</strong></dt>
+<dd>Journal entries are removed from the first member of the file.
+</dd>
+<dt><strong class="italic">member-name</strong></dt>
+<dd>Specify the name of the member in the file whose journal entries are to be removed.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.RCVRNG"></a>
+<h2>Range of journal receivers (RCVRNG)</h2>
+<p>Specifies the starting and ending journal receivers used in removing the journaled changes.  The system begins the removal operation with the starting journal receiver (specified by the first value) and proceeds through the chain of receivers until the ending receiver (specified by the last value) is processed.  The values specified on the parameter represent journal receivers in reverse order from the order in which they were attached to the journal.
+</p>
+<p>
+<strong>Note:     </strong>The maximum number of receivers that can be included in a range of receivers is 2045.  If more than 2045 receivers are included in the range specified, an error message is sent and no changes are applied.  You can change the values specified on this parameter so that the limit is not exceeded.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*CURRENT</strong></dt>
+<dd>The journal receiver that is currently attached when starting to remove journal entries is used.
+</dd>
+<dt><strong>*LASTSAVE</strong></dt>
+<dd>The range of journal receivers used is determined by the system, as a result of save information for the objects that have their recorded changes removed.  This parameter value is only valid if *LASTSAVE is also specified on the <strong>Starting sequence number (FROMENT)</strong> parameter, and on the <strong>Starting large sequence number (FROMENTLRG)</strong> parameter.
+</dd>
+</dl>
+<h3><strong>Element 1: Starting journal receiver</strong>
+</h3>
+<h3><strong>Qualifier 1: Starting journal receiver</strong>
+</h3>
+<dl>
+<dt><strong class="italic">starting-journal-receiver</strong></dt>
+<dd>Specify the name of the journal receiver used as the first (newest) receiver whose journaled changes are to be removed.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the journal receiver.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the journal receiver is located.
+</dd>
+</dl>
+<h3><strong>Element 2: Ending journal receiver</strong>
+</h3>
+<h3><strong>Qualifier 1: Ending journal receiver</strong>
+</h3>
+<dl>
+<dt><strong class="italic">ending-journal-receiver</strong></dt>
+<dd>Specify the name of the journal receiver used as the last (oldest) receiver whose journaled changes are to be removed.  If the end of the receiver chain is reached before a receiver of this name is found, the operation ends.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the journal receiver.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the journal receiver is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.FROMENTLRG"></a>
+<h2>Starting large sequence number (FROMENTLRG)</h2>
+<p>Specifies the journal entry used as the starting point for removing file changes that were journaled.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Starting sequence number (FROMENT)</strong> parameter or the <strong>Starting large sequence number (FROMENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>Specifies that journaled changes are removed starting with the last journal entry in the specified receiver range.
+</dd>
+<dt><strong>*LASTSAVE</strong></dt>
+<dd>Journal entries are removed starting with the last journal entry before the last save operation.  The system determines the actual starting position for each of the objects specified on the command. The parameter value implies that the object was just restored on the system.
+<p>If the restored version of the object was a version that was saved using the save-while-active function, then the system will start removing changes from the corresponding start-of-save entry whether or not this was actually the last save of the object. When using save-while-active, information needed for removing journaled changes is saved with the object and restored.  When all objects specified on the remove command have been restored from save versions that used save-while-active, the system does not need to scan all the journal receivers to find the save points for the objects.  This can improve the performance of the remove processing.
+</p>
+<p>If the restored version of the object was a version that was saved when it was not in use (normal save), then the system also verifies that the date and time of the saved version of the object that is restored on the system is the same as the date and time that the object was last saved, as indicated on the journal.
+</p>
+<p>If the dates and times do not match, no entries are removed and an inquiry message is sent to the user or system operator requesting a cancel or ignore response.  If an ignore response is given to the message, the operation is attempted.  A cancel response causes the operation to end, and no journal changes are removed.
+</p>
+<p>If the object was last saved with the save-while-active function, the saved copy of each object includes all changes in the journal entries up to the corresponding start-of-save journal entry.  In this case, the system removes changes beginning with the first journal entry preceding the start-of-save entry.
+</p>
+<p>If the object was last saved when it was not in use (normal save), the saved copy of each object includes all changes in the journal entries up to the corresponding object saved journal entry.  In this case, the system removes changes beginning with the first journal entry preceding the object saved entry.
+</p>
+<p>
+<strong>Note:     </strong>If any database file members were saved specifying *NOCMTBDY as the second element of the SAVACTWAIT parameter on the save command and are currently in a state where apply journaled changes is required, then *LASTSAVE must be specified.
+</p>
+</dd>
+<dt><strong class="italic">starting-sequence-number</strong></dt>
+<dd>Specify the sequence number of the first journal entry that is processed when removing journaled changes from the specified objects. The acceptable range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.TOENTLRG"></a>
+<h2>Ending large sequence number (TOENTLRG)</h2>
+<p>Specifies the journal entry used as the ending point for removing changes that were journaled.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Ending sequence number (TOENT)</strong> parameter or the <strong>Ending large sequence number (TOENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>Journal entries are removed until the first entry in the specified receiver range is processed.
+</dd>
+<dt><strong>*COMMITSTART</strong></dt>
+<dd>Either FROMENTLRG(*LASTSAVE) or FROMENT(*LASTSAVE) must be specified, along with CMTBDY(*YES) to specify this value.  Starting with the last save journal entry, only changes for journal entries for any partial transactions are removed, back to the start of the commit transaction.  This option can be used when the version of the object that was restored was a version that was saved with partial transactions and Apply Journaled Changes (APYJRNCHG) is not desired.
+</dd>
+<dt><strong class="italic">ending-sequence-number</strong></dt>
+<dd>Specify the sequence number of the last journaled change that is removed from the specified objects. The acceptable range is 1 to 18,446,744,073,709,551,600.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.TOJOBO"></a>
+<h2>Fully qualified job name (TOJOBO)</h2>
+<p>Specifies the job identifier of the job that, when it opens an object that is specified, ends the removing of journal entries by this command.  For example, the specified job could be a job suspected of causing errors when the job opens a file member.  The first job open entry found for any of the specified objects, is the ending point for all the objects specified.
+</p>
+<p>This parameter cannot be used to remove a specific job's journal entries; all entries for all jobs are removed.
+</p>
+<p>Only objects of type *FILE have journal entries related to job opens.  The TOJOBO parameter cannot be used if the object for which changes are being removed from was not recording open and close entries.  For further clarification, refer to the Omit journal entry (OMTJRNE) parameter for the STRJRN, STRJRNPF, and CHGJRNOBJ commands.
+</p>
+<h3><strong>Other values</strong>
+</h3>
+<dl>
+<dt><strong class="italic">job-identifier</strong></dt>
+<dd>Specify the job name, the user name, and the job number of the job to use.  You can also specify that the job name only, or that the job name and the user name be used.
+<dl>
+<dt><strong class="italic">job-name</strong></dt>
+<dd>Specify the job name of the job.
+</dd>
+<dt><strong class="italic">user-name</strong></dt>
+<dd>Specify the user name of the job.
+</dd>
+<dt><strong class="italic">job-number</strong></dt>
+<dd>Specify the system-assigned job number.
+</dd>
+</dl>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.CMTBDY"></a>
+<h2>Commitment boundary (CMTBDY)</h2>
+<p>Specifies whether commitment boundaries are honored when the journal entries from which journaled changes are to be removed are part of a commitment control logical unit of work (LUW).  More information on the use of commitment control is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p>
+<strong>Note:     </strong>For purposes of this parameter description, the TO option is used to describe either the TOENTLRG, the TOENT, or the TOJOBO parameter, whichever is specified.
+</p>
+<dl>
+<dt><strong class="underlined">*YES</strong></dt>
+<dd>The journal entries are removed from the entry specified on the FROMENTLRG or FROMENT parameter to the entry indicated on the TO option, honoring commitment boundaries.  The FROMENTLRG or FROMENT parameter must identify a point that is at a commitment boundary.
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the journal entry specified on the FROMENTLRG or FROMENT parameter is in the middle of the LUW of which it is a participant, an error message is sent and the operation is not attempted.
+</li>
+<li class="cds--list__item">If the journal entry indicated on the TO option is in the middle of the LUW of which it is a participant, the operation stops at the commitment boundary before that journal entry.  A diagnostic message is sent at the end of the operation.
+</li>
+</ul>
+<p>
+<strong>Note:     </strong>If a journal entry is encountered that causes the operation to end before the entry indicated on the TO option, commitment boundaries might not be honored.
+</p>
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>The journal entries are removed from the entry specified on the FROMENTLRG or FROMENT parameter to the entry indicated on the TO option, regardless of commitment boundaries.  Even if a journal entry within this range is a participant of the LUW, the operation is attempted.
+<p>
+<strong>Note:     </strong>If CMTBDY(*NO) is specified and any object being applied to has been restored from a saved version that contains partial transactions, the changes pending for those partial transactions will not be removed if the transactions do not complete within the specified range.  The object will only be usable if all pending transactions complete within the specified range.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.OPTION"></a>
+<h2>Option (OPTION)</h2>
+<p>Specifies whether additional checking should be done prior to removing journal changes.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>All protective checks are performed before any journal changes are removed.
+</dd>
+<dt><strong>*IGNINQMSG</strong></dt>
+<dd>Ignore inquiry message.  Inquiry message CPA7050 is not presented to the user, even if the object that is being applied to is not from the last save of the object.  The remove operation continues.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.OBJERROPT"></a>
+<h2>Object error option (OBJERROPT)</h2>
+<p>Specifies how the processing of journal entries should proceed when an error situation is encounterd.
+</p>
+<dl>
+<dt><strong class="underlined">*CONTINUE</strong></dt>
+<dd>When a journal entry for a specific object is encountered that cannot be processed,  the remaining journal entries for that object will not be processed.  Processing of journal entries for other objects will continue.  A diagnostic message will be sent indicating that the processing of journaled changes for that object was not successful. An indication is also placed in any output file record to indicate processing ended early for the specific object.
+</dd>
+<dt><strong>*END</strong></dt>
+<dd>When the first journal entry is encountered that cannot be successfully processed, processing will end for all objects.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.OUTPUT"></a>
+<h2>Output (OUTPUT)</h2>
+<p>Specifies whether a list of information about the objects to whom changes were removed is created.  The information can be directed to a database file.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No data base file is created with the output.  Messages are sent to the job log for the first 512 objects for which processing failed to complete successfully.
+</dd>
+<dt><strong>*OUTFILE</strong></dt>
+<dd>Output information about the remove operation will be directed to the database file specified on the <strong>File to receive output (OUTFILE)</strong> parameter.
+<p>
+<strong>Note:     </strong>You must specify the database file name on the <strong>File to receive output (OUTFILE)</strong> parameter when OUTPUT(*OUTFILE) is specified.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.OUTFILE"></a>
+<h2>File to receive output (OUTFILE)</h2>
+<p>Specifies the database file to which the information is directed when *OUTFILE is specified on <strong>Output (OUTPUT)</strong> parameter.  If the file does not exist, this command creates a database file in the  specified library.  If a new file is created, the system  uses QAJRNCHG in QSYS with the format name QJOAPYRM as a  model.
+</p>
+<h3><strong>Qualifier 1: File to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="italic">database-file-name</strong></dt>
+<dd>Specify the name of the database file to which output from the command is directed.  If this file does not exist, it is created in the specified library.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is searched.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.OUTMBR"></a>
+<h2>Output member options (OUTMBR)</h2>
+<p>Specifies the name of the database file member to which the output is directed when *OUTFILE is specified for the <strong>Output (OUTPUT)</strong> parameter.
+</p>
+<h3><strong>Element 1: Member to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member in the file receives the output.  If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the <strong>File to receive output (OUTFILE)</strong> parameter.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file member that receives the output.  If OUTMBR(member-name) is specified and the member does not exist, the system creates it.
+<p>If the member exists, you can add records to the end of the existing member or clear the existing member and add the records.
+</p>
+</dd>
+</dl>
+<h3><strong>Element 2: Replace or add records</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*REPLACE</strong></dt>
+<dd>The existing records in the specified database file member are replaced by the new records.
+</dd>
+<dt><strong>*ADD</strong></dt>
+<dd>The new records are added to the existing information in the specified database file member.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.DETAIL"></a>
+<h2>Type of output information (DETAIL)</h2>
+<p>Specifies the type of information that is directed to the spooled file.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The file will contain information about the command and an entry for each object that matched the object selection specified on the command.
+</dd>
+<dt><strong>*ERR</strong></dt>
+<dd>The file will contain information about the command, an entry only for each object for which the removal of journaled changes ended early.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.FROMENT"></a>
+<h2>Starting sequence number (FROMENT)</h2>
+<p>Specifies the journal entry used as the starting point for removing file changes that were journaled.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Starting sequence number (FROMENT)</strong> parameter or the <strong>Starting large sequence number (FROMENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>Specifies that journaled changes are removed starting with the last journal entry in the specified receiver range.
+</dd>
+<dt><strong>*LASTSAVE</strong></dt>
+<dd>Journal entries are removed starting with the last journal entry before the last save operation.  The system determines the actual starting position for each of the objects specified on the command. The parameter value implies that the object was just restored on the system.
+<p>If the restored version of the object was a version that was saved using the save-while-active function, then the system will start removing changes from the corresponding start-of-save entry whether or not this was actually the last save of the object.  When using save-while-active, information needed for removing journaled changes is saved with the object and restored. When all objects specified on the remove command have been restored from save versions that used save-while-active, the system does not need to scan all the journal receivers to find the save points for the objects.  This can improve the performance of the remove processing.
+</p>
+<p>If the restored version of the object was a version that was saved when it was not in use (normal save), then the system also verifies that the date and time of the saved version of the object that is restored on the system is the same as the date and time that the object was last saved, as indicated on the journal.
+</p>
+<p>If the dates and times do not match, no entries are removed and an inquiry message is sent to the user or system operator requesting a cancel or ignore response.  If an ignore response is given to the message, the operation is attempted.  A cancel response causes the operation to end, and no journal changes are removed.
+</p>
+<p>If the object was last saved with the save-while-active function, the saved copy of each object includes all changes in the journal entries up to the corresponding start-of-save journal entry.  In this case, the system removes changes beginning with the first journal entry preceding the start-of-save entry.
+</p>
+<p>If the object was last saved when it was not in use (normal save), the saved copy of each object includes all changes in the journal entries up to the corresponding object saved journal entry.  In this case, the system removes changes beginning with the first journal entry preceding the object saved entry.
+</p>
+<p>
+<strong>Note:     </strong>If any database file members were saved specifying *NOCMTBDY as the second element of the SAVACTWAIT parameter on the save command and are currently in a state where apply journaled changes is required, then *LASTSAVE must be specified.
+</p>
+</dd>
+<dt><strong class="italic">starting-sequence-number</strong></dt>
+<dd>Specify the sequence number of the first journal entry that is processed when removing journaled changes from the specified objects. The acceptable range is 1 to 9,999,999,999.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RMVJRNCHG.TOENT"></a>
+<h2>Ending sequence number (TOENT)</h2>
+<p>Specifies the journal entry used as the ending point for removing changes that were journaled.
+</p>
+<p>
+<strong>Note:     </strong>You can specify a value for either the <strong>Ending sequence number (TOENT)</strong> parameter or the <strong>Ending large sequence number (TOENTLRG)</strong> parameter, but not for both.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>Journal entries are removed until the first entry in the specified receiver range is processed.
+</dd>
+<dt><strong>*COMMITSTART</strong></dt>
+<dd>Either FROMENTLRG(*LASTSAV) or FROMENT(*LASTSAV) must be specified, along with CMTBDY(*YES) to specify this value.  Starting with the last save journal entry, only changes for journal entries for any partial transactions are removed, back to the start of the commit transaction.  This option can be used when the version of the object that was restored was a version that was saved with partial transactions and Apply Journaled Changes (APYJRNCHG) is not desired.
+</dd>
+<dt><strong class="italic">ending-sequence-number</strong></dt>
+<dd>Specify the sequence number of the last journaled change that is removed from the specified objects. The acceptable range is 1 to 9,999,999,999.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RMVJRNCHG.COMMAND.EXAMPLES">Examples</a> </h2>
+<p>
+</p><pre>RMVJRNCHG   JRN(JRNA)  FILE((LIB2/PAYROLL JAN))
+            RCVRNG(RCV25 RCV22)  TOENT(*FIRST)
+</pre>
+<p></p>
+<p>This command causes the system to remove all journaled changes found in journal JRNA from member JAN of file PAYROLL in library LIB2 that are found on the journal receiver chain starting with receiver RCV25 and ending with receiver RCV22. Library search list *LIBL is used to find journal JRNA and receivers RCV25 and RCV22.
+</p>
+<p>The removal operation begins with the last journaled change on the receiver chain and ends with the first journaled change.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RMVJRNCHG.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF69A9</strong></dt>
+<dd>Internal error detected, error code &amp;2.
+</dd>
+<dt><strong>CPF69AA</strong></dt>
+<dd>Unable to refer to object &amp;1 saved with STG(*FREE).
+</dd>
+<dt><strong>CPF69AB</strong></dt>
+<dd>Values for RCVRNG parameter not correct.
+</dd>
+<dt><strong>CPF70A7</strong></dt>
+<dd>Not all entries applied or removed for at least one object.
+</dd>
+<dt><strong>CPF70A8</strong></dt>
+<dd>File &amp;1 in library &amp;2 cannot be used.
+</dd>
+<dt><strong>CPF70AA</strong></dt>
+<dd>FROMENT(*LASTSAVE) must be specified.
+</dd>
+<dt><strong>CPF70AB</strong></dt>
+<dd>Journal receiver &amp;1 in library &amp;2 not found.
+</dd>
+<dt><strong>CPF70B7</strong></dt>
+<dd>Apply or remove journaled changes not allowed for specified receiver.
+</dd>
+<dt><strong>CPF70CC</strong></dt>
+<dd>Cannot perform operation beyond journal entry &amp;7.
+</dd>
+<dt><strong>CPF70CD</strong></dt>
+<dd>Cannot perform operation beyond journal entry &amp;7.
+</dd>
+<dt><strong>CPF70CE</strong></dt>
+<dd>Cannot perform operation beyond journal entry &amp;7.
+</dd>
+<dt><strong>CPF70EB</strong></dt>
+<dd>Referential constraint error on member &amp;3.
+</dd>
+<dt><strong>CPF70EC</strong></dt>
+<dd>Referential constraint error.  Reason code &amp;9.
+</dd>
+<dt><strong>CPF70EE</strong></dt>
+<dd>Maximum encoded vector access paths for member &amp;3.
+</dd>
+<dt><strong>CPF7002</strong></dt>
+<dd>File &amp;1 in library &amp;2 not a physical file.
+</dd>
+<dt><strong>CPF7003</strong></dt>
+<dd>Entry not journaled to journal &amp;1. Reason code &amp;3.
+</dd>
+<dt><strong>CPF7006</strong></dt>
+<dd>Member &amp;3 not found in file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF7007</strong></dt>
+<dd>Cannot allocate member &amp;3 file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF701B</strong></dt>
+<dd>Journal recovery of an interrupted operation failed.
+</dd>
+<dt><strong>CPF704A</strong></dt>
+<dd>Record length incorrect for member &amp;3.
+</dd>
+<dt><strong>CPF704F</strong></dt>
+<dd>TOJOBO or TOJOBC parameter not valid for receiver range.
+</dd>
+<dt><strong>CPF7041</strong></dt>
+<dd>Entry for job &amp;3/&amp;2/&amp;1 not found.
+</dd>
+<dt><strong>CPF7042</strong></dt>
+<dd>Object not journaled or journaled to different journal.
+</dd>
+<dt><strong>CPF7044</strong></dt>
+<dd>Apply or remove of journaled entries failed, reason code &amp;7.
+</dd>
+<dt><strong>CPF7045</strong></dt>
+<dd>Journal receiver &amp;1 in &amp;2 partially damaged.
+</dd>
+<dt><strong>CPF7046</strong></dt>
+<dd>Duplicate key not allowed for member &amp;3.
+</dd>
+<dt><strong>CPF7047</strong></dt>
+<dd>Member &amp;3 file &amp;1 in &amp;2 full.
+</dd>
+<dt><strong>CPF7048</strong></dt>
+<dd>Cannot perform journaled change to member &amp;3.
+</dd>
+<dt><strong>CPF7049</strong></dt>
+<dd>Cannot perform operation beyond journal entry &amp;7.
+</dd>
+<dt><strong>CPF7051</strong></dt>
+<dd>Save entry for *&amp;6 object not found.
+</dd>
+<dt><strong>CPF7052</strong></dt>
+<dd>Select/omit failure in logical file over member &amp;3.
+</dd>
+<dt><strong>CPF7053</strong></dt>
+<dd>Values for RCVRNG parameter not correct; reason code &amp;1.
+</dd>
+<dt><strong>CPF7054</strong></dt>
+<dd>FROM and TO values not valid.
+</dd>
+<dt><strong>CPF7056</strong></dt>
+<dd>Object &amp;1 not being journaled with before images.
+</dd>
+<dt><strong>CPF7057</strong></dt>
+<dd>*LIBL not allowed with *ALL or *ALLLIB or a generic name.
+</dd>
+<dt><strong>CPF7058</strong></dt>
+<dd>Apply or remove journaled entries operation failed.
+</dd>
+<dt><strong>CPF705A</strong></dt>
+<dd>Operation failed due to remote journal.
+</dd>
+<dt><strong>CPF7063</strong></dt>
+<dd>Cannot use file &amp;1 as OUTFILE.
+</dd>
+<dt><strong>CPF7067</strong></dt>
+<dd>FROMENTLRG or FROMENT option not valid. Commit boundary violation.
+</dd>
+<dt><strong>CPF7068</strong></dt>
+<dd>Entry needed for apply or remove operation not found.
+</dd>
+<dt><strong>CPF7069</strong></dt>
+<dd>No entries applied or removed using journal &amp;1.
+</dd>
+<dt><strong>CPF7077</strong></dt>
+<dd>Key mapping error on member &amp;3.
+</dd>
+<dt><strong>CPF7078</strong></dt>
+<dd>Cannot apply or remove changes to member &amp;3.
+</dd>
+<dt><strong>CPF9801</strong></dt>
+<dd>Object &amp;2 in library &amp;3 not found.
+</dd>
+<dt><strong>CPF9802</strong></dt>
+<dd>Not authorized to object &amp;2 in &amp;3.
+</dd>
+<dt><strong>CPF9803</strong></dt>
+<dd>Cannot allocate object &amp;2 in library &amp;3.
+</dd>
+<dt><strong>CPF9809</strong></dt>
+<dd>Library &amp;1 cannot be accessed.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9812</strong></dt>
+<dd>File &amp;1 in library &amp;2 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+<dt><strong>CPF9860</strong></dt>
+<dd>Error occurred during output file processing.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RMVJRNCHG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

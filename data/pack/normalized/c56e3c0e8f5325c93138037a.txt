@@ -1,0 +1,183 @@
+Change S/36 Message List (CHGS36MSGL)
+
+Change S/36 Message List (CHGS36MSGL)
+
+Last Updated: 2025-04-08
+
+Where allowed to run:
+
+- Batch job (*BATCH)
+
+- Interactive job (*INTERACT)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change System/36 Message List (CHGS36MSGL) command determines the action taken for specific escape messages issued by Control Language (CL) commands in a procedure running in the System/36 environment. It is also used to set the default action for escape messages that are not specified.
+
+This command is allowed to be external to a procedure only when SCOPE(*JOB) or SCOPE(*SESSION) is specified. It is not allowed in CL programs. It is valid only when the System/36 Environment is active.
+
+For System/36 environment jobs that are started by the JOBQ command, the // JOBQ OCL statement, or the // EVOKE OCL statement, the initial message default action is taken from the job level of the submitting job. For other jobs, it is taken from the System/36 environment configuration. The Change System/36 Configuration (CHGS36) command can be used to set the initial message default action in the configuration.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+MSGL | Message list | Single values: *SAME, *NONE
+Other values (up to 100 repetitions): Element list | Optional, Positional 1
+Element 1: Message list | Values (up to 100 repetitions): Name, *ANY
+Element 2: Action | *CONTINUE, *IGNORE, *HALT, *CANCEL, *GOTO
+Element 3: Label or halt option | Character value
+DFTACN | Default action | Single values: *SAME
+Other values: Element list | Optional
+Element 1: Action | *CONTINUE, *IGNORE, *HALT, *CANCEL, *GOTO
+Element 2: Label or halt option | Character value
+SCOPE | Scope | *CURPRC, *PRVPRC, *JOB, *SESSION | Optional
+
+Top
+
+Message list (MSGL)
+
+Specifies a list of message IDs and the action that is taken for each message. One or more message IDs can be specified along with the action that is taken for each message ID. When a CL command issues an escape message, the message list is searched for the message ID and the specified action is taken. If the message ID is not found in the message list, the default action is taken.
+
+Note: The MSGL parameter can be specified only if SCOPE(*CURPRC) or SCOPE(*PRVPRC) is specified.
+
+*SAME
+The message list does not change.
+
+*NONE
+The message list is removed.
+
+The possible Message ID Added to List values are:
+
+*ANY
+The specified action is taken for any message ID that is not found previously in the message list. Because this value matches any message, it is the last message ID specified in the list. Message IDs specified after this value are ignored.
+
+message-ID
+Specify the message ID being added to the list. Each message ID must contain 7 characters and must conform to the rules for message IDs. Generic message IDs are specified by ending the message ID with either 00 or 0000. For example, CPF1200 would match all messages beginning with CPF12, and CPF0000 would match all messages beginning with CPF.
+The message list is searched in the order that it is specified on the command. Therefore, if the message list contains more than one message ID that matches the message ID being searched for, the first one is used. For example, if the message list contains CPF1200 followed by CPF1234, and the message CPF1234 is being searched for, the generic message ID is found first, and the action specified for that message ID is taken.
+
+The possible Action Taken for Message ID values are:
+
+*CONTINUE
+Processing continues with the statement that follows the CL command. The ID of the escape message is saved, and can be retrieved by the ?MSGID? substitution expression.
+
+*IGNORE
+Processing continues with the statement following the CL command. The ID of the escape message is not saved, and the ?MSGID? substitution expression is null.
+
+*HALT-options
+A halt with options is issued. This value can be followed by a list of options to be allowed on the halt. If the options to be allowed are not specified, options 0 (continue) and 3 (cancel) are allowed. The list of options is a value consisting of up to 4 numbers ranging from 0 through 3. The valid values are:
+
+- 0 - Continue. The ?MSGID? substitution expression is set.
+
+- 1 - Retry the command. The ?MSGID? substitution expression is not set.
+
+- 2 - Cancel the job step. The ?MSGID? substitution expression is set.
+
+- 3 - Cancel the job.
+
+*CANCEL
+The procedure is canceled as if a // CANCEL statement was processed.
+
+*GOTO-label
+Control continues at the TAG label specified. This value must be followed by a label of up to 8 characters.
+
+Top
+
+Default action (DFTACN)
+
+Specifies the default action taken for escape messages issued by CL commands in procedures that run in the System/36 environment. The default action is taken for any message that is not in the message list, or for any message if there is no message list. The default action is not used if the message list contains a message ID of *ANY.
+
+*SAME
+The default action does not change.
+
+*CONTINUE
+Processing continues with the statement that follows the CL command. The ID of the escape message is saved and can be retrieved by the ?MSGID? substitution expression.
+
+*IGNORE
+Processing continues with the statement that follows the CL command. The ID of the escape message is not saved, and the ?MSGID? substitution expression is null.
+
+*HALT-options
+Message SYS3827 is issued with options. This value can be followed by a list of options to be allowed on the halt. If the options to be allowed are not specified, options 0 (continue) and 3 (cancel) are allowed. The list of options is a value consisting of up to 4 numbers ranging from 0 through 3. The valid values are:
+
+- 0 - Continue. The ?MSGID? substitution expression is set.
+
+- 1 - Retry the command. The ?MSGID? substitution expression is not set.
+
+- 2 - Cancel the job step. The ?MSGID? substitution expression is set.
+
+- 3 - Cancel the job.
+
+*CANCEL
+The procedure is canceled as if a // CANCEL statement was processed.
+
+*GOTO-label
+Control continues at the specified TAG label. This value must be followed by a label of up to 8 characters.
+
+Top
+
+Scope (SCOPE)
+
+Specifies the scope of the message list and default action entered on the command.
+
+*CURPRC
+The message list and default action apply only to the procedure in which the command is placed. It is not passed on to lower level procedures or used after the procedure ends.
+
+*PRVPRC
+The message list and default action apply only to the procedure that called the procedure in which the command is placed. This value can only be entered in a procedure but cannot be entered in a first-level procedure.
+
+*JOB
+The default action applies to procedures in the current System/36 job. The default action specified applies to procedures in the current job that do not have a default action set. If *JOB is specified for this parameter, a message list is not allowed on the command.
+
+*SESSION
+The default action applies to procedures run in the current session. If *SESSION is specified for this parameter, a message list is not allowed.
+
+Top
+
+Examples
+
+Example 1: Setting Up a Message List
+
+CHGS36MSGL MSGL(((CPF9801) *GOTO NOTEXIST)
+((CPF9802 CPF9820) *GOTO NOTAUT)
+((*ANY) *HALT 3))
+CHKOBJ ?2?/?1? *PGM
+// GOTO OK
+// TAG NOTEXIST
+(code to handle object does not exist messages)
+// GOTO OK
+// TAG NOTAUT
+(code to handle not authorized to object messages)
+// TAG OK
+CHGS36MSGL MSGL(*NONE)
+
+This command sets up a message list to go to label NOTEXIST if message CPF9801 is issued, and to label NOTAUT if either message CPF9802 or CPF9820 is issued. If any other message is entered, a halt with only option 3 (cancel) is issued. The second CHGS36MSGL command removes the message list.
+
+Example 2: Setting the ?MSGID? Substitution Expression
+
+CHGS36MSGL MSGL(((CPF2105) *IGNORE) ((*ANY) *CONTINUE))
+DLTF ?FLIB?/?1?
+// IFF ?MSGID?/ ... (handle error)
+
+In this example, message CPF2105 (object not found) is ignored; that is, the ?MSGID? substitution expression is not set. For any other messages, the ?MSGID? substitution expression is set to the message ID. The procedure is attempting to delete a file that may or may not exist. Because the object not found exception is not considered an error in this case, it is ignored. Any other message is handled as an error.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+SSP0520
+System/36 environment is not active.
+
+SSP0521
+Command is not allowed in first-level procedure.
+
+SSP0522
+System/36 procedure is not active.
+
+Top

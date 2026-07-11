@@ -1,0 +1,311 @@
+Dump Tape (DMPTAP)
+
+Dump Tape (DMPTAP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The DMPTAP (Dump Tape) command dumps label information or data blocks (or both) from standard-labeled tapes or tapes with no labels to a spooled printer file named QPTAPDMP. This command allows the user to dump one or more data files from the tape volume, writing the information to a printer file.
+
+The tape volume being dumped must be on the specified device. After the DMPTAP command is entered, as much of the tape as necessary is read before the requested information is printed.
+
+Data files on secured tapes can be dumped by the security officer only; any user can dump label information on secured tapes.
+
+When the default values for the parameters of the DMPTAP command are used, the tape label areas and a minimal amount of data from the first file are printed. This command can help determine the record format of a data file on a tape with no label, or it can determine the exact contents of all label information for a labeled data file.
+
+Restrictions:
+
+- Only a user with all object special authority (*ALLOBJ) can dump a tape using TYPE(*HEX).
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DEV | Tape device | Name | Required, Positional 1
+VOL | Volume identifier | Character value, *MOUNTED | Optional, Positional 2
+SEQNBR | Range of sequence numbers | Single values: *ALL, *SEARCH
+Other values: Element list | Optional, Positional 3
+Element 1: Starting file sequence number | 1-16777215, *FIRST
+Element 2: Ending file sequence number | 1-16777215, *ONLY, *LAST
+LABEL | File label | Character value, *NONE | Optional, Positional 4
+TYPE | Data file information to dump | Single values: *BASIC, *ALL, *NONE, *HEX
+Other values (up to 3 repetitions): *HDRLBL, *DTABLK, *TLRLBL | Optional
+DTABLK | Data blocks to dump | Single values: *ALL, *LAST
+Other values: Element list | Optional
+Element 1: Starting data block number | 1-2147483647, *FIRST
+Element 2: Ending data block number | 1-2147483647, *ONLY, *LAST
+VOLLBL | Dump volume label | *YES, *NO | Optional
+CODE | Code | *EBCDIC, *ASCII | Optional
+ENDOPT | End of tape option | *REWIND, *LEAVE, *UNLOAD | Optional
+
+Top
+
+Device (DEV)
+
+Specifies the tape device in which the volume being dumped is placed. The volume may or may not be labeled. Specify the name of the tape or media library device.
+
+This is a required parameter.
+
+name
+Specify the name of the tape device.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifier of the labeled tape being dumped, or indicates that the tape volume in the specified tape drive is dumped.
+
+Note: If the device specified is a media library device, or virtual tape device, then the volume specified should be the cartridge identifier or virtual volume name to be mounted and used.
+
+*MOUNTED
+The volume on the specified device is dumped. The volume may or may not be labeled. For a volume that is not labeled, *MOUNTED must be specified for the VOL parameter and *NONE must be specified for the File label (LABEL) parameter. For a media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command. For a virtual tape device, the volume to be used is the currently mounted one, or if there is not a currently mounted volume, the next volume in loaded status in the image catalog will be used.
+
+character-value
+Specify the identifier of the labeled volume being dumped. This value can be specified only for dumping a labeled volume. If the tape on the specified device has a different volume identifier than the one specified here, or if it is not labeled, an error message is sent to the user of the Dump Tape (DMPTAP) command and the tape is not dumped.
+
+Top
+
+Range of sequence numbers (SEQNBR)
+
+Specifies the range of sequence numbers for the data files that are dumped. Note that the data files dumped may be further restricted by using the File label (LABEL) parameter.
+
+Single values
+
+*ALL
+All data files on the volume that are placed in the specified device are dumped.
+
+*SEARCH
+A search is made for a data file that has an identifier that matches the value specified for the LABEL parameter. If *SEARCH is specified, the volume must be labeled and a file label must be specified for the LABEL parameter. An escape message is sent if the file is not found.
+
+Element 1: Starting file sequence number
+
+*FIRST
+The range of data files being dumped starts with the first file on the tape volume (regardless of its sequence number).
+
+1-16777215
+The range of data files being dumped starts with the data file with the specified sequence number. Specify a number that is less than or equal to the end-file-sequence-number value.
+
+Element 2: Ending file sequence number
+
+*ONLY
+Only a single data file (specified by the start-file-sequence-number) is dumped.
+
+*LAST
+The range of data files being dumped begins with the starting sequence number data file and ends with the last data file on the reel.
+
+1-16777215
+The range of data files being dumped ends with the specified sequence number data file. Specify a number that is greater than or equal to the starting file sequence number.
+
+Top
+
+File label (LABEL)
+
+Specifies the identifier of the specific data files that are dumped. The file identifier for a tape data file is stored on labels ahead of and following the data in the file.
+
+*NONE
+All data files on the volume in the specified SEQNBR range are dumped. For a volume that is not labeled, *MOUNTED must be specified for the Volume identifier (VOL) parameter and *NONE must be specified for the LABEL parameter.
+
+identifier
+Specify the data file identifier of the data files being dumped. The system compares this identifier with the data file identifier on the labels of each file in the range specified by the Range of sequence numbers (SEQNBR) parameter. All data files with an identifier that matches this data file identifier are dumped; any data file with an identifier that does not match this identifier is not dumped.
+
+generic-identifier
+Specifies a character string for a generic file identifier, which contains one or more characters followed by an asterisk (*). Any tape file that has a file identifier with the same prefix as the generic file identifier is dumped.
+
+Top
+
+Data file information to dump (TYPE)
+
+Specifies the type of information being dumped. The dump output may consist of the data file header labels or trailer labels, data blocks from the data portion of the file, or all three types of information. If a tape volume that is placed in the device is not labeled, only the values *BASIC, *ALL, *HEX, or *DTABLK can be specified for this parameter; otherwise, an error message is sent to the user of the command and the volume is not dumped.
+
+Single values
+
+*BASIC
+For a standard-labeled volume, the information dumped includes header labels and the data blocks specified by the Data blocks to dump (DTABLK) parameter. For a volume that is not labeled, only the data blocks are dumped.
+
+*ALL
+For a standard-labeled volume, the dump includes header labels, trailer labels, and data blocks. For a volume that is not labeled, a value of *ALL dumps only data blocks.
+
+*NONE
+No data file is dumped. If *NONE is specified, the tape volume being dumped must be labeled, and *YES must be specified for the Dump volume label (VOLLBL) parameter; otherwise, an error message is sent to the user of the Dump Tape (DMPTAP) command.
+
+*HEX
+For a standard-labeled volume, the data is dumped as if the volume is a non-labeled tape. The header labels, data blocks, and trailer labels for a standard labeled file will appear to be three separate non-labeled tape files. For a non-labeled volume, the data is dumped the same as if *DTABLK is specified.
+
+Other values (up to 3 repetitions)
+
+*HDRLBL
+The data file header labels are dumped. All header labels for the specified data files are dumped, including user-specified header labels. *HDRLBL is not valid for volumes that are not labeled.
+
+*DTABLK
+One or more data blocks from the file data are dumped. The blocks in the data file that are dumped are specified by the Data blocks to dump (DTABLK) parameter.
+
+*TLRLBL
+All data file trailer labels are dumped. All the trailer labels for the specified data files are dumped, including user-specified trailer labels. *TLRLBL is not valid for volumes that are not labeled.
+
+Top
+
+Data blocks to dump (DTABLK)
+
+Specifies which data blocks are dumped. This parameter is used to limit the amount of tape file data dumped to the printer. If neither *BASIC nor *ALL is specified for the Data file information to dump (TYPE) parameter, and the TYPE parameter also does not include *DTABLK, this parameter is ignored.
+
+Single values
+
+*ALL
+All data blocks in the specified data files on this volume are dumped. If a data file is continued from another volume or continues to another volume, only the part of the data file that is stored on this volume is dumped.
+
+*LAST
+Only the last data block in the data file is dumped.
+
+Element 1: Starting data block number
+
+*FIRST
+The data blocks being dumped start with the first block in the data file.
+
+1-2147483647
+Specify the number of the first data block in each file that is dumped. If this number is greater than the number specified for the ending data block element, an error message is sent to the user who requested the dump, and the tape is not dumped. If the starting data block number is larger than the actual number of data blocks in the data file, then the last data block in the file is dumped (with no error messages).
+
+Element 2: Ending data block number
+
+*ONLY
+Only the data block specified as the starting data block is dumped.
+
+*LAST
+The range of data blocks that are dumped starts with the data block specified by the starting data block value and goes to the last block in the file.
+
+1-2147483647
+Specify the number of the last data block in each file to dump. If this number is less than the number specified for the starting data block, an error message is sent to the user who requested the dump, and the tape is not dumped. If the ending data block number is larger than the actual number of data blocks in the data file, all blocks from the starting data block to the end of the file are dumped (with no error messages).
+
+Top
+
+Dump volume label (VOLLBL)
+
+Specifies whether volume labels are dumped. This parameter is ignored for volumes that are not labeled or when *HEX is specified for the Data file information to dump (TYPE) parameter for a standard labeled tape.
+
+*YES
+All volume labels (including user-specified labels) are dumped.
+
+*NO
+No volume labels are dumped; the volume listing does, however, include the volume identifier of a labeled volume and other basic information for any dumped tape.
+
+Top
+
+Code (CODE)
+
+Specifies the type of character code used for the data recorded on the tape. For a labeled volume, this parameter is ignored because the tape labels determine whether the data is recorded in EBCDIC or ASCII character code.
+
+*EBCDIC
+The tape contains data in the EBCDIC character code. The dump output contains the hexadecimal value and the EBCDIC character equivalent of each data byte.
+
+*ASCII
+The ASCII character code is used.
+
+Top
+
+End of tape option (ENDOPT)
+
+Specifies whether the tape is rewound only or rewound and unloaded after the operation ends.
+
+*REWIND
+The tape is automatically rewound, but not unloaded, after the operation has ended.
+
+*LEAVE
+The tape does not rewind or unload after the operation ends. It remains at the current position on the tape drive.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+Top
+
+Examples
+
+DMPTAP DEV(QTAPE2) SEQNBR(5) TYPE(*DTABLK) DTABLK(3 7)
+
+This command dumps information from the tape volume that is on device QTAPE2. Data blocks 3 through 7 within the data file specified by sequence number 5 are dumped to a printer file.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF222E
+&1 special authority is required.
+
+CPF6708
+Command ended due to error.
+
+CPF6718
+Cannot allocate device &1.
+
+CPF6720
+Incorrect volume &2 found on device &1.
+
+CPF6721
+Device &1 not a tape device.
+
+CPF6723
+File not found on volume &2 on device &1.
+
+CPF6724
+File label &5 not found on volume &2.
+
+CPF6725
+Ending file sequence number less than starting sequence number.
+
+CPF6726
+Ending data block less than starting block.
+
+CPF6727
+Dump type not allowed for nonlabeled volume on device &1.
+
+CPF6728
+LABEL(*NONE) or CRTDATE(*NONE) required.
+
+CPF6729
+No authority to file data on volume &2 device &1.
+
+CPF6730
+Cannot access file sequence number &5.
+
+CPF6731
+File label &5 not found on volume &2.
+
+CPF6745
+Device &1 not a media library device.
+
+CPF6751
+Load failure occurred on device &4.
+
+CPF6760
+Device &1 not ready.
+
+CPF6772
+Volume on device &1 cannot be processed.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9846
+Error while processing file &1 in library &2.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9850
+Override of printer file &1 not allowed.
+
+Top

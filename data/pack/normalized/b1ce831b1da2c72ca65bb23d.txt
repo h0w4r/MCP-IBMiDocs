@@ -1,0 +1,737 @@
+Start Watch (STRWCH)
+
+Start Watch (STRWCH)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Watch (STRWCH) command starts the watch for event function, which notifies the user by calling a user specified program when the specified event (a message, a LIC log entry or PAL entry) occurs. PAL stands for Product Activity Log which shows errors that have occurred (such as in disk and tape units, communications, and work stations).
+
+Up to 10000 watch sessions can be active at a time but active watch session identifiers must be unique across the system.
+
+The watch session continues until ended with the End Watch (ENDWCH) command or with the End Watch (QSCEWCH) API. A watch session can be ended from the same job or a different job.
+
+Restrictions:
+
+- To use this command, you must have service (*SERVICE) special authority, or be authorized to the Service watch function of IBM i through System i Navigator's Application Administration support. The Change Function Usage (CHGFCNUSG) command, with a function ID of QIBM_SERVICE_WATCH, can also be used to change the list of users that are allowed to start and end watch operations.
+
+- When the Watched job (WCHJOB) parameter is specified, the issuer of the command must be running under a user profile which is the same as the job user identity of the job being watched, or the issuer of the command must be running under a user profile which has job control (*JOBCTL) special authority. Job control (*JOBCTL) special authority is also required if a generic user name is specified for the WCHJOB parameter.
+
+- If you specify *ALL for the watched job name, or a generic user name, you must have all object (*ALLOBJ) special authority, or be authorized to the Watch any job function of IBM i through System i Navigator's Application Administration support. The Change Function Usage (CHGFCNUSG) command, with a function ID of QIBM_WATCH_ANY_JOB, can also be used to change the list of users that are allowed to start and end watch operations.
+
+- You must have operational (*OBJOPR) and execute (*EXECUTE) authorities to the watch program to be called, and execute (*EXECUTE) authority to the library where the program is located.
+
+- You must have use (*USE) authority to the message queues specified in Watched message queue (WCHMSGQ) parameter, and use (*USE) authority to the library where the message queue is located.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SSNID | Session ID | Name, *GEN | Required, Positional 1
+WCHPGM | Watch program | Qualified object name | Required, Positional 2
+Qualifier 1: Watch program | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+CALLWCHPGM | Call watch program | Single values: *WCHEVT
+Other values (up to 2 repetitions): *STRWCH, *ENDWCH | Optional
+WCHMSG | Watch for message | Single values: *NONE
+Other values (up to 5 repetitions): Element list | Optional
+Element 1: Message to watch | Generic name, name, *ALL, *IMMED
+Element 2: Comparison data | Character value, *NONE
+Element 3: Compare against | *MSGDTA, *FROMPGM, *TOPGM
+Element 4: Message type | *ALL, *COMP, *DIAG, *ESCAPE, *INFO, *INQ, *NOTIFY, *SCOPE, *STATUS
+Element 5: Relational operator | *GE, *EQ, *GT, *LT, *LE
+Element 6: Severity code | 0-99, 00
+WCHMSGQ | Watched message queue | Values (up to 3 repetitions): Element list | Optional
+Element 1: Message queue | Single values: *SYSOPR, *JOBLOG, *HSTLOG
+Other values: Qualified object name
+Qualifier 1: Message queue | Name
+Qualifier 2: Library | Name, *LIBL
+WCHJOB | Watched job | Single values: *
+Other values (up to 5 repetitions): Element list | Optional
+Element 1: Job name | Qualified job name
+Qualifier 1: Job name | Generic name, name, *ALL
+Qualifier 2: User | Generic name, name, *ALL
+Qualifier 3: Number | 000000-999999, *ALL
+WCHLICLOG | Watch for LIC log entry | Single values: *NONE
+Other values (up to 5 repetitions): Element list | Optional
+Element 1: Major code | Character value, *ALL
+Element 2: Minor code | Character value, *ALL
+Element 3: Comparison data | Character value, *NONE
+Element 4: Compare against | *ALL, *TDENBR, *TASKNAME, *SVRTYPE, *JOBNAME, *JOBUSR, *JOBNBR, *THDID, *EXCPID, *MODNAME, *MODRUNAME, *MODEPNAME, *MODOFFSET, *MODTSP
+WCHPAL | Watch for PAL entry | Single values: *NONE
+Other values (up to 5 repetitions): Element list | Optional
+Element 1: System reference code | Character value, *ALL
+Element 2: Comparison data | Character value, *NONE
+Element 3: Compare against | *RSCNAME, *RSCTYPE, *RSCMODEL
+RUNPTY | Run priority | 1-99, 25 | Optional
+
+Top
+
+Session ID (SSNID)
+
+Specifies a session identifier for this watch. This identifier must be unique across all active watches on the system.
+
+This is a required parameter.
+
+*GEN
+The system will generate a unique session identifier for this watch.
+
+name
+Specify the session identifier for this watch. You cannot specify a session identifier that starts with "QSC".
+
+Top
+
+Watch program (WCHPGM)
+
+Specifies the user exit program to be called to notify that a specified watch event occurred. The exit program will be called once for each message, LIC log entry and PAL entry specified on this command. That is, if a message is watched on a message queue and in a job log, and the message is sent to both locations, the exit program will be called twice.
+
+This is a required parameter.
+
+The watch program will be called:
+
+- After a match of a message, type, severity and any associated comparison data specified for the WCHMSG parameter, or a match of a Licensed Internal Code (LIC) log entry and any associated comparison data specified for the WCHLICLOG parameter, or a match of a Product Activity Log (PAL) entry and any associated comparison data specified for the WCHPAL parameter occurs.
+
+- Whenever it was defined in the Call watch program (CALLWCHPGM) parameter.
+
+There are three input parameters and one output parameter associated with the watch program. The four parameters are required:
+
+1 Watch option setting Input Char(10)
+2 Session Id Input Char(10)
+3 Error detected Output Char(10)
+4 Event data Input Char(*)
+
+Allowed values for the "Watch option setting" parameter are:
+
+*MSGID
+A match on a message id or immediate/impromptu message, message type, message severity and any associated comparison data specified on WCHMSG parameter occurred.
+
+*LICLOG
+A match on a LIC log andany associated comparison data specified on the WCHLICLOG parameter occurred.
+
+*PAL
+A match on a Product Activity Log (PAL) and any associated comparison data specified on the WCHPAL parameter occurred.
+
+*STRWCH
+The watch program will be called before starting watching for any event.
+
+*ENDWCH
+The watch program will be called when the watch session is ending. Possible reasons might be:
+
+- End Watch (ENDWCH) command or End Watch (QSCEWCH) API was issued.
+
+- One or more of the watch for event jobs ended abnormally or ended by user action.
+
+Note: A watch session might end because an error was detected on the watch exit program. In this case, the watch program will not be called at *ENDWCH time.
+
+The "Session ID" parameter contains the name of the watch session that is calling the user exit program.
+
+Allowed values for the "Error detected" parameter are:
+
+*ERROR
+Error detected by watch exit program. The watch session that was passed in Session ID parameter will be ended. If the watch session to be ended originally specified multiple messages or LIC log entries or PAL entries, all of them will no longer be watched. CPI3999 message will be sent to the job log and the history log to indicate an error in the exit program caused the watch session to be ended.
+
+<blanks>
+No error detected by watch exit program.
+
+Notes:
+
+- Any value other than "*ERROR" or will be considered an error and the watch session that was passed in Session ID parameter will be ended. If the watch session to be ended originally specified multiple messages or LIC log entries or PAL entries, all of them will no longer be watched. CPI3999 message will be sent to the job log and the history log to indicate an error in the exit program caused the watch session to be ended.
+
+Allowed values for the "Event data" parameter when *MSGID is specified for the "Watch option setting" parameter will be the following structure:
+
+OFFSET TYPE FIELD
+Dec Hex
+0 0 BINARY(4) Length of watch information
+4 4 CHAR(7) Message watched
+11 B CHAR(1) Reserved
+12 C CHAR(10) Message queue name
+22 16 CHAR(10) Message queue library
+32 20 CHAR(10) Job name
+42 2A CHAR(10) User name
+52 34 CHAR(6) Job number
+58 3A BINARY(4) Original replacement data length
+62 3E CHAR(256) Sending program name
+318 13E CHAR(10) Sending module name
+328 148 BINARY(4) Offset to sending procedure name
+332 14C BINARY(4) Length of sending procedure name
+336 150 CHAR(10) Receiving program name
+346 15A CHAR(10) Receiving module name
+356 164 BINARY(4) Offset to receiving procedure name
+360 168 BINARY(4) Length of receiving procedure name
+364 16C BINARY(4) Message severity
+368 170 CHAR(10) Message type
+378 17A CHAR(8) Message timestamp
+386 182 CHAR(4) Message key
+390 186 CHAR(10) Message file name
+400 190 CHAR(10) Message file library
+410 19A CHAR(2) Reserved
+412 19C BINARY(4) Offset to comparison data
+416 1A0 BINARY(4) Length of comparison data
+420 1A4 CHAR(10) Compare against
+430 1AE CHAR(2) Reserved
+432 1B0 BINARY(4) Comparison data CCSID
+436 1B4 BINARY(4) Offset where comparison data was found
+440 1B8 BINARY(4) Offset to replacement data
+444 1BC BINARY(4) Length of replacement data
+448 1C0 BINARY(4) Replacement data CCSID
+452 1C4 CHAR(10) Sending user profile
+462 1CE CHAR(10) Target job name
+472 1D8 CHAR(10) Target job user name
+482 1E2 CHAR(6) Target job number
+* * CHAR(*) Sending procedure name
+* * CHAR(*) Receiving procedure name
+* * CHAR(*) Message comparison data
+* * CHAR(*) Message replacement data
+
+Allowed values for the "Event data" parameter when *LICLOG is specified for the "Watch option setting" parameter will be the following structure:
+
+OFFSET TYPE FIELD
+Dec Hex
+0 0 BINARY(4) Length of watch information
+4 4 CHAR(4) LIC Log major code
+8 8 CHAR(4) LIC Log minor code
+12 C CHAR(8) LIC Log id (keyword DMPID on PRTINTDTA)
+20 14 CHAR(8) LIC Log timestamp
+28 1C CHAR(8) TDE number
+36 24 CHAR(16) Task name
+52 34 CHAR(30) Server type
+82 52 CHAR(2) Exception ID
+84 54 CHAR(10) LIC job name
+94 5E CHAR(10) LIC user name
+104 68 CHAR(6) LIC job number
+110 6E CHAR(4) Reserved
+114 72 CHAR(8) Thread ID
+122 7A CHAR(8) LIC module compile timestamp
+130 82 CHAR(8) LIC module offset
+138 8A CHAR(8) LIC module RU name
+146 92 CHAR(48) LIC module name
+194 DA CHAR(128) LIC module entry point name
+322 142 CHAR(1) LIC log compare against specified
+323 143 CHAR(1) Reserved
+324 144 BINARY(4) Offset to comparison data
+328 148 BINARY(4) Length of comparison data
+332 14C CHAR(10) LIC log compare against
+* * CHAR(*) LIC log comparison data
+
+Allowed values for the "Event data" parameter when *PAL is specified for the "Watch option setting" parameter will be the following structure:
+
+OFFSET TYPE FIELD
+Dec Hex
+0 0 BINARY(4) Length of watch information
+4 4 CHAR(8) System reference code
+12 C CHAR(10) Device name
+22 16 CHAR(4) Device type
+26 1A CHAR(4) Model
+30 1E CHAR(15) Serial number
+45 2D CHAR(10) Resource name
+55 37 CHAR(8) Error Log id (keyword ERRLOGID on PRTERRLOG)
+63 3F CHAR(8) PAL timestamp
+71 47 CHAR(4) Reference code
+75 4B CHAR(8) Secondary code
+83 53 CHAR(8) Table identifier
+91 5B CHAR(1) Reserved
+92 5C BINARY(4) Sequence
+96 60 BINARY(4) Offset to comparison data
+100 64 BINARY(4) Length of comparison data
+104 68 CHAR(10) PAL compare against
+* * CHAR(*) PAL comparison data
+
+Allowed values for the "Event data" parameter when *STRWCH or *ENDWCH is specified for the "Watch option setting" parameter will be the following structure:
+
+OFFSET TYPE FIELD
+Dec Hex
+0 0 BINARY(4) Length of watch information
+(always 4 at this time)
+
+For more information on the watch exit program interface, refer to the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/
+
+Qualifier 1: Watch program
+
+name
+Specify the name of the watch exit program.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the job's library list are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the program. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library where the user exit program is located.
+
+Top
+
+Call watch program (CALLWCHPGM)
+
+Specifies the times at which the program specified for the Watch program (WCHPGM) parameter will be called. The program will always be called when the watched for event occurs. You can specify additional times for the program to be called.
+
+Single values
+
+*WCHEVT
+The watch program will be called when the watched for event occurs.
+
+Other values (up to 2 repetitions)
+
+*STRWCH
+The watch program will be called when the watched for event occurs and also be called before starting watching for any event.
+
+*ENDWCH
+The watch program will be called when the watched for event occurs and also be called when the watch session is ending. Possible reasons might be:
+
+- End Watch (ENDWCH) command or End Watch (QSCEWCH) API was issued.
+
+- One or more of the watch for event jobs ended abnormally or ended by user action.
+
+Note: A watch session might end because an error was detected on the watch exit program. In this case, the watch program will not be called at *ENDWCH time.
+
+Top
+
+Watch for message (WCHMSG)
+
+Specifies up to five messages which are to be watched. If a value other than *NONE is specified, you must specify where to watch for the message on the Watched message queue (WCHMSGQ) parameter. When the watched for message is added to the specified message queue or log, the watch exit program is called.
+
+Note: Moved and resent messages will not be watched. Only the original instance of the message can be watched.
+
+Note: Watching for message id CPF1124 or CPF1164 will be ignored in job QSCWCHPS (which handles watch processing). A user exit program will not be triggered when CPF1124 or CPF1164 is issued in job QSCWCHPS.
+
+Single values
+
+*NONE
+No messages will be watched.
+
+Element 1: Message to watch
+
+*ALL
+All messages are to be watched. This includes stored messages and immediate messages. Be aware that watching for all messages might cause performance degradation on your system. Use it cautiously.
+
+*IMMED
+All immediate or impromptu messages will be watched. No messages stored in a message file are watched.
+
+generic-name
+Specify the generic message identifier to be watched. A generic name is a character string of one or more characters followed by an asterisk (*); for example, ABC*. The asterisk substitutes for any valid characters. A generic message name specifies all messages with message identifiers that begin with the generic prefix.
+
+name
+Specify the 7-character message identifier to be watched.
+
+Element 2: Comparison data
+
+Specify comparison data to be used if a message matching the specified message is added to the specified message queue or log. If the message data, the "From program" or the "To program" includes the specified text, the watched for condition is true. If the message data, the "From program" or the "To program" does not contain the specified text, the watch function just continues.
+
+*NONE
+No comparison data is specified. If a message matching the specified message is added to the specified message queue or log, the watched for condition is true.
+
+character-value
+Specify the text string used to compare against the message data, the "From program" or the "To program" of the watched for message. This text is case sensitive and can be quoted in order to specify imbedded or trailing blanks.
+
+Element 3: Compare against
+
+Specify which part of the message the comparison data specified for element 2 is to be compared against.
+
+*MSGDATA
+The comparison data will be compared against the message replacement data.
+
+*FROMPGM
+The comparison data will be compared against the name of the program sending the message, or the name of the ILE program that contains the procedure sending the message.
+
+*TOPGM
+The comparison data will be compared against the name of the program the message was sent to, or the name of the ILE program that contains the procedure the message was sent to.
+
+Element 4: Message type
+
+Specify the message type assigned to the message to be watched.
+
+*ALL
+All the message types are to be watched. This includes completion, command, diagnostic, escape, informational, inquiry, notify, reply, request, sender's copy, scope and status message types.
+
+*COMP
+A completion message is to be watched.
+
+*DIAG
+A diagnostic message is to be watched.
+
+*ESCAPE
+An escape message is to be watched.
+
+*INFO
+An informational message is to be watched.
+
+*INQ
+An inquiry message is to be watched.
+
+*NOTIFY
+A notify message is to be watched.
+
+*SCOPE
+A scope message is to be watched.
+
+*STATUS
+A status message is to be watched.
+
+Element 5: Relational operator
+
+Specify one relational operator against which the message severity code is compared.
+
+*GE
+Greater than or equal.
+
+*EQ
+Equal.
+
+*GT
+Greater than.
+
+*LT
+Less than.
+
+*LE
+Less than or equal.
+
+Element 6: Severity code
+
+Specifies the severity code of the message to be watched.
+
+00
+The severity code assigned to the message to be watched for is 00.
+
+Severity-code
+Specify a value, ranging from 00 through 99, as the severity level associated with the message to be watched.
+
+Top
+
+Watched message queue (WCHMSGQ)
+
+Specifies where to watch for the messages specified on the WCHMSG parameter. You can specify to watch the message being added to the system operator message queue, the history log, other message queues, and job logs. Up to three message queues or special values can be specified.
+
+Element 1: Message queue
+
+Single values
+
+*SYSOPR
+Watch messages added to the system operator message queue (QSYSOPR message queue in library QSYS).
+
+*JOBLOG
+Watch messages added to the job logs of the jobs specified for the Watched job (WCHJOB) parameter.
+
+*HSTLOG
+Watch messages added to the history log (QHST message queue in library QSYS).
+
+Qualifier 1: Message queue
+
+name
+Specify the name of the message queue to watch.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+name
+Specify the name of the library where the message queue is located.
+
+Top
+
+Watched job (WCHJOB)
+
+Specifies the job whose job log is watched for the messages specified on the Watch for message (WCHMSG) parameter. The specified job will only be watched if *JOBLOG is specified on the Watched message queue (WCHMSGQ) parameter. Up to five job names may be specified.
+
+Single values
+
+*
+Only the job log of the job that issued this watch command is watched.
+
+Element 1: Job name
+
+Qualifier 1: Job name
+
+generic-name
+Specify the generic name of the job to be watched. A generic name is a character string of one or more characters followed by an asterisk (*); for example, ABC*. The asterisk substitutes for any valid characters. A generic job name specifies all jobs with job names that begin with the generic prefix.
+
+*ALL
+All jobs with the specified job user name are watched. *ALL for the job name is considered to be a generic job specification because it will watch all jobs that meet the job user name qualifier that you specified.
+
+name
+Specify the name of the job to be watched.
+
+Qualifier 2: User
+
+generic-name
+Specify the generic name of the user name of the job to be watched. A generic name is a character string of one or more characters followed by an asterisk (*); for example, ABC*. The asterisk substitutes for any valid characters. A generic user name specifies all jobs with the specified job name and with user names that begin with the generic prefix.
+
+*ALL
+All jobs with the specified job name are watched. *ALL for the job user name is considered to be a generic job specification because it will watch all jobs that meet the job name qualifier that you specified.
+
+name
+Specify the user name of the job to be watched.
+
+Qualifier 3: Number
+
+*ALL
+All jobs with the specified job name and user name are watched. *ALL for the job number is considered to be a generic job specification because it will watch all jobs that meet the job name and job user name qualifiers that you specified.
+
+000000-999999
+Specify the job number to further qualify the job name and user name. You cannot specify a job number if a generic job name or a generic user name qualifier is specified.
+
+Top
+
+Watch for LIC log entry (WCHLICLOG)
+
+Specifies up to five licensed internal code (LIC) log entry identifiers which are to be watched for. Each LIC log entry contains a major and a minor code. The watched for condition will be met if a LIC log entry is added that matches the specified major and minor codes and any comparison data specified.
+
+Single values
+
+*NONE
+No LIC log entries will be watched for.
+
+Element 1: Major code
+
+*ALL
+Any LIC log entry major code will be considered to be a match. If *ALL is specified for the major code, you cannot specify *ALL for the LIC log entry minor code.
+
+character-value
+Specify the LIC log major code to be watched for. You can specify either a hexadecimal digit or a question mark for each character in the four-digit code. A question mark is a wildcard character that will match any digit in that position. Up to three wildcard characters can be specified.
+
+Element 2: Minor code
+
+*ALL
+Any LIC log entry minor code will be considered to be a match. If *ALL is specified for the minor code, you cannot specify *ALL for the LIC log entry major code.
+
+character-value
+Specify the LIC log minor code to be watched for. You can specify either a hexadecimal digit or a question mark for each character in the four-digit code. A question mark is a wildcard character that will match any digit in that position. Up to three wildcard characters can be specified.
+
+Element 3: Comparison data
+
+Specify comparison data to be used if a log entry matching the specified major and minor codes is added to the licensed internal code (LIC) log. If this text is found in the LIC log entry data fields of the watched for log entry, the watched for condition is true.
+
+*NONE
+No comparison data is specified. If a LIC log entry matching the specified major and minor codes is added to the LIC log, the watched for condition is true.
+
+character-value
+Specify the text string used to compare against the entry data of the watched for log entry. If this text is found in the LIC log entry data field specified for element 4, the watch condition is considered to be true. This text is case sensitive. If *ALL is specified in the LIC log compare against field, the LIC log fields which will be compared are TDE number, task name, server type, job name, user ID, job number, thread ID, exception ID, LIC module compile timestamp, LIC module offset, LIC module RU name, LIC module name, LIC module entry point name. The comparison data cannot be used to match across two fields, and can match an entire field or a substring of any field.
+When watching for an exception ID, all four hexadecimal digits of the exception ID must be specified. Also, the prefix MCH may be specified if you want to compare only against the exception ID field and avoid possible substring matches with the other fields.
+
+Element 4: Compare against
+
+Specify which part of the LIC log the comparison data specified for element 3 is to be compared against.
+
+*ALL
+The LIC log comparison data will be compared against all the fields described below.
+
+*TDENBR
+The LIC log comparison data will be compared against the number of the task dispatching element (TDE) which requested the LIC log entry.
+
+*TASKNAME
+The LIC log comparison data will be compared against the name of the task which requested the LIC log entry. Task name is blank (hex 40s) if the LIC log entry is not requested by a task.
+
+*SVRTYPE
+The LIC log comparison data will be compared against the type of server that requested the LIC log entry. Server type is blank (hex 40s) if the LIC log entry is not requested by a server.
+
+*JOBNAME
+The LIC log comparison data will be compared against the name of the job which requested the LIC log entry. LIC job name is blank (hex 40s) if the LIC log entry is not requested by a job.
+
+*JOBUSR
+The LIC log comparison data will be compared against the user name of the job which requested the LIC log entry. LIC user name is blank (hex 40s) if the LIC log entry is not requested by a job.
+
+*JOBNBR
+The LIC log comparison data will be compared against the job number (000000-999999) to further qualify the job name and user name of the job which requested the LIC log entry. LIC job number is blank (hex 40s) if the LIC log entry is not requested by a job.
+
+*THDID
+The LIC log comparison data will be compared against the thread which requested the LIC log entry. Thread identifier is binary zeros if the LIC log entry is not requested by a thread.
+
+*EXCPID
+The LIC log comparison data will be compared against the exception that caused the LIC log entry to be requested. This is a 2-byte hexadecimal field formed by concatenating to the high-order 1-byte exception group number a low-order 1-byte exception subtype number. Exception identifier is binary zeros if the LIC log entry is not requested as a result of an exception.
+
+*MODNAME
+The LIC log comparison data will be compared against the LIC module name which requested the LIC log entry. If the module name is greater than 64 characters, the LIC module name is truncated to 64 characters.
+
+*MODRUNAME
+The LIC log comparison data will be compared against the LIC module replacement unit name. LIC module RU name is always in upper case EBCDIC.
+
+*MODEPNAME
+The LIC log comparison data will be compared against the name of the entry point which requested the LIC log entry. If the entry point name is greater than 128 characters, the LIC module entry point name is truncated to 128 characters.
+
+*MODOFFSET
+The LIC log comparison data will be compared against the byte offset into the LIC module text which requested the LIC log entry.
+
+*MODTSP
+The LIC log comparison data will be compared against the timestamp of when the LIC module was compiled. The format for this field is the system time-stamp format.
+
+Top
+
+Watch for PAL entry (WCHPAL)
+
+Specifies up to five Product Activity Log (PAL) entries which are to be watched for. When the watched for PAL occurs, the watch exit program is called.
+
+Single values
+
+*NONE
+No PAL entries will be watched for.
+
+Other values (up to 5 repetitions)
+
+Element 1: System reference code
+
+*ALL
+Any system reference code will be considered to be a match.
+
+character-value
+Specify the system reference code (SRC) to be watched for. You can specify either a hexadecimal digit or a question mark for each character in the eight-digit code. A question mark is a wildcard character that will match any digit in that position. Up to seven wildcard characters can be specified. You can also specify a generic SRC that is a character string of one or more characters followed by an asterisk (*); for example, ABC*. The asterisk substitutes for any valid characters. A generic SRC specifies all PAL entries with system reference codes that begin with the generic prefix.
+
+Element 2: Comparison data
+
+Specify comparison data to be used if a PAL entry matching the specified system reference code occurs. If the field specified in element 3 matches the specified text, the watched for condition is true. If the field specified in element 3 does not match the specified text, the watch function just continues.
+
+*NONE
+No comparison data is specified. If a PAL entry matching the specified system reference code occurs, the watched for condition is true.
+
+character-value
+Specify the text string used to compare against the field specified in element 3 of the watched for PAL entry. This text is case sensitive.
+You can specify question mark (?) and asterisk (*) wildcard characters in the text string. A question mark is a single-character wildcard and will match any character in the same position. For example, '??123' will match any value that is five characters long and ends with '123'. Multiple question mark wildcard characters can be specified for the comparison data value.
+
+An asterisk is a multiple-character wildcard character. You can specify a single asterisk wildcard character at the end of the comparison data value. For example, 'ABC*' will match any value that begins with the letters 'ABC'.
+
+Element 3: Compare against
+
+Specify which part of the PAL entry the comparison data specified for element 2 is to be compared against.
+
+*RSCNAME
+The comparison data will be compared against the name of the physical device that has the entry in the log. A resource name is assigned at first by the system, but may have been changed to a new value by a user.
+
+*RSCTYPE
+The comparison data will be compared against the number or word used to identify a product.
+
+*RSCMODEL
+The comparison data will be compared against the numbers or letters used to identify the feature level of a product with a given type.
+
+Top
+
+Run priority (RUNPTY)
+
+Specifies the priority of the job where the watch session work will be run.
+
+25
+A job priority of 25 will be used.
+
+1-99
+Specify the run priority of the job. For more information on job run priority, refer to the Work management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/
+
+Top
+
+Examples
+
+Example 1: Start a Watch for a Generic Message Identifier on Your Job and Specifying a Message Severity
+
+STRWCH SSNID(OWN_JOB) WCHPGM(MYLIB/MYPGM)
+WCHMSG((CPF00* *NONE *MSGDTA *ALL *GE 50)) WCHMSGQ((*JOBLOG))
+
+This command starts the watch session named "OWN_JOB" to start watching for any message starting with CPF00 to occur on the job that called the STRWCH command and whose severity code is greater than or equal to 50. When a CPF00* message is sent to the current job log, MYPGM program in MYLIB library will be called to be notified of the event.
+
+Example 2: Start a Watch for a Message Specifying a Run Priority
+
+STRWCH SSNID(*GEN) WCHPGM(MYLIB/EXTPGM)
+WCHMSG((CPF1804))
+WCHMSGQ((*SYSOPR) (*JOBLOG))
+WCHJOB((*ALL/MYUSER/MYJOBNAME))
+RUNPTY(10)
+
+This command starts a watch session to call MYLIB/EXTPGM user exit program when CPF1804 message is found on the System Operator message queue or within the *ALL/MYUSER/MYJOBNAME job log. A unique watch session identifier will be generated. The session identifier will be returned in the message data of CPC3901 completion message sent after the watch session starts successfully. The job where the user exit program will be called will run with a run priority of 10.
+
+Example 3: Start a Watch for an Immediate Message Specifying Comparison Data
+
+STRWCH SSNID(FRMPGM) WCHPGM(MYLIB/EXTPGM)
+WCHMSG((*IMMED QSCSWCH *FROMPGM))
+WCHMSGQ((*HSTLOG))
+
+This command starts a watch session to call MYLIB/EXTPGM user exit program when an immediate (or impromptu) message is sent to message queue QHST in library QSYS by QSCSWCH program.
+
+Example 4: Start a Watch for Several Messages Types in my Job Logs
+
+STRWCH SSNID(ERRMSG) WCHPGM(MYLIB/EXTPGM)
+WCHMSG((*ALL *NONE *MSGDTA *DIAG *GT 50)
+(*ALL *NONE *MSGDTA *STATUS *GT 50)
+(*ALL *NONE *MSGDTA *ESCAPE *GT 50))
+WCHMSGQ((*JOBLOG))
+WCHJOB((*ALL/MYUSER/*ALL))
+
+This command starts a watch session to call MYLIB/EXTPGM user exit program when any diagnostic, status or escape message with a severity code greater than 50 is sent to a job log running under MYUSER user profile.
+
+Example 5: Start a Watch for a LIC Log Entry
+
+STRWCH SSNID(LICLOGSSN) WCHPGM(*LIBL/EXTPGM)
+WCHLICLOG(('99??' 9932 MYJOBNAME))
+
+This command starts LICLOGSSN to watch for a Licensed Internal Code (LIC) log entry that has a major code starting with 99 and a minor code of 9932 generated on the system. Also, the LIC log information should contain the text "MYJOBNAME". The first match of EXTPGM program found in the library list will be called notifying that the event occurred.
+
+Example 6: Start a Watch for a PAL Entry and Call Exit Program at Start and End Times
+
+STRWCH SSNID(PALSSN)
+WCHPGM(USRLIB/USRPGM)
+CALLWCHPGM(*STRWCH *ENDWCH)
+WCHPAL((B600512? MYRSC *RSCNAME))
+
+This command starts PALSSN to watch for a Product Activity Log (PAL) entry that has a system reference code starting with B600512 generated on the system. Also, the PAL resource name contains the text "MYRSC". The program USRLIB/USRPGM will be called notifying that the event occurred, but it will also be called before starting watching for any event and when the watch session is ending.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0006
+Errors occurred in command.
+
+CPF2401
+Not authorized to library &1.
+
+CPF2403
+Message queue &1 in &2 not found.
+
+CPF2408
+Not authorized to message queue &1.
+
+CPF39E3
+Session ID &1 already exists.
+
+CPF39E4
+Specify Watch for message, LIC log entry or PAL entry.
+
+CPF39E5
+No active jobs found, watch session not started.
+
+CPF39E6
+The user does not have the required authority.
+
+CPF39E7
+Invalid session identifier.
+
+CPF39E8
+Not enough authority to watch operations.
+
+CPF39E9
+*JOBCTL special authority required.
+
+CPF3958
+Not authorized to use program &1 in library &2.
+
+CPF39D0
+Watch for event function cannot start. Reason code &1.
+
+CPF39D1
+Limit exceeded for jobs watching for events.
+
+CPF3C20
+Error found by program &1.
+
+CPF9811
+Program &1 in library &2 not found.
+
+Top

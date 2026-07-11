@@ -1,0 +1,468 @@
+Vary Configuration (VRYCFG)
+
+Vary Configuration (VRYCFG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Vary Configuration (VRYCFG) command varies on or off one or more configuration objects, with the capability of also varying on the downline attached configuration objects. The VRYCFG command also optionally resets the input/output processor (IOP) associated with the specified object.
+
+The configuration objects that can be varied on or off are network server descriptions, lines, controllers, and devices. This command applies to all lines, controllers and devices on the system.
+
+For the configuration object type of media library resource, this command can be used to reset the drives within a tape media library device or change the allocation of drives within a tape media library device or an optical media library device. To determine the current allocation of drive resources, use the Work with Media Library Status (WRKMLBSTS) command.
+
+Downline attached objects can be varied on or off along with the specified object by specifying the value *NET for the Range (RANGE) parameter. Downline attached objects of a line are all the attached controllers and all the devices attached to the controllers. Downline attached objects of a controller are all the attached devices. Devices do not have downline attachments. The RANGE parameter has no affect when varying devices.
+
+Varying on lines synchronously or asynchronously can be controlled by the Vary on wait (VRYWAIT) parameter. This applies only to Ethernet, BSC, and Async line descriptions. The value specified for the VRYWAIT parameter determines how long the system will wait until either the object goes to varied on before completing the vary on command, or until the timer expires.
+
+The VRYCFG command can also be used to reset input/output processors. An IOP can be a communications controller, a local work station controller, or a magnetic media controller. An IOP reset is valid only when the following are being varied on:
+
+- Communications controllers
+
+- Lines
+
+- Local work station controllers
+
+- Tapes
+
+A network server description of type *ISCSI cannot be varied on:
+
+- Until the Network Server Host Adapter Device Description is varied on.
+
+A line cannot be varied on:
+
+- Until the Network Server Description is varied on.
+
+- Until a dial connection has been completed, in the case of switched lines.
+
+A controller cannot be varied on:
+
+- If the line to which it is attached is varied off, in the case of nonswitched lines.
+
+- Until a dial connection has been completed, in the case of switched lines.
+
+A device cannot be varied on:
+
+- If the controller to which it is attached is varied offline. In the case of some tape devices, they are not attached to a controller, so this restriction does not apply.
+
+A network server description cannot be varied off:
+
+- Until all attached devices and controllers are varied off. Varying off the network server description also varies off the attached line descriptions.
+
+Note: Use the Work with Network Service Status (WRKNWSSTS) command (available from Work with Configuration Status display) to determine the status of network server sessions with other clients.
+
+A line cannot be varied off:
+
+- Until all the attached controllers and devices are varied off.
+
+A controller cannot be varied off:
+
+- If it is being used, or is allocated for use.
+
+- Until all the attached devices are varied off.
+
+A device cannot be varied off:
+
+- If it is being used, or is allocated for use.
+
+A network server host adapter device cannot be varied off:
+
+- If any network server description that is using it is varied on.
+
+When the RANGE parameter is used:
+
+- For devices: The value *NET to vary on or off downline attached objects has no effect. Devices do not have downline attached objects.
+
+- For switched lines: The value *NET, only when varying on, has no effect. The value *NET, when varying off, will vary off the line and its downline attached objects.
+
+When the VRYWAIT parameter is used:
+
+- The time to vary on a line is the time it takes to put tasks in place to manage the line, the time to activate the communications I/O processor (IOP), including download of the IOP program, the time to establish communications with the data circuit-terminating equipment (DCE), and so on.
+
+- Line vary on time does not include telephone dialing time; however, a powered off modem may prevent vary on completion and cause the wait time to expire. If the timer expires, an informational message will be sent to the QSYSOPR message queue. This will be followed by the vary on completion message.
+
+- If the VRYWAIT parameter is specified on the VRYCFG command for a line description that is not Ethernet, or switched BSC, or Async, the parameter is accepted but ignored.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CFGOBJ | Configuration object | Single values: *APPN, *PRVCFGTYPE
+Other values (up to 256 repetitions): Generic name, name | Required, Positional 1
+CFGTYPE | Type | *NWS, *LIN, *CTL, *DEV, *MLBRSC | Required, Positional 2
+STATUS | Status | *ON, *OFF, *RESET, *ALLOCATE, *UNPROTECTED, *DEALLOCATE | Required, Positional 3
+RANGE | Range | *NET, *OBJ | Optional
+VRYWAIT | Vary on wait | 15-180, *CFGOBJ, *NOWAIT | Optional
+ASCVRYOFF | Asynchronous vary off | *NO, *YES | Optional
+RESET | Reset | *NO, *YES | Optional
+RSRCNAME | Resource name | Single values: *ALL
+Other values (up to 16 repetitions): Name | Optional
+FRCVRYOFF | Forced vary off | *NO, *YES, *LOCK | Optional
+SBMMLTJOB | Submit multiple jobs | *NO, *YES | Optional
+JOBD | Job description | Qualified object name | Optional
+Qualifier 1: Job description | Name, QBATCH
+Qualifier 2: Library | Name, *LIBL
+GENPTHCERT | Generate path certificate | *NO, *YES | Optional
+RESETSYS | Reset system | *NO, *YES | Optional
+
+Top
+
+Configuration object (CFGOBJ)
+
+Specifies the configuration objects to be varied.
+
+This is a required parameter.
+
+Single values
+
+*APPN
+All objects that use Advanced Peer-to-Peer Networking (APPN) will be varied on or off. This value is only valid if CFGTYPE is *CTL or *DEV.
+
+*PRVCFGTYPE
+Process all objects that were processed the last time this command was run in this job for the specified configuration object type.
+
+Other values (up to 256 repetitions)
+
+generic-name
+Specify a generic name of the configuration objects to be varied.
+
+Note: A generic name is specified as a character string that contains one or more characters followed by an asterisk (*). If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+
+name
+Specify the name of the configuration object to be varied.
+
+Top
+
+Type (CFGTYPE)
+
+Specifies the type of object to be varied.
+
+This is a required parameter.
+
+*NWS
+The network server description is varied on or off.
+
+*LIN
+A line description is varied on or off.
+
+*CTL
+A controller description is varied on or off.
+
+*DEV
+A device description is varied on or off.
+
+*MLBRSC
+The status for drives within a media library is changed.
+
+Top
+
+Status (STATUS)
+
+Specifies whether to vary the object on or off.
+
+This is a required parameter.
+
+*ON
+The object is varied on.
+
+*OFF
+The object is varied off.
+
+*RESET
+The drive resources of the tape media library device are reset.
+
+Note: The drive resources must be specified for the Resource name (RSRCNAME) parameter.
+
+The media library device must be varied on before this value can be specified.
+
+*ALLOCATE
+For tape, the drive resources of the tape media library device are allocated for use only by this system. If the library device is shared by multiple systems, other systems cannot use these drives while this device description is varied on. For optical, the drive resources of the optical media library device are allocated for use. The drive resources are only available for use by this media library device.
+
+Note: The drive resources must be specified for the Resource name (RSRCNAME) parameter.
+
+*UNPROTECTED
+The drive resources of the tape media library device can be used by all systems that share this library device.
+
+Note: The drive resources must be specified for the Resource name (RSRCNAME) parameter.
+
+*DEALLOCATE
+For tape, the drive resources of the tape media library device are deallocated for this system. If the tape media library is shared by multiple systems, the drives cannot be used by this system, but can be used by other systems. For optical, the drive resources of the optical media library resource are deallocated for the media library resource. The drives are not available for use by another optical media library device.
+
+Note: The drive resources must be specified for the Resource name (RSRCNAME) parameter.
+
+Top
+
+Range (RANGE)
+
+Specifies what configuration elements are varied.
+
+*NET
+All downline attached configuration elements are varied.
+
+*OBJ
+Only the specified object is varied.
+
+Top
+
+Vary on wait (VRYWAIT)
+
+Specifies whether the object is varied on asynchronously or synchronously. For synchronous vary on, specifies how long the system waits for the vary on to complete.
+
+*CFGOBJ
+The system uses the value specified for the Vary on wait (VRYWAIT) parameter in the line description.
+
+*NOWAIT
+Do not wait for vary on completion. The line will vary on asynchronously.
+
+15-180
+Specify the number of seconds to wait. The system will wait until either the timer expires or until the line goes to varied on, before completing the VRYCFG command.
+
+Top
+
+Asynchronous vary off (ASCVRYOFF)
+
+Specifies whether the object is varied off synchronously or asynchronously.
+
+*NO
+The object is varied off synchronously.
+
+*YES
+The object is varied off asynchronously.
+
+Top
+
+Reset (RESET)
+
+Specifies if a reset is to be done for the IOP associated with the object.
+
+*NO
+The associated IOP is not reset.
+
+*YES
+The associated IOP is reset.
+
+Top
+
+Resource name (RSRCNAME)
+
+Specifies the drives within the media library device to be reset or reallocated.
+
+Single values
+
+*ALL
+All drives within the media library device are to be reset or reallocated.
+
+Other values (up to 16 repetitions)
+
+name
+Specify the name of the drive within the media library device to be reset or reallocated.
+
+Top
+
+Forced vary off (FRCVRYOFF)
+
+Specifies whether inquiry messages for active jobs will be issued. This parameter is not allowed when STATUS(*ON) is specified.
+
+Notes:
+
+- This parameter is valid for STATUS(*DEALLOCATE) only when a tape media library object is specified for the Configuration object (CFGOBJ) parameter.
+
+- For any value other than *NO, the ability to reject the vary request through a user exit program is revoked. See the QIBM_QDC_VRYEXIT exit point documentation in the i5/OS Information Center for additional information on vary configuration exit point processing.
+
+*NO
+Inquiry messages for active jobs will be issued.
+
+*YES
+Inquiry messages for active jobs will not be issued and the jobs will be ended.
+
+*LOCK
+For devices other than APPC, Intra, NWSH, and MLB an attempt will be made to get a lock on the device description no matter what its current status might be. If the lock is successfully obtained, it will be transferred to the system job assigned to hold the device description lock when the device is in a varied off state. If the device is in a state other than varied off, an attempt to vary off the device description will also be made.
+
+Top
+
+Submit multiple jobs (SBMMLTJOB)
+
+Specifies whether or not to submit multiple batch jobs to vary the specified network server or auxiliary storage pool (ASP) device description objects. This parameter is valid only when *NWS or *DEV is specified for the Type (CFGTYPE) parameter.
+
+*NO
+All specified network server or auxiliary storage pool (ASP) device descriptions will be varied synchronously in the job under which the original VRYCFG command was issued.
+
+*YES
+A new VRYCFG command will be submitted in batch for each network server or auxiliary storage pool (ASP) description specified.
+
+Top
+
+Job description (JOBD)
+
+Specifies the job description to which multiple VRYCFG commands will be submitted in batch. This parameter is valid only when CFGTYPE is *NWS or *DEV and SBMMLTJOB is *YES.
+
+Qualifier 1: Job description
+
+QBATCH
+Job description QBATCH is used as the job description of the submitted job. Note that the QBATCH job description, as shipped with the system, specifies job queue QBATCH which is configured to allow a maximum of 1 job to run at a time.
+
+name
+Specify the name of the job description used for the submitted job. In order to run several varies in parallel a job description could be created to pass jobs to the job queue QSYS/QUSRNOMAX which is shipped with no maximum on the number of active jobs:
+
+CRTJOBD JOBD(QSYS/QUSRNOMAX) JOBQ(QSYS/QUSRNOMAX)
+
+Other considerations are that the subsystem that allocates the job queue should not have the queue in a held state and the system should not be in a restricted state.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+name
+Specify the name of the library where the job description is located.
+
+Top
+
+Generate path certificate (GENPTHCERT)
+
+Specifies whether to generate a new set of certificates on a remote network server system. This parameter is valid only when CFGTYPE is *NWS and the STATUS is *ON.
+
+*NO
+The set of certificates is not generated.
+
+*YES
+The set of certificates is generated.
+
+Note: You must have input/output system configuration (*IOSYSCFG) and security administrator (*SECADM) special authority to use this parameter value.
+
+Top
+
+Reset system (RESETSYS)
+
+Specifies whether to force a reset of the remote network server system, regardless of its current power state. This is an advanced function, caution is advised when this option is selected. This parameter is valid only when CFGTYPE is *NWS and the network server description is of type *ISCSI and the STATUS is *ON.
+
+*NO
+The system is not reset.
+
+*YES
+The system is reset.
+
+Note: You must have all object (*ALLOBJ) special authority to use this parameter value.
+
+Top
+
+Examples
+
+Example 1: Varying Off the Line and Attached Downline Objects
+
+VRYCFG CFGOBJ(LINE1) CFGTYPE(*LIN) STATUS(*OFF)
+
+This command varies off the line and all attached downline objects. The RANGE parameter took the default value of *NET.
+
+Example 2: Varying on the Controller
+
+VRYCFG CFGOBJ(CONTROLLER1) CFGTYPE(*CTL) STATUS(*ON)
+RANGE(*OBJ)
+
+This command varies on only the controller.
+
+Example 3: Varying on the Device
+
+VRYCFG CFGOBJ(DEVICE1) CFGTYPE(*DEV)
+STATUS(*ON) RANGE(*NET)
+
+This command varies on only the device. Note the RANGE parameter value has no effect on devices.
+
+Example 4: Varying on the Line and Resetting the IOP
+
+VRYCFG CFGOBJ(LINE1) CFGTYPE(*LIN) STATUS(*ON)
+RANGE(*OBJ) RESET(*YES)
+
+This command varies on only the line and resets the associated IOP.
+
+Example 5: Using Line Description Value for Wait Time
+
+VRYCFG CFGOBJ(LINE1) OJBTYPE(*LIN) STATUS(*ON)
+RANGE(*OBJ) VRYWAIT(*CFGOBJ)
+
+This command varies on only the line and uses the vary wait time value specified in the line description for LINE1.
+
+Example 6: Using 80 Seconds as Vary Wait Time
+
+VRYCFG CFGOBJ(LINE1) CFGTYPE(*LIN) STATUS(*ON)
+RANGE(*OBJ) VRYWAIT(80)
+
+This command varies on only the line using 80 seconds as the vary wait time value.
+
+Example 7: Varying on a Network Server Description
+
+VRYCFG CFGOBJ(SERVER1) CFGTYPE(*NWS) STATUS(*ON)
+
+This command varies on the network server description named SERVER1 and its attached line descriptions. The vary on wait value specified in the network server description is used. Note that the RANGE and RESET parameters are ignored for network servers if they are specified.
+
+Example 8: Resetting Drives Within a Media Library
+
+VRYCFG CFGOBJ(MYLIBRARY) CFGTYPE(*MLBRSC) STATUS(*RESET)
+RSRCNAME(TAP01 TAP02)
+
+This command resets the drives TAP01 and TAP02 within the media library device MYLIBRARY. The device MYLIBRARY must be varied on to perform this action.
+
+Example 9: Deallocating Drives Within a Media Library
+
+VRYCFG CFGOBJ(MYLIBRARY) CFGTYPE(*MLBRSC)
+STATUS(*DEALLOCATE) RSRCNAME(OPT02)
+
+This command deallocates drive OPT02 within the media library device MYLIBRARY. The device MYLIBRARY must be varied on to perform this action.
+
+Example 10: Varying On Multiple Network Server Descriptions in Parallel
+
+VRYCFG CFGOBJ(IPCS*) CFGTYPE(*NWS) STATUS(*ON)
+SBMMLTJOB(*YES) JOBD(*LIBL/QBATCH)
+
+This command submits a separate batch job to perform the vary on for each network server description which has a name that begins with IPCS. The number of jobs that run in parallel depends on the configuration of the subsystem being used.
+
+Example 11: Reset Certificates when Varying On Network Server Description
+
+VRYCFG CFGOBJ(SERVER1) CFGTYPE(*NWS) STATUS(*ON)
+GENPTHCERT(*YES)
+
+This command will vary on the network server description and request that a new set of certificates are generated during the vary on.
+
+Example 12: Restart Remote Integrated Server at Vary on of Server Description
+
+VRYCFG CFGOBJ(SERVER1) CFGTYPE(*NWS) STATUS(*ON)
+RESETSYS(*YES)
+
+This command will vary on the network server description and request reset of the remote integrated server during the vary on of SERVER1.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF26AF
+Status of drive resources in device description &1 not changed.
+
+CPF26B6
+Initialization program has ended with a hard error.
+
+CPF26B7
+Initialization program ended with soft error.
+
+CPF262E
+Error occurred during vary on at IPL processing.
+
+CPF262F
+QDCTRF stopped due to failure.
+
+CPF2640
+Vary command not processed.
+
+CPF2659
+Vary command may not have completed.
+
+Top

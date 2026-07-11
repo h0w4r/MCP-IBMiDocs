@@ -1,0 +1,204 @@
+Reclaim Resources (RCLRSC)
+
+Reclaim Resources (RCLRSC)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Reclaim Resources (RCLRSC) command is intended for use by the controlling program in an application to free resources that were allocated by programs that have finished running and returned control to the controlling program. The resources used by these programs can then be used by other programs running on the system. Based on the reference level specified by the LVL parameter, this command reclaims resources that are scoped to the default activation group. This command does not reclaim resources that are scoped to the job or resources that are scoped to any activation group other than the default activation group. The resources that are reclaimed by this command are:
+
+- static storage
+For an original program model (OPM) program, its static storage will be reclaimed. For a user state Integrated Language Environment (ILE) program, its static storage will be marked so that it will be re-initialized on the next call. Static storage is not affected for a service program, a system state ILE program, or any ILE program running in an activation group other than the default activation group.
+
+- open files of object type *FILE
+
+- user interface manager (UIM) application resources
+
+- Common Programming Interface (CPI) Communications conversations
+
+- hierarchical file systems (HFS) resources
+
+- user-defined communications sessions.
+
+In addition, after distributed data management (DDM) files are closed based on the criteria described above, all DDM source system conversations in this job that are not currently in use will be ended, regardless of the activation group or reference level from which they were started.
+
+The RCLRSC command is not needed to reclaim the files and static storage of most programs, such as CL programs that end (return) normally, RPG programs that have the last record (LR) indicator set on, and COBOL programs. The RCLRSC command should not be used if it might be processed while any COBOL program is still active in the application.
+
+For more information on the appropriate use of this command, see the documentation associated with the programming language(s) used in the application.
+
+Restrictions:
+
+- This command is not threadsafe. However, it can be run in the primary thread of a multi-threaded job.
+
+- Do not specify LVL(*CALLER) on this command if it is used in a CL program that also uses the Send File (SNDF), Receive File (RCVF), Send/Receive File (SNDRCVF) commands. Specifying RCLRSC LVL(*CALLER) in such a program causes unpredictable results when the SNDF, RCVF, or SNDRCVF commands are used after the program runs.
+
+- Do not specify LVL(*CALLER) on this command if it is issued from a command line, as this will result in unpredictable results.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+LVL | Program level | *, *CALLER | Optional, Positional 1
+OPTION | Close option | *NORMAL, *ABNORMAL | Optional
+
+Top
+
+Program level (LVL)
+
+Specifies the reference level at which resources are reclaimed.
+
+*
+The reference level is the program (OPM) or procedure (ILE) that contains this RCLRSC command. The resources are reclaimed for programs or procedures that have finished running and returned control to this program.
+
+*CALLER
+The reference level is the program (OPM) or procedure (ILE) that called the program or procedure containing this RCLRSC command. This value allows controlling programs or procedures written in a high-level language to call a CL program to reclaim resources to the level of the controlling program or procedure. The effect is the same as if the command were issued from the controlling program or procedure.
+
+Note: Using the *CALLER value can cause unexpected results when running the RCLRSC command from a command line or from within a program that works with open files.
+
+Top
+
+Close option (OPTION)
+
+Specifies whether a normal or abnormal close notification is sent to the attached host system when mixed, communications, binary synchronous (BSC), and intersystem communications function (ICF) files are closed. This parameter is ignored for all other files and objects.
+
+*NORMAL
+The attached host system is given a normal close notification when mixed, communications, BSC, and ICF files are closed.
+
+*ABNORMAL
+The attached host system is given an abnormal close notification when mixed, communications, BSC, and ICF files are closed. Use this when the controlling program detects error conditions that should be communicated to the host systems (the error condition need not be file-related).
+
+Top
+
+Examples
+
+Example 1 (OPM)
+
+PROGA
+:
+CALL PROGB
+RCLRSC
+:
+CALL PROGC
+RCLRSC
+:
+
+In this example, PROGA is a controlling program in an application. PROGA calls other programs, which return control to PROGA when they have finished running. Because control is returned to the next sequential instruction, the RCLRSC command is issued following each CALL command to free the static storage that was used by the called program, and to close the files that were left open.
+
+Example 2 (OPM)
+
+PROGA +------PROGD
++-----------+ | +---------------------+
+| . | | | RCLRSC LVL(*CALLER) |
+| . | | +-| RETURN |
+|CALL PROGB | | | +---------------------+
+| . | | |
+| . | | |
+|CALL PROGC | | |
+| . | | |
+| . | | |
+|CALL PROGD-+-+ |
+| . <-------+----+
++-----------+
+
+In this example, PROGA is a controlling program that is written in a high-level language. The RCLRSC command cannot be issued from the high-level language program so PROGD, a CL program, is called to issue the command. When the RCLRSC command is issued in PROGD, the static storage used by PROGB and PROGC is freed; files that were left open are closed.
+
+Example 3 (OPM)
+
+PROGA +------->PROGB
++------------+ | +------------+
+| . | | | . |
+| . | | | . |
+|CALL PROGB--+-+ |CALL PROGC--+--+
+| . <--------+----+ | . <--------+--+-+
+|RCLRSC | +-----|RETURN | | |
++------------+ +------------+ | |
+| |
+| |
+PROGC<----------+ |
++---------+ |
+| . | |
+| . | |
+|RETURN---+-------+
++---------+
+
+In this example, PROGA is a controlling program. When the RCLRSC command is issued, the static storage used by PROGB and PROGC is freed; files that were left open are closed.
+
+Example 4 (OPM)
+
+PROGA PROGC
++--------------+ +-------------+
+| . | | . |
+| . | | . |
+| CALL PROGB | | CALL PROGB |
+| | | |
+| TFRCTL PROGC | | RCLRSC |
++--------------+ +-------------+
+
+In this example, PROGA calls PROGB and, after returning from PROGB, PROGA transfers to program PROGC. Because PROGB has already been called, static storage exists, and the call to PROGB from PROGC does not cause any new allocation for static storage; PROGC cannot reclaim the static storage used by PROGB. If PROGB opened files when it was called by PROGA, these files would remain open; if PROGB opened files when it was called by PROGC, these files are closed.
+
+Example 5 (OPM)
+
+In this example, PROGA calls PROGB, which in turn calls PROGC. PROGC opens a file. Control returns to PROGA. PROGA calls PROGB a second time, and PROGB invokes RCLRSC. Since RCLRSC is based upon the position in the stack of the current invocation of a program, the file opened by PROGC is not affected. PROGC was invoked earlier than the current PROGB. In order for RCLRSC to close the file, the RCLRSC command will have to be invoked by PROGA.
+
+Example 6 (OPM & ILE)
+
+Default Activation Group
++----------------------------+
+| PROGA |
+| +------------+ |
+| | CALL PROGB |--+ |
+| | . | | | Activation Group AG1
+| | . | | | +----------------------+
+| | RCLRSC |<-+----+ | | |
+| +------------+ | | | | |
+| | | | +-----+-> PROCD |
+| | | | | | +------------+ |
+| | | | | | | . | |
+| PROGB <----+ | | | | | . | |
+| +------------+ | | | | | . | |
+| | CALL PROCC |---+ | | | +--+----| RETURN | |
+| | . | | | | | | | +------------+ |
+| | . |<--+-+ | | | | | |
+| | RETURN |---+-+-+ | | | | |
+| +------------+ | | | | | | |
+| | | | | | +----------------------+
+| | | | | |
+| | | | | |
+| PROCC <-----+ | | | |
+| +------------+ | | | |
+| | CALL PROCD | | | | |
+| | . |-----+----+--+ |
+| | . |<----+----+-----+
+| | RETURN |-----+ |
+| +------------+ |
++----------------------------+
+
+This example shows how ILE procedures and activation groups are affected by the RCLRSC command.
+
+In this example, PROGA is a program running in the default activation group. PROGA calls program PROGB which runs in the default activation group. PROGB calls ILE procedure PROCC which runs in the default activation group. PROCC calls ILE procedure PROCD which causes activation group AG1 to be created. PROCD returns to PROCC. PROCC returns to PROGB. PROGB returns to PROGA, which then calls the RCLRSC command.
+
+PROGA calls the RCLRSC command. Any resources in use by PROGA are still open, since PROGA is still in use. Any resources by program PROGB or procedure PROCC are reclaimed, since the program and procedure ran in the default activation group and are no longer active. Any resources opened by procedure PROCD are left alone, since procedure PROCD ran in activation group AG1 and only the default activation group is affected by the RCLRSC command.
+
+Any other use of the RCLRSC command can result in files remaining open and storage remaining allocated.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF180C
+Function &1 not allowed.
+
+CPF1892
+Function &1 not allowed.
+
+Top

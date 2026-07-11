@@ -1,0 +1,613 @@
+Change Attribute (CHGATR)
+
+Change Attribute (CHGATR)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Change Attribute (CHGATR) command allows a single attribute to be changed for a single object or a group of objects. An object name pattern can be used to change a single attribute for a group of related objects.
+
+The CHGATR command can also be used to change an attribute of a directory tree where the specified directory, its contents, and the contents of all of its subdirectories have the attribute changed. If SUBTREE(*ALL) is specifed, the command will attempt to change the attribute for as many objects as possible within the subtree. A diagnostic message will be sent for each object that could not have its attribute changed. When all of the objects have been attempted, an escape message will be sent if there were any errors. If all of the objects had the attribute changed with no errors, then a completion message will be sent.
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- The user must have execute (*X) authority to the directories in the path name prefixes, except when changing the *CRTOBJAUD attribute.
+
+- When doing subtree processing, the user must have read (*R) and *X authorities to the path name and all subdirectories within that path, except when changing the *CRTOBJAUD attribute.
+
+- The user must have all object (*ALLOBJ) and security administrator (*SECADM) special authorities when changing the *CRTOBJSCAN, *SCAN, *RUNEXIT, or *CRTRUNEXIT attributes.
+
+- The user must either own the object or have all object (*ALLOBJ) special authority in order to set the *RSTDRNMUNL, *SETUID, and *SETGID attributes for that object.
+
+- The user must have audit (*AUDIT) special authority in order to set the *CRTOBJAUD attribute for the directory object.
+
+- For all file systems, except QSYS.LIB, independent ASP QSYS.LIB, and QDLS, the user must have object management (*OBJMGT) authority to the object when changing the *ALWCKPWRT, *INHCKPWRT, *ALWSAV, *USECOUNT, *DISKSTGOPT or *MAINSTGOPT attributes.
+
+- For all file systems, except QSYS.LIB, independent ASP QSYS.LIB, and QDLS, the user must have write (*W) authority to the object when changing any attribute unless noted otherwise.
+
+- Changing attribute *INHCKPWRT or *CRTRUNEXIT for an object that is not a directory fails and returns error messages CPFA0AD and CPFB414.
+
+- QSYS.LIB and independent ASP QSYS.LIB file systems require the user to have object operational (*OBJOPR) and object management (*OBJMGT) authorities to change the *USECOUNT attribute if the object type is *FILE, to have *X and *OBJMGT authorities to change *USECOUNT if the object is a database file member, and to have *OBJMGT authority to change *USECOUNT if the object is neither a *FILE or database file member.
+
+- QDLS file system requires the user to have *W and *OBJMGT authorities to change the *USECOUNT attribute.
+
+- This command is conditionally threadsafe. The following restriction applies:
+This command is not threadsafe if the object on which this function is operating resides in a file system that is not threadsafe. Only the following file systems are threadsafe for this function:
+
+"Root" (/)
+
+QOpenSys
+
+User-defined
+
+QNTC
+
+QSYS.LIB
+
+Independent ASP QSYS.LIB
+
+QOPT
+
+Network File System
+
+QFileSvr.400
+
+"Root" (/), QOpenSys, and User-Defined File System Differences
+
+- The *USECOUNT attribute is supported for objects of type *STMF only. Attempts to set them on other objects will result in the operation failing.
+
+- The *YES value cannot be specified for the *ALWSAV attribute for /dev/null, /dev/zero or objects of type *SOCKET. Attempts to set it on these objects will result in the operation failing.
+
+- The *YES value cannot be specified for the *RUNEXIT attribute for objects of type *SOCKET or *SYMLNK. Attempts to set it on these objects will result in the operation failing.
+
+- The *SETGID attribute of the directory affects what the group ID (GID) is for objects that are created in the directory. If the *SETGID attribute of the parent directory is off, the GID is set to the effective GID of the thread creating the object. If the *SETGID attribute of the parent directory is on, the GID of the new object is set to the GID of the parent directory. For all other file systems, the GID of the new object is set to the GID of the parent directory.
+
+- When setting the *RSTDRNMUNL, *SETUID, or *SETGID attributes on an object that has a primary group, it must match the primary group ID or one of the supplemental group IDs of the caller of this command; otherwise, the *SETGID attribute is set to *NO.
+
+QSYS.LIB and Independent ASP QSYS.LIB File System Differences
+
+- The following attributes may be set on objects in these file systems:
+
+*CRTOBJAUD
+
+*USECOUNT
+When the *USECOUNT attribute of a database file is set, all members in that file will have their days used count reset to 0 also.
+
+*TEXT
+
+- QSYS.LIB and independent ASP QSYS.LIB do not support setting the *SETUID or *SETGID attributes. They will be ignored if specified.
+
+- Attempting to set any other attribute will result in the operation failing.
+
+Network File System Differences
+
+- When the following attributes are specified for objects in the Network File System, the operation will fail if the attribute is not set to the following attribute value.
+
+If set, *READONLY must be set to an attribute value of *NO.
+
+If set, *HIDDEN must be set to an attribute value of *NO.
+
+If set, *PCSYSTEM must be set to an attribute value of *NO.
+
+If set, *PCARCHIVE must be set to an attribute value of *NO; however, if the object is of type *STMF, the attribute value must be *YES.
+
+If set, *SYSARCHIVE must be set to an attribute value of *NO.
+
+The *USECOUNT, *CCSID, *ALWSAV, *ALWCKPWRT, *DISKSTGOPT, *MAINSTGOPT, *CRTOBJAUD, *INHCKPWRT, *RUNEXIT, and *CRTRUNEXIT attributes cannot be set on objects within the Network File System or they will result in the operation failing.
+
+- The NFS client supports the *SETUID, *SETGID, and *RSTDRNMUNL attributes by passing them to the server over the network and surfacing them to the caller. Whether a particular network file system supports the setting of these attributes depends on the server. Most servers have the capability of masking off the *SETUID and *SETGID attributes if the NOSUID option is specified on the export. The default, however, is to support these attributes.
+
+QOPT File System Differences
+
+- If *YES is specified for the *ALWSAV attribute, the operation will fail.
+
+- QOPT does not support setting the *SETUID, *SETGID, *RSTDRNMUNL, *CRTOBJAUD, *RUNEXIT, and *CRTRUNEXIT attributes for any optical media format. If any of these attributes are specified, the operation will fail.
+
+QDLS File System Differences:
+
+- The following attributes may be set on objects in this file system:
+
+*CCSID
+
+*HIDDEN
+
+*PCARCHIVE
+
+*READONLY
+
+*SYSARCHIVE
+
+*USECOUNT (for documents only)
+
+*TEXT
+
+*RUNEXIT
+
+*CRTRUNEXIT
+
+Attempting to set any other attribute other than the *SETUID or *SETGID attributes will result in the operation failing.
+
+- QDLS does not support setting the *SETUID or *SETGID attributes. They will be ignored if specified.
+
+QFileSvr.400 Differences
+
+- The following attributes may be set on objects in this file system:
+
+*CCSID
+
+*CRTOBJAUD
+
+Note: The QSECOFR user profiles on the source and target system must be enabled, and their passwords must match for the *CRTOBJAUD attribute change to succeed.
+
+*CRTOBJSCAN
+
+*HIDDEN
+
+*PCARCHIVE
+
+*PCSYSTEM
+
+*READONLY
+
+*SCAN
+
+*SYSARCHIVE
+
+Attempting to set any other attribute other than the *SETUID, *SETGID, and *RSTDRNMUNL attributes will result in the operation failing.
+
+- QFileSvr.400 supports the *SETUID, *SETGID, and *RSTDRNMUNL attributes by passing them to the server and surfacing them to the caller.
+
+QNTC Differences
+
+- QNTC supports the setting of the following attributes by passing them to the server and surfacing them to the caller.
+
+*HIDDEN
+
+*PCARCHIVE
+
+*PCSYSTEM
+
+*READONLY
+
+Attempting to set any other attribute other than the *SETUID or *SETGID attributes will result in the operation failing.
+
+- QNTC does not support setting the *SETUID or *SETGID attributes. They will be ignored if specified.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Path name | Required, Positional 1
+ATR | Attribute | *READONLY, *HIDDEN, *PCSYSTEM, *PCARCHIVE, *SYSARCHIVE, *CCSID, *ALWCKPWRT, *USECOUNT, *DISKSTGOPT, *MAINSTGOPT, *CRTOBJSCAN, *SCAN, *ALWSAV, *RSTDRNMUNL, *SETUID, *SETGID, *CRTOBJAUD, *INHCKPWRT, *TEXT, *RUNEXIT, *CRTRUNEXIT | Required, Positional 2
+VALUE | New value | 1-65533, *YES, *NO, *RESET, *NORMAL, *MINIMIZE, *DYNAMIC, *CHGONLY, *SYSVAL, *NONE, *USRPRF, *ALL, *CHANGE | Required, Positional 3
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+SYMLNK | Symbolic link | *NO, *YES | Optional
+TEXT | Text | Character value, *BLANK | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies the path name of the object or a pattern to match the name of the objects to have the attribute changed. The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Attribute (ATR)
+
+Specifies the attribute to be changed.
+
+*READONLY
+Whether the object can be written to or deleted, have its extended attributes changed or deleted, or have its size changed.
+Allowed values for the New value (VALUE) parameter are:
+
+*YES
+The object cannot be changed or deleted.
+
+*NO
+The object can be changed or deleted.
+
+*HIDDEN
+Whether the object can be displayed using an ordinary directory list.
+Allowed values for the VALUE parameter are:
+
+*YES
+The object is hidden and cannot be displayed using an ordinary directory listing.
+
+*NO
+The object is not hidden and can be displayed using an ordinary directory listing.
+
+*PCSYSTEM
+Whether the object is a PC system file and is excluded from normal directory searches.
+Allowed values for the VALUE parameter are:
+
+*YES
+The object is a PC system file.
+
+*NO
+The object is not a PC system file.
+
+*PCARCHIVE
+Whether the object has changed since the last time the file was saved or reset by a PC client.
+Allowed values for the VALUE parameter are:
+
+*YES
+The object has changed.
+
+*NO
+The object has not changed.
+
+*SYSARCHIVE
+Whether the object has changed and needs to be saved. It is set on when an object's change time is updated, and set off when the object has been saved.
+Allowed values for the VALUE parameter are:
+
+*YES
+The object has changed and does need to be saved.
+
+*NO
+The object has not changed and does not need to be saved.
+
+*CCSID
+The coded character set identifier (CCSID) of the data and extended attributes of the object.
+
+Note: Changing the CCSID does not convert the data or the extended attributes. Changing the CCSID only changes the value associated with the object. This also applies to the data contained in the extended attributes associated with the object.
+
+Allowed values for the VALUE parameter are:
+
+1-65533
+The CCSID of the data and extended attributes of the object.
+
+*ALWCKPWRT
+If the object is a stream file, indicates whether the stream file can be shared with readers and writers during save-while-active checkpoint processing. If the object is a directory, indicates whether links can be added, removed, or renamed in the directory during a save-while-active operation. Changing this attribute's current value may cause unexpected results. Please refer to the Recovering your system book, SC41-5304 for details on this attribute.
+Allowed values for the VALUE parameter are:
+
+*YES
+If the object is a stream file, it can be shared with readers and writers during save-while-active checkpoint processing. If the object is a directory, links can be added, removed, or renamed in the directory during a save-while-active operation.
+
+*NO
+If the object is a stream file, it can be shared with readers only during save-while-active checkpoint processing. If the object is a directory, links can not be added, removed, or renamed in the directory during a save-while-active operation.
+
+*INHCKPWRT
+Specifies whether new objects created within a directory should inherit the save-while-active checkpoint processing options of its parent.
+This attribute can only be specified for directories in the "root" (/), QOpenSys, and user-defined file systems.
+
+Allowed values for the VALUE parameter are:
+
+*YES
+New directory objects created within this directory will have the *INHCKPWRT attribute value set to *YES. New objects created within this directory will have the *ALWCKPWRT attribute value set to *YES.
+
+*NO
+New directory objects created within this directory will have the *INHCKPWRT attribute value set to *NO. New objects created within this directory will have the *ALWCKPWRT attribute value set to *NO.
+
+*USECOUNT
+The count of the number of days an object has been used. Usage has different meanings according to the file system and according to the individual object types supported within a file system. Usage can indicate opening or closing of a file or can refer to adding links, renaming, restoring, or checking out of an object. When this attribute is changed, the count of the number of days used will be reset to zero and the use count date will be set to the current date.
+Allowed value for the VALUE parameter is:
+
+*RESET
+The count of the number of days used will be reset to zero and the use count date will be set to the current date.
+
+*DISKSTGOPT
+This determines how auxiliary storage is allocated by the system for the specified object. The option will take effect immediately and be part of the next auxiliary storage allocation for the object. This option can only be specified for stream files in the "root" (/), QOpenSys and user-defined file systems. This option will be ignored for *TYPE1 stream files.
+Allowed values for the VALUE parameter are:
+
+*NORMAL
+The auxiliary storage will be allocated normally. That is, as additional auxiliary storage is required, it will be allocated in logically sized extents to accommodate the current space requirement, and anticipated future requirements, while minimizing the number of disk input/output (I/O) operations. If the *DISKSTGOPT attribute has not been specified for an object, this value is the default.
+
+*MINIMIZE
+The auxiliary storage will be allocated to minimize the space used by the object. That is, as additional auxiliary storage is required, it will be allocated in small sized extents to accommodate the current space requirement. Accessing an object composed of many small extents may increase the number of disk I/O operations for that object.
+
+*DYNAMIC
+The system will dynamically determine the optimal auxiliary storage allocation for the object, balancing space used versus disk I/O operations. For example, if a file has many small extents, yet is frequently being read and written, then future auxiliary storage allocations will be larger extents to minimize the number of disk I/O operations. Or, if a file is frequently truncated, then future auxiliary storage allocations will be small extents to minimize the space used. Additionally, information will be maintained on the stream file sizes for this system and its activity. This file size information will also be used to help determine the optimal auxiliary storage allocations for this object as it relates to the other objects' sizes.
+
+*MAINSTGOPT
+This determines how main storage is allocated and used by the system for the specified object. The option will take effect the next time the specified object is opened. This option can only be specified for stream files in the "root" (/), QOpenSys and user-defined file systems.
+Allowed values for the VALUE parameter are:
+
+*NORMAL
+The main storage will be allocated normally. That is, as much main storage as possible will be allocated and used. This minimizes the number of disk I/O operations since the information is cached in main storage. If the *MAINSTGOPT attribute has not been specified for an object, this value is the default.
+
+*MINIMIZE
+The main storage will be allocated to minimize the space used by the object. That is, as little main storage as possible will be allocated and used. This minimizes main storage usage while increasing the number of disk I/O operations since less information is cached in main storage.
+
+*DYNAMIC
+The system will dynamically determine the optimal main storage allocation for the object depending on other system activity and main storage contention. That is, when there is little main storage contention, as much storage as possible will be allocated and used to minimize the number of disk I/O operations. When there is significant main storage contention, less main storage will be allocated and used to minimize the main storage contention. This option only has an effect when the storage pool's paging option is *CALC. When the storage pool's paging option is *FIXED, the behavior is the same as *NORMAL. When the object is accessed through a file server, this option has no effect. Instead, its behavior is the same as *NORMAL.
+
+*CRTOBJSCAN
+Specifies whether the objects created in a directory will be scanned when exit programs are registered with any of the integrated file system scan-related exit points.
+The integrated file system scan-related exit points are:
+
+- QIBM_QP0L_SCAN_OPEN - Integrated File System Scan on Open Exit Program
+
+- QIBM_QP0L_SCAN_CLOSE - Integrated File System Scan on Close Exit Program
+
+For details on these exit points, see the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+This option can only be specified for directories in the "root" (/), QOpenSys and user-defined file systems. Even though this attribute can be set for *TYPE1 and *TYPE2 directories, only objects which are in *TYPE2 directories will actually be scanned, no matter what value is set for this attribute.
+
+Allowed values for the VALUE parameter are:
+
+*YES
+After an object is created in the directory, the object will be scanned according to the rules described in the scan related exit programs if the object has been modified or if the scanning software has been updated since the last time the object was scanned. If the *CRTOBJSCAN attribute has not been specified for a directory, this value is the default.
+
+*NO
+After an object is created in the directory, the object will not be scanned by the scan-related exit programs.
+
+Note: If the Scan file systems control (QSCANFSCTL) value *NOPOSTRST is not specified when an object with this attribute is restored, the object will be scanned at least once after the restore.
+
+*CHGONLY
+After an object is created in the directory, the object will be scanned according to the rules described in the scan-related exit programs only if the object has been modified since the last time the object was scanned. It will not be scanned if the scanning software has been updated. This attribute only takes effect if the Scan file systems control (QSCANFSCTL) system value has *USEOCOATR specified. Otherwise, it will be treated as if the attribute is *YES.
+
+Note: If the Scan file systems control (QSCANFSCTL) value *NOPOSTRST is not specified when an object with this attribute is restored, the object will be scanned at least once after the restore.
+
+*SCAN
+Specifies whether the object will be scanned when exit programs are registered with any of the integrated file system scan-related exit points.
+The integrated file system scan-related exit points are:
+
+- QIBM_QP0L_SCAN_OPEN - Integrated File System Scan on Open Exit Program
+
+- QIBM_QP0L_SCAN_CLOSE - Integrated File System Scan on Close Exit Program
+
+For details on these exit points, see the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+This option can only be specified for stream files in the "root" (/), QOpenSys, and user-defined file systems that are not virtual volumes or network server storage spaces. Even though this attribute can be set for *TYPE1 and *TYPE2 directories, only objects which are in *TYPE2 directories will actually be scanned, no matter what value is set for this attribute.
+
+Allowed values for the VALUE parameter are:
+
+*YES
+The object will be scanned according to the rules described in the scan related exit programs if the object has been modified or if the scanning software has been updated since the last time the object was scanned. If the *SCAN attribute has not been specified for an object, this value is the default.
+
+*NO
+The object will not be scanned by the scan-related exit programs.
+
+Note: If the Scan file systems control (QSCANFSCTL) value *NOPOSTRST is not specified when an object with this attribute is restored, the object will be scanned at least once after the restore.
+
+*CHGONLY
+The object will be scanned according to the rules described in the scan-related exit programs only if the object has been modified since the last time the object was scanned. It will not be scanned if the scanning software has been updated. This attribute only takes effect if the Scan file systems control (QSCANFSCTL) system value has *USEOCOATR specified. Otherwise, it will be treated as if the attribute is *YES.
+
+Note: If the Scan file systems control (QSCANFSCTL) value *NOPOSTRST is not specified when an object with this attribute is restored, the object will be scanned at least once after the restore.
+
+*ALWSAV
+Specifies whether the object can be saved or not.
+
+Note: It is highly recommended that this attribute not be changed for any system created objects.
+
+Allowed values for the VALUE parameter are:
+
+*YES
+This object will be saved when using the Save Object (SAV) command or the QsrSave() API. If the *ALWSAV attribute has not been specified for an object, this value is the default.
+
+*NO
+This object will not be saved when using the SAV command or the QsrSave() API.
+Additionally, if this object is a directory, none of the objects in the directory's subtree will be saved unless they were explicitly specified as an object to be saved. The subtree includes all subdirectories and the objects within those subdirectories.
+
+Note: If this attribute is chosen for an object that has private authorities associated with it, or is chosen for the directory of an object that has private authorities associated with it, then the following consideration applies. When the private authorities are saved, the fact that an object has the *ALWSAV attribute as No is not taken into consideration. (Private authorities can be saved using either the Save System (SAVSYS) or Save Security Data (SAVSECDTA) command or the Save Object List (QSRSAVO) API.) Therefore, when a private authority is restored using the Restore Authority (RSTAUT) command, message CPD3776 will be seen for each object that was not saved either because it had the *ALWSAV attribute specified as No, or because the object was not specified on the save and it was in a directory that had the *ALWSAV attribute specified as No.
+
+*RSTDRNMUNL
+Restricted renames and unlinks for objects within a directory. Objects can be linked into a directory that has this attribute set on, but cannot be renamed or unlinked from it unless one or more of the following are true for the user performing the operation:
+
+- The user is the owner of the object.
+
+- The user is the owner of the directory.
+
+- The user has all object (*ALLOBJ) special authority.
+
+This restriction only applies to directories. Other types of object can have this attribute set on, however, it will be ignored. In addition, this attribute can only be specified for objects within the Network File System (NFS), QFileSvr.400, "root" (/), QOpenSys, or user-defined file systems. Both the NFS and QFileSvr.400 file systems support this attribute by passing it to the server and surfacing it to the caller. This attribute is also equivalent to the S_ISVTX mode bit for an object.
+
+Allowed values for the VALUE parameter are:
+
+*YES
+Additional restrictions for rename and unlink operations.
+
+*NO
+No additional restrictions for rename and unlink operations.
+
+*SETUID
+Set effective user ID (UID) at execution time. This value is ignored if the specified object is a directory.
+Allowed values for the VALUE parameter are:
+
+*YES
+The object owner is the effective UID at execution time.
+
+*NO
+The UID is not set at execution time.
+
+*SETGID
+Set effective group ID (GID) at execution time.
+Allowed values for the VALUE parameter are:
+
+*YES
+If the object is a file, the GID is set at execution time. If the object is a directory, the GID of objects created in the directory is set to the GID of the parent directory.
+
+*NO
+If the object is a file, the GID is not set at execution time. If the object is a directory in the "root" (/), QOpenSys, and user-defined file systems, the GID of objects created in the directory is set to the effective GID of the thread creating the object.
+
+*CRTOBJAUD
+Specifies the auditing value of objects created in this directory.
+This attribute can only be specified for directories in the "root" (/), QOpenSys, QSYS.LIB, independent ASP QSYS.LIB, QFileSvr.400 and user-defined file systems.
+
+Allowed values for the VALUE parameter are:
+
+*SYSVAL
+The object auditing value for the objects created in the directory is determined by the Create object auditing (QCRTOBJAUD) system value.
+
+*NONE
+Using or changing this object does not cause an audit entry to be sent to the security journal.
+
+*USRPRF
+The user profile of the user accessing this object is used to determine if an audit record is sent for this access. The OBJAUD parameter of the Change User Auditing (CHGUSRAUD) command is used to change the auditing for a specific user.
+
+*CHANGE
+All change accesses to this object by all users are logged.
+
+*ALL
+All change or read accesses to this object by all users are logged.
+
+*TEXT
+Specifies a brief text string associated with the object. VALUE(*NONE) must also be specified. The value of the TEXT parameter will be used for the brief string. The allowed values for the TEXT parameter are:
+
+*BLANK
+No text is specified. If there is existing text associated with the object, it is removed.
+
+character-value
+Up to 50 characters of text may be specified. The specified text replaces any previously specified text.
+
+*RUNEXIT
+Specifies whether one or more registered exit point programs will be called when the object is opened or closed.
+The integrated file system open-related exit points are:
+
+- QIBM_QP0L_OBJ_OPEN - Integrated File System Open Exit Program
+
+- QIBM_QP0L_OBJ_CLOSE - Integrated File System Close Exit Program
+
+For details on these exit points, see the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Allowed values for the VALUE parameter are:
+
+*YES
+The exit point programs will be called before the object is opened and after the object is closed.
+
+*NO
+No exit point programs will be called when the object is opened or closed.
+
+*CRTRUNEXIT
+Specifies the *RUNEXIT value of objects created in this directory. This also specifies the *CRTRUNEXIT value of directories created in this directory.
+Allowed values for the VALUE parameter are:
+
+*YES
+All objects created in this directory will be created with a *RUNEXIT value of *YES. Also, all directories created in this directory will be created with a *CRTRUNEXIT value of *YES.
+
+*NO
+All objects created in this directory will be created with a *RUNEXIT value of *NO. Also, all directories created in this directory will be created with a *CRTRUNEXIT value of *NO.
+
+Top
+
+New value (VALUE)
+
+The value used to change the attribute for the specified objects.
+
+*YES
+Allowed for the *READONLY, *HIDDEN, *PCSYSTEM, *PCARCHIVE, *SYSARCHIVE, *ALWCKPWRT, *INHCKPWRT, *ALWSAV, *CRTOBJSCAN, *SCAN, *RSTDRNMUNL, *RUNEXIT, *CRTRUNEXIT, *SETUID, and *SETGID attributes. See the corresponding attribute in the Attribute (ATR) parameter for a description of what this value means for each of the attributes.
+
+*NO
+Allowed for the *READONLY, *HIDDEN, *PCSYSTEM, *PCARCHIVE, *SYSARCHIVE, *ALWCKPWRT, *INHCKPWRT, *ALWSAV, *CRTOBJSCAN, *SCAN, *RSTDRNMUNL, *RUNEXIT, *CRTRUNEXIT, *SETUID, and *SETGID attributes. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*RESET
+Allowed for the *USECOUNT attribute. The count of the number of days used will be reset to zero and the use count date will be set to the current date.
+
+*NORMAL
+Allowed for the *DISKSTGOPT and *MAINSTGOPT attributes. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*MINIMIZE
+Allowed for the *DISKSTGOPT and *MAINSTGOPT attributes. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*DYNAMIC
+Allowed for the *DISKSTGOPT and *MAINSTGOPT attributes. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*CHGONLY
+Allowed for the *CRTOBJSCAN and *SCAN attributes. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*SYSVAL
+Allowed for the *CRTOBJAUD attribute. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*NONE
+Allowed for the *CRTOBJAUD attribute. Required for the *TEXT attribute. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*USRPRF
+Allowed for the *CRTOBJAUD attribute. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*CHANGE
+Allowed for the *CRTOBJAUD attribute. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+*ALL
+Allowed for the *CRTOBJAUD attribute. See the corresponding attribute in the ATR parameter for a description of what this value means for each of the attributes.
+
+1-65533
+Allowed for the *CCSID attribute. Specify the coded character set identifier (CCSID) of the data and extended attributes of the object.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to change the specified attribute of the objects within the subtree if the object specified by the Object (OBJ) parameter is a directory.
+
+*NONE
+The objects specified by OBJ have the attribute changed. If the object is a directory, it has the attribute changed, but its contents do not have the attribute changed.
+
+*ALL
+The objects specified by OBJ have the attribute changed. If the object is a directory, its contents as well as the contents of all of its subdirectories have the attribute changed.
+
+Note: Pattern matching on the OBJ parameter only applies to the first level objects. If the first level object is a directory, the pattern matching does not apply to its contents or the contents of its subdirectories.
+
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Symbolic link (SYMLNK)
+
+If the last component in the path name is a symbolic link, specifies whether to change the attribute of the symbolic link or of the object pointed to by the symbolic link.
+
+*NO
+The attribute of the symbolic link object is not changed. The attribute of the object pointed to by the symbolic link is changed.
+
+*YES
+If the object is a symbolic link, the attribute of the symbolic link is changed. The attribute of the object pointed to by the symbolic link is not changed.
+
+Top
+
+Text (TEXT)
+
+Specifies a text string to be associated with the object.
+
+*BLANK
+No text is specified. If there is existing text associated with the object, it is removed. If something other than ATR(*TEXT) is specified, then this value must also be specified.
+
+character-value
+Up to 50 characters of text may be specified. The specified text replaces any previously specified text.
+
+Top
+
+Examples
+
+Example 1: Change Attribute for a Directory Subtree
+
+CHGATR OBJ('/MYINFO') ATR(*HIDDEN) VALUE(*YES)
+SUBTREE(*ALL)
+
+The object MYINFO will have its *HIDDEN attribute changed so it is a hidden object. If MYINFO is a directory, then all of the objects this directory contains as well as all of the objects contained in the subdirectories will have their PC hidden attribute changed because *ALL is specified for the SUBTREE parameter.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA0AD
+Function not supported by file system.
+
+CPFB414
+Attributes changed for &1 objects. &2 objects not changed.
+
+Top

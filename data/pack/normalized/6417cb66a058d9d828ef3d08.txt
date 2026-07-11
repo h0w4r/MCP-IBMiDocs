@@ -1,0 +1,231 @@
+Remove Directory (RMDIR)
+
+Remove Directory (RMDIR)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Remove Directory (RMDIR) command removes a specified directory from the system after all objects in the directory have been unlinked and the directory is no longer in use. If a directory to be removed contains objects, this command optionally unlinks all of the objects and then deletes the directory. If the user does not have the authority to unlink every object in the directory, only those objects for which the user has the authority are unlinked. When an object cannot be unlinked, the directory and all objects in the directory that cannot be unlinked are not removed.
+
+This command can also be used to remove a directory tree, where the specified directory, its contents and the contents of all of its subdirectories are removed. If SUBTREE(*ALL) or RMVLNK(*YES) is specified, the command will attempt to remove as many objects as possible within the subtree. A diagnostic message will be sent for each object that cannot be removed. When all of the objects have been attempted, an escape message will be sent if there were any errors. If all of the objects have been removed with no errors, then a completion message will be sent.
+
+If a symbolic link object is encountered, either specified in the Directory (DIR) parameter or encountered in the processing of a subtree, the symbolic link will not be followed.
+
+Note: The symbolic link will be removed if SUBTREE(*ALL) was specified on the command.
+
+This command is an alias for the Remove Directory (RMVDIR) command and can also be issued using the following alternative command names:
+
+- RD
+
+- RMVDIR
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- In the "root" (/),QOpenSys and user-defined file systems, the user must have object existence (*OBJEXIST) authority for the specified directory, and *OBJEXIST authority for every object in it. If the user does not have *OBJEXIST authority for one or more objects in the directory, those objects are not unlinked and the directory is not removed.
+
+- In the "root" (/),QOpenSys, and user-defined file systems, the user must have write and execute (*WX) authority to all of the non-empty directory objects to remove, including the parent directory.
+
+- In the QDLS file system, the user must have all (*ALL) authority to the directory and execute (*X) authority to its parent directory.
+
+- The user must have execute (*X) authority to the prefix directory.
+
+- See the IBM i Security Reference, SC41-5302 book for the authority requirements for other file systems.
+
+- A user cannot remove an object link within a "root" (/), QOpenSys, or user-defined file system directory that has the "restricted rename and unlink" attribute set on (this attribute is equivalent to the S_ISVTX mode bit) unless one or more of the following are true:
+
+The user is the owner of the object link to be removed.
+
+The user is the owner of the parent directory of the object link to be removed.
+
+The user has all object (*ALLOBJ) special authority.
+
+- A directory cannot be removed if it is the current directory for a job.
+
+- This command cannot be used to delete reserved directories or reserved libraries.
+
+- When an object is open in QSYS.LIB, independent ASP QSYS.LIB, or QDLS, the object cannot be unlinked. When an object is open in QOpenSys or the "root" (/) file system, the object is successfully unlinked, and the object is deleted when it is closed.
+
+- When doing subtree processing, the user must have read (*R) and execute (*X) authorities to the path name and all subdirectories within that path.
+
+- If SUBTREE(*ALL) is specified, the restrictions and file system differences listed for Remove link (RMVLNK) command would also apply to this usage of this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DIR | Directory | Path name | Required, Positional 1
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+RMVLNK | Remove link | *NO, *YES | Optional
+
+Top
+
+Directory (DIR)
+
+Specifies the path name of the directory or a pattern to match the path name or names of directories to be removed.
+
+The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to remove all of the object links within the subtree if the object specified by the Directory (DIR) parameter is a directory.
+
+You can specify either the Directory subtree (SUBTREE) parameter or the Remove link (RMVLNK) parameter, but not both.
+
+*NONE
+The directory specified by DIR is removed only if it is empty. A directory may contain entries for the directory (.) and for the parent directory (..) and still be treated as an empty directory.
+
+*ALL
+The object links within the directory specified by DIR are removed. The directory's contents, as well as the contents of all of its subdirectories will be removed.
+
+Note: Pattern matching on the DIR parameter only applies to the first level objects. If the first level object is a directory, the pattern matching does not apply to its contents or the contents of its subdirectories.
+
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Remove link (RMVLNK)
+
+Specifies whether to unlink all objects in a directory or not allow the directory to be deleted if it contains objects.
+
+You can specify either the Directory subtree (SUBTREE) parameter or the Remove link (RMVLNK) parameter, but not both.
+
+*NO
+Only an empty directory is removed. A directory may contain entries for the directory (.) and for the parent directory (..) and still be treated as an empty directory.
+
+*YES
+All object links within the specified directory are removed. If the file system that contains the directory does not support removal of links in the directory and the directory contains object links, error message CPFA0AC "Directory contains objects. Directory is &1." will be sent.
+
+Note: The QDLS, QSYS.LIB and independent ASP QSYS.LIB file systems support removal of links using this parameter specification. For all other file systems, use the SUBTREE(*ALL) parameter specification.
+
+Note: Pattern matching on the DIR parameter only applies to the first level objects. If the first level object is a directory, the pattern matching does not apply to its contents or the contents of its subdirectories.
+
+Top
+
+Examples
+
+The alternative command name for RMDIR is RMVDIR. The following examples use the alternative command name, but RMDIR can be replaced directly for RMVDIR in all of them.
+
+Example 1: Removing a Directory and Its Objects
+
+RMVDIR DIR('/QSYS.LIB/JULIO.LIB') RMVLNK(*YES)
+
+This command removes directory /QSYS.LIB/JULIO.LIB, after all of its objects have been unlinked. If directory /QSYS.LIB/JULIO.LIB contains objects, all of the objects are unlinked and directory /QSYS.LIB/JULIO.LIB is then removed.
+
+Example 2: Removing an Empty Directory
+
+RMVDIR DIR('/QSYS.LIB/EMPTY.LIB') RMVLNK(*NO)
+
+This command will remove the empty directory /QSYS.LIB/EMPTY.LIB.
+
+The examples below assume the following directory structure:
+
+---- dir2
+/
+/--dir1 ------- dir3
+\ \ \
+\ \ -- obj1
+\ \
+\ -- dir4 -- dir5 -- dir6
+\ \
+-- obj3 -- obj2
+obj4
+
+Example 3: Removing a Directory and Its Objects Using Subtree Processing
+
+RMVDIR DIR('/dir1/dir4'') SUBTREE(*ALL)
+
+The command removes the dir4 directory tree. This includes removing the obj2,dir6,dir5, and dir4 objects.
+
+Example 4: Removing a Directory With No Subtree Processing
+
+RMVDIR DIR('/dir1/dir2') SUBTREE(*NONE)
+
+This command will remove the directory /dir1/dir2, because it is empty.
+
+Example 5: Removing a Group of Directories Using Pattern Matching and Subtree Processing
+
+RMVDIR DIR('/dir1/d*') SUBTREE(*ALL)
+
+Objects obj1 and obj2, and directories dir2, dir3, dir5, dir6, and dir4 will be removed. Objects obj3 and obj4 will not be removed because they do not match the specified name pattern and are not located in a directory that matches the name pattern.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA085
+Home directory not found for user &1.
+
+CPFA093
+Name matching pattern not found.
+
+CPFA09C
+Not authorized to object. Object is &1.
+
+CPFA09D
+Error occurred in program &1.
+
+CPFA09E
+Object in use. Object is &1.
+
+CPFA0A1
+An input or output error occurred.
+
+CPFA0A3
+Path name resolution causes looping.
+
+CPFA0A7
+Path name too long.
+
+CPFA0A9
+Object not found. Object is &1.
+
+CPFA0AA
+Error occurred while attempting to obtain space.
+
+CPFA0AB
+Operation failed for object. Object is &1.
+
+CPFA0AC
+Directory contains objects. Directory is &1.
+
+CPFA0AD
+Function not supported by file system.
+
+CPFA0B1
+Requested operation not allowed. Access problem.
+
+CPFA0B2
+No objects satisfy request.
+
+CPFA0B7
+&3 object links removed. &4 object links not removed.
+
+Top

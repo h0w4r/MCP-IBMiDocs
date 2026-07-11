@@ -1,0 +1,450 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="ADDRMTJRN.Top_Of_Page"></a>
+<h1>Add Remote Journal  (ADDRMTJRN)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#ADDRMTJRN.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#ADDRMTJRN.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#ADDRMTJRN.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN"></a>
+<p>The Add Remote Journal (ADDRMTJRN) command associates a remote journal on the target system, as identified by the relational database directory entry, with the specified journal on the source system.  The journal on the source system may be either a local journal or another remote journal.  A maximum of 255 remote journals may be associated with a single journal on a source system.
+</p>
+<p>When adding a remote journal to a source journal, the remote journal is created on the target system using a combination of the attributes from the source journal and the input parameters provided on this command.  The library that the remote journal will be created in must already exist on the target system prior to this command being used on the source system.  When created by this command, the remote journal will be created with a journal type of *REMOTE and the remote journal will not have an attached journal receiver.
+</p>
+<p>
+<strong>Note:     </strong>A receiver will be attached when the remote journal is activated using either the Change Remote Journal (CHGRMTJRN) command, or Change Journal State (QjoChangeJournalState) API.
+</p>
+<p>When adding the remote journal, the remote journal can either be created into the same named library as that of the source journal or into a redirected library on the target system.  A redirected library provides a means for remote journals and any of their associated journal receivers to reside in different named libraries on the target system from the corresponding local journal and journal receivers on the local system.  When specified, all validation for the journal library on the target system will be performed using the redirected library name.  Similarly, the journal receivers that will later be created and associated with this remote journal can either reside in the same library as the source journal receivers on the source system, or into a distinct redirected library name on the target system.  The journal receiver library redirection, if desired, must be specified when the remote journal is added using this command.
+</p>
+<p>When adding a remote journal on a target system, two remote journal types can be specified, *TYPE1 and *TYPE2.  The remote journal type influences the redirection capabilities, journal receiver restore operations, and remote journal association characteristics.
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Every *TYPE1 remote journal that is associated with the local journal must use the same redirection for both the remote journal and remote journal receiver.  This allows a journal receiver to be saved from any system in the remote journal network and be restored to any system in the network and associated with either a local or remote journal.
+</li>
+<li class="cds--list__item">Every *TYPE2 remote journal that is associated with the local journal can use different redirection for the remote journal or remote journal receiver.  This restricts the save and restore options. The journal receiver can only be associated with the remote journal if it was saved from the system on which the remote journal resides. If the journal receiver was saved from the system with the local journal, then it cannot be associated with the remote journal on any system.
+</li>
+</ul>
+<p>If the specified journal already exists on the target system, the journal can be associated with the source journal if all of the following are true:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">the journal is of type *REMOTE
+</li>
+<li class="cds--list__item">the remote journal type matches the specified remote journal type
+</li>
+<li class="cds--list__item">the remote journal was previously associated with this same source journal
+</li>
+</ul>
+<p>Also, the journal may or may not have an attached journal receiver.
+</p>
+<p>After the remote journal has been successfully added on the target system, the remote journal will have a journal state of *INACTIVE.  A journal state of *INACTIVE for a remote journal means that the remote journal is currently not ready to receive journal entries from its source journal on the source system.  The Change Remote Journal (CHGRMTJRN) command or Change Journal State (QjoChangeJournalState) API is used to activate a remote journal and start the replication of journal entries from the source journal to the remote journal.
+</p>
+<p>Once a remote journal has been added to a journal, the receiver that was attached to the source journal at the time of running this command or any subsequently attached receivers, will be protected from deletion if all journal entries for a given journal receiver have not yet been replicated to the remote journal.  This protection ends when the remote journal is removed using the Remove Remote Journal (RMVRMTJRN) command or Remove Remote Journal (QjoRemoveRemoteJournal) API.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The Add Remote Journal (ADDRMTJRN) command may only be called from the source system.
+</li>
+<li class="cds--list__item">A user profile must exist on the target system by the same name as the user profile that is running the Add Remote Journal (ADDRMTJRN) command on the source system.  This restriction is irrespective of the selected communications protocol.
+</li>
+<li class="cds--list__item">When adding a *TYPE1 remote journal to a source journal, the same journal and journal receiver library redirection must be specified that exists for any *TYPE1 remote journals which have already been added to the source journal.  A remote journal will always use the redirected library, if any, that is specified for the local journal.  The only way to change the value specified in the remote journal library field and the remote journal receiver library field is to do all of the following:
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Remove all of the associated *TYPE1 remote journals from the local journal.
+</li>
+<li class="cds--list__item">Delete the remote journal.
+</li>
+<li class="cds--list__item">Change the local journal to attach a new receiver.
+</li>
+<li class="cds--list__item">Add the remote journal specifying the new redirection.
+</li>
+</ol>
+</li>
+<li class="cds--list__item">QTEMP cannot be specified for the remote journal library, remote journal receiver library, or remote message queue library.
+</li>
+<li class="cds--list__item">A remote journal whose name starts with a Q cannot specify a remote journal library that starts with a Q, unless the remote journal library is QGPL.  This is required to prevent collisions between local and remote journals that are used for system functions.
+</li>
+<li class="cds--list__item">A *TYPE1 remote journal cannot be added to a *TYPE2 remote journal.
+</li>
+<li class="cds--list__item">The specified relational database (RDB) directory entry must meet the following rules:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The communications protocol used for the RDB must be supported for remote journal functions.
+</li>
+<li class="cds--list__item">The remote location name in the RDB directory entry cannot refer to the *LOCAL database.
+</li>
+<li class="cds--list__item">The RDB directory entry cannot use an application requester driver program (*ARDPGM) to locate the target system.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">The remote journal message queue on the remote system must be either in the same ASP group as the remote journal, or in the system ASP, or a basic user ASP.
+</li>
+<li class="cds--list__item">The remote receiver library and remote journal library on the remote system must both exist in either the system and basic user ASP's or in the same ASP group. They cannot be in two different ASP groups.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="ADDRMTJRN.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#ADDRMTJRN.RDB"><strong>RDB</strong></a></td>
+<td class="valigntop">Relational database</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#ADDRMTJRN.SRCJRN"><strong>SRCJRN</strong></a></td>
+<td class="valigntop">Source journal</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Source journal</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="3"><a href="#ADDRMTJRN.TGTJRN"><strong>TGTJRN</strong></a></td>
+<td class="valigntop">Target journal</td>
+<td class="valigntop">Single values: <strong class="underlined">*SRCJRN</strong><br>Other values: <span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Target journal</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop"><a href="#ADDRMTJRN.RMTRCVLIB"><strong>RMTRCVLIB</strong></a></td>
+<td class="valigntop">Remote receiver library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*SRCRCVLIB</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#ADDRMTJRN.RMTJRNTYPE"><strong>RMTJRNTYPE</strong></a></td>
+<td class="valigntop">Remote journal type</td>
+<td class="valigntop"><strong class="underlined">*TYPE1</strong>, *TYPE2</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#ADDRMTJRN.MSGQ"><strong>MSGQ</strong></a></td>
+<td class="valigntop">Journal message queue</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Journal message queue</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">QSYSOPR</strong></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">QSYS</strong></td>
+</tr><tr>
+<td class="valigntop"><a href="#ADDRMTJRN.DLTRCV"><strong>DLTRCV</strong></a></td>
+<td class="valigntop">Delete receivers</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#ADDRMTJRN.DLTRCVDLY"><strong>DLTRCVDLY</strong></a></td>
+<td class="valigntop">Delete receiver delay time</td>
+<td class="valigntop">1-1440, <strong class="underlined">10</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#ADDRMTJRN.TEXT"><strong>TEXT</strong></a></td>
+<td class="valigntop">Text 'description'</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*BLANK</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="ADDRMTJRN.RDB"></a>
+<h2>Relational database (RDB)</h2>
+<p>Specifies the name of the relational database directory entry that contains the remote location name of the target system.  This name should match the name of the *LOCAL relational database directory entry on the target system.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">relational-database-entry</strong></dt>
+<dd>Specify a maximum of 18 characters for the name of the relational database directory entry.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.SRCJRN"></a>
+<h2>Source journal (SRCJRN)</h2>
+<p>Specifies the name of the journal on the source system to which the remote journal is being added, and the library where it resides.  The journal on the source system may be either a local journal or another remote journal.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">source-journal-name</strong></dt>
+<dd>Specify the source journal to which the target journal is being added.
+</dd>
+</dl>
+<p>The name of the source journal can be qualified by one of the following library values:
+</p>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is searched.  If no library is specified as the current library for the thread, the QGPL library is searched.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.TGTJRN"></a>
+<h2>Target journal (TGTJRN)</h2>
+<p>Specifies the name of the remote journal on the target system.
+</p>
+<dl>
+<dt><strong class="underlined">*SRCJRN</strong></dt>
+<dd>The target journal name is exactly the same as the source journal name.
+</dd>
+<dt><strong class="italic">library-name/target-journal-name</strong></dt>
+<dd>Specify the target journal that is being added as a remote journal to the source journal.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.RMTRCVLIB"></a>
+<h2>Remote receiver library (RMTRCVLIB)</h2>
+<p>Specifies the name of the library for the remote journal receivers on the target system that will be associated with this remote journal.
+</p>
+<dl>
+<dt><strong class="underlined">*SRCRCVLIB</strong></dt>
+<dd>The journal receivers are created on the target system in the same library as they exist on the source system.
+</dd>
+<dt><strong class="italic">remote-journal-receiver-library-name</strong></dt>
+<dd>Specify the name of the library for the remote journal receivers on the target system that will be associated with this remote journal.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.RMTJRNTYPE"></a>
+<h2>Remote journal type (RMTJRNTYPE)</h2>
+<p>Specifies the type of remote journal on the target system.  The remote journal type influences the redirection capabilities, journal receiver restore operations, and remote journal association characteristics.  See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for detailed descriptions of the differences.
+</p>
+<dl>
+<dt><strong class="underlined">*TYPE1</strong></dt>
+<dd>A *TYPE1 remote journal is added. Every *TYPE1 remote journal that is associated with the local journal must use the same redirection for both the remote journal and remote journal receiver.  This allows a journal receiver to be saved from any system in the remote journal network and be restored to any system in the network and associated with either a local or remote journal.
+</dd>
+<dt><strong>*TYPE2</strong></dt>
+<dd>A *TYPE2 remote journal is added. Every *TYPE2 remote journal that is associated with the local journal can use different redirection for the remote journal or remote journal receiver.  This restricts the save and restore options. The journal receiver can only be associated with the remote journal if it was saved from the system on which the remote journal resides. If the journal receiver was saved from the system with the local journal, then it cannot be associated with the remote journal on any system.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.MSGQ"></a>
+<h2>Journal message queue (MSGQ)</h2>
+<p>Specifies the name of the message queue associated with the remote journal. This value is only set for a journal that is created on the target system.
+</p>
+<dl>
+<dt><strong class="underlined">QSYS/QSYSOPR</strong></dt>
+<dd>The message is sent to the QSYSOPR message queue.
+</dd>
+<dt><strong class="italic">library-name/journal-message-queue</strong></dt>
+<dd>Specify the name of the journal message queue to which the journal messages are sent.  If this message queue is not available when a message is to be sent, the message is sent to the QSYSOPR message queue.
+<p>
+<strong>Note:     </strong>Some messages that are sent to the journal message queue will also be sent to the QSYSOPR message queue and QHST.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.DLTRCV"></a>
+<h2>Delete receivers (DLTRCV)</h2>
+<p>Specifies whether the system deletes the target journal receivers when they are no longer needed or keeps them on the target system for the user to delete after they have been detached by the target system.  This value is only set for a journal that is created on the target system.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>The journal receivers are not deleted by the system.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>The journal receivers are deleted by the system.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.DLTRCVDLY"></a>
+<h2>Delete receiver delay time (DLTRCVDLY)</h2>
+<p>If the system cannot allocate an object needed to delete a journal receiver associated with the remote journal on the target system, this parameter specifies the time (in minutes) to be used to delay the next attempt to delete the target journal receiver. This value is only set for a journal that is created on the target system.
+</p>
+<dl>
+<dt><strong class="underlined">10</strong></dt>
+<dd>System waits 10 minutes before trying again.
+</dd>
+<dt><strong class="italic">delete-receiver-delay-time </strong></dt>
+<dd>System waits the specified number of minutes before trying again.  Valid values range from 1 to 1440.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="ADDRMTJRN.TEXT"></a>
+<h2>Text 'description' (TEXT)</h2>
+<p>Specifies the text that briefly describes the remote journal on the target system.  This value is only set for a journal that is created on the target system.
+</p>
+<dl>
+<dt><strong class="underlined">*BLANK</strong></dt>
+<dd>Text is not specified.
+</dd>
+<dt><strong class="italic">'description'</strong></dt>
+<dd>Specify no more than 50 characters of text, enclosed in apostrophes.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="ADDRMTJRN.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Adding a *TYPE1 remote journal, specifying values for the DLTRCV and TEXT parameters.</strong>
+</h3>
+<p>
+</p><pre>ADDRMTJRN   SRCJRN(LOCLIB/J)  RDB(DETROIT)  TGTJRN(RMTLIB/J)
+            DLTRCV(*NO)
+            TEXT('Remote Journal Created for Application Z')
+</pre>
+<p></p>
+<p>This command adds remote journal J in library RMTLIB to journal J in library LOCAL, and the DLTRCV parameter on the remote journal will be *NO, irrespective of the attribute of journal J in library LOCLIB. If journal J in RMTLIB does not already exist, then it is created, otherwise, it is reassociated with journal J in LOCLIB, if it meets the appropriate criteria.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="ADDRMTJRN.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF69A4</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF695A</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF695B</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF695C</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF695D</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF695E</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF695F</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF6973</strong></dt>
+<dd>Source journal not compatible with target system.
+</dd>
+<dt><strong>CPF6982</strong></dt>
+<dd>Relational database directory entry &amp;1 not valid.
+</dd>
+<dt><strong>CPF6983</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF6984</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF6985</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF6988</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF6989</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF699B</strong></dt>
+<dd>User profile &amp;8 not found.
+</dd>
+<dt><strong>CPF6991</strong></dt>
+<dd>Remote journal &amp;1 in &amp;2 not added.
+</dd>
+<dt><strong>CPF70DB</strong></dt>
+<dd>Remote journal environment ended for journal &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF70D6</strong></dt>
+<dd>Remote journal environment ended for journal &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF701B</strong></dt>
+<dd>Journal recovery of an interrupted operation failed.
+</dd>
+<dt><strong>CPF7010</strong></dt>
+<dd>Object &amp;1 in &amp;2 type *&amp;3 already exists.
+</dd>
+<dt><strong>CPF7011</strong></dt>
+<dd>Not enough storage or resources.
+</dd>
+<dt><strong>CPF9801</strong></dt>
+<dd>Object &amp;2 in library &amp;3 not found.
+</dd>
+<dt><strong>CPF9802</strong></dt>
+<dd>Not authorized to object &amp;2 in &amp;3.
+</dd>
+<dt><strong>CPF9803</strong></dt>
+<dd>Cannot allocate object &amp;2 in library &amp;3.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9830</strong></dt>
+<dd>Cannot assign library &amp;1.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#ADDRMTJRN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

@@ -1,0 +1,556 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="RSTS36F.Top_Of_Page"></a>
+<h1>Restore S/36 File  (RSTS36F)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#RSTS36F.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#RSTS36F.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#RSTS36F.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F"></a>
+<p>The Restore System/36 File (RSTS36F) command restores to the system a single file or a group of files from a save all set.  A single file can be restored from a database physical file, a diskette file or a tape file.  A group of files can be restored from a save all set on diskette or tape.
+</p>
+<p>The restore operation reads the description of the file from the database physical file, diskette, or tape, creates a database physical or logical file and copies any data from the database physical file, diskette file or tape file into the new database file.  The database physical file must have been created with the Save System/36 File (SAVS36F) command.  The diskette or tape file may have been created on a System/36 using the SAVE system operator control language (OCL) procedure (or the equivalent OCL use of the $COPY SSP utility), or by using the Save System/36 File (SAVS36F) command.  The Restore System/36 File (RSTS36F) command accepts diskette or tape files created on a System/34 or System/32 using the $COPY utility.
+</p>
+<p>The RSTS36F command accepts a diskette file created as a compressed file.
+</p>
+<p>If the file being restored does not exist in the library specified on the TOLIB parameter, it is created.  A physical file member is added using the name syntax 'Myymmdd', which identifies the original creation date of the file.  This naming convention is needed by the System/36 environment in order to support date-differentiated files.
+</p>
+<p>If a file name is specified for the TOFILE parameter, the name must meet the i5/OS naming standards.  For more information about i5/OS naming conventions, see Chapter 2, "Control Language Syntax", in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p>If TOFILE(*SET) is specified, the files that are restored may have names that contain characters not allowed in an i5/OS simple object name.  In this case, the file name is changed to an i5/OS extended name and the file is restored.
+</p>
+<p>If the name contains a blank, a single quotation mark, a double quotation mark, an asterisk, a question mark, or a device control character (hexadecimal 00 through 3F or hexadecimal FF), the invalid characters are replaced with underlines.  The file is then restored using the resulting simple or extended name; for example, A_? would become "A_").  If a file already exists with this new name, it is handled like any other name (see the MBROPT parameter).
+</p>
+<p>If a file name is changed because of invalid characters, an informational message (CPF 2C1F) is sent to the recursion level above the program that is running this command.  If the name is changed from a simple name to an extended name, no message is sent.
+</p>
+<p>If the restore function creates the file and the file was not previously secured, the new file is owned by the user issuing the RSTS36F command and the file is created with a default authority of *ALL (that is the same as AUT(*ALL)).
+</p>
+<p>If the file was saved from the S/36 where the attributes were an extend value of zero or no value specified, then a default value of 32 767 divided by the record length is assigned.  If an extend value of zero is required, use the change physical file (CHGPF) command (after the restore is completed) to set SIZE(*EXTEND) to zero.  If the file was saved using i5/OS, the file is restored and the extend value does not change.
+</p>
+<p>
+<strong>Note:     </strong>This function is intended only for exchanging files with a System/36.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">This command is shipped with public *EXCLUDE authority.
+</li>
+<li class="cds--list__item">The following authorities are required when running on a system using resource security:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">*USE, *SECADM, and *ALLOBJ authorities for this command
+</li>
+<li class="cds--list__item">*USE authority for the library specified in the TOLIB parameter
+</li>
+<li class="cds--list__item">*CHANGE authority for the library specified in the TOLIB parameter when restoring a file that does not already exist on the system
+</li>
+<li class="cds--list__item">*CHANGE and *OBJMGMT authority for the existing file (needed to add a new member) when restoring a date-differentiated physical file and a file by the same name but with a different creation date
+</li>
+<li class="cds--list__item">*ALL authority for the file when restoring to an existing physical file with the same creation date and MBROPT(*REPLACE) specified
+</li>
+<li class="cds--list__item">*CHANGE authority for the based-on physical file (this physical file was referred to as the <span class="var">parent file</span> on System/36) if the file being restored is a System/36 alternative index file (that is, a logical file)
+</li>
+<li class="cds--list__item">*USE authority for the diskette device description object and *USE authority for device file QSYSDKT in library QSYS, when restoring from diskette
+</li>
+<li class="cds--list__item">*USE authority for the tape device description object and *USE authority for device file QSYSTAP in library QSYS, when restoring from tape
+</li>
+<li class="cds--list__item">*USE authority for the file and *USE authority for the library that contains the file (PHYFILE parameter) if restoring from a database physical file
+</li>
+<li class="cds--list__item">If the file doesn't exist on the system but a file authorization holder object by the same name does exist, *ALL authority or ownership for the authorization holder object
+</li>
+</ul>
+</li>
+<li class="cds--list__item">There is no replace function supported when restoring System/36 alternative index files (logical files).  If restoring an alternative index file, no file object by the same name can already exist in the specified library.
+</li>
+<li class="cds--list__item">If restoring a logical file, the based-on physical file must already exist in the library specified for the TOLIB parameter.
+</li>
+<li class="cds--list__item">The i5/OS files that are the same as the System/36 date-differentiated files are multiple-member physical files.  Date-differentiated alternative index files are not supported.  The data for a physical file is stored in a member that is named using the syntax 'Myymmdd' where 'yymmdd' represents the original creation date (in year/month/day format) of the file.
+<p>Because all members of a physical file share the same file attributes (for example, record length and key information), date-differentiated files with the same name that are restored to the same library are required to have the same file attributes.  If an attribute mismatch is present, the files are not restored.
+</p>
+</li>
+<li class="cds--list__item">Object-level and record-level functions, including read operations, should not be used for a file being restored by the RSTS36F command.  If another operation is being done at the same time on the file (for example, moving the file or reading or adding records), the restore operation stops if it cannot allocate the file.
+</li>
+</ol>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="RSTS36F.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.TOFILE"><strong>TOFILE</strong></a></td>
+<td class="valigntop">To file</td>
+<td class="valigntop"><span class="var">Name</span>, *SET</td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.TOLIB"><strong>TOLIB</strong></a></td>
+<td class="valigntop">To library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.DEV"><strong>DEV</strong></a></td>
+<td class="valigntop">Device</td>
+<td class="valigntop">Single values: *PHYFILE<br>Other values (up to 4 repetitions): <span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.SET"><strong>SET</strong></a></td>
+<td class="valigntop">Set identifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">#SAVE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.IGCDTA"><strong>IGCDTA</strong></a></td>
+<td class="valigntop">User specified DBCS data</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.FROMLABEL"><strong>FROMLABEL</strong></a></td>
+<td class="valigntop">File label</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.CRTDATE"><strong>CRTDATE</strong></a></td>
+<td class="valigntop">Creation date</td>
+<td class="valigntop"><span class="var">Date</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.SEQNBR"><strong>SEQNBR</strong></a></td>
+<td class="valigntop">Sequence number</td>
+<td class="valigntop">1-9999, <strong class="underlined">*SEARCH</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.VOL"><strong>VOL</strong></a></td>
+<td class="valigntop">Volume identifier</td>
+<td class="valigntop">Values (up to 50 repetitions): <span class="var">Character value</span>, <strong class="underlined">*MOUNTED</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.ENDOPT"><strong>ENDOPT</strong></a></td>
+<td class="valigntop">End of tape option</td>
+<td class="valigntop"><strong class="underlined">*REWIND</strong>, *LEAVE, *UNLOAD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RSTS36F.PHYFILE"><strong>PHYFILE</strong></a></td>
+<td class="valigntop">Physical file</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Physical file</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#RSTS36F.MBROPT"><strong>MBROPT</strong></a></td>
+<td class="valigntop">Data base member option</td>
+<td class="valigntop"><strong class="underlined">*NOREPLACE</strong>, *REPLACE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTS36F.DATDIFF"><strong>DATDIFF</strong></a></td>
+<td class="valigntop">Date differentiated file</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="RSTS36F.TOFILE"></a>
+<h2>To file (TOFILE)</h2>
+<p>Specifies the name given to a single file when it is restored to the system or to a group of files from a save all set that are restored to the system. If a single file is restored, this parameter allows the file to be renamed at the time it is restored to the system.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong>*SET</strong></dt>
+<dd>Specifies that a group of files from a save all set on diskette or tape are restored to the system.
+</dd>
+<dt><strong class="italic">file-name</strong></dt>
+<dd>Specifies the file name that is given to a single file when the file is restored to the system.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.TOLIB"></a>
+<h2>To library (TOLIB)</h2>
+<p>Specifies which library should contain the file being restored.
+</p>
+<p>This is a required parameter.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.DEV"></a>
+<h2>Device (DEV)</h2>
+<p>Specifies the name of a diskette unit, the names of one or more tape devices, or an indication that the file to be restored is in a database physical file.  A maximum of four tape device names can be specified.  If more than one tape device is used, enter the names of the devices in the order in which they are used.  Each device name must be already known on the system by a device description.
+</p>
+<dl>
+<dt><strong>*PHYFILE</strong></dt>
+<dd>The file to be restored is in a database physical file.  The name of the database physical file is specified by the <strong>Physical file</strong> prompt (PHYFILE parameter).
+</dd>
+<dt><strong class="italic">device-name</strong></dt>
+<dd>Specify the name of the diskette unit or the names of one or more tape devices that are used for the restore operation.  If more than one tape device is used, enter the names of the devices in the order in which they are used.  A maximum of four tape device names can be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.SET"></a>
+<h2>Set identifier (SET)</h2>
+<p>Specifies the name used to identify the save all set files saved on the diskette or tape by the SAVE procedure or the $COPY utility on the System/36, System/34, or System/32.
+</p>
+<dl>
+<dt><strong>#SAVE</strong></dt>
+<dd>The files are restored from a save all set with a set identifier of <strong>#SAVE</strong>.
+</dd>
+<dt><strong class="italic">set-identifier</strong></dt>
+<dd>Specifies the set-identifier of the save all set.  The set-identifier can be from 1-8 characters long.  The first character must be alphabetic (A through Z, #, $, or @).  The remaining characters can be any combination of characters (numeric, alphabetic, and special) except commas(,), apostrophes('), and blanks.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.IGCDTA"></a>
+<h2>User specified DBCS data (IGCDTA)</h2>
+<p>Specifies whether the file contains double-byte character set (DBCS) data.
+</p>
+<p>
+<strong>Note:     </strong>If a file already exists by the name specified on the <strong>To file</strong> prompt (TOFILE parameter), the double-byte character set (DBCS) capability of the existing file is not changed by the restore operation.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>The files being restored may not contain DBCS data.  If a file already exists in the specified library with the same name as the file being restored, and the file allows DBCS data, an informational message is sent, and the restore operation continues.  The resulting file allows DBCS data (the file's IGC attributes are not changed by the restore operation).
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>The files being restored may contain DBCS data.  If a file already exists in the specified library with the same name as the file being restored, and the file does not allow DBCS data, an informational message is sent, and the restore operation continues.  The resulting file will not allow DBCS data (the file's IGC attributes are not changed by the restore operation).
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.FROMLABEL"></a>
+<h2>File label (FROMLABEL)</h2>
+<p>For a single file restore operation, this parameter can be used to specify the label of the diskette or tape file that contains the file that is to be restored to the system.  If no value is specified, the file name specified for the <strong>To file</strong> prompt (TOFILE parameter) is used as the diskette or tape file label.
+</p>
+<p>For a group restore operation, this parameter can be used to specify the diskette or tape file label within a save all set where the restore operation is to begin.  If no value is specified, the restore operation begins with the first file in the set.
+</p>
+<p>If a label is specified, it must be a maximum of eight characters long.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.CRTDATE"></a>
+<h2>Creation date (CRTDATE)</h2>
+<p>Specifies the creation date of the diskette file or tape file used for the restore operation.  The specified date is changed to Julian format (cyyddd) for tape or international format (yymmdd) for diskette.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.SEQNBR"></a>
+<h2>Sequence number (SEQNBR)</h2>
+<p>Specifies, when tape is used, which sequence number is used for the restore operation.
+</p>
+<dl>
+<dt><strong class="underlined">*SEARCH</strong></dt>
+<dd>The volume in the device is searched for a data file with an identifier that matches the FROMLABEL parameter value; when a match is found, the object is restored.  If the last operation on the device specified *LEAVE for the <strong>End of tape option (ENDOPT)</strong> parameter, indicating that the tape is positioned at the location where the last operation ended, the file search starts with the first data file beyond the current tape position.  If *LEAVE was not used for the <strong>End of tape option (ENDOPT)</strong> parameter of the last operation, or if the tape was manually rewound since the operation, the search starts with the first data file on the volume.
+</dd>
+<dt><strong class="italic">1-16777215</strong></dt>
+<dd>Specify the sequence number of the file to be used for the restore operation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.VOL"></a>
+<h2>Volume identifier (VOL)</h2>
+<p>Specifies the volume identifiers of the tapes or diskettes used for restoring the file.
+</p>
+<dl>
+<dt><strong class="underlined">*MOUNTED</strong></dt>
+<dd>The volume currently placed in the device is used.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">volume-identifier</strong></dt>
+<dd>Specify the volume identifiers of the tapes or diskettes used for restoring the file.  A maximum of 50 volume identifiers can be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.ENDOPT"></a>
+<h2>End of tape option (ENDOPT)</h2>
+<p>Specifies, only when tape is used, what positioning operation is automatically performed on the tape volume after the restore operation ends. This parameter applies only to the last reel used.
+</p>
+<dl>
+<dt><strong>*REWIND</strong></dt>
+<dd>The tape is rewound, but not unloaded.
+</dd>
+</dl>
+<dl>
+<dt><strong>*LEAVE</strong></dt>
+<dd>The tape is not rewound.
+</dd>
+</dl>
+<dl>
+<dt><strong>*UNLOAD</strong></dt>
+<dd>The tape is automatically rewound and unloaded after the operation ends.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.PHYFILE"></a>
+<h2>Physical file (PHYFILE)</h2>
+<p>Specifies the name of the database physical file that is used as the input file for the restore process.  If the specified file does not exist, or is not a physical file, or the file contains no members, a message is sent.  If the file contains multiple members, the first member of the file is used.
+</p>
+<p>The possible library values are:
+</p>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>The library list is used to locate the file.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the file.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the file is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.MBROPT"></a>
+<h2>Data base member option (MBROPT)</h2>
+<p>Specifies whether the data of an existing physical file member is replaced.
+</p>
+<dl>
+<dt><strong class="underlined">*NOREPLACE</strong></dt>
+<dd>Data in an existing physical file member with the same name is <span class="var">not</span> replaced, and an error message is sent to the user.
+</dd>
+<dt><strong>*REPLACE</strong></dt>
+<dd>Data in an existing physical file member with the same name is replaced.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTS36F.DATDIFF"></a>
+<h2>Date differentiated file (DATDIFF)</h2>
+<p>Specifies whether the restore operation allows multiple files with the same name but different file creation dates.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>Multiple files with the same name but different file creation dates are not allowed.
+<p>If the restore operation is done with *NO specified, and a file already exists in the specified library with the same name, the following actions are taken:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the MBROPT parameter specifies the member should be replaced (*REPLACE), the data in the member is replaced with the data from the saved file.
+</li>
+<li class="cds--list__item">If the MBROPT parameter specifies the member should not be replaced (*NOREPLACE), a message is sent and the file is not restored.
+</li>
+<li class="cds--list__item">If no file exists by the name specified on the TOFILE parameter in the specified library, the file is restored normally.
+</li>
+</ul>
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Multiple files with the same name but different file creation dates are allowed.
+<p>If the restore operation is done with *YES specified, and a file already exists in the specified library with the same name, the following actions are taken:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If a member does not exist with the name of 'Myymmdd', where 'yymmdd' is the creation date of the saved file, a new member is added to the file and the data from the saved file is copied to it.
+</li>
+<li class="cds--list__item">If a member does exist with the name of 'Myymmdd', where 'yymmdd' is the creation date of the saved file, and the MBROPT parameter specifies the member should be replaced (*REPLACE), the data in the member is replaced with the data from the saved file.
+</li>
+<li class="cds--list__item">If a member does exist with the name of 'Myymmdd', where 'yymmdd' is the creation date of the saved file, and the MBROPT parameter specifies the member should not be replaced (*NOREPLACE), a message is sent and the file is not restored.
+</li>
+</ul>
+<p>If a file does not already exist in the specified library with the same name, a new file is created, a member is added to the file and the data from the saved file is copied into the new member.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RSTS36F.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Restoring From Diskette</strong>
+</h3>
+<p>
+</p><pre>RSTS36F   TOFILE(ACCTRCV)  TOLIB(QS36F)  DEV(I1)
+          CRTDATE('01/22/85')  VOL(SAVE1)
+</pre>
+<p></p>
+<p>This command restores the file ACCTRCV into library QS36F.  Assuming that I1 is the name of a diskette device description object, the file is restored from the diskette placed in the diskette device. The diskette must have a volume name of SAVE1. The diskette file used for the restore must have a file label of ACCTRCV and a creation date of January 22, 1985 (assuming the job date format is *MDY and the date separator is a '/').
+</p>
+<h3><strong>Example 2: Restoring From Tape</strong>
+</h3>
+<p>
+</p><pre>RSTS36F   TOFILE(PAY.VIEW)  TOLIB(PAYLIB)  DEV(T1)  FROMLABEL('P*V')
+          ENDOPT(*LEAVE)
+</pre>
+<p></p>
+<p>The file P*V is restored from device T1 as a file named PAY.VIEW in library PAYLIB. Assuming T1 is a tape device, the file is copied from one or more tapes that are on device T1. No check is made on the tape volume name. When the restore operation ends, the tape is left positioned at the end of tape file P*V.
+</p>
+<h3><strong>Example 3: Restoring from a Physical File</strong>
+</h3>
+<p>
+</p><pre>RSTS36F   TOFILE(ACCTPAY)  TOLIB(QS36F)  DEV(*PHYFILE)
+          PHYFILE(NETLIB/SENDFILE)
+</pre>
+<p></p>
+<p>This command restores the file ACCTPAY in library QS36F from physical file SENDFILE in library NETLIB.
+</p>
+<h3><strong>Example 4: Specifying Sequence Numbers</strong>
+</h3>
+<p>
+</p><pre>RSTS36F   TOFILE(*SET)  TOLIB(QS36F)  DEV(T1 T2)
+          SET(PAYFILES)  FROMLABEL(FILE10)
+          MBROPT(*REPLACE)  DATDIFF(*YES)
+          SEQNBR(*SEARCH)  VOL(*MOUNTED)  ENDOPT(*REWIND)
+</pre>
+<p></p>
+<p>This command restores a subset of the files in the save all set called PAYFILES to library QS36F from tape. The restore operation begins with a tape file whose label is file 10. If one of the files being restored already exists in library QS36F with the same creation date as the saved file, the file is replaced. If a file already exists in library QS36F with a different creation date, a new date-differentiated number is added to the file. The restore operation uses the tape volumes that are placed in tape drives T1 and T2. After the restore operation is complete, the last tape volume is rewound to the beginning of the tape.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RSTS36F.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF2C4A</strong></dt>
+<dd>Device &amp;1 not correct for command.
+</dd>
+<dt><strong>CPF2C4B</strong></dt>
+<dd>Duplicate device &amp;1 specified in device name list.
+</dd>
+<dt><strong>CPF2C4C</strong></dt>
+<dd>Diskette device &amp;1 included in multiple device specification.
+</dd>
+<dt><strong>CPF2C4D</strong></dt>
+<dd>Not all files were restored.
+</dd>
+<dt><strong>CPF2C4E</strong></dt>
+<dd>Restore operation ended before all files were restored.
+</dd>
+<dt><strong>CPF2C45</strong></dt>
+<dd>Input file &amp;1 cannot be processed by RSTS36F.
+</dd>
+<dt><strong>CPF2C47</strong></dt>
+<dd>Existing file &amp;1 or member &amp;3 in library &amp;2 not replaced.
+</dd>
+<dt><strong>CPF2C48</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C49</strong></dt>
+<dd>Output file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C5A</strong></dt>
+<dd>Alternate index file &amp;1 in library &amp;2 not replaced.
+</dd>
+<dt><strong>CPF2C5E</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C50</strong></dt>
+<dd>File description for file &amp;1 is not available.
+</dd>
+<dt><strong>CPF2C52</strong></dt>
+<dd>Error occurred during attempt to create file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF2C53</strong></dt>
+<dd>Member &amp;3 not added to file &amp;1 in library &amp;2 because error occurred.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9812</strong></dt>
+<dd>File &amp;1 in library &amp;2 not found.
+</dd>
+<dt><strong>CPF9814</strong></dt>
+<dd>Device &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+<dt><strong>CPF9826</strong></dt>
+<dd>Cannot allocate file &amp;2.
+</dd>
+<dt><strong>CPF9830</strong></dt>
+<dd>Cannot assign library &amp;1.
+</dd>
+<dt><strong>CPF9831</strong></dt>
+<dd>Cannot assign device &amp;1.
+</dd>
+<dt><strong>CPF9845</strong></dt>
+<dd>Error occurred while opening file &amp;1.
+</dd>
+<dt><strong>CPF9847</strong></dt>
+<dd>Error occurred while closing file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9848</strong></dt>
+<dd>Cannot open file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+<dt><strong>CPF9849</strong></dt>
+<dd>Error while processing file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+</dl>
+<p><strong class="underlined">*STATUS Messages</strong>
+</p>
+<dl>
+<dt><strong>CPI2C11</strong></dt>
+<dd>Copying records to file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

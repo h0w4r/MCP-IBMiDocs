@@ -1,0 +1,561 @@
+Override with Data Base File (OVRDBF)
+
+Override with Data Base File (OVRDBF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Override with Database File (OVRDBF) command is used to (1) override (replace) the file named in the program, (2) override certain parameters of a file that are used by the program, or (3) override the file named in the program and override certain parameters of the file being processed. Parameters overridden by this command are specified in the file description, in the program, or in other previously issued file override commands. This command applies to physical files, logical files, and distributed data management (DDM) files.
+
+To override (replace) a file named in the program, specify the name of that file in the FILE parameter, and specify the name of the file that overrides it (the file to be processed by the program) in the TOFILE parameter. The other parameters of this command can be used to override parameter values contained in the file description of the overriding file.
+
+To override only certain parameters of the file named in the program, instead of replacing the entire file, specify the name of the file in the FILE parameter and specify the *FILE value for the TOFILE parameter. Then use the other parameters of this command to override specific parameters of the file. Parameters that are not specified do not affect parameters specified in the file description, in the program, or in other previously issued file override commands.
+
+Restrictions:
+
+- In a multithreaded job, this command may only be issued from the initial thread.
+
+- In a multithreaded job, only Activation Group or Job scoped overrides will affect opens performed in a secondary thread.
+
+Note: The override cannot be used for all commands. A list of the commands that cannot be overridden, along with more information on overriding files is in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: Using this command does not cause a file to be overridden immediately. Information provided on this command is stored until the file is used, at which time the file is overridden.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | File being overridden | Name | Required, Positional 1
+TOFILE | Overriding to data base file | Single values: *FILE
+Other values: Qualified object name | Optional, Positional 2
+Qualifier 1: Overriding to data base file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MBR | Overriding member | Name, *FIRST, *LAST, *ALL | Optional, Positional 3
+POSITION | Starting position in file | Single values: *NONE, *START, *END
+Other values: Element list | Optional
+Element 1: Retrieve order | *RRN, *KEYB, *KEYBE, *KEY, *KEYAE, *KEYA
+Element 2: *RRN-rcd nbr *KEY-nbr key flds | Unsigned integer
+Element 3: *KEY-rec format having key | Name
+Element 4: *KEY-key value | Character value
+RCDFMTLCK | Record format lock | Values (up to 32 repetitions): Element list | Optional
+Element 1: Record format | Name
+Element 2: Lock state | *SHRRD, *SHRNUP, *SHRUPD, *EXCLRD, *EXCL
+FRCRATIO | Records to force a write | Integer, *NONE | Optional
+FMTSLR | Rcd format selector program | Qualified object name | Optional
+Qualifier 1: Rcd format selector program | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+WAITFILE | Maximum file wait time | Integer, *IMMED, *CLS | Optional
+WAITRCD | Maximum record wait time | Integer, *IMMED, *NOMAX | Optional
+REUSEDLT | Reuse deleted records | *NO | Optional
+NBRRCDS | Records retrieved at once | Integer | Optional
+EOFDLY | EOF retry delay in sec | 1-99999, *NONE | Optional
+LVLCHK | Record format level check | *NO | Optional
+EXPCHK | Check expiration date | *YES, *NO | Optional
+INHWRT | Inhibit write | *YES, *NO | Optional
+SECURE | Secure from other overrides | *NO, *YES | Optional
+OVRSCOPE | Override scope | *ACTGRPDFN, *CALLLVL, *JOB | Optional
+SHARE | Share open data path | *NO, *YES | Optional
+OPNSCOPE | Open scope | *ACTGRPDFN, *JOB | Optional
+SEQONLY | Limit to sequential only | Single values: *NO
+Other values: Element list | Optional
+Element 1: Sequential only | *YES
+Element 2: Number of records | Integer, *BUF32KB, *BUF64KB, *BUF128KB, *BUF256KB
+DSTDTA | Distributed Data | *BUFFERED, *PROTECTED, *CURRENT | Optional
+
+Top
+
+File being overridden (FILE)
+
+Specifies the file in the using program to which this override command is applied. The specified file must be a database file when *FILE is specified in the Overriding to data base file (TOFILE) parameter. Otherwise, any device file or database file name can be specified.
+
+This is a required parameter.
+
+name
+Specify the name of the file.
+
+Top
+
+Overriding to data base file (TOFILE)
+
+Specifies the database file that is used instead of the file specified on the File being overridden (FILE) parameter, or, if *FILE is specified, specifies that certain attributes are overridden by parameters specified in this command. The parameters specified on this command override the same parameters specified in the database file, in the program, or in other previously issued OVRDBF commands.
+
+Single values
+
+*FILE
+The database file named in the File being overridden (FILE) parameter has some of its parameters overridden by values specified in this command.
+
+Qualifier 1: Overriding to data base file
+
+name
+Specify the name of the database file that is used instead of the file specified in the FILE parameter.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the database file. If no library is specified as the current library, QGPL is used.
+
+name
+Specify the library where the database file is located.
+
+Top
+
+Overriding member (MBR)
+
+Specifies the members used within the database file. This parameter is not valid for distributed data management (DDM) files that refer to remote systems other than the System/38 or the AS/400 system.
+
+*FIRST
+The first member of a database file is used.
+
+*LAST
+The last member of a database file is used.
+
+*ALL
+All members in your file are processed in order. All members are opened with the same override parameters as the first member. Overrides issued prior to the open of the first member are processed, but overrides or delete overrides issued following the open of the first member are not processed. EOFDLY, FMTSLR, INHWRT, or the POSITION parameter cannot be specified if MBR(*ALL) has been specified on a previously issued OVRDBF command that is still in effect for this file. An escape message is sent if any of the mutually exclusive parameters are specified.
+
+name
+Specify the member name that overrides (at file open time) the member name specified in the using program, or in other called OVRDBF commands. If the member name is not specified, and a TOFILE parameter other than *FILE has been specified, the first member in the file is used.
+
+Top
+
+Starting position in file (POSITION)
+
+Specifies the starting position for reading records from the database file. The first record to get can be at the beginning (*START) or at the end (*END) of the file, the nth record in the file (*RRN), or the record indicated by a key field value and one of the key-search values (*KEY, *KEYA, *KEYAE, *KEYB, or *KEYBE). This parameter overrides the value specified in the program, or in other called OVRDBF commands.
+
+Note: This parameter cannot be specified if *ALL was specified previously on the Overriding member (MBR) parameter.
+
+Single values
+
+*NONE
+No special positioning is required. The first input/output operation indicates the record that is read.
+
+*START
+The starting position is the first record in the file. If a read-previous record operation is specified in the program, an end-of-file condition occurs.
+
+*END
+The starting position is the last record in the file. When the next record is read, an end-of-file condition is reached. If a read previous record operation is requested, the last record of the file is read.
+
+Element 1: Retrieve order
+
+*RRN
+The starting position is the relative record number specified for the second element of this parameter.
+
+*KEYB
+A record that precedes the record identified by the remaining search values (number of fields, record format name, and key value) is the first record read.
+
+*KEYBE
+The record identified by the search values is the first record read. If no record matches those values, the record that matches the largest previous value is selected.
+
+*KEY
+The record identified by the search values is the first record read. If a read-previous record operation is specified in the program, the preceding record is read.
+
+*KEYAE
+The record identified by the search values is the first record read. If there is no record that matches those values, the record with the next highest value is selected.
+
+*KEYA
+A record that follows the record identified by the remaining search values (number of fields, record format name, and key value) is the first record read.
+
+Element 2: *RRN-rcd nbr *KEY-nbr key flds
+
+relative-record-number
+Specify the relative record number (its position from the beginning of the file) of the record that is read first. The value *RRN must be specified for the first element of this parameter. For example, POSITION(*RRN 480) specifies that record 480 is read next. If a read-previous record operation is requested, the 479th record in the file is read.
+
+number-of-key-fields
+Specify the number of key fields to use in the search, if *KEYB, *KEYBE, *KEY, *KEYAE, or *KEYA is specified for the first element of this parameter. The number of fields specified does not have to be the same as the actual number of fields in each key for the file. For example, if you specify POSITION(*KEY 1 FMT1 A), the first record in the file format FMT1 that has a first key field value of A is read. If you specify a key value of zero, the search is based on all key fields. If zero is used, the key value contains the maximum key size. If it does not, no match occurs.
+
+Element 3: *KEY-rec format having key
+
+name
+Specify the name of the record format in the database file that contains the key value specified. If no record format name is specified, all record formats are searched for the first record that matches the other search values.
+
+Element 4: *KEY-key value
+
+character-value
+Specify the first record read. The key value is specified as a character string enclosed in apostrophes for character or positive zoned decimal formats, or is specified in hexadecimal form (x'value'). You can specify up to 2000 characters in the character string.
+For example, POSITION(*KEY 1 FMT2 X'123F') specifies that:
+
+- The system searches for a record from the record format FMT2.
+
+- A single key field is used in the search (even though the key value may have more key fields).
+
+- The record contains the hexadecimal value 123F (the hexadecimal equivalent of packed decimal value 123.0). You get this record when it is found.
+
+The Distributed database programming topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ has more information on the effects of using the POSITION parameter with DDM files.
+
+Top
+
+Record format lock (RCDFMTLCK)
+
+Specifies the lock state of the named record format while it is used by the program. The lock state indicates how the data associated with each format is locked. The following example shows the lock states that are specified for each record format and the operations allowed to other programs when the lock is in effect:
+
+Lock State Other Program Operations
+--------------------- -------------------------
+*SHRRD (Shared read) Read and update allowed
+*SHRNUP (Shared read, Read allowed, update
+no update) not allowed
+*SHRUP (Shared update) Read and update allowed
+*EXCLRD (Exclusive Read allowed, update
+allow read) not allowed
+*EXCL (Exclusive no Neither read nor
+read) update allowed
+
+An explanation of each lock state is in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+For each record format, specify the record format name, followed by one lock state value. If the lock state specified for the file in an Allocate Object (ALCOBJ) command is more restrictive than the lock state specified in this parameter, this parameter is ignored. Thus, this parameter can only impose a more restrictive lock state on a record format than the lock state specified for the file.
+
+You can specify 32 values for this parameter.
+
+Element 1: Record format
+
+name
+Specify the name of record format.
+
+Element 2: Lock state
+
+lock-state
+Specify one of the lock state values from the above table.
+
+Top
+
+Records to force a write (FRCRATIO)
+
+Specifies the number of insert, delete, or update operations that can occur on records before those records are forced into auxiliary (permanent) storage. If this physical file is being journaled, either a large number or *NONE should be used. *NONE may cause long synchronization of the journal and physical files. More information on this parameter is in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/, Appendix A. More information on journal management is in the Recovering your system book, SC41-5304.
+
+This parameter overrides the force-write ratio specified in the database file, in the program, or in other previously issued OVRDBF commands.
+
+*NONE
+There is no force write ratio; the system determines when the records are written to auxiliary storage.
+
+integer
+Specify the number of records written the changes are forced to disk. If a physical file associated with this database file is recorded in a journal, specify a larger force-write ratio.
+
+Top
+
+Rcd format selector program (FMTSLR)
+
+Specifies the record format selection program that is called when a logical file member contains more than one logical record format. The user-written selection program is called when a record is inserted into the database file and a record format name is not included in the high-level language program. More information about the use of format selector programs is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. This parameter overrides the value specified in the database file and in other previously issued OVRDBF commands.
+
+A program specified as the format selector program cannot be created with USRPRF(*OWNER) specified in the Create CL Program (CRTCLPGM) command.
+
+Note: This parameter cannot be specified if *ALL was specified previously on the Overriding member (MBR) parameter.
+
+Qualifier 1: Rcd format selector program
+
+name
+Specify the name of the selection program.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the program. If no current library entry exists in the library list, QGPL is used.
+
+name
+Specify the library where the program is located.
+
+Top
+
+Maximum file wait time (WAITFILE)
+
+Specifies the number of seconds that the program waits for the file resources to be allocated when the file is opened, or the device or session resources to be allocated when an acquire operation is performed to the file. If the file resources cannot be allocated in the specified wait time, an error message is sent to the program.
+
+This parameter overrides the wait time specified in the database file, in the program, or in other previously issued OVRDBF commands.
+
+More information on this parameter is in CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/, Appendix A.
+
+*IMMED
+The program does not wait. When the file is opened, an immediate allocation of the file resources is attempted.
+
+*CLS
+The default wait time specified in the class description is used as the wait time for the allocation of the file resources.
+
+integer
+Specify the number of seconds that the program waits for the allocation of the file resources. Valid values range from 1 through 32767 seconds.
+
+Top
+
+Maximum record wait time (WAITRCD)
+
+Specifies the number of seconds that a program waits for a record to be updated or deleted, or for a record read in the commitment control environment with LCKLVL(*ALL) specified. More information on record locking is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. If the record is not allocated in the specified wait time, an error message is sent to the program.
+
+Note: This parameter overrides the record wait time specified in the database file, specified in the program, or in other previously issued OVRDBF commands. The minimum delay for DDM files is 60 seconds. This value may need to be longer than the delay specified for local database files.
+
+*NOMAX
+The program waits indefinitely for a record lock.
+
+*IMMED
+The program does not wait. An immediate lock of the record is obtained when the record is read.
+
+integer
+Specify the number of seconds that the program waits for the record lock. Valid values range from 1 through 32767 seconds.
+
+Top
+
+Reuse deleted records (REUSEDLT)
+
+Specifies whether the space used by deleted data entries is reclaimed by future insert requests. Entry reuse cannot be done unless the file was created to allow this: REUSEDLT(*YES). This command cannot override reuse of deleted entries from *NO to *YES.
+
+*NO
+The file does not reclaim space used by deleted data entries.
+
+Top
+
+Records retrieved at once (NBRRCDS)
+
+Specifies the number of records read from auxiliary storage as a unit and written to main storage as a unit. The amount of data actually read is equal to the number of records times the physical record length, not the logical record length.
+
+This parameter is valid for sequential or random processing and is specified only when the data records are physically located in auxiliary storage in the sequence in which they are processed. This parameter overrides the number of records value specified in the program, or in other previously issued OVRDBF commands.
+
+integer
+Specify the number of records. Valid values range from 1 through 32767.
+
+Top
+
+EOF retry delay in sec (EOFDLY)
+
+Specifies the number of seconds of delay before trying to read additional records when end of file is reached. This delay is used to allow other jobs an opportunity to add records to the file, and have the new records processed without having to start the job again. When the delay time ends, the job is made active, and data management determines whether any new records were added. If no new records were added, the job waits for another time delay without informing the application program. When a number of seconds is given, no end of file occurs on the given database file until an End Job (ENDJOB) command or forced end of data (FEOD) occurs.
+
+Note: This parameter cannot be specified if *ALL was specified previously on the Overriding member (MBR) parameter.
+
+There are several ways to end a job that is waiting for records due to an EOFDLY. They are:
+
+- Write a record to the specified file which is recognized by the application program as a last record. The application program may then do a force end of data (FEOD) to start the end-of-file processing or close the file.
+
+- End the job using the controlled value (ENDJOB OPTION(*CNTRLD)) with a delay time greater than the time specified on the EOFDLY time. The DELAY parameter time specified must allow for the EOFDLY time to run out, plus time to process any new records that may have been added to the file, and any end-of-file processing that is done in the user's application. The end-of-file is set by database, and a normal end-of-file condition occurs after new records are retrieved.
+
+- End the job immediately (ENDJOB OPTION(*IMMED)).
+
+- If the job is interactive, start a system request and end the previous request.
+
+*NONE
+Normal end-of-file processing is done.
+
+1-99999
+Specify the number of seconds that the program waits between attempts to get a record when an end of file condition occurs. No end of file is signaled until force end of data occurs, or until the job is ended with the *CNTRLD option.
+
+Top
+
+Record format level check (LVLCHK)
+
+Specifies whether the level identifiers for the record formats of the database file are checked when the file is opened by a program. For this check, which is done while the member is opened, the system compares the record format identifiers of each record format used by the program with the corresponding identifiers in the database member. Level checking cannot be done unless the program contains the record format identifiers. This command cannot override level checking from *NO to *YES.
+
+*NO
+The level identifiers are not checked when the file is opened.
+
+Top
+
+Check expiration date (EXPCHK)
+
+Specifies whether the expiration date of the named member is checked. This date check is valid only on a physical file member. This parameter overrides the value specified in the program, or in other called OVRDBF commands.
+
+*YES
+The expiration date of the physical file member is checked. If the current date is later than the expiration date, an escape message is sent to the program.
+
+*NO
+The expiration date is not checked.
+
+Top
+
+Inhibit write (INHWRT)
+
+Specifies whether the processed records are written, deleted, or updated in the database file. The inhibit write parameter allows you to test a program without storing the processed records in the database. This parameter overrides the INHWRT parameter in other previously issued OVRDBF commands.
+
+Note: This parameter cannot be specified if *ALL is specified on the Overriding member (MBR) parameter.
+
+*YES
+Processed records are prevented from being written into the database. They are written only to an output device.
+
+*NO
+All new and changed processed records are written into the database unless the program is in debug mode with *NO specified on the Update production files (UPDPROD) parameter, and the file is in a production library. In that case, an escape message is sent to the program.
+
+Top
+
+Secure from other overrides (SECURE)
+
+Specifies whether this file is safe from the effects of previously called file override commands.
+
+*NO
+This file is not protected from other file overrides. Its values are overridden by the effects of any file override commands that were previously called.
+
+*YES
+This file is protected from the effects of any file override commands that were previously called.
+
+Top
+
+Override scope (OVRSCOPE)
+
+Specifies the extent of influence (scope) of the override.
+
+*ACTGRPDFN
+The scope of the override is determined by the activation group of the program that calls this command. When the activation group is the default activation group, the scope equals the call level of the calling program. When the activation group is not the default activation group, the scope equals the activation group of the calling program.
+
+*CALLLVL
+The scope of the override is determined by the current call level. All open operations done at a call level that is the same as or higher than the current call level are influenced by this override.
+
+*JOB
+The scope of the override is the job in which the override occurs.
+
+Top
+
+Share open data path (SHARE)
+
+Specifies whether the open data path (ODP) is shared with other programs in the same routing step. When an ODP is shared, the programs accessing the file share facilities such as the file status and the buffer.
+
+More information on shared database files is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+*NO
+The ODP is not shared with other programs in the routing step. A new ODP for the file is created and used every time a program opens the file.
+
+*YES
+If the member is opened more than once, the same ODP is shared with each program in the job that also specifies *YES on the Share open data path (SHARE) parameter when it opens the member. This includes several open operations in the same program.
+
+Top
+
+Open scope (OPNSCOPE)
+
+Specifies the extent of influence (scope) of the open operation.
+
+*ACTGRPDFN
+The scope of the open operation is determined by the activation group of the program that called the OVRDBF command processing program. If the activation group is the default activation group, the scope is the call level of the caller. If the activation group is a non-default activation group, the scope is the activation group of the caller.
+
+*JOB
+The scope of the open operation is the job in which the open operation occurs.
+
+Top
+
+Limit to sequential only (SEQONLY)
+
+Specifies, for database files whose records are processed in sequential order only, whether sequential only processing is used on the file. This parameter also specifies the number of records transferred as a group to or from the database if sequential only processing is used. If a number is not specified, a default number is determined by the system. This parameter is used to improve the performance of programs that process database files in a sequential manner. This parameter overrides the value specified in the program or in other previously issued OVRDBF commands.
+
+For files opened for input only in a program, the specified number of records is transferred as a group from the database to an internal data management buffer.
+
+For files opened for output only in a program, a group of records is transferred to the database whenever the internal data management buffer receives the specified number of processed records from the program. For output files, sequential-only processing is valid for physical file members and for logical file members that are based on one physical file member only.
+
+If SEQONLY(*YES) is specified, and any of the following conditions are true, the SEQONLY parameter is ignored and a message is issued.
+
+- The program opened the member for output only and SEQONLY(*YES) is specified with the default number of records, and the member opened is either a logical member, a unique keyed physical member, or other access paths are built over the physical member.
+
+- The program opened the member for other than input or output.
+
+- The member opened by the program for output is based on many other members.
+
+- The record length plus the feedback area sum exceeded 32,767 bytes.
+
+Note: Unpredictable results occur when this parameter is used for alternate index files for DDM on a system other than an iSeries or AS/400 system.
+
+Single values
+
+*NO
+The database file is not restricted to sequential only processing.
+
+Element 1: Sequential only
+
+*YES
+The database file uses sequential only processing. A default value for the number of records transferred as a group is determined by the system based on how the file is used, the type of access path involved, and the file's record length:
+
+- The default is approximately the number of records that fit in an internal buffer of 4K for:
+
+All database files opened for input only
+
+Physical files opened for output that are only processed in either arrival sequence or in non-unique keyed sequence and that have no logical file members based on them
+
+- The default is 1 record for:
+
+All logical files opened for output only
+
+Physical files opened for output only that either have unique keyed sequence access paths or have at least one dependent logical file with a keyed sequence access path that does not share the access path of the keyed physical file member
+
+Element 2: Number of records
+
+integer
+Specify the number of records transferred each time. Valid values range from 1 through 32767. The file uses sequential only processing, and you must specify a value indicating the number of records in each group transferred between the database and the internal buffer.
+
+*BUF32KB
+The buffer size will be 32 kilo bytes.
+
+*BUF64KB
+The buffer size will be 64 kilo bytes.
+
+*BUF128KB
+The buffer size will be 128 kilo bytes.
+
+*BUF256KB
+The buffer size will be 256 kilo bytes.
+The user must ensure that the buffer size specified is always available to the program in the storage pool in which the program is running. The file uses sequential-only processing.
+
+While records are in the internal data management buffer, other jobs can make changes to the same records in the database, and the program performing sequential-only input processing does not see the updates. To ensure that no other updating is done to records while they are in the buffer, the Allocate Object (ALCOBJ) command can be used in the program to specify either an *EXCLRD or an *EXCL lock on the file.
+
+If a program performs sequential-only output processing and does not handle output errors (such as duplicate keys and conversion mapping errors) that may occur when the records in the buffer are written to the database, records in the buffer after the first record in error are not written.
+
+If the file is opened for output and the value specified in this parameter is not the same as the force write ratio specified for the file, the value used by the system is the smaller of the two; a message stating which value is changed is sent to the user.
+
+When processing SEQONLY(*YES) for writing records into a database file, feedback information for each record (such as relative record number) is not always changed. If such feedback information is important, specify SEQONLY(*NO) or SEQONLY(*YES 1).
+
+More information on sequence-only database files is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Distributed Data (DSTDTA)
+
+Specifies the data retrieval method used for a distributed file. This parameter has no effect if used against a non-distributed file. Other parameters, such as SEQONLY, still affect how the data is retrieved from each system, and this parameter controls how all the data is managed when accessing a distributed file. This parameter overrides the distributed file data retrieval method selected by the system, or specified in other previously issued OVRDBF commands. More information on DSTDTA can be found in the DB2 Multisystem topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+*BUFFERED
+In order to achieve the best performance, data from the remote system and the local system may be kept in a buffer until retrieved by the user.
+
+*PROTECTED
+Data can be buffered, but the file is locked to prevent updates by other jobs. This will give the same performance as *BUFFERED, but guarantees current data. While one job is using this option, other jobs will not be able to update the data in the file.
+
+*CURRENT
+Data is not buffered. This option results in fully live data, with maximum concurrency, but without optimal performance.
+
+Top
+
+Examples
+
+Example 1: Overriding An Existing Member
+
+OVRDBF FILE(ORDERSIN) MBR(MONDAY)
+
+This command overrides the existing member with member MONDAY. With the override in effect, the member MONDAY will be processed when the file ORDERSIN is opened.
+
+Example 2: Overriding a Share Specification
+
+OVRDBF FILE(ORDERSIN) SHARE(*YES)
+
+This command overrides the share specification for the file ORDERSIN. Because of this override, any subsequent opens of this file within the routing step share the ODP for the file.
+
+Example 3: Overriding a File, Member and Lock State
+
+OVRDBF FILE(INPUT) TOFILE(PAYROLL) MBR(MBR1)
+RCDFMTLCK((EMPDATA *EXCL))
+
+This command overrides the file, the member, and the lock state of the record format EMPDATA. The override will cause the following to occur when the file INPUT is opened:
+
+- The file PAYROLL will be processed instead of the file INPUT.
+
+- The member MBR1 will be processed instead of the previously specified member.
+
+- The lock *EXCL will be placed on record format EMPDATA instead of the existing lock. (*EXCL prevents another program from using the record format while the override is in effect.)
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF180C
+Function &1 not allowed.
+
+Top

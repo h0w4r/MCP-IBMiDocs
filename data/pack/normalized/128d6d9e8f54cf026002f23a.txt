@@ -1,0 +1,778 @@
+Apply Journaled Changes Extend (APYJRNCHGX)
+
+Apply Journaled Changes Extend (APYJRNCHGX)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Apply Journaled Changes Extend (APYJRNCHGX) command applies the changes that have been journaled for a particular journaled object to a saved version of the object to recover it after an operational error or some form of damage.
+
+There are slight differences between this command and the Apply Journaled Changes (APYJRNCHG) command. This command only applies entries for database files and requires entries to be applied for all files in a library.
+
+Note: The Apply Journal Changes Extend (APYJRNCHGX) command is a tactical solution that provides function that was not provided by the standard APYJRNCHG command until V6R1M0. Support for the APYJRNCHGX command will be withdrawn in a future release.
+
+Some object level changes that are applied are entries from SQL statements. The replay of these entries can cause the Apply Journaled Changes (APYJRNCHGX) command to run for a long time. The default time-out for the replaying of the ALTER TABLE, REFRESH TABLE or the reorganizing physical file entry is 24 hours. The default time-out for commit, rollback or cancel rollback entry is 12 hours. The default time-out for the replaying of the DROP TABLE entry is 1 hour. The default time-out for other object level change entries from SQL statements is 5 minutes.
+
+If you want to change these default values to a higher or lower value, then add an environment variable called:
+
+- QIBM_JO_APPLY_ALTER_TABLE_TIMEOUT - alter table (D CG) entry
+
+- QIBM_JO_APPLY_REFRESH_TABLE_TIMEOUT - refresh table (D TQ) entry
+
+- QIBM_JO_APPLY_DROP_TABLE_TIMEOUT - drop table (F DM) entry, delete file (D DT) entry, and delete member (F DM) entry
+
+- QIBM_JO_APPLY_REORG_TIMEOUT - reorganize physical file (F RM) entry
+
+- QIBM_JO_APPLY_TIMEOUT - for other object level change entries
+
+- QIBM_JO_APPLY_CM_RB_CN_TIMEOUT - commit (C CM), rollback (C RB), cancel rollback (C CN) entry
+
+The value for all the environment variables is in seconds.
+
+The minimum for any of these environment variable is 60 seconds. If a value of less than 60 is specified for any of these environment variables, a value of 60 seconds will be used.
+
+Environment variables must be in all capital letters and set before issuing the APYJRNCHGX command.
+
+Note: The commands to manipulate environment variables are Add Environment Variable (ADDENVVAR), Change Environment Variable (CHGENVVAR) and Work with Environment Var (WRKENVVAR).
+
+See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for a complete listing of the various entries and how they are handled by this command including those entries which can stop the command. Search for "actions of applying or removing journaled changes".
+
+APYJRNCHGX has nearly the same parameter list as APYJRNCHG for compatibility purposes but the OBJ and OBJPATH parameters are not available. Also, the file specification is restricted to library/*ALL, and the member specification is restricted to *ALL
+
+A secondary thread is used to apply the object level changes. The apply of some journal entries may fail if the QMLTTHDACN system value is set to 3 (*NORUN). The recommended setting for QMLTTHDACN during an APYJRNCHGX operation is 2. The status of the secondary thread may be monitored using WRKJOB option 20.
+
+The journaled changes are applied from the specified starting point, either the point at which an object was last saved or a particular entry on the journal, until the specified ending point has been reached. The ending point can be the point at which the object has had all changes applied, the object was last restored, a specified entry has been reached, a specified time has been reached, or the object was opened or closed by a job (the CMTBDY parameter is used for handling changes that are still pending).
+
+Note: If you delete any files prior to restoring the database library as part of your recovery scenario, you must be careful when selecting the range of journal entries to apply. Remember that "DELETE FILE" entries in the journal will be applied, if they are included in the specified range. In this case, it is recommended that you specify either a specific ending journal sequence number, or recover to a specific date and time (which would be prior to starting any recovery steps).
+
+Note: The Display Journal (DSPJRN) command can be used to help determine the desired starting and/or ending points.
+
+A list of journaled objects can be specified. The journaled changes are applied in the order that the journal entries are found on the journal, which is the same order in which the changes were made to the objects.
+
+Like the APYJRNCHG command, record-level operations are not performed under commitment control. However, any object level operations that were originally performed under commitment control are also performed under commitment control during the apply. If the commitment control transaction was originally committed, the object level operations will be committed when the corresponding commit entry is applied. If the commitment control transaction was originally rolled back, the object level operations will be rolled back when the corresponding rollback entry is applied.
+
+If an error occurs during the apply before the corresponding commit or rollback entry is applied, any pending object level operations are either committed or rolled back, depending on whether the transaction was originally committed or rolled back. Since pending object level operations prior to that journal sequence number may be rolled back, careful examination of the journal and user intervention is required before starting the apply again.
+
+If a ROLLBACK of an object level operation occurs due to an error condition, the system may potentially be in a state where partial record-level changes have been applied and some transactions are not at a commit boundary. Careful examination of the journal and user intervention is required at this point.
+
+For example, a transaction contains several inserts, followed by an ALTER TABLE to add a column, followed by several more inserts (with the new record length), but ends in a ROLLBACK. If the apply operation was interrupted just after the ALTER TABLE, the system would recognize that the transaction ended in a ROLLBACK and would roll back the ALTER TABLE. If the apply operation were restarted in this case, the second set of inserts would fail due to a record length mismatch. While this scenario is unlikely, it is important to understand the mechanics behind the apply, in order to continue the apply after an error.
+
+If a journal code J entry type SI (Enter JRNSTATE(*STANDBY)) entry is found, the operation ends for all objects specified regardless of the OBJERROPT value specified. Objects may be only partially updated from the journal entries.
+
+Additionally, the command can end applying for an individual object when journal entries list operations which cannot be replayed by the command. If additional changes for this particular object are encountered during this apply, then those changes will not be applied. However, the operation will continue for the other objects specified if OBJERROPT(*CONTINUE) is specified. For example, the command ends for an object when a journal entry is found that indicates one of the following has occurred:
+
+- A physical database file member was restored.
+
+- Journaling was ended for a physical database file.
+
+- The system had already applied or removed the changes through the Apply Journaled Changes (APYJRNCHG or APYJRNCHGX) command or the Remove Journaled Changes (RMVJRNCHG) command.
+
+The command also ends for an object when illogical conditions are encountered, such as attempts to do the following:
+
+- To add a record to an existing relative record number for a database file member
+
+- To add a record beyond the next record position after the end of the database file
+
+- To add a record that has a duplicate key for a database file member
+
+- To delete a deleted record for a database file member
+
+- To update a nonexistent record for a database file member
+
+Most illogical conditions are caused by starting the apply journaled changes operation at the wrong place in the journal with respect to the current contents of the objects.
+
+If the command ends due to illogical conditions and it is logically possible to restart the apply operation, you can issue the command again specifying a new starting sequence number.
+
+It is possible to apply changes even if the sequence numbers have been reset. The system sends an informational message and continues to apply the changes.
+
+Restrictions:
+
+- This command is shipped with public *EXCLUDE authority and the QPGMR and QSRV user profiles have private authorities to use the command.
+
+- The objects specified on this command must currently have their changes journaled.
+
+- Commitment control cannot be active in the job prior to using this command.
+
+- If a restore operation occurs before the apply operation, the object being restored must have been journaled at the time of the save operation.
+
+- The objects indicated on the command are allocated exclusively while the changes are being applied. If an object cannot be allocated, the command ends and no journaled changes are applied.
+
+- If there is no journal entry that corresponds to the period indicated on the command, the command ends and no journaled changes are applied.
+
+- If the journal sequence numbers have been reset in the range of the receivers specified, and a sequence number is specified on the FROMENT, FROMENTLRG, TOENT, or TOENTLRG parameter, the first occurrence of the sequence number specified on any of the parameters is used.
+
+- The TOJOBO and TOJOBC parameters cannot be used to specify when the apply journaled changes operation is to end if one or more journal receivers in the specified receiver range was attached to a journal with RCVSIZOPT(*MINFIXLEN) in effect.
+
+- The TOJOBO and TOJOBC parameters cannot be used if the object for which changes are being applied was not recording open and close entries. For further clarification, refer to the Omit journal entry (OMTJRNE) parameter for the STRJRN, STRJRNPF, STRJRNLIB, and CHGJRNOBJ commands.
+
+- The maximum number of objects that can have changes applied with this command is 12,000,000. If more than 12,000,000 objects are included in the specifications, an error message is sent and no changes are applied.
+This limit will include any objects which are created as a result of applying object level operations. If this limit is reached, the new member will not be created. The apply will end for the object that was causing the create (a database file) at that point (and all entries up to that point will be applied). The apply will continue with other members in the file and other files if OBJERROPT(*CONTINUE) was specified.
+
+When applying changes for a database file, there is one object associated with each member and one additional object associated with the file.
+
+- Using APYJRNCHGX to apply changes from a journal receiver with journal entries deposited from another release (either previous or later) may cause unexpected results.
+
+- APYJRNCHGX cannot be used to apply changes from journal receivers that may be missing journal entries due to remote journal object filtering or program filtering.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JRN | Journal | Qualified object name | Required, Positional 1
+Qualifier 1: Journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FILE | Journaled file identification | Values (up to 300 repetitions): Element list | Required, Positional 2
+Element 1: Journaled physical file | Qualified object name
+Qualifier 1: Journaled physical file | *ALL
+Qualifier 2: Library | Name
+Element 2: Member | *ALL
+RCVRNG | Range of journal receivers | Single values: *LASTSAVE, *CURRENT
+Other values: Element list | Optional, Positional 3
+Element 1: Starting journal receiver | Qualified object name
+Qualifier 1: Starting journal receiver | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Ending journal receiver | Single values: *CURRENT
+Other values: Qualified object name
+Qualifier 1: Ending journal receiver | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMENTLRG | Starting large sequence number | Character value, *LASTSAVE, *FIRST | Optional
+TOENTLRG | Ending large sequence number | Character value, *LASTRST, *LAST | Optional
+TOTIME | Ending date and time | Element list | Optional
+Element 1: Ending date | Date
+Element 2: Ending time | Time
+TOJOBO | Fully qualified job name | Qualified job name | Optional
+Qualifier 1: Fully qualified job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+TOJOBC | Fully qualified job name | Qualified job name | Optional
+Qualifier 1: Fully qualified job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+CMTBDY | Commitment boundary | *YES, *NO | Optional
+OPTION | Option | *NONE, *IGNINQMSG | Optional
+OBJERROPT | Object error option | *CONTINUE, *END | Optional
+OUTPUT | Output | *NONE, *OUTFILE | Optional
+OUTFILE | File to receive output | Qualified object name | Optional
+Qualifier 1: File to receive output | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+DETAIL | Detail | *ALL, *ERR | Optional
+FROMENT | Starting sequence number | 1-9999999999, *LASTSAVE, *FIRST | Optional
+TOENT | Ending sequence number | 1-9999999999, *LASTRST, *LAST | Optional
+
+Top
+
+Journal (JRN)
+
+Specifies the journal associated with the journal entries that are being applied.
+
+This is a required parameter.
+
+Qualifier 1: Journal
+
+journal-name
+Specify the name of the journal associated with the journal entries being applied.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Journaled file identification (FILE)
+
+Specifies a maximum of 300 library/*ALL combinations entries are being applied.
+
+This is a required parameter.
+
+Element 1: Journaled physical file
+
+Qualifier 1: Journaled physical file
+
+*ALL
+All physical files in the specified library whose changes are recorded in the specified journal have their journal entries applied. The library name must be specified. If *ALL is specified and the user does not have the required authority for at least one file in the library, a message is sent and the applying of journal entries ends. If the user has authority to one or more files in the library, then the apply operation is performed on all files for which the user is authorized.
+
+Note: At the time the apply is started, at least one journaled file must exist in the library (and the user must have the required authority) or the apply will not start.
+
+Qualifier 2: Library
+
+library-name
+Specify the name of the library to be searched.
+
+Element 2: Member
+
+Specify the name of the member in the file that has its journal entries applied.
+
+*ALL
+All members in the file have their journal entries applied.
+
+Top
+
+Range of journal receivers (RCVRNG)
+
+Specifies the starting and ending journal receivers used in applying the journal entries. The system begins by applying the journal entries in the first journal receiver in this journal receiver range and proceeds through the receivers until it applies the journal entries in the last journal receiver in this journal receiver range.
+
+Note: The maximum number of receivers that can be included in a range of receivers is 2045. If more than 2045 receivers are included in the range specified, an error message is sent and no changes are applied. You can change the values specified on this parameter so that the limit is not exceeded.
+
+Single values
+
+*LASTSAVE
+The range of journal receivers used is determined by the system, as a result of save information for the objects that have their recorded changes applied. This parameter value is only valid if *LASTSAVE is also specified on the Starting sequence number (FROMENT) parameter, and on the Starting large sequence number (FROMENTLRG) parameter.
+
+*CURRENT
+The journal receiver that is currently attached when starting to apply journal entries is used.
+
+Element 1: Starting journal receiver
+
+Qualifier 1: Starting journal receiver
+
+starting-journal-receiver
+Specify the name of the journal receiver used as the first (oldest) receiver.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the journal receiver. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the journal receiver is located.
+
+Element 2: Ending journal receiver
+
+Qualifier 1: Ending journal receiver
+
+*CURRENT
+The journal receiver that is currently attached when starting to applying journal entries is used.
+
+ending-journal-receiver
+Specify the name of the journal receiver used as the last (newest) receiver with journal entries to be applied. If the end of the receiver chain is reached before finding this receiver, no entries are applied, and an escape message is sent.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the journal receiver. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the journal receiver is located.
+
+Top
+
+Starting large sequence number (FROMENTLRG)
+
+Specifies the entry that is used as the starting point for applying changes that have been journaled.
+
+You can specify a value for either the Starting sequence number (FROMENT) parameter or the Starting large sequence number (FROMENTLRG) parameter, but not for both.
+
+*LASTSAVE
+The journal entries are applied beginning with the first journal entry after the object was last saved. The system determines the actual starting position for each of the objects specified on the command. The parameter value implies that the object was just restored on the system.
+If the restored version of the object was a version that was saved using the save-while-active function, then the system will start applying changes from the corresponding start-of-save entry whether or not this was actually the last save of the object. When using save-while-active, information needed for applying journaled changes is saved with the object and restored. When all objects specified on the apply command have been restored from save versions that used save-while-active, the system does not need to scan all the journal receivers to find the save points for the objects. This can improve the performance of the apply processing.
+
+If the restored version of the object was a version that was saved when it was not in use (normal save), then the system verifies information for each object specified, such as if the date and time of the restore is after the date and time of the last save. The system also verifies that the date and time of the saved version of the object that is restored on the system is the same as the date and time that the object was last saved, as indicated on the journal.
+
+If the dates and times do not match, no entries are applied and an inquiry message (CPA7050) is sent to the user or system operator requesting a cancel or ignore response. If an ignore response is given to the message, the operation is attempted. A cancel response causes the operation to end, and no journal entries are applied.
+
+If the object was last saved with the save-while-active function, the saved copy of each object includes all changes in the journal entries up to the corresponding start-of-save journal entry. In this case, the system applies changes beginning with the first journal entry following the start-of-save entry.
+
+If the object was last saved when it was not in use (normal save), the saved copy of each object includes all changes in the journal entries up to the corresponding object saved journal entry. In this case, the system applies changes beginning with the first journal entry following the object saved entry.
+
+Note: If any database file members were saved specifying *NOCMTBDY as the second element of the SAVACTWAIT parameter on the save command and are currently in a state where apply journaled changes is required, then *LASTSAVE must be specified. If apply journaled changes cannot be used to complete the partial transactions, then the remove journaled changes (RMVJRNCHG) command can be used to just remove the partial transactions. If neither APYJRNCHG nor RMVJRNCHG can be used, and no other version of the file can be restored, then as a last resort, the Change Journaled Object (CHGJRNOBJ) command can be used to allow the file to be used while leaving the partial transactions within the object.
+
+*FIRST
+The journal entries are applied beginning with the first journal entry in the first receiver supplied to this command.
+
+starting-sequence-number
+Specify the sequence number of the first journal entry that is applied from the supplied journal entries. The acceptable range is 1 to 18,446,744,073,709,551,600.
+
+Note: When entering a sequence number, the Range of journal receivers (RCVRNG) parameter cannot be *LASTSAVE and the Ending large sequence number (TOENTLRG) parameter cannot be *LASTRST.
+
+Note: For object level entries in the journal, the FROMENTLRG used is the earliest FROMENTLRG from any file member in the selection list that exists at the start of the apply.
+
+Top
+
+Ending large sequence number (TOENTLRG)
+
+Specifies the entry used as the ending point for applying changes that have been journaled.
+
+You can specify a value for either the Ending sequence number (TOENT) parameter or the Ending large sequence number (TOENTLRG) parameter, but not for both.
+
+*LASTRST
+The journal entries are applied ending with the entry before the object was last restored. The system determines the actual ending position for each of the objects specified on the command. The system verifies that the date and time of the restored version of the object on the system is the same as the date and time that the object was last restored, as indicated on the journal. If the dates and times do not match, no entries are applied and an inquiry message (CPA7075) is sent to the user or system operator, requesting a cancel or ignore response. If an ignore response is given to the message, the operation is attempted. A cancel response causes the operation to end, and no journal entries are applied.
+If an object is created as a result of applying changes to another object, the ending apply point for the newly created object is the greatest ending point of all the objects being applied to.
+
+This parameter value is only valid if *LASTSAVE is also specified on the Starting sequence number (FROMENT) parameter or on the Starting large sequence number (FROMENTLRG) parameter. *LASTRST is assumed if none of the following parameters are specified:
+
+- Ending date and time (TOTIME),
+
+- Fully qualified job name (TOJOBO),
+
+- Fully qualified job name (TOJOBC).
+
+*LAST
+Journal entries are applied through the last entry of the last journal receiver in the receiver range.
+
+ending-sequence-number
+Specifies the sequence number of the last entry that is applied. The acceptable range is 1 to 18,446,744,073,709,551,600.
+
+Note: For object level entries in the journal, the TOENTLRG used is the last TOENTLRG from any file member in the selection list that exists at the start of the apply.
+
+Top
+
+Ending date and time (TOTIME)
+
+Specifies the time and date of the last journal entry that is applied. The first entry with that or the next earlier time is the ending point for the applying of journal entries.
+
+The time can be specified in 24-hour format with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Element 1: Ending date
+
+date
+Specify the ending date.
+
+Element 2: Ending time
+
+time
+Specify the ending time.
+
+Top
+
+Fully qualified job name (TOJOBO)
+
+Specifies the job identifier of the job that, when it opens an object that is specified ends the applying of journal entries by this command. The first job open entry found for any of the specified objects, is the ending point for all the objects specified.
+
+The TOJOBO parameter cannot be used if the object for which changes are being applied was not recording open and close entries. For further clarification, refer to the Omit journal entry (OMTJRNE) parameter for the STRJRN, STRJRNPF, STRJRNLIB, and CHGJRNOBJ commands.
+
+job-identifier
+Specify the job name, the user name, and the job number of the job to use. You can also specify that the job name only, or that the job name and the user name be used.
+
+job-name
+Specify the job name of the job.
+
+user-name
+Specify the user name of the job.
+
+job-number
+Specify the system-assigned job number.
+
+Top
+
+Fully qualified job name (TOJOBC)
+
+Specifies the job identifier of the job that ends the applying of journal entries by this command. The first job close entry found for any of the specified objects, is the ending point for all objects specified. The applying of journal entries is ended when either of the following occurs:
+
+- The specified job closes an object that is specified.
+
+- The specified job is ended.
+
+The TOJOBC parameter cannot be used if the object for which changes are being applied was not recording open and close entries. For further clarification, refer to the Omit journal entry (OMTJRNE) parameter for the STRJRN, STRJRNPF, STRJRNLIB, and CHGJRNOBJ commands.
+
+job-identifier
+Specify the job name, the user name, and the job number of the job to use. You can also specify that the job name only, or that the job name and the user name be used.
+
+job-name
+Specify the job name of the job.
+
+user-name
+Specify the user name of the job.
+
+job-number
+Specify the system-assigned job number.
+
+Top
+
+Commitment boundary (CMTBDY)
+
+Specifies whether commitment boundaries are honored when the journal entries to which journaled changes are to be applied are part of a commitment control logical unit of work (LUW). More information on the use of commitment control is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: For purposes of this parameter description, the TO option is used to describe either the TOENT, the TOENTLRG, the TOTIME, the TOJOBO, or the TOJOBC parameter, whichever is specified.
+
+*YES
+The journal entries are applied from the entry specified on the FROMENT or the FROMENTLRG parameter to the entry indicated on the TO option, honoring commitment boundaries.
+
+- If the journal entry specified on the FROMENT or the FROMENTLRG parameter is in the middle of the LUW of which it is a participant, an error message is sent and the operation is not attempted.
+
+- If the journal entry indicated on the TO option is in the middle of the LUW of which it is a participant, the operation stops at the commitment boundary before that journal entry. A diagnostic message is sent at the end of the operation and that fact is recorded in any output file generated.
+
+Note: If a journal entry is encountered that causes the operation to end before the entry indicated on the TO option, commitment boundaries might not be honored. In addition, if pending object level operations exist, they are either committed or rolled back, determined by looking ahead in the journal for that transaction's Journal Code C Entry Type CM or RB journal entry. This may result in a partial transaction being applied and commitment boundaries might not be honored. If a C/CM or C/RB entry is not found in the journal, the object level operations are rolled back.
+
+*NO
+The journal entries are applied from the entry specified on the FROMENT or the FROMENTLRG parameter to the entry indicated on the TO option, regardless of commitment boundaries. Even if a journal entry within this range is a participant of the LUW, the operation is attempted.
+
+Note: If CMTBDY(*NO) is specified and any object being applied to has been restored from a saved version that contains partial transactions, the changes pending for those partial transactions will not be removed if the transactions do not complete within the specified range. The original pending changes, along with any new changes for the partial transaction will remain in the object at the end of the apply operation. The object will only be usable if all pending transactions complete within the specified range.
+
+Note: Even with CMTBDY(*NO) specified, commitment control is used during the apply for object level operations. This does not affect the range of journal entries selected, which is still as described above. If pending object level operations exist, they are either committed or rolled back, determined by looking ahead in the journal for that transaction's C/CM or C/RB journal entry.
+
+Top
+
+Option (OPTION)
+
+Specifies whether additional checking should be done prior to applying journal changes.
+
+*NONE
+All protective checks are performed before any journal changes are applied.
+
+*IGNINQMSG
+Ignore inquiry message. Inquiry messages CPA7050 and CPA7075 are not presented to the user, even if the object that is being applied to is not from the last save or restore of the object. The apply operation continues.
+
+Top
+
+Object error option (OBJERROPT)
+
+Specifies how the processing of journal entries should proceed when an error situation is encounterd.
+
+*CONTINUE
+When a journal entry for a specific object is encountered that cannot be processed, the remaining journal entries for that object will not be processed. Processing of journal entries for other objects will continue. A diagnostic message will be sent indicating that the processing of journaled changes for that object was not successful. An indication is also placed in any output file record to indicate processing ended early for the specific object.
+
+*END
+When the first journal entry is encountered that cannot be successfully processed, processing will end for all objects.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether a list of information about the objects to whom changes were applied is created. The information can be directed to a database file.
+
+*NONE
+No data base file is created with the output. Messages are sent to the job log for the first 512 objects.
+
+*OUTFILE
+Output information about the apply operation will be directed to the database file specified on the File to receive output (OUTFILE) parameter.
+
+Note: You must specify the database file name on the File to receive output (OUTFILE) parameter when OUTPUT(*OUTFILE) is specified.
+
+Top
+
+File to receive output (OUTFILE)
+
+Specifies the database file to which the information is directed when *OUTFILE is specified on Output (OUTPUT) parameter. If the file does not exist, this command creates a database file in the specified library. If a new file is created, the system uses QAJRNCHG in QSYS with the format name QJOAPYRM as a model.
+
+Qualifier 1: File to receive output
+
+database-file-name
+Specify the name of the database file to which output from the command is directed. If this file does not exist, it is created in the specified library.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Output member options (OUTMBR)
+
+Specifies the name of the database file member to which the output is directed when *OUTFILE is specified for the Output (OUTPUT) parameter.
+
+Element 1: Member to receive output
+
+*FIRST
+The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the File to receive output (OUTFILE) parameter.
+
+name
+Specify the name of the file member that receives the output. If OUTMBR(member-name) is specified and the member does not exist, the system creates it.
+If the member exists, you can add records to the end of the existing member or clear the existing member and add the records.
+
+Element 2: Replace or add records
+
+*REPLACE
+The existing records in the specified database file member are replaced by the new records.
+
+*ADD
+The new records are added to the existing information in the specified database file member.
+
+Top
+
+Detail (DETAIL)
+
+Specifies the type of information that is directed to the output file.
+
+*ALL
+The file will contain information about the command and an entry for each object that was applied to whether it existed when the apply command started, or it was created during the apply.
+
+*ERR
+The file will contain information about the command, an entry only for each object that was not successfully applied to. If the apply ended early for an object an entry will be included for it.
+
+Top
+
+Starting sequence number (FROMENT)
+
+Specifies the entry that is used as the starting point for applying changes that have been journaled.
+
+You can specify a value for either the Starting sequence number (FROMENT) parameter or the Starting large sequence number (FROMENTLRG) parameter, but not for both.
+
+*LASTSAVE
+The journal entries are applied beginning with the first journal entry after the object was last saved. The system determines the actual starting position for each of the objects specified on the command. The parameter value implies that the object was just restored on the system.
+If the restored version of the object was a version that was saved using the save-while-active function, then the system will start applying changes from the corresponding start-of-save entry whether or not this was actually the last save of the object. When using save-while-active, information needed for applying journaled changes is saved with the object and restored. When all objects specified on the apply command have been restored from save versions that used save-while-active, the system does not need to scan all the journal receivers to find the save points for the objects. This can improve the performance of the apply processing.
+
+If the restored version of the object was a version that was saved when it was not in use (normal save), then the system verifies information for each object specified, such as if the date and time of the restore is after the date and time of the last save. The system also verifies that the date and time of the saved version of the object that is restored on the system is the same as the date and time that the object was last saved, as indicated on the journal.
+
+If the dates and times do not match, no entries are applied and an inquiry message (CPA7050) is sent to the user or system operator requesting a cancel or ignore response. If an ignore response is given to the message, the operation is attempted. A cancel response causes the operation to end, and no journal entries are applied.
+
+If the object was last saved with the save-while-active function, the saved copy of each object includes all changes in the journal entries up to the corresponding start-of-save journal entry. In this case, the system applies changes beginning with the first journal entry following the start-of-save entry.
+
+If the object was last saved when it was not in use (normal save), the saved copy of each object includes all changes in the journal entries up to the corresponding object saved journal entry. In this case, the system applies changes beginning with the first journal entry following the object saved entry.
+
+Note: If any database file members were saved specifying *NOCMTBDY as the second element of the SAVACTWAIT parameter on the save command and are currently in a state where apply journaled changes is required, then *LASTSAVE must be specified. If apply journaled changes cannot be used to complete the partial transactions, then the remove journaled changes (RMVJRNCHG) command can be used to just remove the partial transactions. If neither APYJRNCHG nor RMVJRNCHG can be used, and no other version of the file can be restored, then as a last restore, the Change Journaled Object (CHGJRNOBJ) command can be used to allow the file to be used while leaving the partial transactions within the object.
+
+*FIRST
+The journal entries are applied beginning with the first journal entry in the first receiver supplied to this command.
+
+starting-sequence-number
+Specify the sequence number of the first journal entry that is applied from the supplied journal entries. The acceptable range is 1 to 9,999,999,999.
+
+Note: When entering a sequence number, the Range of journal receivers (RCVRNG) parameter cannot be *LASTSAVE and the Ending sequence number (TOENT) parameter cannot be *LASTRST.
+
+Note: For object level entries in the journal, the FROMENT used is the earliest FROMENT from any file member in the selection list that exists at the start of the apply.
+
+Top
+
+Ending sequence number (TOENT)
+
+Specifies the entry used as the ending point for applying changes that have been journaled.
+
+You can specify a value for either the Ending sequence number (TOENT) parameter or the Ending large sequence number (TOENTLRG) parameter, but not for both.
+
+*LASTRST
+The journal entries are applied ending with the entry before the object was last restored. The system determines the actual ending position for each of the objects specified on the command. The system verifies that the date and time of the restored version of the object on the system is the same as the date and time that the object was last restored, as indicated on the journal. If the dates and times do not match, no entries are applied and an inquiry message (CPA7075) is sent to the user or system operator, requesting a cancel or ignore response. If an ignore response is given to the message, the operation is attempted. A cancel response causes the operation to end, and no journal entries are applied.
+If an object is created as a result of applying changes to another object, the ending apply point for the newly created object is the greatest ending point of all the objects being applied to.
+
+This parameter value is only valid if *LASTSAVE is also specified on the Starting sequence number (FROMENT) parameter or the Starting large sequence number (FROMENTLRG) parameter. *LASTRST is assumed if none of the following parameters are specified:
+
+- Ending date and time (TOTIME),
+
+- Fully qualified job name (TOJOBO),
+
+- Fully qualified job name (TOJOBC).
+
+*LAST
+Journal entries are applied through the last entry of the last journal receiver in the receiver range.
+
+ending-sequence-number
+Specifies the sequence number of the last entry that is applied. The acceptable range is 1 to 9,999,999,999.
+
+Note: For object level entries in the journal, the TOENT used is the last TOENT from any file member in the selection list that exists at the start of the apply.
+
+Top
+
+Examples
+
+Example:
+
+APYJRNCHGX JRN(MYCOLL/QSQJRN) FILE(MYCOLL/*ALL)
+
+This command causes the system to apply all journaled changes to all files in the MYCOLL collection since the last save. The receiver range is determined by the system. The changes are applied beginning with the first journaled change on the receiver chain after each file was last saved and continue through all applicable journal entries to the point at which the files were last restored.
+
+All object level entries (e.g.,CREATE/DROP/ALTER TABLE) for the MYCOLL collection are included. Commitment control boundaries are honored, because the default value for the CMTBDY parameter, *YES, is used.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA0D4
+File system error occurred. Error number &1.
+
+CPF69A9
+Internal error detected, error code &2.
+
+CPF69AA
+Unable to refer to object &1 saved with STG(*FREE).
+
+CPF69AB
+Values for RCVRNG parameter not correct.
+
+CPF70A4
+Apply journaled changes not allowed for specified receiver.
+
+CPF70A7
+Not all entries applied or removed for at least one object.
+
+CPF70A8
+File &1 in library &2 cannot be used.
+
+CPF70AA
+FROMENT(*LASTSAVE) must be specified.
+
+CPF70AB
+Journal receiver &1 in library &2 not found.
+
+CPF70B7
+Apply or remove journaled changes not allowed for specified receiver.
+
+CPF70CC
+Cannot perform operation beyond journal entry &7.
+
+CPF70CD
+Cannot perform operation beyond journal entry &7.
+
+CPF70CE
+Cannot perform operation beyond journal entry &7.
+
+CPF70EB
+Referential constraint error on member &3.
+
+CPF70EC
+Referential constraint error. Reason code &9.
+
+CPF70EE
+Maximum encoded vector access paths for member &3.
+
+CPF7002
+File &1 in library &2 not a physical file.
+
+CPF7003
+Entry not journaled to journal &1. Reason code &3.
+
+CPF7006
+Member &3 not found in file &1 in &2.
+
+CPF7007
+Cannot allocate member &3 file &1 in &2.
+
+CPF701B
+Journal recovery of an interrupted operation failed.
+
+CPF704A
+Record length incorrect for member &3.
+
+CPF704F
+TOJOBO or TOJOBC parameter not valid for receiver range.
+
+CPF7041
+Entry for job &3/&2/&1 not found.
+
+CPF7042
+Object not journaled or journaled to different journal.
+
+CPF7044
+Apply or remove of journaled entries failed, reason code &7.
+
+CPF7045
+Journal receiver &1 in &2 partially damaged.
+
+CPF7046
+Duplicate key not allowed for member &3.
+
+CPF7047
+Member &3 file &1 in &2 full.
+
+CPF7048
+Cannot perform journaled change to member &3.
+
+CPF7049
+Cannot perform operation beyond journal entry &7.
+
+CPF705A
+Operation failed due to remote journal.
+
+CPF7050
+LASTSAVE date not same as restored version of *&4 object.
+
+CPF7051
+Save entry for *&6 object not found.
+
+CPF7052
+Select/omit failure in logical file over member &3.
+
+CPF7053
+Values for RCVRNG parameter not correct; reason code &1.
+
+CPF7054
+FROM and TO values not valid.
+
+CPF7057
+*LIBL not allowed with *ALL or *ALLLIB or a generic name.
+
+CPF7058
+Apply or remove journaled entries operation failed.
+
+CPF7059
+Entry for &1 not found in RCVRNG.
+
+CPF7063
+Cannot use file &1 as OUTFILE.
+
+CPF7067
+FROMENTLRG or FROMENT option not valid. Commit boundary violation.
+
+CPF7068
+Entry needed for apply or remove operation not found.
+
+CPF7069
+No entries applied or removed using journal &1.
+
+CPF7075
+Restore date of *&4 object not same as in journal.
+
+CPF7076
+Restore entry for *&6 object not found in RCVRNG.
+
+CPF7077
+Key mapping error on member &3.
+
+CPF7078
+Cannot apply or remove changes to member &3.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9809
+Library &1 cannot be accessed.
+
+CPF9810
+Library &1 not found.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9860
+Error occurred during output file processing.
+
+Top

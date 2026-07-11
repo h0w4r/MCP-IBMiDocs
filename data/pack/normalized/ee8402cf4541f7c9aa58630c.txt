@@ -1,0 +1,279 @@
+Call Program (CALL)
+
+Call Program (CALL)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Call (CALL) command calls the program named in the command, and passes control to it. Optionally, the program or user issuing the CALL command can pass parameters to the called program. The CALL command can be used in batch jobs, in interactive jobs, and in both compiled and interpreted control language (CL). When the called program finishes processing, it can return control to the calling program using the RETURN command.
+
+If the CALL command is issued by a CL program or ILE CL procedure, each parameter value passed to the called program can be a character string constant, a numeric constant, a logical constant, a floating-point constant, a CL variable or an expression. If a floating-point constant is specified, the value is converted to double-precision binary floating-point format by default and passed to the called program. If parameters are passed, the value of the constant or variable or expression is available to the program that is called. Parameters cannot be passed in any of the following forms: lists of values, qualified names, null parameters (that is, a parameter whose value is null, specified by *N), or keyword parameters. Up to 255 parameters can be passed to the called program.
+
+If parameters are passed to a program using the CALL command, the values of the parameters are passed in the order in which they appear on the CALL command; this order must match the order in which they appear in the parameter list in the called program.
+
+Parameters in a called program can be used in place of its variables. However, no storage in the called program is associated with the variables it receives. Instead, if a variable is passed, the storage for the variable is in the program in which it was originally declared. If a constant is passed, a copy of the constant is made and that copy is passed to the called program. If an expression is passed, an intermediate result area is made and that area is passed to the called program.
+
+The result is that if a variable is passed, the called program can change its value and the change is reflected in the calling program. If a constant or an expression is passed, and its value is changed by the called program, the changed value is not known to the calling program. Therefore, if the calling program calls the same program again, the values of constants or expressions will be to their original values.
+
+Information on passing variable parameters using the CALL command within a Submit Job (SBMJOB) command is in the Work management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- You must have object operational (*OBJOPR) and execute (*EXECUTE) authorities to the program to be called, and *EXECUTE authority to the library where the program is located.
+
+- The CALL command is threadsafe, meaning that it can be used to call a program when the CALL command is run in a job with multiple threads. No checking is done whether or not the program to be called is threadsafe.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+PGM | Program | Qualified object name | Required, Positional 1
+Qualifier 1: Program | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+PARM | Parameters | Values (up to 255 repetitions): Element list | Optional, Positional 2
+Element 1: Parameter | Not restricted
+Element 2: Type and length of parameter | Single values: *DFT
+Other values: Element list
+Element 1: Type | *DEC, *CHAR, *LGL, *INT, *UINT, *FLT
+Element 2: Length | Integer
+Element 3: Decimal positions | Integer
+
+Top
+
+Program (PGM)
+
+Specifies the program to be called.
+
+This is a required parameter.
+
+Qualifier 1: Program
+
+name
+Specify the name of the program to call.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is used to locate the program. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library where the program is located.
+
+Top
+
+Parameters (PARM)
+
+Specifies values to be passed to the called program. A maximum of 255 parameter values can be passed.
+
+Each of the values can be specified in one of the following forms: a character string constant, a numeric constant, a logical constant, double-precision floating point constant, a program variable, or an expression. For a CALL command that is run outside of a compiled CL program or ILE CL procedure, all parameters must be constant values.
+
+For a CALL command specified for the CMD parameter of a SBMJOB (Submit Job) command run from compiled CL, any CL variables used for parameters on the CALL command are converted to constant values when the SBMJOB command is run so that the values can be passed in the command string sent to the new job. Trailing blanks for character CL variables are trimmed off which can affect the number of bytes passed to the called program. Decimal and integer CL variables specified as parameters on the embedded CALL command will be converted to numeric constants and passed as packed decimal numbers. If the program being called in the new job is expecting character or packed decimal parameters of a specific length, you can specify the length information for each parameter.
+
+The type and length of each parameter must match the parameters defined in the called program. The number of parameters and the order in which they are sent and received must also be the same. If the type, number, order, and length of the parameters on the CALL command do not match the program being called, unpredictable results can occur.
+
+Parameters can be passed and received as follows:
+
+- Character constant parameters are passed as a minimum of 32 bytes. For character constant parameters longer than 32 bytes, the default is to use the length of the constant string to determine the number of bytes passed to the called program. You can control how many bytes are passed for a character constant parameter by specifying the parameter length information explicitly.
+
+- The default for numeric constants is to pass the value as a packed decimal number with 15 total digits and 5 decimal digits. You can control what type is used for a numeric constant by specifying the parameter type information explicitly.
+
+If *INT or *UINT is specified for type, you can control how many bytes (2, 4 or 8) are passed for this numeric constant parameter by specifying the parameter length information explicitly.
+
+If *DEC is specified for type, you can control how many total digits and decimal digits are used for this numeric constant parameter by specifying the parameter length information explicitly.
+
+Note: Although the parameter passed to your program can be defined to have up to 15 digits to the left of the decimal point, and up to 9 digits to the right of the decimal point, a numeric constant specified for the parameter can only have 10 significant digits to the left of the decimal point and 5 significant digits to the right of the decimal point. If the value to the left of the decimal point is greater than 9,999,999,999, an error will occur. If the value to the right of the decimal point is greater than .99999, the extra digits will be truncated from the value passed to the program.
+
+- Logical constants are passed as 1 byte with a logical value of '1' or '0'.
+
+- Floating-point constants and floating-point special values (*NAN, *INF, and *NEGINF) are passed as double-precision floating-point numbers by default, which occupy 8 bytes and are specified in the form sn.nEsn; where s is a plus sign (+) or a minus sign(-); for example, -2.47E+3 or 3.653E24. You can control passing the parameter as single-precision by specifying the parameter length to 4 explicitly.
+
+- A CL program variable can be passed to the called program if the CALL command is run from a CL program or ILE CL procedure. For a CALL command specified for the CMD parameter on a SBMJOB command, the value of the CL variable is converted to a constant value when the SBMJOB command is run and is treated the same as a character or numeric constant.
+
+- Character expression parameters are passed as a minimum of 32 bytes. For character expression parameters longer than 32 bytes, the default is to use the length of the intermediate result string to determine the number of bytes passed to the called program. You can control how many bytes are passed for a character expression parameter by specifying the parameter length information explicitly.
+
+- The default for numeric expression is to pass the value as a packed decimal number with 15 total digits and 5 decimal digits. You can control what type is used for a numeric expression by specifying the parameter type information explicitly.
+
+If *INT or *UINT is specified for type, you can control how many bytes (2, 4 or 8) are passed for this numeric expression parameter by specifying the parameter length information explicitly.
+
+If *DEC is specified for type, you can control how many total digits and decimal digits are used for this numeric expression parameter by specifying the parameter length information explicitly.
+
+Note: Although the parameter passed to your program can be defined to have up to 15 digits to the left of the decimal point, and up to 9 digits to the right of the decimal point, a numeric expression specified for the parameter can only have 10 significant digits to the left of the decimal point and 5 significant digits to the right of the decimal point. If the value to the left of the decimal point is greater than 9,999,999,999, an error will occur. If the value to the right of the decimal point is greater than .99999, the extra digits will be truncated from the value passed to the program.
+
+- The value *N cannot be used to specify a null value because a null value is not a supported parameter value in CL.
+
+Element 1: Parameter
+
+unrestricted-value
+Specify a constant value or a CL variable or an expression to be passed to the called program. A CL variable and an expression can be specified only if the CALL command is run from compiled CL.
+
+Element 2: Type and length of parameter
+
+Specifies, for numeric, floating-point and character constant parameter values, or for expression values, how the parameter is passed to the called program. If you run a CALL command from a compiled CL to call a program within the same job, and a CL variable is specified, the parameter type and length is determined from the declared type and length of the CL variable.
+
+Single values
+
+*DFT
+For a character constant or a character expression, a minimum of 32 bytes are passed. If the constant string or the expression intermediate result string is greater than 32 bytes, the parameter length will be the length of the constant string or the expression intermediate result string. For a numeric constant or a numeric expression, the parameter is passed as a packed decimal value with 15 total digits and 5 decimal digits. For CL variables, if calling a program within the same job, the parameter length information is the declared length of the variable.
+
+Note: For CL variables specified on a CALL command used within another command, like SBMJOB (Submit Job), the value stored in the CL variable is converted to a character or numeric constant with trailing blanks removed from character strings. The resulting constant will be treated as a constant parameter value.
+
+Element 1: Type
+
+Specifies the type of parameter to be passed. The value for this parameter cannot be specified by a CL variable.
+
+*DEC
+A decimal parameter that contains a packed decimal value.
+
+*CHAR
+A character parameter that contains a character string value.
+
+*LGL
+A logical parameter that contains a logical value of either '1' or '0'.
+
+*INT
+An integer parameter that contains a signed binary value.
+
+*UINT
+An integer parameter that contains an unsigned binary value.
+
+*FLT
+A floating-point parameter that contains a binary floating-point value.
+
+Element 2: Length
+
+integer
+For character, floating-point or integer parameters, specify the number of bytes for the passed parameters. For decimal parameters, specify the maximum number of digits for the passed parameters. The length cannot be greater than the maximum for this type of parameter. The length must be 2, 4, or 8 for integer parameter. The length must be 4 or 8 for floating-point parameter.
+
+Element 3: Decimal positions
+
+integer
+This element is valid only for decimal parameter. The length of the value in the parameter includes the number of decimal positions in the value. The maximum length of the decimal value is 24 digits, including the digits to the right of the decimal point. Up to nine decimal positions can be specified.
+If a length (in digits) is specified for a decimal parameter and the number of decimal positions is not specified, 0 decimal positions is assumed.
+
+The maximum lengths for each of the six types are:
+
+- Decimal -- 24 digits, 9 decimal positions
+
+- Character -- 32767 bytes
+
+- Logical -- 1 byte
+
+- Integer -- 8 bytes for ILE CL, 4 bytes for OPM CL
+
+- Unsigned integer -- 8 bytes for ILE CL, 4 bytes for OPM CL
+
+- Floating-point -- 8 bytes
+
+Note: When the additional attributes (Type, Length, Decimal positions) for parameter are specified, the compiler will create a temporary defined by these attributes. When these additional attributes of temporary are not the same as the parameter value, truncation will occur. For example, if numeric constant 1234.45 is passed with (*INT 4) specified, the decimal part will be truncated; if length of character expression intermediate result is larger than the Length specified, longer part will be truncated.
+
+Top
+
+Examples
+
+Example 1: Calling a Program with No Parameters
+
+CALL PGM(PAYROLL)
+
+The program named PAYROLL is called with no parameters being passed to it. The library list is used to locate the called program.
+
+Example 2: Passing a Character Constant with Default Type and Length
+
+CALL PGM(PAYROLL) PARM('1')
+
+The program named PAYROLL is called with a character constant passed as a quoted string. The program must declare a field of up to 32 characters to receive the constant. The library list is used to locate the called program.
+
+Example 3: Passing Parameters with Default Types and Lengths
+
+CALL PGM(LIB1/PAYROLL) PARM(CHICAGO 1234 &VAR1)
+
+The program named PAYROLL located in library LIB1 is called. The calling program passes three parameters: The character constant 'CHICAGO' is passed as 32 bytes, numeric constant 1234 is passed as a packed decimal value with 15 total digits and 5 decimal digits (15 5), and the contents of the CL variable &VAR1. The attributes of the CL variable determine the attributes of the third parameter.
+
+Example 4: Calling Program with Floating-Point Constants with Default Types and Lengths
+
+CALL PGM(PGM1) PARM(1.5E3 *INF)
+
+The program named PGM1 is called with two double-precision floating-point values being passed to it.
+
+Example 5: Passing Parameters with Explicit Types and Lengths
+
+CALL PGM(LIB1/MYPGM) PARM(('ABC' (*CHAR 50)) +
+(1234 (*DEC 12 2)) &VAR1)
+
+The program named MYPGM located in library LIB1 is called. The calling program passes three parameters: the character constant 'ABC' is passed as 50 bytes character string, the numeric constant 1234 is passed as a packed decimal value with 12 total digits and 2 decimal digits (12 2), and the contents of the CL variable &VAR1. The attributes of the CL variable determine the attributes of the third parameter.
+
+Example 6: Passing Expression Parameters with Default Types and Lengths
+
+CALL PGM(QSYS/QCMDEXC) PARM(&CMD %SIZE(&CMD))
+
+The program named QCMDEXC located in library QSYS is called. The calling program passes two parameters: the contents of the CL variable &CMD, the numeric expression %SIZE(&CMD) is passed as a packed decimal value with 15 total digits and 5 decimal digits (15 5). The attributes of the CL variable determine the attributes of the first parameter.
+
+Example 7: Passing Expression Parameters with Explicit Types and Lengths
+
+CALL PGM(LIB1/MYPGM) +
+PARM((%SST(&VAR1 5 2) (*CHAR 50)) +
+((&VAR2 + 1) (*DEC 12 2)))
+
+The program named MYPGM located in library LIB1 is called. The calling program passes two parameters: the character expression %SST(&VAR1 5 2) is passed as 50 bytes character string, the numeric expression (&VAR2 + 1) is passed as a packed decimal value with 12 total digits and 2 decimal digits (12 2).
+
+Example 8: Calling Program with Floating-Point Constants with Explicit Types and Lengths
+
+CALL PGM(PGM1) PARM((1.5E3 (*FLT 4)) (*INF (*FLT 4)))
+
+The program named PGM1 is called with two single-precision floating-point values being passed to it.
+
+Example 9: Passing Expression Parameters with Explicit Types and Lengths
+
+CALL PGM(QSYS/QCMDEXC) PARM((&CMD *DFT) (%SIZE(&CMD) (*INT 4)))
+
+The program named QCMDEXC located in library QSYS is called. The calling program passes two parameters: the contents of the CL variable &CMD, the numeric expression %SIZE(&CMD) is passed as a 4 bytes integer. The attributes of the CL variable determine the attributes of the first parameter.
+
+Example 10: Calling a Program in a New Job with Parameter Type and Length Defaults
+
+SBMJOB CMD(CALL PGM(PAYLIB/PAYROLL) +
+PARM(&LASTNAME &FIRSTNAME &DEPT &SALARY))
+
+The program named PAYROLL located in library PAYLIB is called. The calling program passes four parameters which are converted to constants when the SBMJOB command is run. Assuming &LASTNAME, &FIRSTNAME, and &DEPT are declared as character (*CHAR) variables in the calling program, the character constants will be passed left-aligned and padded with blanks if the variable value is less than 32. For example, if &LASTNAME has a value of 'SMITH' when the SBMJOB command is run, the value 'SMITH' padded with 27 blanks is passed as the parameter value. If the called program is expecting the first parameter to be passed as 50 bytes, there will be a problem if bytes 33 to 50 are referenced. If the &SALARY parameter is declared as *DEC with LEN(12 2) and has a value of 1500.00 when the SBMJOB command is run, the value will be converted to a numeric constant and passed as a packed decimal value with 15 total digits and 5 decimal digits. The called program must be coded to expect the parameter to be packed decimal with 15 total digits and 5 decimal digits.
+
+Example 11: Calling a Program in a New Job with Explicit Parameter Types and Lengths
+
+SBMJOB CMD(CALL PGM(PAYLIB/PAYROLL) +
+PARM((&LASTNAME (*CHAR 50)) +
+(&FIRSTNAME (*CHAR 40)) +
+&DEPT +
+(&SALARY (*DEC 12 2))))
+
+The program named PAYROLL located in library PAYLIB is called. The calling program passes four parameters which are converted to constants when the SBMJOB command is run. Assuming &LASTNAME, &FIRSTNAME, and &DEPT are declared as character (*CHAR) variables in the calling program, the character constants will be passed left-aligned. Because explicit types and lengths are specified, the storage used for these character constant parameters will be padded with blanks to the specified length. For example, 50 bytes are passed for the character constant created from the &LASTNAME variable value and 40 bytes are passed for the character constant created from the &FIRSTNAME variable value. The character constant created from the &DEPT variable will be passed using the default length; for example, if the value of &DEPT is '123A', it will be padded with 28 blanks. The &SALARY parameter value will be converted to a numeric constant and passed as a packed decimal value with 12 total digits and 2 decimal digits.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPD0783
+Variable &3 for parameter &2 must be TYPE(*DEC), LEN(&4,&5).
+
+CPF0005
+Returned command string exceeds variable provided length.
+
+CPF0006
+Errors occurred in command.
+
+CPF0805
+Error found when program &1 in &2 started.
+
+CPF0806
+Error found when procedure started.
+
+Top

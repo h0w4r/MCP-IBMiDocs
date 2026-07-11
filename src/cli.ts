@@ -230,7 +230,7 @@ program
 program
   .command("explain-message")
   .description("Alias de assist: diagnostica mensajes IBM i con recuperación neuronal.")
-  .argument("<messageId>", "ID de mensaje, por ejemplo RNF0004, CPF9898, MCH3601")
+  .argument("<messageId>", "ID de mensaje, por ejemplo RNF5393, CPF9898, MCH3601")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--limit <n>", "Límite", "6")
   .action(async (messageId, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
@@ -448,10 +448,20 @@ program
     if (verified.ok) {
       await withRepoAsync(packDir, async (repo) => {
         for (const smoke of smokeCases()) {
-          const hits = await repo.searchSmart({ query: smoke.query, category: smoke.category, limit: 3 });
-          const top = hits[0];
-          const ok = Boolean(top) && smoke.ok(hits);
-          checks.push({ name: `smoke:${smoke.query}`, ok, detail: top ? `${top.title} (${top.category}/${top.version})` : "sin resultado" });
+          // El setup valida la misma ruta one-shot que consumirá el agente MCP;
+          // no usa una API interna distinta que pueda ocultar fallos end-to-end.
+          const result = await repo.assistSmart({
+            question: smoke.question,
+            language: smoke.language,
+            depth: "concise",
+            limit: 3
+          });
+          const ok = result.relevance.supported && smoke.ok(result.answer);
+          checks.push({
+            name: `smoke:${smoke.id}`,
+            ok,
+            detail: result.answer.replace(/\s+/g, " ").slice(0, 180) || "sin respuesta"
+          });
         }
         const quality = repo.qualityReport();
         const qualityMode = String(opts.qualityGate ?? "warn").toLowerCase();
@@ -585,21 +595,31 @@ async function exportRdiInternal(options: { baseUrl: string; outDir: string; max
   return exportRdiHelp(options);
 }
 
-function smokeCases(): Array<{ query: string; category?: string; ok: (hits: Array<{ title: string; snippet?: string; category: string }>) => boolean }> {
+function smokeCases(): Array<{ id: string; question: string; language?: string; ok: (answer: string) => boolean }> {
   return [
-    { query: "CRTRPGMOD", category: "ile-rpg", ok: (hits) => /CRTRPGMOD/i.test(hits[0]?.title ?? "") && hits[0]?.category === "ile-rpg" },
-    { query: "RNF0004", category: "mensajes-rnf", ok: (hits) => hits.some((hit) => hit.category === "mensajes-rnf" && /RPG Messages/i.test(hit.title)) },
-    { query: "SND-MSG", category: "ile-rpg", ok: (hits) => /SND-MSG/i.test(hits[0]?.title ?? "") && hits[0]?.category === "ile-rpg" },
     {
-      query: "SQLRPGLE",
-      category: "sql-db2-for-i",
-      ok: (hits) => {
-        const top = hits[0];
-        if (!top || top.category !== "sql-db2-for-i") return false;
-        // Guardrail semántico: un tópico de catálogo como SYSINDEXSTAT no debe validar el setup.
-        if (/SYSINDEXSTAT/i.test(`${top.title} ${top.snippet ?? ""}`)) return false;
-        return /CRTSQLRPGI|embedded SQL|SQL RPG|precompiler|RPGPPOPT|\/COPY|\/INCLUDE/i.test(`${top.title} ${top.snippet ?? ""}`);
-      }
+      id: "CRTRPGMOD",
+      question: "¿Cómo compilo un miembro fuente RPGLE para crear un módulo?",
+      language: "RPGLE",
+      ok: (answer) => /CRTRPGMOD|Create RPG Module/i.test(answer)
+    },
+    {
+      id: "RNF5393",
+      question: "Diagnostica RNF5393 en una compilación RPGLE.",
+      language: "RPGLE",
+      ok: (answer) => /RNF5393|CLEAR \*ALL|RESET \*ALL/i.test(answer)
+    },
+    {
+      id: "SND-MSG",
+      question: "¿Cómo envío un mensaje al joblog desde RPGLE?",
+      language: "RPGLE",
+      ok: (answer) => /SND-MSG|Send a Message to the Joblog/i.test(answer)
+    },
+    {
+      id: "SQLRPGLE",
+      question: "¿Cómo compilo SQLRPGLE con SQL embebido y copybooks?",
+      language: "SQLRPGLE",
+      ok: (answer) => /CRTSQLRPGI|embedded SQL|SQL embebido|precompiler|RPGPPOPT|\/COPY|\/INCLUDE/i.test(answer)
     }
   ];
 }

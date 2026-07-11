@@ -1,0 +1,781 @@
+Receive Message (RCVMSG)
+
+Receive Message (RCVMSG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: Compiled CL program or interpreted REXX (*BPGM *IPGM *BREXX *IREXX)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Receive Message (RCVMSG) command is used by a program to receive a message previously sent to a message queue.
+
+The RCVMSG command receives messages from a job or program message queue (a message queue associated with a call stack entry or the external message queue (*EXT)), or from a named or nonprogram message queue (for example QSYSOPR or a user profile message queue). The program can receive a message from a message queue associated with its own call stack entry or from a message queue associated with another call stack entry.
+
+This command copies a message received in the specified message queue into control language (CL) variables within the program. The message and its attributes are copied into the CL variables specified by the parameters KEYVAR through DTACCSID.
+
+You can specify the message being received by indicating the message type, the reference key of the message, or both. The program receiving the message can also specify, on the RCVMSG command, whether a message is removed from the message queue or left there as an old message. If the specified message queue is not allocated to the job in which this command is entered, or to any other job, the message queue is implicitly allocated by this command for the duration of the command's processing.
+
+If a message of the specified type does not exist on the queue, the requesting program can either wait for a message to arrive or continue with other processing. This allows a set of message queues to be polled.
+
+If the message received is an unhandled exception message, the program can specify whether this command should handle the exception. An unhandled exception message is an escape, status, or notify message that has been sent to an Integrated Language Environment (ILE) procedure. When this command is run, the ILE procedure has not yet taken action to tell the system that the exception is handled. One action the ILE procedure can take is to call a CL program that receives the message using this command. More information on actions that can be taken is in the ILE Concepts book, SC41-5606.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+PGMQ | Call stack entry message queue | Single values: *EXT
+Other values: Element list | Optional, Positional 1
+Element 1: Relationship | *SAME, *PRV
+Element 2: Call stack entry identifier | Element list
+Element 1: Call stack entry | Character value, *
+Element 2: Module | Name, *NONE
+Element 3: Bound program | Name, *NONE
+MSGQ | Message queue | Single values: *PGMQ
+Other values: Qualified object name | Optional, Positional 2
+Qualifier 1: Message queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MSGTYPE | Message type | *ANY, *NEXT, *PRV, *INFO, *INQ, *RPY, *FIRST, *COPY, *COMP, *DIAG, *EXCP, *RQS, *LAST, *NXTJLMSG, *PRVJLMSG | Optional, Positional 3
+MSGKEY | Message key | Character value, *NONE, *TOP | Optional, Positional 4
+WAIT | Wait time | Integer, 0, *MAX | Optional, Positional 5
+RMV | Remove message | *YES, *NO, *KEEPEXCP | Optional
+CCSID | Coded character set ID | 1-65535, *HEX, *JOB | Optional
+RJTDFTRPY | Reject default reply | *NOALWRJT, *ALWRJT | Optional
+KEYVAR | CL var for KEYVAR (4) | Character value | Optional
+MSG | CL var for 1st level text | Character value | Optional
+MSGLEN | CL var for MSGLEN (5 0) | Decimal number | Optional
+SECLVL | CL var for 2nd level text | Character value | Optional
+SECLVLLEN | CL var for SECLVLLEN (5 0) | Decimal number | Optional
+MSGDTA | CL var for msg data | Not restricted | Optional
+MSGDTALEN | CL var for MSGDTALEN (5 0) | Decimal number | Optional
+MSGID | CL var for MSGID (7) | Character value | Optional
+SEV | CL var for SEV (2 0) | Decimal number | Optional
+SENDER | CL var for SENDER (80) | Character value | Optional
+SENDERFMT | Sender format | *SHORT, *LONG | Optional
+RTNTYPE | CL var for RTNTYPE (2) | Character value | Optional
+ALROPT | CL var for ALROPT (9) | Character value | Optional
+MSGF | CL var for MSGF (10) | Character value | Optional
+MSGFLIB | CL var for MSGFLIB (10) | Character value | Optional
+SNDMSGFLIB | CL var for SNDMSGFLIB (10) | Character value | Optional
+TXTCCSID | CL var for text CCSID (5 0) | Decimal number | Optional
+DTACCSID | CL var for data CCSID (5 0) | Decimal number | Optional
+
+Top
+
+Call stack entry message queue (PGMQ)
+
+Specifies the call stack entry message queue from which a message is received. The call stack entry message queue can be the *EXT queue or it can be a message queue that is associated with a call stack entry for a program or an ILE procedure.
+
+If values are specified for this parameter, specifying *PGMQ for the Message queue (MSGQ) parameter is allowed.
+
+Single values
+
+*EXT
+The message is received from the external message queue of the job. The external message queue is used to communicate with the external requester of the job, such as a display station user.
+
+Element 1: Relationship
+
+Element 1 of this parameter specifies whether the message queue is associated with the program or procedure identified by Element 2, or if it is associated with the caller of the program or procedure.
+
+*SAME
+The message is received from the message queue of the program or procedure identified by element 2.
+
+*PRV
+The message is received from the message queue of the program or procedure that called the program or procedure identified by element 2 of this parameter.
+
+Note: If the message queue previous to the one identified by element 2 is for an ILE program entry procedure (PEP), the message will be received from the message queue immediately previous to the PEP message queue; effectively this would be two message queues previous to the one identified by element 2.
+
+Element 2: Call stack entry identifier
+
+The second element of this parameter is used to provide the information needed to identify a call stack entry. It has three elements. Element 1 specifies an OPM program or ILE procedure name or a special value. Element 2 specifies an ILE module name which is used as a qualifier for the value specified in element 1. Element 3 can specify either an OPM program name or an ILE program name or a service program name, depending on what is specified in element 1. Element 3 is also used as a qualifier for what is specified in element 1.
+
+Element 1: Call stack entry
+
+*
+Specifies the OPM program or ILE procedure running this command.
+
+name
+Specify the name of the OPM program or ILE procedure used to identify the call stack entry.
+A procedure name alone may not identify the correct procedure since several different procedures with the same name can run in a job. A procedure can be further identified by specifying element 2 or by specifying both element 2 and 3.
+
+The system begins its search for the specified program or procedure name with the most recently called program or procedure.
+
+If this element identifies an OPM program, the name specified can be a maximum of 10 characters. If this element identifies an ILE procedure, the name specified can be a maximum of 256 characters.
+
+Nested procedure names can be specified by separating each procedure name with a colon (:). When specifying nested procedure names, the outermost procedure name is identified first, followed by its contained procedures. The innermost procedure name is identified last in the string.
+
+Partial names of programs or procedures can be specified by placing three less-than symbols (<<<) at the beginning of the name or by placing three greater-than symbols (>>>) at the end of the name. If both the greater-than symbols and the less-than symbols are used, the program or procedure name specified is limited to 250 characters.
+
+When searching for a partial program or procedure name:
+
+- The less-than symbols (<<<) are truncated when specified only at the beginning of a program or procedure name and the remaining character string is right-justified. The remaining characters in the specified string are compared to the current program or procedure on the call stack, starting with the last position of the program or procedure name and comparing backward.
+
+- The greater-than symbols (>>>) are truncated when specified only at the end of a program or procedure name. The remaining characters in the specified string are compared to the current program or procedure on the call stack, starting with the first position of the program or procedure name.
+
+- The less-than symbols (<<<) and the greater-than symbols (>>>) are truncated when both are specified for a program or procedure name. The remaining characters are used to scan and compare the entire length of the specified string with the current program or procedure on the call stack.
+
+Element 2: Module
+
+*NONE
+No ILE module qualifier is provided.
+
+name
+Specify the ILE module name to be used to identify the message queue. This name identifies the module into which the procedure was compiled.
+
+Element 3: Program
+
+*NONE
+No program qualifier is provided.
+
+name
+Specify the program name to be used to identify the message queue. This name identifies the program to which the procedure was bound.
+
+Top
+
+Message queue (MSGQ)
+
+Specifies the message queue (not a program message queue) from which a message is to be received.
+
+Single values
+
+*PGMQ
+The program message queue specified for the Call stack entry message queue (PGMQ) parameter is the only queue from which a message is received.
+
+Qualifier 1: Message queue
+
+name
+Specify the name of the message queue from which a message is to be received. If a message queue name is specified, the Call stack entry message queue (PGMQ) parameter cannot be specified.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the message queue. If no library is specified as the current library for the job, QGPL is used.
+
+name
+Specify the library where the message queue is located.
+
+Top
+
+Message type (MSGTYPE)
+
+Specifies the type of message received by this program.
+
+*ANY
+Any type of message (except a sender's copy) is received. To receive a sender's message, MSGTYPE(*COPY) must be specified.
+
+*NEXT
+The message that follows the one specified for the Message key (MSGKEY) parameter is received. If there is not another message available, blanks are returned in all CL variables.
+When a message is received from a message queue associated with a call stack entry, *NEXT works only for one call stack entry. *NEXT cannot be used to receive messages for multiple call stack entries of the same program.
+
+*PRV
+The message previous to the message specified for the Message key (MSGKEY) parameter is received.
+
+*INFO
+An informational message is received.
+
+*INQ
+An inquiry message is received.
+
+*RPY
+A reply message is received. This program has sent an inquiry message to a message queue and expects a reply.
+
+*FIRST
+The first message currently on the message queue or program queue is received.
+
+*COPY
+A copy of an inquiry message that was previously sent is received by this program. The message queue specified for the Call stack entry message queue (PGMQ) parameter or the Message queue (MSGQ) parameter must be the same queue that was specified for the Message queue to get reply (RPYMSGQ) parameter when the INQ message was sent.
+
+*COMP
+A completion message is received. This type of message can only be received from a program message queue. It indicates the status of the work that this program requested of another program.
+
+*DIAG
+A diagnostic message is received. This type of message can only be received from a program message queue. It provides information about errors detected by another program in the input sent by this program or errors that occurred when the requested function was being processed by the other program.
+
+*EXCP
+An exception message is received. Exception messages (escape, notify, status) are received by the program in last-in first-out (LIFO) order. The receiving program can monitor for exception messages by using the MONMSG command.
+
+Note: Non-exception messages are received in first-in first-out (FIFO) order.
+
+If an exception message is received from a message queue for a procedure, the related exception may not be handled at the time the RCVMSG command is run. The RMV parameter can be used to specify whether the exception is to be handled by the RCVMSG command.
+
+*RQS
+A request message is received. This type of message can only be received from a program message queue.
+
+*LAST
+The last message currently on the message queue or program queue is received.
+
+*NXTJLMSG
+Returns the job log message after the specified key. Similar to *PRVJLMSG, it can obtain a message residing on an active program message queue or an inactive program queue (where the program or procedure has ended). This differs from *NEXT, which only returns a message from an active program or procedure. Use the default values for the PGMQ parameter and the next message in the job log is returned regardless of the program queue.
+The special value *TOP or hexadecimal zeroes (hex 00000000) can be specified for the message key to return the first message on the program message queue.
+
+Note: This value is only allowed for program message queues, and not allowed for nonprogram message queues (like QSYSOPR).
+
+*PRVJLMSG
+Returns the job log message before the specified key. Similar to *NXTJLMSG, it can obtain a message residing on an active program message queue or an inactive program queue (where the program or procedure has ended). This differs from *PRV, which only returns a message from an active program or procedure. Use the default values for the PGMQ parameter and the previous message in the job log is returned regardless of the program queue.
+The special value hexadecimal zeroes (hex 00000000) can be specified for the message key to return the newest message on the program message queue.
+
+Note: This value is only allowed for program message queues, and not allowed for nonprogram message queues (like QSYSOPR).
+
+Top
+
+Message key (MSGKEY)
+
+Specifies the message reference key of the message that is received.
+
+*NONE
+No message reference key is specified.
+
+*TOP
+The top of the message queue is used. *TOP can be used only when *NEXT is specified for the Message type (MSGTYPE) parameter. It causes the first message on the message queue to be received. For program message queues, this is the message following the last request message that was received, if any.
+
+name
+Specify the name of the CL variable that contains the message reference key of the message to be used by this receive function. This key is assigned by the system and cannot be seen when viewing message details. The variable must be a character variable having a length of 4 characters.
+Coding Relationships: The MSGTYPE and MSGKEY parameters can be used separately in the RCVMSG command, or together.
+
+- If neither MSGTYPE nor MSGKEY is specified, MSGTYPE(*ANY) is assumed and the first new message in the queue is received; that is, the messages are received in FIFO (first-in, first-out) order.
+
+- If one of the message types specified on the MSGTYPE parameter is *COMP, *DIAG, *INFO, *INQ, *RPY, *COPY, or *RQS, a new message of the specified type is received in FIFO order. If the type is *EXCP, new messages are received in LIFO (last-in, first-out) order.
+
+- If only MSGKEY is specified with a CL variable name and the message queue contains a message with the specified message reference key, that message is received. If the MSGKEY specified is for a sender's copy message, the reply to the message is received if it is available. If the reply is not available, blanks will be returned in all CL variables. If a message is requested by key and the message is not available, an escape message is sent to the requesting program.
+
+- If MSGTYPE(*COPY) and MSGKEY (&CL-variable-name) are specified, the sender's copy of an inquiry message is received.
+
+- If both MSGTYPE and MSGKEY (&CL-variable-name) are specified and the message queue has a message of that type, the message is received by the program. If the reference key is correct and the message type is not, then an error message is sent to the program.
+
+- If MSGTYPE(*NEXT) is specified, MSGKEY must be specified. The message following the message with the specified reference key is received. If MSGKEY(*TOP) is specified with MSGTYPE(*NEXT), the first message on the message queue is received. For call message queues, this is the first message following the last request message received.
+
+- If MSGTYPE(*PRV) is specified, MSGKEY must be specified. The message previous to the message with the specified reference key is recieved.
+
+If MSGTYPE(*RPY) is specified with a MSGKEY value that refers to either a sender's copy or an inquiry message, any reply to the sender's copy or inquiry message is returned. If there is no reply to that sender's copy or inquiry message, blanks are returned. When the MSGKEY value refers to an inquiry message, the WAIT parameter is ignored (this implies WAIT(0), which is the default value for the WAIT parameter).
+
+If MSGTYPE(*ANY) is specified with a KEYVAR variable and the first message type found is a reply message, the KEYVAR variable returns the message reference key of the sender's copy message. Similarly, if MSGTYPE(*RPY) is specified with a KEYVAR variable, the message reference key of the sender's copy message is returned.
+
+Top
+
+Wait time (WAIT)
+
+Specifies, in seconds, the length of time that the program waits for a message of the specified type to arrive in the message queue if it is not there when this command is processed. If the message does not arrive in the specified time, the control language (CL) variables named to receive message fields are filled with blanks (or zeros, if they are decimal variables).
+
+The program cannot wait for a message from a program message queue unless it is receiving a reply.
+
+If a wait time is specified (not zero), the message queue is implicitly allocated to the first user whose message is received, and it is not released until the request has been handled by the program.
+
+If a message is sent to a message queue in the same job, and the message queue is in break delivery mode, this parameter is ignored (that implies WAIT(0), which is the default value for the WAIT parameter).
+
+If the value specified for MSGKEY refers to an inquiry message, and MSGTYPE(*RPY) has been specified, the program ignores the WAIT parameter (value for Wait is 0).
+
+0
+The program does not wait for the arrival of a message. If a message of the specified type is not in the queue when this command is processed, the specified CL variables are filled with blanks (or zeros, if they are decimal variables).
+
+*MAX
+The program waits indefinitely for the arrival of the specified message.
+
+number-of-seconds
+Specifies the number of seconds that the program waits for the arrival of a message.
+
+Top
+
+Remove message (RMV)
+
+Specifies whether the message received by the program is removed from the message queue. For messages that are unhandled exceptions, this parameter also specifies whether the exception is to be handled. If *INQ is specified for the Message type (MSGTYPE) parameter, then *NO must also be specified for this parameter so a reply to the inquiry message can be sent, otherwise the default reply will be sent before the unanswered inquiry is removed.
+
+*YES
+The message is removed from the message queue. If the message is an unhandled exception, the exception is handled by running the RCVMSG command.
+
+*NO
+The message is not removed from the message queue. It is left on the message queue as an old message. If the message is an unhandled exception, the exception is handled by running the RCVMSG command.
+Note: Old messages are messages that have been received but not deleted. An old message can be received again in one of the following ways:
+
+- The message reference key of the message is specified for the MSGKEY parameter.
+
+- A message type of *FIRST, *LAST, *NEXT, or *PRV is specified for the Message type (MSGTYPE) parameter.
+
+*KEEPEXCP
+If the message is an exception message and the exception has not been handled, the exception is left unhandled and the message is left on the message queue as a new message. It can be received again by using the RCVMSG command to receive an *EXCP message. If the message is not an exception message, or if it is but the exception has already been handled, the message is left on the message queue as an old message.
+To handle an exception after the RCVMSG has been run, the command can be run a second time by specifying RMV(*YES) or RMV(*NO).
+
+Top
+
+Coded character set ID (CCSID)
+
+Specifies the coded character set identifier (CCSID) that you want the message text returned in. This only applies to text returned in the MSG, SECLVL and MSGDTA parameters. When replacement data is returned in the MSGDTA parameter or substituted into the text returned in the MSG or SECLVL parameters, only the part of the replacement text that is defined as a character that can be converted (*CCHAR) is converted. The rest of the replacement data is not converted. For more information about the *CCHAR field, see the ADDMSGD command.
+
+*JOB
+The received message is converted to the CCSID of the job before being returned.
+
+*HEX
+The received message is not converted before being returned.
+
+coded-character-set-identifier
+Specify the CCSID that you want your message converted to before being returned. Valid values range from 1 through 65535. See the Globalization information in the iSeries Information Center at http://www.ibm.com/eserver/iseries/infocenter for a list of valid values. Only CCSID values that a job can be changed to are accepted.
+For more information on the message handler and its use of CCSIDs, see the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Reject default reply (RJTDFTRPY)
+
+Removing an unanswered inquiry message causes the default reply to be sent to the inquiry message. This value indicates whether a reply handling exit program will be allowed to reject a default reply that is sent as a result of using this command. A reply handling exit program can be registered via the system registration facility for exit point QIBM_QMH_REPLY_INQ. This parameter is only applicable when *YES is specified for the RMV parameter.
+
+*NOALWRJT
+A reply handling exit program will not be allowed to reject a default reply.
+
+*ALWRJT
+A reply handling exit program will be allowed to reject a default reply. If an exit program rejects the reply, message CPD2476 (Reply rejected by a reply handling exit program) will be sent as a diagnostic message to the program using this command. The CPD2476 will be followed by a CPF2422 (Reply not valid) escape message that the program using this command should monitor for to handle and recover from error situations.
+
+Top
+
+CL var for KEYVAR (4) (KEYVAR)
+
+Specifies the name of the control language (CL) character variable, if any, that contains the message reference key identifying the message received by the program containing this command. At the time the RCVMSG command is processed, the system returns the message reference key to the variable specified by KEYVAR in this command and changes the received message to an old message. The message reference key can then be used in the MSGKEY parameter in a subsequent RCVMSG command to receive the old message. If the message is not found or is being removed, blanks are returned for the KEYVAR variable. For reply type messages, use the MSGKEY parameter on this command in conjunction with the KEYVAR parameter on the SNDPGMMSG command. The message reference key can also be used by this program for building message subfiles. The CL variable is the name of the field for which the SFLMSGKEY keyword is specified in the DDS for the message subfile.
+
+Note: For message queues not associated with call stack entries, message reference keys can be used again after a message has been received and then removed (by specifying *YES for the RMV parameter).
+
+The variable must be a character variable having a length of 4 characters.
+
+Note: When using the message reference key (obtained from the CL variable specified by the KEYVAR parameter of the Send Program Message (SNDPGMMSG) command) to receive the reply to an inquiry message, note that the message reference key refers to the sender's copy. The sender's copy message is located on the reply message queue (which defaults to the program message queue that sent the inquiry message), not the message queue to which the inquiry message was sent.
+
+Top
+
+CL var for 1st level text (MSG)
+
+Specifies the name of the control language (CL) character variable, if any, that contains the message when it is received by the program. This includes the message data fields that were substituted for substitution variables in the text before the message was sent (replies and immediate messages contain no message data fields). This is a variable-length field, but most message text is less than 132 characters in length. When a program receives a reply for an inquiry message, this parameter will contain the text of the reply message.
+
+Top
+
+CL var for MSGLEN (5 0) (MSGLEN)
+
+Specifies the name of the control language (CL) decimal variable, if any, that contains the total length of the message text available to be received. The variable must be a decimal variable having a length of 5 positions.
+
+Top
+
+CL var for 2nd level text (SECLVL)
+
+Specifies the name of the CL character variable, if any, that contains the message help received by the program. This includes the message data fields that were substituted for any substitution variables in the text before the message was sent (replies and immediate messages do not have second-level messages). This is a variable-length field, but most online message help is designed to be less than 3000 characters in length.
+
+Top
+
+CL var for SECLVLLEN (5 0) (SECLVLLEN)
+
+Specifies the name of the control language (CL) decimal variable, if any, that contains the total length of the message help available to be received. The variable must be a decimal variable having a length of 5 positions.
+
+Top
+
+CL var for msg data (MSGDTA)
+
+Specifies the name of the control language (CL) character variable, if any, that contains the message data record received by the program as part of the message. The message data record contains the substitution values (in a single character string) that are used in the text of the received message. The amount of data returned and its format depend on the message. Pointers contained in system messages are invalidated.
+
+Note: If you use data that has an invalidated pointer in it an error message can occur.
+
+Top
+
+CL var for MSGDTALEN (5 0) (MSGDTALEN)
+
+Specifies the name of the control language (CL) decimal variable, if any, that contains the total length of the message data record available to be received. The variable must be a decimal variable having a length of 5 positions.
+
+Top
+
+CL var for MSGID (7) (MSGID)
+
+Specifies the name of the control language (CL) character variable, if any, that contains the message identifier of the message received by the program. If the message being received is an immediate message, the message identifier is returned as blanks. The minimum length of the variable is 7 characters.
+
+Top
+
+CL var for SEV (2 0) (SEV)
+
+Specifies the name of the control language (CL) decimal variable, if any, that contains the severity code of the message received by the program. If the message being received is an immediate message, the message severity is not returned. The variable must be a decimal variable having a length of 2 positions.
+
+Top
+
+CL var for SENDER (80) (SENDER)
+
+Specifies the name of the control language (CL) character variable, if any, that contains the identification of the sender of the message received through the RCVMSG command. The length of the CL variable depends on the SENDERFMT specification. If SENDERFMT(*SHORT) is specified, the variable must be a minimum of 80 characters. If the CL variable is longer than 80 characters, additional information will be returned. If SENDERFMT(*LONG) is specified, the variable must be a minimum of 720 characters.
+
+Top
+
+Sender format (SENDERFMT)
+
+Specifies which format of the sender identification is returned. This parameter is valid only when the SENDER parameter is specified.
+
+*SHORT
+The short format of the sender information is returned. The short format is a minimum of 80 characters, If the CL variable is longer than 80 characters, additional information will be returned. Positions in the CL variable beyond the last returned field will be set to blanks. The following information is returned:
+
+- The first 26 characters identify the sending job
+
+Job name (10)
+
+User name (10)
+
+Job number (6)
+
+- The next 16 characters identify the sending program
+
+Program name (12) (for an ILE procedure, this is the bound program name); if the sender type is 3, the first three characters of this field are less than symbols (<<<) followed by the last nine characters of the program name
+
+Instruction number (4) (for an ILE procedure, this field is set to blanks)
+
+- The next 13 characters are the date and time
+
+Date (7) (in the format 0yymmdd)
+
+Time (6) (in the format hhmmss)
+
+- The next 14 characters identify the sent-to call stack entry if the message is sent to a program message queue
+
+Program name (10) (for an ILE procedure, this is the bound program name)
+
+Instruction number (4) (for an ILE procedure, this field is set to blanks)
+
+- The next 1 character identifies the sender type
+
+"0" if the sender is an OPM program or a SLIC program with 12 characters or less
+
+"1" if the sender is an ILE procedure and the name is 256 characters or less
+
+"2" if the sender is an ILE procedure and the name is more than 256 characters
+
+"3" if the sender is a SLIC program with more than 12 characters
+
+- The next 1 character identifies the sent-to type
+
+"0" if the receiver is an OPM program
+
+"1" if the receiver is an ILE procedure and the name is 256 characters or less
+
+"2" if the receiver is an ILE procedure and the name is more than 256 characters
+
+- The next 6 characters are the microseconds
+
+- The last 10 characters are the name of the user profile that the thread was running under when the message was sent, and is returned if the length of the CL variable is at least 87
+
+*LONG
+The long format of the sender information is returned. The long format is 720 characters, with the last 30 characters set to blanks. The following information is returned:
+
+- The first 26 characters identify the sending job
+
+Job name (10)
+
+User name (10)
+
+Job number (6)
+
+- The next 13 characters are the date and time
+
+Date (7) (in the format 0yymmdd)
+
+Time (6) (in the format hhmmss)
+
+- The next 1 character identifies the sender type
+
+"0" if the sender is an OPM program or a SLIC program with 12 characters or less
+
+"1" if the sender is an ILE procedure and the name is 256 characters or less
+
+"2" if the sender is an ILE procedure and the name is more than 256 characters
+
+"3" if the sender is a SLIC program with more than 12 characters
+
+- The next 1 character identifies the sent-to type
+
+"0" if the receiver is an OPM program
+
+"1" if the receiver is an ILE procedure and the name is 256 characters or less
+
+"2" if the receiver is an ILE procedure and the name is more than 256 characters
+
+- The next 12 characters are the sender's program name (for an ILE procedure, this is the bound program name); if the sender type is 3 and the program name is greater than 12 characters in length, the first three characters of this field are less than symbols (<<<) followed by the last nine characters of the program name
+
+- The next 10 characters are the sender's module name (if the sender is not an ILE procedure, this field is set to blanks)
+
+- The next 256 characters are the sender's procedure name (if the sender is not an ILE procedure, this field is set to blanks)
+
+For a nested procedure name, each procedure name is separated by a colon (:) starting with the outer-most procedure name, and ending with the inner-most procedure name
+
+For a procedure name that is longer than 256 characters, three less than symbols (<<<) are returned followed by the last 253 characters of the procedure name; the QMHRCVPM API can be used to obtain the entire procedure name for messages on a program message queue.
+
+- The next 1 character is blank
+
+- The next 4 characters are the number of statement numbers available
+
+Note: A statement number represents a point in the sending program at which the message was sent. For programs and non-optimized procedures, this count is always 1. For optimized procedures, this count can be greater than 1, and each statement number represents a point at which the message could have been sent. If it is not possible to return statement numbers, this count will be 0.
+
+- The next 30 characters return a maximum of 3 statement numbers, 10 characters each
+
+- The next 320 characters return program or procedure information if the message being received was originally sent to a message queue associated with a call stack entry (otherwise, this field is set to blanks)
+
+Sent-to program name (10) (for an ILE procedure, this is the bound program name)
+
+Sent-to module name (10) (if the sender is not an ILE procedure, this field is set to blanks)
+
+Sent-to procedure name (256) (if the sender is not an ILE procedure, this field is set to all blanks)
+
+For a nested procedure name, each procedure name is separated by a colon (:) starting with the outer-most procedure name, and ending with the inner-most procedure name.
+
+For a procedure name that is longer than 256 characters, three less than symbols (<<<) are returned followed by the last 253 characters of the procedure name; the QMHRCVPM API can be used to obtain the entire procedure name for messages on a program message queue.
+
+Blanks (10)
+
+Number of statements available for the receiving call stack entry (4)
+
+Note: A statement number represents a point at which the sent-to program was suspended (for example, due to a call operation) at the time the message was sent. For programs and non-optimized procedures, this count is always 1. For optimized procedures, this count can be greater than 1, and each statement number represents a point at which the message could have been sent. If it is not possible to return statement numbers, this count will be 0.
+
+- Statement numbers (30) (a maximum of 3 statement numbers, 10 characters each)
+
+- The next 6 characters are the microseconds
+
+- The last 10 characters are the name of the user profile that the thread was running under when the message was sent
+
+Top
+
+CL var for RTNTYPE (2) (RTNTYPE)
+
+Specifies the name of the control language (CL) variable, if any, that contains the type code for the message received by the program. The variable must be a character variable having a length of 2 positions.
+
+The following values are returned to indicate the message type:
+
+Value
+Message Type
+
+01
+Completion
+
+02
+Diagnostic
+
+04
+Information
+
+05
+Inquiry
+
+06
+Copy
+
+08
+Request
+
+10
+Request with prompting
+
+14
+Notify (exception already handled at time of RCVMSG)
+
+15
+Escape (exception already handled at time of RCVMSG)
+
+16
+Notify (exception not handled at time of RCVMSG)
+
+17
+Escape (exception not handled at time of RCVMSG)
+
+21
+Reply, not checked for validity
+
+22
+Reply, already checked for validity
+
+23
+Reply, message default used
+
+24
+Reply, system default used
+
+25
+Reply, from System Reply List
+
+26
+Reply, from exit program
+
+Top
+
+CL var for ALROPT (9) (ALROPT)
+
+Specifies the name of the control language (CL) variable, if any, used to return the alert option of the message received by the program. The variable must be a character variable 9 positions in length.
+
+Top
+
+CL var for MSGF (10) (MSGF)
+
+Specifies the name of the control language (CL) variable, if any, used to return the message file name of the message received by the program. If the message received is a stored message, the message file name of the file containing the stored message is returned. If the received message is not a stored message, the message file name is returned as blanks. The variable must be a character variable 10 positions in length.
+
+Note: The message file name returned on this parameter is the message file specified or defaulted on the send function, not the overriding message file. If an override was specified when sending the message, the same override should be used when receiving the message.
+
+Top
+
+CL var for MSGFLIB (10) (MSGFLIB)
+
+Specifies the name of the control language (CL) variable, if any, used to return the message file library name of the message received by the program. If the message received is a stored message, the message file library name of the library containing the message file of the stored message is returned. If *LIBL was specified on the send command, *LIBL is returned. If the received message is not a stored message, the message file library name is returned as blanks. The variable must be a character variable 10 positions in length.
+
+Note: The message file library name returned on this parameter is the message file specified or defaulted on the send function, not the overriding message file library. If an override was specified when sending the message, the same override should be used when receiving the message.
+
+Top
+
+CL var for SNDMSGFLIB (10) (SNDMSGFLIB)
+
+Specifies the name of the control language (CL) variable, if any, used to return the message file library name used to send the message. If the message received is a stored message, the message file library name of the library containing the message file of the stored message is returned. If *LIBL was specified on the send command, this parameter would have the actual name of the library. If the received message is not a stored message, the message file library name is returned as blanks. If the received message is a stored message and the original message file is destroyed, the message file library name is returned as blanks. If the received message is not a stored message, this parameter is returned as blanks. The variable must be a character variable of 10 positions in length.
+
+Top
+
+CL var for text CCSID (5 0) (TXTCCSID)
+
+Specifies the name of the CL variable, if any, used to return the coded character set identifier (CCSID) associated with the text returned by the MSG and SECLVL parameters. If a conversion error occurs or if the CCSID you requested the text to be converted to is 65535, the CCSID that the message description or the text for an immediate message is stored in is returned. Otherwise, the CCSID you wanted the text converted to is returned. If you do not want the text converted before it is returned to you but you do want to know the CCSID that the message description or the text for an immediate message is stored in, specify 65535 for the CCSID parameter, and the CCSID is returned in the TXTCCSID parameter. You can also check for a conversion error by comparing the CCSID you passed in against the TXTCCSID returned. If they are not equal and they are not 65535, a conversion error occurred. The variable must be a decimal variable having a length of 5 positions.
+
+Top
+
+CL var for data CCSID (5 0) (DTACCSID)
+
+Specifies the name of the CL variable, if any, used to return the coded character set identifier (CCSID) associated with the replacement data defined as *CCHAR. All other replacement data is not converted before it is returned. If a conversion error occurs or if the CCSID you requested the text to be converted to is 65535, the CCSID message data is returned. If there is no *CCHAR replacement data in the data, 65535 is returned. Otherwise, the CCSID you wanted the text converted to is returned. For immediate messages, 0 is returned. You can check for a conversion error by comparing the CCSID you passed in against the DTACCSID returned. If they are not equal and they are not 65535, a conversion error occurred. The variable must be a decimal variable having a length of 5 positions.
+
+Top
+
+Examples
+
+Example 1: Receiving a Message
+
+RCVMSG MSGQ(SMITH) MSGKEY(&KEY) MSG(&WORK)
+
+This command receives the message having the message reference key specified by the program variable &KEY from the message queue SMITH. The text of the message is copied into the CL variable &WORK.
+
+Example 2: Receiving a New Message
+
+RCVMSG MSGQ(INV) WAIT(120) MSG(&WORK)
+
+This command receives a new message from the message queue named INV into the CL variable &WORK. The program waits no more than 120 seconds for the arrival of a new message if there are no new messages in the message queue. If there is more than one new message in the queue, the first message in the queue is the message received by the program.
+
+Example 3: Receiving a Message From a Procedure
+
+RCVMSG PGMQ(*SAME CURRENT_MONTH_TOTALS) MSGTYPE(*EXCP)
+RMV(*KEEPEXCP) MSGID(&MID) MSG(&MTEXT)
+
+This command receives an exception message from the procedure CURRENT_MONTH_TOTALS. Since the specified name is more than 10 characters, the system does not search for any programs. If the message is an unhandled exception, the message is left on the call message queue as a new message and the exception is not handled by the RCVMSG command. The message ID is returned in the CL variable &MID and the message text in the CL variable &MTEXT. To handle the exception and remove the message, run the following RCVMSG command:
+
+RCVMSG PGMQ(*SAME CURRENT_MONTH_TOTALS) MSGTYPE(*EXCP)
+RMV(*YES)
+
+Example 4: Receiving a Message from a Program or Procedure
+
+RCVMSG PGMQ(*SAME TARGETPGM) MSGTYPE(*EXCP) RMV(*NO)
+MSGID(&MID) MSG(&MTEXT)
+
+This command receives an exception message from the message queue of the program or procedure named TARGETPGM. Since the specified name is only 9 characters, the system searches both programs and procedures. Because RMV(*NO) is specified, if the message is an unhandled exception, the exception is handled by the RCVMSG command. The message is left on the message queue as an old message.
+
+Example 5: Receiving a Message Using Qualifiers
+
+RCVMSG PGMQ(*SAME PRINT_RPT_FMT1 DEPTRPTS AREARPTS)
+MSGTYPE(*EXCP) RMV(*YES)
+MSGID(&MID) MSG(&MTEXT)
+
+This command receives an exception message from the message queue of the procedure named PRINT_RPT_FMT1. The procedure must have been compiled into the module DEPTRPTS and have been bound into the bound program AREARPTS. Since RMV(*YES) is specified, the exception is handled if the exception message is for an unhandled exception. The message is always removed from the message queue.
+
+Example 6: Receiving a Message Using a Partial Procedure Name
+
+RCVMSG PGMQ(*SAME 'HANDLE_FORM_NUM>>>') MSGID(&MID)
+MSG(&MTEXT)
+
+This command receives a new message from the most recent procedure whose name begins with HANDLE_FORM_NUM.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2401
+Not authorized to library &1.
+
+CPF2403
+Message queue &1 in &2 not found.
+
+CPF2407
+Message file &1 in &2 not found.
+
+CPF2408
+Not authorized to message queue &1.
+
+CPF2411
+Not authorized to message file &1 in &2.
+
+CPF241C
+Variable for SENDER parameter is too small.
+
+CPF2410
+Message key not found in message queue &1.
+
+CPF2415
+End of requests.
+
+CPF2422
+Reply not valid.
+
+CPF2423
+Variable specified in SENDER parameter less than &1 bytes.
+
+CPF2433
+Function not allowed for system log message queue &1.
+
+CPF2449
+Message that should be a reply, is not a reply.
+
+CPF2450
+Work station message queue &1 not allocated to job.
+
+CPF2451
+Message queue &1 is allocated to another job.
+
+CPF247A
+Call stack entry not found.
+
+CPF247E
+CCSID &1 is not valid.
+
+CPF2471
+Length of field not valid.
+
+CPF2477
+Message queue &1 currently in use.
+
+CPF2479
+Call stack entry not found.
+
+CPF2482
+Message type &1 not valid.
+
+CPF24A3
+Value for call stack counter parameter not valid.
+
+CPF24A8
+Value for wait time not valid.
+
+CPF24B3
+Message type &1 not valid.
+
+CPF2531
+Message file &1 in &2 damaged for &3.
+
+CPF2532
+Job message queue is damaged. Job log ended.
+
+CPF2548
+Damage to message file &1 in &2.
+
+CPF2551
+Message key and message type combination not valid.
+
+CPF36F7
+Message queue QSYSOPR is allocated to another job.
+
+CPF8127
+&8 damage on message queue &4 in &9. VLIC log-&7.
+
+CPF8176
+Message queue for device description &4 damaged.
+
+Top

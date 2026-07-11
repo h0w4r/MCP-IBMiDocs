@@ -19,7 +19,7 @@ Sirve para:
 
 - explicar comandos como `CRTRPGMOD`, `CRTSQLRPGI` o `SND-MSG`;
 - revisar código RPGLE, SQLRPGLE, CLLE o DDS;
-- diagnosticar mensajes como `RNF0004`;
+- diagnosticar mensajes documentados como `RNF5393`;
 - comparar documentación entre IBM i 7.3, 7.4, 7.5 y 7.6;
 - preparar contexto compacto para Codex u otros clientes MCP.
 
@@ -32,7 +32,9 @@ Sirve para:
 - El corpus documental vive en SQLite con vectores semánticos (`chunk_vectors`) y se resuelve sin RDi.
 - El perfil MCP por defecto es **agent-first**: el agente ve únicamente `ibmi_docs_assist`.
 - `ibmi_docs_assist` devuelve un solo bloque con la respuesta final; no expone JSON, scores, IDs, planes de recuperación ni documentos internos.
-- La recuperación combina E5 multilingüe, un adaptador MLP IBM i aprendido con 7.656 pares y un cross-encoder BGE; las vistas neuronales se contrastan antes de elegir la respuesta.
+- La recuperación combina un E5-base multilingüe de 768 dimensiones, una cabeza neuronal
+  `query→corpus` entrenada contra los 7.027 documentos del pack y un cross-encoder mMARCO MiniLM.
+  Todo trabaja localmente y no existe una ruta legacy por coincidencia exacta.
 - Las tools avanzadas/de auditoría existen, pero se ocultan salvo que actives un perfil explícito.
 - Las tools de mantenimiento, como sincronización de IBM Docs público, **no se exponen al agente en runtime normal**.
 - El data pack público va incluido en npm y también está versionado en este repositorio bajo `data/pack`.
@@ -62,7 +64,7 @@ Más opciones: [instalación, actualización y desinstalación](docs/INSTALLATIO
 ### Actualizar o eliminar
 
 ```powershell
-# Actualizar runtime, corpus y modelo local
+# Actualizar runtime, corpus y modelos neuronales locales
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
 ibmi-docs doctor
 
@@ -118,7 +120,7 @@ Contrasta la guía de compilación contra IBM i Docs antes de proponer el comand
 ```
 
 ```text
-Tengo RNF0004 en un listado RPGLE. Explícalo y dame una checklist de revisión.
+Tengo RNF5393 en un listado RPGLE. Explícalo y dame una checklist de revisión.
 ```
 
 ```text
@@ -132,7 +134,7 @@ ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; dame pasos y validación" 
 ibmi-docs assist "Cómo reviso trabajos activos y bloqueos de un objeto o miembro? Usa WRKACTJOB, WRKOBJLCK, DSPJOB y WRKJOB si aplican" --language "IBM i administration" --depth deep
 ibmi-docs assist "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --examples --depth deep
 ibmi-docs assist "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
-ibmi-docs search "RNF0004" --category mensajes-rnf --limit 3
+ibmi-docs search "RNF5393" --category mensajes-rnf --limit 3
 ibmi-docs explain-ranking "SND-MSG Send a Message to the Joblog" --category ile-rpg --ibmi-version 7.5
 ibmi-docs report-query "SND-MSG Send a Message to the Joblog" --category ile-rpg --expected-title "SND-MSG" --out snd-msg-ranking.md
 ibmi-docs doctor
@@ -197,6 +199,8 @@ Nota para operadores: `ibmi_docs_sync` no forma parte del set MCP público por d
 - Servidor MCP TypeScript por stdio.
 - CLI `ibmi-docs`.
 - Tool one-shot `ibmi_docs_assist` con respuesta pública compacta y motor neuronal interno multi-etapa.
+- Cabeza neuronal residual `query→corpus` que aprende a navegar documentos reales sin aliases,
+  regex, categorías de intención ni términos codificados en runtime.
 - Reranking cross-encoder multilingüe para reducir coincidencias temáticas que no responden realmente la pregunta.
 - Recuperación mejorada para comandos administrativos que no siempre tienen página canónica propia en IBM Docs/RDi, como `WRKACTJOB`, `WRKOBJLCK`, `DSPJOB` y `WRKJOB`.
 - Corpus local versionado como data pack (`manifest.json`, `raw/`, `normalized/`, `ibmi-docs.sqlite`).

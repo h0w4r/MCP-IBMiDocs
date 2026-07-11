@@ -1,0 +1,513 @@
+Start Printer Writer (STRPRTWTR)
+
+Start Printer Writer (STRPRTWTR)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Printer Writer (STRPRTWTR) command starts a spooling writer to the specified printer. The writer, which is a system job, takes spooled files from an output queue and produces (writes) the output on the printer device. This command specifies the name of the printer, the names of the output and message queues used, and the name of the writer.
+
+More than one writer can be active at the same time (as determined by the spooling subsystem description), and up to 10 writers can be active to the same output queue. Each writer must have a unique writer name, its own device, and only one type of writer (print, remote, or diskette) can be active to a single output queue. A writer that has been started can be actively writing output or waiting for a file entry to be put on the output queue. The writer can be changed, held, or canceled if the Change Writer (CHGWTR), Hold Writer (HLDWTR), or End Writer (ENDWTR) command is used. Because each writer runs independently of the job that started it, you can continue doing other work on the system after you start a writer.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DEV | Printer | Name, *ALL, *SYSVAL | Required, Positional 1
+OUTQ | Output queue | Single values: *DEV
+Other values: Qualified object name | Optional, Positional 2
+Qualifier 1: Output queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MSGQ | Queue for writer messages | Single values: *DEVD, *REQUESTER
+Other values: Qualified object name | Optional, Positional 4
+Qualifier 1: Queue for writer messages | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FORMTYPE | Form type options | Element list | Optional
+Element 1: Form type | Character value, *ALL, *STD, *FORMS
+Element 2: Message option | *INQMSG, *MSG, *NOMSG, *INFOMSG
+FILESEP | File separators | 0-9, *FILE | Optional
+SEPDRAWER | Drawer for separators | 1-255, *DEVD, *FILE | Optional
+WTR | Writer | Name, *DEV | Optional, Positional 3
+AUTOEND | Auto-end options | Element list | Optional, Positional 5
+Element 1: Automatically end writer | *NO, *YES
+Element 2: If yes, when to end | *NORDYF, *FILEEND
+ALWDRTPRT | Allow direct print | *NO, *YES | Optional
+ALIGN | Align page | *FILE, *WTR, *FIRST | Optional
+INIT | Initialize printer | *WTR, *FIRST, *ALL | Optional
+FILE | Spooled file | Name, *NONE, *LAST | Optional
+JOB | Job name | Single values: *
+Other values: Qualified job name | Optional
+Qualifier 1: Job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+SPLNBR | Spooled file number | 1-999999, *ONLY, *LAST, *ANY | Optional
+JOBSYSNAME | Job system name | Name, *ONLY, *CURRENT, *ANY | Optional
+CRTDATE | Spooled file created | Single values: *ONLY, *LAST
+Other values: Element list | Optional
+Element 1: Creation date | Date
+Element 2: Creation time | Time, *ONLY, *LAST
+PAGE | Starting page | Integer, *BEGIN | Optional
+
+Top
+
+Printer (DEV)
+
+Specifies the printer device used to print the spooled file. The device must be available before the writer can be started.
+
+This is a required parameter.
+
+*ALL
+Start a printer writer for every printer configured on the system.
+
+*SYSVAL
+Start a printer writer for the system default printer.
+
+name
+Specify the name that the printer device being started is identified by.
+
+Top
+
+Output queue (OUTQ)
+
+Specifies the output queue from which the writer processes spooled files.
+
+Single values
+
+*DEV
+Use the default output queue associated with the printer specified on the Printer (DEV) parameter.
+
+Qualifier 1: Output queue
+
+name
+Specify the name of the output queue that the writer processes spooled files from.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the output queue. If no current library entry exists in the library list, QGPL is used.
+
+name
+Specify the name of the library where the output queue is located.
+
+Top
+
+Queue for writer messages (MSGQ)
+
+Specifies the message queue that is used by this user.
+
+Single values
+
+*DEVD
+The messages are sent to the message queue specified in the printer's device description.
+
+*REQUESTER
+The messages are sent to the workstation message queue of the workstation of the user who started the process. If this value is specified for a batch job, *DEVD is used.
+
+Qualifier 1: Queue for writer messages
+
+name
+Specify the name of the message queue where writer messages should be sent.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the message queue. If no current library entry exists in the library list, QGPL is used.
+
+name
+Specify the name of the library where the message queue is located.
+
+Top
+
+Form type options (FORMTYPE)
+
+Specifies which form type should be selected to print. This parameter specifies that only the files with this form type are processed now. All other files are left on the output queue as available. If you wish to change the type of form to be printed after the writer is started, you should use the Change Writer (CHGWTR) command.
+
+Note: The form load message is issued when the spooled file to be printed has a form type different from the form type of the last spooled file that was printed on the device. The last form type printed is kept from the last STRPRTWTR, CHGWTR, or VRYCFG command issued.
+
+Consider the following example:
+
+- The last spooled file printed on printer PRT01 had the form type *STD.
+
+- The user changes the form type on PRT01 to XYZ using the following command:
+
+CHGWTR PRT01 FORMTYPE(XYZ)
+
+- No spooled file with the form type XYZ is printed on PRT01.
+
+- The user then sends a spooled file with the form type *STD to PRT01. The form load message is not issued, despite the intervening CHGWTR command, because the last spooled file printed on PRT01 had the same form type as the spooled file being printed.
+The form load message would be issued if a spooled file with the form type XYZ were actually printed on PRT01.
+
+Element 1: Form type
+
+*ALL
+All available files on the output queue will be processed regardless of their form type.
+
+*FORMS
+All available files on the output queue with the same form type are processed as a group before the writer moves on to the next form type. The writer first chooses the first available file on the queue. After the first file is complete, all files with the same form type will be processed. The writer again chooses the first available file on the queue and repeats the process for that form type.
+
+*STD
+The writer processes spooled files with a form type of *STD.
+
+form-type
+Specify the type of form for which you want spooled files processed.
+
+Element 2: Message option
+
+*INQMSG
+An inquiry message is sent to the message queue when a spooled file has a form type that is different than the form type in the printer.
+
+*INFOMSG
+An informational message is sent to the message queue when no spooled files requiring this form type remain in the output queue.
+
+*MSG
+An inquiry message is sent to the message queue when a spooled file has a form type that is different than the form type in the printer and an informational message is sent when no spooled files requiring this form type remain in the output queue.
+
+*NOMSG
+Neither an inquiry message nor an informational message is sent to the message queue.
+
+Top
+
+File separators (FILESEP)
+
+Specifies how to control the number of file separator pages that are printed before each file.
+
+*FILE
+The number of separators that was specified for each individual file is used.
+
+0-9
+Specify the number of separator pages to print. Whenever you respond to the change form type message indicating that a new form type has been put on the printer, the writer issues a message inquiring how many file separator pages should be printed with the new form type.
+
+Top
+
+Drawer for separators (SEPDRAWER)
+
+Specifies which paper drawer is selected for printing job and file separators.
+
+*DEVD
+The value stored in the device description for the printer is used.
+
+*FILE
+The separator pages are printed from the same drawer as the spooled file.
+
+1
+The separator pages are printed from drawer 1.
+
+2
+The separator pages are printed from drawer 2.
+
+3
+The separator pages are printed from drawer 3.
+
+1-255
+Specify a number to indicate the drawer from which the separator pages are printed.
+
+Note: For some printers, SEPDRAWER(3) implies an envelope drawer.
+
+Top
+
+Writer (WTR)
+
+Specifies the name of the spooling writer being started. Each writer name must be unique.
+
+*DEV
+The name of the writer is the same as the name of the printer device specified on the Printer (DEV) parameter.
+
+name
+Specify the name by which the writer being started is identified.
+
+Top
+
+Auto-end options (AUTOEND)
+
+Specifies whether the writer ends automatically.
+
+Element 1: Automatically end writer
+
+*NO
+The writer does not end when the last available file has been removed from the output queue; it waits for another spooled file entry to be put on the queue.
+
+*YES
+The writer automatically ends after it has reached the state specified by the second part of this parameter.
+
+Element 2: If yes, when to end
+
+*NORDYF
+The writer automatically ends when there are no ready files (all the available files have been removed from the output queue).
+
+*FILEEND
+The writer stops after it has finished processing one spooled file.
+
+Top
+
+Allow direct print (ALWDRTPRT)
+
+Specifies whether the printer writer allows files to be printed directly to the printer. A file printed directly to the printer is created by specifying SPOOL(*NO) for a printer file. When direct printing is allowed, the non-spooled printer file is printed immediately if the printer is available or, if the printer is busy, the non-spooled printer file waits until the printer is available. The maximum wait is the length of time specified on the WAITFILE parameter on the printer file, after which the job is automatically canceled. The user can cancel a non-spooled printer file only with an End Job (ENDJOB) command.
+
+*NO
+The printer does not allow non-spooled printer files to be printed to the device.
+
+*YES
+The printer can be used to print spooled and non-spooled output. See the Create, Change, or Override Printer File (CRTPRTF, CHGPRTF, or OVRPRTF) command to set the value of the WAITFILE parameter.
+
+Note: Nonspooled files wait up to 30 seconds regardless of whether the value specified on the WAITFILE parameter is less than 30 seconds.
+
+Top
+
+Align page (ALIGN)
+
+Specifies how to control the forms alignment.
+
+*WTR
+The writer keeps track of the output that is printed and issues a forms alignment message whenever it determines that forms may need to be aligned.
+
+*FILE
+The forms alignment message is issued for every file that has *YES specified for the Align page prompt (ALIGN parameter). This option should be taken whenever the automatic forms alignment control provided by the writer does not provide the desired results.
+
+*FIRST
+The forms alignment message is issued only for the first file printed. No alignment messages are issued when subsequent errors occur on the printer.
+
+Top
+
+Initialize printer (INIT)
+
+Specifies how often to initialize the printer device.
+
+Note: This parameter is ignored if TRANSFORM(*YES) or a user data transform program was specified on the printer device description.
+
+*WTR
+The writer initializes the printer device when necessary.
+
+*FIRST
+The writer initializes the printer device only before the first file is printed, or after a device error occurs.
+
+*ALL
+The writer initializes the printer device before each file and each copy of the file is printed.
+
+Top
+
+Spooled file (FILE)
+
+Specifies the first (or only) spooled file to print on the printer. If several files are available on the output queue, the next file produced is the first one available with the highest priority.
+
+*NONE
+No spooled file name is specified; the first spooled file that becomes available on the output queue is processed first.
+
+*LAST
+The spooled file which was being printed when the writer ended will start to print when the writer is restarted.
+
+name
+Specify the name of the spooled file that is the first (or only) file to be written to the printer.
+
+Top
+
+Job name (JOB)
+
+Specifies the name of the job that created the spooled file. This parameter is valid only if a spooled file name is specified on the Spooled file (FILE) parameter.
+
+Single values
+
+*
+The job from which this Start Printer Writer (STRPRTWTR) command was issued is the job that created the spooled file.
+
+Qualifier 1: Job name
+
+name
+Specify the name of the job that created the spooled file. If no other job qualifiers are given, all of the jobs currently in the system are searched for the simple name of the job.
+
+Qualifier 2: User
+
+name
+Specify the user name that identifies the user profile under which the job is run.
+
+Qualifier 3: Number
+
+000000-999999
+Specify the system-assigned job number.
+
+Top
+
+Spooled file number (SPLNBR)
+
+Specifies the number of the spooled file that is processed first. This parameter is valid only if a spooled file name is specified on the Spooled file prompt (FILE parameter).
+
+*ONLY
+Only one spooled file in the job has the specified file name; therefore, the number of the spooled file is not necessary.
+
+*LAST
+The spooled file with the highest number and the specified file name is used.
+
+*ANY
+The spooled file number is not used to determine which spooled file is used. Use this value when the job system name parameter or the spooled file create date and time parameter is to take precedence over the spooled file number when selecting a spooled file.
+
+1-999999
+Specify the number of the specified file from the job on the specified output queue that is to be processed first.
+
+Top
+
+Job system name (JOBSYSNAME)
+
+Specifies the name of the system where the job that created the spooled file (JOB parameter) ran. This parameter is considered after the job name, user name, job number, spooled file name, and spooled file number parameter requirements have been met.
+
+*ONLY
+There is one spooled file with the specified job name, user name, job number, spooled file name, spooled file number, and spooled file create date and time.
+
+*CURRENT
+The spooled file created on the current system with the specified job name, user name, job number, spooled file name, spooled file number, and create date and time is used.
+
+*ANY
+The job system name is not used to determine which spooled file is used. Use this value when the spooled file create date and time parameter is to take precedence over the job system name when selecting a spooled file.
+
+name
+Specify the name of the system where the job that created the spooled file ran.
+
+Top
+
+Spooled file created (CRTDATE)
+
+Specifies the date and time the spooled file was created. This parameter is considered after the job name, user name, job number, spooled file name, spooled file number, and job system name parameter requirements have been met.
+
+Single values
+
+*ONLY
+There is one spooled file with the specified job name, user name, job number, spooled file name, spooled file number, and job system name.
+
+*LAST
+The spooled file with the latest create date and time of the specified job name, user name, job number, spooled file name, spooled file number, and job system name is used.
+
+Element 1: Creation date
+
+date
+Specify the date the spooled file was created.
+
+Element 2: Creation time
+
+*ONLY
+There is one spooled file with the specified job name, user name, job number, spooled file name, spooled file number, job system name, and spooled file create date.
+
+*LAST
+The spooled file with the latest create time of the specified job name, user name, job number, spooled file name, spooled file number, job system name, and spooled file create date is used.
+
+time
+Specify the time the spooled file was created.
+
+Top
+
+Starting page (PAGE)
+
+Specifies the page number of the first page to print from the first file. This parameter is valid only if a spooled file name is specified on the Spooled file prompt (FILE parameter).
+
+*BEGIN
+The restart page of the spooled file is the first page to print.
+
+Note: If this value has not been changed using the Change Spooled File Attribute (CHGSPLFA) command, the file will print in the same manner as it would if the value were *BEGIN.
+
+integer
+Specify the number of the first page to print. This number must be within the page range of the file to be valid.
+
+Top
+
+Examples
+
+STRPRTWTR DEV(QSYSPRT) OUTQ(QPRINTS) WTR(TOM)
+
+This command starts a spooling writer named TOM. This writer takes the output from the output queue named QPRINTS and prints the output on the printer named QSYSPRT. Writer messages are sent to the system operator's message queue, and the writer waits for more output when the queue is emptied.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0906
+A duplicate job named &3/&2/&1 was found.
+
+CPF1338
+Errors occurred on SBMJOB command.
+
+CPF1764
+Writer already started for device &1.
+
+CPF1842
+Cannot access system value &1.
+
+CPF2115
+Object &1 in &2 type *&3 damaged.
+
+CPF2207
+Not authorized to use object &1 in library &3 type *&2.
+
+CPF3303
+File &1 not found in job &5/&4/&3.
+
+CPF3305
+Output queue &1 in library &2 assigned to another writer.
+
+CPF3309
+No files named &1 are active.
+
+CPF3310
+Writer &1 already started.
+
+CPF3330
+Necessary resource not available.
+
+CPF3340
+More than one file with specified name found in job &5/&4/&3.
+
+CPF3342
+Job &5/&4/&3 not found.
+
+CPF3343
+Duplicate job names found.
+
+CPF3347
+Device &1 not found.
+
+CPF3357
+Output queue &1 in library &2 not found.
+
+CPF3362
+Objects in QTEMP not valid for parameter values.
+
+CPF3363
+Message queue &1 in library &2 not found.
+
+CPF3369
+Device &1 not printer device.
+
+CPF336B
+Not found or not authorized to driver exit program &1 in library &2.
+
+CPF3418
+Duplicate file &1 number &2 found in job.
+
+CPF346A
+Transform exit program &1 in library &2 not found or user is not authorized.
+
+CPF346B
+Driver exit program &1 in library &2 not found or user is not authorized.
+
+CPF3463
+Output queue for device &1 not found.
+
+CPF3464
+Not authorized to output queue &1 in library &2.
+
+CPF3478
+File &1 not found in job &5/&4/&3 on output queue &6 in library &7.
+
+Top

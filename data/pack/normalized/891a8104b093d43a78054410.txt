@@ -1,0 +1,320 @@
+End Performance Explorer (ENDPEX)
+
+End Performance Explorer (ENDPEX)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The End Performance Explorer (ENDPEX) command instructs the Performance Explorer tool to stop collecting data. The command expects a session name to accompany the request which identifies which instance of the Performance Explorer session to end.
+
+The user can either end the data collection session or suspend the data collection session. If the user chooses to end the session, the collected data is put into an object of type *MGTCOL or into a set of database files, or it is deleted, based on the value specified for the DTAOPT parameter.
+
+If the user chooses to suspend the collection of performance data, the session remains active. To resume data collection for a suspended session, the user can specify OPTION(*RESUME) on a subsequent call of the STRPEX (Start Performance Explorer) command.
+
+Restrictions:
+
+- This command is shipped with public *EXCLUDE authority.
+
+- The user must have *ADD and *EXECUTE authority to the specified DTALIB and MGTCOL libraries.
+
+- The user must have *OBJMGMT, *OBJEXIST, and use authorities to the managment collection object if replacing an existing management collecton object.
+
+- To use this command you must have *SERVICE special authority, or be authorized to the Service Trace function of the operating system. The Change Function Usage (CHGFCNUSG) command, with a function ID of QIBM_SERVICE_TRACE, can be used to change the list of users that are allowed to perform trace operations.
+
+- The following user profiles have private authorities to use the command:
+
+QPGMR
+
+QSRV
+
+- If running ENDPEX from a secondary thread, the QAYPE* files must already exist in the DTALIB library. These files must be created in the primary thread by running ENDPEX DTAOPT(*LIB).
+
+- If running ENDPEX from a secondary thread, DTAOPT(*MGTCOL) object cannot be specified.
+
+- Two threads within the same job will not be allowed to run ENDPEX at the same time. The thread that issued ENDPEX first will run the command to completion while the second ENDPEX waits.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SSNID | Session ID | Name, *SELECT | Optional, Positional 1
+OPTION | Option | *END, *SUSPEND, *STOP, *EXTRACT | Optional
+DTAOPT | Data option | *LIB, *MGTCOL, *DLT | Optional
+DTALIB | Data library | Name, QPEXDATA | Optional
+DTAMBR | Data member | Name, *SSNID | Optional
+MGTCOL | Management collection | Qualified object name | Optional
+Qualifier 1: Management collection | Name, *SSNID
+Qualifier 2: Library | Name, QPEXDATA
+JOB | Jobs | Single values: *ALL, *NONE
+Other values (up to 8 repetitions): Element list | Optional
+Element 1: Job name | Qualified job name
+Qualifier 1: Job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000001-999999
+Element 2: Thread identifier | Single values: *ALL
+Other values (up to 20 repetitions): 00000000-FFFFFFFF, *INITIAL
+TASK | Task name | Single values: *ALL, *NONE
+Other values (up to 8 repetitions): Name | Optional
+RPLDTA | Replace data | *NO, *YES | Optional
+NBRTHD | Number of threads | 1-256, *CALC | Optional
+TEXT | Text 'description' | Character value, *BLANK | Optional
+
+Top
+
+Session ID (SSNID)
+
+Specifies which Performance Explorer session to end. This is the session identifier that was specified on the STRPEX (Start Performance Explorer) command.
+
+*SELECT
+A list panel of all active Performance Explorer data collection sessions will be displayed with an option to select which session to end. *SELECT is only valid if the ENDPEX command is being run interactively. If the command is being run in batch, a session identifier must be specified.
+
+session-identifier
+Specify the Performance Explorer data collection session to end.
+
+Top
+
+Option (OPTION)
+
+Specifies whether to end the data collection session or just suspend collection of performance data for the session.
+
+*END
+The Performance Explorer session is ended. The user can choose three methods to handle the collected data:
+
+- Save the collected data to a set of database files.
+
+- Save the data to a single file (used for sending data to IBM for analysis).
+
+- Discard the data.
+
+*SUSPEND
+The Performance Explorer session is suspended, and the session remains active but no additional data is collected for this session. Once a session is suspended, the user can use STRPEX with OPTION(*RESUME) to resume data collection, end the suspended session by specifying ENDPEX with OPTION(*END), extract data with the *EXTRACT option, or stop the suspended session by specifying ENDPEX with OPTION(*STOP).
+
+*STOP
+The Performance Explorer session is ended and the jobs are removed from the collection. The session cannot be started up again. Addresses are not resolved to object names, and no database files are created. The address data and database files can be created at a later time with the OPTION(*END) and DTAOPT(*LIB or *MGTCOL) options of ENDPEX. However, Performance Explorer may not be able to resolve some of the addresses if objects get deleted. The longer the time between *STOP and *END, the greater the chance the resolved address data will be incomplete.
+
+*EXTRACT
+Data will be extracted from a suspended collection and saved to a set of database files. Before data is extracted, the session must be suspended with the ENDPEX OPTION(*SUSPEND) command. After data is extracted, the session can be resumed with the STRPEX OPTION(*RESUME) command or deleted with the ENDPEX OPTION(*END) DTAOPT(*DLT) command.
+
+Top
+
+Data option (DTAOPT)
+
+Specifies how to handle the collected data. The collected data can be stored in a set of database files or a management collection object (*MGTCOL), or both. The temporary management collection object used to hold the collected data will be deleted. To delete the temporary management collection object without storing the collected data, specify *DLT.
+
+Note: This parameter is valid only if OPTION(*END) is specified.
+
+*LIB
+Indicates to store all of the collected performance data for the session into a set of database files located in the library specified on the DTALIB parameter. The Performance Explorer tool creates all the necessary files if this is the first time that a library is being used to store performance data. The member name for each of the files where the session data is stored can be controlled through the DTAMBR parameter, but defaults to be the same name as the session identifier.
+
+*MGTCOL
+Indicates to store all of the collected data in a management collection object (type *MGTCOL). No database files will be created. This option can be used if the data is to be shipped to another system or to your service provider for analysis.
+
+*DLT
+The collected performance data for the session is to be deleted from the system.
+
+Top
+
+Data library (DTALIB)
+
+Specifies the name of the library that contains the set of database files where the collected performance data is stored.
+
+Note: This parameter is valid only if the user specified DTAOPT(*LIB).
+
+QPEXDATA
+The QPEXDATA library is the recommended library for storing data collected with the Performance Explorer tool. The first time the Performance Explorer tool is used, this library is created for the user, and a set of database files to store the information is created in that library.
+
+name
+Specifies the name of the library in which to store the collected data. If the library does not exist, the command ends in an error condition. After the library is created, retry the command. If the specified library does not already have the performance database files, they are created and the data is stored.
+
+Top
+
+Data member (DTAMBR)
+
+Specifies the name to be used for the database file members where the collected performance data is stored. If a member does not exist by the specified name, it is created.
+
+Note: This parameter is valid only when DTAOPT(*LIB) is specified.
+
+*SSNID
+The member name is the same as the value specified for the SSNID parameter.
+
+name
+Specify the member name to use when storing the collected data in Performance Explorer database files.
+
+Top
+
+Management collection (MGTCOL)
+
+Specifies the management collection object where the the collected performance data is stored.
+
+Note: This parameter is valid only if DTAOPT(*MGTCOL) is specified.
+
+Qualifier 1: Management collection
+
+*SSNID
+The name specified for the Session ID (SSNID) parameter is used when creating the management collection object to contain the collected performance data.
+
+name
+Specify the name to use when creating the management collection object to contain the collected performance data.
+
+Qualifier 2: Library
+
+QPEXDATA
+The QPEXDATA library is the recommended library for storing data collected by the Performance Explorer tool. The first time the Performance Explorer tool is used, this library is created for the user.
+
+name
+Specify the name of the library to store the collected data. If the library does not exist, the command ends in an error condition. After the library is created, retry the command.
+
+Top
+
+Job name (JOB)
+
+Specifies which job's data is saved from the Performance Explorer data collection session.
+
+Single values
+
+*ALL
+Data is saved for all jobs in the collection.
+
+*NONE
+No jobs have their data saved. Data is saved based on the TASK parameter.
+
+Element 1: Job name
+
+Qualifier 1: Job name
+
+name
+Specify the name of the job to be included. Generic names are not allowed.
+
+Qualifier 2: User
+
+name
+Specify the user name of the jobs to be included. Generic names are not allowed.
+
+Qualifier 3: Number
+
+job-number
+Specify the job number to further qualify the job name and user name.
+
+Element 2: Thread identifier
+
+*ALL
+All threads of the specified job are included.
+
+*INITIAL
+Only the initial thread of the specified job is included.
+
+thread-identifier
+Specify the thread identifier of the job to be included. This is the thread ID as shown by the WRKJOB command.
+
+Top
+
+Task name (TASK)
+
+Specifies which licensed internal code (LIC) task's data is saved from the Performance Explorer data collection session. Up to 8 task names may be specified.
+
+LIC tasks can be obtained from the Performance Tools reports and WRKSYSACT command. There is no guarantee that LIC task names will remain the same or exist from system to system or release to release.
+
+Note: If the task name contains a hyphen, enclose the task name in quotation marks. For example, for task SK-ASC040, you would specify TASK("SK-ASC040").
+
+Single values
+
+*ALL
+Data from all LIC tasks in the collection is included.
+
+*NONE
+No data from LIC tasks in the collection is included. Data is includede based on the JOBS parameter.
+
+Other values (up to 8 repetitions)
+
+name
+Specify the name of the task to be included.
+
+Top
+
+Replace data (RPLDTA)
+
+Specifies whether to replace the data in an existing file member or management collection object with the new performance data. If DTAMBR was specified and a member with the same name already exists in any of the Performance Explorer database files in the specified library (DTALIB parameter), this parameter controls whether the member data is replaced. If MGTCOL was specified and an object already exists with the same name, this parameter controls whether the data in that object is replaced.
+
+*NO
+If a member already exists with the same name, an error message is sent to the user. This prevents the user from inadvertently writing over existing data.
+
+*YES
+If a member already exists with the same name, the old data is lost and is replaced by the new data.
+
+Top
+
+Number of threads (NBRTHD)
+
+Specifies the number of concurrent threads that the ENDPEX command uses to process the data in the session being ended. Specifying a number greater than 1 allows the ENDPEX command to take advantage of available CPU cycles, especially on a multi-processor system. While this may speed up the command processing, it may also degrade the performance of other jobs on the system. You can minimize this impact by changing the priority of the job that runs the ENDPEX command to a higher number. You should also verify that the disk subsystem can handle the additional threads.
+
+*CALC
+The system calculates a reasonable number of threads to do the command processing which does not use excessive CPU or disk resources.
+
+1-256
+Specify the number of threads for the ENDPEX command to use to process the collected data.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the text that briefly describes the type of data collected.
+
+*BLANK
+Text is not specified.
+
+'description'
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+Examples
+
+Example 1: End a Session and Save the Database Files
+
+ENDPEX SSNID(TEST3) OPTION(*END) DTAOPT(*LIB)
+DTAMBR(SYS1DATA)
+
+This command ends the performance explorer session named TEST3 and saves the data in a set of database files in library QPEXDATA. The member name to be used for each file is SYS1DATA.
+
+Example 2: End a Session and Delete the Data
+
+ENDPEX SSNID(TESTRUN) OPTION(*END) DTAOPT(*DLT)
+
+This command ends the performance explorer session named TESTRUN and deletes the collected performance data.
+
+Example 3: End a Session and Save the *MGTCOL
+
+ENDPEX SSNID(TEST3) OPTION(*END) DTAOPT(*MGTCOL)
+MGTCOL(MYLIB/SYS1DATA) NBRTHD(*CALC)
+
+This command ends the performance explorer session named TEST3 and saves the data in a management collection object in library MYLIB in the management collection object named SYS1DATA. ENDPEX will calculate a number of threads to process this request. This number of threads will do the ENDPEX processing as quickly as possible without disrupting the rest of the system.
+
+Example 4: Suspend a Session and Extract the Data
+
+ENDPEX SSNID(TEST3) OPTION(*SUSPEND)
+
+ENDPEX SSNID(TEST3) OPTION(*EXTRACT) DTAOPT(*LIB)
+DTAMBR(USERADATA) JOB(000123/USERA/QPADEV0001)
+
+STRPEX SSNID(TEST3) OPTION(*RESUME)
+
+This example first suspends the performance explorer session named TEST3. While the collection is suspended, the *EXTRACT option is used to save data collected for job 000123/USERA/QPADEV0001 to a collection named USERADATA. After the data is extracted, the collection is resumed and will begin collecting data again. This technique can be used when trying to find an intermittent problem.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFAF06
+ENDPEX command was not successful. Reason code is &1. See details for more information.
+
+Top

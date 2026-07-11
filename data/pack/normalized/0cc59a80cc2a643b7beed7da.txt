@@ -1,0 +1,330 @@
+Copy Source File (CPYSRCF)
+
+Copy Source File (CPYSRCF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Copy Source File (CPYSRCF) command copies a database source file or DDM file to a source physical file or DDM file and converts the character data from the from-file CCSID to the to-file CCSID. If TOFILE(*PRINT) is specified, a formatted printer file is created by using the IBM-supplied printer file QSYSPRT (the file is changed for source records and is different from other copy command file formats). Any overrides issued for the from-file or to-file apply to the files used in the copy operation. Record data is copied from the from-file to the to-file, converting character data from the from-file CCSID to the to-file CCSID. Other differences in record formats (like that of the FMTOPT(*NOCHK) parameter option on the CPYF command) are disregarded.
+
+Note: For more information on DDM files, see the Distributed database programming topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+One member, all members, or a generic set of members can be copied each time the command is called. From-file members can be copied to like-named to-file members or to a single to-file member. Many members are copied and listed in alphabetical order. The to-file must exist when the CPYSRCF command is started. This command does not create the to-file, but it does add a member to an existing physical file if the member does not already exist in the to-file.
+
+This command provides similar support as the Copy File (CPYF) command. Note that the default for the MBROPT parameter is *REPLACE (unlike other copy commands), which clears existing records in the receiving member of the to-file before replacing them with records copied from the from-file. Also, the default for the TOMBR parameter is *FROMMBR, which causes from-file members to be copied to like-named to-file members.
+
+Restrictions:
+
+- A file's open data path (ODP) cannot be shared with any other program in the job (routing step) during the copy operation.
+
+- In multithreaded jobs, this command is not threadsafe when copying from or to multiple database file members, device files (except SPOOL(*YES) print files), distributed files, or DDM files of type *SNA. This command fails for distributed files that use relational databases of type *SNA and DDM files of type *SNA. It is threadsafe ONLY when copying from and to single database file members (local or DDM of type *IP) or SPOOL(*YES) print files.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMFILE | Data base source file | Qualified object name | Required, Positional 1
+Qualifier 1: Data base source file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TOFILE | To file | Single values: *PRINT
+Other values: Qualified object name | Required, Positional 2
+Qualifier 1: To file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMMBR | From member | Generic name, name, *FIRST, *ALL | Required, Positional 3
+TOMBR | To member or label | Name, *FROMMBR, *FIRST | Optional, Positional 4
+TOMBRID | To member identifier | *GEN, *FROMMBR | Optional
+MBROPT | Replace or add records | *REPLACE, *ADD | Optional, Positional 5
+SRCCHGDATE | Source change date | *FROMMBR, *NEW | Optional
+TEXT | Text 'description' | *SAME, *FROMMBR | Optional
+SRCTYPE | Source type | *SAME, *FROMMBR | Optional
+SRCOPT | Source update options | Single values: *SAME
+Other values (up to 2 repetitions): *SEQNBR, *DATE | Optional
+SRCSEQ | Source sequence numbering | Element list | Optional
+Element 1: Starting sequence number | 0.01-9999.99, 1.00
+Element 2: Increment number | 0.01-9999.99, 1.00
+
+Top
+
+Data base source file (FROMFILE)
+
+Specifies the database source file that contains the records to be copied.
+
+This is a required parameter.
+
+Qualifier 1: Data base source file
+
+name
+Specify the name of the database source file that contains records being copied.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+To file (TOFILE)
+
+Specifies the file that receives the copied records.
+
+This is a required parameter.
+
+Single values
+
+*PRINT
+The records are copied to the IBM-supplied printer file QSYSPRT. No coded character set identifier (CCSID) conversions occur if *PRINT is specified. The format includes no blank lines between records. Source sequence number and source change date fields are separated from the data. If multiple file members are copied, members are listed in alphabetic order. If the listing needs to be in hexadecimal format, use the Copy File (CPYF) command with the OUTFMT(*HEX) parameter value. The IBM-supplied printer file QSYSPRT may not be overridden to a different file name, and it must have the RPLUNPRT(*YES) and CTLCHAR(*NONE) attributes.
+
+Qualifier 1: To file
+
+name
+Specify the name of the source physical file that receives the copied records.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+From member (FROMMBR)
+
+Specifies the file member(s) copied from the from-file. A single member, a generic set of members, or all members in the from-file can be copied. Members are copied in alphabetical order.
+
+This is a required parameter.
+
+*ALL
+All members in a database file are copied.
+
+*FIRST
+The first member of the specified file is used.
+
+generic-name
+Specify the generic name of the group of members to be copied.
+
+name
+Specify the name of the database file member to be copied.
+
+Top
+
+Member (TOMBR)
+
+Specifies the name of the file member that receives the copied records.
+
+If *PRINT is specified for the To file (TOFILE) parameter, either *FIRST or *FROMMBR must be specified for this parameter.
+
+*FROMMBR
+Corresponding from-file and to-file member names or label identifiers are used. If a member with a corresponding name does not exist in the to-file, a member with that name is added to the to-file.
+If a member name or *FIRST was specified as a value for the FROMMBR parameter, then a member in the to-file with the same name receives the records copied. If *ALL or a generic member name is specified as a value for the FROMMBR parameter, each member in the from-file is copied into a member with the same name in the to-file. Records from one or more members (specified by the FROMMBR parameter) in the from-file are copied to the first member in the to-file.
+
+*FIRST
+The first member of the specified file is used.
+
+to-member-name
+Specify the name of the physical to-file member to receive the records. If a member with the specified name does not exist, one with the same name is added.
+
+Top
+
+To member identifier (TOMBRID)
+
+Specifies, for new members added to the to-file, whether the member level identifer will be generated or copied from the member level identifier of the member in the from-file.
+
+*GEN
+The member level identifier of the new member in the to-file will be generated.
+
+*FROMMBR
+The member level identifier of the new member in the to-file will be the same as the member being copied.
+
+Top
+
+Replace or add records (MBROPT)
+
+Specifies whether the new records replace or are added to the existing records.
+
+*REPLACE
+The system clears the existing member and adds the new records.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+Top
+
+Source change date (SRCCHGDATE)
+
+Specifies, for new members added to the to-file, or if MBROPT(*REPLACE) was specified, whether the 'Last source update date/time' will be a new date/time, or copied from the 'Last source update date/time' of the member in the from-file.
+
+*FROMMBR
+The 'Last source update date/time' of the new member in the to-file, or if MBROPT(*REPLACE) was specified, will be the same as the member being copied.
+
+*NEW
+The 'Last source update date/time' of the new member in the to-file, or if MBROPT(*REPLACE) is specified, will be a new date/time.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies if the MBROPT(*REPLACE) was specified, whether the text describing the member will be copied from the from-member.
+
+*SAME
+The to-member text will not be changed.
+
+*FROMMBR
+The text describing the to-member will be changed to the text of the from-member.
+
+Top
+
+Source type (SRCTYPE)
+
+Specifies if the MBROPT(*REPLACE) was specified, whether the source type of the to-member will be copied from the from-member.
+
+*SAME
+The source type of the to-member will not be changed.
+
+*FROMMBR
+The source type of the to-member will be changed to the source type of the from-member.
+
+Top
+
+Source update options (SRCOPT)
+
+Specifies whether new values are assigned to the source sequence number and date fields when records from the from-file are copied to the to-file.
+
+Single values
+
+*SAME
+No new values are assigned to the source sequence number and date fields.
+
+Other values (up to 2 repetitions)
+
+*SEQNBR
+Sequence number and values added for the sequence number are assigned as specified for the Source sequence numbering (SRCSEQ) parameter.
+
+*DATE
+The change date field in each record being copied is set to six zeros.
+
+Top
+
+Source sequence numbering (SRCSEQ)
+
+Specifies, only when *SEQNBR is also specified for the Source update options (SRCOPT) parameter, the sequence number to be used in the first copied record and the value to be added to the initial sequence number to calculate the sequence number for each subsequent copied record. The maximum value for a sequence number is 9999.99; if a value is larger than this limit, additional records in the member are all assigned the sequence number 9999.99.
+
+Element 1: Starting sequence number
+
+1.00
+The first source record copied to the to-file is to have a sequence number of 0001.00.
+
+0.01-9999.99
+Specify the sequence number of the first source record copied to the to-file.
+
+Element 2: Increment number
+
+1.00
+The copied source records are renumbered in the to-file with whole number additions of 1.
+
+0.01-9999.99
+Specify the value added for renumbering all source records copied after the first record. Once the maximum sequence number of 9999.99 is reached, the sequence number of any additional records copied will also be 9999.99.
+
+Top
+
+Examples
+
+Example 1: Replacing Existing Records
+
+CPYSRCF FROMFILE(QGPL/QCLSRC) TOFILE(MYLIB/CLSRC)
+FROMMBR(PGMA)
+
+This command copies records from member PGMA of database source file QCLSRC which is in the QGPL library. The defaults for the TOMBR and MBROPT parameters are taken so the records are copied to a like-named member (PGMA) of CLSRC in library MYLIB and replaces existing records in the member. If member PGMA does not exist in the to-file, it is added as part of the copy operation. If the CCSID of QGPL/QCLSRC is different from the CCSID of MYLIB/CLSRC, the character data is converted to the CCSID of CLSRC.
+
+Example 2: Printing Files
+
+CPYSRCF FROMFILE(QRPG/QRPGSRC) TOFILE(*PRINT) FROMMBR(INV*)
+
+This command copies from database source file QRPGSRC in library QRPG, all file members whose names start with the characters INV. Special value *PRINT is specified for the to-file, so the records are copied to the printer and listed in a format tailored to source records, much like the printout created by SEU. Character data is not converted when specifying TOFILE(*PRINT).
+
+Example 3: Changing the Increment Value
+
+CPYSRCF FROMFILE(MYLIB/TXTSRC) TOFILE(QIDU/QTXTSRC)
+FROMMBR(*ALL) SRCOPT(*SEQNBR *DATE) SRCSEQ(1 .25)
+
+This command copies all the members of database source file TXTSRC in library MYLIB. They are copied and replace (by using the default MBROPT(*REPLACE)) the existing records in like-named members (by using default TOMBR(*FROMMBR)) of data source file QTXTSRC in library QIDU. If the to-file members do not exist, they are added by the copy operation. For each member copied, the first record is numbered 1 and each following number is incremented by 0.25. Also, the source date field is set to zero in each record. If the CCSID of MYLIB/TXTSRC is different from the CCSID of QIDU/QTXTSRC, the character data is converted to the CCSID of QIDU/QTXTSRC.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2816
+File &1 in &2 not copied because of error.
+
+CPF2817
+Copy command ended because of error.
+
+CPF2858
+File attributes not valid for printed output.
+
+CPF2859
+Shared open data path not allowed.
+
+CPF2864
+Not authorized to file &1 in library &2.
+
+CPF2875
+Wrong file member or label opened.
+
+CPF2888
+Member &3 not added to file because of error.
+
+CPF2909
+Error clearing member &3 in file &1 in &2.
+
+CPF2949
+Error closing member &3 in file &1 in &2.
+
+CPF2952
+Error opening file &1 in library &2.
+
+CPF2968
+Position error occurred copying file &1 in &2.
+
+CPF2971
+Error reading member &3 in file &1.
+
+CPF2972
+Error writing to member &3 in file &1.
+
+CPF3140
+Operation canceled for member &2 file &1 in library &3.
+
+CPF3143
+Increments not allowed for member &2.
+
+CPF3148
+New records need too much space for member &2.
+
+CPF3150
+Data base copy failed for member &2.
+
+CPF9212
+Cannot load or unload DDM file &2 in &3.
+
+Top

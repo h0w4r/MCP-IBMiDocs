@@ -1,0 +1,537 @@
+Start Maintenance for BRM (STRMNTBRM)
+
+Start Maintenance for BRM (STRMNTBRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Maintenance for BRM (STRMNTBRM) command performs various BRMS maintenance and clean-up functions. The STRMNTBRM command can be scheduled to process periodically either by manual submission or inclusion in an automatic job scheduler.
+
+The STRMNTBRM command processes several other commands that can be run separately. These include:
+
+- RMVMEDIBRM - Remove media information from BRM
+
+- MOVMEDBRM - Move media using BRM
+
+- STREXPBRM - Expire media from BRM
+
+- RMVLOGEBRM - Remove BRM log entries
+
+- WRKMEDIBRM - Work with media information
+
+- STRRCYBRM - Recovery analysis
+
+The STRMNTBRM produces multiple reports depending on the print options you select as well as the current conditions that it detects. For instance, the Shared Media Audit report will not print if you are not using a clustered network environment in BRMS. Listed below are the printer files and associated reports that can be produced when the STRMNTBRM command processes:
+
+- QP1AVER - Version Control
+
+- QP1AEP - Media Expiration
+
+- QP1AMM - Media Report by Expiration Date
+
+- QP1AHS - Media Information
+
+- QP1ALE - Save Strategy Exceptions
+
+- QP1ARCY - Recovering Your Entire System
+
+- QP1AASP - Display ASP Information
+
+- QP1ARW - Recovery Activities
+
+- QP1A2SL - Location Analysis
+
+- QP1ASYN - Shared Media Audit
+
+- QP1A2RCY - Recovery Volume Summary
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Restrictions:
+
+- This command should not be used by control group *EXIT item processing as results will be unpredictable.
+
+- All object authority is required to run this command.
+
+- This command should not be run as a remote command.
+
+- Depending on the size of your media inventory, this command can take a long time to process.
+
+- This command should be run as an independent job. No other BRMS functions should be active when the STRMNTBRM command is processing.
+
+- Reorganizing the BRMS database files can be a long running process requiring additional disk storage. Reorganization will occur on all BRMS data base files. Reorganization of files may be skipped if sufficient disk storage is not available, or if the file has no members or records.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+EXPMED | Expire media | *YES, *NO | Optional
+EXPSETMED | Expire media set volumes | *NO, *YES | Optional
+RMVMEDI | Remove media information | Element list | Optional
+Element 1: Media contents | *EXP, *NONE, *REUSE
+Element 2: Object level detail | 1-9999, *MEDCON
+Element 3: Link level detail | 1-9999, *OBJDTL, *MEDCON
+Element 4: Spooled file level detail | 1-9999, *MEDCON, *OBJDTL
+Element 5: Folder level detail | 1-9999, *OBJDTL, *MEDCON
+RMVMGRINF | Remove migration information | 1-9999, 180, *NONE | Optional
+MOVMED | Run media movement | *NO, *YES | Optional
+RMVLOGE | Remove log entries | Element list | Optional
+Element 1: Type | *ALL, *NONE, *ARC, *BKU, *MAINT, *MED, *MGR, *RCY, *RTV, *SEC
+Element 2: From date | Character value, *BEGIN, *CURRENT
+Element 3: To date | Character value, 90, *CURRENT, *END
+RUNCLNUP | Run cleanup operations | *YES, *NO | Optional
+RTVVOLSTAT | Retrieve volume statistics | *YES, *NO | Optional
+AUDSYSMED | Audit system media | Single values: *NONE, *NETGRP
+Other values (up to 50 repetitions): Character value | Optional
+CHGJRN | Change BRM journal receivers | *YES, *NO | Optional
+PRTEXPMED | Print expired media report | *YES, *NO | Optional
+PRTVSNRPT | Print version report | *EXPMED, *NO, *YES | Optional
+PRTBKUACT | Print media information | *YES, *NO | Optional
+PRTRCYRPT | Print recovery reports | Single values: *ALL, *NONE
+Other values (up to 3 repetitions): *RCYACT, *RCYANL, *SAVEXCP | Optional
+RCYLOC | Recovery locations | Single values: *ALL
+Other values (up to 10 repetitions): Name, *HOME | Optional
+PRTSYSINF | Print system information | *NO, *YES | Optional
+RGZBRMDB | Reorganize BRMS database | *NO, *YES, *BATCH | Optional
+REFREE | Auto-retrieved objects | Element list | Optional
+Element 1: Refree | *NO, *YES
+
+Top
+
+Expire media (EXPMED)
+
+Specifies whether to expire media when the STRMNTBRM command processes. Expired save files that have been copied to tape are deleted when this command is run. The STREXPBRM command is processed by the STRMNTBRM command to expire media.
+
+*YES
+Media is expired when maintenence is run and a report of media that was expired prints.
+
+Note: Media that has been marked for duplication but has not been duplicated will not be eligible for expiration. Once the media has been duplicated it will be eligible for expiration.
+
+*NO
+Media is not expired when maintenence is run.
+
+Top
+
+Expire media set volumes (EXPSETMED)
+
+Specifies whether to expire media set volumes when the STRMNTBRM command processes. This will cause media that are members of media sets to expire even if there is unexpired media with active file sequences at subsequent positions in the set. This allows the media to be reused prior to expiration of the set and reduces the number of active media being managed. By default, BRMS will not expire media in a set prior to unexpirable media unless the entire set can be expired.
+
+*NO
+Volumes in a media set are not expired when the STRMNTBRM command is processed unless the entire set is expired.
+
+*YES
+Volumes in a media set are expired when the STRMNTBRM command is processed.
+
+Note: Expiring all eligible media in a set can reduce the size of the set or create two or more new sets.
+
+Note: It is recommended that you run this function periodically and it can be a long running process.
+
+Top
+
+Remove media information (RMVMEDI)
+
+Specifies what information to remove from the BRMS media content inventory and how long to keep different types of object detail. The RMVMEDIBRM command is used by the STRMNTBRM command to accomplish BRMS media content information removal.
+
+Element 1: Media contents
+
+*EXP
+All BRMS media content information entries that have an expiration date that is equal to or less than the current date are removed from the media content inventory.
+
+*NONE
+No media content information is to be removed from the media content information inventory when the STRMNTBRM command is run.
+
+*REUSE
+Media content information associated with a volume is not removed from the media content inventory file until the volume is re-used, even though the volume has already expired.
+
+Element 2: Object level detail
+
+*MEDCON
+Object detail is removed when media content information is removed.
+
+number-of-days
+Specify the number of days that object detail is kept in the media content inventory. If this number of days is greater than the number of days implied in the Media contents field, such as the volume expires in 60 days and you specify 90 days for the Object level detail , the value has no effect since object detail is always removed when media content information is removed. However, if you specify 45 days and the object expires in 60 days, the object level detail is removed 15 days before other media content information is removed.
+
+Element 3: Link level detail
+
+*OBJDTL
+The link level detail information is removed based on the value specified in the Object level detail element on this parameter.
+
+*MEDCON
+Link detail is removed when media content information is removed.
+
+number-of-days
+Specify the number of days that link detail is kept in the media content inventory. If this number of days is greater than the number of days implied in the Media contents field, such as the volume expires in 60 days and you specify 90 days for the Link level detail , the value has no effect since object detail is always removed when media content information is removed. However, if you specify 45 days and the saved item expires in 60 days, the link level detail is removed 15 days before other media content information is removed.
+
+Element 4: Spooled file level detail
+
+Specifies when you want to remove spooled file level detail for media records in the media content information. This will only apply to spooled file detail that was created by specifying *YES for the Spooled file data (SPLFDTA) parmameter on the SAVLIBBRM/SAVOBJBRM command or in the control group attributes. However, spooled file lists will not be affected as you must have detail history to restore them.
+
+*MEDCON
+Spooled file detail is removed when media content information is removed.
+
+*OBJDTL
+The spooled file level detail information is removed based on the value specified in the Object level detail element on this parameter.
+
+number-of-days
+Specify the number of days that object detail is kept in the media content inventory. If this number of days is greater than the number of days implied in the Media contents field, such as the volume expires in 60 days and you specify 90 days for the Spooled file level detail , the value has no effect since spooled file detail is always removed when media content information is removed. However, if you specify 45 days and the saved item expires in 60 days, the spooled file level detail is removed 15 days before other media content information is removed.
+
+Element 5: Folder level detail
+
+*OBJDTL
+The folder level detail information is removed based on the value specified in the Object level detail element on this parameter.
+
+*MEDCON
+Folder detail is removed when media content information is removed.
+
+number-of-days
+Specify the number of days that folder detail is kept in the media content inventory. If this number of days is greater than the number of days implied in the Media contents field, such as the volume expires in 60 days and you specify 90 days for the Folder level detail , the value has no effect since folder detail is always removed when media content information is removed. However, if you specify 45 days and the save item expires in 60 days, the folder level detail is removed 15 days before other media content information is removed.
+
+Top
+
+Remove migration information (RMVMGRINF)
+
+Specifies how old in number of days that migration information should be before it is removed from the migration information history.
+
+180
+Migration information is removed from the migration information history after 180 days.
+
+*NONE
+Migration information is not removed from the migration information history.
+
+number-of-days
+Specify the number of days after which migration information is considered old and no longer useful. For instance, if you specified 200, migration information older than 200 days would be removed from the migration information history when the STRMNTBRM command was processed. You can specify from 1 to 9999 days.
+
+Top
+
+Run media movement (MOVMED)
+
+Specifies whether to process scheduled media movement. The MOVMEDBRM command is processed by the STRMNTBRM command to move the selected media.
+
+*NO
+Media movements are not processed when the STRMNTBRM command is processed.
+
+*YES
+Scheduled media movements are processed when the STRMNTBRM command is processed.
+
+Top
+
+Remove log entries (RMVLOGE)
+
+Specifies whether to remove log entries when the STRMNTBRM command is run. You can specify the type of log entries that you want to remove and a date range of log entries. The RMVLOGEBRM command is processed by the STRMNTBRM command to remove log entries.
+
+Note: Using this parameter, it is possible to enter a date with no separator, or a number of days which can be up to 5 digits in length. For instance, if you are using month/day/year format, the number 12904 would be formatted as January 29, 2004. If on the other hand, you entered a number 13904, BRMS assume that this is not a date, but rather is a number. BRMS always tries to calculate a calendar date first when a number is entered and then if the date it calculates is not valid, assumes that it is a number of days. If the number that is entered is over 5 digits and the date that it calculates is not valid, you receive an error message.
+
+Element 1: Type
+
+*ALL
+Selects all log entries to remove within the specified date range.
+
+*ARC
+Selects only archive log entries to remove within the specified date range.
+
+*BKU
+Selects only back up log entries to remove within the specified date range.
+
+*MAINT
+Selects only maintenance log entries to remove within the specified date range.
+
+*MED
+Selects only media management log entries to remove within the specified date range.
+
+*MGR
+Selects only migration log entries to remove within the specified date range.
+
+*NONE
+No log entries are removed when the STRMNTBRM command processes.
+
+*RCY
+Selects only recovery log entries to remove within the specified date range.
+
+*RTV
+Selects only retrieve log entries to remove within the specified date range.
+
+*SEC
+Selects only security log entries to remove within the specified date range. Only log entries whose primary area are security will be removed. An entry may be logged for any reason and have security as a secondary area.
+
+Element 2: From date
+
+*BEGIN
+The earliest log entry date in the BRMS log is the beginning date of the date range.
+
+*CURRENT
+The current date is the starting point of the range of dates used to remove entries from the BRMS log.
+
+from-date
+Specify the date entered in job date format with or without date separators that you want to be the beginning date of the date range.
+
+number-of-days
+Specify the number of days before the current day that is used to determine the beginning date of the date range.
+
+Element 3: To date
+
+90
+90 days before the current day is the ending date of the date range.
+
+*CURRENT
+The current date is the ending date of the date range.
+
+*END
+The last date in the log is the ending date of the date range.
+
+to-date
+Specify the date in job date format with or without date separators that you want to be the ending date of the date range.
+
+number-of-days
+Specify the number of days before the current day that is used to determine the ending date of the date range.
+
+Top
+
+Run cleanup operations (RUNCLNUP)
+
+Specifies whether BRMS is to run clean up operations when the STRMNTBRM command processes. Cleanup operations includes various BRMS general routines such as creation of the location analysis report, analysis of deleted libraries, media policies with expiration dates that have past, and more.
+
+*YES
+Clean up operations are performed when the STRMNTBRM command is processed.
+
+*NO
+Clean up operations are not performed when the STRMNTBRM command is processed.
+
+Top
+
+Retrieve volume statistics (RTVVOLSTAT)
+
+Specifies whether BRMS is to retrieve volume statistics when the STRMNTBRM command processes.
+
+*YES
+Volume statistics are retrieved when the STRMNTBRM command is processed.
+
+*NO
+Volume statistics are not retrieved when the STRMNTBRM command is processed.
+
+Top
+
+Audit system media (AUDSYSMED)
+
+Specifies whether shared media attributes should be audited. Media attributes for the systems specified will be compared to the local system's media attributes to verify they are the same. If differences are found, they will be noted in the 'Shared Media Audit Report'. An audit report will be created for each of the specified systems using printer file QP1ASYN.
+
+Shared media attribute auditing is not generally required except when users are restoring a back level BRMS database or to correct problems due to network synchronization.
+
+Shared media attribute auditing is skipped if the local system is in restricted state or the remote systems required to complete the audit are not available.
+
+Note: Running STRMNTBRM with the local system specified for 'Audit system media' on every system in a BRMS network, results in unnecessary system and communication processing. Running STRMNTBRM with *NETGRP specified for 'Audit system media' on one system in the network will accomplish the same result without the unnecessary system and communication processing.
+
+Single values
+
+*NONE
+Shared media attributes will not be audited for any system in the BRMS network.
+
+*NETGRP
+Shared media attributes will be audited for all systems in the BRMS network.
+
+Other values (up to 50 repetitions)
+
+location-name
+Specify the location name of a system in the BRMS network for which shared media attributes will be audited. The local system's network identifier, as seen by using the DSPNETA command, will be used as the specified system's network identifier.
+
+network-id.location-name
+Specify the network identifier and location name of a system in the BRMS network for which shared media attributes will be audited. Specify these values using the format nnnnnnnn.cccccccc where nnnnnnnn is the network identifier and cccccccc is the remote location name.
+
+Top
+
+Change BRM journal receivers (CHGJRN)
+
+Specifies whether to change the receivers for the BRMS journals when the STRMNTBRM command processes. When the BRMS journal receivers are changed, the old BRMS journal receiver is deleted.
+
+*YES
+The journal receivers are changed when the STRMNTBRM command is processed.
+
+*NO
+The journal receivers are not changed when the STRMNTBRM command is processed.
+
+Top
+
+Print expired media report (PRTEXPMED)
+
+Specifies whether to print a report of media that is expired.
+
+*YES
+A report of media that is expired prints.
+
+*NO
+No report is created of the media that is expired.
+
+Top
+
+Print version report (PRTVSNRPT)
+
+Specifies whether to print a version control report when the STRMNTBRM command processes. The special value *EXPMED indicates that the version control report should be printed whenever media expiration processing is performed.
+
+*EXPMED
+Print a version control report whenever media expiration processing is performed.
+
+*NO
+No version control report prints when the STRMNTBRM command is processed.
+
+*YES
+A version control report prints when the STRMNTBRM command is processed.
+
+Top
+
+Print media information (PRTBKUACT)
+
+Specifies whether to print a report of what was backed up. The report will include backups done the day of the report and the previous day. The Work with Media Information using BRM (WRKMEDIBRM) command with parameter OUTPUT(*PRINT) is run by the STRMNTBRM command to produce the report.
+
+*YES
+A report is printed of what was backed up today and yesterday when the STRMNTBRM command is run.
+
+*NO
+No report is created of what was backed up.
+
+Top
+
+Print recovery reports (PRTRCYRPT)
+
+Specifies which recovery reports to print for recovery when the STRMNTBRM command runs. If you want to print two of the three reports, specify the special values for the reports. If you want to print all three of the reports, specify *ALL.
+
+Single values
+
+*ALL
+Print all reports for recovery when the STRMNTBRM command is processed. Recovery information that is printed will included system information. Reports generated from the value *SYSINF will not be included with *ALL.
+
+*NONE
+You do not want to print any of the reports when the STRMNTBRM command is processed.
+
+Other values (up to 3 repetitions)
+
+*RCYACT
+Print the Recovery Activities report when the STRMNTBRM command is processed.
+
+*RCYANL
+Print the Recovery Analysis report when the STRMNTBRM command is processed.
+
+*SAVEXCP
+Print the Save Strategy Exceptions report when the STRMNTBRM command is processed.
+
+Note: If you want the libraries on an independent auxilary storage pool (IASP) to show on this report, you will need to run a SETASPGRP for the IASP prior to running this report option. You will have to repeat this process for every IASP.
+
+Top
+
+Recovery locations (RCYLOC)
+
+Specifies the locations for which you want to print recovery reports. Reports printed depend on the value specified in the Print recovery reports (PRTRCYRPT) parameter.
+
+Single values
+
+*ALL
+Reports are printed for all locations.
+
+Other values (up to 10 repetitions)
+
+location-name
+Specify the location names for which you want to print reports.
+
+Top
+
+Print system information (PRTSYSINF)
+
+Indicates if BRMS should issue the PRTSYSINF command to produce reports of system information. These reports include user library information, system hardware and resource information, configuration information, and much more.
+
+*NO
+BRMS will not issue the PRTSYSINF command and the associated reports will not be generated.
+
+*YES
+BRMS will issue the PRTSYSINF command and the associated reports will be generated.
+
+Top
+
+Reorganize BRMS data base (RGZBRMDB)
+
+Use this parameter to reorganize the BRMS database. This option removes deleted records from the BRMS database. You should reorganize the BRMS database on a periodic basis, particularly if you save many objects and save with object detail.
+
+Note: Reorganizing the BRMS database can be a long running process requiring additional disk storage. Reorganization will occur on the BRMS media inventory, media information (history) and object detail. BRMS may skip reorganization of the database if sufficient disk storage is not available, or if the database has no members or records.
+
+*NO
+The BRMS database is not reorganized.
+
+*YES
+The BRMS database is reorganized within this job.
+
+*BATCH
+Submits the BRMS database reorganization to a batch job. The job queue and the job description are specified in the system policy for BRMS submitted jobs.
+
+Top
+
+Refree auto-retrieved objects (REFREE)
+
+Use this parameter to refree archive objects that have been auto-retrieved.
+
+*NO
+Do not refree auto-retrieved objects.
+
+*YES
+Refree auto-retrieved objects.
+
+Top
+
+Examples for STRMNTBRM
+
+Example 1: Start Maintenance, Move Media, Clean the Archive Log
+
+STRMNTBRM MOVMED(*YES) RMVLOGE(*ARC)
+
+This command performs normal maintenance, starts media movement processing, and removes archive entries that are older than 90 days old from the BRMS log.
+
+Example 2: Start Maintenance to Reorganize the BRMS Database Files
+
+STRMNTBRM RGZBRMDB(*YES)
+
+This command performs normal maintenance and runs the RGZDBF commmands on all the BRMS data base files.
+
+Top
+
+Error messages for STRMNTBRM
+
+*ESCAPE Messages
+
+BRM1177
+Cannot establish connection with remote system &1.
+
+BRM1343
+Date &2 is not correct.
+
+BRM1856
+Job information cannot be retrieved. Errors occurred.
+
+BRM1868
+File &1 not opened successfully.
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM4040
+Access denied for user &1.
+
+BRM4041
+Access denied for user &1.
+
+BRM40A2
+BRMS product initialization required.
+
+BRM6708
+Command ended due to error.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top

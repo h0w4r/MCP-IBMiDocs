@@ -1,0 +1,425 @@
+Create Duplicate Object (CRTDUPOBJ)
+
+Create Duplicate Object (CRTDUPOBJ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Create Duplicate Object (CRTDUPOBJ) command copies a single object or a group of objects. It does not create an exact duplicate of files. The new object must be renamed if it is created in the library that contains the original object. The newly-created object can retain the name of the original object if it is created in a library different than the one that contains the original object. You can copy a group of related objects by specifying a generic object name or by specifying *ALL or more than one object type. When copying a group of related objects, you must specify a different library in which the new objects are created. You can specify whether data in physical files or save files is copied. You can also specify whether any constraints, triggers, row access controls, or column access controls associated with an existing database file are to be associated with the newly-created file and whether the file level and member level identifiers of an existing database file are to be copied to the newly-created database file.
+
+Notes:
+
+- The values of the Create authority (CRTAUT) and Create object auditing (CRTOBJAUD) parameters specified on the Create Library (CRTLIB) command for the to-library are not used for the duplicate object. The public and private authorities and the auditing value for the duplicate object will be the same as the original object. The following exception exists for the CRTAUT attribute.
+
+If, by not duplicating an INSTEAD OF trigger, the new database file loses the insert, update, or delete capability of the old file, then the corresponding insert, update, or delete authorities on the old file will not be granted to the new file.
+
+- The owner of the duplicate object is either the user profile of the user who issues the command or the group profile if the user profile of the user who issues the command is a member user profile that has specified that the group profile should be the owner.
+
+When duplicating a file using the CRTDUPOBJ command, the format of the existing file specified for the From object (OBJ) parameter is shared with the newly-created file specified for the New object (NEWOBJ) parameter. When the maximum number (approximately 32K) of file objects that share the same format has been reached, the newly-created file will create a new format instead of sharing the FROM file's format.
+
+Note: All of the files that share the same format will be considered related and will be grouped together in the same save list when a save operation is performed.
+
+When a logical file is copied into another library, two cases determine the basing for the file:
+
+- If both the logical file and its based-on physical file are originally in the same library, a duplicate of the physical file must be created in the new library before a duplicate of the logical file is created. After these two duplicates are created, the new logical file is based on the new physical file.
+
+- If the logical file and its based-on physical file are originally in different libraries, it is not necessary to duplicate the physical file before duplicating the logical file. In this case, the duplicated logical file is based on the same physical file as was the original logical file. Unlike the first case, even if the physical file is copied into the new library before the logical file is copied, the duplicated logical file is based on the original physical file, not on the duplicated physical file.
+
+When the CRTDUPOBJ command creates a database file, you can use the Duplicate constraints (CST) parameter to specify whether or not any constraints associated with the existing file are to be associated with the newly-created file. Similarly, you can use the Duplicate triggers (TRG) parameter to specify whether or not any triggers associated with the existing file are to be associated with the newly-created file. Note that there are special considerations of which to be aware relating to the duplication of triggers. For example, the duplication will differ depending on whether or not the trigger program associated with the existing file was in the same library as the existing file. You can also use the Duplicate file identifiers (FILEID) parameter to specify whether or not the file level and member level identifiers of the existing file will be used for the newly-created file. You can use the Duplicate access control (ACCCTL) parameter to specify whether or not any row access controls, or column access controls associated with the existing file are to be associated with the newly-created file. Note: there is a consideration of which to be aware relating to the duplication of row access controls, or column access controls. For example, the duplication of a file with access controls will not change the library name of any files referenced by the row, or column access controls if the command is duplicating the file to a different library.
+
+Note: For additional information, see the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+When the object being duplicated is an object type which is eligible to be journaled, there are two methods for the object to automatically start journaling after the object has been created.
+
+- If the target library is journaled, the journal inherit rules for the library will determine whether or not journaling is started for the object.
+
+- If the target library contains a data area named QDFTJRN, the object will automatically start journaling based on the contents of the QDFTJRN data area.
+
+Note: The QDFTJRN data area overrides the journaling state and journal inherit rules of the target library.
+
+Note: Support of the QDFTJRN data area will be discontinued in a future release.
+
+Use the Display Library Description (DSPLIBD) command to display journal information for the library. Refer to the Start Journal Library (STRJRNLIB) command for more information about journaling a library.
+
+Note: For additional information regarding journaling, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- You must have use (*USE) and object management (*OBJMGT) authorities for the existing object.
+
+- You must have use (*USE) and add (*ADD) authorities for the library for the new object.
+
+- You must have authorization list management (*AUTLMGT) authority if the object is an authorization list.
+
+- You must have object operational (*OBJOPR) authority for the Create Save File (CRTSAVF) command to create a duplicate save file. The contents of the save file are duplicated when *YES is specified for the Duplicate data (DATA) parameter.
+
+- When an object is to be duplicated, it is created in the same auxiliary storage pool (ASP) as the to-library.
+
+- If *YES is specified for the Duplicate data (DATA) parameter when the CRTDUPOBJ command is used to create a copy of a file, the new duplicate file object is seized (similar to an *EXCL lock with no timeout) for the duration of the data copy making access impossible. An attempt to use a function that refers to the new duplicate file object while the data copy is in progress results in a lock up for that work station until the data copy is completed. The following are examples of functions that should not be used on the new duplicate file object until the data copy is completed:
+
+WRKACTJOB (Option 11-Locks; Option 8-WRKOBJLCK)
+
+DSPDBR
+
+DSPFD
+
+DSPFFD
+
+DSPJOB (Option 12-Locks; F10-Job record locks; Option 14-Open files)
+
+DSPLIB (The library containing the new duplicate file)
+
+DSPOBJD
+
+WRKOBJLCK
+
+DSPRCDLCK
+
+Any other function which refers to the new duplicate file
+
+- When duplicating a database file or a save file and storage for the from-library is allocated from a primary or secondary auxiliary storage pool (ASP), storage for the to-library must either be allocated from an ASP in the same ASP group as the storage for the from-library or be allocated from the system ASP (ASP 1) or a basic user ASP (ASPs 2-32). Duplicating a database file or a save file from one ASP group to another ASP group is not supported.
+
+- When creating a duplicate object of type *GSS, *FNTRSC, *FORMDF, *OVL, *CSI, *PAGDFN, or *PAGSEG, the name of the new object cannot exceed 8 characters in length.
+
+- The user space (*USRSPC) and user index (*USRIDX) user domain objects can be copied only into libraries that are permitted in the system value QALWUSRDMN (allow user domain objects in library). However, if the user object was created as a system domain object, it is not restricted.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | From object | Generic name, name, *ALL | Required, Positional 1
+FROMLIB | From library | Name, *LIBL, *CURLIB | Required, Positional 2
+OBJTYPE | Object type | Single values: *ALL
+Other values (up to 57 repetitions): *ALRTBL, *AUTL, *BNDDIR, *CHTFMT, *CLD, *CLS, *CMD, *CRQD, *CSI, *CSPMAP, *CSPTBL, *DTAARA, *FCT, *FILE, *FNTRSC, *FNTTBL, *FORMDF, *FTR, *GSS, *IGCDCT, *IGCSRT, *JOBD, *JOBQ, *LOCALE, *MEDDFN, *MENU, *MGTCOL, *MODULE, *MSGF, *MSGQ, *M36CFG, *NODGRP, *NODL, *OUTQ, *OVL, *PAGDFN, *PAGSEG, *PDFMAP, *PDG, *PGM, *PNLGRP, *PRDAVL, *PRDDFN, *PRDLOD, *PSFCFG, *QMFORM, *QMQRY, *QRYDFN, *SBSD, *SCHIDX, *SRVPGM, *SSND, *TBL, *USRIDX, *USRSPC, *VLDL, *WSCST | Required, Positional 3
+TOLIB | To library | Name, *FROMLIB, *SAME, *CURLIB | Optional, Positional 4
+NEWOBJ | New object | Name, *OBJ, *SAME | Optional, Positional 5
+ASPDEV | From ASP device | Name, *, *CURASPGRP, *SYSBAS | Optional
+TOASPDEV | To ASP device | Name, *ASPDEV, *, *CURASPGRP, *SYSBAS | Optional
+DATA | Duplicate data | *NO, *YES | Optional
+CST | Duplicate constraints | *YES, *NO | Optional
+TRG | Duplicate triggers | *YES, *NO | Optional
+FILEID | Duplicate file identifiers | *NO, *YES | Optional
+ACCCTL | Duplicate access control | *ALL, *ROW, *COL, *NONE | Optional
+
+Top
+
+From object (OBJ)
+
+Specifies one or more objects to be duplicated.
+
+This is a required parameter.
+
+*ALL
+All the objects in the specified library for which you have authority and of the object type specified for the Object type (OBJTYPE) parameter are duplicated.
+
+generic-name
+Specify a group of objects in the specified library to be duplicated. A generic object name is specified as a character string that contains one or more characters followed by an asterisk (*); for example, ABC*. A generic name specifies all objects that begin with the same prefix as the generic object name for which you have the proper authority.
+
+name
+Specify the name of the specific object to be duplicated.
+
+Top
+
+From library (FROMLIB)
+
+Specifies the library that contains the objects to be duplicated.
+
+This is a required parameter.
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+Note: *LIBL can only be specified for a specific object and a single, specific object type.
+
+*CURLIB
+The current library for the thread is searched to find the objects to be duplicated. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library that is searched to find the objects to be duplicated.
+
+Top
+
+Object type (OBJTYPE)
+
+Specifies the type of the object to be duplicated. This parameter can be specified as a single value or as a list of one or more object types.
+
+To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt). For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+This is a required parameter.
+
+Single values
+
+*ALL
+All object types that have the specified name in the specified library for which you have authority are duplicated. If *ALL is also specified for the From object (OBJ) parameter, all the objects in the specified library for which you have authority and that are of the types that can be duplicated are duplicated.
+
+Other values
+
+object-type
+Specify one or more values for the types of object that are to be duplicated.
+
+Top
+
+To library (TOLIB)
+
+Specifies the library in which the duplicate object is to be created.
+
+Note: If the library is in an auxiliary storage pool (ASP), the object to be duplicated must be a valid object type that can reside in an ASP. If this object type is not a valid type that can reside in an ASP, an error message is sent.
+
+*FROMLIB
+The library containing the new object will have the same name as the library containing the original object. Note that this is not necessarily the same library as the library containing the original object. If the From ASP device (ASPDEV) parameter and the To ASP device (TOASPDEV) parameter describe the same auxiliary storage pool (ASP) device, it is the same library. If it is the same library, a name different from the name of the original object must be assigned to the new object with the New object (NEWOBJ) parameter. If the ASPDEV parameter and the TOASPDEV parameter describe different ASP devices, it is a different library (with the same library name) on the different ASP device.
+
+*SAME
+See *FROMLIB above. *SAME and *FROMLIB have the same meaning.
+
+*CURLIB
+The current library for the thread will contain the new object. If no library is specified as the current library for the thread, the QGPL library is used. If *CURLIB is specified for this parameter, either the To ASP device (TOASPDEV) parameter must be *, or the TOASPDEV parameter must be *ASPDEV and the From ASP device (ASPDEV) parameter must be *.
+
+name
+Specify the name of the library to contain the new object.
+
+Top
+
+New object (NEWOBJ)
+
+Specifies name of the new object. A name must be specified here if *SAME or *FROMLIB is specified for the To library (TOLIB) parameter and the same auxiliary storage pool device is specified for both the From ASP device (ASPDEV) parameter and the To ASP device (TOASPDEV) parameter. The names of members in a database file to be duplicated remain the same in the new file.
+
+*OBJ
+The new object has the same name as the original object. If this is specified, the new object and original object must reside in different libraries.
+
+*SAME
+See *OBJ above. *SAME and *OBJ have the same meaning.
+
+name
+Specify the name of the new object.
+
+Top
+
+From ASP device (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device name where storage is allocated for the library containing the object to be duplicated (the From library (FROMLIB) parameter). If the library is in an ASP that is not part of the thread's library name space, this parameter must be specified to ensure the correct object is duplicated. If this parameter is used when *LIBL or *CURLIB is specified for the FROMLIB parameter, * is the only valid value.
+
+*
+The ASPs that are currently part of the thread's library name space will be searched to find the library. This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and, if the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group.
+
+*CURASPGRP
+If the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group will be searched to find the library. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched. If no ASP group is associated with the thread an error will be issued.
+
+*SYSBAS
+The system ASP (ASP 1) and all defined basic user ASPs (ASPs 2-32) will be searched to find the library. No primary or secondary ASPs will be searched, even if the thread has an ASP group.
+
+name
+Specify the name of the primary or secondary ASP device to be searched to find the library. The primary or secondary ASP must have been activated (by varying on the ASP device) and have a status of 'Available'. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+
+Note: To specify a specific auxiliary storage pool (ASP) device name, you must have use (*USE) authority for each ASP device in the ASP group.
+
+Top
+
+To ASP device (TOASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device name where storage is allocated for the library to contain the new object (the To library (TOLIB) parameter). If the library is in an ASP that is not part of the thread's library name space, this parameter must be specified to ensure the object is duplicated into the correct library. If this parameter is used when *CURLIB is specified for the TOLIB parameter, either TOASPDEV(*) must be specified or TOASPDEV(*ASPDEV) must be specified and the From ASP device (ASPDEV) parameter must be *.
+
+*ASPDEV
+The ASP device specified for the ASPDEV parameter will be searched to find the library.
+
+*
+The ASPs that are currently part of the thread's library name space will be searched to find the library. This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and, if the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group.
+
+*CURASPGRP
+If the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group will be searched to find the library. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched. If no ASP group is associated with the thread an error will be issued.
+
+*SYSBAS
+The system ASP (ASP 1) and all defined basic user ASPs (ASPs 2-32) will be searched to find the library. No primary or secondary ASPs will be searched, even if the thread has an ASP group.
+
+name
+The name of the primary or secondary ASP device to be searched to find the library. The primary or secondary ASP must have been activated (by varying on the ASP device) and have a status of 'Available'. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+
+Note: To specify a specific auxiliary storage pool (ASP) device name, you must have use (*USE) authority for each ASP device in the ASP group.
+
+Top
+
+Duplicate data (DATA)
+
+Specifies whether the data records in database physical files or save files are copied to the new object. Members of database physical files are copied whether or not the data contained in them is copied.
+
+*NO
+The data records in the members of database physical files or save files are not copied to the new object.
+
+*YES
+The data records in the members of database physical files or save files are copied to the new object.
+
+NOTES:
+
+- A file cannot be duplicated while it is in use for update by another job.
+
+- The relative record numbers in the new file are the same as those in the original file.
+
+Top
+
+Duplicate constraints (CST)
+
+Specifies whether any constraints associated with existing database physical files are copied to the newly-created files. The specified value is not used for objects which are not database physical files.
+
+*YES
+The constraints associated with an existing database physical file are copied to the newly-created file.
+
+*NO
+The constraints associated with an existing database physical file are not copied to the newly-created file.
+
+Top
+
+Duplicate triggers (TRG)
+
+Specifies whether any triggers associated with existing database files are copied to the newly-created files. The specified value is not used for objects which are not database files.
+
+Note: There are special considerations of which to be aware relating to the duplication of triggers. For example, the duplication will differ depending on whether or not the trigger program associated with the existing file was in the same library as the existing file. For additional information, see the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+*YES
+The triggers associated with an existing database file are copied to the newly-created file.
+
+*NO
+The triggers associated with an existing database file are not copied to the newly-created file.
+
+Top
+
+Duplicate file identifiers (FILEID)
+
+Specifies whether the file level and member level identifiers of the existing database file will be used for the newly-created file. The specified value is not used for objects which are not database files.
+
+*NO
+The file level and member level identifiers of the existing database file will not be used for the newly-created file. The file level and member level identifiers for the newly-created file will be generated by the system; for example, 1070224092922.
+
+*YES
+The file level and member level identifiers of the existing database file will be used for the newly-created file. Having two database files with the same file level and member level identifiers can impact database operations. This value should only be used when an exact duplicate database file is expected.
+
+Top
+
+Duplicate access control (ACCCTL)
+
+Specifies whether any row access controls, or column access controls associated with existing database physical files are copied to the newly-created files. The specified value is not used for objects which are not database physical files.
+
+*ALL
+All the row access controls, and column access controls associated with an existing database physical file are copied to the newly-created file. If the database file being copied has active permission, or masks and the data parameter DATA(*YES) is specified, the column access controls and the row access controls must be copied.
+
+*ROW
+The row access controls associated with an existing database physical file are copied to the newly-created file.If the database file being copied has active masks and the data parameter DATA(*YES) is specified, the row access controls must be copied.
+
+*COL
+The column access controls associated with an existing database physical file are copied to the newly-created file. If the database file being copied has active permissions and the data parameter DATA(*YES) is specified, the column access controls must be copied.
+
+*NONE
+None of the row access controls, or column access controls associated with an existing database physical file are copied to the newly-created file. If the database file being copied has active permissions, or masks, the data parameter DATA(*NO) must be specified.
+
+Top
+
+Examples
+
+Example 1: Duplicating a Database File Including the Data Records, Constraints, and Triggers
+
+CRTDUPOBJ OBJ(FILEA) FROMLIB(LIB1) OBJTYPE(*FILE)
+TOLIB(LIB2) DATA(*YES)
+
+The file named FILEA in library LIB1 is duplicated in library LIB2. Authorities granted for FILEA in library LIB1 are granted to FILEA created in library LIB2. The data records, constraints, and triggers associated with FILEA in library LIB1 are copied to FILEA created in library LIB2. New file level and member level identifiers will be generated for FILEA created in library LIB2. This means that the file level and member level identifiers for FILEA in library LIB2 will not be the same as the file level and member level identifiers for FILEA in library LIB1.
+
+Example 2: Duplicating a Database File Without the Data Records, Constraints, and Triggers and Keeping the Same File Level and Member Level Identifiers
+
+CRTDUPOBJ OBJ(FILEB) FROMLIB(LIB3) OBJTYPE(*FILE) NEWOBJ(FILEDUP)
+DATA(*NO) CST(*NO) TRG(*NO) FILEID(*YES)
+
+The file named FILEB in library LIB3 is duplicated in library LIB3 as FILEDUP. The data records, constraints, and triggers associated with FILEB in library LIB3 are not copied to FILEDUP created in library LIB3. The file level and member level identifiers for FILEDUP created in library LIB3 will be the same as the file level and member level identifiers for FILEB in library LIB3. Authorities granted for FILEB are granted to the new FILEDUP created in library LIB3 with the following exception. If, by not duplicating an INSTEAD OF trigger, the new database file FILEDUP loses the insert, update, or delete capability of the old database file FILEB, then the corresponding insert, update, or delete authorities on the old database file FILEB will not be granted to the new database file FILEDUP.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+CPF2105
+Object &1 in &2 type *&3 not found.
+
+CPF2109
+NEWOBJ must be *SAME when OBJ parameter is *ALL or generic name.
+
+CPF2110
+Library &1 not found.
+
+CPF2113
+Cannot allocate library &1.
+
+CPF2116
+DATA(*YES) specified and *ALL or *FILE not in OBJTYPE list.
+
+CPF2122
+Storage limit exceeded for user profile &1.
+
+CPF2123
+No objects of specified name or type exist in library &2.
+
+CPF2130
+&1 objects duplicated. &2 objects not duplicated.
+
+CPF2151
+Operation failed for &2 in &1 type *&3.
+
+CPF2152
+Objects of type *&1 cannot be created into QTEMP.
+
+CPF2155
+*LIBL cannot be specified for FROMLIB.
+
+CPF216C
+TOASPDEV value not allowed with TOLIB(*CURLIB).
+
+CPF216D
+TOLIB, NEWOBJ, or TOASPDEV parameter not correct.
+
+CPF2160
+Object type *&1 not eligible for requested function.
+
+CPF2162
+Duplication of all objects in library &1 not allowed.
+
+CPF2173
+Value for ASPDEV not valid with special value for library.
+
+CPF2176
+Library &1 damaged.
+
+CPF218C
+&1 not a primary or secondary ASP.
+
+CPF2182
+Not authorized to library &1.
+
+CPF2185
+TOLIB, TOASPDEV, or NEWOBJ parameter not correct.
+
+CPF2186
+Object &1 cannot be created into library &2.
+
+CPF9806
+Cannot perform function for object &2 in library &3.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9827
+Object &1 cannot be created or moved into &2.
+
+CPF9833
+*CURASPGRP or *ASPGRPPRI specified and thread has no ASP group.
+
+Top

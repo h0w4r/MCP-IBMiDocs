@@ -1,0 +1,150 @@
+Start Cluster Resource Group (STRCRG)
+
+Start Cluster Resource Group (STRCRG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Start Cluster Resource Group (STRCRG) command enables resilience for the specified cluster resource group on the specified recovery domain nodes. This command can be used to change the cluster resource group from a status of Indoubt or Inactive to Active.
+
+This command will do the following for all cluster resource group types:
+
+- Set the cluster resource group status to Start Pending.
+
+- For primary-backup model cluster resource groups if the current recovery domain has more than one backup node and some backup nodes are not active, the recovery domain may be reordered so that all active backup nodes are ordered before inactive backup nodes. If the inactive backup nodes are already ordered after active backup nodes or if there are no inactive backup nodes, this command will not change the recovery domain.
+
+- Call the exit program on all active nodes in the recovery domain with an action code of Start, if an exit program is specified for the cluster resource group.
+
+- Set the cluster resource group status to Active if the exit program is successful on all active nodes in the recovery domain.
+
+- If the exit program is unsuccessful on any active node in the recovery domain when processing the Undo action code, the status of the cluster resource group will be set to Indoubt on all nodes.
+
+This command will do the following for application cluster resource groups:
+
+- Verify the takeover IP address has been configured on all nodes in the recovery domain except replicates.
+
+- Start the TCP/IP interface on the primary node.
+
+- If the exit program is unsuccessful on any active node in the recovery domain, the exit program job on the primary node will be cancelled and the Takeover IP address will be ended on the primary node.
+For an application cluster resource group, the exit program on the primary node is not expected to complete. The status of the cluster resource group will be set to Active when the exit program job has been started on the primary and the exit program has completed successfully on all other nodes in the recovery domain.
+
+This command will do the following for device cluster resource groups:
+
+- The cluster resource group must have at least one configuration object entry.
+
+- The configuration objects specified for the cluster resource group must exist on all active nodes in the recovery domain and the resource name specified in a configuration object must be the same on all active nodes in the recovery domain.
+
+- If a data base name has been specified for a configuration object, it must be the same on all active nodes in the recovery domain.
+
+- If a server takeover IP address is specified, it must exist on all nodes in the recovery domain.
+
+- The primary node must be the current owner for the hardware resources of the configuration objects specified in the cluster resource group.
+
+- Starting the cluster resource group will not vary on the configuration objects or start the server takeover IP address.
+
+- All members of an auxiliary storage pool group must be configured in the cluster resource group.
+
+- A value of *PRIMARY for the device's configuration object online' attribute can be specified only for a secondary auxiliary storage pool.
+
+This command will do the following for peer cluster resource groups:
+
+- All nodes that are designated with a peer role will be an active access point upon successful completion of this command.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- Cluster Resource Services must be active on the node running the command.
+
+- For primary-backup module cluster resource groups, the status of the node currently assigned the role of primary must have a membership status of Active.
+
+- For peer model cluster resource groups:
+
+At least one node must be designated as a peer node or the cluster resource group cannot be started.
+
+At least one peer node must have a membership status of Active.
+
+- The cluster resource group status must be either Inactive or Indoubt.
+
+- For a device cluster resource group:
+
+The cluster resource group must have at least one configuration object entry.
+
+The configuration objects specified for the cluster resource group must exist on all active nodes in the recovery domain and the resource name specified in a configuration object must be the same on all active nodes in the recovery domain.
+
+The primary node must be the current owner for the hardware resources of the configuration objects specified in the cluster resource group.
+
+Hardware configuration must be complete so that the physical hardware has been associated with the configuration object. In particular for auxiliary storage pools, the disk units must have been assigned.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CRG | Cluster resource group | Name | Required, Positional 1
+EXITPGMDTA | Exit program data | Character value, *SAME | Optional
+CLUSTER | Cluster | Name, * | Optional
+
+Top
+
+Cluster resource group (CRG)
+
+Specifies the cluster resource group to be started.
+
+This is a required parameter.
+
+name
+Specify the name of the cluster resource group.
+
+Top
+
+Exit program data (EXITPGMDTA)
+
+Specifies up to 256 bytes of data that is passed to the cluster resource group exit program when it is called. This parameter may contain any scalar data except pointers. For example, it can be used to provide state information. This data will be stored with the specified cluster resource group and copied to all nodes in the recovery domain. Pointers in this area will not resolve correctly on all nodes and should not be placed in the data. The data specified will replace the existing exit program data stored with the cluster resource group. If blanks are specified, then the exit program data stored with the cluster resource group will be cleared. This parameter must be set to *SAME if no exit program is specified for the cluster resource group.
+
+*SAME
+The exit program data stored with the cluster resource group specified will be passed to the exit program.
+
+character-value
+Specify the data to be passed to the exit program.
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the name of the cluster.
+
+*
+The cluster that has been configured on this system is used.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Examples for STRCRG
+
+STRCRG CRG(MYCRG)
+EXITPGMDTA('important information')
+
+This command enables resiliency of the cluster resource group MYCRG. The exit program, when called, is passed 'important information' in the exit program data field. The cluster resource group will be ACTIVE as a result of this command.
+
+Top
+
+Error messages for STRCRG
+
+*ESCAPE Messages
+
+HAE001B
+Cluster resource group &1 not started.
+
+Top

@@ -285,9 +285,9 @@ Con dataset extendido local:
 npx tsx scripts/dev-question-bank-eval.ts `
   --fixture data/eval/question-bank/dev-question-bank.full-local.json `
   --pack data/pack `
-  --sample-size 100 `
+  --sample-size 300 `
   --random-sample `
-  --min-pass-rate 0.9 `
+  --min-pass-rate 0.95 `
   --out data/eval/question-bank/eval-report.json
 ```
 
@@ -300,7 +300,7 @@ La automatización comprueba primero el contrato observable:
 - respuesta no vacía y ausencia de términos tangenciales conocidos por el fixture;
 - presencia de señales esperadas como ayuda de regresión, nunca como juez semántico definitivo.
 
-El umbral automatizado por caso es `0.85` y el gate agregado recomendado exige al menos `90%` de
+El umbral automatizado por caso es `0.85` y el gate agregado obligatorio exige al menos `95%` de
 casos aprobados. Esos números no convierten una comparación textual en razonamiento: después de cada
 lote amplio, el mantenedor debe revisar conceptualmente los fallos y una muestra de los aprobados,
 comparando el significado de la respuesta pública contra el ground truth.
@@ -311,34 +311,43 @@ mandar al titular a producción. Una pequeña obra de teatro, pero no una prueba
 
 No buscamos memorizar bancos de entrevista. Buscamos detectar cuándo el MCP se va de paseo turístico por Narnia en vez de recuperar la evidencia correcta.
 
-## Adaptador neuronal y fine-tuning ligero
+## Fine-tuning completo del Transformer
 
-El runtime incluye una cabeza MLP residual en `models/semantic-query-adapter.*`. Se entrenó sobre
-embeddings E5 congelados: no memoriza un diccionario de comandos ni distribuye las preguntas. El
-fixture global completo se excluye del entrenamiento; 200 casos sirven para validación y 557 quedan
-reservados para prueba final.
+El runtime usa `models/ibmi-e5-base-finetuned-v1`: una exportación ONNX q8 de
+`intfloat/multilingual-e5-base` con 768 dimensiones, cuyos pesos se ajustaron de extremo a extremo
+con 6.000 pares IBM i. Un segundo modelo en `models/ibmi-reranker-finetuned-v1` relee pregunta y
+evidencia conjuntamente antes de componer la respuesta.
+La salida de consulta atraviesa además `models/ibmi-neural-query-head-v1`, una MLP residual entrenada
+contra los 7.027 vectores documentales reales. El runtime conserva siempre la geometría fundacional
+E5 como segunda vista neuronal de cobertura; no es una ruta legacy ni utiliza matching textual.
+El fixture global se excluye por ID, firma de pregunta y firma pregunta/respuesta; validación
+selecciona el checkpoint y el resto se abre una sola vez como prueba ciega final.
 
-Resultado de la prueba retenida usada por el artefacto actual:
+Resultado previo a cuantización en el holdout ciego:
 
-- MRR: `0.4853` → `0.6760`;
-- top-1: `37.16%` → `55.30%`;
-- top-5: `61.40%` → `82.23%`;
-- top-10: `69.30%` → `88.33%`.
+- MRR@10: `0.4951` → `0.6233`;
+- top-1: `41.01%` → `51.56%`;
+- top-5: `60.67%` → `77.22%`;
+- top-10: `69.30%` → `84.65%`.
 
-Para reproducir el entrenamiento en desarrollo:
+La pérdida es `MultipleNegativesRankingLoss` simétrica (`query_to_doc` + `doc_to_query`) y los lotes
+usan `NO_DUPLICATES`. Para reproducirlo en un entorno Python con PyTorch/Sentence Transformers:
 
 ```powershell
-npm run train:query-adapter:embeddings
-python -m venv .tmp/train-venv
-.\.tmp\train-venv\Scripts\python.exe -m pip install numpy torch `
-  --index-url https://download.pytorch.org/whl/cpu
-.\.tmp\train-venv\Scripts\python.exe scripts/train-query-adapter.py
+python -m venv .tmp/finetune-venv
+.\.tmp\finetune-venv\Scripts\Activate.ps1
+python -m pip install torch sentence-transformers datasets accelerate `
+  "optimum[onnxruntime]" onnx onnxruntime
+npm run train:embedding:finetune
+npm run train:embedding:export
+npm run train:query-head
 ```
 
-Los artefactos candidatos quedan en `.tmp/query-adapter-training/`. Solo se copian a `models/`
-después de superar el modelo base en el conjunto de prueba retenido y pasar el gate MCP end-to-end.
+Los checkpoints, datasets y reportes completos permanecen en `.tmp/` o `data/eval/`. Solo se
+versiona el modelo ONNX cuantizado, su tokenizer y `model-manifest.json` después de superar la línea
+base, reconstruir el corpus y pasar el gate MCP end-to-end.
 
-## Líneas futuras de fine-tuning
+## Líneas futuras de mejora neuronal
 
 El dataset consolidado puede alimentar estas líneas de trabajo:
 

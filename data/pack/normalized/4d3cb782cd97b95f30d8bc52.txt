@@ -1,0 +1,379 @@
+Restore S/36 Library Members (RSTS36LIBM)
+
+Restore S/36 Library Members (RSTS36LIBM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Restore System/36 Library Members (RSTS36LIBM) command reads a file containing library members, creates database source or data file members on this system, and copies the member data from the file into each restored member.
+
+The input file can be a diskette file, tape file, or database physical file on this system.
+
+The file could have been created on a System/36, a System/34, or a System/32 using either the FROMLIBR or SAVELIBR system operator control language (OCL) procedure (or the equivalent use of $MAINT), or by using the Save System/36 Library Members (SAVS36LIBM) command.
+
+Diskette files created on a System/34 using the BACKUP procedure or $BACK utility are not accepted by this command. Compressed SAVELIBR diskette files (used by IBM to distribute system libraries for System/36 after release 5.0) are not accepted by this command.
+
+In System/36 terms, the input file format could be a SAVELIBR diskette file or tape file, a record-mode LIBRFILE diskette file, tape file, or physical file, or a sector-mode LIBRFILE diskette file, tape file, or physical file. In other words, the input file can be any diskette file, tape file, or physical file created by the System/36 $MAINT SSP utility.
+
+If the library identified by the value specified for the To library prompt (TOLIB parameter) does not exist, it is created. Also, the source files QS36SRC and QS36PRC are created if they do not exist in the restore-to library. If the restore operation creates the library, the new library is owned by the user running the RSTS36LIBM command and the library is created with a default authority of *ALL (that is, the same as AUT(*ALL)).
+
+If a sector-mode FROMLIBR file or a SAVELIBR file created on a System/36 is being restored, data files QS36LOD and QS36SBR may also be created to hold restored load and subroutine members. Restored load and subroutine members are not converted on the current system.
+
+Restrictions:
+
+- The following authorities are required when running on a system using resource security:
+
+*SECADM and *ALLOBJ authorities
+
+*USE authority for this command and *USE authority for the Create Library (CRTLIB) command if the library needs to be created
+
+*USE authority for the CRTSRCPF command if QS36SRC or QS36PRC must be created
+
+*USE authority for the CRTPF command if QS36LOD or QS36SBR must be created
+
+*CHANGE authority for the library specified in the TOLIB parameter
+
+*CHANGE and *OBJMGMT authority for file QS36SRC in the specified library if restoring source library members
+
+*CHANGE and *OBJMGMT authority for file QS36PRC in the specified library if restoring procedure library members
+
+*CHANGE and *OBJMGMT authority for file QS36LOD in the specified library if restoring load library members
+
+*CHANGE and *OBJMGMT authority for file QS36SBR in the specified library if restoring subroutine library members
+
+*USE authority for the diskette device description object, *USE authority for device file QSYSDKT in library QSYS if restoring from diskette
+
+*USE authority for the tape device description object and *USE authority for device file QSYSTAP in library QSYS, if restoring from tape
+
+*USE authority for the file and *USE authority for the library that contains the file (PHYFILE parameter) if restoring from a database physical file
+
+- No object-level or record-level operations should be active for files QS36SRC, QS36PRC, QS36SBR, and QS36LOD while members are being restored by RSTS36LIBM. If the necessary files cannot be allocated exclusively, no members are restored.
+
+- The member name or generic member name specified (TOMBR parameter) must meet i5/OS naming standards.
+If a generic member name or *ALL is specified, a member may be selected to be restored that has a name containing characters not allowed in an i5/OS simple object name. In this case, the member name is restored using the i5/OS extended name syntax (for example, A!B would become ''A!B'').
+
+If the name contains a blank, a single quotation mark (') a double quotation mark ("), an asterisk (*), a question mark (?), or a device control character (hexadecimal '00'-'3F' or hexadecimal 'FF'), these characters are replaced by underlines and the member is restored using the resulting simple or extended name (for example, A*/? would become A_/_ and A? would become A_).
+
+An informational message is sent each time invalid characters are replaced to get a valid name. An additional informational message is sent if the resulting name change caused a member to be replaced. No message is sent if a member is restored using the extended name syntax without replacing invalid characters.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+TOMBR | To member | Generic name, name, *ALL | Required, Positional 1
+TOLIB | To library | Name | Required, Positional 2
+DEV | Device | Single values: *PHYFILE
+Other values (up to 4 repetitions): Name | Required, Positional 3
+SRCMBRS | S/36 source members | *ALL, *SRC, *PRC, *NONE | Optional
+MBROPT | Data base member option | *NEW, *OLD, *ALL | Optional
+IGCDTA | User specified DBCS data | *NO, *YES | Optional
+FROMLABEL | File label | Character value | Optional
+CRTDATE | Creation date | Date, *NONE | Optional
+SEQNBR | Sequence number | 1-9999, *SEARCH | Optional
+VOL | Volume identifier | Values (up to 50 repetitions): Character value, *MOUNTED | Optional
+ENDOPT | End of tape option | *REWIND, *LEAVE, *UNLOAD | Optional
+PHYFILE | Physical file | Qualified object name | Optional
+Qualifier 1: Physical file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OBJMBRS | S/36 object members | *NONE, *SBR, *LOD, *ALL | Optional
+
+Top
+
+To member (TOMBR)
+
+Specifies the names of the members to restore.
+
+This is a required parameter.
+
+*ALL
+All members of the specified member types are restored.
+
+member-name
+The members having the specified member name are restored.
+
+generic*-member-name
+All members that have the specified generic member name are restored.
+
+Top
+
+To library (TOLIB)
+
+Specifies the library to contain the members to restore from the input file.
+
+This is a required parameter.
+
+Top
+
+Device (DEV)
+
+Specifies the names of the devices to use for the restore operation. A maximum of four device names may be specified.
+
+This is a required parameter.
+
+*PHYFILE
+The input file is the database physical file specified by the Physical file prompt (PHYFILE parameter).
+
+device-name
+Specify the name of the diskette unit or the names of one or more tape devices that are to be used for the restore operation. If more than one tape device is used, specify the names of the devices in the order in which they are used. A maximum of four tape device names can be specified.
+
+Top
+
+S/36 source members (SRCMBRS)
+
+Specifies which source member types (source and procedure members on System/36) are restored.
+
+*ALL
+Restore all source and procedure members in the input file that match the member name specified on the To member prompt (TOMBR parameter).
+
+*SRC
+Restore only System/36 source members (to file QS36SRC) that match the member name specified on the To member prompt (TOMBR parameter).
+
+*PRC
+Restore only System/36 OCL procedure members (to file QS36PRC) that match the member name specified on the To member prompt (TOMBR parameter).
+
+*NONE
+Do not restore any System/36 source or procedure library members.
+
+Top
+
+Data base member option (MBROPT)
+
+Specifies, for database files currently on the system, which file members are restored.
+
+*NEW
+Only new members (members that don't already exist in the appropriate file) are restored.
+
+*OLD
+Only old members (members that already exist in the appropriate file) are restored. The existing member is replaced by the copy of the member restored from the file.
+
+*ALL
+All members are restored. Members that don't already exist are created, and members that do exist are replaced.
+
+Top
+
+User specified DBCS data (IGCDTA)
+
+Specifies whether the source and procedure members being restored can contain double-byte character set (DBCS) data. This attribute is used if the restore operation needs to create source files QS36SRC and QS36PRC to hold the restored library members.
+
+Note: If the QS36SRC or QS36PRC source file already exists in the library specified on the To library prompt (TOLIB parameter) and the file's DBCS capability does not match this parameter, an error message is sent and no members are restored.
+
+*NO
+The source or procedure members being restored cannot contain double-byte character set data.
+
+*YES
+The source or procedure members being restored can contain double-byte character set data.
+
+Top
+
+File label (FROMLABEL)
+
+Specifies the label value (eight characters maximum) of the diskette or tape file that contains the members to be restored. If *PHYFILE is not specified for the Device prompt (DEV parameter), a value must be specified here.
+
+Top
+
+Creation date (CRTDATE)
+
+Specifies the creation date of the diskette file or tape file used for the restore operation. The specified date is changed to Julian format (cyyddd) for tape or international format (yymmdd) for diskette.
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies, when tape is used, which sequence number is used for the restore operation.
+
+*SEARCH
+The volume in the device is searched for a data file with an identifier that matches the FROMLABEL parameter value; when a match is found, the object is restored. If the last operation on the device specified *LEAVE for the End of tape option (ENDOPT) parameter, indicating that the tape is positioned at the location where the last operation ended, the file search starts with the first data file beyond the current tape position. If *LEAVE was not used for the End of tape option (ENDOPT) parameter of the last operation, or if the tape was manually rewound since the operation, the search starts with the first data file on the volume.
+
+1-16777215
+Specify the sequence number of the file to be used for the restore operation.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifiers of the tapes or diskettes used for restoring the file.
+
+*MOUNTED
+The volume currently placed in the device is used.
+
+volume-identifier
+Specify the volume identifiers of the tapes or diskettes used for restoring the file. A maximum of 50 volume identifiers can be specified.
+
+Top
+
+End of tape option (ENDOPT)
+
+Specifies, only when tape is used, what positioning operation is automatically performed on the tape volume after the restore operation ends. This parameter applies only to the last reel used.
+
+*REWIND
+The tape is rewound, but not unloaded.
+
+*LEAVE
+The tape is not rewound.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+Top
+
+Physical file (PHYFILE)
+
+Specifies the name of the database physical file that is used as the input file for the restore operation. If the specified file does not exist or is not a physical file, no library members are restored. If the file contains multiple members, the first member of the file is used.
+
+The possible library values are:
+
+*LIBL
+The library list is used to locate the file.
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the file is located.
+
+Top
+
+S/36 object members (OBJMBRS)
+
+Specifies which object member types (load and subroutine members on System/36) are restored. Because the System/36 and the i5/OS are not object compatible, any restored members are not immediately useable after the restore operation. IBM-supplied commands or user-written operations must be run to convert the object member to a useable i5/OS object.
+
+*NONE
+System/36 load or subroutine library members are not restored.
+
+*SBR
+Only System/36 subroutine members (to file QS36SBR) that match the member name specified on the To member prompt (TOMBR parameter) are restored.
+
+*LOD
+Only System/36 load members (to file QS36LOD) that match the member name specified on the To member prompt (TOMBR parameter) are restored.
+
+*ALL
+All load and subroutine members in the input file that match the member name specified on the To member prompt (TOMBR parameter) are restored.
+
+Top
+
+Examples
+
+Example 1: Restoring All Members
+
+RSTS36LIBM TOMBR(XYZ1) TOLIB(JOHNSON) DEV(I1)
+SRCMBRS(*PRC) MBROPT(*ALL) FROMLABEL('XYZ1')
+
+This command restores the single OCL procedure member XYZ1 as a member of source file QS36PRC in library JOHNSON. Assuming I1 refers to a diskette device, the input diskette file must have the label XYZ1.
+
+Example 2: Restoring Members from a File
+
+RSTS36LIBM TOMBR(X*) TOLIB(ORDER) DEV(*PHYFILE)
+PHYFILE(NETLIB/S36SRC)
+
+This command restores all source and procedure members with names starting with the character 'X' and that do not already exist as members of QS36SRC and QS36PRC in library ORDER. The members are restored from file S36SRC in library NETLIB.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2C4A
+Device &1 not correct for command.
+
+CPF2C4B
+Duplicate device &1 specified in device name list.
+
+CPF2C4C
+Diskette device &1 included in multiple device specification.
+
+CPF2C41
+&2 members restored, &3 members not restored, &4 members excluded.
+
+CPF2C42
+No members restored to library &1, &4 members excluded.
+
+CPF2C46
+Input file &1 cannot be processed by RSTS36LIBM.
+
+CPF2C48
+Input file &1 in &2 not correct for command.
+
+CPF2C49
+Output file &1 in &2 not correct for command.
+
+CPF2C5E
+Input file &1 in &2 not correct for command.
+
+CPF2C50
+File description for file &1 is not available.
+
+CPF2C52
+Error occurred during attempt to create file &1 in library &2.
+
+CPF2C53
+Member &3 not added to file &1 in library &2 because error occurred.
+
+CPF2C57
+DBCS attribute not same as existing file &1 in &2.
+
+CPF2C70
+Input file &1 contains incorrect control statement record.
+
+CPF2C71
+NAME keyword on COPY statement missing or incorrect.
+
+CPF2C72
+LIBRARY keyword on COPY statement missing or incorrect.
+
+CPF9807
+One or more libraries in library list deleted.
+
+CPF9808
+Cannot allocate one or more libraries on library list.
+
+CPF9810
+Library &1 not found.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9824
+Not authorized to command &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9826
+Cannot allocate file &2.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9849
+Error while processing file &1 in library &2 member &3.
+
+*STATUS Messages
+
+CPI2C12
+Copying file &1 in library &2 label &3 to work file.
+
+Top

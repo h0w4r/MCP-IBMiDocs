@@ -1,0 +1,471 @@
+Change Program (CHGPGM)
+
+Change Program (CHGPGM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Program (CHGPGM) command changes the attributes of a program without requiring that it be recompiled. The user can also force re-creation of a program even if the attributes being specified are the same as the current attributes.
+
+Note: When the CHGPGM command is run on OPM programs which have a DMT (Dictionary Mapping Table), were created in V3R6M0, and have all observability removed, the DMT will be removed from the program object, and a message will be issued indicating a successful change.
+
+Restrictions:
+
+- You must have object management (*OBJMGT) and use (*USE) authorities for the program that is to be changed.
+
+- You must have at least *USE authority for the library where the program to be changed is located. You must also have delete (*DLT) and add (*ADD) authorities for the library in order to change the optimization attribute (OPTIMIZE parameter), performance collection attribute (ENBPFRCOL parameter), profiling data attribute (PRFDTA parameter), Licensed Internal Code options (LICOPT parameter), storage model attribute (STGMDL parameter), enable teraspace storage (TERASPACE parameter), or to force program re-creation by specifying FRCCRT(*YES).
+
+- To change the user profile attribute (USRPRF parameter) or the use adopted authority attribute (USEADPAUT parameter), you or one of your group profiles must either be the owner of the program or have all object (*ALLOBJ) and security administrator (*SECADM) special authorities.
+
+- Programs in the QSYS and QGDDM libraries cannot be changed, unless you are only removing observable information (RMVOBS parameter).
+
+- Other jobs running the program may fail if the Optimize program (OPTIMIZE) parameter, Use adopted authority (USEADPAUT) parameter, Enable performance collection (ENBPFRCOL) parameter, Profiling data (PRFDTA) parameter, User profile (USRPRF) parameter, Licensed Internal Code options (LICOPT) parameter, Teraspace (TERASPACE) parameter, or Storage model (STGMDL) parameter is changed, or program re-creation is forced by specifying FRCCRT(*YES).
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+PGM | Program | Qualified object name | Required, Key, Positional 1
+Qualifier 1: Program | Generic name, name, *ALL
+Qualifier 2: Library | Name, *USRLIBL
+OPTIMIZE | Optimize program | *SAME, *YES, *FULL, *BASIC, *NONE, 40, 30, 20, 10, *NO | Optional
+USRPRF | User profile | *SAME, *USER, *OWNER | Optional
+USEADPAUT | Use adopted authority | *SAME, *YES, *NO | Optional
+RMVOBS | Remove observable info | Single values: *SAME, *ALL, *NONE
+Other values (up to 4 repetitions): *CRTDTA, *DBGDTA, *BLKORD, *PRCORD | Optional
+PRFDTA | Profiling data | *SAME, *NOCOL, *COL, *CLR, *APYBLKORD, *APYPRCORD, *APYALL | Optional
+FRCCRT | Force program re-creation | *NO, *YES, *NOCRT | Optional
+TEXT | Text 'description' | Character value, *SAME, *BLANK | Optional
+LICOPT | Licensed Internal Code options | Single values: *SAME, *NONE
+Other values: Element list | Optional
+Element 1: Options | Character value
+Element 2: Action | *REPLACE, *ADD
+NBRTHD | Number of threads | 1-256, 1, *CALC | Optional
+ENBPFRCOL | Enable performance collection | Single values: *SAME, *NONE, *PEP
+Other values: Element list | Optional
+Element 1: Collection level | *FULL, *ENTRYEXIT
+Element 2: Procedures | *ALLPRC, *NONLEAF
+TERASPACE | Teraspace | *NO, *YES, *SAME | Optional
+STGMDL | Storage model | *SAME, *INHERIT | Optional
+
+Top
+
+Program (PGM)
+
+Specifies one or more programs whose attributes are to be changed. *USRLIBL cannot be specified or defaulted for the library qualifier when a generic name or *ALL is specified for the program qualifier.
+
+This is a required parameter.
+
+Qualifier 1: Program
+
+name
+Specify the name of the program having its attributes changed.
+
+generic-name
+Specify the generic name of all programs having their attributes changed. All programs that satisfy the generic search value are selected for change. A generic name is specified as a character string that contains one or more characters followed by an asterisk (*).
+
+*ALL
+All programs in the specified library to which the user has some authority (except exclude (*EXCLUDE) authority) are selected to be changed.
+
+Qualifier 2: Library
+
+*USRLIBL
+The first program found in the user portion of the library list is changed.
+
+name
+Specify the library where the program is located.
+
+Top
+
+Optimize program (OPTIMIZE)
+
+Specifies whether the program is optimized by the removal of redundant instructions. Changing the current optimization level of an Integrated Language Environment (ILE) program causes the system to re-create an ILE program with the new optimization level.
+
+The program must be re-created to change the optimization level. To be eligible for re-creation, OPM programs must have all observability and ILE programs must have all creation data, and the creation data must be observable. Use the Display Program (DSPPGM) command to determine whether a program is observable or has all creation data.
+
+*SAME
+The program optimization attributes do not change.
+
+*YES
+The program is at the most optimized level available for the release and language the program was created for (TGTRLS parameter when the program was created). In most cases, optimized programs make more efficient use of system resources. Specifying OPTIMIZE(YES) for ILE programs has the same effect as specifying OPTIMIZE(40).
+
+*NO
+The program is not optimized. For ILE programs at this optimization level, variables can be displayed and changed while debugging.
+
+40
+This level includes all the optimizations performed at optimization level 30 (*FULL). In addition, it includes optimization that disables call and instruction tracing. Thus, tracing of modules created at this optimization level cannot be done. Specifying OPTIMIZE(40) for OPM programs has the same effect as specifying OPTIMIZE(*YES).
+
+*FULL or 30
+More optimization is performed in addition to those performed at optimization level 20 (*BASIC). Variables cannot be changed but can be displayed while the program is being debugged. However, the displayed value of the variable during debugging may not be its actual value. Specifying OPTIMIZE(*FULL) for OPM programs has no effect; a diagnostic message will be signaled.
+
+*BASIC or 20
+For ILE programs, some optimization is performed on ILE programs. When debugging ILE programs at this optimization level, variables may be displayed, but the displayed value may not be the current value. Variables can also be changed but using the variables changed at this level may cause unexpected results. An informational message is sent and no operation is performed when OPTIMIZE(*BASIC) is specified for original program model (OPM) programs.
+
+*NONE or 10
+This value is identical to *NO.
+
+Top
+
+User profile (USRPRF)
+
+Specifies whether the authority checking done while this program is running should include only the user who is running the program (*USER) or both the user who is running the program and the program owner (*OWNER). The profiles of the program user or both the program user and the program owner are used to control which objects can be used by the program, including the authority the program has for each object.
+
+To change the user profile attribute, you or one of your group profiles must either be the owner of the program or have all object (*ALLOBJ) and security administrator (*SECADM) special authorities.
+
+The program must be re-created to change the user profile. To be eligible for re-creation, OPM programs must have all observability and ILE programs must have all creation data, and the creation data must be observable. Use the Display Program (DSPPGM) command to determine whether a program is observable or has all creation data.
+
+*SAME
+The user profile attribute does not change.
+
+*USER
+The program runs under the user profile of the program's user.
+
+*OWNER
+The user profiles of both the program's owner and the program's user are used when the program is run. The collective sets of object authority in both user profiles are used to find and access objects when the program is running. Authority from the owning user profile's group profile is not included in the authority for the running program.
+
+Top
+
+Use adopted authority (USEADPAUT)
+
+Specifies whether program adopted authority from previous programs in the call stack will be used as a source of authority when this program is running.
+
+To change the use adopted authority attribute, you or one of your group profiles must either be the owner of the program or have all object (*ALLOBJ) and security administrator (*SECADM) special authorities.
+
+The program must be re-created to change the use adopted authority attribute. To be eligible for re-creation, OPM programs must have all observability and ILE programs must have all creation data, and the creation data must be observable. Use the Display Program (DSPPGM) command to determine whether a program is observable or has all creation data.
+
+*SAME
+The use adopted authority attribute does not change.
+
+*YES
+Program adopted authority from previous call levels is used when this program is running. If an authorization list is specified for the QUSEADPAUT system value and the user is not authorized to that authorization list, *NO is used.
+
+*NO
+Program adopted authority from previous call levels is not used when this program is running.
+
+Top
+
+Remove observable info (RMVOBS)
+
+Specifies the observable program information that is removed.
+
+*SAME
+The observable information is not removed.
+
+*ALL
+All observable program information associated with the program is removed, if possible. If the program requires the observable information to ensure that it runs correctly, that information is not removed.
+
+NOTES:
+
+- If block order profiling data has previously been applied to this ILE program, specifying *ALL for the RMVOBS parameter removes *BLKORD observability.
+
+- Removing observability from OPM programs compiled with OPTION(*LSTDBG) does not completely remove the debugging information. The program must be recompiled with OPTION(*NOLSTDBG) to completely remove all of the debugging information.
+
+Also see the notes for the *CRTDTA special value.
+
+*NONE
+No observable information associated with the program is removed.
+
+*DBGDTA
+Debug Information is removed from an ILE program. Debug information is needed to allow the program to be debugged. An informational message is sent and no operation is performed when RMVOBS(*DBGDTA) is specified for original program model (OPM) programs.
+
+*CRTDTA
+Creation data observability is removed from an ILE program. Creation data observability is needed to allow the program to be re-created using CHGPGM, or to change program attributes using any of the command parameters OPTIMIZE, USRPRF, USEADPAUT, ENBPFRCOL, PRFDTA, LICOPT, TERASPACE, or STGMDL. An informational message is sent and no operation is performed when RMVOBS(*CRTDTA) is specified for original program model (OPM) programs.
+
+NOTES:
+
+- *CRTDTA cannot be specified if the ILE program is enabled to collect profiling data.
+
+- Creation data (either observable or unobservable) is required to convert programs to a different hardware technology, for example, between CISC (Complex Instruction Set Computer) and RISC (Reduced Instructions Set Computer) technology.
+
+- Some programs retain unobservable creation data even when observable creation data is removed. OPM programs created for release V5R1M0 or later (TGTRLS parameter when the program was created) will always contain creation data even when *ALL observability is removed. ILE programs created only from modules created for release V5R1M0 or later will always contain creation data even when *ALL observability or *CRTDTA observability is removed.
+
+- If the program was created for a release earlier than V5R1M0, or if it contains bound modules created for a release earlier than V5R1M0, *ALL observability and *CRTDTA observability cannot be removed.
+
+- OPM CL programs created with ALWRTVSRC(*YES) and ILE programs containing bound CL modules created with ALWRTVSRC(*YES) can have their CL source retrieved using the RTVCLSRC (Retrieve CL Source) command even after *ALL observability or *CRTDTA observability has been removed.
+
+*BLKORD
+Block order profiling data is removed from the ILE program. An informational message is sent and no observability is removed when RMVOBS(*BLKORD) is specified for original program model (OPM) programs.
+
+*PRCORD
+Procedure order profiling data is removed from the ILE program. An informational message is sent and no observability is removed when RMVOBS(*PRCORD) is specified for original program model (OPM) programs.
+
+Top
+
+Profiling data (PRFDTA)
+
+Specifies the program profiling data attribute for ILE programs. Program profiling is an advanced optimization technique to reorder procedures and code within the procedures based on statistical data (profiling data). An informational message is sent and *SAME is used if a value other than *SAME is specified for the PRFDTA parameter for original program model (OPM) programs.
+
+The program must be re-created to change the profiling data attribute. To be eligible for re-creation, the program must have all creation data, and the creation data must be observable. Use the Display Program (DSPPGM) command to determine whether the program has all creation data.
+
+*SAME
+The value does not change.
+
+*NOCOL
+The collection of profiling data is not enabled and profiling data is not applied.
+
+*COL
+The collection of profiling data is enabled for eligible modules.
+
+Note: Specifying *COL will remove all applied profiling data if the ILE program has profiling data applied.
+
+*CLR
+All previously collected profiling data is discarded. The program remains enabled to collect profiling data.
+
+*APYBLKORD
+Block order profiling data is applied to every module bound into this ILE program previously enabled to collect profiling data. The collection of profiling data is no longer enabled.
+
+*APYPRCORD
+Block order and procedure order profiling data are applied. The collection of profiling data is no longer enabled.
+
+*APYALL
+Block order and procedure order profiling data are applied. The collection of profiling data is no longer enabled.
+
+Top
+
+Force program re-creation (FRCCRT)
+
+Specifies whether program re-creation is forced.
+
+To be eligible for re-creation, OPM programs must have all observability and ILE programs must have all observable creation data. Use the Display Program (DSPPGM) command to determine whether a program is observable or has all observable creation data. Unobservable creation data cannot be used by CHGPGM.
+
+*NO
+Program re-creation is not forced unless the Optimize program (OPTIMIZE) parameter, Use adopted authority (USEADPAUT) parameter, Enable performance collection (ENBPFRCOL) parameter, Profiling data (PRFDTA) parameter, User profile (USRPRF) parameter, Licensed Internal Code options (LICOPT) parameter, Teraspace (TERASPACE) parameter, or Storage model (STGMDL) parameter has changed. This option allows the system to determine whether a change is required.
+
+*YES
+Program re-creation is forced.
+
+*NOCRT
+No program re-creation is done. If you attempt to change a program attribute which would implicitly require the program to be re-created, an error message is issued and no attributes of the program are changed. Modifying one of the following parameters may cause the program to be re-created: Optimize program (OPTIMIZE) parameter, Use adopted authority (USEADPAUT) parameter, Enable performance collection (ENBPFRCOL) parameter, Profiling data (PRFDTA) parameter, User profile (USRPRF) parameter, Licensed Internal Code options (LICOPT) parameter, Teraspace (TERASPACE) parameter, or Storage model (STGMDL) parameter.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies the text that briefly describes the object.
+
+*SAME
+The text is not changed.
+
+*BLANK
+No text is specified.
+
+'description'
+Specify no more than 50 characters of text, enclosed in single quotation marks.
+
+Top
+
+Licensed Internal Code options (LICOPT)
+
+Specifies individual Licensed Internal Code compile-time options to be selected, and is intended for the advanced programmer who understands the potential benefits and drawbacks of each selected compiler option. Changing the Licensed Internal Code options of an Integrated Language Environment (ILE) program to any value other than *SAME causes the system to re-create the ILE program.
+
+The program must be re-created to change the Licensed Internal Code options. To be eligible for re-creation, the program must have all creation data, and the creation data must be observable. Use the Display Program (DSPPGM) command to determine whether the program has all creation data.
+
+Note: Additional information about the LICOPT options can be found in the ILE Concepts book, SC41-5606.
+
+Element 1: Options
+
+*SAME
+If the program object is re-created, the existing Licensed Internal Code compile-time options are input to object re-creation. Otherwise, the Licensed Internal Code compile-time options do not change.
+
+*NONE
+Program re-creation is forced and no Licensed Internal Code options are used.
+
+character-value
+Specifies one or more Licensed Internal Code compile-time options. Changing the Licensed Internal Code options of an Integrated Language Environment (ILE) program causes the system to re-create the ILE program.
+
+Element 2: Action
+
+*REPLACE
+Any existing Licensed Internal Code options for the bound modules are replaced with the specified values.
+
+*ADD
+The specified Licensed Internal Code options are added to the end of the existing Licensed Internal Code options string for each of the bound modules. Any conflicts between Licensed Internal Code option values will be resolved with the last specified value taking precedence.
+
+Top
+
+Number of threads (NBRTHD)
+
+Specifies the maximum number of threads to use when re-creating bound modules. Specifying a number greater than 1 allows the command to take advantage of available CPU cycles, especially on a multi-processor system.
+
+1
+A single thread is used when creating bound modules.
+
+*CALC
+The system calculates a reasonable maximum number of threads to use which will not use excessive resources. Usually this is one or two threads for each available processor.
+
+1-256
+Specify the maximum number of threads to use.
+
+Top
+
+Enable performance collection (ENBPFRCOL)
+
+This parameter is obsolete.
+
+Top
+
+Teraspace (TERASPACE)
+
+Specifies whether the program object is enabled to work with teraspace storage. This includes teraspace storage allocated by the module object and parameters passed from other teraspace-enabled program and service program objects.
+
+If the program being changed was created for TGTRLS(V6R1M0) or a later release, the program will be enabled for teraspace regardless of the value specified for this parameter. If the program being changed was created for a release prior to V6R1M0, the TERASPACE value specified will be stored in the program and will be used when the program is brought to a release prior to V6R1M0. However, when the program is on V6R1M0 and later releases, it is enabled for teraspace.
+
+If the program being changed has a target release (TGTRLS) value earlier than V6R1M0, specifying a value different than the current TERASPACE attribute value will cause the program to be recreated and the specified value will be stored in the object template information.
+
+*SAME
+The teraspace storage enablement does not change.
+
+*NO
+If the program was created for a release prior to V6R1M0, then the teraspace storage enablement is changed to no. If it is an ILE program, the teraspace storage enablement of the eligible bound modules is changed to no. A bound module must be single level storage model to be changed to TERASPACE(*NO).
+
+*YES
+If the program was created for a release prior to V6R1M0, then the teraspace storage enablement is changed to yes. If it is an ILE program, the teraspace storage enablement of the eligible bound modules is changed to yes. A bound module must be at least V4R4M0 or later to be changed to TERASPACE(*YES).
+
+Top
+
+Storage model (STGMDL)
+
+Specifies the storage model attribute of the program.
+
+*SAME
+The storage model of the program remains unchanged.
+
+*INHERIT
+The program can use either single-level storage or teraspace storage. The type of storage used will depend on the type of storage required by the caller.
+
+Restrictions:
+
+- The program must be an Integrated Language Environment (ILE) bound program.
+
+- The activation group attribute of the program must be *CALLER.
+
+- The current storage model of the program cannot be *TERASPACE.
+
+- The target release of the program must be V6R1M0 or later.
+
+- The target release of all bound modules in the program must be V5R1M0 or later.
+
+Top
+
+Examples
+
+Example 1: Optimizing a Program
+
+CHGPGM PGM(PROG1/SERVICE) OPTIMIZE(*YES) USRPRF(*OWNER)
+
+The program SERVICE in library PROG1 is optimized, and the user profile under which it is processed is changed to include the program owner's user profile. The program is re-created only if the attributes specified differ from those of the current program.
+
+Example 2: Changing Text for a Program
+
+CHGPGM PGM(*USRLIBL/KNUTE) TEXT('Program description')
+
+This command changes the text for program KNUTE. The user portion of the library list is used to find the program.
+
+Example 3: Optimizing Multiple Programs
+
+CHGPGM PGM(PROG1/ACE*) OPTIMIZE(*YES)
+
+All programs in library PROG1 whose names begin with ACE, are optimized to their maximum optimization level.
+
+Example 4: Changing Text of Multiple Programs
+
+CHGPGM PGM(PROG2/*ALL) TEXT('Generic Text')
+
+This command changes the text of all programs in library PROG2 to 'Generic Text'.
+
+Example 5: Enabling Collection of Profiling Data
+
+CHGPGM PGM(PROG1/PROFPGM) PRFDTA(*COL)
+
+This command enables the collection of profiling data for program PROFPGM in library PROG1. If PROFPGM in library PROG1 had profiling data applied prior to issuing this command, all applied profiling data will be removed.
+
+Example 6: Applying Profiling Data
+
+CHGPGM PGM(PROG1/PROFPGM) PRFDTA(*APYALL)
+
+This command applies block order and procedure order profiling data to program PROFPGM in library PROG1. The collection of profiling data is no longer enabled for program PROFPGM in library PROG1.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0540
+*USRLIBL not allowed with generic name or *ALL.
+
+CPF0541
+Program &1 in &2 not changed.
+
+CPF0542
+Program &1 in library &2 not changed.
+
+CPF0543
+User &3 not authorized to change &1.
+
+CPF0544
+Programs in libraries QSYS and QGDDM cannot be changed.
+
+CPF0545
+No programs changed.
+
+CPF0546
+&1 changed. &2 did not require change. &3 not changed.
+
+CPF0547
+Cannot remove observable information.
+
+CPF0549
+User &3 not authorized to change &1.
+
+CPF223C
+Not authorized to change the use adopted authority (USEADPAUT) attribute for &1 in &2 type *&3.
+
+CPF223E
+Authority check for use adopted authority attribute failed.
+
+CPF5D0A
+Cannot remove requested observability from object &1 type *&3.
+
+CPF5D40
+*&3 &2/&1 cannot be STGMDL(*INHERIT).
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9804
+Object &2 in library &3 damaged.
+
+CPF9806
+Cannot perform function for object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9811
+Program &1 in library &2 not found.
+
+CPF9818
+Object &2 in library &3 not created.
+
+CPF9819
+Object &2 in library &3 not created.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9821
+Not authorized to program &1 in library &2.
+
+CPF9830
+Cannot assign library &1.
+
+Top

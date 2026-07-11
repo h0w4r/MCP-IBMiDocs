@@ -1,0 +1,374 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="LODRUN.Top_Of_Page"></a>
+<h1>Load and Run  (LODRUN)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#LODRUN.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#LODRUN.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#LODRUN.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="LODRUN"></a>
+<p>The Load and Run Media Program (LODRUN) command restores a user-written program object from a tape device, optical device or a save file into the library QTEMP.  The system then transfers control to the restored program.
+</p>
+<p>When the LODRUN command is run:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The media is searched for the user-written program which must be named QINSTAPP.  If the media used is tape or optical, QINSTAPP must have been saved from library QTEMP.  If the media used is a save file, QINSTAPP needs to be saved from the same library as the rest of the objects in the save file.
+<p>
+<strong>Note:     </strong>The program QINSTAPP must be owned by a user profile that resides on the target system.  If QINSTAPP is restored to a system that does not have the owning user profile, control is not transferred and the program is not run.
+</p>
+</li>
+<li class="cds--list__item">If a QINSTAPP program already exists in the QTEMP library on the user's system, it is deleted.
+</li>
+<li class="cds--list__item">The QINSTAPP program is restored to the QTEMP library using the RSTOBJ command.
+</li>
+<li class="cds--list__item">The device used for the restore operation is determined by the LODRUN command.  If *TAP or *OPT is specified for the <strong>Device (DEV)</strong> parameter, the LODRUN command examines the QDEVNAMING system value to determine if the system uses IBM i or System/36 naming conventions for devices:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">If QDEVNAMING is *NORMAL (IBM i convention)
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The device TAP01 is used for DEV(*TAP).
+</li>
+<li class="cds--list__item">The device OPT01 is used for DEV(*OPT).
+</li>
+</ul>
+</li>
+<li class="cds--list__item">If QDEVNAMING is *S36 (System/36 convention)
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The device TC is used for DEV(*TAP) if a tape cartridge is found.  Otherwise, device T1 is used.
+</li>
+<li class="cds--list__item">The device OPT01 is used for DEV(*OPT).  System/36 naming conventions do not apply to optical devices.
+</li>
+</ul>
+</li>
+</ul>
+<p>If *SAVF is specified on the DEV parameter, the save file specified for the <strong>Save file (SAVF)</strong> parameter will be used.
+</p>
+<p>Any other value specified for the DEV parameter is used as is.
+</p>
+</li>
+<li class="cds--list__item">Control of the system is passed to the QINSTAPP program.  The QINSTAPP program can be used, for example, to restore other applications to the user's system and run those applications.
+</li>
+<li class="cds--list__item">When the user signs off, the QINSTAPP program is removed from the system.
+</li>
+<li class="cds--list__item">The settings of three system values work together to determine if the QINSTAPP program is allowed to be restored or if it is converted during the restore. The three system values are:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">QVFYOBJRST  Verify object restore
+</li>
+<li class="cds--list__item">QFRCCVNRST  Force conversion on restore
+</li>
+<li class="cds--list__item">QALWOBJRST  Allow object restore option
+</li>
+</ul>
+<p>The LODRUN command does not transfer control to the QINSTAPP program if these values do not allow the restore and conversion of the QINSTAPP program.
+</p>
+</li>
+</ol>
+<p>The user supplying the QINSTAPP program is responsible for writing and supporting it.  The QINSTAPP program is not supplied by IBM.  The program can be designed to accomplish many different tasks.  For example, the program could:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Restore and run other programs or applications
+</li>
+<li class="cds--list__item">Restore a library
+</li>
+<li class="cds--list__item">Delete another program or application
+</li>
+<li class="cds--list__item">Create specific environments
+</li>
+<li class="cds--list__item">Apply fixes to existing applications
+</li>
+</ul>
+<p>The QINSTAPP program is run only once each time the LODRUN command is entered.
+</p>
+<p>The LODRUN command will pass parameter(s) to the QINSTAPP program.
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">LODRUN will always pass a 10-character device name.  For a tape or optical device name, it specifies the actual device from which the QINSTAPP program is restored.  If *SAVF was specified for the DEV parameter, this parameter will contain *SAVF and the qualified save file name will be passed in a second parameter.
+</li>
+<li class="cds--list__item">LODRUN will pass a 20-character save file name and library if *SAVF was specified on the DEV parameter.  The first 10 characters will contain the save file name.  The second 10 characters will contain the save file library.
+</li>
+</ul>
+<p>The QINSTAPP program should not attempt to use the LODRUN command again.  This will have unpredictable results.
+</p>
+<p>In addition to writing the QINSTAPP program, the user supplying the program is responsible for providing the user with the media containing the program.
+</p>
+<p>To distribute the program on a tape or optical device, do the following:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Prepare the media.
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">For tape, use the Initialize Tape (INZTAP) command.
+</li>
+<li class="cds--list__item">For optical, use the Initialize Optical (INZOPT) command.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">Ensure the QINSTAPP command exists in QTEMP (for tape or optical), or that it exists in the library being saved into a save file.
+</li>
+<li class="cds--list__item">Save objects to media.
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">For tape
+<p>Use the Save Object (SAVOBJ) command to save the QINSTAPP program from QTEMP to the desired tape device.  The program must be the only object in the media file that contains it.  Specify the following:
+</p>
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">LIB(QTEMP)
+</li>
+<li class="cds--list__item">LABEL(*LIB)
+</li>
+<li class="cds--list__item">CLEAR(*ALL)
+</li>
+</ul>
+<p>Specifying LABEL(*LIB) ensures that the label will be QTEMP.  If additional applications, programs, or libraries will be saved to the tape, ENDOPT(*LEAVE) also should also be specified.
+</p>
+<p>Save the additional items required by QINSTAPP to tape.
+</p>
+<p>The tape is not rewound after the QINSTAPP program is restored; the application or series of applications that the QINSTAPP program restores to the user's system should be next on the tape.
+</p>
+</li>
+<li class="cds--list__item">For optical
+<p>Use the Save Object (SAVOBJ) command to save the QINSTAPP program from QTEMP to the desired optical device.  If you wish to save the QINSTAPP program into anything other than the root directory, you must specify the OPTFILE parameter as follows:
+</p>
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">OPTFILE('/SubDir1/SubDirN/QTEMP')
+</li>
+</ul>
+<p>Save additional items required by QINSTAPP to the optical device.
+</p>
+</li>
+<li class="cds--list__item">For save file
+<p>Ensure all the needed objects are in the library you plan to save into the save file.  Then use the SAVLIB or SAVOBJ command to save the library objects into your save file.
+</p>
+</li>
+</ul>
+<p>For all media types, the correct value for the TGTRLS parameter must also be entered if the target release is not the default, *CURRENT.
+</p>
+<p>Additional items saved to media could be any libraries, library objects, IFS directories, etc. that the QINSTAPP program needs to restore as part of its installation process.
+</p>
+</li>
+</ol>
+<p><strong>Restriction:</strong> The QINSTAPP program that is loaded from the media and called may require specific authority in order to run correctly.  The user supplying the QINSTAPP program should inform you if any specific authorities that are required.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="LODRUN.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#LODRUN.DEV"><strong>DEV</strong></a></td>
+<td class="valigntop">Device</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*TAP</strong>, *OPT, *SAVF</td>
+<td class="valigntop">Optional, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#LODRUN.SEQNBR"><strong>SEQNBR</strong></a></td>
+<td class="valigntop">Sequence number</td>
+<td class="valigntop"><span class="var">Decimal number</span>, <strong class="underlined">*FIRST</strong>, *SEARCH</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#LODRUN.VOL"><strong>VOL</strong></a></td>
+<td class="valigntop">Volume identifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*MOUNTED</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#LODRUN.DIR"><strong>DIR</strong></a></td>
+<td class="valigntop">Directory</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">'/'</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#LODRUN.SAVF"><strong>SAVF</strong></a></td>
+<td class="valigntop">Save file</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Save file</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr></tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="LODRUN.DEV"></a>
+<h2>Device (DEV)</h2>
+<p>Specifies the I/O device from which the program is loaded.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*TAP</strong></dt>
+<dd>The program is loaded from the default tape device connected to the system.
+</dd>
+<dt><strong>*OPT</strong></dt>
+<dd>The program is loaded from the default optical device connected to the system.
+</dd>
+<dt><strong>*SAVF</strong></dt>
+<dd>The program is loaded from the save file specified for the <strong>Save file (SAVF)</strong> parameter.
+</dd>
+<dt><strong class="italic">tape-device</strong></dt>
+<dd>Specify the name of the tape device from which the program is loaded onto the system.
+</dd>
+<dt><strong class="italic">optical-device</strong></dt>
+<dd>Specify the name of the optical device from which the program is loaded onto the system.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="LODRUN.SEQNBR"></a>
+<h2>Sequence number (SEQNBR)</h2>
+<p>Specifies, only when tape is used, the sequence number used for the restore operation.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The volume on a tape device is searched starting from the first data file for a data file with an identifier that is a match for the QTEMP label.  When the first match is found, the object is restored.
+</dd>
+<dt><strong>*SEARCH</strong></dt>
+<dd>The volume on a tape device is searched starting from the first data file beyond the current tape position for a data file with an identifier that is a match for the QTEMP label.  When a match is found, the object is restored.
+</dd>
+<dt><strong class="italic">sequence-number</strong></dt>
+<dd>Specify the sequence number of the file.  Valid values range from 1 through 16777215.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="LODRUN.VOL"></a>
+<h2>Volume identifier (VOL)</h2>
+<p>Specifies, only when tape is used, the volume identifier for the tape devices.
+</p>
+<dl>
+<dt><strong class="underlined">*MOUNTED</strong></dt>
+<dd>The volume currently mounted on the tape device is used.
+</dd>
+<dt><strong class="italic">volume-identifier</strong></dt>
+<dd>Specify the volume identifier mounted on the tape device.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="LODRUN.DIR"></a>
+<h2>Directory (DIR)</h2>
+<p>Specifies, only when an optical device is used, the directory used for the restore operation.  If the file named QTEMP is found in the specified directory, the object is restored.
+</p>
+<dl>
+<dt><strong class="underlined">'/'</strong></dt>
+<dd>The root directory (/) is used.
+</dd>
+<dt><strong class="italic">directory-name</strong></dt>
+<dd>Specify the directory to search for a file named QTEMP.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="LODRUN.SAVF"></a>
+<h2>Save file (SAVF)</h2>
+<p>Specifies the save file containing the QINSTAPP program.
+</p>
+<p>
+<strong>Note:     </strong>A value must be specified for this parameter if *SAVF is specified for the <strong>Device (DEV)</strong> parameter.
+</p>
+<h3><strong>Qualifier 1: Save file</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the save file.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the job are searched until the first match is found.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the save file.  If no current library entry exists in the library list, the QGPL library is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library where the save file is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="LODRUN.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Restoring the Program QINSTAPP from Tape</strong>
+</h3>
+<p>
+</p><pre>LODRUN   DEV(TAP01)
+</pre>
+<p></p>
+<p>This command restores the program object QINSTAPP from the tape on device TAP01 to the library QTEMP. Control is then transferred to the restored program.
+</p>
+<h3><strong>Example 2: Restoring the Program QINSTAPP from Tape Specifying a Sequence Number</strong>
+</h3>
+<p>
+</p><pre>LODRUN   DEV(TAP01)  SEQNBR(5)
+</pre>
+<p></p>
+<p>This command restores the program object QINSTAPP from the tape at sequence number 5 on device TAP01 to the library QTEMP. Control is then transferred to the restored program. If the sequence number is not found, an escape message is sent. If the file label at that sequence number is not QTEMP, an escape message is sent.
+</p>
+<h3><strong>Example 3: Restoring the Program QINSTAPP from Optical</strong>
+</h3>
+<p>
+</p><pre>LODRUN   DEV(*OPT)  DIR('/APP1/INST')
+</pre>
+<p></p>
+<p>This command restores the program object QINSTAPP from the media in device OPT01 to the library QTEMP.  The filename for the QTEMP library on the optical media is /APP1/INST/QTEMP. Control is then transferred to the restored program. If the file is not found, an escape message is sent.
+</p>
+<h3><strong>Example 4: Restoring the Program QINSTAPP from a Virtual Optical Device</strong>
+</h3>
+<p>
+</p><pre>LODRUN   DEV(OPTVRT01)
+</pre>
+<p></p>
+<p>This command restores the program object QINSTAPP from the virtual optical device OPTVRT01 to the library QTEMP.  The filename for the QTEMP library on the optical media is /QTEMP.  Control is then transferred to the restored program. If the file is not found, an escape message is sent.
+</p>
+<h3><strong>Example 5: Restoring the Program QINSTAPP from a Save File</strong>
+</h3>
+<p>
+</p><pre>LODRUN   DEV(*SAVF)  SAVF(MYAPPLIB/MYSAVF)
+</pre>
+<p></p>
+<p>This command restores the program object QINSTAPP from the save file named MYSAVF in library MYAPPLIB to the library QTEMP.  Control is then transferred to the restored program.  If the QINSTAPP program is not found, an escape message is sent.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="LODRUN.ERROR.MESSAGES">Error messages</a> </h2>
+<p>None
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#LODRUN.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

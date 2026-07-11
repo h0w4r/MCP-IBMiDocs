@@ -1,0 +1,265 @@
+Load and Run (LODRUN)
+
+Load and Run (LODRUN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Load and Run Media Program (LODRUN) command restores a user-written program object from a tape device, optical device or a save file into the library QTEMP. The system then transfers control to the restored program.
+
+When the LODRUN command is run:
+
+- The media is searched for the user-written program which must be named QINSTAPP. If the media used is tape or optical, QINSTAPP must have been saved from library QTEMP. If the media used is a save file, QINSTAPP needs to be saved from the same library as the rest of the objects in the save file.
+
+Note: The program QINSTAPP must be owned by a user profile that resides on the target system. If QINSTAPP is restored to a system that does not have the owning user profile, control is not transferred and the program is not run.
+
+- If a QINSTAPP program already exists in the QTEMP library on the user's system, it is deleted.
+
+- The QINSTAPP program is restored to the QTEMP library using the RSTOBJ command.
+
+- The device used for the restore operation is determined by the LODRUN command. If *TAP or *OPT is specified for the Device (DEV) parameter, the LODRUN command examines the QDEVNAMING system value to determine if the system uses IBM i or System/36 naming conventions for devices:
+
+If QDEVNAMING is *NORMAL (IBM i convention)
+
+The device TAP01 is used for DEV(*TAP).
+
+The device OPT01 is used for DEV(*OPT).
+
+If QDEVNAMING is *S36 (System/36 convention)
+
+The device TC is used for DEV(*TAP) if a tape cartridge is found. Otherwise, device T1 is used.
+
+The device OPT01 is used for DEV(*OPT). System/36 naming conventions do not apply to optical devices.
+
+If *SAVF is specified on the DEV parameter, the save file specified for the Save file (SAVF) parameter will be used.
+
+Any other value specified for the DEV parameter is used as is.
+
+- Control of the system is passed to the QINSTAPP program. The QINSTAPP program can be used, for example, to restore other applications to the user's system and run those applications.
+
+- When the user signs off, the QINSTAPP program is removed from the system.
+
+- The settings of three system values work together to determine if the QINSTAPP program is allowed to be restored or if it is converted during the restore. The three system values are:
+
+QVFYOBJRST Verify object restore
+
+QFRCCVNRST Force conversion on restore
+
+QALWOBJRST Allow object restore option
+
+The LODRUN command does not transfer control to the QINSTAPP program if these values do not allow the restore and conversion of the QINSTAPP program.
+
+The user supplying the QINSTAPP program is responsible for writing and supporting it. The QINSTAPP program is not supplied by IBM. The program can be designed to accomplish many different tasks. For example, the program could:
+
+- Restore and run other programs or applications
+
+- Restore a library
+
+- Delete another program or application
+
+- Create specific environments
+
+- Apply fixes to existing applications
+
+The QINSTAPP program is run only once each time the LODRUN command is entered.
+
+The LODRUN command will pass parameter(s) to the QINSTAPP program.
+
+- LODRUN will always pass a 10-character device name. For a tape or optical device name, it specifies the actual device from which the QINSTAPP program is restored. If *SAVF was specified for the DEV parameter, this parameter will contain *SAVF and the qualified save file name will be passed in a second parameter.
+
+- LODRUN will pass a 20-character save file name and library if *SAVF was specified on the DEV parameter. The first 10 characters will contain the save file name. The second 10 characters will contain the save file library.
+
+The QINSTAPP program should not attempt to use the LODRUN command again. This will have unpredictable results.
+
+In addition to writing the QINSTAPP program, the user supplying the program is responsible for providing the user with the media containing the program.
+
+To distribute the program on a tape or optical device, do the following:
+
+- Prepare the media.
+
+For tape, use the Initialize Tape (INZTAP) command.
+
+For optical, use the Initialize Optical (INZOPT) command.
+
+- Ensure the QINSTAPP command exists in QTEMP (for tape or optical), or that it exists in the library being saved into a save file.
+
+- Save objects to media.
+
+For tape
+Use the Save Object (SAVOBJ) command to save the QINSTAPP program from QTEMP to the desired tape device. The program must be the only object in the media file that contains it. Specify the following:
+
+LIB(QTEMP)
+
+LABEL(*LIB)
+
+CLEAR(*ALL)
+
+Specifying LABEL(*LIB) ensures that the label will be QTEMP. If additional applications, programs, or libraries will be saved to the tape, ENDOPT(*LEAVE) also should also be specified.
+
+Save the additional items required by QINSTAPP to tape.
+
+The tape is not rewound after the QINSTAPP program is restored; the application or series of applications that the QINSTAPP program restores to the user's system should be next on the tape.
+
+For optical
+Use the Save Object (SAVOBJ) command to save the QINSTAPP program from QTEMP to the desired optical device. If you wish to save the QINSTAPP program into anything other than the root directory, you must specify the OPTFILE parameter as follows:
+
+OPTFILE('/SubDir1/SubDirN/QTEMP')
+
+Save additional items required by QINSTAPP to the optical device.
+
+For save file
+Ensure all the needed objects are in the library you plan to save into the save file. Then use the SAVLIB or SAVOBJ command to save the library objects into your save file.
+
+For all media types, the correct value for the TGTRLS parameter must also be entered if the target release is not the default, *CURRENT.
+
+Additional items saved to media could be any libraries, library objects, IFS directories, etc. that the QINSTAPP program needs to restore as part of its installation process.
+
+Restriction: The QINSTAPP program that is loaded from the media and called may require specific authority in order to run correctly. The user supplying the QINSTAPP program should inform you if any specific authorities that are required.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DEV | Device | Name, *TAP, *OPT, *SAVF | Optional, Positional 1
+SEQNBR | Sequence number | Decimal number, *FIRST, *SEARCH | Optional
+VOL | Volume identifier | Character value, *MOUNTED | Optional
+DIR | Directory | Character value, '/' | Optional
+SAVF | Save file | Qualified object name | Optional
+Qualifier 1: Save file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+
+Top
+
+Device (DEV)
+
+Specifies the I/O device from which the program is loaded.
+
+This is a required parameter.
+
+*TAP
+The program is loaded from the default tape device connected to the system.
+
+*OPT
+The program is loaded from the default optical device connected to the system.
+
+*SAVF
+The program is loaded from the save file specified for the Save file (SAVF) parameter.
+
+tape-device
+Specify the name of the tape device from which the program is loaded onto the system.
+
+optical-device
+Specify the name of the optical device from which the program is loaded onto the system.
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies, only when tape is used, the sequence number used for the restore operation.
+
+*FIRST
+The volume on a tape device is searched starting from the first data file for a data file with an identifier that is a match for the QTEMP label. When the first match is found, the object is restored.
+
+*SEARCH
+The volume on a tape device is searched starting from the first data file beyond the current tape position for a data file with an identifier that is a match for the QTEMP label. When a match is found, the object is restored.
+
+sequence-number
+Specify the sequence number of the file. Valid values range from 1 through 16777215.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies, only when tape is used, the volume identifier for the tape devices.
+
+*MOUNTED
+The volume currently mounted on the tape device is used.
+
+volume-identifier
+Specify the volume identifier mounted on the tape device.
+
+Top
+
+Directory (DIR)
+
+Specifies, only when an optical device is used, the directory used for the restore operation. If the file named QTEMP is found in the specified directory, the object is restored.
+
+'/'
+The root directory (/) is used.
+
+directory-name
+Specify the directory to search for a file named QTEMP.
+
+Top
+
+Save file (SAVF)
+
+Specifies the save file containing the QINSTAPP program.
+
+Note: A value must be specified for this parameter if *SAVF is specified for the Device (DEV) parameter.
+
+Qualifier 1: Save file
+
+name
+Specify the name of the save file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the job are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the save file. If no current library entry exists in the library list, the QGPL library is used.
+
+name
+Specify the name of the library where the save file is located.
+
+Top
+
+Examples
+
+Example 1: Restoring the Program QINSTAPP from Tape
+
+LODRUN DEV(TAP01)
+
+This command restores the program object QINSTAPP from the tape on device TAP01 to the library QTEMP. Control is then transferred to the restored program.
+
+Example 2: Restoring the Program QINSTAPP from Tape Specifying a Sequence Number
+
+LODRUN DEV(TAP01) SEQNBR(5)
+
+This command restores the program object QINSTAPP from the tape at sequence number 5 on device TAP01 to the library QTEMP. Control is then transferred to the restored program. If the sequence number is not found, an escape message is sent. If the file label at that sequence number is not QTEMP, an escape message is sent.
+
+Example 3: Restoring the Program QINSTAPP from Optical
+
+LODRUN DEV(*OPT) DIR('/APP1/INST')
+
+This command restores the program object QINSTAPP from the media in device OPT01 to the library QTEMP. The filename for the QTEMP library on the optical media is /APP1/INST/QTEMP. Control is then transferred to the restored program. If the file is not found, an escape message is sent.
+
+Example 4: Restoring the Program QINSTAPP from a Virtual Optical Device
+
+LODRUN DEV(OPTVRT01)
+
+This command restores the program object QINSTAPP from the virtual optical device OPTVRT01 to the library QTEMP. The filename for the QTEMP library on the optical media is /QTEMP. Control is then transferred to the restored program. If the file is not found, an escape message is sent.
+
+Example 5: Restoring the Program QINSTAPP from a Save File
+
+LODRUN DEV(*SAVF) SAVF(MYAPPLIB/MYSAVF)
+
+This command restores the program object QINSTAPP from the save file named MYSAVF in library MYAPPLIB to the library QTEMP. Control is then transferred to the restored program. If the QINSTAPP program is not found, an escape message is sent.
+
+Top
+
+Error messages
+
+None
+
+Top

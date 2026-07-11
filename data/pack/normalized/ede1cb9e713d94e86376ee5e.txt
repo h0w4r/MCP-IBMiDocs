@@ -1,0 +1,329 @@
+Create S/36 Message File (CRTS36MSGF)
+
+Create S/36 Message File (CRTS36MSGF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Create System/36 Message File (CRTS36MSGF) command creates a message file from your System/36 message source member. This enables you to convert your System/36 message source to the message source on this system.
+
+System/36 message source consists of 3 types of statements:
+
+- The message control statement must be the first record in the source. Only one control statement is allowed. The control statement has the following syntax:
+
+name<,level>
+
+where: name is the name of the message file being created or changed. The name must start in column 1 of the source record. Level must be a 1 or 2 or a blank, and is separated from the name by a comma. A level 1 indicates that the source is for message text (first-level messages); a level 2 indicates that the source is for online help information (second-level messages). If level is omitted or blank, a first level message is assumed. Anything after the first blank in the control statement is considered to be a comment and is ignored.
+
+- Comment records that start with an asterisk (*) in column 1. All comment records are ignored.
+
+- One or more message text statements may be defined. The message text statement has the following syntax:
+
+mmmm text
+
+where: mmmm is the System/36 Message Identification Code (MIC) and must start in column 1 and consist of 4 digits (0-9). All 4 digits are required. The 7-character message identifier is created by adding the message prefix specified by the MSGPFX parameter in front of the MIC. Column 5 is ignored and should be left blank. Text is the text of the message being defined and starts in column 6. The message text statements must be arranged so that the MICs are not in descending order. If there is insufficient room to define the entire message in a single record, the MIC can be repeated in column 1 of the next record and the text can be continued starting in column 6.
+
+A first level message is restricted to a maximum of 75 characters, and a second level message is restricted to a maximum of 225 characters unless RESTRICT(*NO) is specified. Trailing blanks on the last record for each MIC are not counted. The record length used when processing the SRCMBR is the RCDLEN source attribute for that member. This attribute defaults to the source file record length, but can be set or changed when using the CHGS36SRCA, EDTS36SRCA, or RSTS36LIBM commands. The RCDLEN source attribute is the member's logical record length. If the RCDLEN source attribute is less than the record length of the source file, all characters after the logical record length are ignored. If any record contains any non-blank characters after the logical record length, a diagnostic message is issued as a warning.
+
+Restriction: Option 5 of the operating system must be installed to run this command. This command can be run either natively or in the System/36 environment.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SRCMBR | S/36 message source member | Name | Required, Positional 1
+SRCFILE | S/36 source file | Qualified object name | Optional, Positional 2
+Qualifier 1: S/36 source file | Name, QS36SRC
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MSGLIB | Message file library | Name, *CURLIB | Optional, Positional 3
+REPLACE | Replace message file | *NO, *YES | Optional
+MSGPFX | Message identifier prefix | Name, USR | Optional
+OPTION | Option | *CREATE, *ADD, *CHANGE | Optional
+SUBST | Allow # substitution fields | *YES, *NO | Optional
+RESTRICT | Enforce S/36 restrictions | *YES, *NO | Optional
+AUT | Authority | Name, *USE, *ALL, *CHANGE, *EXCLUDE, *LIBCRTAUT | Optional
+TOFILE | To CL source file | Qualified object name | Optional
+Qualifier 1: To CL source file | Name, QCLSRC, *NONE
+Qualifier 2: Library | Name, *CURLIB
+TOMBR | To CL source member | Name, *NONE, *SRCMBR | Optional
+HALT | Issue msg if error occurs | *YES, *NO, *IGNORE | Optional
+
+Top
+
+S/36 message source member (SRCMBR)
+
+Specifies the source member that is used to create the message file. The first record that is not a comment record in the source member specifies the name of the message file being created or changed. The first record that is not a comment record also specifies whether the text in this source member is for the first-level or second-level message text.
+
+This is a required parameter.
+
+Top
+
+S/36 source file (SRCFILE)
+
+Specifies the source file that is used to create the message file.
+
+QS36SRC
+The source file QS36SRC is used.
+
+file-name
+Specify the name of the source file that contains the member specified on the S/36 message source member (SRCMBR) parameter.
+
+The possible library values are:
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library for the job, the QGPL library is used.
+
+library-name
+Specify the name of the library where the source file is located.
+
+Top
+
+Message file library (MSGLIB)
+
+Specifies the library that is used to store the message file being created.
+
+*CURLIB
+The current library for the job is used to store the message file. If no library is specified as the current library for the job, the QGPL library is used.
+
+*SRCLIB
+The source library is used to store the message file.
+
+library-name
+Specify the name of the library where the created message file is stored.
+
+Top
+
+Replace message file (REPLACE)
+
+Specifies whether or not an existing message file is replaced. This parameter is ignored if OPTION(*CREATE) is not specified.
+
+*NO
+An existing message file is not replaced.
+
+*YES
+An existing file is replaced by the one being created.
+
+Note: The message file is not created if it has the same name and library as an existing program or display file.
+
+If any terminating errors are encountered, the existing message file is not replaced. If the message file already exists, the Authority (AUT) parameter is ignored and all of the authorities for the old message file are copied to the new message file that replaces it.
+
+Top
+
+Message identifier prefix (MSGPFX)
+
+Specifies the message prefix that is used to create messages. The default prefix of USR must be used if the message is used to build a menu.
+
+USR
+The message prefix USR is used.
+
+message-prefix
+Specify the three-character message prefix to use with message identifiers.
+
+Top
+
+Option (OPTION)
+
+Specifies what to do with the message file that is specified in the source member.
+
+*CREATE
+A message file is created with the specified name.
+
+*ADD
+Messages are added to the specified message file.
+
+*UPDATE
+Messages are changed in the specified message file. If a message does not exist, it is created and added to the message file.
+
+Top
+
+Allow # substitution fields (SUBST)
+
+Specifies that System/36 text replacement fields are converted into the notation that represents text replacement fields in message file (*MSGF) objects. Although *YES is the default, not everyone uses text replacement fields and *NO is a way to make sure that a field is not converted by mistake. Replacement fields are represented by a pair of trailing ## symbols in the S/36 source.
+
+*YES
+The replacement text fields are converted. A string of # symbols in the message text source is converted to a replacement text field only when the string occurs at the start or end of the message text, or when the string is preceded and followed by one of the following delimiter characters:
+
+' '
+blank
+
+.
+period
+
+<
+less than
+
+(
+left parenthesis
+
++
+plus
+
+&
+ampersand
+
+*
+asterisk
+
+)
+right parenthesis
+
+;
+semicolon
+
+-
+minus
+
+,
+comma
+
+>
+greater than
+
+?
+question
+
+:
+colon
+
+'
+apostrophe
+
+=
+equal
+
+"
+double quote
+
+*NO
+The replacement text fields are not converted.
+
+Top
+
+Enforce S/36 restrictions (RESTRICT)
+
+Specifies whether System/36 restrictions on message text length are enforced.
+
+*YES
+System/36 restrictions are enforced. Message text is limited to 75 characters. Online help for messages is limited to 225 characters.
+
+*NO
+System/36 restrictions are not enforced.
+
+Top
+
+Authority (AUT)
+
+Specifies the authority you are giving to users who do not have specific authority to the object, who are not on the authorization list, and whose users' group has no specific authority to the object.
+
+If OPTION(*CREATE) and REPLACE(*YES) is specified and the message file already exists, the Authority (AUT) parameter is ignored and all of the authorities for the old message file are copied to the new message file that replaces it. The AUT parameter is always ignored when OPTION (*ADD) or (*UPDATE) is specified.
+
+*LIBCRTAUT
+The authority for the object is the same as the value specified on the Create authority (CRTAUT) parameter of the library in which the object is being created. If the value specified on the CRTAUT parameter is changed, the new value will not affect any existing objects.
+
+*USE
+The user can perform basic operations on the object, such as running a program or reading a file. The user cannot change the object. Use (*USE) authority provides object operational (*OBJOPR), read (*READ), and execute (*EXECUTE) authorities.
+
+*ALL
+The user can perform all operations except those limited to the owner or controlled by authorization list management (*AUTLMGT) authority. The user can control the object's existence, specify the security for the object, change the object, and perform basic functions on the object. The user also can change ownership of the object.
+
+*CHANGE
+The user can perform all operations on the object except those limited to the owner or controlled by object existence (*OBJEXIST) and object management (*OBJMGT) authorities. The user can change and perform basic functions on the object. *CHANGE authority provides object operational (*OBJOPR) authority and all data authority. If the object is an authorization list, the user cannot add, change, or remove users.
+
+*EXCLUDE
+The user cannot access the object.
+
+authorization-list-name
+Specify the name of an authorization list to be used for authority to the object. Users included in the authorization list are granted authority to the object as specified in the list. The authorization list must exist when the object is created.
+
+Top
+
+To CL source file (TOFILE)
+
+Specifies the name and library of the source file in which to store the CL source that was used to create the message file. If the file does not already exist, a new source file is created if the user is authorized to the CRTSRCPF (Create Source Physical File) command.
+
+QCLSRC
+The source file, QCLSRC, is used.
+
+file-name
+Specify the name of the source file in which the source is stored.
+
+The possible library values are:
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library for the job, the QGPL library is used.
+
+library-name
+Specify the name of the library where the source file is located.
+
+Top
+
+To CL source member (TOMBR)
+
+Specifies the name of the source file member in which to store the data description specifications (DDS) source. If the member does not exist, it is created. When the member name is the same as that of the display file name, and the to-file is QS36DDSSRC in the same library as the display file being created, the DDS is saved in this member only if the compile operation of the display file is successful. To guarantee that the DDS is saved, specify the name of some other source file, library, or member.
+
+*NONE
+The CL source is not stored in the source file specified on the To CL source file (TOFILE) parameter.
+
+*SRCMBR
+If no member name is specified, the member name specified on the S/36 message source member (SRCMBR) parameter is used. The same name and library should not be specified for both the TOFILE parameter and the SRCFILE parameter, since this would destroy your original System/36 message source.
+
+member-name
+Specify the name of the source file member in which to store the CL source. The specified member is replaced if it exists. If it does not exist, it is created. If any terminating errors are encountered, the member is not added or changed.
+
+Top
+
+Issue msg if error occurs (HALT)
+
+Specifies whether processing stops when an error is detected.
+
+*YES
+The request ends with an error message.
+
+*NO
+The request ends with a diagnostic message, and a return code of 2034 is set.
+
+*IGNORE
+If an error that can be ignored is detected in the source, a diagnostic message is issued, and the current source statement is ignored. Processing continues with the next source statement. If the error cannot be ignored, processing stops and an error message is issued.
+
+Top
+
+Examples
+
+CRTS36MSGF SRCMBR(MYMSGSRC) SRCFILE(MYLIB/QS36SRC)
+MSGLIB(WORKLIB) REPLACE(*YES)
+
+This command creates a message file named MYMSGSRC in library WORKLIB. If a message file with the same name already exists, this new message file replaces the existing one.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+SSP1727
+Message file &1 not found in library &2.
+
+SSP5017
+TOFILE library &1 not found.
+
+SSP6124
+Unexpected error occurred.
+
+SSP7375
+Error &1 received by &2 utility.
+
+SSP8663
+User not authorized to access &1.
+
+Top

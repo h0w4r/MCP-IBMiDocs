@@ -1,0 +1,2722 @@
+Receive Journal Entry (RCVJRNE)
+
+Receive Journal Entry (RCVJRNE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Receive Journal Entry (RCVJRNE) command allows a specified user exit program to continuously receive journal entries. This program can be set up, for example, to write the entries either (1) to an ICF file, supplying updates to a file on a backup system, or (2) on a tape, imitating a journal-to-tape function. The information in the journal entries received can be used to update the objects being journaled to minimize the loss of data in the event of a disk failure, and to update objects on a backup system in case of a system failure on the primary system.
+
+The value specified on the ENTFMT parameter determines the format of the journal entries passed to the exit program.
+
+The following authorizations are required:
+
+- *USE is required to the journal. *OBJEXIST is also required if no objects are specified or FILE(*ALLFILE) is specified, or if *IGNFILSLT or *IGNOBJSLT is specified for any journal code selected on the JRNCODE parameter, or if the journal is a remote journal, or if the JID parameter is specified.
+
+- *USE is required to all journal receivers specified on the RCVRNG parameter.
+
+- *USE is required for all objects that exist on the system in the QSYS file system that are specified on the FILE and OBJ paramters.
+
+- *R is required for all objects in the integrated file system that are specified on the OBJPATH parameter, and all objects on the system in the integrated file system specified on the OBJFID parameter. *X is also required for all directories if SUBTREE(*ALL) is specified.
+
+Restrictions:
+
+- If the sequence number is reset in the range of the receivers specified, the first occurrence of FROMENTLRG or FROMENT is used, if they are specified. If TOENTLRG or TOENT is specified, the first occurrence after the FROMENTLRG or FROMENT entry is used, if FROMENTLRG or FROMENT is specified. Otherwise the first occurrence is used.
+
+- The FILE, OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, OBJJID, JRNCDE, ENTTYP, JOB, PGM, USRPRF, CCIDLRG, CMTCYCID, and DEPENT parameters can be used to specify a subset of all available entries within a range of journal entries.
+
+If no values are specified using these parameters, all available journal entries are received.
+
+If more than one of these parameters are specified, then a journal entry must satisfy all of the values specified on these parameters, except when *IGNFILSLT or *IGNOBJSLT is specified on the JRNCDE parameter.
+
+If a journal code is specified on the JRNCDE parameter and *IGNFILSLT is the second element of that journal code, then journal entries with the specified journal code are selected if they satisfy all selection criteria except what is specified on the FILE parameter.
+
+If a journal code is specified on the JRNCDE parameter and *IGNOBJSLT is the second element of that journal code, then journal entries with the specified journal code are selected if they satisfy all selection criteria except what is specified on the OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, and OBJJID parameters.
+
+- The JOB, PGM, and USRPRF parameters cannot be used to specify selection criteria if one or more journal receivers in the specified receiver range was attached to the journal when a receiver size option (RCVSIZOPT) or a fixed length data option (FIXLENDTA) that would have omitted this data was in effect.
+
+- If more than the maximum number of objects is identified (32767 objects), an error occurs and no entries are received. This restriction is ignored if *ALLFILE is specified or no objects are specified.
+
+- When journal caching is being used, entries that are in the cache are not returned.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JRN | Journal | Qualified object name | Required, Positional 1
+Qualifier 1: Journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+EXITPGM | Program to receive entries | Qualified object name | Required, Positional 2
+Qualifier 1: Program to receive entries | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FILE | Journaled file | Single values: *ALLFILE
+Other values (up to 300 repetitions): Element list | Optional, Positional 3
+Element 1: File | Qualified object name
+Qualifier 1: File | Name, *ALL
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Member | Name, *FIRST, *ALL, *NONE
+OBJ | Objects | Values (up to 300 repetitions): Element list | Optional
+Element 1: Object | Qualified object name
+Qualifier 1: Object | Name, *ALL
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Object type | *FILE, *DTAARA, *DTAQ, *LIB
+Element 3: Member, if data base file | Name, *FIRST, *ALL, *NONE
+OBJPATH | Objects | Values (up to 300 repetitions): Element list | Optional
+Element 1: Name | Path name
+Element 2: Include or omit | *INCLUDE, *OMIT
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+PATTERN | Name pattern | Values (up to 20 repetitions): Element list | Optional
+Element 1: Pattern | Character value, *
+Element 2: Include or omit | *INCLUDE, *OMIT
+RCVRNG | Range of journal receivers | Single values: *CURRENT, *CURCHAIN, *CURAVLCHN, *CURSEQCHN
+Other values: Element list | Optional, Positional 4
+Element 1: Starting journal receiver | Qualified object name
+Qualifier 1: Starting journal receiver | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Ending journal receiver | Single values: *CURRENT
+Other values: Qualified object name
+Qualifier 1: Ending journal receiver | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMENTLRG | Starting large sequence number | Character value, *FIRST | Optional
+FROMTIME | Starting date and time | Element list | Optional
+Element 1: Starting date | Date
+Element 2: Starting time | Time
+TOENTLRG | Ending large sequence number | Character value, *LAST, *NONE | Optional
+TOTIME | Ending date and time | Element list | Optional
+Element 1: Ending date | Date
+Element 2: Ending time | Time
+NBRENT | Number of journal entries | Integer, *ALL | Optional
+JRNCDE | Journal codes | Single values: *ALL, *CTL
+Other values (up to 16 repetitions): Element list | Optional
+Element 1: Journal code value | A, B, C, D, E, F, J, L, M, P, R, Q, S, T, U, Y
+Element 2: Journal code selection | *ALLSLT, *IGNFILSLT, *IGNOBJSLT
+ENTTYP | Journal entry types | Single values: *ALL, *RCD
+Other values (up to 300 repetitions): Character value | Optional
+JOB | Job name | Single values: *ALL, *
+Other values: Qualified job name | Optional
+Qualifier 1: Job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+PGM | Program | Name, *ALL | Optional
+USRPRF | User profile | Name, *ALL | Optional
+CCIDLRG | Commit cycle large identifier | Character value, *ALL | Optional
+DEPENT | Dependent entries | *ALL, *NONE | Optional
+OBJFID | File identifier | Values (up to 300 repetitions): Hexadecimal value | Optional
+OBJJID | Object journal identifier | Values (up to 300 repetitions): Hexadecimal value | Optional
+ENTFMT | Entry format | *TYPE1, *TYPE2, *TYPE3, *TYPE4, *TYPEPTR, *JRNENTFMT | Optional
+FMTMINDTA | Format minimized data | *NO, *YES | Optional
+NULLINDLEN | Null value indicators length | Single values: *ENTFMT
+Other values: Element list | Optional
+Element 1: Field data format | 1-8000, *VARLEN
+Element 2: Variable length field length | 1-8000
+DELAY | Delay time | Element list | Optional
+Element 1: Delay time value | 1-99999, 30, *NEXTENT
+Element 2: Maximum delay time value | 1-99999, *CLS
+BLKLEN | Block length | 32-4000, *NONE, *CALC | Optional
+JRNENTFMT | Journal entry format | RJNE0100, RJNE0200 | Optional
+RTNPTR | Return pointers | *NONE, *SYSMNG, *USRMNG | Optional
+INCENT | Include entries | *CONFIRMED, *ALL | Optional
+FROMENT | Starting sequence number | 1-9999999999, *FIRST | Optional
+TOENT | Ending sequence number | 1-9999999999, *LAST, *NONE | Optional
+CMTCYCID | Commit cycle identifier | 1-9999999999, *ALL | Optional
+
+Top
+
+Journal (JRN)
+
+Specifies the journal from which the journal entries are received.
+
+This is a required parameter.
+
+Qualifier 1: Journal
+
+journal-name
+Specify the name of the journal.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Program to receive entries (EXITPGM)
+
+Specifies a user-written exit program that controls the receiving of each journal entry passed from the command. Additional information on the interface between this command and the exit program is supplied after the listing of possible values for this parameter, and is described in more detail in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "receiving journal entries in an exit program".
+
+This is a required parameter.
+
+Qualifier 1: Program to receive entries
+
+program-name
+Specify the name of the exit program that controls the reception of each journal entry passed from the command.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the program. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the program is located.
+
+Additional Information on the Exit Program Interface
+
+When the program is called, two parameters are passed to it at a time. A single journal entry or a block of journal entries is passed in the first parameter.
+
+- If a single journal entry is passed, and if the length of the parameter defined by the program is smaller than the length of the journal entry, the journal entry passed to the program is truncated. If the length of the parameter defined by the program is greater than the length of the journal entry, the parameter positions beyond the length of the journal entry contain nonessential information. The user's program should not specifically refer to data in the positions beyond the length of the journal entry.
+
+- If BLKLEN(*NONE) was specified, then the exit program may indicate to the system that multiple entries should be returned in subsequent calls to the exit program by specifying 8 in the first byte of the second parameter. This is called "Block Mode" and the exit program must specify the size of the block in bytes as a zoned value in the first 5 bytes of the first parameter. If an error is made in this specification, only one journal entry is passed in the block. If BLKLEN(*NONE) was not specified, then specifying 8 in the first byte of the second parameter will have no effect and the first 5 bytes of the first parameter will be ignored.
+
+- If pointers are being returned, this first parameter must be aligned on a 16-byte boundary since journal entry specific data could include actual pointers.
+
+For *TYPE1, *TYPE2, *TYPE3 and *TYPE4 formats there is a zoned journal entry length field that is filled with zeros at the end of the single journal entry or block of journal entries passed. This field indicates that the last journal entry has been passed. The format of the information in each journal entry is shown in the ENTFMT parameter description. The format of the first parameter is detailed in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: The maximum length of the parameter specification in the exit program is language dependent (for example, for CL, the maximum length is 9999). For more information about limitations refer to the corresponding programming language book.
+
+A character variable of LEN(3) is passed in the second exit program parameter. This parameter will be passed from the system to the exit program and can be passed from the exit program to the system. Its values are presented in the following lists:
+
+- Information in the first byte of the second parameter:
+
+Char(1)
+Passed to the Exit Program
+
+0
+No journal entry is passed on this call of the exit program.
+
+1
+A single journal entry is passed to the exit program.
+
+2
+A block of one or more journal entries is passed to the exit program.
+
+3
+No journal entry is passed on this call to the exit program, and no more entries can be passed, because the journal receiver that was attached when the receive journal entry operation started is no longer attached.
+
+Note: The system ends the RCVJRNE command after calling the exit program once with a reason code of 3.
+
+4
+No journal entry is passed on this call to the exit program, and no more entries can be passed unless the remote journal is activated.
+
+Note: This value can only be passed to the exit program when receiving journal entries from the attached receiver of a remote journal and the journal state for the journal is currently *INACTIVE.
+
+Char(1)
+Passed to the System from the Exit Program
+
+8
+Requests the command processing program to start passing one or more journal entries in a block. If BLKLEN(*NONE) was not specified, then specifying 8 in the first byte of the second parameter will have no effect and the first 5 bytes of the first parameter will be ignored.
+
+9
+Requests the RCVJRNE command to end. The exit program returns control to the system.
+
+- Information in the second byte of the second parameter:
+
+Char(1)
+Passed to the Exit Program
+
+N
+Additional journal entries are not currently available to be passed after this call of the exit program, or the RCVJRNE command will be ending after this call of the exit program.
+
+Y
+Additional journal entries are currently available to be passed after this call of the exit program.
+
+Any information passed from the exit program to the system in this second character will be ignored.
+
+This second byte of the second exit program parameter is provided whether journal entries are being passed as a single journal entry per call of the exit program, or as a block of journal entries per call.
+
+- Information in the third byte of the second parameter:
+
+Char(1)
+Passed to the Exit Program
+
+'00'x
+One or more journal entries are being passed to the exit program and the object names in the fixed length portion of each journal entry do not necessarily reflect the name of the object at the time the journal entry was deposited into the journal.
+
+Note: This value is returned only when receiving journal entries from a journal receiver that was attached to a journal prior to V4R2M0.
+
+0
+No journal entries are currently being passed, so the information normally returned in this byte is not applicable.
+
+1
+One or more journal entries are being passed to the exit program and the object names in the fixed length portion of each journal entry reflect the name of the object at the time the journal entry was deposited into the journal.
+
+2
+One or more journal entries are being passed to the exit program and the object names in the fixed length portion of each journal entry do not necessarily reflect the name of the object at the time the journal entry was deposited into the journal. The object name in the fixed length portion of the journal entry may be returned as a previously known name for the object prior to the journal entry being deposited into the journal or be returned as *UNKNOWN.
+
+Note: This value will only be returned when receiving journal entries from a remote journal and the remote journal is currently being caught up from its source journal. A remote journal is being caught up from its source journal when the Change Remote Journal (CHGRMTJRN) command or Change Journal State (QjoChangeJournalState) API is invoked and is currently replicating journal entries to the remote journal. After the call to the CHGRMTJRN command or QjoChangeJournalState API returns, the remote journal is maintained with a synchronous or asynchronous delivery mode, and the remote journal is no longer being caught up.
+
+3
+One or more journal entries are being passed to the exit program and the object names in the fixed length portion of each journal entry do not necessarily reflect the name of the object at the time the journal entry was deposited into the journal. The object name in the fixed length portion of the journal entry may be returned as *UNKNOWN.
+
+Any information passed from the exit program to the system in the third byte will be ignored. The second byte of the second exit program parameter is provided whether journal entries are being passed as a single journal entry per call of the exit program, or as a block of journal entries per call.
+
+Note: When an N is passed to the exit program in the second byte of the second parameter indicating that no additional journal entries are currently available, it does not necessarily mean that when the exit program returns, that the RCVJRNE command will have to wait for additional journal entries to be deposited into the journal. By the time the exit program returns, additional journal entries may already be available and depending upon what was specified on the DELAY parameter, may or may not be immediately passed to the exit program. If DELAY(N) was specified the system will wait N seconds before passing the journal entries to the exit program. If DELAY(*NEXTENT) was specified, the journal entries will immediately be passed to the exit program.
+
+The third byte of the second exit program parameter is provided whether journal entries are being processed as a single journal entry per call of the exit program, or as a block of journal entries per call. When returned for a block of journal entries, the attribute applies to the object names for all of the journal entries being returned in the block.
+
+For more information on the exit program and these two parameters used to receive the journal entries, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Journaled physical file (FILE)
+
+Specifies a maximum of 300 qualified file names whose journal entries are received. This parameter also specifies the names of the physical file members whose journal entries are to be received.
+
+Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+
+To determine which journal entries are to be received, based on the specified file or physical file member name, the following is done:
+
+- If the journal is a local journal, and if the specified file or physical file member currently exists on the system, the journal identifier is determined from the specified file or physical file member. All journal entries in the specified receiver range for that journal identifier are received.
+
+- If the journal is a remote journal, or if the specified file or physical file member does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified file or physical file member. All journal entries in the specified receiver range for those journal identifiers are received. Specify the library name or *CURLIB to have entries returned for the file.
+There may be more than one journal identifier associated with a specified object within the specified receiver range. This can happen when a journaled object is deleted, and then a new object is created with the same name and journaled to the same journal.
+
+Notes:
+
+- The journal identifier is the unique identifier associated with the object when journaling is started for that object. The journal identifier stays constant, even if the object is renamed, moved, or restored. See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+- When specifying a database file on this parameter, journal entries with the following journal code values are received only if they satisfy the values specified on the other parameters:
+
+Journal code D (database file-level information entries).
+
+Journal code F (file member-level information entries).
+
+Journal code R (record-level information entries).
+
+Journal code U (user-generated entries).
+
+Other journal codes, if *IGNFILSLT is specified on that journal code. If *ALLSLT is specified on that journal code, no journal entries with that code are received.
+
+Single values
+
+*ALLFILE
+The search for the journal entries received is not limited to a specified file name. All journal entries are received, regardless of which objects, if any, the entries are associated with.
+
+Element 1: Journaled physical file
+
+Qualifier 1: Journaled physical file
+
+*ALL
+Journal entries for all physical and logical files in the specified library (the library name must be specified) whose journaled changes are currently in the journal receiver are received. If *ALL is specified and the user does not have the required authority to all of the files, an error occurs, and the command ends.
+
+file-name
+Specify the name of the database physical or logical file for which a journal entry is received.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Element 2: Member
+
+*FIRST
+Entries for the database physical file and the first member in the file are received. This value is not valid for remote journals.
+
+*ALL
+Entries for the database physical file and all the currently existing members of the file are received.
+
+*NONE
+Only entries for the database file are received. Entries for members of the file are not received.
+
+member-name
+Specify the name of the member for which journal entries are received.
+
+If *ALL is specified for the file-name element, this member name is used for all applicable physical files in the library. For example, if library-name/*ALL *FIRST is specified on the FILE parameter, the journal entries of the first members of all applicable physical files in the specified library are received.
+
+Top
+
+Objects (OBJ)
+
+Specifies a maximum of 300 qualified object names whose journal entries are to be received. The possible object types are *FILE, *DTAARA, *DTAQ, and *LIB. If *FILE is specified, this parameter also specifies the name of the physical file member whose journal entries are to be received.
+
+Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+
+To determine which journal entries are to be received, based on the specified object name, the following is done:
+
+- If the journal is a local journal, and if the specified object currently exists on the system, the journal identifier is determined from the specified object. All journal entries in the specified receiver range for that journal identifier are received.
+
+- If the journal is a remote journal, or if the specified object does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified object. All journal entries in the specified receiver range for those journal identifiers are received. Specify the library name or *CURLIB to have entries returned for an object.
+There may be more than one journal identifier associated with a specified object within the specified receiver range. This can happen when a journaled object is deleted, and then a new object is created with the same name and journaled to the same journal.
+
+Notes:
+
+- The journal identifier is the unique identifier associated with the object when journaling is started for that object. The journal identifier stays constant, even if the object is renamed, moved or restored. See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+- When specifying an object on this parameter, journal entries with the following journal code values are received only if they satisfy the values specified on the other parameters in addition to the object name specification:
+
+Journal code D (database file-level information entries).
+
+Journal code E (data area information entries).
+
+Journal code F (file member-level information entries).
+
+Journal code Q (data queue information entries).
+
+Journal code R (record-level information entries).
+
+Journal code U (user-generated entries).
+
+Journal code Y (library information entries).
+
+Other journal codes, if *IGNOBJSLT is the second element of the journal code. If *ALLSLT is the second element of the journal code, no journal entries with that code are received.
+
+Element 1: Object
+
+Qualifier 1: Object
+
+*ALL
+Journal entries for all objects of the specified object type in the specified library (the library name must be specified) whose journaled changes are currently in the journal receiver are received. The library name must be specified. If *ALL is specified and the user does not have the required authority for all objects in the library, a message is sent and the command ends.
+
+object-name
+Specify the name of the object whose journaled changes are to be received.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Element 2: Object type
+
+Specify the object type of the object whose journaled changes are to be received.
+
+*FILE
+Entries for database files and database physical file members are received.
+
+*DTAARA
+Entries for data areas are received.
+
+*DTAQ
+Entries for data queues are received.
+
+*LIB
+Entries for libraries are received.
+
+Element 3: Member, if data base file
+
+Specify the name of the member in the physical file whose journal entries are to be received. If *ALL is specified for the first part of this parameter, the value specified for the member name is used for all applicable physical files in the library. For example, if *FIRST is specified, the journal entries of the first member of all applicable physical files in the specified library are received
+
+Note: If the specified object type is not *FILE, the member name element value is ignored.
+
+*FIRST
+Entries for the database physical file and the first member in the file are received. This value is not valid for remote journals.
+
+*ALL
+Entries for the database physical file and all the currently existing members of the file are received.
+
+*NONE
+Only entries for the database file are received. Entries for members of the file are not received.
+
+member-name
+Specify the name of the member for which journal entries are received.
+
+If *ALL is specified for the object-name element, this member name is used for all applicable physical files in the library. For example, if library-name/*ALL *FILE *FIRST is specified on the OBJ parameter, the journal entries of the first members of all applicable physical files in the specified library are received.
+
+Top
+
+Objects (OBJPATH)
+
+Specifies a maximum of 300 objects whose journal entries are to be received. Only objects whose path name identifies an object of type *STMF, *DIR or *SYMLNK that are in the "root" (/), QOpenSys, and user-defined file systems are supported. All other objects are ignored.
+
+This parameter is not valid for remote journals.
+
+Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+
+Only objects that are currently linked with the specified path name and have a journal identifier associated with them are used in journal entry selection. If the specified object does exist, the journal identifier associated with that link is used for journal entry selection. If a specified object does not exist or does not have a journal identifier associated with it, that link is not used in selecting journal entries and no error is sent.
+
+Notes:
+
+- The journal identifier is the unique identifier associated with the object when journaling is started for that object. The journal identifier stays constant, even if the object is renamed, moved or restored. See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+- When specifying an object on this parameter, journal entries with the following journal code values are received only if they satisfy the values specified on the other parameters in addition to the object name specification:
+
+Journal code B (integrated file system information entries).
+
+Journal code U (user-generated entries).
+
+Other journal codes, if *IGNOBJSLT is the second element of the journal code. If *ALLSLT is the second element of the journal code, no journal entries with that code are received.
+
+Element 1: Name
+
+path-name
+Entries for objects identified by the path name are received.
+A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes. Symbolic links within the path name will not be followed. If the path name begins with the tilde character, then the path is assumed to be relative to the appropriate home directory.
+
+Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Element 2: Include or omit
+
+The second element specifies whether names that match the path name should be included or omitted from the operation. Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+
+*INCLUDE
+The objects that match the object name pattern are to be included in determining what journal entries are received unless overridden by an *OMIT specification.
+
+*OMIT
+The objects that match the object name pattern are not to be included in determining what journal entries are received. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether the directory subtrees are included in determining the objects for which journal entries are to be received.
+
+Note: This parameter is only valid if one or more path names were specified on the OBJPATH parameter.
+
+*NONE
+Only the objects that match the selection criteria are processed. The objects within selected directories are not implicitly processed.
+
+*ALL
+All objects that meet the selection criteria are processed in addition to the entire subtree of each directory that matches the selection criteria. The subtree includes all subdirectories and the objects within those subdirectories.
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Name pattern (PATTERN)
+
+Specifies a maximum of 20 patterns to be used to include or omit objects for which journal entries are to be received.
+
+Only the last part of the path name will be considered for the name pattern match. Path name delimiters are not allowed in the name pattern. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+If the Name Pattern parameter is not specified the default will be to match all patterns.
+
+Note: This parameter is only valid if one or more path names were specified on the OBJPATH parameter.
+
+Element 1: Pattern
+
+'*'
+All objects that match the input OBJPATH parameter are to be included.
+
+name-pattern
+Specify the pattern to be used to include or omit objects for which journal entries are received. Only the last part of the path name will be considered for the name pattern match. Path name delimiters are not allowed in the name pattern.
+
+If the Name Pattern parameter is not specified the default will be to match all patterns.
+
+Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Element 2: Include or omit
+
+The second element specifies whether names that match the pattern should be included or omitted from the operation. Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+
+*INCLUDE
+The objects that match the object name pattern are included in the operation, unless overridden by an *OMIT specification.
+
+*OMIT
+The objects that match the object name pattern are not to be included in the operation. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+
+Top
+
+Range of journal receivers (RCVRNG)
+
+Specifies the starting (first) and ending (last) journal receivers used in the search for the journal entries that are received. The system starts the search with the starting journal receiver (as specified by the first value) and proceeds through the receiver chain until the ending journal receiver (as specified by the last value) is processed.
+
+If a problem is found in the receiver chain (such as damaged or not-found receivers) before the search operation begins, the system tries to use the second of the dual receivers. If these receivers also are damaged or not found, the operation ends.
+
+Single values
+
+*CURRENT
+The journal receiver that is currently attached when starting to receive journal entries is used.
+
+*CURCHAIN
+The journal receiver chain that includes the journal receiver that is currently attached when starting to receive journal entries is used. This receiver chain does not cross a break in the chain. If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to receive journal entries.
+
+*CURAVLCHN
+The journal receiver chain that includes the journal receiver that is attached when starting to receive journal entries is used. This receiver chain does not cross a break in the chain. If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to receive journal entries. If journal receivers exist in the receiver chain that are not available because they were saved with the storage freed option, those journal receivers will be ignored and entries will be received starting with the first available journal receiver in the chain.
+
+*CURSEQCHN
+The journal receiver chain that includes the journal receiver that is attached when starting to convert journal entries is used, starting with the most recent journal receiver in which the journal sequence number was reset if the journal sequence number was reset in the receiver chain. This receiver chain does not cross a break in the chain. If there is a break in the chain, the receiver range is from the most recent break in the chain through the receiver that is attached when starting to convert journal entries. If journal receivers exist in the receiver chain that are not available because they were saved with the storage freed option, those journal receivers will be ignored and entries will be converted starting with the first available journal receiver in the chain.
+
+Element 1: Starting journal receiver
+
+Qualifier 1: Starting journal receiver
+
+starting-journal-receiver-name
+Specify the name of the first journal receiver containing journal entries that are to be received.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the journal receiver. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the journal receiver is located.
+
+Element 2: Ending journal receiver
+
+Single values
+
+*CURRENT
+The journal receiver that is currently attached when starting to receive journal entries is used.
+
+Qualifier 1: Starting journal receiver
+
+ending-journal-receiver-name
+Specify the name of the last journal receiver containing journal entries that can be received. If the end of the receiver chain is reached before a receiver with this name is found, an error message is sent and no journal entries are received.
+
+Note: The maximum number of receivers in the range is 2045. If more receivers than this maximum are specified, an exception is signaled, and no journal entries are received.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the journal receiver. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the journal receiver is located.
+
+Top
+
+Starting large sequence number (FROMENTLRG)
+
+Specifies the first journal entry considered for reception.
+
+Note: You can specify a value for either the Starting sequence number (FROMENT) parameter or the Starting large sequence number (FROMENTLRG) parameter, but not for both.
+
+*FIRST
+The first journal entry in the specified journal receiver range is the first entry considered for reception.
+
+starting-sequence-number
+Specify the sequence number of the first journal entry considered for reception. The possible range is 1 to 18,446,744,073,709,551,600.
+
+Top
+
+Starting date and time (FROMTIME)
+
+Specifies the date and time of the first journal entry considered for reception. The starting date and time of the first journal entry created either at or after the specified starting date and time is the starting point for reception of the journal entries.
+
+Element 1: Starting date
+
+starting-date
+Specify a starting date.
+
+Element 2: Starting time
+
+starting-time
+Specify a starting time. The time can be specified in 24-hour format with or without a time separator:
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+
+Top
+
+Ending large sequence number (TOENTLRG)
+
+Specifies the last journal entry considered for reception.
+
+Note: You can specify a value for either the Ending sequence number (TOENT) parameter or the Ending large sequence number (TOENTLRG) parameter, but not for both.
+
+*NONE
+No journal entry is specified. Journal entries are passed to the exit program until the command is canceled (by a cancel request or a cancel job command) or until an end reason code (9) is set by the exit program. If there are no more entries to pass, the RCVJRNE command waits the number of seconds indicated on the DELAY parameter before trying to find more entries to pass.
+
+Note: TOENTLRG(*NONE) is valid only if the RCVRNG parameter specifies a receiver that is currently attached when starting to receive journal entries.
+
+*LAST
+The last journal entry in the journal receiver range specified is the last entry considered for reception.
+
+ending-sequence-number
+Specify the sequence number of the final journal entry considered for reception. The possible range is 1 to 18,446,744,073,709,551,600.
+
+Note: The values specified for the from and to prompts can be the same. For example, FROMENTLRG(234) and TOENTLRG(234) can be specified.
+
+Top
+
+Ending date and time (TOTIME)
+
+Specifies the date and time of the last journal entry considered for reception. The ending date and time of the journal entry created at or before the specified ending date and time is the ending point for reception of the journal entries.
+
+Element 1: Ending date
+
+ending-date
+Specify the date of the last entry received.
+
+Element 2: Ending time
+
+ending-time
+Specify the creation time of the last entry received. The time can be specified in 24-hour format with or without a time separator:
+
+- Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+
+- With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds. If you enter this command from the command line, the string must be enclosed in apostrophes. If a time separator other than the separator specified for your job is used, this command will fail.
+
+Top
+
+Number of journal entries (NBRENT)
+
+Specifies the total number of journal entries that are received.
+
+*ALL
+All journal entries included in the specified journal receiver range that satisfy the selection values are received.
+
+value
+Specify the maximum number of journal entries be received. If the specified journal entry identified by the TOENTLRG, TOENT, or TOTIME parameter is reached before the value specified for NBRENT is met, the command ends normally.
+
+Top
+
+Journal codes (JRNCDE)
+
+Specifies the journal code that is used to limit the entries being considered for reception.
+
+Single values
+
+*ALL
+The journal entries received are not limited to those containing a specified code.
+
+*CTL
+The journal entries received are those written to control the journal functions. These journal entries have codes J or F.
+
+Element 1: Journal code value
+
+journal-code
+Specify the journal code to which journal entries are limited. Only journal entries with the specified journal code are received.
+An explanation of the journal codes that can be specified is in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+
+Element 2: Journal code selection
+
+*ALLSLT
+The journal entries with the specified journal code are received only if all other selection parameters are satisfied.
+
+*IGNFILSLT
+Journal entries having the specified journal code are received only if all selection parameters, except the FILE parameter, are satisfied.
+
+Note: This value is not valid for journal codes D, F, and R. This value is not valid if the OBJ, OBJPATH, OBJFID, or OBJJID parameters are specified.
+
+*IGNOBJSLT
+Journal entries having the specified journal code are received only if all selection parameters are satisfied except OBJ, OBJPATH, OBJFID, SUBTREE, PATTERN, and OBJJID.
+
+Note: This value is not valid for journal codes B, D, E, F, Q, R, and Y. This value is not valid if the FILE parameter is specified.
+
+Top
+
+Journal entry types (ENTTYP)
+
+Specifies whether to limit the journal entries received to those of a specified journal entry type.
+
+Single values
+
+*ALL
+The journal entries that can be received are not limited to those of a specified journal entry type.
+
+*RCD
+Only entries that have an entry type for record level operations are received. The following entry types are valid: BR, DL, DR, IL, PT, PX, UB, UP, and UR.
+
+Other values
+
+entry-type
+Specify the entry type that limits the journal entries received. Only journal entries that contain the specified entry type are received. Up to 300 valid entry types can be specified. More information on entry types is in the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+
+Top
+
+Job name (JOB)
+
+Specifies the journal entries considered for reception based on their associated jobs.
+
+Single values
+
+*ALL
+The journal entries received are not limited to those for a specified job.
+
+*
+The journal entries received are limited to those for the current job.
+
+Other values
+
+job-identifier
+Specify the job name, the user name, and the job number of the job to use. You can also specify that the job name only, or that the job name and the user name be used.
+
+job-name
+Specify the job name of the job.
+
+user-name
+Specify the user name of the job.
+
+job-number
+Specify the system-assigned job number.
+
+Top
+
+Program (PGM)
+
+Specifies the journal entries considered for reception based on their associated programs.
+
+*ALL
+The journal entries received are not limited to those created by a specified program.
+
+program-name
+Specify the name of the program whose journal entries are considered for reception.
+
+Top
+
+User profile (USRPRF)
+
+Specifies that the journal entries considered for reception are limited to the journal entries created for the specified user profile.
+
+*ALL
+The journal entries received are not limited to those for a specified user profile.
+
+user-profile-name
+Specify the name of the user profile whose journal entries are considered for reception.
+
+Top
+
+Commit cycle large identifier (CCIDLRG)
+
+Specifies the journal entries considered for reception based on their associated commit cycle identifier. A commit cycle consists of all journal entries sharing the same commit cycle identifier. A journal entry's commit cycle identifier can be displayed by using the Display Journal (DSPJRN) command and entering option five.
+
+Note: You can input a value for either the Commit cycle identifier field (CMTCYCID) or the Commit cycle large identifier field (CCIDLRG) but not for both.
+
+*ALL
+The journal entries received are not limited to a specified commit cycle identifier.
+
+commit-cycle-identifier
+Specify the commit cycle identifier of the journal entries to be considered for reception. The possible range is 1 to 18,446,744,073,709,551,600.
+
+Top
+
+Dependent entries (DEPENT)
+
+Specifies whether to receive the journal entries recording actions
+
+- that occur as a result of a trigger program
+
+- on records that are part of a referential constraint
+
+- that will be ignored during an Apply Journaled Changes (APYJRNCHG) or Remove Journaled Changes (RMVJRNCHG) operation.
+
+*ALL
+The journal entries relating to trigger programs, referential constraints and the entries which will be ignored by an Apply or Remove Journaled Changes operations are received.
+
+*NONE
+The journal entries relating to trigger programs, referential constraints and the entries which will be ignored by an Apply or Remove Journaled Changes operations are not received.
+
+Top
+
+File identifier (OBJFID)
+
+Specifies a maximum of 300 file identifiers (FID) for which journal entries are to be received. FIDs are a unique identifier associated with integrated file system related objects. This field is input in hexadecimal format. Only objects whose FID identifies an object of type *STMF, *DIR or *SYMLNK that are in the "root" (/), QOpenSys, and user-defined file systems are supported. All other objects are ignored.
+
+Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+
+To determine which journal entries are to be received, based on the specified file identifier, the following is done:
+
+- If the journal is a local journal, and if the specified object currently exists on the system, the journal identifier is determined from the specified object. All journal entries in the specified receiver range for that journal identifier are received.
+
+- If the journal is a remote journal, or if the specified object does not currently exist on the system, the specified receiver range is searched to determine all possible journal identifiers that are associated with the specified object. All journal entries in the specified receiver range for those journal identifiers are received.
+
+Notes:
+
+- The journal identifier is the unique identifier associated with the object when journaling is started for that object. The journal identifier stays constant, even if the object is renamed, moved or restored. See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+- When specifying an object on this parameter, journal entries with the following journal code values are received only if they satisfy the values specified on the other parameters in addition to the FID specification:
+
+Journal code B (integrated file system information entries).
+
+Journal code U (user-generated entries).
+
+Other journal codes, if *IGNOBJSLT is the second element of the journal code. If *ALLSLT is the second element of the journal code, no journal entries with that code are received.
+
+file-identifier
+Entries for objects identified with the FID are received.
+
+Top
+
+Object journal identifier (OBJJID)
+
+Specifies a maximum of 300 journal identifiers for which journal entries are to be received. This field is input in hexadecimal format. Hexadecimal zero is not valid.
+
+Either the FILE parameter may be specified, or one or more of the object parameters (OBJ, OBJPATH, OBJFID, or OBJJID) may be specified, but not both.
+
+Notes:
+
+- The journal identifier is the unique identifier associated with the object when journaling is started for that object. The journal identifier stays constant, even if the object is renamed, moved or restored. See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+- When specifying a journal identifier on this parameter, journal entries with the following journal code values are converted for output only if they satisfy the values specified on the other parameters in addition to the journal identifier specification:
+
+Journal code B (integrated file system information entries).
+
+Journal code D (database file-level information entries).
+
+Journal code E (data area information entries).
+
+Journal code F (file member-level information entries).
+
+Journal code J (journal receiver information entries).
+
+Journal code Q (data queue information entries).
+
+Journal code R (record-level information entries).
+
+Journal code U (user-generated entries).
+
+Journal code Y (library information entries).
+
+Other journal codes, if *IGNOBJSLT is the second element of the journal code. If *ALLSLT is the second element of the journal code, no journal entries with that code are converted for output.
+
+journal-identifier
+Entries for objects associated with the specified journal identifier are received.
+
+Top
+
+Entry format (ENTFMT)
+
+Specifies the format of the journal entries being received. For a description of what is represented by each of the fields in the journal entry, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+
+Note: If ENTFMT(*TYPE1) or ENTFMT(*TYPE2) is not specified, the NULLINDLEN parameter must be specified.
+
+Note: If the Receiver size options field (RCVSIZOPT) for the journal was specified as *MAXOPT3, the sequence number, commit cycle identifier, the count of entries applied or removed or relative record number fields can reach a maximum value of 18,446,744,073,709,551,600. The length of these fields in the ENTFMT(*TYPE1), ENTFMT(*TYPE2), ENTFMT(*TYPE3), and ENTFMT(*TYPE4) formats is defined to hold a 10 digit number. If a sequence number, commit cycle identifier, or count of entries applied or removed or relative record number larger than 10 digits is found and one of these ENTFMT options is specified, the field is set to -1 for that entry.
+
+*TYPE1
+The journal entries received are formatted to include the minimum information that can be specified. The information fields and the format of the information in each journal entry is shown below:
+Figure: Table 1 - *TYPE1 Journal Entry Format
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (2) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Date : 6 : 19 : 24
+-----------------------+----------+----------+----------
+Time : 6 : 25 : 30
+-----------------------+----------+----------+----------
+Job Name : 10 : 31 : 40
+-----------------------+----------+----------+----------
+User Name : 10 : 41 : 50
+-----------------------+----------+----------+----------
+Job Number : 6 : 51 : 56
+-----------------------+----------+----------+----------
+Program Name : 10 : 57 : 66
+-----------------------+----------+----------+----------
+Object Name : 10 : 67 : 76
+-----------------------+----------+----------+----------
+Object Library : 10 : 77 : 86
+-----------------------+----------+----------+----------
+Member Name : 10 : 87 : 96
+-----------------------+----------+----------+----------
+Count/RRN (3) : 10 : 97 : 106
+-----------------------+----------+----------+----------
+Flag : 1 : 107 : 107
+-----------------------+----------+----------+----------
+Commit Cycle ID (4) : 10 : 108 : 117
+-----------------------+----------+----------+----------
+Incomplete data : 1 : 118 : 118
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 119 : 119
+Specific Data : : :
+-----------------------+----------+----------+----------
+Reserved : 6 : 120 : 125
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (1) : 126 : N+125
+========================================================
+Notes:
+(1) The length of the entry-specific data field varies
+from entry to entry. It is long enough to accommodate
+all the entry-specific data in each received journal
+entry.
+(2) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(3) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(4) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+*TYPE2
+The journal entries received include the information returned when ENTFMT(*TYPE1) is specified, the user profile field, which gives the name of the user who caused the logging of the received journal entries, and the name of the system on which the entry was sent. The format for *TYPE2 journal entries is shown below:
+Figure: Table 2 - *TYPE2 Journal Entry Format
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (2) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Date : 6 : 19 : 24
+-----------------------+----------+----------+----------
+Time : 6 : 25 : 30
+-----------------------+----------+----------+----------
+Job Name : 10 : 31 : 40
+-----------------------+----------+----------+----------
+User Name : 10 : 41 : 50
+-----------------------+----------+----------+----------
+Job Number : 6 : 51 : 56
+-----------------------+----------+----------+----------
+Program Name : 10 : 57 : 66
+-----------------------+----------+----------+----------
+Object Name : 10 : 67 : 76
+-----------------------+----------+----------+----------
+Object Library : 10 : 77 : 86
+-----------------------+----------+----------+----------
+Member Name : 10 : 87 : 96
+-----------------------+----------+----------+----------
+Count/RRN (3) : 10 : 97 : 106
+-----------------------+----------+----------+----------
+Flag : 1 : 107 : 107
+-----------------------+----------+----------+----------
+Commit Cycle ID (4) : 10 : 108 : 117
+-----------------------+----------+----------+----------
+User Profile : 10 : 118 : 127
+-----------------------+----------+----------+----------
+System Name : 8 : 128 : 135
+-----------------------+----------+----------+----------
+Incomplete data : 1 : 136 : 136
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 137 : 137
+Specific Data : : :
+-----------------------+----------+----------+----------
+Reserved : 18 : 138 : 155
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (1) : 156 : N + 155
+========================================================
+Notes:
+(1) The length of the entry-specific data field varies
+from entry to entry. It is long enough to accommodate
+all the entry-specific data in each received journal
+entry.
+(2) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(3) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(4) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+*TYPE3
+The journal entries received include the information returned when ENTFMT(*TYPE2) is specified, and the null value indicators. The format of the received entries depends on the value specified on the NULLINDLEN parameter. The tables in the NULLINDLEN parameter description show the three formats for *TYPE3.
+
+*TYPE4
+The journal entries received include the information returned when ENTFMT(*TYPE3) is specified, the journal identifier, the physical file trigger indicator, and the referential constraint indicator. The format of the received entries depends on the value specified on the NULLINDLEN parameter. The tables in the NULLINDLEN parameter description show the three formats for *TYPE4.
+
+*TYPEPTR
+The journal entries received include the information as if ENTFMT(*JRNENTFMT) JRNENTFMT(RJNE0100) RTNPTR(*SYSMNG) were specified, and the entry specific data could contain pointers for specific journal entry types. Because ENTFMT(*TYPEPTR) does not allow RTNPTR(*USRMNG), pointers will not be valid after the exit program returns control to the system. The format of the received entries depends on the value specified on the NULLINDLEN parameter. The tables in the NULLINDLEN parameter description show the two formats for *TYPEPTR.
+
+Note: NULLINDLEN(*VARLEN) and ENTFMT(*TYPEPTR) cannot be specified at the same time.
+
+*JRNENTFMT
+The format of the received journal entries is determined by the JRNENTFMT parameter. The RTNPTR parameter indicates if the received journal entries could contain pointers. If RTNPTR(*USRMNG) is specified, pointers will still be valid after the exit program returns control to the system. The format of the received entries depends on the value specified on the NULLINDLEN parameter. The tables in the NULLINDLEN parameter description show the six formats for *JRNENTFMT.
+
+Top
+
+Format minimized data (FMTMINDTA)
+
+Specifies whether entry specific data which has been minimized on field boundaries will be returned in a readable format.
+
+*NO
+The journal entries which have entry specific data that has been minimized on field boundaries will not be returned in a readable format. Therefore, the entry specific data may not be viewable.
+
+*YES
+The journal entries which have entry specific data that has been minimized on field boundaries will be returned in a readable format. Therefore, the entry specific data is viewable and may be used for auditing purposes. The fields that were changed are accurately reflected. The fields that were not changed and were not recorded, display default data and are indicated by a value of 'F9'X in the null value indicators field.
+
+Top
+
+Null value indicators length (NULLINDLEN)
+
+Specifies the length, in bytes, used for the Null Value Indicators portion of the journal entry received by the user. This parameter is not valid if ENTFMT(*TYPE1) or ENTFMT(*TYPE2) is specified.
+
+Null value indicators are present in journal entries for record level operations as follows:
+
+- The corresponding physical file has null capable fields.
+
+- The record image has been minimized in the entry specific data.
+
+If the record image has not been minimized in the entry specific data, then there is one null value indicator per field in the physical file. Each indicator is one character long and can be either:
+
+- 'F0'X = Corresponding field is not null.
+
+- 'F1'X = Corresponding field is null.
+
+If the record image has been minimized on file field boundaries in the entry specific data and FMTMINDTA(*YES) was specified on the RCVJRNE command, then there is one null value indicator per field in the physical file. Each indicator is one character long and can be either:
+
+- 'F0'X = Corresponding field is not null.
+
+- 'F1'X = Corresponding field is null.
+
+- 'F9'X = Corresponding field was not changed and the default value for the field is returned.
+
+If the record image has been minimized on file field boundaries in the entry specific data and FMTMINDTA(*NO) was specified on the RCVJRNE command, then an internal value is returned for the null value indicator.
+
+Single values
+
+*ENTFMT
+The null value indicators field is long enough to include all of the null value indicators in the received journal entries. Since the number of null value indicators can vary from entry to entry, the length of the null value indicators field also varies with each entry.
+
+Notes:
+
+If users select the *TYPE3 format, the following information is not available in this format:
+
+- Incomplete Data indicating if the journal entry data is incomplete due to either LOB fields or Byte Stream File write operations.
+
+- Minimized Entry Specific Data indicating if the journal entry has minimized entry specific data because the journal had MINENTDTA specified for the object type of the journal entry.
+
+See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information on the incomplete data indicator, the minimized entry specific data indicator, and these journal entries.
+
+The format for *TYPE3 journal entries when NULLINDLEN(*ENTFMT) is specified is shown below:
+
+Figure: Table 3 - NULLINDLEN(*ENTFMT) Journal Entry Format for ENTFMT(*TYPE3)
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (5) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Timestamp : 26 : 19 : 44
+-----------------------+----------+----------+----------
+Job Name : 10 : 45 : 54
+-----------------------+----------+----------+----------
+User Name : 10 : 55 : 64
+-----------------------+----------+----------+----------
+Job Number : 6 : 65 : 70
+-----------------------+----------+----------+----------
+Program Name : 10 : 71 : 80
+-----------------------+----------+----------+----------
+Object Name : 10 : 81 : 90
+-----------------------+----------+----------+----------
+Object Library : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Member Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+Count/RRN (6) : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Flag : 1 : 121 : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (7) : 10 : 122 : 131
+-----------------------+----------+----------+----------
+User Profile : 10 : 132 : 141
+-----------------------+----------+----------+----------
+System Name : 8 : 142 : 149
+-----------------------+----------+----------+----------
+Number of Null Value : 5 : 150 : 154
+Indicators (1) : : :
+-----------------------+----------+----------+----------
+Null Value Indicators : M (2) : 155 : 154 + M
+-----------------------+----------+----------+----------
+Length of : 5 : 155 + M : 159 + M
+Entry-Specific Data (3): : :
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (4) : 160 + M : 159 + M
+: : : + N
+========================================================
+Notes:
+(1) This field contains the number of null value
+indicators (in decimal digits) in the received journal
+entry.
+(2) The length of null value indicators can vary from
+entry to entry and is designated by the variable M.
+(3) This field contains the length of the entry-specific
+data (in decimal digits) in the received journal entry.
+(4) The length of entry-specific data can vary from
+entry to entry and is designated by the variable N.
+(5) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(6) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(7) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+The format for *TYPE4 journal entries when NULLINDLEN(*ENTFMT) is specified is shown below:
+
+Figure: Table 4 - NULLINDLEN(*ENTFMT) Journal Entry Format for ENTFMT(*TYPE4)
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (5) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Timestamp : 26 : 19 : 44
+-----------------------+----------+----------+----------
+Job Name : 10 : 45 : 54
+-----------------------+----------+----------+----------
+User Name : 10 : 55 : 64
+-----------------------+----------+----------+----------
+Job Number : 6 : 65 : 70
+-----------------------+----------+----------+----------
+Program Name : 10 : 71 : 80
+-----------------------+----------+----------+----------
+Object Name : 10 : 81 : 90
+-----------------------+----------+----------+----------
+Object Library : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Member Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+Count/RRN (6) : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Flag : 1 : 121 : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (7) : 10 : 122 : 131
+-----------------------+----------+----------+----------
+User Profile : 10 : 132 : 141
+-----------------------+----------+----------+----------
+System Name : 8 : 142 : 149
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 150 : 159
+-----------------------+----------+----------+----------
+Referential : 1 : 160 : 160
+Constraint : : :
+-----------------------+----------+----------+----------
+Trigger : 1 : 161 : 161
+-----------------------+----------+----------+----------
+Incomplete data : 1 : 162 : 162
+-----------------------+----------+----------+----------
+Ignore during : 1 : 163 : 163
+APYJRNCHG or RMVJRNCHG : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 164 : 164
+Specific Data : : :
+-----------------------+----------+----------+----------
+Reserved : 5 : 165 : 169
+-----------------------+----------+----------+----------
+Number of Null Value : 5 : 170 : 174
+Indicators (1) : : :
+-----------------------+----------+----------+----------
+Null Value Indicators : M (2) : 175 : 174 + M
+-----------------------+----------+----------+----------
+Length of : 5 : 175 + M : 179 + M
+Entry-Specific Data (3): : :
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (4) : 180 + M : 179 + M
+: : : + N
+========================================================
+Notes:
+(1) This field contains the number of null value
+indicators (in decimal digits) in the received journal
+entry.
+(2) The length of null value indicators can vary from
+entry to entry and is designated by the variable M.
+(3) This field contains the length of the entry-specific
+data (in decimal digits) in the received journal entry.
+(4) The length of entry-specific data can vary from
+entry to entry and is designated by the variable N.
+(5) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(6) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(7) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+The format for *TYPEPTR or *JRNENTFMT journal entries when NULLINDLEN(*ENTFMT), JRNENTFMT(RJNE0100), and RTNPTR(*SYSMNG) are specified is shown below:
+
+Figure: Table 5 - NULLINDLEN(*ENTFMT) Journal Entry Format for ENTFMT(*TYPEPTR) or ENTFMT(*JRNENTFMT) when JRNENTFMT(RJNE0100) is specified
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Displacement to next : 4 : 0 : 3
+journal entry's : : :
+header (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 4 : 7
+journal entry's null : : :
+value indicators (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 8 : 11
+journal entry's entry : : :
+specific data (1) : : :
+-----------------------+----------+----------+----------
+Pointer handle (2) : 4 : 12 : 15
+-----------------------+----------+----------+----------
+Sequence Number : 20 : 16 : 35
+-----------------------+----------+----------+----------
+Journal Code : 1 : 36 : 36
+-----------------------+----------+----------+----------
+Entry Type : 2 : 37 : 38
+-----------------------+----------+----------+----------
+Time stamp : 26 : 39 : 64
+-----------------------+----------+----------+----------
+Job Name : 10 : 65 : 74
+-----------------------+----------+----------+----------
+User Name : 10 : 75 : 84
+-----------------------+----------+----------+----------
+Job Number : 6 : 85 : 90
+-----------------------+----------+----------+----------
+Program Name : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Object : 30 : 101 : 130
+-----------------------+----------+----------+----------
+Count/RRN : 10 : 131 : 140
+-----------------------+----------+----------+----------
+Indicator Flag : 1 : 141 : 141
+-----------------------+----------+----------+----------
+Commit Cycle ID : 20 : 142 : 161
+-----------------------+----------+----------+----------
+User Profile : 10 : 162 : 171
+-----------------------+----------+----------+----------
+System Name : 8 : 172 : 179
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 180 : 189
+-----------------------+----------+----------+----------
+Referential Constraint : 1 : 190 : 190
+-----------------------+----------+----------+----------
+Trigger : 1 : 191 : 191
+-----------------------+----------+----------+----------
+Incomplete Data : 1 : 192 : 192
+-----------------------+----------+----------+----------
+Object Name Indicator : 1 : 193 : 193
+-----------------------+----------+----------+----------
+Ignore During APYJRNCHG: 1 : 194 : 194
+or RMVJRNCHG : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 195 : 195
+Specific Data : : :
+-----------------------+----------+----------+----------
+Length Of Null Vallue : 4 : NVI Disp : NVI Disp
+Indicators (1) : : (3) : + 3
+-----------------------+----------+----------+----------
+Null Value Indicators : M (4) : NVI Disp : NVI Disp
+: : + 4 : + 3
+: : : + M
+-----------------------+----------+----------+----------
+Length Of Entry : 5 : ESD Disp : ESD Disp
+Specific Data : : (5) : + 4
+-----------------------+----------+----------+----------
+Reserved : 11 : ESD Disp : ESD Disp
+: : + 5 : + 15
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (6) : ESD Disp : ESD Disp
+: : + 16 : + 15 + N
+========================================================
+Notes:
+(1) This field is represented in BINARY(4).
+(2) This field is represented in UNSIGNED BINARY(4).
+(3) NVI Disp is determined by the value in the field
+labeled "Displacement to this journal entry's null
+value indicator."
+(4) The length of null value indicators can vary from
+entry to entry and is designated by the variable M.
+(5) ESD Disp is determined by the value in the field
+labeled "Displacement to this journal entry's entry
+specific data."
+(6) The length of entry-specific data can vary from
+entry to entry and is designated by the variable N.
+
+The format for *JRNENTFMT journal entries when NULLINDLEN(*ENTFMT) and JRNENTFMT(RJNE0200) are specified is shown below:
+
+Figure: Table 6 - NULLINDLEN(*ENTFMT) Journal Entry Format for ENTFMT(*JRNENTFMT) when JRNENTFMT(RJNE0200) is specified
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Displacement to next : 4 : 0 : 3
+journal entry's : : :
+header (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 4 : 7
+journal entry's null : : :
+value indicators (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 8 : 11
+journal entry's entry : : :
+specific data (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 12 : 15
+journal entry's trans- : : :
+action identifier (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 16 : 19
+journal entry's logical: : :
+unit of work (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 20 : 23
+journal entry's : : :
+receiver information(1): : :
+-----------------------+----------+----------+----------
+Sequence Number (1) : 8 : 24 : 31
+-----------------------+----------+----------+----------
+Unformatted Time stamp : 8 : 32 : 39
+(1) : : :
+-----------------------+----------+----------+----------
+Thread Identifier (1) : 8 : 40 : 47
+-----------------------+----------+----------+----------
+System Sequence : 8 : 48 : 55
+Number (1) : : :
+-----------------------+----------+----------+----------
+Count/RRN (1) : 8 : 56 : 63
+-----------------------+----------+----------+----------
+Commit Cycle ID (1) : 8 : 64 : 71
+-----------------------+----------+----------+----------
+Pointer Handle (1) : 4 : 72 : 75
+-----------------------+----------+----------+----------
+Remote Port (1) : 2 : 76 : 77
+-----------------------+----------+----------+----------
+Arm Number (1) : 2 : 78 : 79
+-----------------------+----------+----------+----------
+Program Library : 2 : 80 : 81
+ASP Number (1) : : :
+-----------------------+----------+----------+----------
+Remote Address : 16 : 82 : 97
+-----------------------+----------+----------+----------
+Journal Code : 1 : 98 : 98
+-----------------------+----------+----------+----------
+Entry Type : 2 : 99 : 100
+-----------------------+----------+----------+----------
+Job Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+User Name : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Job Number : 6 : 121 : 126
+-----------------------+----------+----------+----------
+Program Name : 10 : 127 : 136
+-----------------------+----------+----------+----------
+Program Library Name : 10 : 137 : 146
+-----------------------+----------+----------+----------
+Program Library ASP : 10 : 147 : 156
+Device Name : : :
+-----------------------+----------+----------+----------
+Object : 30 : 157 : 186
+-----------------------+----------+----------+----------
+User Profile : 10 : 187 : 196
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 197 : 206
+-----------------------+----------+----------+----------
+Address Family : 1 : 207 : 207
+-----------------------+----------+----------+----------
+System Name : 8 : 208 : 215
+-----------------------+----------+----------+----------
+Indicator Flag : 1 : 216 : 216
+-----------------------+----------+----------+----------
+Object Name Indicator : 1 : 217 : 217
+-----------------------+----------+----------+----------
+Referential Constraint : 1/8 : 218 1/8 : 218 1/8
+(2) : : :
+-----------------------+----------+----------+----------
+Trigger (2) : 1/8 : 218 2/8 : 218 2/8
+-----------------------+----------+----------+----------
+Incomplete Data (2) : 1/8 : 218 3/8 : 218 3/8
+-----------------------+----------+----------+----------
+Ignore During APYJRNCHG: 1/8 : 218 4/8 : 218 4/8
+or RMVJRNCHG (2) : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1/8 : 218 5/8 : 218 5/8
+Specific Data (2) : : :
+-----------------------+----------+----------+----------
+File Type Indicator (2): 1/8 : 218 6/8 : 218 6/8
+-----------------------+----------+----------+----------
+Minimized on : 1/8 : 218 7/8 : 218 7/8
+Field Boundaries (2) : : :
+-----------------------+----------+----------+----------
+Reserved (2) : 1/8 : 218 8/8 : 218 8/8
+-----------------------+----------+----------+----------
+Object Type : 10 : 219 : 228
+-----------------------+----------+----------+----------
+Reserved : 3 : 229 : 231
+-----------------------+----------+----------+----------
+Nested Commit Level (1): 4 : 232 : 235
+-----------------------+----------+----------+----------
+Transaction Format ID : 4 : XID Disp : XID Disp
+: : (10) : + 3
+-----------------------+----------+----------+----------
+Length Of Global Trans-: 4 : XID Disp : XID Disp
+action Identifier (5) : : + 4 : + 7
+-----------------------+----------+----------+----------
+Length Of Branch : 4 : XID Disp : XID Disp
+Qualifier (5) : : + 8 : + 11
+-----------------------+----------+----------+----------
+Transaction Branch : 128 : XID Disp : XID Disp
+Identifier : : + 12 : + 139
+-----------------------+----------+----------+----------
+Logical Unit Of Work : 39 : LUW Disp : LUW Disp
+: : (3) : + 38
+-----------------------+----------+----------+----------
+Receiver Name : 10 : RCV Disp : RCV Disp
+: : (4) : + 9
+-----------------------+----------+----------+----------
+Receiver Library Name : 10 : RCV Disp : RCV Disp
+: : + 10 : + 19
+-----------------------+----------+----------+----------
+Receiver Library ASP : 10 : RCV Disp : RCV Disp
+Device Name : : + 20 : + 29
+-----------------------+----------+----------+----------
+Receiver Library ASP : 2 : RCV Disp : RCV Disp
+Number (5) : : + 30 : + 31
+-----------------------+----------+----------+----------
+Length Of Null Vallue : 4 : NVI Disp : NVI Disp
+Indicators (5) : : (6) : + 3
+-----------------------+----------+----------+----------
+Null Value Indicators : M (7) : NVI Disp : NVI Disp
+: : + 4 : + 3
+: : : + M
+-----------------------+----------+----------+----------
+Length Of Entry : 5 : ESD Disp : ESD Disp
+Specific Data : : (8) : + 4
+-----------------------+----------+----------+----------
+Reserved : 11 : ESD Disp : ESD Disp
+: : + 5 : + 15
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (9) : ESD Disp : ESD Disp
+: : + 16 : + 15 + N
+========================================================
+Notes:
+(1) This field is represented in UNSIGNED BINARY.
+(2) This field is represented by a BIT.
+(3) LUW Disp is determined by the value in the field
+labeled "Displacement to this journal entry's logical
+unit of work."
+(4) RCV Disp is determined by the value in the field
+labeled "Displacement to this journal entry's receiver
+information."
+(5) This field is represented in BINARY.
+(6) NVI Disp is determined by the value in the field
+labeled "Displacement to this journal entry's null
+value indicator."
+(7) The length of null value indicators can vary from
+entry to entry and is designated by the variable M.
+(8) ESD Disp is determined by the value in the field
+labeled "Displacement to this journal entry's entry
+specific data."
+(9) The length of entry-specific data can vary from
+entry to entry and is designated by the variable N.
+(10) XID Disp is determined by the value in the field
+labeled "Displacement to this journal entry's
+transaction identifier."
+
+field-length
+Specify the field length of the null value indicators portion of the received journal entry. Valid values range from 1 through 8000 characters.
+The format for *TYPE3 journal entries when NULLINDLEN(field-length) is specified is shown below:
+
+Figure: Table 7 - NULLINDLEN(field-length) Journal Entry Format for ENTFMT(*TYPE3)
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (3) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Timestamp : 26 : 19 : 44
+-----------------------+----------+----------+----------
+Job Name : 10 : 45 : 54
+-----------------------+----------+----------+----------
+User Name : 10 : 55 : 64
+-----------------------+----------+----------+----------
+Job Number : 6 : 65 : 70
+-----------------------+----------+----------+----------
+Program Name : 10 : 71 : 80
+-----------------------+----------+----------+----------
+Object Name : 10 : 81 : 90
+-----------------------+----------+----------+----------
+Object Library : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Member Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+Count/RRN (4) : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Flag : 1 : 121 : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (5) : 10 : 122 : 131
+-----------------------+----------+----------+----------
+User Profile : 10 : 132 : 141
+-----------------------+----------+----------+----------
+System Name : 8 : 142 : 149
+-----------------------+----------+----------+----------
+Null Value Indicators : field : 150 : 149 +
+: length : : field
+: (1) : : length
+-----------------------+----------+----------+----------
+Entry-Specific Data : M (2) : 150 + : 149 + M +
+: : field : field
+: : length : length
+========================================================
+Notes:
+(1) The length of the null value indicators field is the
+length specified on the NULLINDLEN parameter.
+(2) The length of the entry-specific data field varies
+from entry to entry and is designated by the variable
+M. This length accommodates all
+the entry-specific data in each received journal entry.
+(3) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(4) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(5) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+The format for *TYPE4 journal entries when NULLINDLEN(field-length) is specified is shown below:
+
+Figure: Table 8 - NULLINDLEN(field-length) Journal Entry Format for ENTFMT(*TYPE4)
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (3) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Timestamp : 26 : 19 : 44
+-----------------------+----------+----------+----------
+Job Name : 10 : 45 : 54
+-----------------------+----------+----------+----------
+User Name : 10 : 55 : 64
+-----------------------+----------+----------+----------
+Job Number : 6 : 65 : 70
+-----------------------+----------+----------+----------
+Program Name : 10 : 71 : 80
+-----------------------+----------+----------+----------
+Object Name : 10 : 81 : 90
+-----------------------+----------+----------+----------
+Object Library : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Member Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+Count/RRN (4) : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Flag : 1 : 121 : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (5) : 10 : 122 : 131
+-----------------------+----------+----------+----------
+User Profile : 10 : 132 : 141
+-----------------------+----------+----------+----------
+System Name : 8 : 142 : 149
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 150 : 159
+-----------------------+----------+----------+----------
+Referential : 1 : 160 : 160
+Constraint : : :
+-----------------------+----------+----------+----------
+Trigger : 1 : 161 : 161
+-----------------------+----------+----------+----------
+Incomplete data : 1 : 162 : 162
+-----------------------+----------+----------+----------
+Ignore during : 1 : 163 : 163
+APYJRNCHG or RMVJRNCHG : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 164 : 164
+Specific Data : : :
+-----------------------+----------+----------+----------
+Reserved : 5 : 165 : 169
+-----------------------+----------+----------+----------
+Null Value Indicators : field : 170 : 169 +
+: length : : field
+: (1) : : length
+-----------------------+----------+----------+----------
+Entry-Specific Data : M (2) : 170 + : 169 + M +
+: : field : field
+: : length : length
+========================================================
+Notes:
+(1) The length of the null value indicators field is the
+length specified on the NULLINDLEN parameter.
+(2) The length of the entry-specific data field varies
+from entry to entry and is designated by the variable
+M. This length accommodates all
+the entry-specific data in each received journal entry.
+(3) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(4) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(5) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+The format for *TYPEPTR or *JRNENTFMT journal entries when NULLINDLEN(field-length) and JRNENTFMT(RJNE0100) are specified is shown below:
+
+Figure: Table 9 - NULLINDLEN(field-length) Journal Entry Format for ENTFMT(*TYPEPTR) or ENTFMT(*JRNENTFMT) when JRNENTFMT(RJNE0100) is specified
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Displacement to next : 4 : 0 : 3
+journal entry's : : :
+header (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 4 : 7
+journal entry's null : : :
+value indicators (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 8 : 11
+journal entry's entry : : :
+specific data (1) : : :
+-----------------------+----------+----------+----------
+Pointer handle (2) : 4 : 12 : 15
+-----------------------+----------+----------+----------
+Sequence Number : 20 : 16 : 35
+-----------------------+----------+----------+----------
+Journal Code : 1 : 36 : 36
+-----------------------+----------+----------+----------
+Entry Type : 2 : 37 : 38
+-----------------------+----------+----------+----------
+Time stamp : 26 : 39 : 64
+-----------------------+----------+----------+----------
+Job Name : 10 : 65 : 74
+-----------------------+----------+----------+----------
+User Name : 10 : 75 : 84
+-----------------------+----------+----------+----------
+Job Number : 6 : 85 : 90
+-----------------------+----------+----------+----------
+Program Name : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Object : 30 : 101 : 130
+-----------------------+----------+----------+----------
+Count/RRN : 10 : 131 : 140
+-----------------------+----------+----------+----------
+Indicator Flag : 1 : 141 : 141
+-----------------------+----------+----------+----------
+Commit Cycle ID : 20 : 142 : 161
+-----------------------+----------+----------+----------
+User Profile : 10 : 162 : 171
+-----------------------+----------+----------+----------
+System Name : 8 : 172 : 179
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 180 : 189
+-----------------------+----------+----------+----------
+Referential Constraint : 1 : 190 : 190
+-----------------------+----------+----------+----------
+Trigger : 1 : 191 : 191
+-----------------------+----------+----------+----------
+Incomplete Data : 1 : 192 : 192
+-----------------------+----------+----------+----------
+Object Name Indicator : 1 : 193 : 193
+-----------------------+----------+----------+----------
+Ignore During APYJRNCHG: 1 : 194 : 194
+or RMVJRNCHG : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 195 : 195
+Specific Data : : :
+-----------------------+----------+----------+----------
+Null Value Indicators : field : NVI Disp : NVI Disp
+: length : (4) : + field
+: (3) : : length
+: : : - 1
+-----------------------+----------+----------+----------
+Length Of Entry : 5 : ESD Disp : ESD Disp
+Specific Data : : (5) : + 4
+-----------------------+----------+----------+----------
+Reserved : 11 : ESD Disp : ESD Disp
+: : + 5 : + 15
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (6) : ESD Disp : ESD Disp
+: : + 16 : + 15 + N
+========================================================
+Notes:
+(1) This field is represented in BINARY(4).
+(2) This field is represented in UNSIGNED BINARY(4).
+(3) The length of the null value indicators field is the
+length specified on the NULLINDLEN parameter.
+(4) NVI Disp is determined by the value in the field
+labeled "Displacement to this journal entry's null
+value indicator."
+(5) ESD Disp is determined by the value in the field
+labeled "Displacement to this journal entry's entry
+specific data."
+(6) The length of entry-specific data can vary from
+entry to entry and is designated by the variable N.
+
+The format for *JRNENTFMT journal entries when NULLINDLEN(field-length) and JRNENTFMT(RJNE0200) are specified is shown below:
+
+Figure: Table 10 - NULLINDLEN(field-length) Journal Entry Format for ENTFMT(*JRNENTFMT) when JRNENTFMT(RJNE0200) is specified
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Displacement to next : 4 : 0 : 3
+journal entry's : : :
+header (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 4 : 7
+journal entry's null : : :
+value indicators (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 8 : 11
+journal entry's entry : : :
+specific data (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 12 : 15
+journal entry's trans- : : :
+action identifier (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 16 : 19
+journal entry's logical: : :
+unit of work (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 20 : 23
+journal entry's : : :
+receiver information(1): : :
+-----------------------+----------+----------+----------
+Sequence Number (1) : 8 : 24 : 31
+-----------------------+----------+----------+----------
+Unformatted Time stamp : 8 : 32 : 39
+(1) : : :
+-----------------------+----------+----------+----------
+Thread Identifier (1) : 8 : 40 : 47
+-----------------------+----------+----------+----------
+System Sequence : 8 : 48 : 55
+Number (1) : : :
+-----------------------+----------+----------+----------
+Count/RRN (1) : 8 : 56 : 63
+-----------------------+----------+----------+----------
+Commit Cycle ID (1) : 8 : 64 : 71
+-----------------------+----------+----------+----------
+Pointer Handle (1) : 4 : 72 : 75
+-----------------------+----------+----------+----------
+Remote Port (1) : 2 : 76 : 77
+-----------------------+----------+----------+----------
+Arm Number (1) : 2 : 78 : 79
+-----------------------+----------+----------+----------
+Program Library : 2 : 80 : 81
+ASP Number (1) : : :
+-----------------------+----------+----------+----------
+Remote Address : 16 : 82 : 97
+-----------------------+----------+----------+----------
+Journal Code : 1 : 98 : 98
+-----------------------+----------+----------+----------
+Entry Type : 2 : 99 : 100
+-----------------------+----------+----------+----------
+Job Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+User Name : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Job Number : 6 : 121 : 126
+-----------------------+----------+----------+----------
+Program Name : 10 : 127 : 136
+-----------------------+----------+----------+----------
+Program Library Name : 10 : 137 : 146
+-----------------------+----------+----------+----------
+Program Library ASP : 10 : 147 : 156
+Device Name : : :
+-----------------------+----------+----------+----------
+Object : 30 : 157 : 186
+-----------------------+----------+----------+----------
+User Profile : 10 : 187 : 196
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 197 : 206
+-----------------------+----------+----------+----------
+Address Family : 1 : 207 : 207
+-----------------------+----------+----------+----------
+System Name : 8 : 208 : 215
+-----------------------+----------+----------+----------
+Indicator Flag : 1 : 216 : 216
+-----------------------+----------+----------+----------
+Object Name Indicator : 1 : 217 : 217
+-----------------------+----------+----------+----------
+Referential Constraint : 1/8 : 218 1/8 : 218 1/8
+(2) : : :
+-----------------------+----------+----------+----------
+Trigger (2) : 1/8 : 218 2/8 : 218 2/8
+-----------------------+----------+----------+----------
+Incomplete Data (2) : 1/8 : 218 3/8 : 218 3/8
+-----------------------+----------+----------+----------
+Ignore During APYJRNCHG: 1/8 : 218 4/8 : 218 4/8
+or RMVJRNCHG (2) : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1/8 : 218 5/8 : 218 5/8
+Specific Data (2) : : :
+-----------------------+----------+----------+----------
+File Type Indicator (2): 1/8 : 218 6/8 : 218 6/8
+-----------------------+----------+----------+----------
+Minimized on : 1/8 : 218 7/8 : 218 7/8
+Field Boundaries (2) : : :
+-----------------------+----------+----------+----------
+Reserved (2) : 1/8 : 218 8/8 : 218 8/8
+-----------------------+----------+----------+----------
+Object Type : 10 : 219 : 228
+-----------------------+----------+----------+----------
+Reserved : 3 : 229 : 231
+-----------------------+----------+----------+----------
+Nested Commit Level (1): 4 : 232 : 235
+-----------------------+----------+----------+----------
+Transaction Format ID : 4 : XID Disp : XID Disp
+: : (10) : + 3
+-----------------------+----------+----------+----------
+Length Of Global Trans-: 4 : XID Disp : XID Disp
+action Identifier (5) : : + 4 : + 7
+-----------------------+----------+----------+----------
+Length Of Branch : 4 : XID Disp : XID Disp
+Qualifier (5) : : + 8 : + 11
+-----------------------+----------+----------+----------
+Transaction Branch : 128 : XID Disp : XID Disp
+Identifier : : + 12 : + 139
+-----------------------+----------+----------+----------
+Logical Unit Of Work : 39 : LUW Disp : LUW Disp
+: : (3) : + 38
+-----------------------+----------+----------+----------
+Receiver Name : 10 : RCV Disp : RCV Disp
+: : (4) : + 9
+-----------------------+----------+----------+----------
+Receiver Library Name : 10 : RCV Disp : RCV Disp
+: : + 10 : + 19
+-----------------------+----------+----------+----------
+Receiver Library ASP : 10 : RCV Disp : RCV Disp
+Device Name : : + 20 : + 29
+-----------------------+----------+----------+----------
+Receiver Library ASP : 2 : RCV Disp : RCV Disp
+Number (5) : : + 30 : + 31
+-----------------------+----------+----------+----------
+Null Value Indicators : field : NVI Disp : NVI Disp
+: length : (7) : + field
+: (6) : : length
+: : : - 1
+-----------------------+----------+----------+----------
+Length Of Entry : 5 : ESD Disp : ESD Disp
+Specific Data : : (8) : + 4
+-----------------------+----------+----------+----------
+Reserved : 11 : ESD Disp : ESD Disp
+: : + 5 : + 15
+-----------------------+----------+----------+----------
+Entry-Specific Data : N (9) : ESD Disp : ESD Disp
+: : + 16 : + 15 + N
+========================================================
+Notes:
+(1) This field is represented in UNSIGNED BINARY.
+(2) This field is represented by a BIT.
+(3) LUW Disp is determined by the value in the field
+labeled "Displacement to this journal entry's logical
+unit of work."
+(4) RCV Disp is determined by the value in the field
+labeled "Displacement to this journal entry's receiver
+information."
+(5) This field is represented in BINARY.
+(6) The length of the null value indicators field is the
+length specified on the NULLINDLEN parameter.
+(7) NVI Disp is determined by the value in the field
+labeled "Displacement to this journal entry's null
+value indicator."
+(8) ESD Disp is determined by the value in the field
+labeled "Displacement to this journal entry's entry
+specific data."
+(9) The length of entry-specific data can vary from
+entry to entry and is designated by the variable N.
+(10) XID Disp is determined by the value in the field
+labeled "Displacement to this journal entry's
+transaction identifier."
+
+Element 1: Field data format
+
+*VARLEN
+The null value indicators field is a variable length field.
+
+field-length
+Specify the field length of the null value indicators portion of the received journal entry. Valid values range from 1 through 8000 characters.
+
+Element 2: Variable length field length
+
+maximum-field-length
+Specify the maximum field length of the null value indicators portion of the received journal entry. Valid values range from 1 to 8000 characters. If a journal entry has more null value indicators than the value you specify and truncation results in the loss of a non 'F0'X indicator value, the RCVJRNE request is abnormally ended.
+You can specify this element only if you also specify *VARLEN on the first element of this parameter.
+
+Note: NULLINDLEN(*VARLEN) and ENTFMT(*TYPEPTR) cannot be specified at the same time.
+
+Note: NULLINDLEN(*VARLEN) and RTNPTR(*SYSMNG) or RTNPTR(*USRMNG) cannot be specified at the same time.
+
+The format for *TYPE3 journal entries when NULLINDLEN(*VARLEN field-length) is specified is shown below:
+
+Figure: Table 11 - NULLINDLEN(*VARLEN field-length) Journal Entry Format for ENTFMT(*TYPE3)
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (4) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Timestamp : 26 : 19 : 44
+-----------------------+----------+----------+----------
+Job Name : 10 : 45 : 54
+-----------------------+----------+----------+----------
+User Name : 10 : 55 : 64
+-----------------------+----------+----------+----------
+Job Number : 6 : 65 : 70
+-----------------------+----------+----------+----------
+Program Name : 10 : 71 : 80
+-----------------------+----------+----------+----------
+Object Name : 10 : 81 : 90
+-----------------------+----------+----------+----------
+Object Library : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Member Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+Count/RRN (5) : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Flag : 1 : 121 : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (6) : 10 : 122 : 131
+-----------------------+----------+----------+----------
+User Profile : 10 : 132 : 141
+-----------------------+----------+----------+----------
+System Name : 8 : 142 : 149
+-----------------------+----------+----------+----------
+Number of Null Value : 2 : 150 : 151
+Indicators (1) : : :
+-----------------------+----------+----------+----------
+Null Value Indicators : field : 152 : 151 +
+: length : : field
+: : : length
+-----------------------+----------+----------+----------
+Length of : 5 : 152 + : 156 +
+Entry-Specific Data (2): : field : field
+: : length : length
+-----------------------+----------+----------+----------
+Entry-Specific Data : M (3) : 157 + : 156 + M +
+: : field : field
+: : length : length
+========================================================
+Notes:
+(1) This field contains the number of null value
+indicators (in binary digits) in the received journal
+entry.
+(2) This field contains the length of the entry-specific
+data (in decimal digits) in the received journal entry.
+(3) The length of entry-specific data can vary from
+entry to entry and is designated by the variable M.
+(4) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(5) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(6) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+The format for *TYPE4 journal entries when NULLINDLEN(*VARLEN field-length) is specified is shown below:
+
+Figure: Table 12 - NULLINDLEN(*VARLEN field-length) Journal Entry Format for ENTFMT(*TYPE4)
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Entry Length : 5 : 1 : 5
+-----------------------+----------+----------+----------
+Sequence Number (4) : 10 : 6 : 15
+-----------------------+----------+----------+----------
+Journal Code : 1 : 16 : 16
+-----------------------+----------+----------+----------
+Journal Entry Type : 2 : 17 : 18
+-----------------------+----------+----------+----------
+Timestamp : 26 : 19 : 44
+-----------------------+----------+----------+----------
+Job Name : 10 : 45 : 54
+-----------------------+----------+----------+----------
+User Name : 10 : 55 : 64
+-----------------------+----------+----------+----------
+Job Number : 6 : 65 : 70
+-----------------------+----------+----------+----------
+Program Name : 10 : 71 : 80
+-----------------------+----------+----------+----------
+Object Name : 10 : 81 : 90
+-----------------------+----------+----------+----------
+Object Library : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Member Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+Count/RRN (5) : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Flag : 1 : 121 : 121
+-----------------------+----------+----------+----------
+Commit Cycle ID (6) : 10 : 122 : 131
+-----------------------+----------+----------+----------
+User Profile : 10 : 132 : 141
+-----------------------+----------+----------+----------
+System Name : 8 : 142 : 149
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 150 : 159
+-----------------------+----------+----------+----------
+Referential : 1 : 160 : 160
+Constraint : : :
+-----------------------+----------+----------+----------
+Trigger : 1 : 161 : 161
+-----------------------+----------+----------+----------
+Incomplete data : 1 : 162 : 162
+-----------------------+----------+----------+----------
+Ignore during : 1 : 163 : 163
+APYJRNCHG or RMVJRNCHG : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 164 : 164
+Specific Data : : :
+-----------------------+----------+----------+----------
+Reserved : 5 : 165 : 169
+-----------------------+----------+----------+----------
+Number of Null Value : 2 : 170 : 171
+Indicators (1) : : :
+-----------------------+----------+----------+----------
+Null Value Indicators : field : 172 : 171 +
+: length : : field
+: : : length
+-----------------------+----------+----------+----------
+Length of : 5 : 172 + : 176 +
+Entry-Specific Data (2): : field : field
+: : length : length
+-----------------------+----------+----------+----------
+Entry-Specific Data : M (3) : 177 + : 176 + M +
+: : field : field
+: : length : length
+========================================================
+Notes:
+(1) This field contains the number of null value
+indicators (in binary digits) in the received journal
+entry.
+(2) This field contains the length of the entry-specific
+data (in decimal digits) in the received journal entry.
+(3) The length of entry-specific data can vary from
+entry to entry and is designated by the variable M.
+(4) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the sequence number is larger than 10
+digits.
+(5) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the count of entries applied or removed
+or relative record number is larger than 10 digits.
+(6) When the RCVSIZOPT of the journal is *MAXOPT3, this field
+will be set to -1 if the commit cycle identifier is larger
+than 10 digits.
+
+The format for *JRNENTFMT journal entries when NULLINDLEN(*VARLEN field-length) and JRNENTFMT(RJNE0100) are specified is shown below:
+
+Figure: Table 13 - NULLINDLEN(*VARLEN field-length) Journal Entry Format for ENTFMT(*JRNENTFMT) when JRNENTFMT(RJNE0100) is specified
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Displacement to next : 4 : 0 : 3
+journal entry's : : :
+header (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 4 : 7
+journal entry's null : : :
+value indicators (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 8 : 11
+journal entry's entry : : :
+specific data (1) : : :
+-----------------------+----------+----------+----------
+Pointer handle (2) : 4 : 12 : 15
+-----------------------+----------+----------+----------
+Sequence Number : 20 : 16 : 35
+-----------------------+----------+----------+----------
+Journal Code : 1 : 36 : 36
+-----------------------+----------+----------+----------
+Entry Type : 2 : 37 : 38
+-----------------------+----------+----------+----------
+Time stamp : 26 : 39 : 64
+-----------------------+----------+----------+----------
+Job Name : 10 : 65 : 74
+-----------------------+----------+----------+----------
+User Name : 10 : 75 : 84
+-----------------------+----------+----------+----------
+Job Number : 6 : 85 : 90
+-----------------------+----------+----------+----------
+Program Name : 10 : 91 : 100
+-----------------------+----------+----------+----------
+Object : 30 : 101 : 130
+-----------------------+----------+----------+----------
+Count/RRN : 10 : 131 : 140
+-----------------------+----------+----------+----------
+Indicator Flag : 1 : 141 : 141
+-----------------------+----------+----------+----------
+Commit Cycle ID : 20 : 142 : 161
+-----------------------+----------+----------+----------
+User Profile : 10 : 162 : 171
+-----------------------+----------+----------+----------
+System Name : 8 : 172 : 179
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 180 : 189
+-----------------------+----------+----------+----------
+Referential Constraint : 1 : 190 : 190
+-----------------------+----------+----------+----------
+Trigger : 1 : 191 : 191
+-----------------------+----------+----------+----------
+Incomplete Data : 1 : 192 : 192
+-----------------------+----------+----------+----------
+Object Name Indicator : 1 : 193 : 193
+-----------------------+----------+----------+----------
+Ignore During APYJRNCHG: 1 : 194 : 194
+or RMVJRNCHG : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1 : 195 : 195
+Specific Data : : :
+-----------------------+----------+----------+----------
+Length Of Null Value : 4 : NVI Disp : NVI Disp
+Indicators (1) : : (3) : + 3
+-----------------------+----------+----------+----------
+Null Value Indicators : field : NVI Disp : NVI Disp
+: length : + 4 : + 3
+: : : + field
+: : : length
+-----------------------+----------+----------+----------
+Length Of Entry : 5 : ESD Disp : ESD Disp
+Specific Data : : (4) : + 4
+-----------------------+----------+----------+----------
+Reserved : 11 : ESD Disp : ESD Disp
+: : + 5 : + 15
+-----------------------+----------+----------+----------
+Entry-Specific Data : M (5) : ESD Disp : ESD Disp
+: : + 16 : + 15 + M
+========================================================
+Notes:
+(1) This field is represented in BINARY(4).
+(2) This field is represented in UNSIGNED BINARY(4).
+(3) NVI Disp is determined by the value in the field
+labeled "Displacement to this journal entry's null
+value indicator."
+(4) ESD Disp is determined by the value in the field
+labeled "Displacement to this journal entry's entry
+specific data."
+(5) The length of entry-specific data can vary from
+entry to entry and is designated by the variable M.
+
+The format for *JRNENTFMT journal entries when NULLINDLEN(*VARLEN field-length) and JRNENTFMT(RJNE0200) are specified is shown below:
+
+Figure: Table 14 - NULLINDLEN(*VARLEN field-length) Journal Entry Format for ENTFMT(*JRNENTFMT) when JRNENTFMT(RJNE0200) is specified
+
+Field Name : Length : From : To
+=======================+==========+==========+==========
+Displacement to next : 4 : 0 : 3
+journal entry's : : :
+header (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 4 : 7
+journal entry's null : : :
+value indicators (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 8 : 11
+journal entry's entry : : :
+specific data (5) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 12 : 15
+journal entry's trans- : : :
+action identifier (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 16 : 19
+journal entry's logical: : :
+unit of work (1) : : :
+-----------------------+----------+----------+----------
+Displacement to this : 4 : 20 : 23
+journal entry's : : :
+receiver information(1): : :
+-----------------------+----------+----------+----------
+Sequence Number (1) : 8 : 24 : 31
+-----------------------+----------+----------+----------
+Unformatted Time stamp : 8 : 32 : 39
+(1) : : :
+-----------------------+----------+----------+----------
+Thread Identifier (1) : 8 : 40 : 47
+-----------------------+----------+----------+----------
+System Sequence : 8 : 48 : 55
+Number (1) : : :
+-----------------------+----------+----------+----------
+Count/RRN (1) : 8 : 56 : 63
+-----------------------+----------+----------+----------
+Commit Cycle ID (1) : 8 : 64 : 71
+-----------------------+----------+----------+----------
+Pointer Handle (1) : 4 : 72 : 75
+-----------------------+----------+----------+----------
+Remote Port (1) : 2 : 76 : 77
+-----------------------+----------+----------+----------
+Arm Number (1) : 2 : 78 : 79
+-----------------------+----------+----------+----------
+Program Library : 2 : 80 : 81
+ASP Number (1) : : :
+-----------------------+----------+----------+----------
+Remote Address : 16 : 82 : 97
+-----------------------+----------+----------+----------
+Journal Code : 1 : 98 : 98
+-----------------------+----------+----------+----------
+Entry Type : 2 : 99 : 100
+-----------------------+----------+----------+----------
+Job Name : 10 : 101 : 110
+-----------------------+----------+----------+----------
+User Name : 10 : 111 : 120
+-----------------------+----------+----------+----------
+Job Number : 6 : 121 : 126
+-----------------------+----------+----------+----------
+Program Name : 10 : 127 : 136
+-----------------------+----------+----------+----------
+Program Library Name : 10 : 137 : 146
+-----------------------+----------+----------+----------
+Program Library ASP : 10 : 147 : 156
+Device Name : : :
+-----------------------+----------+----------+----------
+Object : 30 : 157 : 186
+-----------------------+----------+----------+----------
+User Profile : 10 : 187 : 196
+-----------------------+----------+----------+----------
+Journal Identifier : 10 : 197 : 206
+-----------------------+----------+----------+----------
+Address Family : 1 : 207 : 207
+-----------------------+----------+----------+----------
+System Name : 8 : 208 : 215
+-----------------------+----------+----------+----------
+Indicator Flag : 1 : 216 : 216
+-----------------------+----------+----------+----------
+Object Name Indicator : 1 : 217 : 217
+-----------------------+----------+----------+----------
+Referential Constraint : 1/8 : 218 1/8 : 218 1/8
+(2) : : :
+-----------------------+----------+----------+----------
+Trigger (2) : 1/8 : 218 2/8 : 218 2/8
+-----------------------+----------+----------+----------
+Incomplete Data (2) : 1/8 : 218 3/8 : 218 3/8
+-----------------------+----------+----------+----------
+Ignore During APYJRNCHG: 1/8 : 218 4/8 : 218 4/8
+or RMVJRNCHG (2) : : :
+-----------------------+----------+----------+----------
+Minimized Entry : 1/8 : 218 5/8 : 218 5/8
+Specific Data (2) : : :
+-----------------------+----------+----------+----------
+File Type Indicator (2): 1/8 : 218 6/8 : 218 6/8
+-----------------------+----------+----------+----------
+Minimized on : 1/8 : 218 7/8 : 218 7/8
+Field Boundaries (2) : : :
+-----------------------+----------+----------+----------
+Reserved (2) : 1/8 : 218 8/8 : 218 8/8
+-----------------------+----------+----------+----------
+Object Type : 10 : 219 : 228
+-----------------------+----------+----------+----------
+Reserved : 3 : 229 : 231
+-----------------------+----------+----------+----------
+Nested Commit Level (1): 4 : 232 : 235
+-----------------------+----------+----------+----------
+Transaction Format ID : 4 : XID Disp : XID Disp
+: : (9) : + 3
+-----------------------+----------+----------+----------
+Length Of Global Trans-: 4 : XID Disp : XID Disp
+action Identifier (5) : : + 4 : + 7
+-----------------------+----------+----------+----------
+Length Of Branch : 4 : XID Disp : XID Disp
+Qualifier (5) : : + 8 : + 11
+-----------------------+----------+----------+----------
+Transaction Branch : 128 : XID Disp : XID Disp
+Identifier : : + 12 : + 139
+-----------------------+----------+----------+----------
+Logical Unit Of Work : 39 : LUW Disp : LUW Disp
+: : (3) : + 38
+-----------------------+----------+----------+----------
+Receiver Name : 10 : RCV Disp : RCV Disp
+: : (4) : + 9
+-----------------------+----------+----------+----------
+Receiver Library Name : 10 : RCV Disp : RCV Disp
+: : + 10 : + 19
+-----------------------+----------+----------+----------
+Receiver Library ASP : 10 : RCV Disp : RCV Disp
+Device Name : : + 20 : + 29
+-----------------------+----------+----------+----------
+Receiver Library ASP : 2 : RCV Disp : RCV Disp
+Number (5) : : + 30 : + 31
+-----------------------+----------+----------+----------
+Length Of Null Value : 4 : NVI Disp : NVI Disp
+Indicators (5) : : (6) : + 3
+-----------------------+----------+----------+----------
+Null Value Indicators : field : NVI Disp : NVI Disp
+: length : + 4 : + 3
+: : : + field
+: : : length
+-----------------------+----------+----------+----------
+Length Of Entry : 5 : ESD Disp : ESD Disp
+Specific Data : : (7) : + 4
+-----------------------+----------+----------+----------
+Reserved : 11 : ESD Disp : ESD Disp
+: : + 5 : + 15
+-----------------------+----------+----------+----------
+Entry-Specific Data : M (8) : ESD Disp : ESD Disp
+: : + 16 : + 15 + M
+========================================================
+Notes:
+(1) This field is represented in UNSIGNED BINARY.
+(2) This field is represented by a BIT.
+(3) LUW Disp is determined by the value in the field
+labeled "Displacement to this journal entry's logical
+unit of work."
+(4) RCV Disp is determined by the value in the field
+labeled "Displacement to this journal entry's receiver
+information."
+(5) This field is represented in BINARY.
+(6) NVI Disp is determined by the value in the field
+labeled "Displacement to this journal entry's null
+value indicator."
+(7) ESD Disp is determined by the value in the field
+labeled "Displacement to this journal entry's entry
+specific data."
+(8) The length of entry-specific data can vary from
+entry to entry and is designated by the variable M.
+(9) XID Disp is determined by the value in the field
+labeled "Displacement to this journal entry's
+transaction identifier."
+
+Top
+
+Delay time (DELAY)
+
+Specifies the number of seconds that the command processing program (CPP) waits for a new journal entry to arrive if the last entry has already been received. After the last entry in the journal is received and passed to the exit program, the CPP tries to receive the next entry. If no new journal entry exists, the exit program is passed a value of 0 in the first byte of the second parameter.
+
+Note: This parameter is valid only when TOENTLRG(*NONE) and TOENT(*NONE) is specified, and the last receiver specified on the RCVRNG parameter identifies the journal receiver that is currently attached when journal entries are starting to be received.
+
+When the last entry on the journal has been passed to the exit program and no journal entries are currently available to be passed to the exit program, one of the following occurs:
+
+- If a number of seconds is specified for the first element in the list, the exit program is immediately called and a '0' is passed to the first byte of the second exit parameter indicating that no additional journal entries are currently available. When the exit program returns control to the command, the system delays for the specified number of seconds.
+When the delay time has expired, the system then checks whether any additional journal entries are available to be passed to the exit program. Any additional entries are passed to the exit program sequentially, until there are no more available. When there are no further journal entries available, the exit program is called, and a '0' is passed as the first byte of the second exit program parameter, indicating there are no more journal entries currently available. When the exit program returns control to the command, the system again delays for the specified number of seconds.
+
+If there are no new journal entries to pass to the exit program after the delay, the exit program is called, and a '0' is passed as the first byte of the second exit program parameter to indicate that no further journal entries are available. The exit program then passes the value '9' for the first byte of the second parameter, indicating that this command is to end.
+
+- If *NEXTENT is specified for the first element in the list, then additional journal entries are passed to the exit program as they become available. When this option is used, the second element in the list indicates the maximum number of seconds between calls to the exit program. If there are no additional journal entries to pass after the specified maximum delay time, the exit program is called, and a '0' is passed to the first byte of the second exit program parameter, indicating that no additional journal entries are currently available.
+The maximum delay time can be either of the following:
+
+The time between a call to the exit program passing the last currently available journal entry, and a subsequent call to the exit program indicating that no new journal entries are available.
+
+The time between calls to the exit program indicating that no additional journal entries are available.
+
+If the exit program is called after the maximum delay has expired, it then can pass the value '9' for the first byte of the second parameter, indicating that this command should be ended.
+
+Note: The previous description of the DELAY parameter assumes that the journal receiver that is currently attached at the beginning of the RCVJRNE command is still attached. If that journal receiver has been detached, the exit program is sent the reason code 3 after all journal entries have been received by the exit program and the RCVJRNE command ends.
+
+Element 1: Delay time value
+
+30
+The command delays 30 seconds before checking whether additional journal entries are available to be passed to the exit program.
+
+*NEXTENT
+A fixed delay time is not used. Additional journal entries are passed to the exit program as they become available.
+
+Note: If the RCVJRNE exit program causes any additional calls of the RCVJRNE command, those additional calls cannot specify DELAY(*NEXTENT) if a preceding call specified TOENTLRG(*NONE) or TOENT(*NONE).
+
+Note: INCENT(*ALL) and DELAY(*NEXTENT) cannot be specified at the same time.
+
+seconds
+Specify the number of seconds that the command delays before checking whether additional journal entries are available to be passed to the exit program. Valid values range from 1 through 99999.
+
+Element 2: Maximum delay time value
+
+This element indicates the maximum number of seconds between calls to the exit program when a fixed delay time is not specified on the first element. This element is valid only if *NEXTENT is specified for the first element.
+
+*CLS
+The process default wait time is used as the maximum number of seconds between calls to the exit program.
+
+seconds
+Specify the maximum length of time between calls to the exit program, in seconds. Valid values range from 1 through 99999.
+
+Top
+
+Block length (BLKLEN)
+
+Specifies whether the system will be sending one or more journal entries to the exit program and specifies the block length of the buffer passed to the exit program. The EXITPGM parameter has further details about block mode semantics.
+
+*NONE
+At most one journal entry will be sent to the exit program.
+
+*CALC
+One or more journal entries will be passed to the exit program in a block. The length of the block passed (the first parameter passed to the exit program) is determined by the system and will be optimal.
+
+block-length
+Specify the length in kilobytes of the buffer passed to the exit program (EXITPGM parameter). Valid values range from 32 to 4000.
+
+Top
+
+Journal entry format (JRNENTMFT)
+
+Specifies the format of the journal entries received by the exit program. The formats are described in the Retrieve Journal Entries (QjoRetrieveJournalEntries) API. See the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for the details associated with these formats.
+
+This parameter is only valid if ENTFMT(*JRNENTFMT) is also specified.
+
+RJNE0100
+Received journal entries are in RJNE0100 format.
+
+RJNE0200
+Received journal entries are in RJNE0200 format. While in block mode, a single block of entries will not be received from multiple receivers.
+
+Top
+
+Return pointers (RTNPTR)
+
+Specifies whether the journal entries received include entry specific data that could contain pointers for specific journal entry types.
+
+This parameter is only valid if ENTFMT(*JRNENTFMT) is also specified.
+
+*NONE
+Received journal entries will not include pointers.
+
+*SYSMNG
+Specifies that journal entries received include entry specific data that could contain pointers for specific journal entry types. The system will manage the releasing of the resources related to pointers that are received in the journal entries. The pointers, their associated pointer handles and any related storage will be released when the exit program returns control to the system.
+
+Note: NULLINDLEN(*VARLEN) and RTNPTR(*SYSMNG) or RTNPTR(*USRMNG) cannot be specified at the same time.
+
+*USRMNG
+Specifies that journal entries received include entry specific data that could contain pointers for specific journal entry types. The user will manage the releasing of the resources related to pointers that are received in the journal entries. Neither the pointers, their associated pointer handles or any related storage will be released when the exit program returns control to the system. The user must use the Delete Pointer Handle (QjoDeletePointerHandle) API to release these resources. See the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for the details associated with this API.
+
+Note: NULLINDLEN(*VARLEN) and RTNPTR(*SYSMNG) or RTNPTR(*USRMNG) cannot be specified at the same time.
+
+Top
+
+Include entries (INCENT)
+
+Specifies whether only the confirmed or both the confirmed and unconfirmed, journal entries are received. This parameter only applies when receiving journal entries for output from a remote journal.
+
+Confirmed entries are those journal entries which have been sent to this remote journal and the state of the Input/Output (I/O) to auxiliary storage for the same journal entries on the local journal is known.
+
+Unconfirmed entries are those journal entries which have been sent to this remote journal, but the state of the Input/Output (I/O) to auxiliary storage for the same journal entries on the local journal is not known, or the object name information for those journal entries is not yet known to the remote journal. Unconfirmed journal entries can only exist within the attached receiver of a remote journal. This only applies if synchronous delivery mode is being used for a particular remote journal.
+
+*CONFIRMED
+Only those journal entries which have been confirmed are received.
+
+*ALL
+All confirmed and unconfirmed journal entries are received.
+
+Note: INCENT(*ALL) and DELAY(*NEXTENT) cannot be specified at the same time.
+
+Top
+
+Starting sequence number (FROMENT)
+
+Specifies the first journal entry considered for reception.
+
+Note: You can specify a value for either the Starting sequence number (FROMENT) parameter or the Starting large sequence number (FROMENTLRG) parameter, but not for both.
+
+*FIRST
+The first journal entry in the specified journal receiver range is the first entry considered for reception.
+
+starting-sequence-number
+Specify the sequence number of the first journal entry considered for reception. The possible range is 1 to 9,999,999,999.
+
+Top
+
+Ending sequence number (TOENT)
+
+Specifies the last journal entry considered for reception.
+
+Note: You can specify a value for either the Ending sequence number (TOENT) parameter or the Ending large sequence number (TOENTLRG) parameter, but not for both.
+
+*NONE
+No journal entry is specified. Journal entries are passed to the exit program until the command is canceled (by a cancel request or a cancel job command) or until an end reason code (9) is set by the exit program. If there are no more entries to pass, the RCVJRNE command waits the number of seconds indicated on the DELAY parameter before trying to find more entries to pass.
+
+Note: TOENT(*NONE) is valid only if the RCVRNG parameter specifies a receiver that is currently attached when starting to receive journal entries.
+
+*LAST
+The last journal entry in the journal receiver range specified is the last entry considered for reception.
+
+ending-sequence-number
+Specify the sequence number of the final journal entry considered for reception. The possible range is 1 to 9,999,999,999.
+
+Note: The values specified for the from and to prompts can be the same. For example, FROMENT(234) and TOENT(234) can be specified.
+
+Top
+
+Commit cycle identifier (CMTCYCID)
+
+Specifies the journal entries considered for reception based on their associated commit cycle identifier. A commit cycle consists of all journal entries sharing the same commit cycle identifier. A journal entry's commit cycle identifier can be displayed by using the Display Journal (DSPJRN) command and entering option five.
+
+Note: You can input a value for either the Commit cycle identifier field (CMTCYCID) or the Commit cycle large identifier field (CCIDLRG) but not for both.
+
+*ALL
+The journal entries received are not limited to a specified commit cycle identifier.
+
+commit-cycle-identifier
+Specify the commit cycle identifier of the journal entries to be considered for reception. The possible range is 1 to 9,999,999,999.
+
+Top
+
+Examples
+
+Example 1: Receiving Journal Entries
+
+RCVJRNE JRN(APPLIB/JRN1) EXITPGM(MYLIB/RCVPGM)
+FILE(APPLIB/FILE3) TOENT(*LAST) ENTFMT(*TYPE3)
+NULLINDLEN(*ENTFMT)
+
+This command receives journal entries from the journal receiver that is currently attached (when journal entries are starting to be received) to the journal JRN1 in library APPLIB and passes them one at a time to program RCVPGM in library MYLIB. Only entries with file-level information for the first member of file FILE3 in library APPLIB are received. The format of each entry passed to the exit program is shown in the "NULLINDLEN(*ENTFMT) Journal Entry Format for ENTFMT(*TYPE3)" table shown within the NULLINDLEN parameter description.
+
+Example 2: Receiving Journal Entries
+
+RCVJRNE JRN(JRNLIB/MYJRN) EXITPGM(RCVLIB/PGMA)
+FILE(FILELIB/PFILEB MBRONE)
+TOENT(*LAST) ENTFMT(*TYPE3) NULLINDLEN(*VARLEN 30)
+
+This command receives journal entries with file-level information for member MBRONE of file PFILEB in library FILELIB from the journal receiver currently attached (when journal entries are starting to be received) to journal MYJRN in library JRNLIB and sends them one at a time to program PGMA in library RCVLIB. The format of each entry passed to the exit program is shown in the "NULLINDLEN(*VARLEN field-length) Journal Entry Format for ENTFMT(*TYPE3)" table at the end of the NULLINDLEN parameter description. The null value indicators portion of each received entry is 30 characters in length.
+
+Example 3: Receiving Journal Entries Using DELAY(*NEXTENT)
+
+RCVJRNE JRN(JRNLIB/MYJRN) EXITPGM(RCVLIB/PGMA)
+RCVRNG(*CURCHAIN) TOENT(*NONE) DELAY(*NEXTENT)
+
+This command receives all available journal entries from the chain of journal receivers, which includes the journal receiver that is attached at the start of receiving journal entries, associated with the journal MYJRN in the library JRNLIB. These journal entries are sent sequentially to exit program PGMA in library RCVLIB, as they become available. The maximum length of time between calls to the exit program is equal to the process default wait time value.
+
+Example 4: Receiving Journal Entries for Data Area, Data Queue, and Integrated File System Objects
+
+RCVJRNE JRN(LIBPROD/PRODJRN) EXITPGM(RCVLIB/PGMA)
+OBJ((APPLIB/D1 *DTAARA) (APPLIB/D2 *DTAQ)
+(APPLIB/D3 *FILE *NONE))
+OBJPATH(('/mydirectory')) SUBTREE(*YES)
+TOENT(*LAST) ENTFMT(*JRNENTFMT) JRNENTFMT(RJNE0200)
+
+This command receives journal entries from the journal receiver currently attached (when journal entries are starting to be received) to journal PRODJRN in library LIBPROD and sends them one at a time to program PGMA in library RCVLIB. The format of each entry passed to the exit program is shown in the "NULLINDLEN(*ENTFMT) Journal Entry Format for ENTFMT(*JRNENTFMT) when JRNENTFMT(RJNE0200) is specified" table at the end of the NULLINDLEN parameter description. Only entries associated with the specified objects are converted. These objects are a data area in library APPLIB called D1, a data queue in library APPLIB called D2, and a database file D3 in library APPLIB, as well as the directory '/mydirectory' and all directories, stream files, and symbolic links within that directory or one of its subdirectories.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF70A9
+OBJPATH parameter not valid for a remote journal.
+
+CPF70AC
+Object for file identifier &1 not found.
+
+CPF70AE
+Member *FIRST not allowed for a remote journal.
+
+CPF70C3
+File &1 in library &2 not a database file.
+
+CPF7002
+File &1 in library &2 not a physical file.
+
+CPF7006
+Member &3 not found in file &1 in &2.
+
+CPF7007
+Cannot allocate member &3 file &1 in &2.
+
+CPF701B
+Journal recovery of an interrupted operation failed.
+
+CPF705C
+INCENT(*ALL) not allowed for a local journal.
+
+CPF7053
+Values for RCVRNG parameter not correct; reason code &1.
+
+CPF7054
+FROM and TO values not valid.
+
+CPF7055
+Maximum number of objects exceeded.
+
+CPF7057
+*LIBL not allowed with *ALL or *ALLLIB or a generic name.
+
+CPF706A
+Significant null value indicator truncated.
+
+CPF706D
+RCVJRNE exit program &1 in &2 failed.
+
+CPF7060
+Object not journaled in specified receiver range.
+
+CPF7061
+Conversion of journal entries failed.
+
+CPF7062
+No entries converted or received from journal &1.
+
+CPF7065
+Entry type (ENTTYP) not valid for journal code (JRNCDE).
+
+CPF707B
+DELAY(*NEXTENT) not allowed.
+
+CPF7074
+RCVRNG for specified SEARCH not valid.
+
+CPF708C
+DELAY(*NEXTENT) not allowed with INCENT(*ALL).
+
+CPF708D
+Journal receiver found logically damaged.
+
+CPF709C
+JOB, PGM, and USRPRF not valid for receiver range.
+
+CPF7096
+RCVRNG and TOENTLRG or TOENT parameters do not match.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9809
+Library &1 cannot be accessed.
+
+CPF9810
+Library &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+Top

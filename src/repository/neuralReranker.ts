@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   AutoModelForSequenceClassification,
   AutoTokenizer,
@@ -7,12 +8,15 @@ import {
 } from "@huggingface/transformers";
 import { defaultModelCacheDir } from "./neuralEmbeddings.js";
 
-export const DEFAULT_RERANKER_MODEL = "onnx-community/bge-reranker-v2-m3-ONNX";
-export const DEFAULT_RERANKER_DTYPE = "q4";
+export const DEFAULT_RERANKER_MODEL_ID = "ibmi-docs/mmarco-minilm-ibmi-reranker-v1";
+export const DEFAULT_RERANKER_MODEL_DIRECTORY = "ibmi-reranker-finetuned-v1";
+export const DEFAULT_RERANKER_DTYPE = "q8";
 
 export interface NeuralRerankerMarker {
   modelId: string;
+  localPath: string;
   dtype: string;
+  modelSha256: string;
   cacheDir: string;
   installedAt: string;
   runtimePolicy: string;
@@ -20,6 +24,7 @@ export interface NeuralRerankerMarker {
 
 export interface NeuralRerankerDiagnostics {
   modelId: string;
+  modelPath: string;
   dtype: string;
   cacheDir: string;
   markerPath: string;
@@ -57,11 +62,33 @@ let rerankerPromise: Promise<{ tokenizer: Tokenizer; model: SequenceClassifier }
 let rerankerKey: string | undefined;
 
 export function configuredRerankerModel(): string {
-  return process.env.IBMI_DOCS_RERANKER_MODEL?.trim() || DEFAULT_RERANKER_MODEL;
+  const explicit = process.env.IBMI_DOCS_RERANKER_MODEL?.trim();
+  if (explicit) return path.resolve(explicit);
+  const marker = readRerankerMarker();
+  if (marker?.localPath && fs.existsSync(marker.localPath)) return marker.localPath;
+  const bundled = bundledRerankerModelCandidates().find((candidate) =>
+    fs.existsSync(path.join(candidate, "onnx", "model_quantized.onnx"))
+  );
+  if (bundled) return bundled;
+  return path.join(defaultModelCacheDir(), DEFAULT_RERANKER_MODEL_DIRECTORY);
+}
+
+export function configuredRerankerModelIdentity(): string {
+  const explicit = process.env.IBMI_DOCS_RERANKER_MODEL_ID?.trim();
+  if (explicit) return explicit;
+  const marker = readRerankerMarker();
+  return marker?.localPath && fs.existsSync(marker.localPath)
+    ? marker.modelId
+    : DEFAULT_RERANKER_MODEL_ID;
 }
 
 export function configuredRerankerDtype(): string {
-  return process.env.IBMI_DOCS_RERANKER_DTYPE?.trim() || DEFAULT_RERANKER_DTYPE;
+  const explicit = process.env.IBMI_DOCS_RERANKER_DTYPE?.trim();
+  if (explicit) return explicit;
+  const marker = readRerankerMarker();
+  return marker?.localPath && fs.existsSync(marker.localPath)
+    ? marker.dtype
+    : DEFAULT_RERANKER_DTYPE;
 }
 
 export function rerankerMarkerPath(cacheDir = defaultModelCacheDir()): string {
@@ -81,7 +108,8 @@ export function rerankerDiagnostics(): NeuralRerankerDiagnostics {
   const markerPath = rerankerMarkerPath(cacheDir);
   const marker = readRerankerMarker(cacheDir);
   return {
-    modelId: configuredRerankerModel(),
+    modelId: configuredRerankerModelIdentity(),
+    modelPath: configuredRerankerModel(),
     dtype: configuredRerankerDtype(),
     cacheDir,
     markerPath,
@@ -89,6 +117,15 @@ export function rerankerDiagnostics(): NeuralRerankerDiagnostics {
     marker,
     runtimePolicy: "download-at-install-update; runtime-local-only"
   };
+}
+
+function bundledRerankerModelCandidates(): string[] {
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return [
+    path.resolve(process.cwd(), "models", DEFAULT_RERANKER_MODEL_DIRECTORY),
+    path.resolve(moduleDir, "..", "..", "models", DEFAULT_RERANKER_MODEL_DIRECTORY),
+    path.resolve(moduleDir, "..", "..", "..", "models", DEFAULT_RERANKER_MODEL_DIRECTORY)
+  ];
 }
 
 /**
@@ -109,9 +146,11 @@ export async function rerankPassages(
   const dtype = options.dtype ?? configuredRerankerDtype();
   const cacheDir = options.cacheDir ?? defaultModelCacheDir();
   const localOnly = options.localOnly ?? true;
-  const maxLength = Math.max(64, Math.min(256, Math.trunc(options.maxLength ?? 128)));
+  // El modelo MiniLM admite hasta 512 tokens. Las páginas IBM i suelen situar
+  // restricciones críticas después de la introducción y los metadatos; cortar
+  // a 256 hacía invisibles frases como "read-only" aun estando en el pasaje.
+  const maxLength = Math.max(64, Math.min(512, Math.trunc(options.maxLength ?? 128)));
   const { tokenizer, model } = await loadReranker({ modelId, dtype, cacheDir, localOnly });
-
   const questions = cleanPassages.map(() => cleanQuestion);
   const documents = cleanPassages.map(renderRerankerPassage);
   const modelInputs = tokenizer(questions, {
@@ -122,18 +161,17 @@ export async function rerankPassages(
   });
   const output = await (model as unknown as (inputs: unknown) => Promise<{ logits: { tolist: () => number[][] | number[] } }>)(modelInputs);
   const rawLogits = output.logits.tolist();
-  const rows = Array.isArray(rawLogits[0]) ? rawLogits as number[][] : (rawLogits as number[]).map((value) => [value]);
-
-  return cleanPassages
-    .map((passage, index) => {
-      const relevanceLogit = Number(rows[index]?.[0] ?? Number.NEGATIVE_INFINITY);
-      return {
-        ...passage,
-        relevanceLogit,
-        relevanceProbability: sigmoid(relevanceLogit)
-      };
-    })
-    .sort((left, right) => right.relevanceLogit - left.relevanceLogit);
+  const rows = Array.isArray(rawLogits[0])
+    ? rawLogits as number[][]
+    : (rawLogits as number[]).map((value) => [value]);
+  return cleanPassages.map((passage, index) => {
+    const relevanceLogit = Number(rows[index]?.[0] ?? Number.NEGATIVE_INFINITY);
+    return {
+      ...passage,
+      relevanceLogit,
+      relevanceProbability: sigmoid(relevanceLogit)
+    };
+  }).sort((left, right) => right.relevanceLogit - left.relevanceLogit);
 }
 
 function renderRerankerPassage(passage: NeuralRerankInput): string {
@@ -166,7 +204,13 @@ async function loadReranker(options: {
     AutoTokenizer.from_pretrained(options.modelId, { local_files_only: options.localOnly }),
     AutoModelForSequenceClassification.from_pretrained(options.modelId, {
       dtype: options.dtype,
-      local_files_only: options.localOnly
+      local_files_only: options.localOnly,
+      // Evita que ONNX Runtime retenga el pico de activaciones del reranking
+      // como arena permanente entre consultas del servidor MCP.
+      session_options: {
+        enableCpuMemArena: false,
+        enableMemPattern: false
+      }
     } as never)
   ]).then(([tokenizer, model]) => ({ tokenizer, model }));
   return rerankerPromise;

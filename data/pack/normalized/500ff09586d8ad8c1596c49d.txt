@@ -1,0 +1,427 @@
+Copy From Tape (CPYFRMTAP)
+
+Copy From Tape (CPYFRMTAP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Copy From Tape (CPYFRMTAP) command copies records from a tape file to an output file or to the printer.
+
+The from-file must be a tape file, but the to-file can be a physical file, tape file, or program-described printer file. *PRINT can be specified for the To file (TOFILE) parameter to produce a printed listing of the records in the tape from-file.
+
+This command offers a subset of the parameters available on the Copy File (CPYF) command, along with more specific tape-oriented parameters.
+
+If you need parameters that are not available on this command, you can either use overrides for the from-file or to-file, or use the Copy File (CPYF) command.
+
+Only a single tape file (sequence number) can be copied with one call of this command.
+
+The to-file must exist when the command is started. This command does not create the to-file, but it does add a member to an existing physical file if the member does not already exist in the to-file.
+
+Restrictions:
+
+- A file's open data path (ODP) cannot be shared with any other program in the job (routing step) during the copy operation.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMFILE | Tape file | Qualified object name | Required, Positional 1
+Qualifier 1: Tape file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TOFILE | To file | Single values: *PRINT
+Other values: Qualified object name | Required, Positional 2
+Qualifier 1: To file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMSEQNBR | Sequence number | 1-16777215, *TAPF, *NEXT | Optional
+FROMLABEL | Tape label | Character value, *TAPF, *NONE | Optional
+TOMBR | Member | Name, *FROMLABEL, *FIRST | Optional
+FROMDEV | Device | Single values: *TAPF
+Other values (up to 4 repetitions): Name | Optional
+FROMREELS | Copy from reels | Element list | Optional
+Element 1: Label processing type | *TAPF, *SL, *NL, *NS, *BLP, *LTM
+Element 2: Number of reels | 1-255, *TAPF
+FROMRCDLEN | Record length | Integer, *TAPF, *CALC | Optional
+FROMENDOPT | End of tape option | *TAPF, *REWIND, *UNLOAD, *LEAVE | Optional
+MBROPT | Replace or add records | *NONE, *ADD, *REPLACE | Optional
+OUTFMT | Print format | *CHAR, *HEX | Optional
+FROMVOL | Volume identifier | Single values: *TAPF, *NONE
+Other values (up to 50 repetitions): Character value | Optional
+FROMBLKLEN | Block length | 1-524288, *TAPF, *CALC | Optional
+FROMRCDBLK | Record block type | *TAPF, *F, *FB, *V, *VB, *D, *DB, *VS, *VBS, *U | Optional
+NBRRCDS | Number of records to copy | Unsigned integer, *END | Optional
+
+Top
+
+Tape file (FROMFILE)
+
+Specifies the tape file that contains the records that are copied.
+
+This is a required parameter.
+
+Qualifier 1: Tape file
+
+name
+Specify the name of the tape device file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+To file (TOFILE)
+
+Specifies the file that receives the copied records.
+
+This is a required parameter.
+
+Single values
+
+*PRINT
+The output is printed with the job's spooled output.
+
+Qualifier 1: To file
+
+name
+Specify the name of the physical file or device file that receives the copied records.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Sequence number (FROMSEQNBR)
+
+Specifies the sequence number of the tape file that is copied.
+
+If the tapes for the from-file have standard labels, the file sequence number is read from the first header label of the data file. When bypass label processing has been specified for the from-file (that is, FROMREELS(*BLP) has been specified on this command or on the command used to describe the tape file) or when tapes with standard labels are not being used, the system uses the tape marks and the value specified on this parameter to locate the correct data file that is copied.
+
+*TAPF
+The sequence number specified in the tape file or override is used to indicate the file that is copied.
+
+*NEXT
+The next file on the tape is processed. If the tape is currently positioned before the first file, the first file on the tape is processed.
+
+1-16777215
+Specify the sequence number of the file on the tape that is copied. For a labeled tape file, the label specified in the FROMLABEL parameter must be found at this sequence number.
+
+Top
+
+Tape label (FROMLABEL)
+
+Specifies the data file identifier of a file that is copied from the tape. The file identifier specified must be found at the sequence number specified for the Sequence number (FROMSEQNBR) parameter.
+
+*TAPF
+The file identifier in the tape file description or override is used to identify the tape file that is copied.
+
+*NONE
+The file identifier is not specified. Any label identifier is accepted.
+
+data-file-identifier
+Specify the name of the file label that is copied from the tape from-file. A label can be up to 17 characters in length.
+
+generic*-data-file-identifier
+Specify the generic name of the file label that is copied from the tape from-file.
+
+Top
+
+Member (TOMBR)
+
+Specifies the database file member or tape file label in the to-file that receives the copied data records. If *PRINT is specified for the To file (TOFILE) parameter, either *FIRST or *FROMLABEL must be specified on this parameter.
+
+*FROMLABEL
+The file specified by the FROMLABEL and FROMSEQNBR parameters is copied into a corresponding member or label in the to-file.
+The name of the from-file tape label identifier is used as the member or label identifier for a physical to-file or tape to-file. If the to-file is a tape file, the from-file label identifier is used without modification.
+
+If the to-file is a database file, the last 10 characters that appear before all consecutive blanks for the from-file label are used for the to-file member name. If the last 10 characters that appear before all consecutive blanks are not valid, then the characters to the right of the last period (.) are used for the to-file member name.
+
+If the from-file is a nonlabeled tape file, then a to-file member or label name is created that corresponds to the data file on the tape from-file in the form of CPYnnnn, where nnnn is the tape sequence number of the data-file. If the to-file is a tape device file, the label in the device file description or override is used.
+
+*FIRST
+The first member in the physical to-file receives the copied records.
+
+name
+Specify the name of the physical to-file member, or tape to-file label identifier, that receives the copied records. If the tape label identifier is longer than 10 characters or contains special characters, it must be specified on a CRTTAPF, CHGTAPF, or OVRTAPF command before starting the CPYFRMTAP command.
+
+Top
+
+Device (FROMDEV)
+
+Specifies up to four tape devices, one virtual tape device, or one media library device from which the tape from-file is copied.
+
+Single values
+
+*TAPF
+The value specified in the tape file is used to indicate the devices used.
+
+Other values (up to 4 repetitions)
+
+name
+Specify the names of up to four tape devices, one virtual tape device, or one media library device used when copying records from the from-file. The order in which the device names are specified is the order in which tapes on the devices are successively read. Each device must already be known on the system by a device description.
+
+Top
+
+Copy from reels (FROMREELS)
+
+Specifies the type of labeling used on the tape reels that contain the from-file. The number of reels value specified on this parameter is not a limiting value for tape with standard labels. For standard-label tape, the labels on the tape indicate an end-of-file condition that limits the number of volumes processed. The number of reels information is used only if there is no list of volume identifiers specified and if the from-file is either *NL, *NS or *BLP. When the number of reels value is used, the volume identifiers on the volumes that are placed in the device are ignored if the from-file resides on labeled tapes. In that case, the order in which the reels are placed in the device must be checked by the operator.
+
+Element 1: Label processing type
+
+*TAPF
+The value specified in the tape file or override for the from-file is used for label-type values.
+
+*SL
+Each tape volume has standard labels.
+
+*NL
+Each tape volume has no labels. Tape marks are used to indicate the end of each data file on the tape.
+
+*NS
+Each tape volume has nonstandard labels. Only a single data file can exist on a nonstandard tape reel (volume).
+
+*BLP
+Standard label processing is bypassed when copying the from-file volumes.
+
+*LTM
+The volumes of the from-file have no labels but have a single leading tape mark before the first file on the tape.
+
+Element 2: Number of reels
+
+*TAPF
+The number-of-reels value that is used is the value specified in the tape file or override for the from-file.
+
+1-255
+Specify the maximum number of reels used. If the next reel is not on the device when the end of a tape is reached, a message is sent to the operator requesting that the next tape be placed in the device.
+
+Top
+
+Record length (FROMRCDLEN)
+
+Specifies (in bytes) the length of the records contained in the tape from-file. This parameter should be specified in this command or a tape file command for *NS, *NL, *BLP, or *LTM tapes, or for the tapes that do not have HDR2 labels. For *SL tapes, the record length is obtained from the label itself.
+
+*TAPF
+The record length defined in the tape file or override is used.
+
+*CALC
+The system calculates the value to use.
+
+1-32767
+Specify a value to be used as the tape from-file record length. The record length must be consistent with the block length and record block format parameter values.
+
+Top
+
+End of tape option (FROMENDOPT)
+
+Specifies the positioning operation that is performed automatically on the last from-file tape volume when the tape device file is closed. For a multi-volume tape from-file, this parameter applies to the last reel (volume) only; all intermediate volumes are copied with *UNLOAD as the positioning attribute.
+
+*TAPF
+The tape is repositioned according to the value specified in the device file or override.
+
+*REWIND
+The tape is rewound, but not unloaded.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+*LEAVE
+The tape does not rewind or unload after the operation ends. It remains at the current position on the tape drive.
+
+Top
+
+Replace or add records (MBROPT)
+
+Specifies whether the new records replace or are added to the existing records.
+
+*NONE
+This parameter does not apply to this copy operation. When the to-file is an existing physical file, *NONE is not allowed.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+*REPLACE
+The system clears the existing member and adds the new records.
+
+Top
+
+Print format (OUTFMT)
+
+Specifies whether records are printed in character format, or in both character and hexadecimal format. This parameter is used only when *PRINT is specified for the To file (TOFILE) parameter.
+
+*CHAR
+Records are printed in character format.
+
+*HEX
+Records are printed in both character and hexadecimal format.
+
+Top
+
+Volume identifier (FROMVOL)
+
+Specifies one or more volume identifiers of the tapes used when copying records from the (tape) from-file. These volumes must be placed in the devices in the same order as the identifiers are specified (and in the same order as the device names are specified in the FROMDEV parameter).
+
+Single values
+
+*TAPF
+The value specified in the tape file or override is used.
+
+*NONE
+No tape volume identifiers are specified for this file. No volume checking is done beyond verifying that the correct label type volume is placed in the tape device.
+
+Other values (up to 50 repetitions)
+
+character-value
+Specify up to 50 volume identifiers from which the tape file is copied. The identifiers of volumes must be entered in the same order in which they are placed in the devices.
+
+Top
+
+Block length (FROMBLKLEN)
+
+Specifies the length (in bytes) of data blocks transferred from the tape from-file. This parameter should be specified for nonstandard or nonlabeled tapes, for tapes whose label processing has been bypassed, or for tapes that do not have HDR2 labels. For standard labeled tapes, the block length is obtained from the label itself, and this parameter is ignored.
+
+*TAPF
+The block length value from the tape file or override is used.
+
+*CALC
+The system calculates the value to use.
+
+18-524288
+Specify the block length of each block in the tape from-file. The block length must be consistent with record length and record block format values.
+
+Top
+
+Record block type (FROMRCDBLK)
+
+Specifies the record block format and blocking attribute of records in the tape from-file.
+
+*TAPF
+The record block format value from the tape file or override is used.
+
+*F
+Fixed-length, deblocked records in either EBCDIC or ASCII format are used.
+
+*FB
+Fixed-length, blocked records in either EBCDIC or ASCII format are used.
+
+*V
+Variable-length, deblocked records in EBCDIC format are used.
+
+*VB
+Variable-length, blocked records in EBCDIC format are used.
+
+*D
+Variable-length, deblocked records in ASCII type D format are used.
+
+*DB
+Variable-length, blocked records in ASCII type D format are used.
+
+*VS
+Variable-length spanned records are used.
+
+*VBS
+Variable-length, spanned blocked records are used.
+
+*U
+Records in an undefined format are used.
+
+Top
+
+Number of records to copy (NBRRCDS)
+
+Specifies the number of records copied to the to-file.
+
+*END
+Records are copied until the end-of-file condition is indicated.
+
+1-4294967288
+Specify the number of records to copy. Fewer records are copied if an end-of-file condition occurs before the specified number of records have been copied.
+
+Top
+
+Examples
+
+Example 1: Adding Copied Records to Existing Records
+
+CPYFRMTAP FROMFILE(QTAPE) TOFILE(DEPT/YTDSALES)
+FROMSEQNBR(3) FROMLABEL(DAILY)
+FROMDEV(QTAPE1) MBROPT(*ADD)
+
+This command copies records from tape by using the tape device file QTAPE. The data file at sequence number 3 labeled DAILY on device QTAPE1 is copied. The specific attributes of the data file, such as record length and record block format, is determined by the system from the label on the tape. The records are added to the existing records in the member DAILY, which is implied by the parameter default of (TOMBR(*FROMLABEL), in file YTDSALES, which is in library DEPT.
+
+Example 2: Replacing Existing Records
+
+CPYFRMTAP FROMFILE(QTAPE) TOFILE(MYLIB/KEN) FROMSEQNBR(2)
+FROMDEV(QTAPE1) FROMREELS(*NL 1) FROMRCDLEN(100)
+FROMBLKLEN(1000) FROMRCDBLK(*FB) TOMBR(*FIRST)
+MBROPT(*REPLACE)
+
+This command copies records from tape by using the tape device file QTAPE. Records in the data file at sequence number 2 of a nonlabeled tape file on tape device QTAPE1, with fixed-length records that are blocked 1000 bytes (or 10 records) to a block, are copied, and replace the existing records in the first member in file KEN, which is in library MYLIB.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2816
+File &1 in &2 not copied because of error.
+
+CPF2817
+Copy command ended because of error.
+
+CPF2818
+*FROMMBR value is not allowed on TOMBR parameter.
+
+CPF2858
+File attributes not valid for printed output.
+
+CPF2859
+Shared open data path not allowed.
+
+CPF2875
+Wrong file member or label opened.
+
+CPF2888
+Member &3 not added to file because of error.
+
+CPF2909
+Error clearing member &3 in file &1 in &2.
+
+CPF2949
+Error closing member &3 in file &1 in &2.
+
+CPF2952
+Error opening file &1 in library &2.
+
+CPF2971
+Error reading member &3 in file &1.
+
+CPF2972
+Error writing to member &3 in file &1.
+
+CPF9212
+Cannot load or unload DDM file &2 in &3.
+
+Top

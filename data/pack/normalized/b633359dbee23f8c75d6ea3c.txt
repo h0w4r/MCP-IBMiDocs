@@ -1,0 +1,190 @@
+Check Tape (CHKTAP)
+
+Check Tape (CHKTAP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Check Tape (CHKTAP) command searches a volume on the specified device for a unique volume identifier or file label. If the correct tape is loaded, you may process this file on the next tape operation by specifying the same sequence number that was specified in the Check Tape (CHKTAP command). If the correct tape is not found, an escape message is sent.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DEV | Device | Name | Required, Positional 1
+VOL | Volume identifier | Character value, *MOUNTED | Optional, Positional 2
+SEQNBR | Sequence number | Integer, *NONE, *FIRST, *NEXT, *SEARCH | Optional, Positional 3
+LABEL | File label | Character value, *NONE | Optional, Positional 4
+CRTDATE | Creation date | Date, *NONE | Optional
+ENDOPT | End of tape option | *LEAVE, *REWIND, *UNLOAD | Optional
+
+Top
+
+Device (DEV)
+
+Specifies the device in which the volume being checked is placed.
+
+This is a required parameter.
+
+name
+Specify the name of the tape or media library device.
+
+This is a required parameter.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies whether the volume identifier on the tape is being checked. This is valid only for a standard labeled tape.
+
+Note: If the device specified is a media library device, or a virtual tape device, then the volume specified should be the cartridge identifier or virtual tape volume name to be mounted and used.
+
+*MOUNTED
+The volume identifier on the tape is not checked. The volume on the device is used. For a media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command. For a virtual tape device, the volume to be used is the currently mounted one, or if there is not a currently mounted volume, the next volume in loaded status in the image catalog will be used.
+
+character-value
+If the device specified in the DEV parameter is a stand-alone tape device, specify the volume identifier of the labeled volume. The volume identifier read from the tape is compared to this value. If the volume identifier specified is not found on the tape, an escape message is sent. If the device specified in the DEV parameter is a library device description, specify the cartridge identifier of the volume to be used. If the device specified in the DEV parameter is a virtual tape device, specify the virtual tape volume name of the volume to be used.
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies whether a check is made for a specific sequence number of a data file on the tape.
+
+*NONE
+No check is made for a file on this volume.
+
+*FIRST
+A check is made for the first file on this volume.
+
+*NEXT
+A check is made for the next file on this volume. If the current sequence number is at the beginning of the volume, this value checks the first file on that volume.
+
+*SEARCH
+A search is made for a data file that has an identifier that matches the value for the File label (LABEL) parameter. If *SEARCH is specified, the volume must be labeled and a file label must be specified for the File label (LABEL) parameter. An escape message is sent if the file is not found.
+
+integer
+Specify the sequence number of the data file to verify on this tape. If the sequence number is not found on the tape, an escape message is sent. Valid values range from 1 through 16777215.
+
+Top
+
+File label (LABEL)
+
+Specifies whether a label identifier is checked. If a label is specified, a sequence number must be specified for the Sequence number (SEQNBR) parameter.
+
+*NONE
+No check is made for a label identifier on the tape. *NONE must be specified both here and for the Creation date (CRTDATE) parameter for a volume that is not labeled.
+
+character-value
+Specify the data file identifier (17 characters maximum) of the data file to check. If a label is specified, *SEARCH or a sequence number must be specified for the Sequence number (SEQNBR) parameter. The file identifier of the file at that sequence number is compared with the label identified by this parameter. If the label does not match, an escape message is sent.
+
+Top
+
+Creation date (CRTDATE)
+
+Specifies whether the date the file was created is checked. If *NONE is specified for the Sequence number (SEQNBR) parameter, *NONE must also be specified here.
+
+*NONE
+The date the file was created is not checked. *NONE must be specified both here and for the File label (LABEL) parameter for a volume that is not labeled.
+
+date
+Specify the date that must match the date of the file being checked. The date must be specified in the job date format.
+
+Top
+
+End of tape option (ENDOPT)
+
+Specifies whether the tape is rewound only or rewound and unloaded after the operation ends.
+
+*LEAVE
+The tape is not rewound. The next file operation starts at the beginning of the data file where the tape is currently positioned. This allows the file to be opened with the sequence number specified on the Sequence number (SEQNBR) parameter without having to change the tape position.
+
+*REWIND
+The tape is rewound, but not unloaded.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+Top
+
+Examples
+
+Example 1: Checking the Volume Identifier
+
+CHKTAP DEV(TAPE1) VOL(TAPEVOL)
+
+This command checks the volume identifier of the volume on the tape device TAPE1. If the volume identifier on the tape is TAPEVOL, the command completes normally and no message is sent. If the volume identifier on the tape is not TAPEVOL, an escape message is sent.
+
+Example 2: Checking for a Specific Sequence Number
+
+CHKTAP DEV(TAPE2) VOL(VOLID) SEQNBR(5)
+LABEL(FILE5) CRTDATE('1/9/84')
+
+This command checks the volume on the tape device TAPE2 for a volume identifier of VOLID. If that volume is found, sequence number 5 is located on the tape (it must be a standard-labeled tape). The sequence number in the file label is used to position to sequence number 5. If the sequence number is found and the header label contains both the file identifier FILE5 and the date of 1/9/84, the correct tape and file has been found, and a completion message is sent. The next tape operation can specify sequence number 5 to access this file without positioning the tape. If the specified volume is not found or the tape is not a standard labeled volume, an escape message is sent. If the volume is found and the sequence number is not found, an escape message is sent. If the file label at that sequence number is not FILE5, an escape message is sent. If the date at that sequence number is not 1/9/84, an escape message is sent.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF6708
+Command ended due to error.
+
+CPF6718
+Cannot allocate device &1.
+
+CPF6720
+Incorrect volume &2 found on device &1.
+
+CPF6721
+Device &1 not a tape device.
+
+CPF6728
+LABEL(*NONE) or CRTDATE(*NONE) required.
+
+CPF6734
+File sequence number &3 not found on volume &2.
+
+CPF6735
+Label ID &6 not found at &3.
+
+CPF6736
+Creation date &6 not found at &3.
+
+CPF6737
+Label &4 not found on volume &2.
+
+CPF6745
+Device &1 not a media library device.
+
+CPF6751
+Load failure occurred on device &4.
+
+CPF6752
+SEQNBR(*FIRST) or SEQNBR(*NEXT) is not valid.
+
+CPF6760
+Device &1 not ready.
+
+CPF6772
+Volume on device &1 cannot be processed.
+
+CPF67E6
+Volume &2 is not correct
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+Top

@@ -1,0 +1,457 @@
+Copy Object (COPY)
+
+Copy Object (COPY)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Copy Object (COPY) command copies a single object or a group of objects.
+
+By default, if the target object already exists, the copy of that individual object will fail. If the REPLACE(*YES) parameter is specified the target object is overwritten. The newly created object must be renamed if it is stored in the same directory as the original object. If it is stored in a directory other than the one that contains the original object, it can retain the name of the original object.
+
+An object name pattern can be used to copy a group of related objects. A pattern cannot be used to copy a group of objects from one file system to another unless the names in the source meet the requirements of the target file system. For example, a file named /OBJA in QOpenSys cannot be copied to directory /QSYS.LIB/MYLIB.LIB/FILEA.FILE, because the QSYS.LIB file system requires a name in the form OBJA.MBR when writing to a file. All names found within the pattern would fail if they did not meet the requirement of name.object-type.
+
+The copy command can also be used to copy a directory tree where the specified directory, its contents, and the contents of all of its subdirectories are copied. If SUBTREE(*ALL) is specified, the command will attempt to copy as many objects as possible within the subtree. A diagnostic message will be sent for each object that could not be copied. When all of the objects have been attempted, an escape message will be sent if there were any errors. If all of the objects were copied with no errors, then a completion message will be sent.
+
+A subtree copy will attempt to preserve as many attributes from the original objects as possible. This would make it possible to migrate data from one file system to another.
+
+If the original object is a read-only file (a file that has the PC read-only attribute flag turned on), and SUBTREE(*NODIR) is specified, the newly created object will not be read-only. This follows the conventions of the OS/2 hierarchical file system (HFS).
+
+Note: When the value of the Directory subtree (SUBTREE) parameter is *NONE or *ALL, the PC read-only attribute flag will be copied.
+
+When the To directory (TODIR) parameter is specified, the object is copied to that directory with the same name. The user who issues the command owns the copied object if the Owner (OWNER) parameter value is *NEW. Other authority values for the copied object depend on the value specified for the Authority (AUT) parameter.
+
+When copying a file with SUBTREE(*NODIR) specified to the "root" (/), QOpenSys, QDLS, and UDFS file systems, the Last access date/time and the Data change date/time are preserved in the new file, and the Attribute change date/time is updated to the current time. The Last access date/time of the original file is updated to the current time. In the case of copying to a database file member (*MBR) in the QSYS.LIB or independent ASP QSYS.LIB file systems, the Data change date/time is updated as well.
+
+Note: If the parameter SUBTREE(*NODIR) is specified, the Create date/time is updated to the current time as well.
+
+This command is an alias for the Copy Object (CPY) command and can also be issued using the following alternative command name:
+
+- CPY
+
+In addition to the COPY command, the Copy To Stream File (CPYTOSTMF) and Copy From Stream File (CPYFRMSTMF) commands can be used to copy between stream files and database member files or save files.
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- The command will copy the object's public and private authorities where it is supported.
+
+Note: The authority requirements for this command are complex with respect to file systems, object types, requested operations etc.. Therefore, see the IBM i Security Reference, SC41-5302 book for information about the required authorities for this command.
+
+QSYS.LIB and Independent ASP QSYS.LIB File System Differences
+
+- If copying to a database file member from a different object type, or copying to or from a member not in the current job's library name space, some attributes are copied. See Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for more information.
+
+- When copying a database member to another member within the same library name space, attributes are handled in the same manner as the Copy File (CPYF) command (this only applies if the Data Format (DTAFMT) parameter is *BINARY).
+
+- Other object types copied are handled the way the Create Duplicate Object (CRTDUPOBJ) command handles attributes (this only applies if the DTAFMT parameter is *BINARY).
+
+- The REPLACE(*YES) option is only supported on file members, user spaces, and save files when the target object exists. All other object types will fail when the target object exists.
+
+QOPT File System Differences
+
+- If copying a file within the QOPT file system, the Create date/time is always updated to the current time.
+
+QFileSvr.400 File System Differences
+
+- The OWNER(*KEEP) parameter is not supported when copying an object to the QFileSvr.400 File System. The copy will fail with error message CPFA0AD.
+
+- The scan-related attributes are not copied.
+
+Network File System (NFS) Differences
+
+- The OWNER(*KEEP) parameter is not supported when copying an object to or from a mounted Network File System (NFS) directory. The copy will fail with error message CPFA0AD.
+
+- The scan-related attributes are not copied.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Path name | Required, Positional 1
+TODIR | To directory | Path name, '.' | Optional, Positional 2
+TOOBJ | To object | Path name | Optional
+SYMLNK | Symbolic link | *NO, *YES | Optional
+FROMCCSID | From CCSID | 1-65533, *OBJ, *PCASCII, *JOBCCSID | Optional
+TOCCSID | To CCSID | 1-65533, *OBJ, *CALC, *STDASCII, *PCASCII, *JOBCCSID | Optional
+DTAFMT | Data Format | *BINARY, *TEXT | Optional
+SUBTREE | Directory subtree | *NODIR, *NONE, *ALL | Optional
+REPLACE | Replace object | *NO, *YES | Optional
+OWNER | Owner | *NEW, *KEEP | Optional
+AUT | Authority | *OBJ, *INDIR, *INDIROBJ | Optional
+FROMCODPAG | From code page | 1-32767, *OBJ, *PCASCII | Optional
+TOCODEPAGE | To code page | 1-32767, *OBJ, *CALC, *STDASCII, *PCASCII | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies the path name of the object or a pattern to match the name of the object to be copied.
+
+The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+Note: An object name pattern can be used to copy multiple objects only when the To directory (TODIR) parameter is specified.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+To directory (TODIR)
+
+Specifies the path name of the directory to copy the object into. When this parameter is used, the copied object has the same name as the Object (OBJ) parameter specified.
+
+.
+The object is copied to the current directory with the same name as the existing object.
+
+directory-path-name
+Specify the path name of the existing directory to copy the object into.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+To object (TOOBJ)
+
+Specifies the path name of the copied object. This is the name of the new object, including the path or relative path.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Symbolic link (SYMLNK)
+
+Specifies whether to copy the object or a symbolic link to the object.
+
+*NO
+The object, not a symbolic link to the object, is copied.
+
+*YES
+If the object to be copied is a symbolic link, the symbolic link is copied, instead of copying the object that the symbolic link points to.
+
+Note: If a symbolic link is encountered during the copy of a subtree, the object it points to is copied. If the symbolic link points to a directory, the directory is copied but its contents are not. This is true even when the top-level directory of the directory tree is actually a symbolic link to a directory.
+
+Top
+
+From CCSID (FROMCCSID)
+
+Specifies the method for obtaining the coded character set identifier (CCSID) for the source of the copy operation. This CCSID will be used for data conversion, if requested. This parameter is ignored if the object specified on the Object (OBJ) parameter is not a regular file. A regular file is a file that supports the integrated file system input/output (I/O) operations open, read, and write.
+
+This parameter can not be specified with the From code page (FROMCODPAG) or To code page (TOCODEPAGE) parameters.
+
+*OBJ
+Use the data CCSID of the object to be copied.
+
+*PCASCII
+Use the data CCSID of the object to be copied to compute a CCSID in the Microsoft Windows encoding scheme (x4105) (Microsoft, Windows, Windows NT, and the Windows 95 logo are registered trademarks of Microsoft Corporation). Use this as the CCSID from which the data will be converted when DTAFMT(*TEXT) is specified. This option allows data from PCs to be converted properly if the data was created using Microsoft Windows.
+
+*JOBCCSID
+The CCSID from the default job CCSID is used.
+
+1-65533
+Specify a CCSID value.
+
+Top
+
+To CCSID (TOCCSID)
+
+Specifies the data coded character set identifier (CCSID) for the target of the copy operation. This parameter is ignored if the object specified on the Object (OBJ) parameter is not a regular file. A regular file is a file that supports the integrated file system input/output (I/O) operations open, read, and write.
+
+This parameter can not be specified with the From code page (FROMCODPAG) or To code page (TOCODEPAGE) parameters.
+
+*OBJ
+Use the data CCSID of the object to be copied. If this CCSID cannot be used by the file system that the object is to be copied into, the copy operation will fail.
+
+*CALC
+Use the data CCSID of the object to be copied. If this CCSID cannot be used by the file system that the object is to be copied into, allow the file system to determine a different CCSID and continue with the copy.
+
+*STDASCII
+Compute a CCSID in the IBM PC Data encoding scheme (x2100), based on the source file's CCSID. Associate this CCSID for the target of the copy operation and, if DTAFMT(*TEXT) is specified, also use this CCSID for the data conversion. If this CCSID cannot be used by the file system that the object is to be copied into, the copy operation will fail.
+
+*PCASCII
+Compute a CCSID in the Microsoft Windows encoding scheme (x4105), based on the source file's CCSID (Microsoft, Windows, Windows NT, and the Windows 95 logo are registered trademarks of Microsoft Corporation). Associate this CCSID with the target of the copy operation and, if DTAFMT(*TEXT) is specified, also use this CCSID for the data conversion. This option allows the resulting data to be used by Microsoft Windows applications. If this CCSID cannot be used by the file system that the object is to be copied into, the copy operation will fail.
+
+*JOBCCSID
+The CCSID from the default job CCSID is used.
+
+1-65533
+Specify a CCSID value.
+
+Top
+
+Data Format (DTAFMT)
+
+Specifies the format of the data in the file to be copied.
+
+*BINARY
+The file contains data in binary format (such as an executable file).
+Do not convert data on the copy. However, if the object to be copied to has a different CCSID than the source object, all extended attributes will be converted into the CCSID of the new object before being set.
+
+*TEXT
+The file contains data in textual form. Convert data to the CCSID of the new object during the copy. The data is processed as text during the copy.
+If a database member is to be copied to a stream file, any line-formatting characters (such as carriage return, tab, and end-of-file) are just converted from one CCSID to another.
+
+If a stream file is to be copied to a database member, the stream file must contain end-of-line characters or the copy will fail. If the stream file does contain end-of-line characters, the following actions are performed during the copy to a database file.
+
+- End-of-line characters are removed.
+
+- Records are padded with blanks (for a source physical file member) or nulls (for a data physical file member).
+
+- Tab characters are replaced by the appropriate number of blanks to the next tab position.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to copy a directory subtree if the object specified by Object (OBJ) parameter is a directory.
+
+*NODIR
+The object or objects specified by OBJ are copied. If an object is a directory, the copy will fail unless the target directory specified on the TODIR keyword is the directory in which the source object already exists. In this case, no action is performed and a successful completion message is issued.
+
+*NONE
+The objects specified by OBJ are copied. Directory objects are copied but their contents are not copied.
+
+*ALL
+The objects specified by OBJ are copied. Directory objects are copied as well as their contents and the contents of all subdirectories.
+There are a few differences in how attributes are copied when SUBTREE(*NONE) or SUBTREE(*ALL) is specified instead of the default SUBTREE(*NODIR). A directory subtree copy preserves as much of the original objects' attributes as possible.
+
+- The PC read-only attribute flag is turned off in the copied object. If SUBTREE(*NONE) or SUBTREE(*ALL) is specified the flag will be copied.
+
+- The Create date/time will be copied if SUBTREE(*NONE) or SUBTREE(*ALL) is specified (by default it is updated to the current time).
+
+Note: The copy will fail if the target object is a subdirectory of the source object, or if the target object matches the source object.
+
+Note: Pattern matching on the OBJ parameter only applies to the first level objects. If the first level object is a directory, the pattern matching does not apply to its contents or the contents of its subdirectories.
+
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Replace object (REPLACE)
+
+Specifies whether the target object is replaced if it already exists.
+
+*NO
+The target object is not replaced if it already exists.
+
+*YES
+If the target object already exists, it is replaced. If REPLACE(*YES) is specified with a directory object, the attributes of the existing target directory are changed but the objects that the directory contains are not removed.
+
+Top
+
+Owner (OWNER)
+
+Specifies the owner of the newly created object.
+
+*NEW
+The owner of the new object is the current user profile of the job. Even if the target object already exists and is owned by someone other than the current user profile of the job, the owner of the target object will be changed to be the current user profile of the job.
+
+*KEEP
+The owner of the new object is the same as the owner of the original object to be copied.
+Some file systems do not support changing the owner of certain object types. For example, the owner of *MBR objects in the QSYS.LIB and independent ASP QSYS.LIB file systems will be determined by the owner of the *FILE object that they are copied into.
+
+Top
+
+Authority (AUT)
+
+Specifies the method used to assign authority information to copied objects.
+
+*OBJ
+The authority information for copied objects is based on the authority for the object specified on the Object (OBJ) parameter. Target objects are assigned the same public authority, private authorities, primary group, primary group authority, authorization list, and auditing value as the objects being copied. If the target file system does not support setting all of these values, the unsupported values will be ignored.
+
+*INDIR
+The authority information for copied objects is based on the authority for the directory where the objects are to be created. Target objects are assigned the same public authority, private authorities, primary group, primary group authority, and authorization list as the directory in which they are created. The auditing value assigned to copied objects is controlled by the directory's create object auditing value. If the target file system does not support the *INDIR value, the command will fail with error message CPFA0AD. If the target object already exists, this value is ignored and no authority information will be copied.
+
+*INDIROBJ
+The authority information for copied objects is initially based on the authority for the directory where the objects are to be created. Then, authority information from the object specified on the OBJ parameter will be copied to the target object. If the copy is successful, target objects will be assigned the same public authority, private authorities, primary group, primary group authority, authorization list, and auditing value as the objects being copied, as well as any additional private authorities obtained from the directory. The resulting authority information will be similar to that produced by copying and pasting objects using the System i Navigator.
+If the target file system does not support the *INDIROBJ special value, the command will fail with error message CPFA0AD. If the target object already exists, no private authority information will be copied from the directory and the result will be the same as if *OBJ had been specified.
+
+Top
+
+From code page (FROMCODPAG)
+
+Specifies the method for obtaining the code page for source of the copy operation. This code page will be used for data conversion, if requested. This parameter is ignored if the object specified on the Object (OBJ) parameter is not a regular file. A regular file is a file that supports the integrated file system input/output (I/O) operations open, read, and write.
+
+This parameter can not be specified with the From CCSID (FROMCCSID) or To CCSID (TOCCSID) parameters.
+
+Note: This parameter is replaced by From CCSID (FROMCCSID) but the FROMCODPAG parameter can still be used. However, because this parameter may be removed in a later release, whenever possible use the FROMCCSID parameter.
+
+*OBJ
+Use the data code page of the object to be copied.
+
+*PCASCII
+Use the data code page of the object to be copied to compute a code page in the Microsoft Windows encoding scheme (x4105) (Microsoft, Windows, Windows NT, and the Windows 95 logo are registered trademarks of Microsoft Corporation). Use this as the code page from which the data will be converted when DTAFMT(*TEXT) is specified. This option allows data from PCs to be converted properly if the data was created using Microsoft Windows.
+
+1-32767
+Specify a code page value.
+
+Top
+
+To code page (TOCODEPAGE)
+
+Specifies the data code page for the target of the copy operation. This parameter is ignored if the object specified on the Object (OBJ) parameter is not a regular file. A regular file is a file that supports the integrated file system input/output (I/O) operations open, read, and write.
+
+This parameter can not be specified with the From CCSID (FROMCCSID) or To CCSID (TOCCSID) parameters.
+
+Note: This parameter is replaced by To CCSID (TOCCSID) but the TOCODEPAGE parameter can still be used. However, because this parameter may be removed in a later release, whenever possible use the TOCCSID parameter.
+
+*OBJ
+Use the data code page of the object to be copied. If this code page cannot be used by the file system that the object is to be copied into, the copy operation will fail.
+
+*CALC
+Use the data code page of the object to be copied. If this code page cannot be used by the file system that the object is to be copied into, allow the file system to determine a different code page and continue with the copy.
+
+*STDASCII
+Compute a code page in the IBM PC Data encoding scheme (x2100), based on the source file's code page. Associate this code page for the target of the copy operation and, if DTAFMT(*TEXT) is specified, also use this code page for the data conversion. If this code page cannot be used by the file system that the object is to be copied into, the copy operation will fail.
+
+*PCASCII
+Compute a code page in the Microsoft Windows encoding scheme (x4105), based on the source file's code page. Associate this code page with the target of the copy operation and, if DTAFMT(*TEXT) is specified, also use this code page for the data conversion. This option allows the resulting data to be used by Microsoft Windows applications. If this code page cannot be used by the file system that the object is to be copied into, the copy operation will fail.
+
+1-32767
+Specify a code page value. If this code page cannot be used by the file system that the object is to be copied into, the copy operation will fail.
+
+Top
+
+Examples
+
+The alternative command name for COPY is CPY. The following examples use the alternative command name, but COPY can be replaced directly for CPY in all of them.
+
+Example 1: Copying a File
+
+CPY OBJ('DECEMBER-1994-MONTHLY-PAYROLL-FILE') TOOBJ('PAY')
+
+This command creates another file named PAY that is a duplicate of the file named DECEMBER-1994-MONTHLY-PAYROLL-FILE.
+
+Example 2: Copying a File to Another Directory
+
+CPY OBJ('PAY') TODIR('MYDIR')
+
+This command creates another file named PAY in directory MYDIR.
+
+Example 3: Copying a Symbolic Link
+
+CPY OBJ('SL1') TOOBJ('YOURDIR/SL2') SYMLNK(*YES)
+
+If SL1 is a symbolic link, the new object YOURDIR/SL2 is also a symbolic link. If SYMLNK(*NO) was specified, the new object would be a copy of whatever SL1 pointed to, as long as it was a legal candidate for the copy function.
+
+Example 4: Copying with Conversion
+
+CPY OBJ('/DATAFB')
+TOOBJ('/QSYS.LIB/APP1.LIB/DATA.FILE/DATAFB.MBR')
+TOCCSID(*CALC) DTAFMT(*TEXT)
+
+This command copies stream file 'DATAFB' to the database file 'DATAFB.MBR'. By specifying TOCCSID(*CALC), the file system being copied to (the QSYS.LIB file system in this case) will try to create the new member in the same coded character set identifier (CCSID) as '/DATAFB'. If this fails (in this case, if 'DATA.FILE is not in the same CCSID as 'DATAFB'), the file system will be allowed to choose an appropriate CCSID and complete the copy. By specifying DTAFMT(*TEXT), the data in 'DATAFB' is handled as text and is converted into the CCSID chosen for the new file 'DATAFB.MBR'.
+
+Example 5: Copying a Directory Subtree
+
+CPY OBJ('/QDLS/MYINFO') TODIR('/myfolder') SUBTREE(*ALL)
+OWNER(*KEEP) REPLACE(*YES)
+
+The *FLR object (QDLS file system folder) is created in the '/myfolder' directory in the "root" (/) file system with the path name '/myfolder/MYINFO'. Its contents are copied as well. Since OWNER(*KEEP) is specified, the new objects created will belong to the same profiles as the old objects. With the REPLACE parameter set to *YES if any of the target files already exist they will be overwritten.
+
+Example 6: Copying a File With Authority Copied from the Directory
+
+CPY OBJ('PAY') TODIR('MYDIR') AUT(*INDIR)
+
+This command creates another file named PAY in directory MYDIR. All of the authority values, such as *PUBLIC authority, authorization list, and primary group authority are copied from directory MYDIR and applied to the new file PAY.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA082
+*ADD authority required to owner's user profile.
+
+CPFA083
+Insufficient authority to replace object. Object is &1.
+
+CPFA085
+Home directory not found for user &1.
+
+CPFA08E
+More than one name matches pattern.
+
+CPFA093
+Name matching pattern not found.
+
+CPFA09C
+Not authorized to object. Object is &1.
+
+CPFA09D
+Error occurred in program &1.
+
+CPFA09E
+Object in use. Object is &1.
+
+CPFA0A1
+An input or output error occurred.
+
+CPFA0A3
+Path name resolution causes looping.
+
+CPFA0A6
+Number of links exceeds maximum allowed for the file system.
+
+CPFA0A7
+Path name too long.
+
+CPFA0A9
+Object not found. Object is &1.
+
+CPFA0AA
+Error occurred while attempting to obtain space.
+
+CPFA0AB
+Operation failed for object. Object is &1.
+
+CPFA0AD
+Function not supported by file system.
+
+CPFA0B0
+Request not allowed to operate from one file system to another.
+
+CPFA0B1
+Requested operation not allowed. Access problem.
+
+CPFA0B2
+No objects satisfy request.
+
+CPFA0BB
+&1 objects copied. &2 objects failed.
+
+CPFA0C4
+Object not a file. Object is &1.
+
+CPFA0DA
+Object is a directory. Object is &1.
+
+CPFB41E
+Object type must match replaced object type.
+
+Top

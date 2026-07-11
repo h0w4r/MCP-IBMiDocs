@@ -1,0 +1,183 @@
+Merge TCP/IP Host Table (MRGTCPHT)
+
+Merge TCP/IP Host Table (MRGTCPHT)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Merge TCP/IP Host Table (MRGTCPHT) command is used to merge host names, internet addresses, and text comment entries from a physical file member or integrated file system object into the local host table. A replace option is also provided that allows the entire local host table to be replaced by the host table entries that are in a user specified physical file member or integrated file system object.
+
+A file format option is provided that allows files in either *AS400, *OPSYS, *AIX, or *NIC file formats to be merged with the local host table.
+
+A maximum of 65 host names per IP address is allowed when host tables are merged. For example: If the local host table already has 64 host names and the physical file member or object to be merged has 2 additional host names, only the first host name is merged into the final host table. Host names that exist both in the local host table and the physical file member or object being merged are not duplicated.
+
+Attention: The current copy of the local host table is not saved by the MRGTCPHT command. To save the current host table, use the Copy TCP/IP Host Table (CPYTCPHT) command or the Retrieve TCP/IP Information (RTVTCIPINF) command. Do this before issuing the MRGTCPHT command.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority to run this command.
+
+- If the database file member being merged contains data created by specifying the To file (TOFILE) parameter of the Copy TCP/IP Host Table (CPYTCPHT) command, the From file (FROMFILE) parameter must be used to merge the data into the host table.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMFILE | From file | Qualified object name | Optional, Positional 1
+Qualifier 1: From file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMMBR | From member | Name, *FIRST, *LAST | Optional, Positional 2
+FROMOBJ | From object | Path name | Optional
+FILEFMT | File format | *OPSYS, *AS400, *AIX, *NIC | Optional
+REPLACE | Replace host table | *NO, *YES | Optional
+
+Top
+
+From file (FROMFILE)
+
+Specifies the physical file that contains the member being used for the merge operation.
+
+Qualifier 1: From file
+
+name
+Specify the name of the physical file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the job's library list are searched.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library where the physical file is located.
+
+Top
+
+From member (FROMMBR)
+
+Specifies the physical file member to be used in the merge operation.
+
+*FIRST
+The first member of the physical file is used to merge with the host table.
+
+*LAST
+The last member of the physical file is used to merge with the host table.
+
+name
+Specify the name of the physical file member to be used.
+
+Top
+
+From object (FROMOBJ)
+
+Specifies the name of the integrated file system object to be merged with the local host table. This includes the path or relative path.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+The following restrictions apply to the object specified by this parameter:
+
+- The object must be encoded using coded character set identifier (CCSID) 1208 also known as UTF-8. A line beginning with a pound sign (#) will be considered a comment line and not affect the contents of the local host table.
+
+- Blank lines will be ignored.
+
+- A line containing a host table entry must consist of a single IPv4 or IPv6 internet address followed by a space character. This must be followed by a list of up to 65 host names with a space character separating each host name. The list of host names may be optionally followed by a space character and a pound sign that is followed by text describing the host table entry. If a text description is specified, no more than 64 characters will be used for the text description in the local host table entry.
+
+- The syntax and allowable characters for internet addresses and host names must be followed as described by the Add TCP/IP Host Table Entry (ADDTCPHTE) command, however, internet addresses and host names should not be enclosed in apostrophes.
+
+Top
+
+File format (FILEFMT)
+
+Specifies the format of the physical file member or object to be merged with the local host table.
+
+*OPSYS
+The physical file member or object to be merged with the local host table is *OPSYS format. *OPSYS format is used for a physical file member or object produced by the Copy TCP/IP Host Table (CPYTCPHT) command. This value must be used if the physical file member is from a system running Version 6 Release 1 Modification 0 (V6R1M0) or later release of the operating system.
+
+*AS400
+The physical file member to be merged with the local host table is *AS400 format. This format is only allowed when also specifying the From file (FROMFILE) parameter.
+
+Note: *AS400 can only be used if the physical file member specified is a host table from a system running Version 3 Release 1 Modification 0 (V3R1M0) through Version 5 Release 4 Modification 0 (V5R4M0) of the operating system. If you import a host table from a system running any operating system version prior to V3R1M0, specify *AIX.
+
+If the physical file member is in *AS400 format, only host table entries containing IPv4 addresses will be merged or replaced, and any entries currently in the host table that contain IPv6 addresses will be unchanged.
+
+*AIX
+The physical file member or object to be merged with the local host table is *AIX format.
+
+Note: If the FROMFILE parameter is specified and the physical file member is in *AIX format, only host table entries containing IPv4 addresses will be merged or replaced, and any entries currently in the host table that contain IPv6 addresses will be unchanged. If the merge is being done from an integrated file system object, host table entries for both IPv4 and IPv6 addresses will be merged or replaced.
+
+*NIC
+The physical file member to be merged with the local host table is *NIC format. This format is only allowed when also specifying the FROMFILE parameter.
+
+Note: If the physical file member is in *NIC format, only host table entries containing IPv4 addresses will be merged or replaced, and any entries currently in the host table that contain IPv6 addresses will be unchanged.
+
+Top
+
+Replace host table (REPLACE)
+
+Specifies whether the physical file member or object is to be merged with or replaces the local host table.
+
+*NO
+The physical file member or object is merged with the local host table.
+
+*YES
+The physical file member or object replaces the local host table.
+
+Top
+
+Examples
+
+Example 1: Replacing Local Host Table
+
+MRGTCPHT FROMFILE(HOSTFILE) REPLACE(*YES) FILEFMT(*OPSYS)
+
+This command replaces the contents of the host table with the contents of the first member of physical file HOSTFILE. The first member of physical file HOSTFILE is in *OPSYS host table format.
+
+Example 2: Merging Local Host Table
+
+MRGTCPHT FROMFILE(HOSTLIB/NICFILE) FROMMBR(NEWHOSTS) FILEFMT(*NIC)
+
+This command merges the current contents of the local host table with the contents of the NEWHOSTS member of physical file NICFILE in library HOSTLIB. The physical file is in *NIC format. The records are converted from *NIC format to *OPSYS format by this command.
+
+Example 3: Merging Local Host Table from an Integrated File System Object
+
+MRGTCPHT FROMOBJ('/QIBM/USERDATA/HOSTCOPY')
+
+This command merges the host table from the integrated file system object named HOSTCOPY located in the directory /QIBM/USERDATA/.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+TCP1927
+Records of file &1, member &2 not valid.
+
+TCP1929
+Host table not available.
+
+TCP1934
+Merge file &1, member &3, in library &2 not found.
+
+TCP193A
+Object specified by FROMOBJ not found.
+
+TCP193B
+Merge object contains data that is not valid.
+
+TCP8050
+*IOSYSCFG authority required to use &1.
+
+Top

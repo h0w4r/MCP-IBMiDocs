@@ -1,0 +1,481 @@
+Add Font Table Entry (ADDFNTTBLE)
+
+Add Font Table Entry (ADDFNTTBLE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add Font Table Entry (ADDFNTTBLE) command adds an entry in the specified font mapping table. This command adds an entry in the user font mapping tables used by Print Services Facility (PSF) that controls:
+
+- Host-resident to printer-resident font character set mapping
+
+- Printer-resident to host-resident font character set mapping
+
+- Host-resident to printer-resident code page mapping
+
+- Printer-resident to host-resident code page mapping
+
+- Printer-resident to printer-resident font substitution mapping
+
+To override a mapping entry in the system font or code page mapping tables, add the new mapping entry to a user table. Mapping entries added to a user table override any corresponding entries in the system tables.
+
+When performing the printer to host and host to printer font mapping (first four tables above), PSF first searches the user tables for a match. If no match is found in the user mapping tables, PSF searches the appropriate system tables.
+
+PSF selects printer-resident fonts from the font mapping tables in the following order:
+
+- If the printer-resident font specified in the print job is supported by the printer, then it is used. The printer-resident to printer-resident font substitution table is not searched.
+
+- If the printer-resident font specified in the print job is not supported by the printer, then the printer-resident to printer-resident font substitution table is searched.
+
+If a matching entry is found in the printer-resident font substitution table and the entry is supported by the printer, then the specified substitute font in the printer-resident font substitution table is used.
+
+If a matching entry is not found in the printer-resident font substitution table or if the specified substitute font is not supported by the printer, then the system will use its internal font substitution tables to perform the font substitution.
+
+Refer to Printer Device Programming, SC41-5713 for more information on font mapping tables.
+
+Restrictions:
+
+- The PSF feature is required to use this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FNTTBL | Font table | Single values: *PHFCS, *HPFCS, *PHCP, *HPCP
+Other values: Qualified object name | Required, Positional 1
+Qualifier 1: Font table | Name
+Qualifier 2: Library | Name, *CURLIB, *LIBL
+PHFCS | Printer to host font | Element list | Optional
+Element 1: Printer font | Element list
+Element 1: Identifier | 1-65535
+Element 2: Width | 1-32767, *NONE, *PTSIZE
+Element 3: Attributes | *NONE, *BOLD, *ITALIC, *BOLDITC, *DBLWIDE, *ITCDBLWIDE
+Element 4: Graphic character set | Integer, *SYSVAL
+Element 5: Point size | 1.0-999.9, *WIDTH, *NONE
+Element 2: Host font | Element list
+Element 1: Font character set | Name
+Element 2: Type | *RASTER, *OUTLINE
+HPFCS | Host to printer font | Element list | Optional
+Element 1: Host font | Element list
+Element 1: Font character set | Name
+Element 2: Type | *RASTER, *OUTLINE
+Element 2: Printer font | Element list
+Element 1: Identifier | 1-65535, *NONE
+Element 2: Width | 1-32767, *NONE, *PTSIZE
+Element 3: Attributes | *NONE, *BOLD, *ITALIC, *BOLDITC, *DBLWIDE, *ITCDBLWIDE
+Element 4: Graphic character set | Integer, *SYSVAL
+Element 5: Point size | 1.0-999.9, *WIDTH, *NONE
+PHCP | Printer to host code page | Element list | Optional
+Element 1: Printer code page | Element list
+Element 1: Graphic character set | Integer, *SYSVAL
+Element 2: Code page | Integer
+Element 2: Host code page | Element list
+Element 1: Code page | Name
+HPCP | Host to printer code page | Element list | Optional
+Element 1: Host code page | Element list
+Element 1: Code page | Name
+Element 2: Printer code page | Element list
+Element 1: Graphic character set | Integer, *SYSVAL
+Element 2: Code page | Integer
+PPFCS | Printer to printer font | Element list | Optional
+Element 1: From printer font | Element list
+Element 1: Identifier | 1-65535
+Element 2: Point size | 1.0-999.9, *ALL, *NONE
+Element 2: To printer font | Element list
+Element 1: Identifier | 1-65535
+Element 2: Point size | 1.0-999.9, *ALL, *NONE
+
+Top
+
+Font table (FNTTBL)
+
+Specifies the font mapping table entry to be added.
+
+Single values
+
+*PHFCS
+Add an entry to the printer-resident to host-resident font character set mapping table.
+This table would be used when your application, such as DDS, references printer-resident fonts and the printer does not support resident fonts, for example, an IBM 3827,3825, 3820, or 3900 Model 1. Print Services Facility (PSF) must map the references from printer-resident fonts to host-resident fonts and download them.
+
+*PHCP
+Add an entry to the printer-resident to host-resident code page mapping table.
+This table would be used when your application references printer-resident code pages and the printer being used does not support printer-resident code pages. The printer-resident code page must be mapped to a host-resident code page and downloaded to the printer by PSF.
+
+*HPFCS
+Add an entry to the host-resident to printer-resident font character set mapping table.
+This table would be used when your application references host-resident fonts (font character sets and code pages) and the printer, such as the 4224, 4234, 4230, and 64XX, does not support downloading of host-resident fonts. PSF must map the references from host-resident fonts to printer-resident fonts.
+
+*HPCP
+Add an entry to the host-resident to printer-resident code page mapping table.
+This table is similar to the QHPFCS table, in that it is used when the application references host-resident code pages and the printer being used does not support host-resident code pages. The host-resident code page must be mapped to a printer-resident code page and downloaded to the printer by PSF.
+
+Qualifier 1: Font table
+
+name
+Specify the name of the font table to be changed. You must specify a name in order to change a printer-resident to printer-resident font mapping table. You should use a printer-resident font mapping table when all three of the following conditions exist:
+
+- You are printing to a PSF attached printer
+
+- Your application specifies a printer-resident font which is not supported by the printer you are using.
+
+- You want to specify a different substitute printer-resident font than the one selected by the system.
+
+To use a printer-resident to printer-resident font mapping table with a particular PSF printer, you need to specify the name of the font table on the FNTTBL parameter of the Create PSF Configuration (CRTPSFCFG) or Change PSF Configuration (CHGPSFCFG) command.
+
+Qualifier 2: Library
+
+*LIBL
+Search all libraries in the job's library list until the first match is found.
+
+*CURLIB
+Search the current library for the job. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Search the specified library.
+
+Top
+
+Printer to host font (PHFCS)
+
+Specifies the printer-resident to host-resident font character set mapping. The printer-resident font, along with its specified attributes will be mapped to a host-resident font character set.
+
+Element 1: Printer font
+
+Element 1: Identifier
+
+1-65535
+Specify the printer-resident font identifier to be mapped to a host-resident font.
+
+Element 2: Width
+
+*NONE
+No width is specified for this font identifier. *NONE should be specified when mapping to an outline font.
+
+*PTSIZE
+The width for this font identifier will be calculated from the point size specified. When *PTSIZE is specified for width, the Point size parameter cannot be *NONE or *WIDTH. When mapping a typographic raster font (2304 - 3839, 4096 - 53247, 61440 - 65534), you should specify a value for the Point size parameter. The width value can be *PTSIZE or a value can be given.
+
+1-32767
+Specify a width for the font identifier. When mapping a fixed pitch raster font (1 - 750, 3840 - 4095), you should specify a numeric value for Width. Refer to Printer Device Programming,SC41-5713 for more information font mapping tables.
+
+Element 3: Attributes
+
+*NONE
+No special font attributes are specified on this font.
+
+*BOLD
+The printer-resident font is a bold font.
+
+*ITALIC
+The printer-resident font is an italic font.
+
+*BOLDITC
+The printer-resident font is a bold italic font.
+
+*DBLWIDE
+The printer-resident font is a double wide font.
+
+*ITCDBLWIDE
+The printer-resident font is an italic double wide font.
+
+Element 4: Graphic character set
+
+*SYSVAL
+Use the graphic character set specified in the system value QCHRID.
+
+graphic-character-identifier
+Specify the graphic character set for the font. The graphic character set is the first part of the graphic character identifier which consists of the graphic character set and code page.
+
+Element 5: Point size
+
+*WIDTH
+The font point size is computed from the font width value specified. When mapping a fixed pitch raster font (1 - 750, 3840 - 4095), it is recommended that a width value should be specified and the point size value should be *WIDTH.
+
+*NONE
+No point size is specified for this font identifier. *NONE should be specified when mapping to an outline font.
+
+1.0-999.9
+Specify a point size ranging from 1.0 through 999.9. When mapping a typographic raster font (2304 - 3839, 4096 - 53247, 61440 - 65534), a point size value should be specified.
+
+Element 2: Host font
+
+Element 1: Font character set
+
+name
+Specify the font character set.
+
+Element 2: Type
+
+*RASTER
+The host-resident font is a raster font.
+
+*OUTLINE
+The host-resident font is an outline font.
+
+Top
+
+Host to printer font (HPFCS)
+
+Specifies the host-resident to printer-resident font character set mapping. The host-resident font, along with its specified attributes will be mapped to a printer-resident font.
+
+Element 1: Host font
+
+Element 1: Font character set
+
+name
+Specify the font character set.
+
+Element 2: Type
+
+*RASTER
+The host-resident font is a raster font.
+
+*OUTLINE
+The host-resident font is an outline font.
+
+Element 2: Printer font
+
+Element 1: Identifier
+
+1-65535
+Specify the printer-resident font identifier. This is the font to which the specified host-resident font will be mapped.
+
+*NONE
+Specify *NONE for the font identifier in order to disable the mapping of a host-resident to a printer-resident font. Refer to Printer Device Programming , SC41-5713 for more information on disabling the mapping of host-resident to printer-resident fonts.
+
+Element 2: Width
+
+*NONE
+Specify *NONE when mapping to an outline font. Outline fonts do not require a width specification.
+
+*PTSIZE
+The width for this font identifier will be calculated from the Point size parameter specified. When *PTSIZE is specified for width, the point size parameter cannot be *NONE or *WIDTH. When mapping a typographic raster font (2304 - 3839, 4096 - 53247, 61440 - 65534), a point size value should be specified. The width value can be *PTSIZE or a value can be given.
+
+1-32767
+Specify a width for the font identifier. When mapping a fixed pitch raster font (1 - 750, 3840 - 4095), a width should be specified. The point size value can be *WIDTH or a value can be given. Refer to Printer Device Programming, SC41-5713 for more information on font widths for printer-resident fonts.
+
+Element 3: Attributes
+
+*NONE
+No special font attributes are specified on this font.
+
+*BOLD
+The printer-resident font is a bold font.
+
+*ITALIC
+The printer-resident font is an italic font.
+
+*BOLDITC
+The printer-resident font is a bold italic font.
+
+*DBLWIDE
+The printer-resident font is a double wide font.
+
+*ITCDBLWIDE
+The printer-resident font is an italic double wide font.
+
+Element 4: Graphic character set
+
+*SYSVAL
+The graphic character set specified in the system value QCHRID is used.
+
+graphic-character-identifier
+Specify the graphic character set for the font. The graphic character set is the first part of the graphic character identifier which consists of the graphic character set and code page.
+
+Element 5: Point size
+
+*WIDTH
+The font point size is computed from the font width value specified. When mapping a fixed pitch raster font (1 - 750, 3840 - 4095), it is recommended that a width value should be specified and the point size value should be *WIDTH.
+
+*NONE
+No point size is specified for this font identifier. *NONE should be specified when mapping to an outline font.
+
+1.0-999.9
+Specify a point size ranging from 1.0 through 999.9. When mapping a typographic raster font (2304 - 3839, 4096 - 53247, 61440 - 65534), a point size value should be specified.
+
+Top
+
+Printer to host code page (PHCP)
+
+Specifies the printer-resident to host-resident code page mapping. The printer-resident code page will be mapped to a host-resident code page.
+
+Element 1: Printer code page
+
+Element 1: Graphic character set
+
+*SYSVAL
+The graphic character set specified in the system value QCHRID is used. A change to this system value will only take effect for the font mapping tables when the print writer is started. If QCHRID is changed and a printer is currently active, you must end the print writer and start it again.
+
+integer-number
+Specify the graphic character set for the printer-resident code page. The graphic character set is the first part of the graphic character identifier which consists of the graphic character set and code page. For example, for the graphic character identifier 697 500, 697 is the graphic character set and 500 is the code page. In this example, specify 697 for the graphic character set.
+
+Element 2: Code page
+
+integer-number
+Specify the printer-resident code page value.
+
+Element 2: Host code page
+
+Element 1: Code page
+
+name
+Specify the name of the host-resident code page.
+
+Top
+
+Host to printer code page (HPCP)
+
+Specifies the mapping of a host-resident code page to a printer-resident code page.
+
+Element 1: Host code page
+
+Element 1: Code page
+
+name
+Specify the name of the host-resident code page.
+
+Element 2: Printer code page
+
+Element 1: Graphic character set
+
+*SYSVAL
+The graphic character set specified in the system value QCHRID is used. A change to this system value will only take effect for the font mapping tables when the print writer is started. If QCHRID is changed and a printer is currently active, you must end the print writer and start it again.
+
+integer-number
+Specify the graphic character set for the printer-resident code page. The graphic character set is the first part of the graphic character identifier which consists of the graphic character set and code page. For example, for the graphic character identifier 697 500, 697 is the graphic character set and 500 is the code page. In this example, specify 697 for the graphic character set.
+
+Element 2: Code page
+
+integer-number
+Specify the printer-resident code page value.
+
+Top
+
+Printer to printer font (PPFCS)
+
+Specifies the printer-resident font substitution mapping. When a printer-resident font is not supported by a printer, you can specify the substitute printer-resident font to be used instead of the substitute printer-resident font selected by the system. Caution should be used when doing the following types of mapping as undesirable results may occur.
+
+- Mapping a monospaced font to a typographic font. Also for mapping a typographic font to a monospaced font.
+
+- Mapping an outline font to a outline font with a different point size.
+
+Element 1: From printer font
+
+Element 1: Identifier
+
+1-65535
+Specify the printer-resident font identifier for which the substitution printer-resident font is to be added. Refer to Printer Device Programming, SC41-5713 for more information on printer-resident fonts that are supported, and which ones are scalable (require point size) and which ones are not scalable (specify point size *NONE).
+
+Element 2: Point size
+
+*NONE
+No font point size is specified. This should be specified for all non-scalable fonts.
+
+*ALL
+Specifies that all point sizes for an outline (scalable) font will be mapped. If the font is not scalable, then this will treated the same as *NONE.
+
+1.0-999.9
+Specify a point size ranging from 1.0 through 999.9. When mapping a typographic raster font (2304 - 3839, 4096 - 53247, 61440 - 65534), a point size value should be specified.
+
+Element 2: To printer font
+
+Element 1: Identifier
+
+1-65535
+Specify the substitute printer-resident font.
+
+Element 2: Point size
+
+*NONE
+No font point size is specified. This should be specified for all non-scalable fonts.
+
+*ALL
+Specifies that all point sizes for an outline (scalable) font will be mapped. If the font is not scalable, then this will treated the same as *NONE.
+
+1.0-999.9
+Specify a point size ranging from 1.0 through 999.9. When mapping a typographic raster font (2304 - 3839, 4096 - 53247, 61440 - 65534), a point size value should be specified.
+
+Top
+
+Examples
+
+Example 1: Override Existing Font Entry in system table
+
+ADDFNTTBLE FNTTBL(*PHFCS)
+PHFCS((254 84 *NONE 2039 7.0) (C0D0GT18 *RASTER))
+
+This command adds an entry to the QPHFCS table (printer-resident to host-resident font character set table). To override the mapping of an existing entry in the system printer-resident to host resident font character set table, you need to add a corresponding entry in the QPHFCS table. Following are the recommended steps to change the mapping of an entry in the system tables.
+
+- Use the DSPFNTTBL command (DSPFNTTBL FNTTBL(*SYSPHFCS) OUTPUT(*PRINT)) to print the entries in the system font mapping table.
+
+- Find the entry you want to change, and add an entry to the corresponding user font mapping table. In the above example, font identifier 254, width of 84, and point size 7.0 is to be added to the user font table (QPHFCS). The width of 84 and point size of 7.0 is were chosen based on an entry in the system table. The entry has no special attributes (*NONE) and graphic character set identifier 2039 will be used.
+
+The attributes of the resident font specified in the print application are compared to those in the font table QPHFCS. If a match is found, then the specified host resident font (C0D0GT18) is downloaded to the printer. If no match is found, then the system printer-resident to host-resident font character set table is searched.
+
+Note that the print application may specify the normal graphic character set (for example, 697 in 697 500 specified in QCHRID system value). The 697 is mapped to 2039 and will result in a match for this entry.
+
+Example 2: Override Existing Font Symbol Entry in system table
+
+ADDFNTTBLE FNTTBL(*PHFCS)
+PHFCS((254 84 *NONE 1275 7.0) (C0SYMBOL *RASTER))
+
+This command adds an entry to the QPHFCS table (printer-resident to host-resident font character set table) for use when using the special symbols code page (code page 259). As specified in Example 1, to override an existing entry in the system printer-resident to host-resident font character set table, you need to add a corresponding entry in the QPHFCS table.
+
+Use the DSPFNTTBL command to display the system font mapping table and find the entry you want to change. In this example, you want to add an entry that maps a printer-resident to host resident font character set for the special symbol code page (259). As in the previous example, font identifier 254, width of 84, and point size 7.0 is to be added to the user font table (QPHFCS). The width of 84 and point size of 7.0 is gotten from the system table. The entry has no special attributes (*NONE) and graphic character set 1275 is used.
+
+We now have two entries in the printer-resident to host-resident font character set table. Both entries have the same font identifier, width, and point size. The first entry will be used when the standard code page (500) and graphic set (697) is used by the application. The second entry will be used when a print application specifies special symbols (340 259).
+
+Example 3: Add Font Entry that does not exist in system table
+
+ADDFNTTBLE FNTTBL(*PHFCS)
+PHFCS((65500 *PTSIZE *NONE *SYSVAL 7.0)
+(C0NEWFNT *RASTER))
+
+This command adds an entry to the QPHFCS table (printer-resident to host-resident font character set table) that does not exist in the system printer-resident to host-resident font character set table.
+
+When adding entries that do not exist in the system printer resident to host-resident font character set table, it is recommended that you specify a specific value for font width or point size, but not both. For fixed pitch fonts, you should specify a font width and *WIDTH for point size. For typographic fonts, you should specify a point size and *PTSIZE for font width. In this example, a typographic font of 65500 with point size 7.0 is added to the printer-resident to host-resident font character set table (QPHFCS).
+
+Example 4: Override Existing Code Page Entry in system table
+
+ADDFNTTBLE FNTTBL(*PHCP) PHCP((*SYSVAL 38) (T1V00038))
+
+This command adds an entry to the QPHCP table (printer-resident to host-resident code page table). To override an existing entry in the system printer-resident to host-resident code page table, you need to add a corresponding entry in the QPHCP table. Following are the recommended steps to change the mapping of an entry in the system tables.
+
+- Use the DSPFNTTBL command (For example, DSPFNTTBL FNTTBL(*SYSPHCP) OUTPUT(*PRINT)) to print the entries in the system code page table.
+
+- Find the entry you want to change, and add an entry into the corresponding user code page table. In the above example, code page 38 is to be added to the user code page table (QPHCP).
+
+In performing the font mapping, the attributes of the resident code page specified in the print application are compared to those in the code page table (QPHCP). If a match is found, then the specified host-resident code page (T1V00038) is downloaded to the printer. If no match is found, then the system printer-resident to host-resident code page table is searched.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2182
+Not authorized to library &1.
+
+CPF2283
+Authorization list &1 does not exist.
+
+CPF88D2
+Font table &1 in library &2 not changed.
+
+CPF9810
+Library &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+Top

@@ -1,0 +1,543 @@
+Change Remote Journal (CHGRMTJRN)
+
+Change Remote Journal (CHGRMTJRN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Remote Journal (CHGRMTJRN) command is used to change the journal state for remote journals.
+
+This command is used on the source system for a remote journal that is associated with a source-system journal, to change the state of the remote journal from *ACTIVE to *INACTIVE or from *INACTIVE to *ACTIVE. A journal state of *ACTIVE for a remote journal indicates that journal entries can be received from the associated journal on the source system. A journal state of *INACTIVE for a remote journal indicates that the journal is not ready to receive journal entries from a source journal. This command also allows additional attributes that are associated with the journal state to be set.
+
+The Change Journal (CHGJRN) command can be used to modify the other journal attributes of remote journals, such as the journal message queue, deleting receivers, and text.
+
+Restrictions:
+
+- A user profile must exist on the target system by the same name as the user profile that is running this command on the source system. This restriction is irrespective of the selected communications protocol.
+
+- Synchronous delivery mode is not supported when a remote journal is specified for the source system journal name parameter.
+
+- The journal state of the remote journal to be activated cannot already be *ACTIVE.
+
+- The journal state of the remote journal to be inactivated cannot already be *INACTIVE.
+
+- If the remote journal state is *CTLINACT, then the remote journal cannot be inactivated by specifying a INACTOPT(*CNTRLD).
+
+- The remote journal to be activated cannot already be replicating journal entries to other remote journals.
+
+- A journal receiver that was one of a pair of dual receivers cannot be replicated.
+
+- A journal receiver that was never attached to a journal after Version 4 Release 2 Modification 0 has been installed cannot be replicated because all of the required information is not contained within the receiver.
+
+- The specified relational database (RDB) directory entry must meet the following rules:
+
+The communications protocol used for the RDB must be supported for remote journal functions.
+
+The remote location name in the RDB directory entry cannot refer to the *LOCAL database.
+
+The RDB directory entry cannot use an application requester driver program (*ARDPGM) to locate the target system.
+
+- Journal entry filtering is not supported when synchronous delivery mode is specified.
+
+- Journal entry filtering is not supported when a remote journal is specified for the source journal name parameter.
+
+- Journal entry filtering is not supported when the source journal does not have a receiver size option (RCVSIZOPT) specification of *MAXOPT1, *MAXOPT2, or *MAXOPT3.
+
+- Remote journal receivers with filtering criteria specified cannot be saved and restored to any releases prior to V7R1M0 nor can filtering criteria be specified if the remote system is at a release prior to V7R1M0.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+RDB | Relational database | Name | Required, Key, Positional 1
+SRCJRN | Source journal | Qualified object name | Required, Key, Positional 2
+Qualifier 1: Source journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TGTJRN | Target journal | Single values: *SRCJRN
+Other values: Qualified object name | Optional, Key
+Qualifier 1: Target journal | Name
+Qualifier 2: Library | Name
+JRNSTATE | Journal state | *SAME, *ACTIVE, *INACTIVE | Optional, Key
+DELIVERY | Delivery | *SAME, *ASYNC, *SYNC | Optional
+STRJRNRCV | Starting journal receiver | Single values: *ATTACHED, *SRCSYS
+Other values: Qualified object name | Optional
+Qualifier 1: Starting journal receiver | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+DTAPORTSRV | Data port services | Single values: *SAME, *NONE
+Other values: Element list | Optional
+Element 1: Node identifier | Name
+Element 2: Data port IP address | Values (up to 4 repetitions): Character value
+SNDTSKPTY | Sending task priority | 1-99, *SAME, *SYSDFT | Optional
+SYNCTIMO | Synchronous sending time-out | 1-3600, *SAME, *SYSDFT | Optional
+VLDCHK | Validity checking | *SAME, *DISABLED, *ENABLED | Optional
+RESTART | Automatic restart | Single values: *SAME, *NONE
+Other values: Element list | Optional
+Element 1: Maximum attempts | 1-200
+Element 2: Delay time | 10-3600
+FTROBJ | Filter by object | *SAME, *NO, *YES | Optional
+FTRIMAGES | Filter images | *SAME, *NONE, *BEFORE | Optional
+INACTOPT | How to make inactive | *CNTRLD, *IMMED | Optional
+
+Top
+
+Relational database (RDB)
+
+Specifies the name of the relational database directory entry that contains the remote location name of the target system. This name should match the name of the *LOCAL relational database directory entry on the target system.
+
+This is a required parameter.
+
+relational-database-entry
+Specify a maximum of 18 characters for the name of the relational database directory entry.
+
+Top
+
+Source journal (SRCJRN)
+
+Specifies the name of the source journal that is associated with the remote journal that is being changed, and the library in which it resides.
+
+This is a required parameter.
+
+Qualifier 1: Source journal
+
+source-journal-name
+Specify the source journal that is associated with the remote journal that is being changed.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+library-name
+Specify the name of the library in which the journal resides.
+
+Top
+
+Target journal (TGTJRN)
+
+Specifies the remote journal on the target system that is being changed.
+
+Single values
+
+*SRCJRN
+The target journal name is exactly the same as the source journal name.
+
+Qualifier 1: Target journal
+
+target-journal-name
+Specify the name of the target journal that is being changed.
+
+Qualifier 2: Library
+
+library-name
+Specify the name of the library in which the journal resides.
+
+Top
+
+Journal state (JRNSTATE)
+
+Specifies whether the remote journal is ready to receive journal entries from a source journal.
+
+*SAME
+The value does not change.
+
+*ACTIVE
+The remote journal is ready to receive journal entries from a source journal.
+
+*INACTIVE
+The remote journal is not ready to receive journal entries from a source journal.
+
+Top
+
+Delivery (DELIVERY)
+
+Specifies whether journal entries are replicated synchronously or asynchronously when the remote journal is activated.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) is specified.
+
+*SAME
+The value does not change.
+
+*ASYNC
+Journal entries are replicated asynchronously.
+
+*SYNC
+Journal entries are replicated synchronously.
+
+Top
+
+Starting journal receiver (STRJRNRCV)
+
+The journal receiver where the replication of journal entries from the source system to the target system starts.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) is specified.
+
+*ATTACHED
+The replication of journal entries starts with the journal receiver that is currently attached to the remote journal on the target system. The journal entries are replicated from the corresponding journal receiver that is associated with the journal on the source system. The replication starts with the journal entries that follow the last journal entry that currently exists in the attached journal receiver on the target system. If the remote journal on the target system does not have an attached journal receiver, the journal receiver that is currently attached to the journal on the source system is created on the target system and attached to the remote journal on the target system. Then journal entries are replicated starting with the first journal entry in the journal receiver that is currently attached to the journal on the source system. If the journal on the source system does not have an attached journal receiver, which is only possible in the case of a remote journal that is associated with another remote journal, no journal entries can be replicated and an error is returned.
+
+*SRCSYS
+The replication of journal entries starts with the journal receiver that is currently attached to the journal on the source system. If the corresponding journal receiver exists and is attached to the remote journal on the target system, journal entries are replicated starting with the journal entries that follow the last journal entry that currently exists in the attached journal receiver on the target system. Otherwise, if the corresponding journal receiver exists but is not attached to the remote journal on the target system, no journal entries can be replicated and an error is returned. If the corresponding journal receiver does not exist on the target system, the journal receiver is created on the target system and attached to the remote journal on the target system. Then journal entries are replicated starting with the first journal entry in the journal receiver that is currently attached to the journal on the source system. If the journal on the source system does not have an attached journal receiver, which is only possible in the case of a remote journal that is associated with another remote journal, no journal entries can be replicated and an error is returned.
+
+starting-journal-receiver-name
+Specify the journal receiver where the replication of journal should start. If the corresponding journal receiver exists and is attached to the remote journal on the target system, journal entries are replicated starting with the journal entries that follow the last journal entry that currently exists in the attached journal receiver on the target system. Otherwise, if the corresponding journal receiver exists but is not attached to the remote journal on the target system, no journal entries can be replicated and an error is returned. If the corresponding journal receiver does not exist on the target system, then the journal receiver is created on the target system and attached to the remote journal on the target system. Then journal entries are replicated starting with the first journal entry in the specified journal receiver on the source system.
+
+The name of the starting journal receiver can be qualified by one of the following library values:
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Data port services (DTAPORTSRV)
+
+Specifies the name of the cluster node identifier and up to four internet addresses to use as an alternate communication method when sending journal entries to a target system. Configuring clustering and data port services with multiple communication lines can provide for better communications resiliency.
+
+*SAME
+The value does not change.
+
+*NONE
+The remote journal environment will not use data port services. The relational database will be used for all communications to the target system.
+
+Element 1: Node identifier
+
+name
+Specify the cluster node identifier for the target system. The user is responsible for configuring a cluster environment with the target system as one of its nodes. The cluster node for the target system must be active prior to activating the remote journal.
+
+Element 2: Data port IP address
+
+character-value
+Specify up to four distinct internet addresses to the target node. The user is responsible for configuring the TCP/IP addresses. The internet addresses must be configured between the source and target systems prior to activating the remote journal. Any duplicate addresses will be ignored.
+
+Top
+
+Sending task priority (SNDTSKPTY)
+
+Specifies the priority of the sending task on the source system for asynchronously maintained remote journals. The priority is a value from 1 (highest priority) through 99 (lowest priority), which represents the importance of the task when it competes with other tasks for machine resources. This value represents the relative (not absolute) importance of the task.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) and DELIVERY(*ASYNC) are specified.
+
+*SAME
+The value does not change.
+
+*SYSDFT
+The system chooses a value for the sending task priority that is higher than the highest priority a user may specify (higher than priority 1).
+
+1-99
+Specify the priority of the sending task on the source system.
+
+Top
+
+Synchronous sending time-out (SYNCTIMO)
+
+Specifies the maximum amount of time in seconds to wait for a response from the remote system when a response is required in a synchronous remote journal environment. If a response is not received within the number of seconds specified, the remote journal environment will be inactivated.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) and DELIVERY(*SYNC) are specified.
+
+Note: While a journal is in the process of attaching a new receiver, journal entries on the source system are held up until the new receiver is attached. The time-out for the new journal entries will not start until after the new receiver is attached and the new journal entries are sent to the target system.
+
+*SAME
+The value does not change.
+
+*SYSDFT
+The system chooses the default value of 60 seconds to wait for a response from the remote system.
+
+1-3600
+Specify the maximum number of seconds to wait for a response from the remote system.
+
+Top
+
+Validity checking (VLDCHK)
+
+Specifies whether or not to use communications validity checking. When communications validity checking is enabled, the remote journal environment will provide additional checking to verify that the data which is received by the target system matches the data that was sent from the source system. If the data does not match, the data will not be written to the target system, the remote journal environment will be inactivated, and messages indicating the communications failure will be issued to the journal message queue and QHST.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) is specified.
+
+*SAME
+The value does not change.
+
+*DISABLED
+Communications validity checking is disabled for this remote journal environment.
+
+*ENABLED
+Communications validity checking is enabled for this remote journal environment.
+
+Note: Communications validity checking may impact performance.
+
+Top
+
+Automatic restart (RESTART)
+
+Specifies whether or not the operating system will attempt to reactivate the remote journal after a recoverable failure. See the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for a list of which failures the operating system will attempt to recover from.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) is specified.
+
+Single values
+
+*SAME
+The value does not change.
+
+*NONE
+The operating system will not attempt to reactivate the remote journal after a recoverable failure.
+
+Element 1: Maximum attempts
+
+1-200
+The operating system will attempt to reactivate the remote journal up to the specified number of times.
+
+Element 2: Delay time
+
+10-3600
+The operating system waits the specified number of seconds between attempts to reactivate the remote journal.
+
+Top
+
+Filter by object (FTROBJ)
+
+Specifies whether or not journal entries sent to the remote journal should be filtered by object.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) is specified.
+
+Note: When changing the filtering criteria, the Starting journal receiver (STRJRNRCV) parameter may not specify *ATTACHED or the journal receiver currently attached to the remote journal.
+
+Note: Journal receivers on the target system that may have had journal entries filtered due to this option may not be used with the Apply Journaled Changes (APYJRNCHG), or Remove Journaled Changes (RMVJRNCHG) commands.
+
+*SAME
+The value does not change.
+
+*NO
+Journal entries sent to the remote journal will not be filtered by object.
+
+*YES
+Journal entries deposited for objects that indicated remote journal filtering at the time they were deposited will not be sent to the remote journal.
+
+Top
+
+Filter images (FTRIMAGES)
+
+Specifies whether or not before images will be sent to the remote journal.
+
+Note: This parameter is only valid when JRNSTATE(*ACTIVE) is specified.
+
+Note: When changing the filtering criteria, the Starting journal receiver (STRJRNRCV) parameter may not specify *ATTACHED or the journal receiver currently attached to the remote journal.
+
+Note: Journal receivers on the target system that may have had journal entries filtered due to this option may not be used with the Remove Journaled Changes (RMVJRNCHG) command.
+
+*SAME
+The value does not change.
+
+*NONE
+All journal entries will be sent to the remote journal, unless they are filtered by the Filter by object (FTROBJ) or program filtering specifications.
+
+*BEFORE
+Before images will not be sent to the remote journal.
+
+Top
+
+How to make inactive (INACTOPT)
+
+Specifies how the replication of journal entries should be ended when the remote journal is inactivated.
+
+Note: This parameter is only valid when JRNSTATE(*INACTIVE) is specified.
+
+*CNTRLD
+A controlled inactivate of journal entry replication is performed. A controlled inactivate means that the system should replicate all journal entries already queued to be sent from the source system to the target system before inactivating the remote journal. No additional journal entries are queued after a request to perform a controlled inactivate. A controlled inactivate is not possible when a journal is in catch-up, or when it is being synchronously maintained. In both of these cases, the request to perform a controlled inactivate is implicitly changed by the system to an immediate inactivate request.
+
+*IMMED
+An immediate inactivate of journal entry replication is performed. An immediate inactivate means that the system will not continue to replicate any journal entries that are already queued before inactivating the remote journal.
+
+Top
+
+Examples
+
+Example 1: Activating a Remote Journal to be Maintained Asynchronously
+
+CHGRMTJRN RDB(CHICAGO)
+SRCJRN(LCLLIB/JOURNAL1) TGTJRN(RMTLIB/JOURNAL1)
+JRNSTATE(*ACTIVE) DELIVERY(*ASYNC)
+SNDTSKPTY(*SYSDFT) VLDCHK(*ENABLED)
+RESTART(10 60)
+
+This command activates remote journal JOURNAL1 in library RMTLIB so that journal entries will be replicated from source journal JOURNAL1 in library LCLLIB to remote journal JOURNAL1 in library RMTLIB. The replication will occur asynchronously, the system will set the priority of the sending task, and communications validity checking will be enabled. If the remote journal fails unexpectedly due to a recoverable error, the system will attempt to reactivate the remote journal every 60 seconds, up to a maximum of ten attempts.
+
+Example 2: Activating a Remote Journal Using Data Port Services
+
+CHGRMTJRN RDB(CHICAGO)
+SRCJRN(LCLLIB/JOURNAL1) TGTJRN(RMTLIB/JOURNAL1)
+JRNSTATE(*ACTIVE) DELIVERY(*SYNC)
+DTAPORTSRV(CLUNODE1 255.255.255.001 255.255.255.002)
+SYNCTIMO(*SYSDFT) VLDCHK(*ENABLED)
+
+This command activates remote journal JOURNAL1 in library RMTLIB so that journal entries will be replicated from source journal JOURNAL1 in library LCLLIB to remote journal JOURNAL1 in library RMTLIB. The replication will occur synchronously. The data will be sent using data port services to cluster node CLUNODE1 using internet addresses 255.255.255.001 and 255.255.255.002. The synchronous sending time-out will be set to the system default of 60 seconds and communications validity checking will be enabled.
+
+Example 3: Inactivating a Remote Journal
+
+CHGRMTJRN RDB(CHICAGO) SRCJRN(LCLLIB/JOURNAL1)
+TGTJRN(RMTLIB/JOURNAL1)
+JRNSTATE(*INACTIVE) INACTOPT(*IMMED)
+
+This command inactivates remote journal JOURNAL1 in library RMTLIB so that journal entries will no longer be replicated from source journal JOURNAL1 in library LCLLIB to remote journal JOURNAL1 in library RMTLIB. The inactivation will occur immediately.
+
+Example 4: Activating a Filtered Remote Journal
+
+CHGRMTJRN RDB(NEWYORK)
+SRCJRN(LCLLIB/JOURNAL1) TGTJRN(RMTLIB/JOURNAL1)
+JRNSTATE(*ACTIVE) DELIVERY(*ASYNC)
+FTRIMAGES(*BEFORE)
+
+This command activates remote journal JOURNAL1 in library RMTLIB so that journal entries will be replicated from source journal JOURNAL1 in library LCLLIB to remote journal JOURNAL1 in library RMTLIB. The replication will occur asynchronously. All before image journal entries will be filtered and will not be sent to the remote journal.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF69A2
+State of journal &1 in &2 not changed.
+
+CPF69A3
+State of journal &1 in &2 not changed.
+
+CPF69A8
+State of journal &1 in &2 not changed.
+
+CPF694D
+Unexpected journal receiver &8 found.
+
+CPF694F
+Communications failed with reason code &10.
+
+CPF6942
+Type of journal &1 in &2 not valid.
+
+CPF6943
+Receiver size options for journal &1 in &2 not valid.
+
+CPF696F
+State of journal &1 in &2 not changed.
+
+CPF697A
+State of journal &1 in &2 not changed.
+
+CPF697B
+State of journal &1 in &2 not changed.
+
+CPF697C
+State of journal &1 in &2 not changed.
+
+CPF697D
+State of journal &1 in &2 not changed.
+
+CPF697E
+State of journal &1 in &2 not changed.
+
+CPF697F
+State of journal &1 in &2 not changed.
+
+CPF6973
+Source journal not compatible with target system.
+
+CPF6974
+State of journal &1 in &2 not changed.
+
+CPF698A
+State of journal &1 in &2 not changed.
+
+CPF698B
+Unexpected journal receiver attached to &1.
+
+CPF698C
+State of journal &1 in &2 not changed.
+
+CPF698D
+Journal &1 not a remote journal.
+
+CPF698E
+Journal &1 not associated with source journal.
+
+CPF698F
+State of journal &1 in &2 not changed.
+
+CPF6982
+Relational database directory entry &1 not valid.
+
+CPF699A
+Unexpected journal receiver &8 found.
+
+CPF699E
+State of journal &1 in &2 not changed.
+
+CPF6993
+State of journal &1 in &2 not changed.
+
+CPF6994
+State of journal &1 in &2 not changed.
+
+CPF6995
+Unexpected journal receiver &8 found, reason code &12.
+
+CPF6996
+Replication of journal entries ended.
+
+CPF6997
+Unexpected journal receiver &8 found.
+
+CPF6998
+State of journal &1 in &2 not changed.
+
+CPF6999
+State of journal &1 in &2 not changed.
+
+CPF70A3
+Remote journal &1 in &2 not changed.
+
+CPF70DB
+Remote journal environment ended for journal &1 in library &2.
+
+CPF70D9
+Changing journal state not allowed. Reason code &3.
+
+CPF701B
+Journal recovery of an interrupted operation failed.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9830
+Cannot assign library &1.
+
+TCP1901
+Internet address &2 not valid.
+
+Top

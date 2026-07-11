@@ -1,0 +1,257 @@
+Start Object Conversion (STROBJCVN)
+
+Start Object Conversion (STROBJCVN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Object Conversion (STROBJCVN) command either converts user objects or checks which objects will require conversion. Objects are converted from the format used in a previous version, release, and modification level of the operating system to the format required for use in the current version, release, and modification level of the operating system.
+
+The following types of objects in libraries are converted or checked by this command:
+
+- Programs (original program model (OPM) and Integrated Language Environment (ILE))
+
+- Service programs
+
+- Modules
+
+SQL data is converted or checked by this command. Programs, service programs, and SQL package (*SQLPKG) objects may contain SQL statements and data used for external stored procedures. Note that converting SQL data contained within a program object is handled separately from converting the program itself.
+
+The following object types in directories are converted or checked by this command:
+
+- Stream files with Java programs that were created to run on iSeries. Only stream files in the "root" (/), QOpenSys and user-defined file systems (UDFS) are included.
+
+The user objects that are not converted with this command are automatically converted when they are first used.
+
+Note: Using objects that are not yet converted will have one-time performance degradation while the conversion operation is performed.
+
+Note: In most cases, the objects analyzed by Analyze Object Conversion (ANZOBJCVN) can be converted by the STROBJCVN command or on first touch. However, STROBJCVN will not convert the directories affected by new Unicode characters and casing rules in the target release since this conversion is automatically done by the operating system when necessary. Spooled files will not be converted by STROBJCVN, conversion is automatically done by the operating system when necessary.
+
+Restrictions:
+
+- Any primary or secondary independent ASP (ASPs 33-255) referenced by this command must be varied on and have a status of 'Available' before running this command.
+
+- Any user-defined file systems referenced by this command must be mounted before running this command.
+
+- Objects located in a 'read-only' user-defined file system will not be converted.
+
+- You must have all object (*ALLOBJ) special authority to run this command.
+
+- This command can be very long running. For this reason, it is suggested that this command be run in a batch job.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OPTION | Option | *CONVERT, *CHECK | Optional, Positional 6
+LIB | Library | Name, *ALLUSR, *NONE | Required, Positional 1
+OBJTYPE | Object type | *ALL, *FILE, *ALLPGM, *SQL | Optional, Positional 2
+ASPDEV | ASP device | Name, *, *ALLAVL, *CURASPGRP, *SYSBAS | Optional, Positional 3
+OBJ | Object | Path name, *NONE | Optional, Positional 4
+SUBTREE | Directory subtree | *ALL, *NONE | Optional, Positional 5
+
+Top
+
+Option (OPTION)
+
+Specifies whether conversion is performed or objects are checked to determine if conversion is required.
+
+*CONVERT
+Objects specified on the Library (LIB) parameter and Object (OBJ) parameter are converted to the format required by the current version, release, and modification level of the operating system.
+
+*CHECK
+Objects specified on the LIB parameter and OBJ parameter are checked to determine if they need to be converted. Messages are sent to the job log which includes the number of objects which have already been converted and the number of objects which still need to be converted.
+
+Top
+
+Library (LIB)
+
+Specifies the user library for which objects are to be checked or converted to the format required for use in the current version, release, and modification level of the operating system.
+
+*ALLUSR
+All user libraries are selected. All libraries with names that do not begin with the letter Q are selected except for the following:
+
+#CGULIB #DSULIB #SEULIB
+#COBLIB #RPGLIB
+#DFULIB #SDALIB
+
+Although the following Qxxx libraries are provided by IBM, they typically contain user data that changes frequently. Therefore, these libraries are considered user libraries and are also selected:
+
+QDSNX QSYS2 QUSRINFSKR QWQCENT
+QGPL QSYS2xxxxx QUSRNOTES QWQREPOS
+QGPL38 QS36F QUSROND
+QMPGDATA QUSER38 QUSRPOSGS
+QMQMDATA QUSRADSM QUSRPOSSA
+QMQMPROC QUSRBRM QUSRPYMSVR
+QPFRDATA QUSRDIRCF QUSRRDARS
+QRCL QUSRDIRCL QUSRSYS
+QRCLxxxxx QUSRDIRDB QUSRVI
+QSRVAGT QUSRIJS QUSRVxRxMx
+
+- 'xxxxx' is the number of a primary auxiliary storage pool (ASP).
+
+- A different library name, in the format QUSRVxRxMx, can be created by the user for each previous release supported by IBM to contain any user commands to be compiled in a CL program for the previous release. For the QUSRVxRxMx user library, VxRxMx is the version, release, and modification level of a previous release that IBM continues to support.
+
+*NONE
+No user library is selected. You can specify LIB(*NONE) if you only want to convert or check objects that are located in directories.
+
+name
+Specifies the name of the user library whose objects are to be checked or converted.
+
+Top
+
+Object type (OBJTYPE)
+
+Specifies which object types in the library should be converted.
+
+If *CHECK is specified for the Option (OPTION) parameter, specification of this parameter is ignored.
+
+If *NONE is specified for the Library (LIB) parameter, specification of this parameter is ignored.
+
+*ALL
+All program (*PGM) objects, service program (*SRVPGM) objects, module (*MODULE) objects, and database file (*FILE) objects in the specified library are converted. In addition, the stored SQL information in all *PGM, *SRVPGM, and *SQLPKG objects that contain SQL statements, as well as *PGM and *SRVPGM objects that are used to implement external stored procedures, is converted.
+
+*FILE
+Only database file member objects in the specified library are converted.
+
+*ALLPGM
+All program (*PGM) and service program (*SRVPGM) objects in the specified library are converted.
+
+*SQL
+The stored SQL information in all *PGM, *SRVPGM, and *SQLPKG objects that contain SQL statements, as well as *PGM and *SRVPGM objects that are used to implement external stored procedures, is converted.
+
+Top
+
+ASP device (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device where storage is allocated for the library to be checked or converted. If the library is in an ASP that is not part of the thread's library name space, this parameter must be specified to ensure the correct library is checked or converted.
+
+Note: This parameter does not apply for the objects specified in the OBJ parameter since the independent ASP name is part of the path name of the object.
+
+*
+The ASPs that are currently part of the thread's library name space will be searched to find the library. This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and, if the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group.
+
+*ALLAVL
+All available ASPs will be searched. This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and all available primary and secondary ASPs (ASPs 33-255 with a status of 'Available'). The ASP groups are searched in alphabetical order by the primary ASP. The system ASP and all defined basic user ASPs are searched after the ASP groups. ASPs and libraries to which the user is not authorized are bypassed and no authority error messages are sent.
+
+*CURASPGRP
+If the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group will be searched to find the library. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched. If no ASP group is associated with the thread an error will be issued.
+
+*SYSBAS
+The system ASP (ASP 1) and all defined basic user ASPs (ASPs 2-32) will be searched to find the library. No primary or secondary ASPs will be searched, even if the thread has an ASP group.
+
+name
+
+Specify the name of the primary or secondary ASP device to be searched. The primary or secondary ASP must have been activated (by varying on the ASP device) and have a status of 'Available'. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+
+Top
+
+Object (OBJ)
+
+Specifies the path name of the object or a pattern to match the name of the objects to be checked or converted.
+
+The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: If the last component in the path name is a symbolic link, the symbolic link object is checked or converted, but the object pointed to by the symbolic link is not checked or converted.
+
+*NONE
+No object is selected. You can specify OBJ(*NONE) if you only want to convert or check objects that are located in libraries.
+
+path-name
+Specify the path name of the object to be checked or converted.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to check or convert the objects within the subtree if the object specified by the Object (OBJ) parameter is a directory.
+
+*ALL
+The objects specified by OBJ will be checked or converted, if appropriate. If the object is a directory, its contents as well as the contents of all of its subdirectories will be checked or converted.
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+*NONE
+The objects specified by OBJ will be checked or converted, if appropriate. If the object is a directory, it is checked or converted if appropriate, but its contents are not checked or converted.
+
+Top
+
+Examples
+
+Example 1: Start Conversion of All Objects in One Library
+
+STROBJCVN OPTION(*CONVERT) LIB(LIB1) OBJ(*NONE)
+
+This command converts all original program model (OPM) and integrated language environment (ILE) programs, service programs and modules contained in the LIB1 user library to the format required by the current release of the operating system.
+
+In addition, the stored SQL information in all *PGM, *SRVPGM, and *SQLPKG objects that contain SQL statements, as well as *PGM and *SRVPGM objects that are used to implement external stored procedures, is converted to the format required by the current release of the operating system.
+
+No objects in directories will be converted.
+
+Example 2: Start Conversion of SQL Objects
+
+STROBJCVN OPTION(*CONVERT) LIB(LIB2) OBJTYPE(*SQL)
+
+This command converts the stored SQL information in all *PGM, *SRVPGM, and *SQLPKG objects in library LIB2 that contain SQL statements, as well as *PGM and *SRVPGM objects in library LIB2 that are used to implement external stored procedures, to the format required by the current release of the operating system.
+
+Example 3: Start Conversion of All Programs
+
+STROBJCVN OPTION(*CONVERT) LIB(*ALLUSR) OBJTYPE(*ALLPGM)
+ASPDEV(*ALLAVL) OBJ('/') SUBTREE(*ALL)
+
+This command converts all OPM and ILE program (*PGM) and service program (*SRVPGM) objects in all user libraries on all available auxiliary storage pools, include the system ASP, all defined basic user ASPs, and all primary and secondary independent ASPs.
+
+In addition, all Java programs in the "root" (/) file system ('/' directory, its contents and the contents of all its subdirectories) will be converted.
+
+Depending on the number of user libraries and the number of directories on the system, this command could take a very long time to run.
+
+Example 4: Check How Many Objects in a Library Need to be Converted
+
+STROBJCVN OPTION(*CHECK) LIB(LIB1) OBJ(*NONE)
+
+This command checks all OPM and ILE programs, service programs, and modules in library LIB1. It will send a completion message that includes the total number of objects that were checked, the number of objects that have already been converted, and the number of objects that still need to be converted to the format required by the current release of the operating system.
+
+Example 5: Start Conversion in a Specific Directory
+
+STROBJCVN OPTION(*CONVERT) LIB(*NONE) OBJ('/MYDIR') SUBTREE(*ALL)
+
+This command converts all Java programs in the /MYDIR directory, its contents, as well as the contents of all of its subdirectories will be analyzed.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF218C
+&1 not a primary or secondary ASP.
+
+CPF9833
+*CURASPGRP or *ASPGRPPRI specified and thread has no ASP group.
+
+CPFB0E1
+Not all objects were checked.
+
+CPFB0E2
+Not all objects were converted.
+
+Top

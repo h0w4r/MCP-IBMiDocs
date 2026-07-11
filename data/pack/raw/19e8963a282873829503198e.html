@@ -1,0 +1,516 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="SAVS36LIBM.Top_Of_Page"></a>
+<h1>Save S/36 Library Members  (SAVS36LIBM)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#SAVS36LIBM.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#SAVS36LIBM.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#SAVS36LIBM.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM"></a>
+<p>The Save Library Members in System/36 Save/Restore Format (SAVS36LIBM) command creates a copy of source file members in a file on diskette or tape that can be restored on a System/36, or into a database physical file on this system that can be sent to a System/36.  The saved member file is formatted like a record-mode LIBRFILE created on a System/36 using the System/36 FROMLIBR system operator control language (OCL) procedure (or the equivalent OCL use of the $MAINT SSP utility).  On a System/36, the diskette or tape or disk file can be restored using the TOLIBR system OCL procedure (or the equivalent OCL use of the $MAINT SSP utility).
+</p>
+<p>If a database physical file is specified using the <strong>Physical file</strong> prompt (PHYFILE parameter) but does not exist, it is created.
+</p>
+<p>This command is intended only for exchanging source and procedure data with a System/36.  It provides a simplified command interface for an i5/OS customer who migrated from a System/36, but is not well-suited for backing up of i5/OS source files.  Use the CL commands (SAVOBJ or SAVCHGOBJ) for creating a backup copy of an i5/OS source file or individual source file members.
+</p>
+<p><strong>Restrictions</strong>:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The following authorities are required when running on a system using resource security:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">*USE authority for this command
+</li>
+<li class="cds--list__item">*USE authority for the library specified in the FROMLIB parameter
+</li>
+<li class="cds--list__item">*USE authority for file QS36SRC in the specified library if saving source library members
+</li>
+<li class="cds--list__item">*USE authority for file QS36PRC in the specified library if saving procedure library members
+</li>
+<li class="cds--list__item">*USE authority for the library specified in the PHYFILE parameter if saving to a physical file
+</li>
+<li class="cds--list__item">*CHANGE authority for the library specified in the PHYFILE parameter if saving to a physical file and the file does not exist
+</li>
+<li class="cds--list__item">*CHANGE and *OBJMGMT authority for that file if saving to a physical file with MBROPT(*ADD)
+</li>
+<li class="cds--list__item">*ALL authority for the file if saving to a physical file with MBROPT(*REPLACE)
+</li>
+<li class="cds--list__item">*USE authority for the diskette device description object, *USE authority for device file QSYSDKT in library QSYS if saving to diskette
+</li>
+<li class="cds--list__item">*USE authority for the tape device description object and *USE authority for device file QSYSTAP in library QSYS if saving to tape
+</li>
+</ul>
+</li>
+<li class="cds--list__item">All diskettes that are used to save the members should be initialized using the INZDKT CL command or the equivalent System/36 environment function (INIT OCL procedure or $INIT SSP utility).  For a two-sided diskette, use a sector size of 256 or 1024.  For a one-sided diskette, use a sector size of 128 or 512.  If tape is used, each tape volume used should first be initialized with standard labels using the INZTAP CL command or the equivalent System/36 environment function (TAPEINIT OCL procedure or $TINIT SSP utility).  Use a density of 1600 bits per inch when initializing the tape.
+<p>
+<strong>Note:     </strong>If the tape or diskette has not been initialized as stated above, the System/36 will not be able to process the media.
+</p>
+<p>If a tape or diskette is used that has not been properly initialized, a message is sent to the system operator that allows the operator to cancel the save or initialize the volume and continue.
+</p>
+</li>
+<li class="cds--list__item">Object-level functions, other than read operations, should not be used for files QS36SRC and QS36PRC while members are being saved by SAVS36LIBM.  If the necessary files cannot be allocated, no members are saved.
+<p>Record-level functions, other than read operations, should not be used for members being saved.  Concurrent activity against a member (for example, adding or removing records) can cause the member to be omitted from the save operation.
+</p>
+</li>
+<li class="cds--list__item">If saving a file to diskette, the diskettes used cannot contain an active file with the same name as the TOLABEL parameter value, because the AS/400 system does not allow duplicate diskette file labels.
+</li>
+<li class="cds--list__item">Only members from source files QS36SRC (for *SRC members) and QS36PRC (for *PRC members) in the specified library can be saved using the SAVS36LIBM command.  Only the member data is saved from the source file member (that is, the source sequence number and change date fields are not saved).
+</li>
+<li class="cds--list__item">The specified member name or generic member name (FROMMBR parameter) must meet i5/OS naming standards.  When saving a member that has an extended name, the quotation mark characters are not stored as part of the member name in the output file.  For example, member "A+B" would be saved as A+B.
+</li>
+</ol>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="SAVS36LIBM.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.FROMMBR"><strong>FROMMBR</strong></a></td>
+<td class="valigntop">From member</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, *ALL</td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.FROMLIB"><strong>FROMLIB</strong></a></td>
+<td class="valigntop">From library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.DEV"><strong>DEV</strong></a></td>
+<td class="valigntop">Device</td>
+<td class="valigntop">Single values: *PHYFILE<br>Other values (up to 4 repetitions): <span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.SRCMBRS"><strong>SRCMBRS</strong></a></td>
+<td class="valigntop">S/36 source members</td>
+<td class="valigntop"><strong class="underlined">*ALL</strong>, *SRC, *PRC</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.TOLABEL"><strong>TOLABEL</strong></a></td>
+<td class="valigntop">File label</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.SEQNBR"><strong>SEQNBR</strong></a></td>
+<td class="valigntop">Sequence number</td>
+<td class="valigntop">1-9999, <strong class="underlined">*END</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.VOL"><strong>VOL</strong></a></td>
+<td class="valigntop">Volume identifier</td>
+<td class="valigntop">Values (up to 50 repetitions): <span class="var">Character value</span>, <strong class="underlined">*MOUNTED</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.RETAIN"><strong>RETAIN</strong></a></td>
+<td class="valigntop">Retention period</td>
+<td class="valigntop">0-999, <strong class="underlined">1</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.EXCHTYPE"><strong>EXCHTYPE</strong></a></td>
+<td class="valigntop">Diskette file exchange type</td>
+<td class="valigntop"><strong class="underlined">*E</strong>, *BASIC</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.ENDOPT"><strong>ENDOPT</strong></a></td>
+<td class="valigntop">End of tape option</td>
+<td class="valigntop"><strong class="underlined">*REWIND</strong>, *LEAVE, *UNLOAD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#SAVS36LIBM.PHYFILE"><strong>PHYFILE</strong></a></td>
+<td class="valigntop">Physical file</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Physical file</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, *CURLIB, <strong class="underlined">*LIBL</strong></td>
+</tr><tr>
+<td class="valigntop"><a href="#SAVS36LIBM.MBROPT"><strong>MBROPT</strong></a></td>
+<td class="valigntop">Data base member option</td>
+<td class="valigntop"><strong class="underlined">*REPLACE</strong>, *ADD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36LIBM.RCDLEN"><strong>RCDLEN</strong></a></td>
+<td class="valigntop">Record length</td>
+<td class="valigntop">40-120, <strong class="underlined">120</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="SAVS36LIBM.FROMMBR"></a>
+<h2>From member (FROMMBR)</h2>
+<p>Specifies the names of the members being saved.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>All members of the member type specified on the <strong>S/36 source members</strong> prompt (SRCMBRS parameter) are saved.
+</dd>
+<dt><strong class="italic">member-name</strong></dt>
+<dd>Specify the member name of the members to be saved.
+</dd>
+<dt><strong class="italic">generic*-member-name</strong></dt>
+<dd>Specify the generic member name of the members to be saved.  A generic name is a character string that contains one or more characters followed by an asterisk (*).
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.FROMLIB"></a>
+<h2>From library (FROMLIB)</h2>
+<p>Specifies which library contains the members being saved.
+</p>
+<p>This is a required parameter.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.DEV"></a>
+<h2>Device (DEV)</h2>
+<p>Specifies the names of the devices used for the save operation.  A maximum of four devices may be specified.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong>*PHYFILE</strong></dt>
+<dd>The output file is the database physical file specified by the <strong>Physical file</strong> prompt (PHYFILE parameter).
+</dd>
+<dt><strong class="italic">device-name</strong></dt>
+<dd>Specify the name of the diskette unit or the names of one or more tape devices that are used for the save operation.  If more than one tape device is used, type the names of the devices in the order in which they are used.  A maximum of four tape device names can be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.SRCMBRS"></a>
+<h2>S/36 source members (SRCMBRS)</h2>
+<p>Specifies which source member types (source and procedure members on System/36) are saved.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>System/36 source and procedure members (from QS36SRC and QS36PRC) that match the member name specified on the <strong>From member</strong> prompt (FROMMBR parameter) are saved.
+</dd>
+<dt><strong>*SRC</strong></dt>
+<dd>Only System/36 source members (from file QS36SRC) that match the member name specified on the <strong>From member</strong> prompt (FROMMBR parameter) are saved.
+</dd>
+<dt><strong>*PRC</strong></dt>
+<dd>Only System/36 OCL procedure members (from file QS36PRC) that match the member name specified on the <strong>From member</strong> prompt (FROMMBR parameter) are saved.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.TOLABEL"></a>
+<h2>File label (TOLABEL)</h2>
+<p>Specifies the label value (eight characters maximum) of the output diskette or tape file.  If *PHYFILE is not specified on the <strong>Device</strong> prompt (DEV parameter), a value must be specified here.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.SEQNBR"></a>
+<h2>Sequence number (SEQNBR)</h2>
+<p>Specifies, only when tape is used, which sequence number is used for the save operation.
+</p>
+<dl>
+<dt><strong class="underlined">*END</strong></dt>
+<dd>The specified members are saved starting after the last sequence number on the first tape (this file is put after all other files currently on the tape volume).  If the first tape is full, an error message is issued and the operation ends.  If the sequence number to be assigned to the specified file is greater than 9999, an error message is issued and the operation ends.
+</dd>
+<dt><strong class="italic">file-sequence-number</strong></dt>
+<dd>Specify the sequence number of the tape file that is used when saving the specified members.  Valid values range from 1 through 9999.
+<p>If this sequence number already exists on the tape volume, the tape label at that sequence number must match the TOLABEL parameter value.  The existing data file at that sequence number is overwritten, and all subsequent files on the volume are not accessible after the save operation.
+</p>
+<p>If a new tape file is added to the tape, the sequence number must be one greater than the sequence number of the last tape file on that volume.  No gaps are allowed in the series of sequence numbers.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.VOL"></a>
+<h2>Volume identifier (VOL)</h2>
+<p>Specifies the volume identifiers of the tape volumes on which the object data is to be saved.  The volumes must be placed in the device in the same order as the volume identifiers are specified for this parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*MOUNTED</strong></dt>
+<dd>The volume currently placed in the device is used.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">volume-identifier</strong></dt>
+<dd>Specify the volume identifiers of the tapes or diskettes used for saving the members.  A maximum of 50 volume identifiers can be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.RETAIN"></a>
+<h2>Retention period (RETAIN)</h2>
+<p>Specifies the retention period for the newly created tape or diskette file.  The file is protected and cannot be written over until the day after the retention period ends.
+</p>
+<dl>
+<dt><strong class="underlined">1</strong></dt>
+<dd>A retention period of one day is used.
+</dd>
+<dt><strong class="italic">retention-period</strong></dt>
+<dd>Specify the number of days the tape or diskette file should be kept.  If a retention period of 999 is specified, the tape or diskette file becomes a permanent file.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.EXCHTYPE"></a>
+<h2>Diskette file exchange type (EXCHTYPE)</h2>
+<p>Specifies the exchange type for the newly created diskette file.
+</p>
+<dl>
+<dt><strong class="underlined">*E</strong></dt>
+<dd>The default is to create an E-exchange diskette file.  An E-exchange file is a system save file that can be restored on a System/36 using the TOLIBR procedure.  It can also be restored to the AS/400 system using the Restore System/36 Library Members (RSTS36LIBM) command.
+</dd>
+<dt><strong>*BASIC</strong></dt>
+<dd>The output diskette file is to be in basic exchange format.  A basic exchange format file can be restored or copied to a System/34 or System/32 or any other system that supports the basic exchange diskette format.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.ENDOPT"></a>
+<h2>End of tape option (ENDOPT)</h2>
+<p>Specifies, only when tape is used, what operation is automatically performed on the tape volume after the save operation ends.  This parameter applies only to the last reel used.
+</p>
+<dl>
+<dt><strong>*REWIND</strong></dt>
+<dd>The tape is rewound, but not unloaded.
+</dd>
+</dl>
+<dl>
+<dt><strong>*LEAVE</strong></dt>
+<dd>The tape is not rewound.
+</dd>
+</dl>
+<dl>
+<dt><strong>*UNLOAD</strong></dt>
+<dd>The tape is automatically rewound and unloaded after the operation ends.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.PHYFILE"></a>
+<h2>Physical file (PHYFILE)</h2>
+<p>Specifies the name of the physical file that receives the copied source file member data.
+</p>
+<p>If a file by this name does not exist, it is created in the current library if a library name was not specified, as a non-keyed, program-described physical file with the record length specified by the <strong>Logical record length</strong> prompt (RCDLEN parameter).  If a file already exists by this name, it is used as long as it is a non-keyed physical file with a record length in the range from 40 through 120.  The copied records are put in the first member of the physical file.
+</p>
+<p>The possible library values are:
+</p>
+<dl>
+<dt><strong class="underlined">*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the file.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the file is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.MBROPT"></a>
+<h2>Data base member option (MBROPT)</h2>
+<p>Specifies whether the new records replace or are added to the existing records.
+</p>
+<dl>
+<dt><strong class="underlined">*REPLACE</strong></dt>
+<dd>The member is cleared before copying the first record.
+</dd>
+</dl>
+<dl>
+<dt><strong>*ADD</strong></dt>
+<dd>The system adds the new records to the end of the existing records.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36LIBM.RCDLEN"></a>
+<h2>Record length (RCDLEN)</h2>
+<p>Specifies the file record length (in bytes) used when copying the members.
+</p>
+<dl>
+<dt><strong class="underlined">120</strong></dt>
+<dd>This is the maximum record length allowed for System/36 source and procedure library members.
+</dd>
+<dt><strong class="italic">record-length</strong></dt>
+<dd>Specify a record length in bytes.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="SAVS36LIBM.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Saving Single Procedure Member</strong>
+</h3>
+<p>
+</p><pre>SAVS36LIBM   FROMMBR(XYZ1)  FROMLIB(JOHNSON)
+             DEV(I1)  SRCMBRS(*PRC)  TOLABEL(XYZ1)
+</pre>
+<p></p>
+<p>This command saves the single OCL procedure member XYZ1 (in source file QS36PRC) in library JOHNSON. Assuming I1 is a diskette device, the member is saved to diskette file XYZ1. The file length is 120 and the retention period is one day.
+</p>
+<h3><strong>Example 2: Saving All Source and Procedure Members</strong>
+</h3>
+<p>
+</p><pre>SAVS36LIBM   FROMMBR(X*)  FROMLIB(ORDER)  DEV(*PHYFILE)
+             PHYFILE(NETLIB/S36SRC) MBROPT(*ADD)
+</pre>
+<p></p>
+<p>This command saves all source and procedure members (members in QS36SRC and QS36PRC) with names starting with the character 'X' in library ORDER.  The members are saved into database physical file S36SRC in library NETLIB. The copied records are added after any records already in the file.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="SAVS36LIBM.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF2C4A</strong></dt>
+<dd>Device &amp;1 not correct for command.
+</dd>
+<dt><strong>CPF2C4B</strong></dt>
+<dd>Duplicate device &amp;1 specified in device name list.
+</dd>
+<dt><strong>CPF2C4C</strong></dt>
+<dd>Diskette device &amp;1 included in multiple device specification.
+</dd>
+<dt><strong>CPF2C43</strong></dt>
+<dd>Saved &amp;2 members from library &amp;1, &amp;3 members not saved.
+</dd>
+<dt><strong>CPF2C44</strong></dt>
+<dd>No members saved from library &amp;1.
+</dd>
+<dt><strong>CPF2C48</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C49</strong></dt>
+<dd>Output file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C5E</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C5F</strong></dt>
+<dd>Tape file sequence numbers beyond 9999 not allowed.
+</dd>
+<dt><strong>CPF2C50</strong></dt>
+<dd>File description for file &amp;1 is not available.
+</dd>
+<dt><strong>CPF2C51</strong></dt>
+<dd>Member information for file &amp;1 in library &amp;2 is not available.
+</dd>
+<dt><strong>CPF2C52</strong></dt>
+<dd>Error occurred during attempt to create file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF2C55</strong></dt>
+<dd>TOLABEL parameter value &amp;1 contains embedded blank(s).
+</dd>
+<dt><strong>CPF2C58</strong></dt>
+<dd>Diskette format not acceptable for System/36.
+</dd>
+<dt><strong>CPF9807</strong></dt>
+<dd>One or more libraries in library list deleted.
+</dd>
+<dt><strong>CPF9808</strong></dt>
+<dd>Cannot allocate one or more libraries on library list.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9812</strong></dt>
+<dd>File &amp;1 in library &amp;2 not found.
+</dd>
+<dt><strong>CPF9814</strong></dt>
+<dd>Device &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+<dt><strong>CPF9826</strong></dt>
+<dd>Cannot allocate file &amp;2.
+</dd>
+<dt><strong>CPF9830</strong></dt>
+<dd>Cannot assign library &amp;1.
+</dd>
+<dt><strong>CPF9845</strong></dt>
+<dd>Error occurred while opening file &amp;1.
+</dd>
+<dt><strong>CPF9847</strong></dt>
+<dd>Error occurred while closing file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9849</strong></dt>
+<dd>Error while processing file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+</dl>
+<p><strong class="underlined">*STATUS Messages</strong>
+</p>
+<dl>
+<dt><strong>CPI2C13</strong></dt>
+<dd>Copying records from file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36LIBM.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

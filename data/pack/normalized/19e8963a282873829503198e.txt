@@ -1,0 +1,358 @@
+Save S/36 Library Members (SAVS36LIBM)
+
+Save S/36 Library Members (SAVS36LIBM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Save Library Members in System/36 Save/Restore Format (SAVS36LIBM) command creates a copy of source file members in a file on diskette or tape that can be restored on a System/36, or into a database physical file on this system that can be sent to a System/36. The saved member file is formatted like a record-mode LIBRFILE created on a System/36 using the System/36 FROMLIBR system operator control language (OCL) procedure (or the equivalent OCL use of the $MAINT SSP utility). On a System/36, the diskette or tape or disk file can be restored using the TOLIBR system OCL procedure (or the equivalent OCL use of the $MAINT SSP utility).
+
+If a database physical file is specified using the Physical file prompt (PHYFILE parameter) but does not exist, it is created.
+
+This command is intended only for exchanging source and procedure data with a System/36. It provides a simplified command interface for an i5/OS customer who migrated from a System/36, but is not well-suited for backing up of i5/OS source files. Use the CL commands (SAVOBJ or SAVCHGOBJ) for creating a backup copy of an i5/OS source file or individual source file members.
+
+Restrictions:
+
+- The following authorities are required when running on a system using resource security:
+
+*USE authority for this command
+
+*USE authority for the library specified in the FROMLIB parameter
+
+*USE authority for file QS36SRC in the specified library if saving source library members
+
+*USE authority for file QS36PRC in the specified library if saving procedure library members
+
+*USE authority for the library specified in the PHYFILE parameter if saving to a physical file
+
+*CHANGE authority for the library specified in the PHYFILE parameter if saving to a physical file and the file does not exist
+
+*CHANGE and *OBJMGMT authority for that file if saving to a physical file with MBROPT(*ADD)
+
+*ALL authority for the file if saving to a physical file with MBROPT(*REPLACE)
+
+*USE authority for the diskette device description object, *USE authority for device file QSYSDKT in library QSYS if saving to diskette
+
+*USE authority for the tape device description object and *USE authority for device file QSYSTAP in library QSYS if saving to tape
+
+- All diskettes that are used to save the members should be initialized using the INZDKT CL command or the equivalent System/36 environment function (INIT OCL procedure or $INIT SSP utility). For a two-sided diskette, use a sector size of 256 or 1024. For a one-sided diskette, use a sector size of 128 or 512. If tape is used, each tape volume used should first be initialized with standard labels using the INZTAP CL command or the equivalent System/36 environment function (TAPEINIT OCL procedure or $TINIT SSP utility). Use a density of 1600 bits per inch when initializing the tape.
+
+Note: If the tape or diskette has not been initialized as stated above, the System/36 will not be able to process the media.
+
+If a tape or diskette is used that has not been properly initialized, a message is sent to the system operator that allows the operator to cancel the save or initialize the volume and continue.
+
+- Object-level functions, other than read operations, should not be used for files QS36SRC and QS36PRC while members are being saved by SAVS36LIBM. If the necessary files cannot be allocated, no members are saved.
+Record-level functions, other than read operations, should not be used for members being saved. Concurrent activity against a member (for example, adding or removing records) can cause the member to be omitted from the save operation.
+
+- If saving a file to diskette, the diskettes used cannot contain an active file with the same name as the TOLABEL parameter value, because the AS/400 system does not allow duplicate diskette file labels.
+
+- Only members from source files QS36SRC (for *SRC members) and QS36PRC (for *PRC members) in the specified library can be saved using the SAVS36LIBM command. Only the member data is saved from the source file member (that is, the source sequence number and change date fields are not saved).
+
+- The specified member name or generic member name (FROMMBR parameter) must meet i5/OS naming standards. When saving a member that has an extended name, the quotation mark characters are not stored as part of the member name in the output file. For example, member "A+B" would be saved as A+B.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMMBR | From member | Generic name, name, *ALL | Required, Positional 1
+FROMLIB | From library | Name | Required, Positional 2
+DEV | Device | Single values: *PHYFILE
+Other values (up to 4 repetitions): Name | Required, Positional 3
+SRCMBRS | S/36 source members | *ALL, *SRC, *PRC | Optional
+TOLABEL | File label | Character value | Optional
+SEQNBR | Sequence number | 1-9999, *END | Optional
+VOL | Volume identifier | Values (up to 50 repetitions): Character value, *MOUNTED | Optional
+RETAIN | Retention period | 0-999, 1 | Optional
+EXCHTYPE | Diskette file exchange type | *E, *BASIC | Optional
+ENDOPT | End of tape option | *REWIND, *LEAVE, *UNLOAD | Optional
+PHYFILE | Physical file | Qualified object name | Optional
+Qualifier 1: Physical file | Name
+Qualifier 2: Library | Name, *CURLIB, *LIBL
+MBROPT | Data base member option | *REPLACE, *ADD | Optional
+RCDLEN | Record length | 40-120, 120 | Optional
+
+Top
+
+From member (FROMMBR)
+
+Specifies the names of the members being saved.
+
+This is a required parameter.
+
+*ALL
+All members of the member type specified on the S/36 source members prompt (SRCMBRS parameter) are saved.
+
+member-name
+Specify the member name of the members to be saved.
+
+generic*-member-name
+Specify the generic member name of the members to be saved. A generic name is a character string that contains one or more characters followed by an asterisk (*).
+
+Top
+
+From library (FROMLIB)
+
+Specifies which library contains the members being saved.
+
+This is a required parameter.
+
+Top
+
+Device (DEV)
+
+Specifies the names of the devices used for the save operation. A maximum of four devices may be specified.
+
+This is a required parameter.
+
+*PHYFILE
+The output file is the database physical file specified by the Physical file prompt (PHYFILE parameter).
+
+device-name
+Specify the name of the diskette unit or the names of one or more tape devices that are used for the save operation. If more than one tape device is used, type the names of the devices in the order in which they are used. A maximum of four tape device names can be specified.
+
+Top
+
+S/36 source members (SRCMBRS)
+
+Specifies which source member types (source and procedure members on System/36) are saved.
+
+*ALL
+System/36 source and procedure members (from QS36SRC and QS36PRC) that match the member name specified on the From member prompt (FROMMBR parameter) are saved.
+
+*SRC
+Only System/36 source members (from file QS36SRC) that match the member name specified on the From member prompt (FROMMBR parameter) are saved.
+
+*PRC
+Only System/36 OCL procedure members (from file QS36PRC) that match the member name specified on the From member prompt (FROMMBR parameter) are saved.
+
+Top
+
+File label (TOLABEL)
+
+Specifies the label value (eight characters maximum) of the output diskette or tape file. If *PHYFILE is not specified on the Device prompt (DEV parameter), a value must be specified here.
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies, only when tape is used, which sequence number is used for the save operation.
+
+*END
+The specified members are saved starting after the last sequence number on the first tape (this file is put after all other files currently on the tape volume). If the first tape is full, an error message is issued and the operation ends. If the sequence number to be assigned to the specified file is greater than 9999, an error message is issued and the operation ends.
+
+file-sequence-number
+Specify the sequence number of the tape file that is used when saving the specified members. Valid values range from 1 through 9999.
+If this sequence number already exists on the tape volume, the tape label at that sequence number must match the TOLABEL parameter value. The existing data file at that sequence number is overwritten, and all subsequent files on the volume are not accessible after the save operation.
+
+If a new tape file is added to the tape, the sequence number must be one greater than the sequence number of the last tape file on that volume. No gaps are allowed in the series of sequence numbers.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifiers of the tape volumes on which the object data is to be saved. The volumes must be placed in the device in the same order as the volume identifiers are specified for this parameter.
+
+*MOUNTED
+The volume currently placed in the device is used.
+
+volume-identifier
+Specify the volume identifiers of the tapes or diskettes used for saving the members. A maximum of 50 volume identifiers can be specified.
+
+Top
+
+Retention period (RETAIN)
+
+Specifies the retention period for the newly created tape or diskette file. The file is protected and cannot be written over until the day after the retention period ends.
+
+1
+A retention period of one day is used.
+
+retention-period
+Specify the number of days the tape or diskette file should be kept. If a retention period of 999 is specified, the tape or diskette file becomes a permanent file.
+
+Top
+
+Diskette file exchange type (EXCHTYPE)
+
+Specifies the exchange type for the newly created diskette file.
+
+*E
+The default is to create an E-exchange diskette file. An E-exchange file is a system save file that can be restored on a System/36 using the TOLIBR procedure. It can also be restored to the AS/400 system using the Restore System/36 Library Members (RSTS36LIBM) command.
+
+*BASIC
+The output diskette file is to be in basic exchange format. A basic exchange format file can be restored or copied to a System/34 or System/32 or any other system that supports the basic exchange diskette format.
+
+Top
+
+End of tape option (ENDOPT)
+
+Specifies, only when tape is used, what operation is automatically performed on the tape volume after the save operation ends. This parameter applies only to the last reel used.
+
+*REWIND
+The tape is rewound, but not unloaded.
+
+*LEAVE
+The tape is not rewound.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+Top
+
+Physical file (PHYFILE)
+
+Specifies the name of the physical file that receives the copied source file member data.
+
+If a file by this name does not exist, it is created in the current library if a library name was not specified, as a non-keyed, program-described physical file with the record length specified by the Logical record length prompt (RCDLEN parameter). If a file already exists by this name, it is used as long as it is a non-keyed physical file with a record length in the range from 40 through 120. The copied records are put in the first member of the physical file.
+
+The possible library values are:
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the file is located.
+
+Top
+
+Data base member option (MBROPT)
+
+Specifies whether the new records replace or are added to the existing records.
+
+*REPLACE
+The member is cleared before copying the first record.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+Top
+
+Record length (RCDLEN)
+
+Specifies the file record length (in bytes) used when copying the members.
+
+120
+This is the maximum record length allowed for System/36 source and procedure library members.
+
+record-length
+Specify a record length in bytes.
+
+Top
+
+Examples
+
+Example 1: Saving Single Procedure Member
+
+SAVS36LIBM FROMMBR(XYZ1) FROMLIB(JOHNSON)
+DEV(I1) SRCMBRS(*PRC) TOLABEL(XYZ1)
+
+This command saves the single OCL procedure member XYZ1 (in source file QS36PRC) in library JOHNSON. Assuming I1 is a diskette device, the member is saved to diskette file XYZ1. The file length is 120 and the retention period is one day.
+
+Example 2: Saving All Source and Procedure Members
+
+SAVS36LIBM FROMMBR(X*) FROMLIB(ORDER) DEV(*PHYFILE)
+PHYFILE(NETLIB/S36SRC) MBROPT(*ADD)
+
+This command saves all source and procedure members (members in QS36SRC and QS36PRC) with names starting with the character 'X' in library ORDER. The members are saved into database physical file S36SRC in library NETLIB. The copied records are added after any records already in the file.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2C4A
+Device &1 not correct for command.
+
+CPF2C4B
+Duplicate device &1 specified in device name list.
+
+CPF2C4C
+Diskette device &1 included in multiple device specification.
+
+CPF2C43
+Saved &2 members from library &1, &3 members not saved.
+
+CPF2C44
+No members saved from library &1.
+
+CPF2C48
+Input file &1 in &2 not correct for command.
+
+CPF2C49
+Output file &1 in &2 not correct for command.
+
+CPF2C5E
+Input file &1 in &2 not correct for command.
+
+CPF2C5F
+Tape file sequence numbers beyond 9999 not allowed.
+
+CPF2C50
+File description for file &1 is not available.
+
+CPF2C51
+Member information for file &1 in library &2 is not available.
+
+CPF2C52
+Error occurred during attempt to create file &1 in library &2.
+
+CPF2C55
+TOLABEL parameter value &1 contains embedded blank(s).
+
+CPF2C58
+Diskette format not acceptable for System/36.
+
+CPF9807
+One or more libraries in library list deleted.
+
+CPF9808
+Cannot allocate one or more libraries on library list.
+
+CPF9810
+Library &1 not found.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9826
+Cannot allocate file &2.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9849
+Error while processing file &1 in library &2 member &3.
+
+*STATUS Messages
+
+CPI2C13
+Copying records from file &1 in library &2 member &3.
+
+Top

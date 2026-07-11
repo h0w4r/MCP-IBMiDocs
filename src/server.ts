@@ -160,7 +160,7 @@ export function createServer(): McpServer {
       title: "Buscar documentación IBM i",
       description: "Descubrimiento de documentos candidatos con recuperación semántica vectorial local y evidencia trazable. Es bajo nivel; para una respuesta final usa ibmi_docs_assist, ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context.",
       inputSchema: z.object({
-        query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF0004, CLLE, DDS PF, SQLRPGLE, etc."),
+        query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF5393, CLLE, DDS PF, SQLRPGLE, etc."),
         version: z.string().optional().describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
         category: z.string().optional().describe("Categoría opcional: ile-rpg, cl-clle, dds, sql-db2-for-i, mensajes-rnf."),
         limit: z.number().int().min(1).max(50).optional(),

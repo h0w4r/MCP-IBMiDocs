@@ -140,6 +140,40 @@ describe("CorpusRepository neural-only", () => {
     expect(assist.answer).not.toMatch(/Estimated time/i);
   });
 
+  it("assistSmart resuelve la equivalencia CL de EXFMT desde la ayuda completa del comando", async () => {
+    const assist = await withRepo((repo) => repo.assistSmart({
+      question: "In CL which command is equivalent to EXFMT?",
+      language: "CLLE"
+    }));
+
+    expect(assist.confidence).not.toBe("baja");
+    expect(assist.answer).toMatch(/SNDRCVF|Send\/Receive File/i);
+    expect(assist.answer).not.toMatch(/EXPORTFS|Performance Explorer/i);
+  });
+
+  it("assistSmart conserva varias evidencias cuando la consulta contiene dos conceptos", async () => {
+    const assist = await withRepo((repo) => repo.assistSmart({
+      question: "Explain WRKOBJPDM and DSPOBJD",
+      language: "CLLE",
+      depth: "deep"
+    }));
+
+    expect(assist.confidence).not.toBe("baja");
+    expect(assist.answer).toMatch(/WRKOBJPDM/i);
+    expect(assist.answer).toMatch(/DSPOBJD/i);
+  });
+
+  it("assistSmart distingue copiar registros de duplicar un objeto", async () => {
+    const assist = await withRepo((repo) => repo.assistSmart({
+      question: "How do I copy records from an existing IBM i file into another file?",
+      language: "CLLE"
+    }));
+
+    expect(assist.confidence).not.toBe("baja");
+    expect(assist.answer).toMatch(/CPYF|Copy File/i);
+    expect(assist.answer).not.toMatch(/CRTDUPOBJ.*only|only.*CRTDUPOBJ/i);
+  });
+
   it("rechaza semánticamente una consulta ajena al corpus sin inventar una respuesta IBM i", async () => {
     const assist = await withRepo((repo) => repo.assistSmart({
       question: "Evalúa si una herramienta MCP debe devolver JSON o solo respuesta final",

@@ -1,0 +1,217 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="STRCRG.Top_Of_Page"></a>
+<h1>Start Cluster Resource Group  (STRCRG)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>Yes
+</td>
+<td class="valigntop alignright">
+<a href="#STRCRG.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#STRCRG.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#STRCRG.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="STRCRG"></a>
+<p>The Start Cluster Resource Group (STRCRG) command enables resilience for the specified cluster resource group on the specified recovery domain nodes. This command can be used to change the cluster resource group from a status of Indoubt or Inactive to Active.
+</p>
+<p>This command will do the following for all cluster resource group types:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Set the cluster resource group status to Start Pending.
+</li>
+<li class="cds--list__item">For primary-backup model cluster resource groups if the current recovery domain has more than one backup node and some backup nodes are not active, the recovery domain may be reordered so that all active backup nodes are ordered before inactive backup nodes.  If the inactive backup nodes are already ordered after active backup nodes or if there are no inactive backup nodes, this command will not change the recovery domain.
+</li>
+<li class="cds--list__item">Call the exit program on all active nodes in the recovery domain with an action code of Start, if an exit program is specified for the cluster resource group.
+</li>
+<li class="cds--list__item">Set the cluster resource group status to Active if the exit program is successful on all active nodes in the recovery domain.
+</li>
+<li class="cds--list__item">If the exit program is unsuccessful on any active node in the recovery domain when processing the Undo action code, the status of the cluster resource group will be set to Indoubt on all nodes.
+</li>
+</ol>
+<p>This command will do the following for application cluster resource groups:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Verify the takeover IP address has been configured on all nodes in the recovery domain except replicates.
+</li>
+<li class="cds--list__item">Start the TCP/IP interface on the primary node.
+</li>
+<li class="cds--list__item">If the exit program is unsuccessful on any active node in the recovery domain, the exit program job on the primary node will be cancelled and the Takeover IP address will be ended on the primary node.
+<p>For an application cluster resource group, the exit program on the primary node is not expected to complete. The status of the cluster resource group will be set to Active when the exit program job has been started on the primary and the exit program has completed successfully on all other nodes in the recovery domain.
+</p>
+</li>
+</ol>
+<p>This command will do the following for device cluster resource groups:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The cluster resource group must have at least one configuration object entry.
+</li>
+<li class="cds--list__item">The configuration objects specified for the cluster resource group must exist on all active nodes in the recovery domain and the resource name specified in a configuration object must be the same on all active nodes in the recovery domain.
+</li>
+<li class="cds--list__item">If a data base name has been specified for a configuration object, it must be the same on all active nodes in the recovery domain.
+</li>
+<li class="cds--list__item">If a server takeover IP address is specified, it must exist on all nodes in the recovery domain.
+</li>
+<li class="cds--list__item">The primary node must be the current owner for the hardware resources of the configuration objects specified in the cluster resource group.
+</li>
+<li class="cds--list__item">Starting the cluster resource group will not vary on the configuration objects or start the server takeover IP address.
+</li>
+<li class="cds--list__item">All members of an auxiliary storage pool group must be configured in the cluster resource group.
+</li>
+<li class="cds--list__item">A value of *PRIMARY for the device's configuration object online' attribute can be specified only for a secondary auxiliary storage pool.
+</li>
+</ol>
+<p>This command will do the following for peer cluster resource groups:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">All nodes that are designated with a peer role will be an active access point upon successful completion of this command.
+</li>
+</ol>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+</li>
+<li class="cds--list__item">This command cannot be called from a cluster resource group exit program.
+</li>
+<li class="cds--list__item">Cluster Resource Services must be active on the node running the command.
+</li>
+<li class="cds--list__item">For primary-backup module cluster resource groups, the status of the node currently assigned the role of primary must have a membership status of Active.
+</li>
+<li class="cds--list__item">For peer model cluster resource groups:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">At least one node must be designated as a peer node or the cluster resource group cannot be started.
+</li>
+<li class="cds--list__item">At least one peer node must have a membership status of Active.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">The cluster resource group status must be either Inactive or Indoubt.
+</li>
+<li class="cds--list__item">For a device cluster resource group:
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The cluster resource group must have at least one configuration object entry.
+</li>
+<li class="cds--list__item">The configuration objects specified for the cluster resource group must exist on all active nodes in the recovery domain and the resource name specified in a configuration object must be the same on all active nodes in the recovery domain.
+</li>
+<li class="cds--list__item">The primary node must be the current owner for the hardware resources of the configuration objects specified in the cluster resource group.
+</li>
+<li class="cds--list__item">Hardware configuration must be complete so that the physical hardware has been associated with the configuration object. In particular for auxiliary storage pools, the disk units must have been assigned.
+</li>
+</ol>
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="STRCRG.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRCRG.CRG"><strong>CRG</strong></a></td>
+<td class="valigntop">Cluster resource group</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRCRG.EXITPGMDTA"><strong>EXITPGMDTA</strong></a></td>
+<td class="valigntop">Exit program data</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*SAME</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#STRCRG.CLUSTER"><strong>CLUSTER</strong></a></td>
+<td class="valigntop">Cluster</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="STRCRG.CRG"></a>
+<h2>Cluster resource group (CRG)</h2>
+<p>Specifies the cluster resource group to be started.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster resource group.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRCRG.EXITPGMDTA"></a>
+<h2>Exit program data (EXITPGMDTA)</h2>
+<p>Specifies up to 256 bytes of data that is passed to the cluster resource group exit program when it is called. This parameter may contain any scalar data except pointers. For example, it can be used to provide state information. This data will be stored with the specified cluster resource group and copied to all nodes in the recovery domain. Pointers in this area will not resolve correctly on all nodes and should not be placed in the data. The data specified will replace the existing exit program data stored with the cluster resource group. If blanks are specified, then the exit program data stored with the cluster resource group will be cleared. This parameter must be set to *SAME if no exit program is specified for the cluster resource group.
+</p>
+<dl>
+<dt><strong class="underlined">*SAME</strong></dt>
+<dd>The exit program data stored with the cluster resource group specified will be passed to the exit program.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the data to be passed to the exit program.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="STRCRG.CLUSTER"></a>
+<h2>Cluster (CLUSTER)</h2>
+<p>Specifies the name of the cluster.
+</p>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The cluster that has been configured on this system is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the cluster.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="STRCRG.COMMAND.EXAMPLES"></a>
+<h2>Examples for STRCRG</h2>
+<p>
+</p><pre>STRCRG   CRG(MYCRG)
+         EXITPGMDTA('important information')
+</pre>
+<p></p>
+<p>This command enables resiliency of the cluster resource group MYCRG. The exit program, when called, is passed 'important information' in the exit program data field. The cluster resource group will be ACTIVE as a result of this command.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div> <a name="STRCRG.ERROR.MESSAGES"></a>
+<h2>Error messages for STRCRG</h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>HAE001B</strong></dt>
+<dd>Cluster resource group &amp;1 not started.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#STRCRG.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

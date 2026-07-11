@@ -1,0 +1,797 @@
+Copy File (CPYF)
+
+Copy File (CPYF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Copy File (CPYF) command copies all or part of a file from the database or from an external device to the database or to an external device. It can:
+
+- Copy data and source files between database files. Records can be copied from physical or logical files. However, records can be copied only to physical files, not to logical files.
+
+- Copy data and source files from external devices, such as diskette and tape, to the database.
+
+- Copy data and source files from the database to external devices.
+
+- Copy data and source files from external devices to other external devices.
+
+- Copy data and source files from inline data files to the database or to external devices.
+
+Restrictions:
+
+- During the time a CPYF request is run, the file specified for the To file (TOFILE) parameter may be locked (similar to an *EXCL lock with no timeout) so that no access is possible.
+
+- When the CRTFILE(*YES) parameter is specified and the file copied (FROMFILE parameter) has an associated trigger, the file created (TOFILE parameter) does not have the associated trigger. The Add Physical File Trigger (ADDPFTRG) command must be used to add a trigger to the file.
+
+- This command is conditionally threadsafe. In multithreaded jobs, this command is not threadsafe when copying from or to multiple database file members, device files (except SPOOL(*YES) print files), distributed files, or DDM files of type SNA. This command fails for distributed files that use relational databases of type *SNA and DDM files of type *SNA. It is threadsafe only when copying from and to single database file members (local or DDM of type *IP) or SPOOL(*YES) print files.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FROMFILE | From file | Qualified object name | Required, Positional 1
+Qualifier 1: From file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TOFILE | To file | Single values: *PRINT
+Other values: Qualified object name | Required, Positional 2
+Qualifier 1: To file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FROMMBR | From member | Generic name, name, *FIRST, *ALL | Optional, Positional 3
+TOMBR | To member or label | Name, *FIRST, *FROMMBR, *ALL | Optional, Positional 4
+MBROPT | Replace or add records | *NONE, *ADD, *REPLACE, *UPDADD | Optional, Positional 5
+CRTFILE | Create file | *NO, *YES | Optional, Positional 6
+OUTFMT | Print format | *CHAR, *HEX | Optional
+PRINT | Which records to print | Single values: *NONE
+Other values (up to 3 repetitions): *EXCLD, *COPIED, *ERROR | Optional
+RCDFMT | Record format of logical file | Name, *ONLY, *ALL | Optional
+FROMRCD | Copy from record number | Unsigned integer, *START | Optional
+TORCD | Copy to record number | Unsigned integer, *END | Optional
+FROMKEY | Copy from record key | Single values: *NONE
+Other values: Element list | Optional
+Element 1: Number of key fields | Integer, *BLDKEY
+Element 2: Key value | Values (up to 50 repetitions): Character value
+TOKEY | Copy to record key | Single values: *NONE
+Other values: Element list | Optional
+Element 1: Number of key fields | Integer, *BLDKEY
+Element 2: Key value | Values (up to 50 repetitions): Character value
+NBRRCDS | Number of records to copy | Unsigned integer, *END | Optional
+INCCHAR | Include records by char test | Single values: *NONE
+Other values: Element list | Optional
+Element 1: Field | Name, *RCD, *FLD
+Element 2: Character position | Integer
+Element 3: Relational operator | *EQ, *GT, *LT, *NE, *GE, *NL, *LE, *NG, *CT
+Element 4: Value | Character value
+INCREL | Include records by field test | Single values: *NONE
+Other values (up to 50 repetitions): Element list | Optional
+Element 1: Relationship | *IF, *AND, *OR
+Element 2: Field | Name
+Element 3: Relational operator | *EQ, *GT, *LT, *NE, *GE, *NL, *LE, *NG
+Element 4: Value | Character value, *NULL
+FMTOPT | Record format field mapping | Single values: *NONE, *NOCHK, *CVTSRC
+Other values (up to 2 repetitions): *MAP, *DROP, *CVTFLOAT, *NULLFLAGS | Optional
+SRCOPT | Source update options | Single values: *SAME
+Other values (up to 2 repetitions): *SEQNBR, *DATE | Optional
+SRCSEQ | Source sequence numbering | Element list | Optional
+Element 1: Starting sequence number | 0.01-9999.99, 1.00
+Element 2: Increment number | 0.01-9999.99, 1.00
+ERRLVL | Errors allowed | Unsigned integer, 0, *NOMAX | Optional
+COMPRESS | Compress out deleted records | *YES, *NO | Optional
+
+Top
+
+From file (FROMFILE)
+
+Specifies the database file or device file that contains the records to be copied. A database file can be a physical file or a logical file. A device file can be a diskette file or a tape file.
+
+This is a required parameter.
+
+Qualifier 1: From file
+
+name
+Specify the name of the database or device file that contains the records to be copied.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the user and system portions of the job's library list are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the database file or device file. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+To file (TOFILE)
+
+Specifies the file that receives the copied records.
+
+This is a required parameter.
+
+Note: A device file can be a diskette file, tape file, or printer file. However: (1) If the from-file and to-file are both diskette files, the to-file must be spooled (SPOOL(*YES) must be specified on the Create Diskette File (CRTDKTF), Change Diskette File (CHGDKTF), or Override Diskette File (OVRDKTF) command). (2) An externally described printer file cannot be specified.
+
+If the device file is a print file or if TOFILE(*PRINT) is specified, shift-out and shift-in (SO-SI) characters are not added around the graphic data. OUTFMT(*HEX) can be specified to print the data in hexadecimal format.
+
+Single values
+
+*PRINT
+The data is copied to a system printer device file (QSYSPRT) and formatted according to the value specified for the Print format (OUTFMT) parameter.
+
+Qualifier 1: To file
+
+name
+Specify the name of the physical file or device file that receives the copied records.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the user and system portions of the job's library list are searched until the first match is found.
+
+*CURLIB
+The current library for the job is used to locate the physical file or device file. If no library is specified as the current library, QGPL is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+From member (FROMMBR)
+
+Specifies the database file member, or the diskette file label or tape file label, in the from-file that is to be copied.
+
+*FIRST
+The first member in the database from-file is copied. For a diskette, a label identifier must be specified in the device file or on an Override with Diskette File (OVRDKTF) command. If the from-file is an inline file, *FIRST is the only value that is allowed.
+
+*ALL
+All members of a database from-file, or all file label identifiers for a diskette from-file are copied. *ALL is not valid for a tape file or inline file.
+
+name
+Specify the name of the database from-file member, or the diskette from-file label or tape from-file label of the file member being copied.
+
+generic-name
+Specify a generic name to copy all database members that have names with the same prefix, or all diskette data files with the same prefix label identifier. Refer to the description of FROMMBR(*ALL) for more information about copying many from-file members or label identifiers.
+
+Top
+
+To member or label (TOMBR)
+
+Specifies the database file member name, or the diskette or tape file label identifier of the to-file member that receives the copied data records. If *PRINT is specified for the To file (TOFILE) parameter, either *FIRST or *FROMMBR must be specified on this parameter.
+
+*FIRST
+The first member of the specified file is used.
+
+*FROMMBR
+Corresponding from-file and to-file member names or device label identifiers are used.
+
+*ALL
+The data is copied to the correct to-member of the partitioned table. *ALL is only valid for partitioned tables.
+
+name
+Specify the name of the physical to-file member, or the label identifier of the diskette or tape device to-file that receives the copied records.
+
+Top
+
+Replace or add records (MBROPT)
+
+Specifies whether the new records replace or are added to the existing records.
+
+Note: If the records are being copied to an existing physical file, this parameter must specify *ADD, *UPDADD, or *REPLACE. If the to-file does not exist but CRTFILE(*YES) is specified, the copy operation assumes MBROPT(*ADD) for all records copied to the file after it is created, regardless of the value specified on this parameter.
+
+If *ADD or *UPDADD is specified and the from-file is empty (contains no records), the copy operation completes normally. If *REPLACE is specified and the from-file is empty, the copy operation ends abnormally.
+
+*NONE
+This parameter does not apply to this copy operation. When the to-file is an existing physical file, *NONE is not allowed.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+*REPLACE
+The system clears the existing member and adds the new records.
+
+*UPDADD
+The system updates the duplicate key records and adds the new records to the end of the existing records. Additional information is available in the Files and file systems category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Create file (CRTFILE)
+
+Specifies, when this command is used to copy from a physical file or a logical file, whether a physical file is created to receive the data if the specified to-file does not exist. If the to-file is a Distributed Data Management (DDM) file that identifies a remote file that does not exist, the to-file file is created on the target system.
+
+*NO
+The to-file must exist when this command is started. A physical file is not created to receive the data.
+
+*YES
+If the to-file does not exist, a physical file is created with the name specified on the To file (TOFILE) parameter. If the from-file is an SQL table, view, or index, that contains a user defined type, datalink, LOB field type, or XML field type, the physical file created will be an SQL table. In all other instances the to-file created will be a database physical file that is not an SQL table. In addition to the normal copy operation validity checks, the following special conditions must all be true for the copy operation to create a to-file:
+
+- The from-file must be either a physical or logical file.
+
+- A library name must be specified on the To file (TOFILE) parameter. The default value, *LIBL, is not allowed.
+
+- There cannot be an override to a different file or library name. The values specified on this command for the to-file must be used.
+
+- The user running this command must be authorized to add the file to the to-file library, and must also have operational authority to the Create Physical File (CRTPF) command.
+
+- A single record format must be used in the from-file. If the from-file is a logical file with multiple formats, the Record format of logical file (RCDFMT) parameter must specify a record format name.
+
+Top
+
+Print format (OUTFMT)
+
+Specifies whether records are printed in character format, or in both character and hexadecimal format. This parameter is used only when *PRINT is specified for the To file (TOFILE) parameter or *EXCLD or *COPIED is specified for the Which records to print (PRINT) parameter.
+
+*CHAR
+Records are printed in character format.
+
+*HEX
+Records are printed in both character and hexadecimal format.
+
+Top
+
+Which records to print (PRINT)
+
+Specifies whether copied records, excluded records, or both, are printed.
+
+Single values
+
+*NONE
+No copied, excluded, or error records are printed.
+
+Other values (up to 3 repetitions)
+
+*EXCLD
+Records excluded from the copy operation by the Include records by char test (INCCHAR) parameter and the Include records by field test (INCREL) parameter are printed.
+
+*COPIED
+Copied records are printed.
+
+*ERROR
+The number of recoverable output error records specified for the Errors allowed (ERRLVL) parameter are printed.
+
+Top
+
+Record format of logical file (RCDFMT)
+
+Specifies, for copying from a database file only, the name of the record format that is copied. If the from-file is not a logical or physical file, *ONLY is the only value allowed. A record format name is optional if the logical file has only a single record format, but either a format name or *ALL must be specified if the from-file has more than one record format.
+
+*ONLY
+The only record format in the from-file is copied. When the from-file is a logical file, this value is allowed only if the file has a single record format.
+
+*ALL
+All record formats in the logical from-file are used.
+
+name
+Specify the name of the record format that is copied when the from-file is a logical or physical file.
+
+Top
+
+Copy from record number (FROMRCD)
+
+Specifies the record number from which to start the copy. A record number is not valid if a value other than *NONE is specified for the Copy from record key (FROMKEY) parameter or for the Copy to record key (TOKEY) parameter, and it is not allowed if the from-file is a keyed logical file.
+
+*START
+The copy operation begins with the first record in the file.
+
+1-4294967288
+Specify the record number of the first record to be copied from the from-file.
+
+Top
+
+Copy to record number (TORCD)
+
+Specifies the record number of the last record in the from-file (or each from-file member) that is copied. A record number is not valid if a value other than *NONE is specified for the Copy from record key (FROMKEY) parameter or the Copy to record key (TOKEY) parameter, if a value other than *END is specified for the Number of records to copy (NBRRCDS) parameter, or if the from-file is a keyed logical file.
+
+*END
+Records are copied until the end-of-file condition is indicated.
+
+1-4294967288
+Specify the record number of the last record to be copied from the from-file.
+
+Top
+
+Copy from record key (FROMKEY)
+
+Specifies, when a file with key fields is copied, the key value of the first record in the from-file (or each from-file member) is copied. This parameter is valid only for a from-file that is a keyed database file, and is not allowed if record number values are specified for the Copy from record number (FROMRCD) parameter or for the Copy to record number (TORCD) parameter.
+
+Single values
+
+*NONE
+The first record copied is not selected by key.
+
+Element 1: Number of key fields
+
+*BLDKEY
+A list of values (up to 256 characters each) is provided for key fields (as opposed to a single character string value for all fields in the key). *BLDKEY is not valid if any value (up to 50) in the list corresponds to a null-capable key field.
+The list of values specified for element 2 is applied (in order) to corresponding fields in the from-file key. For character fields, the character strings are converted from the current job CCSID to the from-file field CCSID. For date, time, or timestamp fields, corresponding input values are converted to the format and separator form of the from-file field. For variable-length fields, only enter the character data, not the 2-byte length portion. When a DBCS graphic field is specified, the input string (DBCS data) must be enclosed between shiftout (SO) and shiftin (SI) characters. The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+
+integer-number
+Specify the number of key fields used to locate the first record to be copied.
+
+Element 2: Key value
+
+character-value
+Specify a character string that gives the actual key value for the number of key fields specified for the first element. The key string value must be specified in quotation marks if it contains blanks or special characters, and it may be specified in hexadecimal format, which is useful if the key contains packed decimal or binary numeric fields, or is a variable-length character field. CCSID conversions are not performed on character fields when a single string is specified.
+
+Top
+
+Copy to record key (TOKEY)
+
+Specifies, when a file with key fields is copied, the key value of the last record in the from-file (or each from-file member) that is copied. This parameter is valid only for a from-file that is a keyed database file, and it is not allowed if record number values are specified for the Copy from record number (FROMRCD) parameter or for the Copy to record number (TORCD) parameter, or if a number of records is specified for the Number of records to copy (NBRRCDS) parameter.
+
+Single values
+
+*NONE
+The last record copied is not selected by key.
+
+Element 1: Number of key fields
+
+*BLDKEY
+A list of values (up to 256 characters each) is provided for key fields (as opposed to a single character string value for all fields in the key). *BLDKEY is not valid if any value (up to 50) in the list corresponds to a null-capable key field.
+The list of values specified for element 2 is applied (in order) to corresponding fields in the from-file key. For character fields, the character strings are converted from the current job CCSID to the from-file field CCSID. For date, time, or timestamp fields, corresponding input values are converted to the format and separator form of the from-file field. For variable-length fields, only enter the character data, not the 2-byte length portion. When a DBCS graphic field is specified, the input string (DBCS data) must be enclosed between shiftout (SO) and shiftin (SI) characters. The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+
+integer-number
+Specify the number of key fields used to locate the last record to be copied.
+
+Element 2: Key value
+
+character-value
+Specify a character string that gives the actual key value for the number of key fields specified for the first element. The key string value must be specified in quotation marks if it contains blanks or special characters, and it may be specified in hexadecimal format, which is useful if the key contains packed decimal or binary numeric fields, or is a variable-length character field. CCSID conversions are not performed on character fields when a single string is specified.
+
+Top
+
+Number of records to copy (NBRRCDS)
+
+Specifies the number of records copied to the to-file.
+
+*END
+Records are copied until the end-of-file condition is indicated for the from-file, unless either the TOKEY or TORCD parameter has been specified.
+
+1-4294967288
+Specify the number of records to be copied to the to-file.
+
+Top
+
+Include records by char test (INCCHAR)
+
+Specifies that records are copied based on a comparison of a character string value and the data in some position of either a field in the record or the entire record.
+
+Single values
+
+*NONE
+No comparison should be used to select which records are copied.
+
+Comparison values
+
+To specify the comparison that determines which records are to be copied, four values must be entered. Either *RCD or the name of a field must be entered, followed by the three values that control the comparison: starting position, operator, and character string value. All records that satisfy the relationship are copied to the to-file.
+
+Element 1: Field
+
+*RCD
+The character string value is compared with the data at the specified starting position in each record in the from-file.
+
+*FLD
+This value is the same as the *RCD value.
+
+name
+Specify the name of a field in the record format that is used to make the comparison. The field must be defined as a character field in the data description specification (DDS) for the from-file.
+
+Element 2: Character position
+
+starting-position
+Specify the starting position where the comparison starts in the field or record. For variable-length fields, the position is the position in the data portion of the variable-length field. For DBCS graphic fields, the position is the DBCS character position. For any operator except *CT, the comparison is done for the length of the specified character string value (up to a maximum of 256 characters). For the *CT operator, the field or record is scanned from the specified starting position to the end of the field or record to determine whether it contains the specified character string.
+
+Element 3: Relational operator
+
+Specify the operator that indicates the relationship that must exist between the record or field and the specified character string.
+
+*EQ
+Equal
+
+*GT
+Greater than
+
+*LT
+Less than
+
+*NE
+Not equal
+
+*GE
+Greater than or equal
+
+*NL
+Not less than
+
+*LE
+Less than or equal
+
+*NG
+Not greater than
+
+*CT
+Contains
+
+Element 4: Value
+
+character-value
+Specify the character string (up to 256 characters long) to be compared with the specified field or record. The character string value must be specified in apostrophes if it contains blanks or special characters, and it may be specified in hexadecimal format. If a field name is specified, the character string value is converted from the current job CCSID to the field CCSID prior to running the comparison. If the field name of a variable-length field is specified, only the character data to be compared should be specified, not the 2-byte length portion. If a field name is specified, any comparison to a field value that is the null value will test false. For DBCS graphics, specify the input (DBCS data) string within shiftout and shiftin (SO-SI) characters. The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+
+Top
+
+Include records by field test (INCREL)
+
+Specifies that records are copied based on whether certain fields in the record contain data that satisfies specified relationships. This parameter is not valid for a copy from all record formats of a logical file with more than one format.
+
+Single values
+
+*NONE
+No field value relationships are used to select which records are copied.
+
+Relationship values
+
+To specify the conditions under which records are copied, a set of values is specified for each condition. Up to 50 sets of realtionship values can be specified. Each set must contain exactly four values:
+
+- A logical operator
+
+- The name of the field to be compared
+
+- A relational operator
+
+- The comparison value
+
+Element 1: Relationship
+
+*IF
+This must be specified as the first value in a set of comparisons.
+
+*AND
+The field value relational groups on both sides of the *AND value must all be satisfied before a record is copied.
+
+*OR
+If the field value relational group on either side of the value *OR is satisfied, the record is copied.
+
+Element 2: Field
+
+name
+Specify the name of the field being compared. The field must exist in the from-file record format, and may be defined as either character or numeric in the data description specification (DDS) for the file.
+
+Element 3: Relational operator
+
+Specify the operator that indicates the relationship which must exist between the field in the record and the specified field value.
+
+*EQ
+Equal
+
+*GT
+Greater than
+
+*LT
+Less than
+
+*NE
+Not equal
+
+*GE
+Greater than or equal
+
+*NL
+Not less than
+
+*LE
+Less than or equal
+
+*NG
+Not greater than
+
+Element 4: Value
+
+*NULL
+*NULL can be used as the value to test whether the field value in a record is or is not null. Only the operators *EQ and *NE are allowed if *NULL is specified. A "*EQ *NULL" relation is true only if a field value in a record is null. A "*NE *NULL" relationship is true only if a field value in a record is not null.
+
+character-value
+Specify the value (up to 256 characters) to be compared with the contents of the specified field. The specified value cannot be another field name. The field value must be specified in apostrophes if it contains blanks or special characters, and it may be specified in hexadecimal format. Any non-*NULL comparison to a field value in a record that is null will test false, regardless of the operator used. For variable-length fields, specify only the data portion of the value, not the 2-byte length portion. For character fields, the data is converted from the current job CCSID to the field CCSID prior to comparing the data to the field data. When a DBCS graphic field is specified, the input string (DBCS data) must be enclosed within shiftout and shiftin (SO-SI) characters. The SO-SI characters are removed from the input string and the remaining DBCS data is converted from the associated DBCS CCSID of the current job to the DBCS CCSID of the DBCS graphic field.
+
+Top
+
+Record format field mapping (FMTOPT)
+
+Specifies, when a physical or logical from-file is copied to a physical to-file, what field-level record format processing (if any) is done. If the from-file and to-file are database files with different file types (one is *SRC and the other is *DATA), *CVTSRC must be specified.
+
+Single values
+
+*NONE
+No field mapping or dropping is done during the copy operation. This value is valid only if the from-file and to-file are not both database files, or if they are both database files and have the same record format. The record formats are the same only if every field exists in both the from-file and to-file formats, and if each has the same starting position and attributes in both records. Attributes include whether or not a field is null-capable, and the date/time format and separator (if the field is a date/time field). Null values are copied if *NONE is valid.
+
+*NOCHK
+If the record formats of the database files are different, the copy operation continues despite the differences. Record data is copied directly (left to right) from one file to the other. *NOCHK is required when copying all record formats from a logical file with more than one format to a physical file that is of the same type (source or data) as the from-file. If this value is specified, null values are ignored and no conversion of date/time data occurs.
+
+*CVTSRC
+This value is used to copy between database files, from a source file to a data file, or from a data file to a source file. It is valid only when the from-file and to-file are different types (source and data). The file type conversion is done as follows:
+
+- If the to-file is a data file, the from-file sequence number and date fields are dropped, and the source data part of each from-file record is copied to the to-file.
+
+- If the to-file is a source file, sequence number and date fields are added, and the from-file record data is copied to the source data part of each to-file record. Null values are ignored and no conversion of date/time data is performed.
+
+- When either the from-file or the to-file is not a database file, FMTOPT(*CVTSRC) is not required for copying from a source file to a data file or from a data file to a source file. Sequence number and date fields are appended or dropped automatically, depending on the file types. If the to-file is a source physical file, the SRCOPT and SRCSEQ parameters can be used to control the sequence numbers created for records copied to the to-file.
+
+Other values (up to 2 repetitions)
+
+*MAP
+Fields with the same name in the from-file and to-file record formats are copied, and any fields in the to-file that do not exist in the from-file format are set to the default value specified on the DFT keyword for the data description specification (DDS) of the to-file or zero for numeric fields, blanks for character fields, current date/time for date/time fields, or null value for null-capable fields.
+If *MAP is specified, *DROP can also be specified. Mapped fields may have different starting positions in the from-file and to-file record formats.
+
+If *MAP is specified and a valid conversion is defined between the from-file field CCSID and the to-file field CCSID, the character data is converted to the to-file field CCSID. However, if either the from-file field CCSID or the to-file field CCSID is 65535, the character data is not converted.
+
+*MAP allows for the conversion of date/time data and the copying of null values.
+
+*DROP
+This value must be specified for field-level mapping if any of the field names in the from-file record format do not exist in the to-file format. If *DROP is specified, *MAP can also be specified. When *DROP is specified, all the field names that exist in both record formats must have the same attributes and relative positions in the from-file and to-file record formats, or *MAP must also be specified. Null values are copied.
+
+*CVTFLOAT
+Specifies CPYF to process each floating point field identified by the external description of the output database physical file and convert it from System/390 floating point format to the IEEE format used by i5/OS.
+
+*NULLFLAGS
+Specifies CPYF to take the byte following each field identified as being null-capable by the external description of the output file, and use it as a flag to indicate if the corresponding input field is null. If the byte is blank ('40'X) or contains '00'X, the data is considered to be not null. Any other value for the flag causes the corresponding input field data to be ignored and the output value set to null.
+
+Note: If *CVTFLOAT or *NULLFLAGS is specified and the input file is externally described, the input file external description will not be used in doing the mapping of the copied data. If *CVTFLOAT or *NULLFLAGS is specified, any other value is ignored (unless both are specified). TOFILE must be an externally-described physical data file. The following parameter values cannot be specified when *CVTFLOAT or *NULLFLAGS is specified:
+
+- RCDFMT(*ALL) when the from-file is a multiple format logical file
+
+- A value other than default for CRTFILE (unless the TOFILE already exists causing *YES to be ignored), FROMKEY, TOKEY, INCCHAR, INCREL, SRCOPT and SRCSEQ.
+
+*** ATTENTION ***
+
+*CVTFLOAT and *NULLFLAGS must only be used for conversion of data to i5/OS format, and they must be used correctly to avoid possible data corruption.
+
+*****************
+
+Top
+
+Source update options (SRCOPT)
+
+Specifies, only for copying to a source physical file, whether new sequence numbers are inserted in the sequence number fields and whether the date fields are set to zero. Both *SEQNBR and *DATE can be specified.
+
+Single values
+
+*SAME
+New source sequence numbers are not inserted and the source date fields are not set to zero in the records copied to the to-file. *SAME is required if the to-file is not a source physical file.
+
+Other values (up to 2 repetitions)
+
+*SEQNBR
+New source sequence numbers are inserted in the records copied to the to-file. The new sequence numbers are controlled by the Source sequence numbering (SRCSEQ) parameter value.
+
+*DATE
+The source date field is set to zero in the records copied to the to-file.
+
+Top
+
+Source sequence numbering (SRCSEQ)
+
+Specifies, only when *SEQNBR is specified for the Source update options (SRCOPT) parameter, the sequence number that is given to the first record copied to the to-file, and what value is added to renumber all other records that are copied.
+
+Element 1: Starting sequence number
+
+1.00
+The first source record copied to the to-file has a sequence number of 0001.00.
+
+0.01-9999.99
+Specify the sequence number of the first source record copied to the to-file.
+
+Element 2: Increment number
+
+1.00
+The copied source records are renumbered in the to-file with whole number additions of 1.
+
+0.01-9999.99
+Specify the value added for renumbering all source records copied after the first record.
+
+Top
+
+Errors allowed (ERRLVL)
+
+Specifies the maximum number of recoverable read or write errors for the file that are tolerated during the copy operation for a single database from-file member or tape from-file label identifier.
+
+0
+If any recoverable error occurs, the copy operation ends at the file member in which the error occurs.
+
+*NOMAX
+No maximum number of errors is specified, and all recoverable errors are tolerated.
+
+integer-number
+Specify the maximum number of recoverable errors that is allowed in each from-file member or label that is copied.
+
+Top
+
+Compress out deleted records (COMPRESS)
+
+Specifies whether the to-file contains a compressed form of the from-file. Compression occurs when deleted records in the from-file are not copied to the to-file. *NO is used to copy all records when the from-file and to-file are both physical files. If from-file is delete-capable and the to-file is not delete-capable, then *YES must be specified.
+
+*YES
+The records copied to the to-file are compressed. Deleted records that exist in the from-file are not copied to the to-file.
+
+*NO
+Both the deleted and nondeleted records are copied to the to-file.
+
+Top
+
+Examples
+
+Example 1: Physical File to Physical File
+
+CPYF FROMFILE(PERSONNEL/PAYROLL) TOFILE(TESTPAY/PAYROLL)
+MBROPT(*ADD) CRTFILE(*YES) ERRLVL(10)
+
+This command copies all of the records in the physical file named PAYROLL in the PERSONNEL library to the file PAYROLL in the TESTPAY library. If the from-file contains more than one member, only the first member is copied. If TESTPAY/PAYROLL does not exist, it is created before the records are copied and a member with the same name as the from-file is added to TESTPAY/PAYROLL to receive the copied records.
+
+Because MBROPT(*ADD) is specified, the copied records are added to any existing records in the to-file member. Because RCDFMT(*NONE) is assumed, the to-file TESTPAY/PAYROLL must have the same record format as the from-file. If the to-file (TESTPAY/PAYROLL) is created by the copy operation, it will have the same record format and access path as the from-file (PERSONNEL/PAYROLL). If more than ten recoverable errors occur during the copy operation, the operation ends.
+
+If FROMMBR(*ALL) and TOMBR(*FROMMBR) had also been specified, all of the members in the from-file would be copied to corresponding members (having the same names) in the to-file. For each from-member that has no corresponding to-member, a member is added to the to-file and all the records in the from-member are copied to the new member. For each to-member that already exists, only new records are added to the member. No updates are made to existing records on any type of copy operation. If the to-file contains members for which there are no corresponding members in the from-file, the to-file contains more members than the from-file after the copy operation.
+
+If more than ten recoverable errors occur within a member being copied, the copy operation ends at that point, and remaining members are not copied. ERRLVL(*NOMAX) can be specified to tolerate all recoverable errors, so the copy operation does not end no matter how many recoverable errors occur in a particular file member.
+
+Example 2: Physical File to Physical File
+
+CPYF FROMFILE(PERSONNEL/EMP1) TOFILE(PERSONNEL/VACLEFT)
+FROMMBR(VAC) MBROPT(*REPLACE)
+FROMKEY(1 X'0008872F') TOKEY(1 X'0810199F')
+INCREL((*IF VAC *GT 5.0)) FMTOPT(*MAP *DROP)
+
+In this example, the to-file (VACLEFT) is an existing physical file, but its record format differs from that of the physical file named EMP1, which is being copied. Both files are in the PERSONNEL library. The from-file contains employee records and has a key (employee number). The records selected in the from-file are those with employee numbers ranging from 008872 through 810199. Only records for employees with more than five days of vacation (VAC) are mapped to the receiving file. Records are selected from member VAC, and they replace existing records in the first member of file VACLEFT.
+
+Because the key for the file is a packed decimal number, the FROMKEY and TOKEY values must be specified as hexadecimal strings, and the leading zeros and hexadecimal sign are required in the value. An alternative way of specifying the same key value range follows:
+
+FROMKEY(*BLDKEY 8872) TOKEY(*BLDKEY 810199)
+
+When *BLDKEY is specified, the copy operation converts each number to the format required for the file key definition. Because only a single value is specified, only one key field is used. The *BLDKEY form of the FROMKEY and TOKEY parameters allows omission of leading zeros and a positive sign value when the key is numeric.
+
+If the key for a file is a composite of more than one key field, the *BLDKEY form is used with a list of values for the FROMKEY and TOKEY parameters. For instance, if the key fields for a file are a sales region (10 characters) and the sales for the last month (7 packed decimal numbers with 2 decimal positions), a complete key is specified in either of the following ways:
+
+FROMKEY(*BLDKEY (GEORGIA 99.50))
+- or -
+FROMKEY(2 X'C7C5D6D9C7C9C14040400009950F')
+
+When the *BLDKEY form is used, each character field is padded with blanks, and each numeric field is converted to the actual key format with the value shifted left or right to correctly align the decimal point.
+
+Example 3: Physical Data File to Physical Source File
+
+CPYF FROMFILE(MYLIB/DATAFILE) TOFILE(QIDU/QTXTSRC)
+FROMMBR(A1) TOMBR(*FROMMBR) MBROPT(*REPLACE)
+FMTOPT(*CVTSRC)
+
+This command copies records from physical file DATAFILE in library MYLIB, which is defined as FILETYPE(*DATA), to physical file QTXTSRC in library QIDU, which is defined as FILETYPE(*SRC). Because the two database files are of different types, FMTOPT(*CVTSRC) must be specified. Records are copied to member A1, which has the same name as the from-file member. Values are assigned to the sequence number source field of the records copied to the source file, starting with 1.00 and incremented by 1.00. If SRCOPT(*SEQNBR) is specified, the SRCSEQ parameter is used to control the sequence numbers that are created. The date source field is always set to zeros.
+
+Example 4: Logical File to Physical File
+
+CPYF FROMFILE(DEPTS/SALES) TOFILE(DEPTS/YTDSALES)
+FROMMBR(TOTSALES) TOMBR(MARCH) RCDFMT(AA)
+NBRRCDS(5) MBROPT(*REPLACE)
+
+This command copies five records from member TOTSALES of logical file SALES (in library DEPTS) to member MARCH in the physical file YTDSALES (in library DEPTS). If member MARCH does not exist, it is created and added to the to-file automatically by the copy operation. Only records from the logical file SALES in library DEPTS that use record format AA are copied, and they are copied to YTDSALES, which has the same format. After the copy operation, the MARCH member contains only five nondeleted records, because all records in that member are first cleared, then only the data in the first five records (in keyed sequence) in the TOTSALES member are copied to it.
+
+Example 5: Device File to a Physical File
+
+CPYF FROMFILE(QDKT) TOFILE(QGPL/QCLSRC) FROMMBR(PAY*)
+TOMBR(*FROMMBR) MBROPT(*REPLACE)
+SRCOPT(*SEQNBR) SRCSEQ(1 .25)
+
+This command copies records from the generic set of diskette labels with names that start with the characters PAY. They are copied to like-named members in source file QCLSRC in the QGPL library. Even though the to-file is a source file, a diskette file (QDKT) defined as FILETYPE(*DATA) is used as the from-file, because QDKT is more efficient than a device file defined as FILETYPE(*SRC). For each label copied, the sequence number of the first record is 1.00 and is incremented by .25 for each subsequent record. The source date field is automatically set to zeros.
+
+Example 6: Physical File to the Printer
+
+CPYF FROMFILE(TEMPFILE) TOFILE(*PRINT) FROMMBR(EMP1)
+FROMKEY(1 448762) NBRRCDS(20) OUTFMT(*HEX)
+
+This command copies records from member EMP1 in the file named TEMPFILE. The records are employee records. One key field, the employee number, is used to search the record keys. Twenty records, starting with employee number 448762, are copied to the IBM-supplied printer file QSYSPRT and listed in both character and hexadecimal format. The IBM-supplied printer file is indicated by coding TOFILE(*PRINT).
+
+Example 7: Physical File to a Device File
+
+CPYF FROMFILE(PERSONNEL/PAYROLL) TOFILE(DISK1)
+FROMMBR(VAC1) INCCHAR(NAME 1 *CT SMITH)
+INCREL((*IF VAC *GT 10.5)(*AND HOLIDAYS *EQ 0))
+
+This command copies all employee records of employees whose last name is SMITH and that have accumulated more than ten and a half vacation days, none of which is holidays, from the PAYROLL file in the PERSONNEL library to a diskette. The file member name copied is VAC1. The vacation (VAC) and holiday (HOLIDAYS) fields are defined as packed decimal, but a value is specified in character form on the INCREL parameter. The diskette device file used is DISK1, which contains the label of the file being copied to, and other diskette attributes such as location and volume ID.
+
+Example 8: Physical File to Device Files
+
+CPYF FROMFILE(PERSONNEL/PAYROLL) TOFILE(DISK1)
+FROMMBR(*ALL) TOMBR(*FROMMBR)
+
+This command copies all members of file PAYROLL in the PERSONNEL library to data files on diskette (device file DISK1). Each from-file member name must be a valid diskette label identifier; if not, use the RNMM (Rename Member) command to rename the members in the from-file before they are copied.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2807
+Cancel reply received for message &7.
+
+CPF2816
+File &1 in &2 not copied because of error.
+
+CPF2817
+Copy command ended because of error.
+
+CPF2818
+*FROMMBR value is not allowed on TOMBR parameter.
+
+CPF2835
+INCCHAR starting position and length too long.
+
+CPF2857
+Multiple member or label copy not allowed with override.
+
+CPF2858
+File attributes not valid for printed output.
+
+CPF2859
+Shared open data path not allowed.
+
+CPF2864
+Not authorized to file &1 in library &2.
+
+CPF2875
+Wrong file member or label opened.
+
+CPF2883
+Error creating file &1 in library &2.
+
+CPF2888
+Member &3 not added to file because of error.
+
+CPF2904
+Diskette labels not valid for multiple label copy.
+
+CPF2906
+Value not valid for INCREL field.
+
+CPF2909
+Error clearing member &3 in file &1 in &2.
+
+CPF2949
+Error closing member &3 in file &1 in &2.
+
+CPF2952
+Error opening file &1 in library &2.
+
+CPF2968
+Position error occurred copying file &1 in &2.
+
+CPF2971
+Error reading member &3 in file &1.
+
+CPF2972
+Error writing to member &3 in file &1.
+
+CPF2975
+Error while reading from keyed file.
+
+CPF2976
+Number of errors greater than ERRLVL value.
+
+CPF3140
+Operation canceled for member &2 file &1 in library &3.
+
+CPF3143
+Increments not allowed for member &2.
+
+CPF3148
+New records need too much space for member &2.
+
+CPF3150
+Data base copy failed for member &2.
+
+CPF9212
+Cannot load or unload DDM file &2 in &3.
+
+Top

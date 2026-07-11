@@ -1,0 +1,244 @@
+Retrieve Data Area (RTVDTAARA)
+
+Retrieve Data Area (RTVDTAARA)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: Compiled CL program or interpreted REXX (*BPGM *IPGM *BREXX *IREXX)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Retrieve Data Area (RTVDTAARA) command is used in a CL program or REXX procedure to retrieve all or part of a specified data area and copy it into a variable. RTVDTAARA does not retrieve any other attributes of the data area. Existence of the data area is not required at the time the CL program is compiled.
+
+If the job is a group job, the data area specified may be the group data area (*GDA). This data area is automatically associated with the group, and it is inaccessible from jobs outside the group. The length of this character data area is 512 bytes. More information about group jobs is in the Work management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+A local data area (*LDA) is a character data area that is 1024 bytes in length, and it is automatically associated with the job. Another job cannot access the local data area.
+
+If the job is a prestart job, the data area specified may be the data area that contains program initialization parameter data (*PDA). This data area is automatically associated with the prestart job and is inaccessible from other jobs. The length of this character data area is 2000 bytes. More information about prestart jobs is in the Work management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+When a data area other than a local data area, group data area, or program initialization parameter data area must be retrieved during the processing of the RTVDTAARA command, the data area is locked during the retrieval operation so that commands in other jobs cannot change or destroy it until the operation is complete. If the data area is shared with other jobs and is updated in steps involving more than one command in a job, the data area should be explicitly allocated to that job until all the steps have been performed. A data area other than a local data area, group data area, or program initialization parameter data area can be explicitly allocated with the Allocate Object (ALCOBJ) command. No allocation is necessary for a local data area, group data area, or program initialization parameter data area.
+
+The QSYS2.DATA_AREA_INFO table function and view return similar information.
+
+Restrictions
+
+- To use this command, the user must have *USE authority for the data area and *EXECUTE authority for the library where the data area is located. No specific authority is required to retrieve the value of a local data area or group data area.
+
+- This command is conditionally threadsafe. The following restrictions apply:
+
+Retrieving DDM data areas in a job that allows multiple threads is not threadsafe.
+
+Retrieving DDM data areas will fail when more than one thread is active in a job.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DTAARA | Data area specification | Element list | Required, Positional 1
+Element 1: Data area | Single values: *LDA, *GDA, *PDA
+Other values: Qualified object name
+Qualifier 1: Data area | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Substring specifications | Single values: *ALL
+Other values: Element list
+Element 1: Substring starting position | 1-2000
+Element 2: Substring length | 1-2000
+RTNVAR | CL variable for returned value | Not restricted | Required, Positional 2
+
+Top
+
+Data area specification (DTAARA)
+
+Specifies the name of the data area whose value is retrieved.
+
+This is a required parameter.
+
+Element 1: Data area
+
+Single values
+
+*LDA
+The value of the local data area is being retrieved.
+
+*GDA
+The value of the group data area is being retrieved. This value is valid only if this job is a group job.
+
+*PDA
+The value of the program initialization parameter data area is being retrieved. This value is valid only if this is a prestart job.
+
+Qualifier 1: Data area
+
+name
+Specify the name of the data area.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the library where the data area is located.
+
+Element 2: Substring specifications
+
+Single values
+
+*ALL
+The entire data area is retrieved.
+
+Element 1: Substring starting position
+
+1-2000
+Specify the starting position of the data area being retrieved.
+
+Element 2: Substring length
+
+1-2000
+Specify the length of the data area substring being retrieved. It is not possible to retrieve data outside the data area. The combination of starting position and length must always specify positions within the data area.
+
+Top
+
+CL variable for returned value (RTNVAR)
+
+Specifies the name of the variable that receives the contents of the data area.
+
+No type conversion is performed by the RTVDTAARA command:
+
+- If RTNVAR is declared as TYPE(*DEC), the data area retrieved must be TYPE(*DEC).
+
+- If RTNVAR is declared as TYPE(*CHAR), the data area retrieved must be either TYPE(*CHAR) or TYPE(*LGL).
+
+- If RTNVAR is declared as TYPE(*LGL), the data area retrieved must be either TYPE(*LGL) or TYPE(*CHAR) with a value of either '0' or '1'.
+
+If a retrieved character string is shorter than the length of the variable specified by the RTNVAR parameter, the value is padded on the right with blanks. The retrieved string length must be less than or equal to the variable length.
+
+When decimal data areas are retrieved, the decimals are aligned. The value of the integer portion of the data area must fit into the integer portions of the variable. Fractional data is truncated if the fraction contains more digits than the variable.
+
+This is a required parameter.
+
+unrestricted-value
+Specify the program variable that will receive the contents of the data area.
+
+Top
+
+Examples
+
+Assume data area DA1 has been created by the following command:
+
+CRTDTAARA DTAARA(DA1) TYPE(*CHAR) LEN(3) VALUE(ABC)
+
+and variable &CLVAR1 has been declared as:
+
+DCL VAR(&CLVAR1) TYPE(*CHAR) LEN(5) VALUE(VWXYZ)
+
+Example 1: Retrieving a Character Data Area
+
+RTVDTAARA DTAARA(DA1) RTNVAR(&CLVAR1)
+
+results in:
+
+&CLVAR1 = 'ABC '
+
+Example 2: Retrieving a Subset of a Character Data Area
+
+RTVDTAARA DTAARA(DA1 (2 1)) RTNVAR(&CLVAR1)
+
+results in:
+
+&CLVAR1 = 'B '
+
+Example 3: Retrieving a Decimal Data Area
+
+Assume data area DA2 has been created with the following attributes:
+
+CRTDTAARA DTAARA(DA2) TYPE(*DEC) LEN(5 2) VALUE(12.39)
+
+and variable &CLVAR2 has been declared as:
+
+DCL VAR(&CLVAR2) TYPE(*DEC) LEN(5 1) VALUE(4567.8)
+
+Running this command:
+
+RTVDTAARA DTAARA(DA2) RTNVAR(&CLVAR2)
+
+results in:
+
+&CLVAR2 = 0012.3
+
+Note: Fractional digits are truncated instead of rounded.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0811
+RTNVAR parameter has incorrect length for data area.
+
+CPF0812
+RTNVAR parameter type not valid for data area &1.
+
+CPF0813
+Value in data area &1 not logical value.
+
+CPF101A
+Operation on DDM data area &1 in &2 failed.
+
+CPF1015
+Data area &1 in &2 not found.
+
+CPF1016
+No authority to data area &1 in &2.
+
+CPF1021
+Library &1 not found for data area &2.
+
+CPF1022
+No authority to library &1 data area &2.
+
+CPF1043
+Boundary alignment for data area not valid.
+
+CPF1044
+AREA parameter not valid for data area.
+
+CPF1045
+CPYPTR parameter not valid for data area.
+
+CPF1046
+DTAARA(*GDA) not valid because job not group job.
+
+CPF1063
+Cannot allocate data area &1 in library &2.
+
+CPF1067
+Cannot allocate library &1.
+
+CPF1072
+DTAARA(*PDA) not valid because job not prestart job.
+
+CPF1087
+Substring not allowed for decimal or logical data area.
+
+CPF1088
+Starting position outside of data area.
+
+CPF1089
+Substring specified for data area not valid.
+
+CPF180B
+Function &1 not allowed.
+
+CPF9899
+Error occurred during processing of command.
+
+Top

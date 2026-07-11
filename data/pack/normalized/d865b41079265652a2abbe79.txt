@@ -1,0 +1,444 @@
+Move Object (MOVOBJ)
+
+Move Object (MOVOBJ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Move Object (MOVOBJ) command removes an object from its currently assigned library and places it in a different library. The save and restore information is removed from the object description.
+
+Note: The value of the Create authority (CRTAUT) parameter specified on the Create Library (CRTLIB) command for the to-library is not used. The ownership and public and private authorities of the object remain the same.
+
+If the object being moved is currently journaled, an entry is deposited to the journal recording the change. Use the Display Object Description (DSPOBJD) command to display journal information for the object.
+
+When the object being moved is an object type which is eligible to be journaled, there are two methods for the object to automatically start journaling after the object has been moved.
+
+- If the target library is journaled, the journal inherit rules for the library will determine whether or not journaling is started for the object.
+
+- If the target library contains a data area named QDFTJRN, the object will automatically start journaling based on the contents of the QDFTJRN data area.
+
+Note: The QDFTJRN data area overrides the journaling state and journal inherit rules of the target library.
+
+Note: Support of the QDFTJRN data area will be discontinued in a future release.
+
+Use the Display Library Description (DSPLIBD) command to display journal information for the library. Refer to the Start Journal Library (STRJRNLIB) command for more information about journaling a library.
+
+With the exception noted below in the considerations for moving an object from QTEMP to a primary or secondary ASP, if the object was journaled in the from-library, it will continue to be journaled in the to-library.
+
+Note: For additional information regarding journaling, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- For an object other than a *FILE object, you must have:
+
+object management (*OBJMGT) authority for the object which is to be moved,
+
+delete (*DLT) and read (*READ) authorities for the library from which the object is to be moved, and
+
+add (*ADD) and read (*READ) authorities for the library to which the object is to be moved.
+
+- For a *FILE object, you must have:
+
+object management (*OBJMGT) and object operational (*OBJOPR) authority for the object which is to be moved,
+
+delete (*DLT), add (*ADD), and execute (*EXECUTE) authorities for the library from which the object is to be moved, and
+
+add (*ADD) and read (*READ) authorities for the library to which the object is to be moved.
+
+- The following object types cannot be moved: libraries, user profiles, edit descriptions, line descriptions, controller descriptions, device descriptions, journals, and journal receivers.
+
+- The following objects cannot be moved: the system operator message queue QSYSOPR, all work station user message queues, and the system log QHST.
+
+- The library to which the object is to be moved must not already contain an object of the same name and type as the object to be moved.
+
+- The library to which the object is to be moved cannot be QTEMP.
+
+- The user space (*USRSPC), user index (*USRIDX), and user queue (*USRQ) user domain objects can only be moved into libraries that are permitted in the system value QALWUSRDMN (allow user domain objects in library). However, if the user object was created as a system domain object, it is not restricted.
+
+- As a general rule, objects cannot be moved to the to-library if the object and the to-library are in different auxiliary storage pools (ASPs). An error message is sent when the object cannot be moved. There are some specific exceptions to the general rule:
+
+You can move save files that are in a basic user ASP to libraries that are in the system ASP (ASP 1) if the save file's library is also in the system ASP.
+
+You can move objects in a secondary ASP to the primary ASP in the same ASP group if the to-library is QRPLxxxxx (where 'xxxxx' is the number of the primary ASP of the ASP group.)
+
+You can move an object from QTEMP to a primary or secondary ASP with the following considerations:
+
+The 'move' is accomplished through a save and restore operation.
+
+The size of the object must be less than 1 terabyte. (The Move Library to ASP (QHSMMOVL) API does not have this size limitation.)
+
+If the object cannot be renamed, it cannot be moved.
+
+For data queues, message queues, and logical files, only the object descriptions are moved. The contents of the objects are not moved.
+
+The private authorities for the objects will be preserved.
+
+After the object has been moved, the following attributes will differ from the original object:
+
+The date last used will be set to blank.
+
+The change date and time will be set to the current date and time.
+
+The days used count will be set to zero.
+
+The date use count reset will be set to blank.
+
+The restore date and time will be set to the current date and time.
+
+When the object being moved is an object type which is eligible to be journaled, there are two methods for the object to automatically start journaling.
+
+If the target library is journaled, the journal inherit rules for the library will determine whether or not journaling is started for the object.
+
+If the target library contains a data area named QDFTJRN, the object will automatically start journaling based on the contents of the QDFTJRN data area.
+
+Note: The QDFTJRN data area overrides the journaling state and journal inherit rules of the target library.
+
+Note: Support of the QDFTJRN data area will be discontinued in a future release.
+
+If the object will not be automatically journaled for a restore operation for the object type, the object will not be journaled even if the original object was journaled.
+
+Note: For additional information regarding journaling, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Qualified object name | Required, Positional 1
+Qualifier 1: Object | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OBJTYPE | Object type | *ALRTBL, *BNDDIR, *CHTFMT, *CLD, *CLS, *CMD, *CRQD, *CSI, *CSPMAP, *CSPTBL, *DTAARA, *DTAQ, *FCT, *FILE, *FNTRSC, *FNTTBL, *FORMDF, *FTR, *GSS, *IGCDCT, *IGCSRT, *JOBD, *JOBQ, *JRN, *JRNRCV, *LOCALE, *MEDDFN, *MENU, *MGTCOL, *MODULE, *MSGF, *MSGQ, *M36, *M36CFG, *NODGRP, *NODL, *OUTQ, *OVL, *PAGDFN, *PAGSEG, *PDFMAP, *PDG, *PGM, *PNLGRP, *PRDAVL, *PRDDFN, *PRDLOD, *PSFCFG, *QMFORM, *QMQRY, *QRYDFN, *RCT, *SBSD, *SCHIDX, *SPADCT, *SRVPGM, *SSND, *SVRSTG, *TBL, *USRIDX, *USRQ, *USRSPC, *VLDL, *WSCST | Required, Positional 2
+TOLIB | To library | Name, *CURLIB | Required, Positional 3
+ASPDEV | From ASP device | Name, *, *CURASPGRP, *SYSBAS | Optional
+TOASPDEV | To ASP device | Name, *ASPDEV, *, *CURASPGRP, *SYSBAS | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies the object to be moved to another library.
+
+This is a required parameter.
+
+Qualifier 1: Object
+
+Specify the name of the object to be moved.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found. If the ASP device (ASPDEV) parameter is specified when this value is used, ASPDEV(*) is the only valid value.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched. If the ASP device (ASPDEV) parameter is specified when this value is used, ASPDEV(*) is the only valid value.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Object type (OBJTYPE)
+
+Specifies the object type of the object to be moved.
+
+To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt). For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+This is a required parameter.
+
+object-type
+Specify the object type of the object to be moved.
+
+Top
+
+To library (TOLIB)
+
+Specifies the library where the object is to be moved. The library QTEMP cannot be specified.
+
+This is a required parameter.
+
+*CURLIB
+The object is to be moved to the current library. If no current library exists in the library list for the current thread, the QGPL library is used.
+
+name
+Specify the name of the library where the object is to be moved.
+
+Top
+
+From ASP device (ASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device where storage is allocated for the library containing the object to be moved. If the library resides in an ASP that is not part of the library name space associated with the thread, this parameter must be specified to ensure the correct object is moved. If this parameter is used when *LIBL or *CURLIB is specified for the Library (OBJ) parameter, ASPDEV(*) is the only valid value.
+
+*
+The ASPs that are currently part of the thread's library name space will be searched to find the library. This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and, if the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group.
+
+*CURASPGRP
+If the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group will be searched to find the library. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched. If no ASP group is associated with the thread an error will be issued.
+
+*SYSBAS
+The system ASP (ASP 1) and all defined basic user ASPs (ASPs 2-32) will be searched to find the library. No primary or secondary ASPs will be searched, even if the thread has an ASP group.
+
+name
+Specify the name of the primary or secondary ASP device to be searched to find the library. The primary or secondary ASP must have been activated (by varying on the ASP device) and have a status of 'Available'. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+
+Note: To specify a specific auxiliary storage pool (ASP) device name, you must have use (*USE) authority for each ASP device in the ASP group.
+
+Top
+
+To ASP device (TOASPDEV)
+
+Specifies the auxiliary storage pool (ASP) device where storage is allocated for the to-library specified for the To library (TOLIB) parameter. If the to-library is in an ASP that is not part of the library name space associated with the thread, this parameter must be specified to ensure the correct object is moved. If this parameter is used when *CURLIB is specified for the TOLIB parameter, either TOASPDEV(*) must be specified or TOASPDEV(*ASPDEV) must be specified and the From ASP device (ASPDEV) parameter must be *.
+
+*ASPDEV
+The ASP device specified for the ASPDEV parameter will be searched to find the library.
+
+*
+The ASPs that are currently part of the thread's library name space will be searched to find the library. This includes the system ASP (ASP 1), all defined basic user ASPs (ASPs 2-32), and, if the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group.
+
+*CURASPGRP
+If the thread has an ASP group, the primary and secondary ASPs in the thread's ASP group will be searched to find the library. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched. If no ASP group is associated with the thread an error will be issued.
+
+*SYSBAS
+The system ASP (ASP 1) and all defined basic user ASPs (ASPs 2-32) will be searched to find the library. No primary or secondary ASPs will be searched, even if the thread has an ASP group.
+
+name
+Specify the name of the primary or secondary ASP device to be searched to find the library. The primary or secondary ASP must have been activated (by varying on the ASP device) and have a status of 'Available'. The system ASP (ASP 1) and defined basic user ASPs (ASPs 2-32) will not be searched.
+
+Note: To specify a specific auxiliary storage pool (ASP) device name, you must have use (*USE) authority for each ASP device in the ASP group.
+
+Top
+
+Examples
+
+Example 1: Moving an Object from the General Purpose Library
+
+MOVOBJ OBJ(QGPL/X) OBJTYPE(*PGM) TOLIB(MY)
+
+The general purpose library (QGPL) is searched for the X program (*PGM) object. The X program object is moved to the MY library. After this command is run, the X program object is no longer in the QGPL library.
+
+Example 2: Moving an Object from a Library in the Library List
+
+MOVOBJ OBJ(*LIBL/Y) OBJTYPE(*FILE) TOLIB(Z)
+-or-
+MOVOBJ Y *FILE Z
+
+The library list (*LIBL) is searched for the Y file object. If more than one file object with the same name exists in the libraries making up the library list, the first Y file object found in the library list is moved to the Z library. After this command is run, the Y file object is no longer in the library where it was found.
+
+Example 3: Moving an Object from a Library in an Independent Auxiliary Storage Pool (ASP) to a Library in a different ASP.
+
+MOVOBJ OBJ(INVENTORY/MONTHLY) OBJTYPE(*PGM)
+TOLIB(WINVENTORY) ASPDEV(SALES) TOASPDEV(WSALES)
+
+The INVENTORY library in the SALES independent auxiliary storage pool (ASP) is searched for the MONTHLY program object. The MONTHLY program object is moved to the WINVENTORY library in the WSALES ASP. After this command is run, the MONTHLY program object is no longer in the INVENTORY library in the SALES ASP. The SALES ASP and the WSALES ASP must have been activated (by varying on the ASP device) and have a status of 'Available'.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA030
+Object already in use.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+CPF0601
+Not allowed to do operation to file &1 in &2.
+
+CPF0602
+File &1 already in library &2.
+
+CPF0605
+Device file &1 in &2 saved with storage freed.
+
+CPF0610
+File &1 in &2 not available.
+
+CPF0678
+Operation not performed for file name &1 in &2.
+
+CPF1763
+Cannot allocate one or more libraries.
+
+CPF210F
+Operation not successful for &1 in &2 type *&3.
+
+CPF2105
+Object &1 in &2 type *&3 not found.
+
+CPF2110
+Library &1 not found.
+
+CPF2112
+Object &1 in &2 type *&3 already exists.
+
+CPF2113
+Cannot allocate library &1.
+
+CPF2114
+Cannot allocate object &1 in &2 type *&3.
+
+CPF2135
+Object &1 type *&3 already exists in library.
+
+CPF2150
+Object information function failed.
+
+CPF2151
+Operation failed for &2 in &1 type *&3.
+
+CPF2160
+Object type *&1 not eligible for requested function.
+
+CPF216C
+TOASPDEV value not allowed with TOLIB(*CURLIB).
+
+CPF2173
+Value for ASPDEV not valid with special value for library.
+
+CPF218C
+&1 not a primary or secondary ASP.
+
+CPF2182
+Not authorized to library &1.
+
+CPF2183
+Object &1 cannot be moved into library &3.
+
+CPF2189
+Not authorized to object &1 in &2 type *&3.
+
+CPF2193
+Object &1 cannot be moved into library &4.
+
+CPF22BC
+Object &1 type &3 is not program defined.
+
+CPF2451
+Message queue &1 is allocated to another job.
+
+CPF2512
+Operation not allowed for message queue &1.
+
+CPF32CF
+Distributed file error, reason code &3.
+
+CPF32C3
+Distributed file error, level ID mismatch
+
+CPF320B
+Operation was not valid for database file &1.
+
+CPF320C
+File &1 not allowed in SQL collection &2.
+
+CPF3201
+File &1 in library &2 already exists.
+
+CPF3202
+File &1 in library &2 in use.
+
+CPF3203
+Cannot allocate object for file &1 in &2.
+
+CPF322D
+Operation not done for data base file &1.
+
+CPF3220
+Cannot do operation on file &1 in &2.
+
+CPF3224
+Not authorized to perform operation on file &1.
+
+CPF323C
+QRECOVERY library could not be allocated.
+
+CPF323D
+User does not have correct authority.
+
+CPF323F
+Move or rename of file &1 in library &2 not complete.
+
+CPF3231
+Cannot move file &1 from library &2.
+
+CPF324B
+Cannot allocate dictionary for file &1.
+
+CPF324C
+Concurrent authority holder operation prevents move, rename or restore.
+
+CPF3245
+Damage to file &1 member &6 prevents operation on file &3.
+
+CPF325D
+Field CCSID values not compatible.
+
+CPF327C
+File &1 cannot be moved into library &4.
+
+CPF327E
+Alternative name for file &1 not allowed.
+
+CPF329D
+Operation not successful for file &1 in library &2.
+
+CPF3323
+Job queue &1 in &2 already exists.
+
+CPF3330
+Necessary resource not available.
+
+CPF3353
+Output queue &1 in &2 already exists.
+
+CPF3373
+Job queue &1 in &2 not moved. Job queue in use.
+
+CPF3374
+Output queue &1 in &2 not moved. Output queue in use.
+
+CPF3467
+Output queue &1 deleted and then created again.
+
+CPF3469
+Operation not allowed for output queue.
+
+CPF7003
+Entry not journaled to journal &1. Reason code &3.
+
+CPF7010
+Object &1 in &2 type *&3 already exists.
+
+CPF7014
+Object &1 cannot be moved to library &4.
+
+CPF9807
+One or more libraries in library list deleted.
+
+CPF9808
+Cannot allocate one or more libraries on library list.
+
+CPF9814
+Device &1 not found.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9827
+Object &1 cannot be created or moved into &2.
+
+CPF9833
+*CURASPGRP or *ASPGRPPRI specified and thread has no ASP group.
+
+CPF9876
+Protected library &2 cannot be modified.
+
+Top

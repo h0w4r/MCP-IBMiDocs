@@ -1,0 +1,129 @@
+Change Node Group Attributes (CHGNODGRPA)
+
+Change Node Group Attributes (CHGNODGRPA)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Node Group Attributes (CHGNODGRPA) command changes the data partitioning attributes for a node group. The node group contains a table with 1024 partitions. Each partition contains a node number. Node numbers were assigned when the node group was created and correspond to the relational databases specified on the RDB parameter of the CRTNODGRP (Create Node Group) command. You can use the DSPNODGRP (Display Node Group) command to see the valid node number values and correspondence between node numbers and relational database names.
+
+This command does not affect existing distributed files that were created using the specified node group. Distributed files created after the node group is changed will use the changed partitioning attributes.
+
+- You can create a database file as a distributed file by specifying values for the NODGRP and PTNKEY parameters on the CRTPF (Create Physical File) command.
+
+- For an existing database physical file that is not a distributed file, you can make the file distributed by specifying values for the NODGRP and PTNKEY parameters on the CHGPF (Change Physical File) command.
+
+- For an existing distributed database file, you can change the data partitioning attributes by specifying values for the NODGRP and PTNKEY parameters on the CHGPF (Change Physical File) command. This will cause the data to be redistributed according to the partitioning table in the node group.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+NODGRP | Node group | Qualified object name | Required, Positional 1
+Qualifier 1: Node group | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+PTNNBR | Partition number | 0-1023 | Optional, Positional 2
+CMPDTA | Compare data | Values (up to 300 repetitions): Character value | Optional, Positional 3
+NODNBR | Node number | 1-32 | Optional, Positional 4
+
+Top
+
+Node group (NODGRP)
+
+Specifies the node group whose attributes are to be changed.
+
+This is a required parameter.
+
+Qualifier 1: Node group
+
+name
+Specify the name of the node group being changed.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Partition number (PTNNBR)
+
+Specifies a partition number to change.
+
+0-1023:
+Specify the partition number to be changed.
+
+Note: Either PTNNBR or CMPDTA must be specified. PTNNBR should be used when you know which partition you want to change. You can use the %PARTITION built-in function on the OPNQRYF (Open Query File) command to obtain this information. Other useful built-in OPNQRYF functions for distributed files and data partitioning are %HASH, %NODENUMBER, and %NODENAME.
+
+Top
+
+Compare data (CMPDTA)
+
+Specifies a value that is used to determine the partition number to change. The specified value is used as input to a hashing algorithm that determines which partition to change.
+
+character-value
+Specify the data to be used to determine the partition to be changed. Multiple values can be entered to correspond to a partitioning key with multiple columns (fields). Character data should be entered without leading or trailing blanks. Numeric data should be entered using the character representation, without leading or trailing zeroes, and without decimal points or commas. For example, the number 3.5 should be entered as 35. Up to 300 values can be specified.
+
+Note: Either PTNNBR or CMPDTA must be specified. CMPDTA should be used when you want to direct records (or rows) for a distributed file to a particular node whenever the partitioning key contains the specified value.
+
+Top
+
+Node number (NODNBR)
+
+Specifies the new node number to be associated with the partition being changed.
+
+1-32
+Specify a valid node number for the node group. You can use the Display Node Group (DSPNODGRP) command to view the valid node numbers for a node group.
+
+Top
+
+Examples
+
+Example 1: Specify a Partition Number
+
+CHGNODGRPA NODGRP(LIB1/GROUP1) PTNNBR(1019) NODNBR(2)
+
+This command changes the partitioning attributes of the node group named GROUP1 in library LIB1. Partition 1019 is changed to refer to node number 2. Node number 2 corresponds to the second relational database specified when the node group was created (RDB parameter on the CRTNODGRP command).
+
+Example 2: Specify a Comparison Value
+
+CHGNODGRPA NODGRP(GROUP2) CMPDTA('CHICAGO') NODNBR(3)
+
+This command changes the partitioning attributes of the node group named GROUP2 (GROUP2 is found by using the library search list *LIBL). The value specified on the CMPDTA parameter is hashed, and the resulting partition number is changed from its existing node number to node number 3.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF3166
+Node group &1 in library &2 not found.
+
+CPF3167
+Node group &1 in library &2 was not changed.
+
+CPF2189
+Not authorized to object &1 in &2 type *&3.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9810
+Library &1 not found.
+
+Top

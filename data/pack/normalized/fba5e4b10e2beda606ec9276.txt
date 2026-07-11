@@ -1,0 +1,317 @@
+Deallocate Object (DLCOBJ)
+
+Deallocate Object (DLCOBJ)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Conditional | Parameters
+
+Examples
+
+Error messages
+
+The Deallocate Object (DLCOBJ) command releases the allocations of the specified objects. The objects, allocated earlier by one or more Allocate Object (ALCOBJ) commands, are freed for use by other jobs, or threads. If the DLCOBJ command is used when a lock does not exist, no error occurs.
+
+If the DLCOBJ command is not used, the objects may be automatically deallocated. Allocated job-scoped locks are automatically released when the job ends. Allocated thread-scoped locks are automatically released when the thread ends. If a thread received a job-scoped lock, the job will continue to hold that lock after the requesting thread ends. Lock-space-scoped locks are not automatically released.
+
+The DLCOBJ command should not be issued for an object that was not explicitly allocated by the ALCOBJ command. If the DLCOBJ command is used this way, internal locks on the object are released, making the object capable of being deleted.
+
+To release more than one lock for an object with a single DLCOBJ command, the object name, type, and lock state must be repeated in the list for each lock you want to release.
+
+NOTES:
+
+- When deallocating distributed data management (DDM) files and distributed files, additional time is required for the command to complete because of the time required for establishing communication and for deallocating files on remote systems.
+
+- Allocating an object by specifying *LIBL for the object's library, changing the thread's library list, and then attempting to deallocate the object by specifying *LIBL for the object's library can result in issuing the deallocate against the wrong object. This could release internal locks.
+
+Restrictions:
+
+- This command cannot be used to deallocate a device description, *DEVD, for an advanced program-to-program communications (APPC) device or for an intrasystem (INTRA) device.
+
+- This command can be used to deallocate only the following database *FILE types:
+
+Physical files
+
+Logical files
+
+Distributed files
+This deallocates the piece of the file on each node in the node group.
+
+DDM files
+This deallocates both the DDM file on the local system and the file on the remote system that is identified in the DDM file.
+
+- In multithreaded jobs, this command is not threadsafe for distributed files. This command is also not threadsafe for distributed data management (DDM) files of type *SNA.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object specifications | Values (up to 50 repetitions): Element list | Required, Positional 1
+Element 1: Object | Qualified object name
+Qualifier 1: Object | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+Element 2: Object type | *AUTL, *BNDDIR, *CLD, *CRQD, *CSI, *CSPMAP, *CSPTBL, *DEVD, *DTAARA, *DTADCT, *DTAQ, *FCT, *FILE, *FNTRSC, *FNTTBL, *FORMDF, *IMGCLG, *IPXD, *LIB, *LOCALE, *MEDDFN, *MENU, *MGTCOL, *MODULE, *MSGQ, *NODL, *NTBD, *NWSCFG, *NWSD, *OVL, *PAGDFN, *PAGSEG, *PDFMAP, *PDG, *PGM, *PNLGRP, *PSFCFG, *QMFORM, *QMQRY, *QRYDFN, *SBSD, *SCHIDX, *SQLPKG, *SQLXSR, *SRVPGM, *SSND, *S36, *TIMZON, *USRIDX, *USRQ, *USRSPC, *VLDL, *WSCST
+Element 3: Lock state | *SHRRD, *SHRNUP, *SHRUPD, *EXCLRD, *EXCL
+Element 4: Member, if data base file | Name, *FIRST
+SCOPE | Lock scope | *JOB, *THREAD, *LCKSPC | Optional
+MIRROR | Mirror | *YES, *NO | Optional
+
+Top
+
+Object specifications (OBJ)
+
+Specifies the qualified name of one or more objects that are deallocated from the job, thread, or lock space, the type of each object specified, the lock state of each object, and the member name (if the object is a database file or DDM file).
+
+Only some object types can be specified on the Deallocate Object (DLCOBJ) command. Of these, some cannot use all of the lock states.
+
+This is a required parameter.
+
+You can specify 50 values for this parameter.
+
+Element 1: Object
+
+Qualifier 1: Object
+
+name
+Specify the name of the object.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the thread's library list are searched until a match is found.
+
+*CURLIB
+The current library for the thread is used to locate the object. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library where the object is located.
+
+Element 2: Object type
+
+object-type
+Specify the type of object to be deallocated. Refer to the figure Valid Lock States by Object Type for more information.
+
+Element 3: Lock state
+
+*SHRRD
+The lock state is shared for read.
+
+*SHRNUP
+The lock state is shared, no update.
+
+*SHRUPD
+The lock state is shared for update.
+
+*EXCLRD
+The lock state is exclusive, allow read.
+
+*EXCL
+The lock state is exclusive, no read.
+
+Element 4: Member, if data base file
+
+Note: The following values can only be specified if the object type is a database file.
+
+*FIRST
+The first member of the database file is deallocated.
+
+name
+Specify the name of the member to be allocated. If the specified file is a logical file, the physical file members associated with the members of the logical file are also deallocated.
+
+An explanation of how to specify multiple locks on an object, locking device descriptions, or the type objects that can be allocated, is in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+If a database file member is deallocated, the first occurrence of the file in the library list is found and that file is searched for the specified member. If a file of the same name farther down on the library list contains the member, but the first file does not, the member is not found. If the member name is not specified for a database file, the member name defaults to *FIRST and the member that was created first in the file is deallocated.
+
+Figure: Valid Lock States by Object Type
+
+Object Lock States
+Type Object Type Definition *EXCL *EXCLRD *SHRUPD *SHRNUP *SHRRD
+------- ---------------------- ----- ------- ------- ------- ------
+*AUTL Authorization List x x x x x
+*BNDDIR Binding directory x x x
+*CLD C Locale description x x x x x
+*CRQD Change request x x x x x
+description
+*CSI Communications side x x x x x
+information
+*DEVD Device Description x x
+*DTAARA Data area x x x x x
+*DTADCT Data dictionary x x x x x
+*DTAQ Data queue x x x x x
+*FCT Forms control table x x x x x
+*FILE File x x x x x
+*FNTRSC Font resource x x x x x
+*FNTTBL Font mapping table x x x x x
+*FORMDF Form definition x x x x x
+*IMGCLG Image catalog x x x x x
+*IPXD Internet packet x x x x x
+exchange description
+*LIB Library x x x x
+*LOCALE Locale space object x x x x x
+*MEDDFN Media definition x x x x x
+*MENU Menu x x x x x
+*MGTCOL Management collection x x x x x
+*MODULE Module x x x
+*MSGQ Message queue x x
+*NODL Node list x x x x x
+*NTBD NetBIOS description x x x x x
+*NWSCFG Network server x x x x x
+configuration
+*NWSD Network server x x x x x
+description
+*OVL Overlay x x x x x
+*PAGDFN Page definition x x x x x
+*PAGSEG Page segment x x x x x
+*PDFMAP PDF Map x x x x x
+*PDG Print descriptor group x x x x x
+*PGM Program x x x
+*PNLGRP Panel group x x x x x
+*PSFCFG Print service facility x x x x x
+configuration
+*QMFORM Query management form x x x x x
+*QMQRY Query management query x x x x x
+*QRYDFN Query definition x x x x x
+*S36 S/36 machine x x x x x
+description
+*SBSD Subsystem description x
+*SCHIDX Search index x x x x x
+*SQLPKG Structured Query x x x x x
+Language package
+*SQLXSR SQL XML schema x x x x x
+repository
+*SRVPGM Service program x x x x x
+*SSND Session description x x x x x
+*TIMZON Time zone description x x x x x
+*USRIDX User index x x x x x
+*USRQ User queue x x x x x
+*USRSPC User space x x x x x
+*VLDL Validation list object x x x x x
+*WSCST Workstation x x x x x
+customizing object
+'x' indicates the lock state is allowed for the object type.
+
+Top
+
+Lock scope (SCOPE)
+
+Specify the scope for this lock request.
+
+*JOB
+The lock is scoped to the job.
+
+*LCKSPC
+The lock is scoped to the lock space attached to the current thread. If no lock space is attached, the lock is scoped to the job.
+
+*THREAD
+The lock is scoped to the thread.
+
+All objects types supported by the OBJ parameter support job-scoped locks. All object types supported by the OBJ parameter support lock-space-scoped locks. For DDM objects with a lock-space-scope, the lock on the remote system is scoped to the job. To determine if an object type supports thread-scoped locks refer to the figure Object Types that Support Thread Scope Locks.
+
+The lock scope must match the scope of the locks currently allocated for the job or thread.
+
+Figure: Object Types that Support Thread Scope Locks
+
+Object Thread
+Type Object Type Definition Scope
+------- ------------------------------------ ------
+*AUTL Authorization list
+*BNDDIR Binding directory
+*CLD C Locale description
+*CRQD Change request description
+*CSI Communications side information
+*DEVD Device Description x
+*DTAARA Data area x
+*DTADCT Data dictionary x
+*DTAQ Data queue x
+*FCT Forms control table
+*FILE File x
+*FNTRSC Font resource
+*FNTTBL Font mapping table
+*FORMDF Form definition
+*IMGCLG Image catalog x
+*IPXD Internet packet exchange description x
+*LIB Library x
+*LOCALE Locale space object x
+*MEDDFN Media definition
+*MENU Menu
+*MGTCOL Management collection x
+*MODULE Module
+*MSGQ Message queue x
+*NODL Node list
+*NTBD NetBIOS description x
+*NWSCFG Network server configuration
+*NWSD Network server description x
+*OVL Overlay
+*PAGDFN Page definition
+*PAGSEG Page segment
+*PDFMAP PDF Map x
+*PDG Print descriptor group
+*PGM Program x
+*PNLGRP Panel group
+*PSFCFG Print service facility configuration
+*QMFORM Query management form
+*QMQRY Query management query
+*QRYDFN Query definition
+*S36 S/36 machine description
+*SBSD Subsystem description x
+*SCHIDX Search index
+*SQLPKG Structured Query Language package
+*SQLXSR SQL XML schema repository
+*SRVPGM Service program x
+*SSND Session description
+*TIMZON Time zone description x
+*USRIDX User index x
+*USRQ User queue x
+*USRSPC User space x
+*VLDL Validation list object x
+*WSCST Workstation customizing object
+'x' indicates a thread-scoped lock is allowed for the object type.
+
+Top
+
+Mirror (MIRROR)
+
+Specify the action to be taken if the object is replicated by Db2 mirror. This parameter is only supported for database files (*FILE), data areas (*DTAARA), user spaces (*USRSPC) and user indexes (*USRIDX) and is ignored for all other objects. Unlock requests for DDM files and DDM data areas are not replicated. Requests to unlock a replicated object are not tracked when Db2 Mirror is suspended.
+
+*YES
+The command is run on both the source and target nodes.
+
+*NO
+The command is only run on the source node. The request is not replicated to the target node.
+
+Top
+
+Examples
+
+Example 1: Deallocate a File for the Job
+
+DLCOBJ OBJ((LIBB/FILEA *FILE *SHRRD))
+
+This command releases the shared-for-read allocation of the first member of file FILEA in library LIBB that was held by the job.
+
+Example 2: Deallocate a Data Area for the Thread
+
+DLCOBJ OBJ((LIBY/DATAAREAX *DTAARA *SHRRD )) SCOPE(*THREAD)
+
+This command releases the shared-for-read allocation of the data area DATAAREAX in library LIBY that was held by the thread.
+
+Example 3: Deallocate File for Lock Space
+
+DLCOBJ OBJ((LIBB/FILEA *FILE *EXCL MEMBERA))
+SCOPE(*LCKSPC)
+
+This command deallocates member MEMBERA of file FILEA in library LIBB from the lock space attached to the current thread.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1005
+Objects not deallocated.
+
+Top

@@ -1,0 +1,170 @@
+Check In Object (CHKIN)
+
+Check In Object (CHKIN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Check In Object (CHKIN) command checks in an object that had previously been checked out.
+
+The CHKIN command can also be used to check in a directory tree so that the specified directory's contents, and the contents of all of its subdirectories, are checked in. If SUBTREE(*ALL) is specified, the command will attempt to check in as many objects as possible within the subtree. A diagnostic message will be sent for each object that cannot be checked in. When all of the objects have been attempted, an escape message will be sent if there were any errors. If all of the objects have been checked in with no errors, a completion message will be sent.
+
+If a symbolic link object is encountered, either specified in the Object (OBJ) parameter or encountered in the processing of a subtree, the symbolic link will not be followed.
+
+For more information about integrated file system commands, see the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Restrictions:
+
+- Only documents within QDLS and stream files can be checked in. If SUBTREE(*ALL) is specified, the check in will only be done for the object types which are supported by the CHKIN command.
+
+- To check in an object that the user has checked out, the user must have write (*W) authority to all the objects being checked in.
+
+- To check in an object that someone else has checked out, the user must own the object or have one of the following:
+
+All (*ALL) authority to the object
+
+All object (*ALLOBJ) special authority
+
+- The user must have execute (*X) authority to each directory in the path.
+
+- When doing subtree processing, the user must have read (*R) and execute (*X) authorities to the path name and all subdirectories within that path.
+
+- Not all file systems support the CHKIN command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Path name | Required, Positional 1
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies the path name of the object or a pattern to match the path name or names of objects to be checked in.
+
+The object path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether or not to check in all of the objects within the subtree if the object specified by the Object (OBJ) parameter is a directory.
+
+*NONE
+The objects specified by the OBJ parameter are checked in.
+
+*ALL
+The objects specified by the OBJ parameter are checked in. If the object is a directory, its contents as well as the contents of all of its subdirectories will be checked in.
+
+Note: Pattern matching on the OBJ parameter only applies to the first level objects. If the first level object is a directory, the pattern matching does not apply to its contents or the contents of its subdirectories.
+
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Examples
+
+The examples below assume the following directory structure:
+
+---- dir2
+/
+/--dir1 ------- dir3
+\ \ \
+\ \ -- obj1
+\ \
+\ -- dir4 -- dir5 -- dir6
+\ \
+-- obj3 -- obj2
+obj4
+
+Example 1: Checking an Object In With No Subtree Processing
+
+CHKIN OBJ('/dir1/obj4') SUBTREE(*NONE)
+
+This command checks in object obj4 in dir1 directory.
+
+Example 2: Checking In Files in a Directory Using Subtree Processing
+
+CHKIN OBJ('/dir1') SUBTREE(*ALL)
+
+This command checks in all the eligible objects in directory dir1 as well as all the objects in its subdirectories. In this example, objects obj1, obj2, obj3, and obj4 will be checked in.
+
+Example 3: Checking In a Group of Objects
+
+CHKIN OBJ('/dir1/obj*') SUBTREE(*NONE)
+
+In this example, objects obj3 and obj4 will be checked in.
+
+Example 4: Checking In a Group of Objects Using Subtree Processing
+
+CHKIN OBJ('/dir1/dir*') SUBTREE(*ALL)
+
+In this example, objects obj1 and obj2 will be checked in.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA09C
+Not authorized to object. Object is &1.
+
+CPFA09D
+Error occurred in program &1.
+
+CPFA0A1
+An input or output error occurred.
+
+CPFA0A3
+Path name resolution causes looping.
+
+CPFA0A7
+Path name too long.
+
+CPFA0A9
+Object not found. Object is &1.
+
+CPFA0AA
+Error occurred while attempting to obtain space.
+
+CPFA0AB
+Operation failed for object. Object is &1.
+
+CPFA0AD
+Function not supported by file system.
+
+CPFA0B2
+No objects satisfy request.
+
+CPFA0BE
+&3 objects checked in. &4 objects failed.
+
+CPFA0DA
+Object is a directory. Object is &1.
+
+Top

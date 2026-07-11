@@ -1,0 +1,99 @@
+<html><head></head><body><main role="main"><article role="article" aria-labelledby="tralb__title__1">
+<h1 class="topictitle1" id="tralb__title__1">Trailing blanks on command parameters</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-09-29</div>
+
+
+
+
+<div class="body taskbody"><p class="shortdesc">In certain command parameters, you can define how trailing
+blanks are processed.</p>
+
+<div class="section context"> <p>Some command parameters are defined with the parameter
+value of VARY(*YES). This parameter value causes the length of the
+value passed to be the number of characters between the single quotation
+marks. When a CL variable is used to specify the value for a parameter
+defined in this way, the system removes trailing blanks before determining
+the length of the variable to be passed to the command processor program.
+ If the trailing blanks are present and are significant for the parameter,
+you must take special actions to ensure that the length passed includes
+them.  Most command parameters are defined and used in ways that do
+not cause this condition to occur.  An example of a parameter defined
+where this condition is likely to occur is the key value element of
+the POSITION parameter on the <span class="keyword cmdname">Override with Database File
+(OVRDBF)</span> command.</p>
+<p>When this condition occurs, the
+result that you want can be attained for these parameters by constructing
+a command string that delimits the parameter value with single quotation
+marks and passing the string to QCMDEXC or QCAPCMD for processing.</p>
+<p>Here
+is an example of a program that can be used to run the <span class="keyword cmdname">Override
+with Database File (OVRDBF)</span> command so that the trailing
+blanks are included as part of the key value.  This same technique
+can be used for other commands that have parameters defined using
+the parameter VARY(*YES); trailing blanks must be passed with the
+parameter.</p>
+<div class="note border-2 cds--inline-notification--info ibmdocs-note cds--inline-notification cds--inline-notification--low-contrast margin-top-1 margin-bottom-1"><div class="cds--inline-notification__details"><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="cds--inline-notification__icon" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16,2A14,14,0,1,0,30,16,14,14,0,0,0,16,2Zm0,5a1.5,1.5,0,1,1-1.5,1.5A1.5,1.5,0,0,1,16,7Zm4,17.12H12V21.88h2.88V15.12H13V12.88h4.13v9H20Z"></path></svg>
+        <div class="cds--inline-notification__text-wrapper">
+          <div class="cds--inline-notification__subtitle"><span class="notetitle ibm-bold ibm-textcolor-blue-50 background-blue cds--inline-notification__title ibm-padding-top-1 ibm-padding-bottom-1 padding-left-1 padding-right-1">Note:</span> By using the code example, you agree to the terms
+of the <a href="/docs/en/ssw_ibm_i_75/rzahg/codedisclaimer.htm">Code license and disclaimer information</a>.</div>
+        </div>
+      </div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock language-text"><code class="language-text">
+             PGM        PARM(&amp;KEYVAL &amp;LEN)
+ /*   PROGRAM TO SHOW HOW TO SPECIFY A KEY VALUE WITH TRAILING        */
+ /*      BLANKS AS PART OF THE POSITION PARAMETER ON THE OVRDBF       */
+ /*      COMMAND IN A CL PROGRAM.                                     */
+ /*   THE KEY VALUE ELEMENT OF THE POSITION PARAMETER OF THE OVRDBF   */
+ /*      COMMAND IS DEFINED USING THE VARY(*YES) PARAMETER.           */
+ /*      THE DESCRIPTION OF THIS PARAMETER ON THE ELEM COMMAND        */
+ /*      DEFINITION STATEMENT SPECIFIES THAT IF A PARAMETER           */
+ /*      DEFINED IN THIS WAY IS SPECIFIED AS A CL VARIABLE THE        */
+ /*      LENGTH IS PASSED AS THE VARIABLE WITH TRAILING BLANKS        */
+ /*      REMOVED. A CALL TO QCMDEXC USING APOSTROPHES TO DELIMIT      */
+ /*      THE LENGTH OF THE KEY VALUE CAN BE USED TO CIRCUMVENT        */
+ /*      THIS ACTION.                                                 */
+ /*    PARAMETERS--                                                   */
+            DCL        VAR(&amp;KEYVAL) TYPE(*CHAR) LEN(32)  /*  THE VALUE +
+                         OF THE REQUESTED KEY. NOTE IT IS DEFINED AS +
+                         32 CHAR.  */
+            DCL        VAR(&amp;LEN) TYPE(*INT)              /*  THE LENGTH +
+                         OF THE KEY VALUE TO BE USED. ANY VALUE OF  +
+                         1 TO 32 CAN BE USED  */
+ /*   THE STRING TO BE FINISHED FOR THE OVERRIDE COMMAND TO BE        */
+ /*        PASSED TO QCMDEXC (NOTE 2 APOSTROPHES TO GET ONE).         */
+            DCL        VAR(&amp;STRING) TYPE(*CHAR) LEN(100) +
+                VALUE('OVRDBF FILE(X3) POSITION(*KEY 1 FMT1  '' ')
+ /*   POSITION MARKER  123456789 123456789 123456789 123456789       */
+            DCL        VAR(&amp;END) TYPE(*DEC) LEN(15 5)  /*  A VARIABLE +
+                         TO CALCULATE THE END OF THE KEY IN &amp;STRING  */
+ 
+            CHGVAR     VAR(%SST(&amp;STRING 40 &amp;LEN)) VALUE(&amp;KEYVAL)  /*  +
+                         PUT THE KEY VALUE INTO COMMAND STRING FOR +
+                         QCMDEXC IMMEDIATELY AFTER THE APOSTROPHE.  */
+            CHGVAR     VAR(&amp;END) VALUE(&amp;LEN + 40)  /*  POSITION AFTER +
+                         LAST CHARACTER OF KEY VALUE  */
+            CHGVAR     VAR(%SST(&amp;STRING &amp;END 2)) VALUE('')')  /*  PUT +
+                         A CLOSING APOSTROPHE &amp; PAREN TO END  +
+                         PARAMETER  */
+            CALL       PGM(QCMDEXC) PARM(&amp;STRING 100)  /*  CALL TO +
+                         PROCESS THE COMMAND   */
+            ENDPGM
+</code></pre></div><div class="docs--copy-btn"></div></div><div class="note border-2 cds--inline-notification--info ibmdocs-note cds--inline-notification cds--inline-notification--low-contrast margin-top-1 margin-bottom-1"><div class="cds--inline-notification__details"><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="cds--inline-notification__icon" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16,2A14,14,0,1,0,30,16,14,14,0,0,0,16,2Zm0,5a1.5,1.5,0,1,1-1.5,1.5A1.5,1.5,0,0,1,16,7Zm4,17.12H12V21.88h2.88V15.12H13V12.88h4.13v9H20Z"></path></svg>
+        <div class="cds--inline-notification__text-wrapper">
+          <div class="cds--inline-notification__subtitle"><span class="notetitle ibm-bold ibm-textcolor-blue-50 background-blue cds--inline-notification__title ibm-padding-top-1 ibm-padding-bottom-1 padding-left-1 padding-right-1">Note:</span> If you use VARY(*YES) and RTNVAL(*YES) and are passing
+a CL variable, the length of the variable is passed rather than the
+length of the data in the CL variable.</div>
+        </div>
+      </div></div>
+</div>
+
+</div>
+
+<aside role="complementary" aria-labelledby="tralb__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_i5_75" href="/docs/en/ssw_ibm_i_75/rbam6/workv.htm" title="A variable is a named changeable value that can be accessed or changed by referring to its name." class="bottom-section-link">Variables in CL commands</a></div></div>
+</div>
+
+<div class="linklist relinfo ibm-margin-bottom-1" lang="en-us"><h2 class="linkheading bottom-section-h2-title">Related information</h2>
+<ul><li class="cds--list__item"><div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_i5_75" href="/docs/en/ssw_ibm_i_75/cl/ovrdbf.htm" class="bottom-section-link">Override with Data Base File (OVRDBF) command</a></div></li>
+</ul></div>
+</nav></aside></article></main><script type="text/javascript"  src="/0qKP/Fm9A/Igg6/tAAW/dg/iVOLVfDNDDtLXc5puX/UExGPFZyWg8/ayldF/R5WAkUB"></script></body></html>

@@ -1,0 +1,244 @@
+Start ASP Balance (STRASPBAL)
+
+Start ASP Balance (STRASPBAL)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start ASP Balance (STRASPBAL) command allows the user to start the auxiliary storage pool (ASP) balancing function for one or more ASPs. The types of ASP balancing that can be started are:
+
+- Capacity balancing - The data on all the units within the ASP will be balanced so each unit has an equal percentage of used and unused space. This is useful when new units are added to an ASP. Instead of having several units with the majority of the data and several new ones with no data, the user can spread the data evenly across all the units.
+
+- Usage balancing - The 'low' use data on each 'low' utilized unit in the ASP is redistributed to balance future use of the arm utilization of each unit within the specified ASP. *USAGE balancing cannot be done until the trace controlled by the Trace ASP Balance (TRCASPBAL) command has collected usage statistics. The TRCASPBAL command starts the trace function that will identify the 'high' and 'low' use data on each unit. After the usage balance activity has run to completion, the trace information will be cleared. Usage balancing is useful when the ASP contains large capacity disk units.
+
+- Hierarchical Storage Management (HSM) balancing - The 'high' use and 'low' use data on each unit in the ASP is redistributed so that the 'high' use data resides on high performance units and the 'low' use data resides on low performance units. The ASP being balanced in this manner must contain the correct mixture of slow and fast units to perform this type of balance. This allows the 'low' use data on the high performance units to be moved to low performance units. Data that is 'high' use that resides on slow units will be moved to the fast disk units. HSM balancing cannot be done until the trace controlled by the Trace ASP Balance (TRCASPBAL) command has collected usage statistics. The TRCASPBAL command starts the trace function that will identify the 'high' and 'low' use data on each unit. After the HSM balance activity has run to completion, the trace information will be cleared. HSM balancing is allowed when the ASP contains compressed disk units or when it contains a mixture of Solid State Disk (SSD) units and Hard Disk Drive (HDD) units. The SUBTYPE keyword is used to specify which units are to participate in the balance.
+
+- Media Preference (MP) balancing - The operating system (OS) assigns a 'media preference' attribute to data. When an ASP has a mix of high performance and low performance disk units, the OS attempts to place data with a high performance media preference on fast disk units. Due to space limitations, disk configuration changes and attempts to take advantage of the speed of high performance units, data on the high performance units may not always be exclusively data with a high performance 'media preference' attribute. MP finds data on high performance disk units that does not have the high performance media preference attribute and moves that data to low performance disk units. The ASP being balanced in this manner must contain a mixture of Solid State Disk (SSD) units and Hard Disk Drive (HDD) units. The SUBTYPE keyword is used to specify the extent of the balance. When SUBTYPE(*CALC) is specified, data without a high performance media preference is moved from SSD units to HDD units and data with a high performance media preference is moved from the HDD units to SSD units. When SUBTYPE(*SSD) is specified, data without a high performance media preference is moved from SSD units to HDD units. When SUBTYPE(*HDD) is specified, data with a high performance media preference is moved from HDD units to the SSD units.
+
+- Move data from units - This option can be used to reduce the down time associated with removing a disk unit. A unit that is scheduled for removal can be marked to end allocations by specifying UNIT(unit-number) and TYPE(*ENDALC). This will keep new allocations away from this unit. For all units marked *ENDALC, specifying TYPE(*MOVDTA) will move data from the marked units to other units in the same ASP. To resume allocations for units marked *ENDALC, specify UNIT(unit-number) and TYPE(*RSMALC). New allocations will once again be allowed to this unit. The Check ASP Balance (CHKASPBAL) command can be used to determine which units are currently marked *ENDALC.
+
+The user may specify a time limit that the function is to run for each ASP being balanced or the balance can be set to run to completion. If the balance function needs to be ended, use the End ASP Balance (ENDASPBAL) command. A message will be sent to the system history (QHST) log when the balancing function is started for each ASP. A message will also be sent to the QHST log when the balancing function completes or is ended.
+
+If the balance function is run for a few hours and then stopped, it will continue from where it left off when the balance function restarts. This allows the balancing to be run during off hours over a several day period.
+
+For more information about ASP balancing, see the Hierarchical Storage Management Use, SC41-5351.
+
+Restrictions:
+
+- You must have all object (*ALLOBJ) special authority to run this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+TYPE | Balance type | *CAPACITY, *USAGE, *HSM, *MOVDTA, *ENDALC, *RSMALC, *MP | Optional, Positional 2
+ASP | ASP number | Single values: *ALL
+Other values (up to 32 repetitions): 1-32 | Optional, Positional 1
+ASPDEV | ASP device | Single values: *ALLAVL
+Other values (up to 32 repetitions): Name | Optional
+UNIT | Storage unit | Values (up to 300 repetitions): Integer | Optional
+TIMLMT | Time limit | 1-9999, *NOMAX | Optional, Positional 3
+PRIORITY | Balance priority | *LOW, *MEDIUM, *HIGH | Optional
+SUBTYPE | Subtype | *CALC, *HDD, *SSD | Optional
+
+Top
+
+Balance type (TYPE)
+
+Specifies the type of auxiliary storage pool (ASP) balancing operation to be done.
+
+Note: A value must always be specified for this parameter.
+
+*CAPACITY
+The capacity balance function will be started for the specified ASP (ASP or ASPDEV parameter).
+
+*USAGE
+The usage balance function will be started for the specified ASP (ASP or ASPDEV parameter) .
+
+*HSM
+The hierarchical storage management balance function will be started for the specified ASP (ASP or ASPDEV parameter).
+
+*MP
+The media preference balance function will be started for the specified ASP (ASP or ASPDEV parameter).
+
+*MOVDTA
+Data will be moved off all units marked *ENDALC to other units in the same ASP. The Check ASP Balance (CHKASPBAL) command can be used to determine which units are marked *ENDALC.
+
+*ENDALC
+New allocations will no longer go to the specific units (UNIT parameter). However, the system will use these units for new allocations to avoid 'Out of storage' conditions.
+
+*RSMALC
+Resume allocations to the specified units (UNIT parameter). If the unit has a much lower percentage used than other units in the ASP, run the STRASPBAL command again specifying TYPE(*CAPACITY) for the ASP that contains the unit. This will keep new allocations balanced across the units in the ASP, instead of going mostly to this unit.
+
+Top
+
+Auxiliary storage pool ID (ASP)
+
+Specifies the auxiliary storage pool (ASP) for which the ASP balancing function is to be started.
+
+Note: A value must be specified for either the ASP number (ASP) parameter or the ASP device (ASPDEV) parameter if *CAPACITY, *USAGE, *HSM or *MP is specified for the Balance type (TYPE) parameter.
+
+Single values
+
+*ALL
+ASP balancing will be started for the system ASP (ASP number 1) and all basic ASPs (ASP numbers 2-32) defined to the system.
+
+Other values (up to 32 repetitions)
+
+1-32
+Specify the number of the ASP for which ASP balancing is to be started.
+
+Top
+
+ASP device (ASPDEV)
+
+Specifies the name of the auxiliary storage pool (ASP) device for which the ASP balancing is to be started.
+
+Note: A value must be specified for either the ASP number (ASP) parameter or the ASP device (ASPDEV) parameter if *CAPACITY, *USAGE, *HSM or *MP is specified for the Balance type (TYPE) parameter.
+
+Single values
+
+*ALLAVL
+ASP balancing will be started for all ASP devices that currently have a status of 'Available'.
+
+Other values (up to 32 repetitions)
+
+name
+Specify the name of the independent ASP device for which ASP balancing is to be started.
+
+Top
+
+Storage unit (UNIT)
+
+Specifies the unit number for which new allocations are to be ended (if *ENDALC is specified for the Balance type (TYPE) parameter) or for which new allocations are to resume (if *RSMALC is specified for the TYPE parameter). Specifying TYPE(*MOVDTA) will start moving data off the units marked *ENDALC.
+
+Note: A value must be specified for this parameter if *ENDALC or *RSMALC is specified for the TYPE parameter.
+
+integer
+Specify the unit number for which new allocations are to either end (if *ENDALC is specified) or resume (if *RSMALC is specified). Up to 300 unit numbers may be specified.
+
+Top
+
+Time limit (TIMLMT)
+
+Specifies the amount of time, in minutes, that the ASP balancing function will be allowed to run. When the time limit is reached, the function will end. For example, if ASP(*ALL) is specified and the machine has four ASPs configured and TIMLMT(60) is specified, four balance functions are started and each can run 60 minutes. If the balancing of any ASP has not completed after 60 minutes, it will be forced to end. This allows you to do ASP balancing incrementally. The balance function will not run across an IPL.
+
+Note: A value must be specified for this parameter if *CAPACITY, *USAGE, *HSM, *MP or *MOVDTA is specified for the Balance type (TYPE) parameter.
+
+*NOMAX
+There is no time limit for the balance function. For a large ASP the balance function can take a long time to complete. If you start the balance function with *NOMAX and you want to force the function to end, you can use the End ASP Balance (ENDASPBAL) command.
+
+1-9999
+Specify the number of minutes that the balance function will be allowed to run.
+
+Top
+
+Balance priority (PRIORITY)
+
+Specifies the priority that is to be assigned to the *HSM, *MOVDTA or *MP balance operation.
+
+*MEDIUM
+Data will be moved between disks with medium affect on other work being done by the system.
+
+*LOW
+Data will be moved between disks with low affect on other work being done by the system. Choose this priority when the time required to complete the balance is not critical but minimal degradation to other existing work is important.
+
+*HIGH
+Data will be moved between disks and likely will cause other work to take significantly longer to complete. Choose this priority when the time required to complete the balance is critical and degradation to other existing work is of a lesser concern.
+
+Top
+
+Subtype (SUBTYPE)
+
+Specifies the disk types that are to participate in the balance and the extent of data movement.
+
+*CALC
+For TYPE(*HSM), 'high' use data is moved to high performance units and 'low' use data is moved to low performance units. Unless an ASP has a mixture of solid state disk (SSD) units, high performance hard disk drive (HDD) units, and low performance HDD units, SUBTYPE(*CALC) can be used. Other SUBTYPE options are only needed for an ASP with all three disk unit types. For TYPE(*MP), data with the high performance media preference attribute is moved to SSD units and data without the high performance media preference attribute is moved to HDD units.
+
+*HDD
+For TYPE(*HSM), 'high' use data is moved to high performance HDD units and 'low' use data is moved to low performance HDD units. For TYPE(*MP), data with the high performance media preference attribute is moved from HDD units to SSD units.
+
+*SSD
+For TYPE(*HSM), 'high' use data is moved to SSD units and 'low' use data is moved to HDD units. For TYPE(*MP), data without the high performance media preference attribute is moved from SSD units to HDD units.
+
+Top
+
+Examples
+
+Example 1: Starting ASP Balancing for ASP 1
+
+STRASPBAL ASP(1) TIMLMT(*NOMAX) TYPE(*CAPACITY)
+
+This command starts the *CAPACITY ASP balance function for ASP 1. The balance function will run until the capacity for each of the units has been balanced.
+
+Example 2: Starting ASP Balancing with a Time Limit
+
+STRASPBAL ASP(*ALL) TIMLMT(60) TYPE(*USAGE)
+
+This command starts the *USAGE ASP balance function for the system ASP and each configured basic ASP for which the TRCASPBAL command has been run. Each balance function will have a time limit of sixty minutes. After sixty minutes, any balance functions which have not completed will be ended.
+
+Example 3: Starting ASP Balancing for an ASP Device
+
+STRASPBAL ASPDEV(MYASP1) TIMLMT(*NOMAX) TYPE(*CAPACITY)
+
+This command starts the *CAPACITY ASP balance function for the ASP device named MYASP1. The balance function will run until complete.
+
+Example 4: Preparing to Remove Units
+
+STRASPBAL UNIT(11 12 13) TYPE(*ENDALC)
+
+STRASPBAL TYPE(*MOVDTA)
+
+The first command marks units 11, 12 and 13 to no longer receive new allocations. The second command begins to move data off the marked units. It is recommended that the *MOVDTA ASP balancing function be done during an off-peak time.
+
+Example 5: Starting *HSM
+
+STRASPBAL TYPE(*HSM) ASP(MYASP) TIMLMT(600) PRIORITY(*LOW)
+
+This command starts the *HSM ASP balance function for MYASP. The balance function will move low use data from high performance units to low performance units and high use data from low performance units to high performance units. It runs at low priority. If the balance has not completed within 600 minutes, it ends.
+
+Example 6: Starting *HSM from *SSD
+
+STRASPBAL TYPE(*HSM) ASP(1) TIMLMT(240) SUBTYPE(*HDD)
+
+This command starts the *HSM ASP balance function for ASP 1. The balance function will move low use data from high performance HDD units to low performance HDD units and high use data from low performance HDD units to high performance HDD units. It runs at low priority. If the balance has not completed within 240 minutes, it ends.
+
+Example 7: Starting *MP
+
+STRASPBAL TYPE(*MP) ASP(1) TIMLMT(120) PRIORITY(*HIGH)
+
+This command starts the *MP ASP balance function for ASP 1. The balance function will move data with a 'media preference' attribute from HDD units to SSD units and data without the attribute from SSD units to HDD units. It runs at high priority. If the balance has not completed within 120 minutes, it ends.
+
+Example 8: Starting *MP from *SSD
+
+STRASPBAL TYPE(*MP) ASP(1) TIMLMT(240) SUBTYPE(*HDD)
+
+This command starts the *MP ASP balance function for ASP 1. The balance function will move data with a 'media preference' attribute from HDD units to SSD units. It runs at high priority. If the balance has not completed within 120 minutes, it ends.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF18B3
+Balance type not valid for ASP &1 with name &3.
+
+CPF1890
+*ALLOBJ authority required for requested operation.
+
+CPF9829
+Auxiliary storage pool &1 not found.
+
+CPF9899
+Error occurred during processing of command.
+
+Top

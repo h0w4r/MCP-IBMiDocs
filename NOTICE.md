@@ -30,6 +30,23 @@ Referencias oficiales relevantes:
 
 La publicación de este proyecto, sus índices, data packs o herramientas MCP no implica revisión, aprobación, respaldo ni certificación por parte de IBM.
 
+## Modelo semántico derivado
+
+El modelo local `ibmi-docs/multilingual-e5-base-ibmi-v1` es una adaptación de
+[`intfloat/multilingual-e5-base`](https://huggingface.co/intfloat/multilingual-e5-base),
+publicado con licencia MIT. La copia de esa licencia viaja junto al modelo en
+`models/ibmi-e5-base-finetuned-v1/LICENSE-MIT.txt`. La cabeza neuronal
+`ibmi-docs/e5-query-to-corpus-head-v1` transforma embeddings de ese modelo y fue
+entrenada contra vectores del data pack IBM i; sus pesos y la misma licencia MIT
+viajan en `models/ibmi-neural-query-head-v1/`.
+
+El reranker local deriva de
+[`cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`](https://huggingface.co/cross-encoder/mmarco-mMiniLMv2-L12-H384-v1).
+Este modelo base se distribuye bajo Apache License 2.0; la copia de la licencia
+viaja en `models/ibmi-reranker-finetuned-v1/LICENSE-APACHE-2.0.txt`.
+Los datasets externos usados durante el ajuste no se incluyen en el paquete npm ni forman parte del
+corpus runtime.
+
 ## Solicitudes de corrección o retirada
 
 Si un titular de derechos considera que algún material del repositorio debe corregirse, atribuirse de otra forma o retirarse, puede abrir un issue en el repositorio con los detalles necesarios para revisarlo.

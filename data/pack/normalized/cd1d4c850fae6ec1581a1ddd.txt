@@ -1,0 +1,285 @@
+Call Bound Procedure (CALLPRC)
+
+Call Bound Procedure (CALLPRC)
+
+Last Updated: 2025-04-08
+
+Where allowed to run:
+
+- Batch ILE CL module (*BMOD)
+
+- Interactive ILE CL module (*IMOD)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Call Bound Procedure (CALLPRC) command calls a bound procedure named on the command, and passes control to it. Optionally, the procedure issuing the CALLPRC command can pass parameters to the called procedure. The CALLPRC command can be used in compiled ILE control language (CL) programs and modules. If the called procedure returns a value, such as an error code, the returned value can be stored into a CL variable by specifying the CL variable name for the CL variable for returned value (RTNVAL) parameter.
+
+Each parameter value passed to the called procedure can be a character string constant, a numeric constant, a logical constant, a floating-point constant, a CL variable or an expression. If a floating-point constant is specified, the value is converted to double-precision binary floating-point format by default and passed to the called procedure. If parameters are passed, the value of the constant or variable or expression is available to the program that is called. Parameters cannot be passed in any of the following forms: lists of values, qualified names, or keyword parameters. Up to 300 parameters can be passed to the called procedure.
+
+Note: Although the CALLPRC command will allow up to 300 parameters to be passed, the number that the called procedure can accept will depend on the language of the called procedure. For example, a CL procedure cannot accept more than 255 parameters.
+
+If parameters are passed to a procedure using the CALLPRC command, the values of the parameters are passed in the order in which they appear on the CALLPRC command; this order must match the order in which they appear in the parameter list in the called procedure.
+
+Parameters may be passed by reference or passed by value.
+
+Restrictions:
+
+- The CALLPRC command is valid only within an ILE CL module.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+PRC | Procedure | Character value | Required, Positional 1
+PARM | Parameters | Values (up to 300 repetitions): Element list | Optional, Positional 2
+Element 1: Parameter | Not restricted
+Element 2: Passed | *BYREF, *BYVAL
+Element 3: Type and length of parameter | Single values: *DFT
+Other values: Element list
+Element 1: Type | *DEC, *CHAR, *LGL, *INT, *UINT, *FLT
+Element 2: Length | Integer
+Element 3: Decimal positions | Integer
+RTNVAL | CL variable for returned value | CL variable name, *NONE | Optional, Positional 3
+
+Top
+
+Procedure (PRC)
+
+Specifies the name of the procedure to be called.
+
+name
+Specify the name of the procedure to be called. The procedure must be in the same program as the calling procedure or in a service program specified at the time the calling program was created. The procedure name may be up to 256 bytes long. The procedure name will be case sensitive. A CL variable cannot be specified for the procedure name.
+
+Top
+
+Parameters (PARM)
+
+Specifies parameter values to be passed to the called procedure. Passing parameters is optional; if no parameters are specified, no parameters will be passed to the called procedure. Up to 300 parameters can be specified.
+
+Element 1: Parameter
+
+*OMIT
+The parameter is omitted. A null pointer is to be passed to the called procedure. When *OMIT is specified for element 1, you cannot specify *BYVAL for element 2, and any values specified for element 3 are ignored.
+
+parameter-value
+Specify values to be passed to the called procedure. The parameter value can be specified as a character string constant, a numeric constant, a logical constant, a double-precision floating point constant, a CL variable or an expression.
+The type and length of each parameter must match the parameters defined in the called procedures. The order in which parameters are sent and received must also be the same. The number of parameters specified by the calling procedure does not have to match the number of parameters specified by the called procedure. If the calling procedure specifies more parameters than are defined in the called procedure, the extra parameters are ignored. If the calling procedure specifies fewer parameters than are defined in the called procedure, and the called procedure references the missing parameters, runtime results will be unpredictable.
+
+Parameters can be passed and received as follows:
+
+- Character string constants are neither padded with blanks or null terminated. The operational descriptor for the parameter will have the length of the string. You can control how many bytes are passed for a character constant parameter by specifying the parameter length information explicitly.
+
+- The default for numeric constants is to pass the value as a packed decimal number with 15 total digits and 5 decimal digits. You can control what type is used for a numeric constant by specifying the parameter type information explicitly.
+
+If *INT or *UINT is specified for type, you can control how many bytes (2, 4 or 8) are passed for this numeric constant parameter by specifying the parameter length information explicitly.
+
+If *DEC is specified for type, you can control how many total digits and decimal digits are used for this numeric constant parameter by specifying the parameter length information explicitly.
+
+Note: Although the parameter passed to your procedure can be defined to have up to 15 digits to the left of the decimal point, and up to 9 digits to the right of the decimal point, a numeric constant specified for the parameter can only have 10 significant digits to the left of the decimal point and 5 significant digits to the right of the decimal point. If the value to the left of the decimal point is greater than 9,999,999,999, an error will occur. If the value to the right of the decimal point is greater than .99999, the extra digits will be truncated from the value passed to the procedure.
+
+- Logical constants are passed as 1 byte with a logical value of 'F1'X or 'F0'X.
+
+- Floating-point constants and floating-point special values (*NAN, *INF, and *NEGINF) are passed as double-precision floating-point numbers in IEEE format by default, which occupy 8 bytes and are specified in the form sn.nEsn; where s is a plus sign (+) or a minus sign(-); for example, -2.47E+3 or 3.653E24. You can control passing the parameter as single-precision by specifying the parameter length to 4 explicitly.
+
+- A CL variable can be passed, in which case the called procedure must declare the field to match the variable defined in the calling procedure. For example, if a CL procedure defines a decimal variable named &CHKNUM as (5 0), the called procedure must declare the field as packed with 5 digits total, with no decimal positions.
+
+- Character expression parameters are neither padded with blanks or null terminated. The operational descriptor for the parameter will have the length of the intermediate result string. You can control how many bytes are passed for a character expression parameter by specifying the parameter length information explicitly.
+
+- The default for numeric expression is to pass the value as a packed decimal number with 15 total digits and 5 decimal digits. You can control what type is used for a numeric expression by specifying the parameter type information explicitly.
+
+If *INT or *UINT is specified for type, you can control how many bytes (2, 4 or 8) are passed for this numeric expression parameter by specifying the parameter length information explicitly.
+
+If *DEC is specified for type, you can control how many total digits and decimal digits are used for this numeric expression parameter by specifying the parameter length information explicitly.
+
+Note: Although the parameter passed to your procedure can be defined to have up to 15 digits to the left of the decimal point, and up to 9 digits to the right of the decimal point, a numeric expression specified for the parameter can only have 10 significant digits to the left of the decimal point and 5 significant digits to the right of the decimal point. If the value to the left of the decimal point is greater than 9,999,999,999, an error will occur. If the value to the right of the decimal point is greater than .99999, the extra digits will be truncated from the value passed to the procedure.
+
+- Operational descriptors will always be built for character arguments passed on the PARM keyword. The called procedure can use the information in the descriptor to determine the length of the argument. For character string constants, the length will be the actual length of the constant. For character variables, the length will be the declared length of the variable. For character expressions, the length will be the length of the intermediate result string.
+
+Element 2: Passed
+
+*BYREF
+The parameter is to be passed by reference. Passing a parameter by reference means that the actual parameter is a pointer which points to storage in the calling procedure which contains the CL variable or constant value or expression value. If the called procedure is a CL procedure, all parameters must be passed by reference. If a CL variable is passed by reference, the called procedure can change its value and the change is reflected in the calling procedure. If a constant is passed by reference, a copy of the constant is made in the calling procedure and a pointer to that copy is passed to the called procedure. If an expression is passed by reference, an intermediate result area is made and a pointer to that area is passed to the called procedure.
+
+*BYVAL
+The parameter is to be passed by value. Passing a parameter by value means that the called procedure receives a copy of the parameter. If the parameter is a CL variable, changes made to the parameter by the called procedure do not change the CL variable in the calling procedure. The called procedure must be defined to receive a parameter that is passed by value.
+
+Element 3: Type and length of parameter
+
+Specifies, for numeric and character constant parameter values, or for expression values, how the parameter is passed to the called procedure. If a CL variable is specified, the parameter type and length is determined from the declared type and length of the CL variable.
+
+Single values
+
+*DFT
+For a character constant or a character expression, the parameter length will be the length of the constant string or the expression intermediate result string. For a numeric constant or a numeric expression, the parameter is passed as a packed decimal value with 15 total digits and 5 decimal digits. For CL variables, the parameter type and length information is the declared type and length of the variable.
+
+Element 1: Type
+
+Specifies the type of parameter to be passed. The value for this parameter cannot be specified by a CL variable.
+
+*DEC
+A decimal parameter that contains a packed decimal value.
+
+*CHAR
+A character parameter that contains a character string value.
+
+*LGL
+A logical parameter that contains a logical value of either '1' or '0'.
+
+*INT
+An integer parameter that contains a signed binary value.
+
+*UINT
+An integer parameter that contains an unsigned binary value.
+
+*FLT
+A floating-point parameter that contains a binary floating-point value.
+
+Element 2: Length
+
+integer
+For character, floating-point or integer parameters, specify the number of bytes for the passed parameters. For decimal parameters, specify the maximum number of digits for the passed parameters. The length cannot be greater than the maximum for this type of parameter. The length must be 2, 4, or 8 for integer parameter. The length must be 4 or 8 for floating-point parameter.
+
+Element 3: Decimal positions
+
+integer
+This element is valid only for decimal parameter. The length of the value in the parameter includes the number of decimal positions in the value. The maximum length of the decimal value is 24 digits, including the digits to the right of the decimal point. Up to nine decimal positions can be specified. If nine decimal positions are specified, the value to the left of the decimal point can never be greater than 999,999,999,999,999 because only 15 of the 24 digits are available for the integer value.
+If a length (in digits) is specified for a decimal parameter and the number of decimal positions is not specified, 0 decimal positions is assumed.
+
+The maximum lengths for each of the six types are:
+
+- Decimal -- 24 digits, 9 decimal positions
+
+- Character -- 32767 bytes
+
+- Logical -- 1 byte
+
+- Integer -- 8 bytes for ILE CL, 4 bytes for OPM CL
+
+- Unsigned integer -- 8 bytes for ILE CL, 4 bytes for OPM CL
+
+- Floating-point -- 8 bytes
+
+Note: When the additional attributes (Type, Length, Decimal positions) for parameter are specified, the compiler will create a temporary defined by these attributes. When these additional attributes of temporary are not the same as the parameter value, truncation will occur. For example, if numeric constant 1234.45 is passed with (*INT 4) specified, the decimal part will be truncated; if length of character expression intermediate result is larger than the Length specified, longer part will be truncated.
+
+Top
+
+CL variable for returned value (RTNVAL)
+
+Specifies the variable to contain the return value from the called procedure. If the value returned by the called procedure is a binary number (types int or short in ILE C or ILE C++), you must either specify an integer CL variable (specified as TYPE(*INT) or TYPE(*UINT) on the DCL statement) or use the %BINARY or %BIN built-in function on a character CL variable (specified as TYPE(*CHAR) on the DCL statement) used for the return value parameter.
+
+*NONE
+The called procedure does not return a value.
+
+CL-variable-name
+Specify the name of the CL variable that is to contain the return value from the called procedure. This may be a decimal, integer, or character CL variable. Variables used as return variables will automatically be aligned on a 16-byte boundary.
+
+Top
+
+Examples
+
+Example 1: Calling a Procedure with No Parameters
+
+CALLPRC PRC(PAYROLL)
+
+The procedure named PAYROLL is called with no parameters being passed to it. The PAYROLL procedure does not return a value.
+
+Example 2: Passing a Character Constant with Default Type and Length
+
+CALLPRC PRC(PAYROLL) PARM('1')
+
+The procedure named PAYROLL is called with a character constant passed as a quoted string. The PAYROLL procedure does not return a value.
+
+Example 3: Passing Parameters with Default Types and Lengths
+
+CALLPRC PRC(PAYROLL) PARM(CHICAGO 1234 &VAR1) +
+RTNVAL(*NONE)
+
+The procedure named PAYROLL is called. The calling procedure passes three parameters: a character string (CHICAGO), numeric constant 1234 is passed as a packed decimal value with 15 total digits and 5 decimal digits (15 5), and the contents of the CL variable &VAR1. The attributes of the variable determine the attributes of the third parameter. The PAYROLL procedure does not return a value.
+
+Example 4: Calling Procedure with Floating-Point Constants Values with Default Types and Lengths
+
+CALLPRC PRC(PRC1) PARM(1.5E3 *INF) RTNVAL(&RVAL)
+
+The procedure named PRC1 is called with two double-precision floating-point values being passed to it. The returned value is stored in variable &RVAL.
+
+Example 5: Ignoring the Return Value of a Procedure
+
+CALLPRC PRC(PRC1) PARM(1.5E3 *INF) RTNVAL(*NONE)
+
+The procedure named PRC1 is called with two double-precision floating-point values being passed to it. The returned value is ignored and therefore unavailable to the calling procedure.
+
+Example 6: Calling a Procedure that Returns a Binary Number Using %BIN
+
+CALLPRC PRC(RTNINT) RTNVAL(%BIN(&RTNV 1 4))
+
+The procedure named RTNINT returns a 4-byte binary value. It is stored in the first four bytes of variable &RTNV. Variable &RTNV is of type *CHAR and has a length of at least 4.
+
+Example 7: Calling a Procedure that Returns a Binary Number Using an Integer CL Variable
+
+DCL VAR(&VAR2) TYPE(*INT) LEN(4)
+:
+CALLPRC PRC(RTNINT) RTNVAL(&VAR2)
+
+The procedure named RTNINT returns a 4-byte binary value, which is stored in the 4-byte signed integer CL variable &VAR2.
+
+Example 8: Calling a Procedure Passing a Parameter By Value
+
+DCL VAR(&POS) TYPE(*INT) LEN(2)
+:
+CALLPRC PRC(SCAN_STRING) PARM((&STR1 *BYREF) (' ' *BYVAL)) +
+RTNVAL(&POS)
+
+The procedure named SCAN_STRING is called with two parameters. The CL variable &STR1 is passed by reference and the constant character string ' ' (one blank) is passed by value to SCAN_STRING. Procedure SCAN_STRING must be defined to receive the first parameter as a pointer to a character string and the second parameter as a one-byte character string. The SCAN_STRING procedure returns a 2-byte binary value, which is stored in the 2-byte signed integer CL variable &POS.
+
+Example 9: Passing Parameters with Explicit Types and Lengths
+
+CALLPRC PRC(MYPROC) +
+PARM(('ABC' *BYVAL (*CHAR 50)) +
+(1234 *BYVAL (*DEC 12 2)) (&VAR1))
+
+The procedure named MYPROC is called. The calling program passes three parameters: the character constant 'ABC' is passed as 50 bytes character string, the numeric constant 1234 is passed as a packed decimal value with 12 total digits and 2 decimal digits (12 2), and the CL variable &VAR1 is passed by reference. The attributes of the CL variable determine the attributes of the third parameter.
+
+Example 10: Passing Expression Parameters with Default Types and Lengths
+
+CALLPRC PRC(MYPROC) PARM((&CMD) (%SIZE(&CMD)))
+
+The procedure named MYPROC is called. The calling program passes two parameters: the CL variable &CMD is passed by reference, the numeric expression %SIZE(&CMD) is passed as a packed decimal value with 15 total digits and 5 decimal digits (15 5). The attributes of the CL variable determine the attributes of the first parameter.
+
+Example 11: Passing Expression Parameters with Explicit Types and Lengths
+
+CALLPRC PRC(MYPROC) +
+PARM((%SST(&VAR1 5 2) *BYVAL (*CHAR 50)) +
+((&VAR2 + 1) *BYVAL (*DEC 12 2)))
+
+The procedure named MYPROC is called. The calling program passes two parameters: the character expression %SST(&VAR1 5 2) is passed as 50 bytes character string, the numeric expression (&VAR2 + 1) is passed as a packed decimal value with 12 total digits and 2 decimal digits (12 2).
+
+Example 12: Passing Expression Parameters with Explicit Types and Lengths
+
+CALLPRC PRC(MYPROC) PARM((&CMD) +
+(%SIZE(&CMD) *BYVAL (*INT 4)))
+
+The procedure named MYPROC is called. The calling program passes two parameters: the CL variable &CMD is passed by reference, the numeric expression %SIZE(&CMD) is passed as a 4 bytes integer. The attributes of the CL variable determine the attributes of the first parameter.
+
+Example 13: Calling Procedure with Floating-Point Constants Values with Explicit Types and Lengths
+
+CALLPRC PRC(PRC1) PARM((1.5E3 *BYVAL (*FLT 4)) +
+(*INF *BYVAL (*FLT 4))) +
+RTNVAL(&RVAL)
+
+The procedure named PRC1 is called with two single-precision floating-point values being passed to it. The returned value is stored in variable &RVAL.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF0806
+Error found when procedure started.
+
+Top

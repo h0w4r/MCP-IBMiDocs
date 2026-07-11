@@ -1,0 +1,534 @@
+Restore User Profiles (RSTUSRPRF)
+
+Restore User Profiles (RSTUSRPRF)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Restore User Profile (RSTUSRPRF) command restores the basic parts of a user profile or a set of user profiles that were saved by the Save System (SAVSYS) command or Save Security Data (SAVSECDTA) command. The Restore User Profile (RSTUSRPRF) command restores only the special authority granted in the Create User Profile (CRTUSRPRF) command; it does not restore the authority for the named objects owned by other users. To restore authority for objects owned by other users, the Restore Authority (RSTAUT) command must be used after the profiles, libraries, and objects are restored. If all user profiles are being restored, authorization lists and authority holders that existed when the SAVSYS or SAVSECDTA command was run are also restored.
+
+The RSTUSRPRF command is normally used after the restore of the operating system but before the user libraries are restored. The user profiles must be restored before any libraries or objects belonging to them can be restored. After the libraries and their objects are restored, the authority for the objects is restored to the user profiles by the RSTAUT command. At the completion of the command, either message CPF3775 or message CPC3705 is sent to QHST. More information on restoring the system is in the Recovering your system book, SC41-5304.
+
+The following situations may apply to user profiles being restored by the RSTUSRPRF command:
+
+- If a user profile exists on the system, but not on the media, the system profile remains.
+
+- If a user profile exists on the media, but not on the system, a new user profile is created.
+
+- If the user profile exists on both the media and the system, the media user profile is restored.
+
+- If the user profile exists on the media and is being restored individually, the new user profile is created without its password, time-based one-time password (TOTP) key, or group connection.
+
+- If the user profile exists on both the media and the system, and it is being restored individually, the media user profile is restored. However, the password, TOTP key, and group connection on the system remains unchanged.
+
+- If all user profiles are being restored, the passwords, TOTP keys, and group connections are also restored from the media.
+
+- If user profiles exist on the system, there are no changes to the existing object authorities.
+
+Note: This command ignores all file overrides currently in effect for the job, except for the output file.
+
+Restrictions:
+
+- You must have save system (*SAVSYS) special authority to run this command.
+
+- This command is shipped with no public authority (*EXCLUDE).
+
+- You must specify USRPRF(*ALL) or USRPRF(*NEW) to restore authorization lists and authority holders.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+DEV | Device | Single values: *SAVF
+Other values (up to 4 repetitions): Name | Required, Positional 1
+USRPRF | User profile | Single values: *ALL, *NEW, *NONE
+Other values (up to 300 repetitions): Generic name, name | Optional, Positional 2
+VOL | Volume identifier | Single values: *MOUNTED
+Other values (up to 75 repetitions): Character value | Optional, Positional 3
+SEQNBR | Sequence number | 1-16777215, *SEARCH | Optional
+ENDOPT | End of media option | *REWIND, *LEAVE, *UNLOAD | Optional
+SAVF | Save file | Qualified object name | Optional
+Qualifier 1: Save file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MAIL | Mail | *NO, *YES | Optional
+ALWOBJDIF | Allow object differences | Single values: *NONE, *ALL
+Other values (up to 3 repetitions): *AUTL, *OWNER, *PGP | Optional
+OMITUSRPRF | User profiles to omit | Single values: *NONE
+Other values (up to 300 repetitions): Generic name, name | Optional
+SECDTA | Security data | *USRPRF, *PVTAUT, *PWDGRP, *DCM | Optional
+OMITSECDTA | Omit security data | Single values: *NONE
+Other values (up to 3 repetitions): *AUTL, *DCM, *FCNUSG | Optional
+OUTPUT | Output | *NONE, *OUTFILE | Optional
+OPTFILE | Optical file | Path name, * | Optional
+SAVASPDEV | Saved from ASP device | Name, *ANY, *, *SYSBAS, *CURASPGRP | Optional
+OUTFILE | File to receive output | Qualified object name | Optional
+Qualifier 1: File to receive output | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+
+Top
+
+Device (DEV)
+
+Specifies the name of the device used for the restore operation. The device name must already be known on the system by a device description.
+
+This is a required parameter.
+
+Single values
+
+*SAVF
+The restore operation is done using the save file specified for the Save file (SAVF) parameter.
+
+Other values
+
+optical-device-name
+Specify the name of the optical device used for the restore operation.
+
+tape-media-library-device-name
+Specify the name of the tape media library device used for the restore operation.
+
+tape-device-name
+Specify the names of one or more tape devices used for the restore operation. If a virtual tape device is used, it must be the only device specified. If you are using more than one tape device (up to a maximum of four), specify the names of the devices in the order in which they are used. When more than one tape volume is to be restored, using more than one tape device permits one tape volume to be rewound while another tape device processes the next tape volume.
+
+Top
+
+User profile (USRPRF)
+
+Specifies the user profiles to be restored. The user profiles must exist on the media from the Save System (SAVSYS) or Save Security Data (SAVSECDTA) command in order to be restored.
+
+Single values
+
+*ALL
+All the user profiles, authorization lists, authority holders, and internal authority objects that were saved by the Save System (SAVSYS) or Save Security Data (SAVSECDTA) command are restored.
+
+*NEW
+All the user profiles, authorization lists, authority holders, and internal authority objects that were saved by the Save System (SAVSYS) or Save Security Data (SAVSECDTA) command which currently do not exist on the system are restored.
+
+*NONE
+No user profiles are restored. This value may be specified only if *DCM is specified for the Security data (SECDTA) parameter.
+
+Other values (up to 300 repetitions)
+
+generic-name
+Specify one or more generic names of sets of user profiles to restore. A generic name is a character string that contains one or more characters followed by an asterisk (*). If an * is not specified with the name, the system assumes that the name is a complete user profile name.
+
+name
+Specify one or more names of specific user profiles that are restored. Both generic names and specific names can be specified in the same command.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifiers of the media or the cartridge identifiers of tapes in a tape media library device, from which the objects are being restored. The volumes must be in the same order as they were when the data was saved. The volume that contains the beginning of the file to be restored should be placed in the device.
+
+Single values
+
+*MOUNTED
+The objects are restored from the volumes placed in the device specified for the Device (DEV) parameter. For a media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command.
+
+Note: This value cannot be specified when using an optical media library device.
+
+Other values (up to 75 repetitions)
+
+character-value
+Specify the identifiers of one or more volumes in the order in which they are placed in a device and used to restore the data.
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies the sequence number of the tape file used for the restore process.
+
+*SEARCH
+The volume placed in the device is searched for a file containing the saved user profiles; when a match is found, the user profiles are restored. If a match is not found, you must load another tape and try the command again.
+If the last operation on the device specified *LEAVE for the End of media option (ENDOPT) parameter, indicating that the tape is positioned at the location where the last operation ended, the file search starts with the first data file beyond the current tape position. If *LEAVE was not used for the ENDOPT parameter of the last operation, or if the tape was manually rewound since the operation, the search starts with the first data file on the volume.
+
+1-16777215
+Specify the sequence number of the file to be used to restore user profiles.
+
+Top
+
+End of media option (ENDOPT)
+
+Specifies the operation that is automatically done on the tape or optical volume after the restore operation ends. If more than one volume is used, this parameter applies only to the last volume used; all other volumes are unloaded when the end of the volume is reached.
+
+Note: This parameter is valid only if a tape or optical device name is specified for the DEV parameter. For optical devices, *UNLOAD is the only special value supported, *REWIND and *LEAVE will be ignored.
+
+*REWIND
+The tape is automatically rewound, but not unloaded, after the operation has ended.
+
+*LEAVE
+The tape does not rewind or unload after the operation ends. It remains at the current position on the tape drive.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends. Some optical devices will eject the volume after the operation ends.
+
+Top
+
+Save file (SAVF)
+
+Specifies the save file used to restore the data.
+
+Note: A value must be specified for this parameter if *SAVF is specified for the Device (DEV) parameter.
+
+Qualifier 1: Save file
+
+name
+Specify the name of save file to be used.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is used to locate the save file. If no current library entry exists in the library list, the QGPL library is used.
+
+name
+Specify the name of the library where the save file is located.
+
+Top
+
+Mail (MAIL)
+
+Specifies whether the OfficeVision distribution objects saved from a release before V2R2M0 are restored.
+
+Note: You can specify *YES on this parameter only if you specify *ALL for the User profile (USRPRF) parameter.
+
+*NO
+Distribution objects that are part of your mail are not restored along with restoring the user profile.
+
+*YES
+Distribution objects that are part of your mail are restored along with restoring the user profile if the save data was created before release V2R2M0. Otherwise, no distribution objects are restored. For saved distribution objects created on V2R2M0 or later, specify DLO(*MAIL) on the Restore Document Library Objects (RSTDLO) command to restore your mail.
+
+Top
+
+Allow object differences (ALWOBJDIF)
+
+Specifies whether differences are allowed between the saved objects and the restored objects.
+
+Notes:
+
+- You must have all object (*ALLOBJ) special authority to specify any value other than *NONE for this parameter.
+
+- If differences are found, the final message for the restore operation is an escape message rather than the normal completion message.
+
+The types of differences include:
+
+- Authorization list: The saved object had an authorization list, and either the object exists on the system but does not have the same authorization list, or the object does not exist and it is being restored to a different system than the save system.
+
+Note: This parameter has no effect when the saved object did not have an authorization list. If the object exists, it is restored with the authorization list of the existing object. If it does not exist, it is restored with no authorization list.
+
+- Ownership: The owner of an object on the system is different than the owner of an object from the save operation.
+
+- Primary Group: The primary group of an object on the system is different than the primary group of an object from the save operation.
+
+Single values
+
+*NONE
+None of the differences listed above are allowed on the restore operation. See the description of each individual value to determine how differences are handled.
+
+*ALL
+All of the differences listed above are allowed on the restore operation. See the description of each individual value to determine how differences are handled.
+
+Other values (up to 3 repetitions)
+
+*AUTL
+Authorization list differences are allowed. If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is restored with the authorization list of the existing object. If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored and it is linked to the authorization list. If the authorization list does not exist, the public authority is set to *EXCLUDE.
+If this value is not specified, authorization list differences are not allowed. If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is not restored. If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored, but it is not linked to the authorization list, and the public authority is set to *EXCLUDE.
+
+*OWNER
+Ownership differences are allowed. If an object already exists on the system with a different owner than the saved object, the object is restored with the owner of the object on the system.
+If this value is not specified, ownership differences are not allowed. If an object already exists on the system with a different owner than the saved object, the object is not restored.
+
+*PGP
+Primary group differences are allowed. If an object already exists on the system with a different primary group than the saved object, the object is restored with the primary group of the object on the system.
+If this value is not specified, primary group differences are not allowed. If an object already exists on the system with a different primary group than the saved object, the object is not restored.
+
+Note: The *PGP value does not apply to user profiles. User profiles with primary group differences are always restored.
+
+Top
+
+User profiles to omit (OMITUSRPRF)
+
+Specifies user profiles to be omitted from the restore.
+
+Single values
+
+*NONE
+None of the user profiles will be omitted from the restore.
+
+Other values (up to 300 repetitions)
+
+generic-name
+Specify one or more generic names of sets of user profiles to be omitted from the restore. A generic name is a character string that contains one or more characters followed by an asterisk (*); for example, ABC*. The asterisk (*) substitutes for any valid character. A generic names specifies all user profiles that begin with the prefix. If an asterisk is not included with the generic name, the system assumes it to be the complete object name.
+
+name
+Specify one or more names of specific user profiles that are to be omitted from the restore. Both generic names and specific names can be specified in the same command.
+
+Top
+
+Security data (SECDTA)
+
+Specifies what authority information is restored for the user profiles specified for the User profile (USRPRF) parameter.
+
+*USRPRF
+The specified user profiles and their private authorities are restored. If *ALL is specified for the USRPRF parameter, the passwords, TOTP keys, and group linkages are also restored. Otherwise, the passwords, TOTP keys, and group linkages for the specified user profiles are not restored.
+
+*PVTAUT
+Only the private authorities for the specified user profiles and auxiliary storage pools are restored. The information is used by the Restore Authority (RSTAUT) command to restore the private authorities to the referenced objects. This value cannot be specified if *NEW is specified for the USRPRF parameter.
+
+*PWDGRP
+The specified user profiles, their private authorities, and their passwords, TOTP keys, and group linkages are restored.
+
+*DCM
+Only the internal objects required by Digital Certificate Manager (DCM) are restored. No user profiles are restored. If this value is specified, then *NONE must be specified for the USRPRF parameter.
+
+Top
+
+Omit security data (OMITSECDTA)
+
+Specifies authority information to be omitted from the restore operation when *ALL is specified for the User profile (USRPRF) parameter.
+
+Single values
+
+*NONE
+No security information is omitted.
+
+Other values (up to 3 repetitions)
+
+*AUTL
+Authorization list (*AUTL) and authority holder (*AUTHLR) objects are omitted. However, for any of these objects that already exist on the system, any specific user authorities will be restored. You need to run the Restore Authority (RSTAUT) command to complete the restore of these authorities.
+
+*DCM
+The internal objects required by Digital Certificate Manager (DCM) are omitted.
+
+*FCNUSG
+Function usage information is omitted. However, for any function identifiers that already exist on the system, any specific user settings will be restored. You need to run the Restore Authority (RSTAUT) command to complete the restore of these settings.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether a listing that shows information about the status of the objects is created and directed to an output file. The listing shows the restore information and shows all objects restored, not restored, and excluded. Information about each object's security is listed for the restored objects.
+
+*NONE
+No output is created.
+
+*OUTFILE
+The output is directed to the database file specified for the File to receive output (OUTFILE) parameter.
+
+Note: You must specify a database file name for the OUTFILE parameter when *OUTFILE is specified for this parameter.
+
+Top
+
+Optical file (OPTFILE)
+
+Specifies the path name of the optical file that is used for the restore operation, beginning with the root directory of the volume.
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+*
+The system searches the root directory of the optical volume for the default name generated by the corresponding save operation.
+
+'optical-directory-path-name/*'
+The system searches the specified directory of the optical volume for the default name generated by the corresponding save operation.
+
+Top
+
+Saved from ASP device (SAVASPDEV)
+
+Specifies the name of the auxiliary storage pool (ASP) device from which private authority information was saved. The private authority information is restored for later use by the Restore Authority (RSTAUT) function.
+
+*ANY
+The private authority information saved from all ASPs included in the save operation is restored.
+
+*
+The private authority information saved from the system ASP (ASP number 1), all basic user ASPs (ASP numbers 2-32), and, if the current thread has an ASP group, all independent ASPs in the ASP group is restored.
+
+*SYSBAS
+The private authority information saved from the system ASP and all basic user ASPs is restored.
+
+*CURASPGRP
+If the current thread has an ASP group, the private authority information saved from all independent ASPs in the ASP group is restored.
+
+name
+Specify the name of the ASP device from which private authority information was saved.
+
+Top
+
+File to receive output (OUTFILE)
+
+Specifies the database file to which the output of the command is directed. If the file does not exist, this command creates a database file in the specified library. If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created. Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+
+Qualifier 1: File to receive output
+
+name
+Specify the name of the database file to which the command output is directed.
+
+Qualifier 2: Library
+
+*LIBL
+The library list is used to locate the file. If the file is not found, one is created in the current library. If no current library exists, the file will be created in the QGPL library.
+
+*CURLIB
+The current library for the thread is used to locate the file. If no library is specified as the current library for the thread, the QGPL library is used.
+
+name
+Specify the name of the library to be searched.
+
+Note: If a new file is created, the system uses the IBM-supplied file QASRRSTO with format name QSRRST as a model.
+
+Top
+
+Output member options (OUTMBR)
+
+Specifies the name of the database file member to which the output is directed when *OUTFILE is specified for the Output (OUTPUT) parameter.
+
+Element 1: Member to receive output
+
+*FIRST
+The first member in the file receives the output. If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the File to receive output (OUTFILE) parameter.
+
+name
+Specify the name of the file member that receives the output. If OUTMBR(member-name) is specified and the member does not exist, the system creates it.
+If the member exists, you can add records to the end of the existing member or clear the existing member and add the records.
+
+Element 2: Replace or add records
+
+*REPLACE
+The existing records in the specified database file member are replaced by the new records.
+
+*ADD
+The new records are added to the existing information in the specified database file member.
+
+Top
+
+Examples
+
+Example 1: Restoring All Profiles
+
+RSTUSRPRF DEV(TAP01) SEQNBR(*SEARCH) ENDOPT(*REWIND)
+
+This command restores all user profiles contained on the tape currently put on the tape drive named TAP01 to the system. The tape is searched for the file, and the tape is rewound on completion or at the end of restore.
+
+Example 2: Restoring Specific User Profiles
+
+RSTUSRPRF DEV(TAP01) USRPRF(USRA USRB USRC USER*)
+
+This command restores user profiles USRA, USRB, and USRC, along with all the user profiles whose names start with USER. The saved version of all the user profiles must exist on the tape placed on tape drive TAP01.
+
+Example 3: Restoring User Profiles from a Save File
+
+RSTUSRPRF DEV(*SAVF) USRPRF(USRX USRY) SAVF(QGPL/SAVESEC)
+
+This command restores user profiles USRX and USRY to the system from the save file SAVESEC in library QGPL.
+
+Example 4: Reporting Information about User Profiles Restored and Not Restored
+
+RSTUSRPRF DEV(TAP01) USRPRF(*ALL) OUTPUT(*OUTFILE)
+OUTFILE(PRFS92) OUTMBR(FOURQT *ADD)
+
+This command restores all user profiles from the tape device TAP01. A list reporting information about user profiles restored and not restored is directed to the output file PRFS92. The output is received in the member FOURQT as an addition to existing information in the member.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPD3774
+USRPRF(*ALL) required when MAIL(*YES) specified.
+
+CPF2206
+User needs authority to do requested function on object.
+
+CPF222E
+&1 special authority is required.
+
+CPF370C
+Not authorized to ALWOBJDIF parameter.
+
+CPF3709
+Tape devices do not support same densities.
+
+CPF3727
+Duplicate device &1 specified on device name list.
+
+CPF3728
+Device &1 specified with other devices.
+
+CPF3733
+&2 &1 in &3 previously damaged.
+
+CPF3738
+Device &1 used for save or restore is damaged.
+
+CPF3743
+File cannot be restored, displayed, or listed.
+
+CPF3748
+Object information for library &1 damaged.
+
+CPF376B
+File &1 not found.
+
+CPF3767
+Device &1 not found.
+
+CPF3768
+Device &1 not valid for command.
+
+CPF3775
+Not all user profiles or authority objects restored.
+
+CPF3780
+Specified file for library &1 not found.
+
+CPF3782
+File &1 in &2 not a save file.
+
+CPF3785
+Not all subsystems ended.
+
+CPF3793
+Machine or ASP storage limit reached.
+
+CPF3794
+Save or restore operation ended unsuccessfully.
+
+CPF3796
+Storage limit exceeded for user profile &4.
+
+CPF380C
+Library &1 not restored.
+
+CPF3812
+Save file &1 in &2 in use.
+
+CPF908A
+Requester &1 not enrolled.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9833
+*CURASPGRP or *ASPGRPPRI specified and thread has no ASP group.
+
+CPFB8ED
+Device description &1 not correct for operation.
+
+Top

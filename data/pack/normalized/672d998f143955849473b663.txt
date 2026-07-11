@@ -1,0 +1,757 @@
+Duplicate Media using BRM (DUPMEDBRM)
+
+Duplicate Media using BRM (DUPMEDBRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+For tape devices, the Duplicate Media using BRM (DUPMEDBRM) command copies the contents of a single volume, a single volume in a media set, media set, or set of marked saved items to other volumes. You can specify the volumes which are to be duplicated, or specify a search be performed to identify the volumes or saved items which are to be duplicated. You can also resume a previous duplication operation which ended with errors.
+
+Note: The tape devices do not have to support the same media classes. The media policy is specified in the DUPMEDBRM command.
+
+Note: The density field in the file header labels are changed to reflect the true density.
+
+Note: If you are using DUPMEDBRM to copy a file group, the output media assumes the group number of the input media. An exception to this is if a Set Media Controls using BRM (SETMEDBRM) command overrides the value for file group and type for the output volumes.
+
+For optical devices, the Duplicate Media using BRM (DUPMEDBRM) command copies the contents of a single volume, a single volume in a set, or a media set. You can specify the volumes which are to be duplicated, or specify a search be performed to identify the volumes.
+
+Note: For optical devices the output volume must have the same physical characteristics as the volume specified on the FROMVOL parameter, but cannot be the volume on the opposite side of the media.
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Restrictions:
+
+- The volumes to be copied must be active volumes, be members of the BRMS media inventory.
+
+- If you are copying a media set in batch mode by specifying a volume of the media set in the VOL parameter, you must use the special value *SET in the FROMVOL parameter.
+
+- You cannot duplicate TSM (ADSM) media using the DUPMEDBRM command.
+
+- Devices whose category is *APPC or *NET cannot be used to duplicate data using the DUPMEDBRM command.
+
+- You must have two devices to use this command. If the devices are shared devices, BRMS will vary the devices on for you. If the devices are not shared devices, you must vary them on.
+
+- If you are using devices with optimum block size enabled, the optimum block size supported by the output device must be greater than or equal to the optimum block size of the input device.
+
+- The duplication operation will determine whether to use tape or optical based on the FROMDEV and TODEV parameters. BRMS will not duplicate tape and optical volumes on a single DUPMEDBRM command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+VOL | From volume identifier | Character value, *LIST, *RESUME, *SCHHST, *SEARCH | Required, Key, Positional 1
+RSMKEY | Resume key | 1-999999, *ALL | Optional
+FILEGRP | File group | Generic name, name, *ALL, *NONE, *ARCGRP, *BKUGRP, *SYSGRP, *SYSTEM | Optional, Positional 2
+GRPTYPE | File group type | Name, *ALL, *ARC, *BKU | Optional, Positional 3
+SCHMEDCLS | From media class | Name, *ALL | Optional
+FROMDEV | From device | Name | Optional
+TODEV | To device | Name | Optional
+FROMSEQNBR | From sequence number | Single values: *ALL
+Other values: Element list | Optional
+Element 1: Starting file sequence number | 1-16777215, *FIRST
+Element 2: Ending file sequence number | 1-16777215, *LAST, *ONLY
+TOSEQNBR | To sequence number | 1, *END | Optional
+MEDPCY | To media policy | Name, *SYSPCY, *NONE | Optional
+FROMVOL | Input volume list | Single values: *VOL, *SET
+Other values (up to 300 repetitions): Character value | Optional
+FROMENDOPT | From device end option | *REWIND, *LEAVE, *UNLOAD | Optional
+TOENDOPT | To device end option | *UNLOAD, *LEAVE, *REWIND | Optional
+FROMSYS | From system | Character value, *LCL | Optional
+SBMOPT | Submit batch options | Single values: *NO
+Other values: Element list | Optional
+Element 1: Submit to batch | *YES
+Element 2: Media sets | 1-99, *MEDSET
+TOVOL | To volume identifier | Single values: *MOUNTED
+Other values (up to 300 repetitions): Character value | Optional
+OBJDTL | Retain object detail | *NO, *YES | Optional
+EXPDATE | Expiration date | Date, *MEDPCY, *PERM, *FROMVOL | Optional
+MOVPCY | Move policy | Name, *MEDPCY, *NONE | Optional
+MEDCLS | Media class | Character value, *MEDPCY, *SYSPCY | Optional
+LOC | Location | Name, *MEDPCY, *ANY, *HOME | Optional
+VOLSEC | Secure volume | *MEDPCY, *NO, *YES | Optional
+MINVOL | Required volumes | 1-9999, *MEDPCY, *NONE | Optional
+MARKDUP | Mark volumes for duplication | *MEDPCY, *NO, *YES | Optional
+MARKHST | Mark history for duplication | *MEDPCY, *NO, *YES | Optional
+SAVMEDINF | Save media information | *NONE, *BKUPCY, *LIB, *OBJ | Optional
+COMPACT | Data compaction | *FROMFILE, *DEV, *YES, *NO | Optional
+
+Top
+
+From volume identifier (VOL)
+
+Specifies the volumes to be duplicated or the type of search used to identify volumes or saved items to be duplicated.
+
+This parameter can be used in conjunction with the Input volume list (FROMVOL) parameter to specify the volume or volumes that you want to copy. You can copy a single volume, volumes in a media set, a list of volumes or all volumes marked for duplication. If you want to copy a single volume or a single volume in a media set, specify the name of the volume that you want to copy in the VOL parameter and the special value *VOL in the FROMVOL parameter.
+
+Note: If you are prompting the command, use F9 to display all command parameters before you specify a volume in the VOL parameter. The prompter will set the default value in the FROMVOL parameter to *VOL.
+
+For instance, if you are copying a volume T00009, which is not a member of a media set, you would prompt the command, press F9, then enter T00009 in the VOL parameter. The *VOL should be the default value displayed in the FROMVOL parameter.
+
+If the volume is a member of a media set you would follow the same procedure.
+
+If you are not sure if a volume is a member of a media set, enter the volume in the VOL parameter and press the Enter key. If the volume is a member of a media set, the volume identifiers of all volumes in the set will be displayed in the FROMVOL parameter.
+
+For instance, if you had a media set made up of T00001, T00002 and T00003 and you can enter T00002 in the VOL parameter and pressed the enter key. Volumes T00001, T00002 and T00003 would be displayed in the FROMVOL parameter. The volumes in the FROMVOL parameter cannot be changed at this point. This helps assure that you are duplicating all members of the set.
+
+An alternate method of copying a media set is to specify a volume contained in the media set in the VOL parameter and using the special value *SET for the FROMVOL parameter.
+
+You can specify *LIST in the VOL parameter to copy a list of volumes that you specify in the FROMVOL parameter.
+
+You can specify *SEARCH in the VOL parameter to search the media inventory for the marked volumes that are to be duplicated, or *SCHHST to search the history information for marked saved items to be duplicated. When using *SEARCH or *SCHHST the FROMVOL parameter is not used.
+
+This is a required parameter.
+
+*LIST
+Specify this special value to duplicate a list of active volumes that you specify. Enter the list of volumes that you want to duplicate in the FROMVOL parameter. Other volumes in the set will not be duplicated.
+
+*RESUME
+Specify to resume history or media duplication operations which end with errors. Use the Resume key (RSMKEY) parameter to specify the duplication operation to be resumed.
+
+Note: You must correct any errors which caused the duplication operation to end before you resume the duplication operation.
+
+Note: This option is not valid if duplication operation uses optical devices.
+
+*SCHHST
+All saved items that are marked for duplication, and meet the specified search values are duplicated. Search values are specified by using the following parameters:
+
+- File group (FILEGRP) parameter
+
+- File group type (GRPTYPE) parameter
+
+- Media class (SCHMEDCLS) parameter
+
+- From system (FROMSYS) parameter
+
+Note: This option is not valid if duplication operation uses optical devices.
+
+Note: This option should only be ran in a single job. Running concurrent DUPMEDBRM commands with this option can cause locking problems.
+
+*SEARCH
+All active volumes that are marked for duplication, and meet the specified search values are duplicated. Search values are specified by using the following parameters:
+
+- File group (FILEGRP) parameter
+
+- File group type (GRPTYPE) parameter
+
+- Media class (SCHMEDCLS) parameter
+
+- From system (FROMSYS) parameter
+
+from-volume-identifier
+Specify the name of the volume that you want to duplicate. The volume identifier that you specify must be a active volume that is in the BRMS media inventory.
+
+Note: This option should only be ran in a single job. Running concurrent DUPMEDBRM commands with this option can cause locking problems.
+
+Top
+
+Resume key (RSMKEY)
+
+Specifies the previous duplication operation to resume. You may want to resume a previous duplication if the operation ended with errors.
+
+A resume key is returned in the recovery text of diagnostic message BRM4137 for duplication operations which end with errors.
+
+A resume key for pending duplication of saved items is also displayed on the Duplication view of the Work with Media Information display. Use the Work with Media Information (WRKMEDIBRM) command to display the saved items, then use F11 to select the Duplication view.
+
+Note: This parameter is required when *RESUME is specified for the Volume (VOL) parameter.
+
+*ALL
+All pending duplications of saved items with resume keys are duplicated.
+
+1-999999
+The pending duplication of saved items having the specified resume key are duplicated.
+
+Top
+
+File group (FILEGRP)
+
+Specifies the file group that you want to search for and duplicate the volumes that contain the specified file group.
+
+*ALL
+Include all file groups that meet the other specifications in the search.
+
+*ARCGRP
+Include volumes that contain the default archive control group in the group of files to duplicate.
+
+*BKUGRP
+Include volumes that contain the default backup user data control group in the group of files to duplicate.
+
+*SYSGRP
+Include volumes that contain the default system data control group in the group of files to duplicate.
+
+*SYSTEM
+Include volumes that contain the default backup entire system control group in the group of files to duplicate.
+
+file-group
+Specify the name of the file group whose volume you want to be duplicated.
+
+generic-file-group
+Specify the generic name of the file group whose volume you want to be duplicated. A generic name is a character string that contains one or more characters followed by an asterisk (*). If an * is not specified with the name, the name is assumed to be a complete file group name.
+
+Top
+
+File group type (GRPTYPE)
+
+Specifies the type of file group that you want to search for and duplicate the volumes that contain the specified file group type.
+
+*ALL
+Include all file groups that meet the other specifications in the search.
+
+*ARC
+The file group is an archive file group.
+
+*BKU
+The file group is a backup file group.
+
+file-group-type
+Specify the file group type that you want to include in the search.
+
+Top
+
+From media class (SCHMEDCLS)
+
+Specifies the media classes that you want to search for and duplicate the input volumes that are associated with the specified media class.
+
+This parameter is only used in conjunction with the From volume identifier (VOL) parameter when the special value *SEARCH is specified.
+
+*ALL
+Include all media classes that meet the other specifications in the search.
+
+from-media-class
+Specify the name of the media class that you want to duplicate.
+
+Top
+
+From device (FROMDEV)
+
+Specifies the device name from which the volume or volumes is copied.
+
+This is a required parameter.
+
+Top
+
+To device (TODEV)
+
+Specifies the device name on which you are placing the volume that you want to copy to.
+
+This is a required parameter.
+
+Top
+
+From sequence number (FROMSEQNBR)
+
+Specifies which data file sequence numbers are to be copied.
+
+Note: If *ALL is specified for Starting file sequence number, or *FIRST for Starting file sequence number and *LAST for Ending file sequence number, then file sequences prior to *FIRST or after *LAST which do not reside in the history information for the volumes will not be duplicated.
+
+Note: This parameter is ignored if the duplication operation uses optical devices.
+
+Single values
+
+*ALL
+All files are duplicated.
+
+Element 1: Starting file sequence number
+
+*FIRST
+All files starting with the first file sequence are duplicated.
+
+file-sequence-number
+Specify the starting file sequence number do be duplicated. The valid range of sequence numbers is 1 through 16777215. Only the files in the specified sequence number range are duplicated.
+
+Element 2: Ending file sequence number
+
+*LAST
+All files ending with the last file sequence are duplicated.
+
+*ONLY
+Only the file specified in the starting file sequence is duplicated. If *ALL is specified in the first element, then this parameter is ignored.
+
+file-sequence-number
+Specify the ending file sequence number of the range to be duplicated. The valid range of sequence numbers is 1 through 16777215.
+
+Top
+
+To sequence number (TOSEQNBR)
+
+Specifies which sequence number the data files are to be copied to.
+
+Note: This parameter is ignored if the duplication operation uses optical devices.
+
+1
+The data files are copied to file sequence 1.
+
+*END
+The data files are added to the logical end of tape. The next valid sequence number is used.
+
+file-sequence-number
+Specify the sequence number in which the data file will be copied to. This value is not allowed if the device does not have overwriting capabilities and the value specified is not the next logical value to be used at the end of the logical tape volume.
+
+Top
+
+To media policy (MEDPCY)
+
+Specifies the media policy for the volumes to which you are copying.
+
+Media policies are used to determine:
+
+- The type of retention to use, such as days, date or version, for media used in control group processing.
+
+- The move policy to use with this media policy.
+
+- The media class to use.
+
+- Whether or not to use save files.
+
+- The type of retention to use, such as days or date for save files created in control group processing.
+
+The media policy you specify must be a media policy that is in the BRMS media policy table.
+
+*SYSPCY
+The media policy specified in the system policy is used as the value for media policy.
+
+*NONE
+No media policy is specified for this duplication operation. Media policy values must be supplied from the command for each parameter that has a default of *MEDPCY.
+
+to-media-policy-name
+Specify a media policy that has been set up in the BRMS. You can press F4 to get a list of these media policies.
+
+Top
+
+Input volume list (FROMVOL)
+
+Specifies the list of volumes that are to be copied. This parameter works in conjunction with the From volume identifier (VOL) parameter to specify the volume or volumes that you want to copy. You can copy a single volume, a set of volumes or a list of volumes. You can specify up to 300 volumes in the FROMVOL parameter.
+
+To copy a single volume, specify a volume in the VOL parameter and specify the special value *VOL in the FROMVOL parameter.
+
+Note: If you are prompting the command, use F9 to display all command parameters before you specify a volume in the VOL parameter. The prompter will set the default value in the FROMVOL parameter to *VOL.
+
+If you are not sure if a volume is a member of a media set, enter the volume identifier in the VOL parameter and press the Enter key. If the volume is a member of a media set, the volume identifiers of all volumes in the set will be displayed in the FROMVOL parameter.
+
+If you specify *LIST in the VOL parameter, you can enter a list of volumes to copy in the FROMVOL parameter.
+
+If you specify *SEARCH in the VOL parameter, this parameter is not used.
+
+If you want to duplicate the volumes in a media set, specify a volume of the media set in the VOL parameter and specify *SET in the FROMVOL parameter. You must use this method to duplicate the volumes of a media set in a batch job.
+
+Note: The list of volumes must either be all tape or all optical volumes. This command only supports duplicating tape volumes to tape volumes or optical volumes to optical volumes.
+
+Single values
+
+*VOL
+Duplicate the volumes specified on the Volume (VOL) parameter.
+
+Note: The first file sequence on a volume may be continued from another volume. Likewise, the last file sequence on a volume may be continued to another volume. If volumes specified on the VOL parameter have file sequence numbers that are continued from or continue to other volumes, the continuation file sequence numbers from the other volumes will also be duplicated.
+
+*SET
+Specify this special value to copy all volumes in a media set when only one volume of the set is specified in the VOL parameter. If you are copying a media set in batch mode by specifying a volume of the media set in the VOL parameter, you must use the special value *SET in the FROMVOL parameter.
+
+Other values (up to 300 repetitions)
+
+volume-identifier
+Specify the volume identifiers of a list of active volumes, that you want to duplicate.
+
+Top
+
+From device end option (FROMENDOPT)
+
+Specifies whether the volume placed on the device specified on the From device (FROMDEV) parameter is rewound and unloaded after the operation completes.
+
+Note: This parameter is ignored if the From volume identifier is in an optical media library. For optical devices *REWIND will be ignored.
+
+*REWIND
+The volume is automatically rewound, but not unloaded after the operation ends.
+
+*LEAVE
+The volume does not rewind or unload after the operation ends. It remains at the current position on the device.
+
+*UNLOAD
+The volume is automatically rewound and unloaded after the operation ends.
+
+Top
+
+To device end option (TOENDOPT)
+
+Specifies whether the volume placed on the device specified on the To device (TODEV) parameter is rewound and unloaded after the operation is completed.
+
+Note: This parameter is ignored if the To volume identifier is in an optical media library. For optical devices *REWIND will be ignored.
+
+*UNLOAD
+The volume is rewound and unloaded after the operation is completed.
+
+*LEAVE
+The volume does not rewind or unload after the operation ends. It remains at the current position on the device.
+
+*REWIND
+The volume is rewound after the operation is completed.
+
+Top
+
+From system (FROMSYS)
+
+Specifies the location and network identification of the system that owns the volumes you would like to duplicate. When specifying a remote system, the input and output volumes used in the operation will be owned by the specified system.
+
+Note: *LCL is the only valid value allowed when the duplication is using optical devices.
+
+Note: If the media is not owned by the system doing the duplication, Receive Media Info needs to be set to *LIB in the system policy network attributes before the save occurrs on the remote system.
+
+Note: The Save media information (SAVMEDINF) parameter must be *NONE if a value other than *LCL is specified.
+
+Note: Use the Display Network Attributes (DSPNETA) command to view the system network attributes.
+
+*LCL
+Specifies that the from-system is the local system. BRMS uses the Default local location name (LCLLOCNAME) network attribute and not the System name (SYSNAME) network attribute to determine the current system name. In most cases, the systems have the same value specified for LCLLOCNAME as for SYSNAME.
+
+location-name
+Specifies the Default local location name (LCLLOCNAME) network attribute of the remote system for the network operation. The current system Local network ID (LCLNETID) network attribute is used to connect with the remote system.
+
+network-id.location-name
+Specifies the Local network ID (LCLNETID) and the Default local location name (LCLLOCNAME) network attributes of the remote system for the network operation. Specify these values using the format nnnnnnnn.cccccccc where nnnnnnnn is the LCLNETID and cccccccc is the LCLLOCNAME.
+
+Top
+
+Submit batch options (SBMOPT)
+
+Specifies how you want to process the duplication.
+
+Single values
+
+*NO
+Performs the processing of the duplication within the current job.
+
+Element 1: Submit to batch
+
+*YES
+Submits the processing of the duplication to batch.
+
+Note: The job queue and the job description are specified in the system policy for BRMS submitted jobs.
+
+Note: The job log for the DUPMEDBRM command will contain messages indicating which batch jobs are performing the duplication. Each of these duplication jobs will send completion or error messages to the BRMS log so the BRMS log should be monitored to verify that each of the duplication jobs completed successfully.
+
+Note: The From volume identifier (VOL) parameter must be *LIST, *SEARCH, or a volume name.
+
+Note: The Output volume list (TOVOL) parameter must be *MOUNTED.
+
+Element 2: Media sets
+
+Specifies the number of output media sets to produce during the duplication. Each media set duplication will run in batch. If there are enough device resources available to use, the media sets will be duplicated concurrently.
+
+*MEDSET
+The number of output media sets will be the same as the number of input media sets.
+
+media-set-number
+Specify the number of output media sets to produce. The valid range of media sets is 1 through 99. The output number of media sets will not be greater than the number of input media sets.
+
+Note: If the media being duplicated was created during a parallel save, then restores from the duplicated media will require the same or fewer number of resources used during the DUPMEDBRM command.
+
+Note: The Save media information (SAVMEDINF) parameter must be *NONE if the number of media sets to produce is greater than 1.
+
+Top
+
+To volume identifier (TOVOL)
+
+Specifies the volume identifiers of the volumes to which data is being copied.
+
+The volume identifier that you specify must be a volume that is in the BRMS media inventory.
+
+Single values
+
+*MOUNTED
+The volume identifier of the volume placed in the device specified on the To device (TODEV) parameter is used. If the source volume is a standard labeled volume and the volume placed in the device is not labeled or is initialized to the wrong density, the volume is reinitialized to the correct density using the volume identifier of the source volume currently placed in the device.
+
+Other values (up to 300 repetitions)
+
+volume-identifier
+Specify the volume identifier of the volumes to which data is being copied. When the end of a volume is reached, you will be able to reinitialize the volume using this volume identifier. If the volume contains the correct volume identifier but is in the wrong density, the volume will be reinitialized to the correct density. The volume identifier is saved.
+
+Top
+
+Retain object detail (OBJDTL)
+
+This parameter has no function. Object detail, including member level detail for physical files, is always retained for duplicated media as long as object detail was available for the input volumes.
+
+Top
+
+Expiration date (EXPDATE)
+
+Specifies the expiration that you want to use for output volumes created as a result of this duplication operation.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*FROMVOL
+Output file sequences and volumes from this duplication operation are assigned the expiration dates of the input file sequences and volumes.
+
+Note: If file sequences are appended to a volume, the later expiration date is used.
+
+*PERM
+Output volumes from this duplication operation are assigned a permanent expiration.
+
+expiration-date
+Specify an expiration date with or without date separators that will be assigned to output volumes from this duplication operation.
+
+Top
+
+Move policy (MOVPCY)
+
+Specifies the move policy that you want to use for output volumes created as a result of this duplication operation.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*NONE
+There is not a move policy associated with the output volumes that are created as a result of this duplication operation.
+
+move-policy
+Specify a move policy that will be assigned to output volumes from this duplication operation.
+
+Top
+
+Media class (MEDCLS)
+
+Specifies the media class that you want to use for output volumes created as a result of this duplication operation.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*SYSPCY
+The value for media class in the system policy will be assigned to output volumes from this duplication operation.
+
+media-class
+Specify a media class that will be assigned to output volumes from this duplication operation.
+
+Top
+
+Location (LOC)
+
+Specifies the location that you want to use for output volumes created as a result of this duplication operation.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*ANY
+Any valid location is assigned to output volumes from this duplication operation.
+
+*HOME
+The home location is assigned to output volumes from this duplication operation.
+
+location
+Specify a location that will be assigned to output volumes from this duplication operation.
+
+Top
+
+Secure volume (VOLSEC)
+
+Specifies whether you want to apply volume security to volumes in this media class. Volumes that are secured can only be read by users with the special authorities *ALLOBJ or *SAVSYS.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*NO
+Volume security has not been applied to this media class. Volumes that do not have volume security can be read by anyone.
+
+*YES
+Only users with special authorities *ALLOBJ or *SAVSYS can read media volumes in this media class.
+
+Top
+
+Required volumes (MINVOL)
+
+Specifies the minimum number of expired volumes that must be present before any duplication can be done using this media policy. The value can also be checked by user jobs using the Check Expired Media for BRM (CHKEXPBRM) command.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*NONE
+There is no check done to determine the minimum number of required volumes before a duplication operation begins.
+
+number-of-volumes
+Specify the number of expired media volumes that must be available before any BRMS duplication operation will begin. The number can range from 1 to 9999.
+
+Top
+
+Mark volumes for duplication (MARKDUP)
+
+Specifies whether to mark volumes for duplication after they have been duplicated.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*NO
+Do not mark volumes for duplication.
+
+*YES
+Mark volumes for duplication.
+
+Top
+
+Mark history for duplication (MARKHST)
+
+Specifies whether to mark history items for duplication after they have been duplicated.
+
+Note: This parameter is ignored when using optical devices.
+
+*MEDPCY
+The value for this parameter is the media policy that is specified in the Media policy (MEDPCY) parameter of this duplication command.
+
+Note: If *NONE is specified in the Media policy (MEDPCY) parameter, you cannot specify *MEDPCY in this parameter.
+
+*NO
+Do not mark the history items for duplication.
+
+*YES
+Mark the history items for duplication.
+
+Top
+
+Save media information (SAVMEDINF)
+
+Specifies whether you want to automatically save the media information after duplication has run. The media information is the changes to the save history and volume information that occur during the duplication operation. You can specify whether the save history in the media information is saved at the library or object level.
+
+Note: Object level saved history information can only be saved if object level or member level detail was retained when the objects were originally saved.
+
+Note: The saved media information will be appended to the last output volume used for duplication.
+
+*NONE
+Specifies you do not want media information saved after duplication has run.
+
+*BKUPCY
+Specifies you want the Backup Policy to specify whether media information is saved after duplication has run. If this value is specified, the current value of the Automatically backup media information prompt on the Backup Policy will determine whether media information is saved when this command is run.
+
+*LIB
+Specifies you want media information saved after the duplication has run, but you only want to save library level history information. With library level history information, you must know the object names to restore individual objects.
+
+*OBJ
+Specifies you want media information saved after the duplication has run and you want to save object level history information. With object level history information, you can use BRMS to help you locate saved objects that you want to restore such as physical files or members.
+
+Top
+
+Data Compaction key (COMPACT)
+
+Specifies whether device data compaction is performed. If the device specified does not support compaction, this parameter is ignored.
+
+*FROMFILE
+Device data compaction is performed if the file being read from the device specified on the From device (FROMDEV) parameter was written using device data compaction.
+
+*DEV
+Device data compaction value is retrieved from the Device uses compaction field on the WRKDEVBRM command for the device specified on the To device (TODEV) parameter.
+
+*YES
+Device data compaction is performed if the device supports compaction.
+
+*NO
+Device data compaction is not performed.
+
+Top
+
+Examples for DUPMEDBRM
+
+Example 1: Copying a Single Volume
+
+DUPMEDBRM VOL(T00001) FROMDEV(TAP01)
+TODEV(TAP03) FROMVOL(T00001)
+
+This command duplicates volume T00001 using TAP01 as the from device and TAP03 as the to device. Because T00001 is not a member of a media set, the input list (FROMVOL) contains only T00001.
+
+Example 2: Duplicating a List of Volumes
+
+DUPMEDBRM VOL(*LIST) FROMDEV(TAPMLB01) TODEV(TAPMLB02)
+MEDPCY(FMT3570) FROMVOL(VOL001 VOL002 VOL003)
+
+This command duplicates volumes VOL001, VOL002 and VOL003 using media library TAPMLB01 as the from device and media library TAPMLB02 as the to device using the media class in the FMT3570 media policy for the to volumes.
+
+Example 3: Duplicating a Volume Set
+
+DUPMEDBRM VOL(VOL002) FROMDEV(TAPMLB01) TODEV(TAPMLB02)
+FROMVOL(*SET) MEDPCY(FMT3570)
+
+This command duplicates all volumes in the volume set which contains VOL002 using media library TAPMLB01 as the from device and media library TAPMLB02 as the to device using the media class in the FMT3570 media policy for the to volumes.
+
+Example 4: Duplicating All Marked Volumes for Another System
+
+DUPMEDBRM VOL(*SEARCH) FROMDEV(TAPMLB01) TODEV(TAPMLB02)
+FROMSYS(SYSTEM_B)
+
+If this command is run on SYSTEM_A, the command will search for all volumes marked for duplication owned by SYSTEM_B using media library TAPMLB01 as the from device and media library TAPMLB02 as the to device. SYSTEM_A and SYSTEM_B are in a BRMS network and share the media library resources.
+
+Example 5: Resume a Previous Duplicate Media using BRM
+
+DUPMEDBRM VOL(*RESUME) RSMKEY(123456)
+
+This command resume a previous duplication operation which ended abnormally. The resume key 123456 was returned in message BRM4137 when the duplication operation ended with exception BRM4138.
+
+Example 6: Batch Duplicating to Same Sets
+
+DUPMEDBRM VOL(*LIST) FROMDEV(TAPMLB01) TODEV(TAPMLB02)
+MEDPCY(FMT3570) FROMVOL(VOL001 VOL002 VOL003)
+SBMOPT(*YES *MEDSET)
+
+This command where VOL001, VOL002 and VOL003 are three different media sets, will produce three different batch jobs to duplicate the volumes onto three media sets.
+
+Example 7: Batch Duplicating to Fewer Sets
+
+DUPMEDBRM VOL(*SEARCH) FROMDEV(TAPMLB01) TODEV(TAPMLB02)
+MEDPCY(FMT3570) FROMVOL(VOL001 VOL002 VOL003
+VOL004 VOL005 VOL006 VOL007 VOL008 VOL009)
+SBMOPT(*YES 3)
+
+This command where *SEARCH finds volumes VOL001, VOL002, VOL003, VOL004, VOL005, VOL006, VOL007, V0L008, VOLO09 which are all different media sets, will produce three different batch jobs to duplicate the volumes onto three media sets.
+
+Top
+
+Error messages for DUPMEDBRM
+
+*ESCAPE Messages
+
+BRM15A2
+Volume &3 cannot be duplicated by this system.
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM1934
+Media duplication not successful.
+
+BRM1936
+No media found for duplication.
+
+BRM2338
+Duplication completed with errors.
+
+BRM4040
+Access denied for user &1.
+
+BRM40A2
+BRMS product initialization required.
+
+BRM4138
+Media duplication completed with errors.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top

@@ -1,0 +1,195 @@
+Convert DLS Name (CVTDLSNAM)
+
+Convert DLS Name (CVTDLSNAM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Convert Document Library Services Name (CVTDLSNAM) command is used before or after a change in the CCSID assumed for EBCDIC object names by QDLS (the document library services file system). The command can help identify QDLS object names that may be different because of the CCSID change, and it can rename QDLS objects so they retain their original names. It can also correct the names of objects whose names changed when they were copied between QDLS and another file system. The command prints a report with the job's spooled output that lists selected objects and any actions taken on those objects.
+
+When converting object names to or from EBCDIC, QDLS uses the job default CCSID unless data area QUSRSYS/QODEC500 exists, in which case QDLS uses CCSID 500 (the data area allows reversion to the behavior of early versions of QDLS). The CCSID used by QDLS is therefore changed by creating or deleting the data area, or by changing the job default CCSID when the data area does not exist.
+
+The CCSID affects the view of QDLS object names by integrated file system clients of QDLS, which must convert object names to and from EBCDIC. Those clients include:
+
+- Integrated file system commands such as DSPLNK, CPY, MOV, and RNM
+
+- UNIX-type APIs provided by the integrated file system, such as access, open, rename, and unlink
+
+- IBM i Access for Windows
+
+The CCSID does not affect clients of QDLS that work directly with EBCDIC object names, which include:
+
+- Document and folder commands, such as CRTDOC, CPYDOC, WRKDOC, CRTFLR, WRKFLR, DLTDLO, and RNMDLO
+
+- Hierarchical file system (HFS) APIs, such as QHFDLTSF, QHFOPNDR, QHFOPNSF, and QHFRNMSF
+
+Even for integrated file system clients of QDLS, the CCSID doesn't matter except for objects that are also used by EBCDIC clients. In that case, QDLS object names may appear different to the clients if the names contain variant characters and the clients are using different CCSIDs (integrated file system clients use the CCSID as described earlier, and EBCDIC clients likely use the job default CCSID).
+
+Restrictions:
+
+- You must have read (*R) authority to the directory containing the object links and execute (*X) to the other directories in the path.
+
+- The additional authority restrictions from the RNM command apply when renaming objects.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Object | Values (up to 300 repetitions): Path name | Required, Positional 1
+SUBTREE | Directory subtree | *OBJ, *DIR, *ALL | Optional
+ACTION | Action | *LIST, *RENAME | Optional
+PREVIEW | Preview results | *NO, *YES | Optional
+FROMCCSID | From CCSID | 1-65535, 500, *JOB, *SYSVAL, *HEX | Optional
+TOCCSID | To CCSID | 1-65535, *JOB, *SYSVAL, *HEX | Optional
+
+Top
+
+Object (OBJ)
+
+Specifies the objects to process. A maximum of 300 path names can be specified; however, all paths must be for the same file system. Each path name can be either a simple name or a name that is qualified with the name of the directory in which the object is located. A pattern can be specified in the last part of the path name: an asterisk (*) matches any number of characters and a question mark (?) matches any single character. If a path name is qualified or contains a pattern, it must be enclosed in apostrophes (').
+
+For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+The CVTDLSNAM command is an integrated file system client of QDLS. As such, its view of object names can be different than that of EBCDIC clients. So, use care in specifying object names. It is generally safer to use generic characters in place of variant characters (for example, specify X?X as an object name rather than X!X).
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether directory subtrees are processed.
+
+*OBJ
+Only the objects that match the given path names are processed. If a path name specifies a directory, objects in the directory are not processed.
+
+*DIR
+Objects in the first level of each directory that matches a given path name are processed.
+
+*ALL
+The entire subtree of each directory that matches a given path name is processed.
+
+Top
+
+Action (ACTION)
+
+Specifies the action to perform on the selected objects.
+
+*LIST
+For QDLS, this value lists the selected objects that might appear to have different names if the CCSID assumed by QDLS for EBCDIC object names is changed from the specified old value to the specified new value. For other file systems, this value lists the selected objects that might have an unexpected name after having been copied from QDLS, and neither specified CCSID is used in this case.
+
+*RENAME
+Corrects the names of the selected objects. If *RENAME is used more than once on an object, the results will probably not be meaningful.
+Some objects may fail to be renamed when requested, such as if the new name already exists. However, the command will not fail immediately; it will continue to process any remaining objects.
+
+For QDLS, *RENAME will change the names such that, after changing the CCSID assumed by QDLS for EBCDIC object names from the specified old value to the specified new value, the object names will appear the same as before the change to integrated file system clients of QDLS.
+
+For other file systems, the specified objects are presumed to have been created with the specified old CCSID and implicitly renamed as they were copied from QDLS by an integrated file system client of QDLS using the specified new CCSID. *RENAME will change the names of the objects to be the same as those of the original QDLS objects.
+
+Note: The effect of a rename can be undone by another rename with the CCSIDs reversed. For example, if a rename is done using FROMCCSID(500) and TOCCSID(273), the original name(s) can be restored by a rename using FROMCCSID(273) and TOCCSID(500).
+
+Top
+
+Preview results (PREVIEW)
+
+Selects whether to preview the results of the selected action.
+
+*NO
+Perform the selected action.
+
+*YES
+Inhibit the selected action and report what the results would be. This value is allowed only when ACTION(*RENAME) is specified.
+
+Top
+
+From CCSID (FROMCCSID)
+
+Specifies the original coded character set identifier (CCSID) of the EBCDIC object name. This value is ignored when processing objects in file systems other than QDLS if ACTION is *LIST.
+
+500
+CCSID 500 is used. That is the CCSID used by early versions of QDLS.
+
+*JOB
+The current job's default CCSID is used.
+
+*SYSVAL
+The CCSID specified in the system value QCCSID is used.
+
+*HEX or 65535
+The CCSID currently assumed by QDLS for EBCDIC object names is used.
+
+1-65535
+Specify the CCSID to be used. More information on valid CCSIDs is in the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+To CCSID (TOCCSID)
+
+Specifies the coded character set identifier (CCSID) assumed by QDLS for EBCDIC object names. This value is ignored when processing objects in file systems other than QDLS if ACTION is *LIST.
+
+*JOB
+The current job's default CCSID is used.
+
+*SYSVAL
+The CCSID specified in the system value QCCSID is used.
+
+*HEX or 65535
+The new CCSID is unknown, such as when different jobs will be using different CCSIDS. This value may not be used with ACTION(*RENAME).
+
+1-65535
+Specify the CCSID to be used. More information on valid CCSIDs is in the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Top
+
+Examples
+
+Example 1: List QDLS Objects Affected by a CCSID Change
+
+A new release of the operating system is installed and QDLS now assumes the job default CCSID instead of CCSID 500 for EBCDIC object names. The job CCSID is currently set to 37. The following command is used to identify the objects that effectively have new names for integrated file system clients of QDLS. Note that the ACTION, FROMCCSID, and TOCCSID parameters could all have been omitted from the command, since they specify the default values in this case.
+
+CVTDLSNAM OBJ('/QDLS') SUBTREE(*ALL) ACTION(*LIST)
+FROMCCSID(500) TOCCSID(37)
+
+Output similar to this might be produced:
+
+/QDLS/FLRA/X] --> X!
+/QDLS/FLRB/X! --> X|
+
+Each line shows two names for an object, as it would be seen by clients using CCSID 500 and CCSID 37 (the second name won't be shown if TOCCSID is *HEX). The output shows that two objects are affected by the change of the assumed CCSID. The object known before the change as X] by integrated file system clients is known as X! afterward, and X! is renamed to X|.
+
+The name X! seems more reasonable than either X] or X|, so we assume X! is the correct name in both cases. In the first case the new name is desirable; we surmise the object was created as X! by a client using CCSID 37. In the second case the new name is undesirable; the object was presumably created by a client using CCSID 500.
+
+Example 2: Rename QDLS Object to Adjust for a CCSID Change
+
+The second object name from the example above is corrected using the following command. For this example the job CCSID is 500 (necessary to guarantee correct recognition of the object name X!). It is likely that a generic name (such as * or X? instead of X!) would be used in similar situations, eliminating the need to adjust the job CCSID.
+
+CVTDLSNAM OBJ('/QDLS/FLRB/X!') ACTION(*RENAME)
+FROMCCSID(500) TOCCSID(37)
+
+This output might be produced:
+
+/QDLS/FLRB/X! --> X]
+
+Each line again shows two names for an object, but this time both names are what a CCSID 500 client would see. The output indicates that X! is renamed to X]. The new name may appear incorrect to a CCSID 500 client (X]), but it will appear as desired to a CCSID 37 client (X!).
+
+Top
+
+Error messages
+
+*STATUS Messages
+
+CPI8A22
+Processing &1.
+
+*ESCAPE Messages
+
+CPF8AC0
+&1 command failed.
+
+Top

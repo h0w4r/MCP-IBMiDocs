@@ -1,0 +1,574 @@
+Change Cluster Resource Group (CHGCRG)
+
+Change Cluster Resource Group (CHGCRG)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Cluster Resource Group (CHGCRG) command changes some of the attributes of a cluster resource group. The cluster resource group object is changed on all active nodes in the recovery domain. Recovery domain nodes that are not active at the time of the change will have the change made when they become active again.
+
+For primary-backup model cluster resource groups, changing the node role to primary or changing the takeover IP address can only be done when the cluster resource group status is Inactive or Indoubt. If the cluster resource group is active, the Change Cluster Resource Group Primary (CHGCRGPRI) command can be used to assign the primary role to the first backup node.
+
+For peer model cluster resource groups:
+
+- The recovery domain role can be changed from peer to replicate or replicate to peer by specifying one or more recovery domain nodes. The full recovery domain does not need to be specified.
+
+- If the cluster resource group is Active (10) and:
+
+The role is changed from peer to replicate, the node becomes an inactive access point.
+
+The role is changed from replicate to peer, the node becomes an active access point.
+
+- There must be at least one node designated as peer if the cluster resource group is Active (10).
+
+The following fields may be changed without causing the cluster resource group exit program to be called:
+
+- text description
+
+- exit program data
+
+- user profile
+
+- takeover IP address
+
+- job name
+
+- allow application restart
+
+- number of restarts
+
+- the cluster resource group exit program
+
+- failover message queue
+
+- failover wait time
+
+- failover default action
+
+- cluster resource group exit program format name
+
+- application identifier
+
+This command will do the following for all cluster resource group types:
+
+- Call the cluster resource group exit program with an action code of Change on all active nodes in the recovery domain when either the preferred or current role is changed, if an exit program is specified for the cluster resource group. The cluster resource group status is set to Change Pending. If the exit program completes successfully, the cluster resource group status is reset to its value at the time the command was called. If the exit program fails and the cluster resource group cannot be restored to its original condition, the cluster resource group status is set to Indoubt.
+
+- Change the cluster resource group without calling the exit program if neither node role, site name nor data port IP addresses are changed.
+
+- Change the name to be used for batch jobs submitted by cluster resource group. If the cluster resource group status is Active, batch jobs already submitted will not be changed. Any jobs submitted after the change will use the new name. This is true for other attributes associated with a submitted exit program such as the user profile, the restart count and so on. Changes to the cluster resource group will not affect an exit program that was previously submitted and is either on a job queue or is running.
+
+- For primary-backup model cluster resource groups, if the current node role in the recovery domain is changed and the cluster resource group is active with more than one backup node and some of the backup nodes have a status of inactive or ineligible, the recovery domain may automatically be reordered so that all backup nodes with a status of active are ordered before the backup nodes that have a status other than active.
+
+This command will do the following for application cluster resource groups:
+
+- If the Cluster Resource Services configures the takeover IP address, it will remove the current address and add the new address when the takeover IP address is changed. If either the add or remove address function fails, the command will fail.
+
+- If the cluster resource group is active and the role of a node is being changed from replicate to backup, verify the takeover IP address exists and is not active on the node being changed. If the takeover IP address does not exist or is active on the node being changed, the command will fail.
+
+This command will do the following for device cluster resource groups:
+
+- If the role of the current primary node is being changed, ownership of the devices specified in the cluster resource group is switched from the current primary to the new primary if the current primary has none of the devices varied on. If any devices are varied on, an error message is returned. In addition, the new primary node must be active. All members of an auxiliary storage pool group must be configured in the cluster resource group before ownership can be changed. Devices are not varied on after the ownership is switched.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- Cluster Resource Services must be active on the node processing the request.
+
+- Primary-backup model cluster resource groups must have a status of Inactive or Indoubt to designate a new primary node.
+
+- If defined, the exit program must exist on all nodes in the recovery domain when the cluster resource group exit program is changed.
+
+- There must be at least one active node in the recovery domain.
+
+- If defined, the failover message queue must exist on all nodes in the recovery domain when the cluster resource group is changed.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CRG | Cluster resource group | Name | Required, Key, Positional 1
+RCYDMNACN | Recovery domain action | *SAME, *CHGPREFER, *CHGCUR | Optional, Key, Positional 2
+RCYDMN | Recovery domain node list | Values (up to 128 repetitions): Element list | Optional
+Element 1: Node identifier | Name, *SAME
+Element 2: Node role | *SAME, *BACKUP, *PRIMARY, *REPLICATE, *PEER
+Element 3: Backup sequence number | 1-127, *SAME, *LAST
+Element 4: Site name | Name, *SAME, *NONE
+Element 5: Data port IP address action | *SAME, *ADD, *REMOVE
+Element 6: Data port IP address | Single values: *SAME, *NONE
+Other values (up to 4 repetitions): Character value
+EXITPGM | CRG exit program | Single values: *SAME, *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: CRG exit program | Name
+Qualifier 2: Library | Name, *CURLIB
+USRPRF | User profile | Simple name, *SAME, *NONE | Optional
+EXITPGMFMT | Exit program format name | *SAME, EXTP0100, EXTP0101, EXTP0200, EXTP0201 | Optional
+EXITPGMDTA | Exit program data | Character value, *SAME, *NONE | Optional
+JOB | Exit program job | Name, *SAME, *CRG, *JOBD | Optional
+TKVINTNETA | Takeover IP address | Character value, *SAME | Optional
+ALWRESTART | Allow application restarts | *SAME, *NO, *YES | Optional
+NBRRESTART | Number of application restarts | 0-3, *SAME | Optional
+APPID | Application identifier | Character value, *SAME, *NONE | Optional
+TEXT | Text description | Character value, *SAME | Optional
+FLVMSGQ | Failover message queue | Single values: *SAME, *NONE
+Other values: Qualified object name | Optional
+Qualifier 1: Failover message queue | Name
+Qualifier 2: Library | Name
+FLVWAITTIM | Failover wait time | Integer, *SAME, *NOWAIT, *NOMAX | Optional
+FLVDFTACN | Failover default action | *SAME, *PROCEED, *CANCEL | Optional
+CRGTYPE | Cluster resource group type | *CRG, *DATA, *APP, *DEV, *PEER | Optional
+CLUSTER | Cluster | Name, * | Optional
+
+Top
+
+Cluster resource group (CRG)
+
+Specifies the cluster resource group to be changed.
+
+This is a required parameter.
+
+name
+Specify the name of the cluster resource group.
+
+Top
+
+Recovery domain action (RCYDMNACN)
+
+Specifies the type of action to take for the recovery domain.
+
+*SAME
+The recovery domain is not being changed.
+
+*CHGPREFER
+The preferred roles for nodes in the recovery domain are to be changed. The RCYDMN parameter contains the new node roles.
+
+*CHGCUR
+The current roles for nodes in the recovery domain are to be changed. The RCYDMN parameter contains the new node roles. For a device cluster resource group, the site name and data port IP address also can be changed.
+
+Top
+
+Recovery domain node list (RCYDMN)
+
+Specifies the changes for the recovery domain. For primary-backup model cluster resource groups, this specifies the roles for nodes that compose the recovery domain. The full recovery domain must be specified. For peer model cluster resource groups, this specifies the roles for the nodes being changed. Only those nodes being changed must be specified.
+
+Element 1: Node identifier
+
+Specifies the node whose role is being changed in the recovery domain of the cluster resource group specified. The node specified must currently be defined in the recovery domain of the cluster resource group specified.
+
+*SAME
+The recovery domain will not be changed. This value must be used if RCYDMNACN(*SAME) is specified.
+
+name
+Specify the name of the node.
+
+Element 2: Node role
+
+Specifies the role of the node in the recovery domain of the cluster resource group. A role must be defined for each node in the recovery domain. For primary-backup model cluster resource groups a node can have one of three roles: primary, backup, or replicate. Only one node can be designated as the primary. For peer model cluster resource groups a node can have one of two roles: peer or replicate. Any number of nodes can be designated as a peer or replicate.
+
+*SAME
+The node role is not changed.
+
+*BACKUP
+The node role will be set as a backup node. The node can take over as the access point for the cluster resources.
+
+*PRIMARY
+The node role will be set as the primary node. This node can become an active access point for the cluster resources. The cluster resource group must have a status of Inactive.
+
+*REPLICATE
+The new node role will be set as a replicate. Replicate nodes are not ordered and cannot become an access point unless its role is changed to the proper value for the cluster resource group type.
+
+*PEER
+The new node will be set as a peer node. Peer nodes are not ordered. This node can become an active access point for the cluster resources.
+
+Element 3: Backup sequence number
+
+Specifies the backup order for a node with role of *BACKUP. If there is already a node with the same backup order and it is also not changed at the same time, the command will fail. At the completion of the request the nodes with backup roles will be sequentially renumbered from the first backup to the last. The first backup will always be 1.
+
+*SAME
+The backup sequence number is not changed.
+
+*LAST
+The node will be added as the last backup in the recovery domain.
+
+integer
+Specify the backup sequence number.
+
+Element 4: Site name
+
+Specify the site name of the recovery domain node. This is valid only for a device cluster resource group. Can only change from a site name to *NONE or from *NONE to a site name. Cannot change from one site name to another site name. A site name can be changed only if all configuration objects in the cluster resource group are for auxiliary storage pool devices.
+
+*SAME
+The site name is not changed.
+
+*NONE
+The recovery domain node does not have a site name.
+
+name
+Specify the site name for a recovery domain node.
+
+Element 5: Data port IP address action
+
+Specifies the type of action to take for the data port IP address.
+
+*SAME
+The data port IP address is not changed.
+
+*ADD
+Add one or more data port IP address to the recovery domain node.
+
+*REMOVE
+Remove one or more data port IP address from the recovery domain node.
+
+Element 6: Data port IP address
+
+Specify the data port IP address for the recovery domain node. This is valid only for a device cluster resource group, specifically for geographic mirroring. The data port IP address is used to send updates from a source node that owns the production copy of auxiliary storage pool to a target node that owns the mirror copy of auxiliary storage pool.
+
+Single values
+
+*SAME
+The recovery domain node data port IP address is not changed.
+
+*NONE
+The recovery domain node does not have a data port IP address.
+
+Other values (up to 4 repetitions)
+
+character-value
+Specify the data port IP address for the recovery domain node. When adding a data port IP address, it must already exist on the specified node. User is responsible for starting/ending data port IP address. The data port IP address may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+
+An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+
+If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+
+Top
+
+CRG exit program (EXITPGM)
+
+Specifies the exit program that is used to handle action codes that are passed to it due to operations on the cluster resource group. The exit program cannot be in an independent auxiliary storage pool. The action codes are described in the Cluster Resource Group Exit Program section of the API reference manual. If the exit program is changed for an active application cluster resource group, the job currently running which was submitted to handle the Start action code continues running the prior exit program.
+
+Single values
+
+*SAME
+The current exit program is not changed.
+
+*NONE
+The cluster resource group does not have an exit program.
+
+Qualifier 1: CRG exit program
+
+name
+Specify the name of the exit program.
+
+Qualifier 2: Library
+
+*CURLIB
+The exit program exists in the current library for the job. If no library is specified as the current library for the job, the QGPL library is used.
+
+name
+Specify the name of the library where the exit program exists. QTEMP is not a valid library name.
+
+Top
+
+User profile (USRPRF)
+
+Specifies the user profile under which the exit program should be run. The user profile must exist on all nodes in the recovery domain.
+
+The following user profiles are not valid:
+
+- QDBSHR
+
+- QDOC
+
+- QDTFOWN
+
+- QRJE
+
+- QLPAUTO
+
+- QLPOINSTALL
+
+- QSECOFR
+
+- QSPL
+
+- QSYS
+
+- QTSTRQS
+
+*SAME
+The current user profile is not changed.
+
+*NONE
+There is no exit program so no user profile is needed.
+
+simple-name
+Specify the name of the user profile to use for running the exit program.
+
+Top
+
+Exit program format name (EXITPGMFMT)
+
+Specifies the format which should be used for the information passed to the user when a cluster resource group exit program is called.
+
+*SAME
+The exit program format name is not changed.
+
+EXTP0100
+Exit program information defined in EXTP0100 format will be passed to user.
+
+EXTP0101
+Exit program information defined in EXTP0101 format will be passed to user. This format includes IPv6 support.
+
+EXTP0200
+Exit program information defined in EXTP0200 format will be passed to user. Additional information such as site name and data port IP address on each node are passed to the exit program. This format is not allowed for a peer cluster resource group.
+
+EXTP0201
+Exit program information defined in EXTP0201 format will be passed to user. Additional information such as site name and data port IP address on each node are passed to the exit program. This format includes IPv6 support and is not allowed for a peer cluster resource group.
+
+Top
+
+Exit program data (EXITPGMDTA)
+
+Specifies up to 256 bytes of data that is passed to the cluster resource group exit program when it is called. This parameter may contain any scalar data except pointers. For example, it can be used to provide state information. This data will be stored with the specified cluster resource group and copied to all nodes in the recovery domain. Pointers in this area will not resolve correctly on all nodes and should not be placed in the data. The data specified will replace the existing exit program data stored with the cluster resource group, if the command completes successfully.
+
+*SAME
+The exit program data is not changed.
+
+*NONE
+There is no exit program data.
+
+character-value
+Specify up to 256 bytes of data to be passed to the cluster resource group exit program.
+
+Top
+
+Exit program job (JOB)
+
+Specifies the name given the batch job that is submitted by the cluster resource group. This job will call the cluster resource group exit program with the action code generated by the command being used.
+
+*SAME
+The job name is not changed.
+
+*CRG
+The name of the cluster resource group will be used.
+
+*JOBD
+The job name in the job description for the specified user profile will be used.
+
+name
+Specify the name to be given to the batch job submitted for running the exit program.
+
+Top
+
+Takeover IP address (TKVINTNETA)
+
+Specifies the internet interface address that is to be associated with an application. This is the takeover IP address that will be switched between systems. The IP addresses may be an IPv4 address (for any cluster version) or IPv6 address (if current cluster version is 7 or greater).
+
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host portion of the address.
+
+An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. The "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address. IP addresses created by IPv6 stateless address auto-configuration are not valid to be used as takeover IP addresses.
+
+If the IP address is entered from the command line, the address must be enclosed in apostrophes.
+
+If the value is not *SAME and the Cluster Resource Services configured the takeover IP address, this command will remove the current IP address and add this IP address to the node. If either the add or remove address function fails, the command will fail. The cluster resource group must be Inactive to change this field. This field is only valid for an application cluster resource resource group.
+
+*SAME
+The takeover IP address is not changed.
+
+character-value
+Specify the takeover IP address for the application cluster resource group.
+
+Top
+
+Allow application restarts (ALWRESTART)
+
+Specifies whether or not to restart an application if the cluster resource group exit program fails.
+
+*SAME
+Allow application restart is not changed.
+
+*NO
+Do not attempt to restart the application. The cluster resource group exit program is called with an action code of Failover.
+
+*YES
+Attempt to restart the application on the same node. The cluster resource group exit program will be called with an action code of Restart. If the application cannot be restarted in the specified maximum number of attempts, the cluster resource group exit program will be called with an action code of Failover.
+
+Top
+
+Number of application restarts (NBRRESTART)
+
+Specifies the number of times a cluster resource group exit program can be called on a same node before failure occurs. Maximum number of restarts is 3. If the cluster resource group is currently active, any change does not take affect until failover occurs or the cluster resource group exit program job ends.
+
+*SAME
+The number of restart attempts is not changed.
+
+0-3
+Specify the number of times that restart will be attempted before doing a failover.
+
+Top
+
+Application identifier (APPID )
+
+Specifies the application identifier. This defines the purpose of the cluster resource group.
+
+*SAME
+The current application identifier is not changed.
+
+*NONE
+The application identifier is removed.
+
+name
+Specify the name of the application that supplied the peer cluster resource group. The name can be up to 20 characters. The recommended format is 'vendor-id.name' where vendor-id is an identifier for the vendor creating the cluster resource group and name is the application name. For example, QIBM.ExamplePeer, indicates it is supplied by IBM for the ExamplePeer application. It is not recommended to use QIBM unless the cluster resource group is supplied by IBM.
+
+Top
+
+Text description (TEXT)
+
+Specifies the text used to briefly describe the cluster resource group object.
+
+*SAME
+The current text description is not changed.
+
+character-value
+Specify the new text to describe the cluster resource group object.
+
+Top
+
+Failover message queue (FLVMSGQ)
+
+Specifies the message queue to receive messages (CPABB01) dealing with failover. If this field is set, the specified message queue must exist on all nodes in the recovery domain after the exit program completes. The message queue cannot be in an independent auxiliary storage pool.
+
+Single values
+
+*SAME
+The current failover message queue is not changed.
+
+*NONE
+No messages will be sent when a failover occurs for this cluster resource group.
+
+Qualifier 1: Failover message queue
+
+name
+Specify the name of the failover message queue.
+
+Qualifier 2: Library
+
+name
+Specify the name of the library that contains the message queue to receive the failover message. The library name cannot be *CURLIB, QTEMP, or *LIBL.
+
+Top
+
+Failover wait time (FLVWAITTIM)
+
+Specifies the number of minutes to wait for a reply to the failover message that was enqueued on the failover message queue. This parameter is ignored when the FLVMSGQ parameter is *NONE.
+
+*SAME
+The current failover wait time is not changed.
+
+*NOWAIT
+Failover proceeds without user intervention.
+
+*NOMAX
+Wait forever until a response is given to the failover inquiry message.
+
+integer
+Specify the number of minutes to wait for a response to the failover inquiry message. If no response is received in the specified number of minutes, the failover default action field will be looked at to decide how to proceed.
+
+Top
+
+Failover default action (FLVDFTACN )
+
+Specifies the default action to be taken if a response to the failover message is not received in the failover wait time limit. This parameter is ignored if the failover message queue (FLVMSGQ) parameter is *NONE or if the failover wait time (FLVWAITTIM) parameter is *NOMAX..
+
+*SAME
+The current failover default action is not changed.
+
+*PROCEED
+Proceed with failover.
+
+*CANCEL
+Do not attempt failover.
+
+Top
+
+Cluster resource group type (CRGTYPE)
+
+Specifies the type of the cluster resource group that is to be changed.
+
+*CRG
+The type of the cluster resource group with the name specified in Cluster resource group (CRG) parameter is used.
+
+*DATA
+The cluster resource group is a data cluster resource group.
+
+*APP
+The cluster resource group is an application cluster resource group.
+
+*DEV
+The cluster resource group is a device cluster resource group.
+
+*PEER
+The cluster resource group is a peer cluster resource group.
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the name of the cluster.
+
+*
+The cluster that has been configured on this system is used.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Examples for CHGCRG
+
+Example 1: Changing the Exit Program Data
+
+CHGCRG CRG(MYCRG)
+EXITPGMDTA('replace this data')
+TEXT('CRG FOR PAYROLL APPLICATION DATA')
+
+This command changes a cluster resource group called MYCRG in the cluster. The exit program data is replaced with the character string specified. The text description for the cluster resource group object is also changed to the value specified. All other fields are unchanged.
+
+Example 2: Changing the Recovery Domain
+
+CHGCRG CRG(MYCRG)
+EXITPGMFMT(*SAME) TEXT('CRG FOR CROSS SITE MIRRORING')
+RCYDMNACN(*CHGCUR)
+RCYDMN((NODE1 *SAME *SAME *SAME *ADD ('1.1.1.1')))
+
+This command changes a cluster resource group called MYCRG in the cluster. The text description for the cluster resource group object is changed to the value specified. A data port IP address is added for node NODE1.
+
+CHGCRG CRG(MYCRG) CRGTYPE(*DEV)
+EXITPGMFMT(*SAME) TEXT('CRG FOR CROSS SITE MIRRORING')
+RCYDMNACN(*CHGCUR)
+RCYDMN((NODE1 *SAME *SAME *SAME *REMOVE
+('2001:0DB8:101::0230:D9FF')))
+
+This command changes a device cluster resource group called MYCRG in the cluster. The text description for the cluster resource group object is changed to the value specified. A data port IP address is removed for node NODE1.
+
+Top
+
+Error messages for CHGCRG
+
+*ESCAPE Messages
+
+HAE001D
+Cluster resource group &1 not changed.
+
+Top

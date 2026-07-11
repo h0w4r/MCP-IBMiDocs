@@ -1,0 +1,192 @@
+Change CRG Primary (CHGCRGPRI)
+
+Change CRG Primary (CHGCRGPRI)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Change Cluster Resource Group Primary (CHGCRGPRI) command performs an administrative switchover of the cluster resource group by changing the current roles of nodes in the recovery domain. The primary point of access for the cluster resource group is changed as specified in Switch type (SWTTYP) parameter.
+
+This command is not valid for peer model cluster resource groups.
+
+If a backup node does not exist in the recovery domain, the switchover will fail.
+
+This command will cause the cluster resource group exit program to be called with an action code of Switchover on all active nodes in the recovery domain.
+
+When switching over cluster resource groups of different types, the order of switchover is important. Device cluster resource group objects should be done first followed by data cluster resource group objects and finally application cluster resource group objects. If you are changing the primary point of access for a data or a device cluster resource group, you should also ensure that the applications using this data are quiesced.
+
+This command will do the following for all cluster resource group types:
+
+- Set the cluster resource group status Switchover Pending.
+
+- Call the cluster resource group exit program on all active nodes in the recovery domain with an action code of Switchover, if an exit program is specified for the cluster resource group.
+
+- Set the cluster resource group status to Active if the exit program completes successfully.
+
+- Set the cluster resource group status to Indoubt if the exit program is unsuccessful and the original state of the cluster resource group cannot be recovered.
+
+This command will do the following for resilient application cluster resource groups:
+
+- Cancel the cluster resource group exit program job with a Cancel Job Immediate on the current primary. (Note: The application and exit program code should provide cancel handlers to clean up resources the job uses if it is cancelled).
+
+- End the takeover IP interface on the current primary.
+
+- Start the takeover IP interface on the new primary.
+
+- Start the cluster resource group exit program on the new primary.
+
+- Set the cluster resource group status to Active if the TCP/IP address and the cluster resource group exit program job are started.
+
+- Set the cluster resource group status to Indoubt if either the TCP/IP address or the cluster resource group exit program job are not started.
+
+This command will do the following for resilient device cluster resource groups:
+
+- The configuration objects must exist on all active nodes in the recovery domain and the resource names in the configuration objects must be the same on all active nodes.
+
+- The current primary node must be the current owner for the hardware resources of the configuration objects specified in the cluster resource group.
+
+- For the configuration objects specified in the cluster resource group, vary the configuration objects off if they are varied on and end the server takeover IP addresses if they are active on the current primary node. The devices are varied off and moved to the new primary before the exit program is called on the current primary. If any of the devices in the cluster resource group are a primary auxiliary storage pool, all members of the auxiliary storage pool group will be varied off. Before varying the devices off, cluster resource services will attempt to end all jobs which are using auxiliary storage pools configured in the cluster resource group. There are some system server jobs which will not be cancelled. If those server jobs are performing long running operations against data on an auxiliary storage pool, the devices may not vary off and the switchover will fail.
+
+- For the configuration objects specified in the cluster resource group, vary the configuration objects on and start the server takeover IP address on the new primary node if the entry in the cluster resource group indicates the configuration objects is to be varied on. If any of the devices in the cluster resource group are a primary auxiliary storage pool, all members of the auxiliary storage pool group will be varied on if the primary specifies the vary on value. The exit program is called on the new primary after the devices are moved to the new primary and varied on.
+
+- A separate batch job is submitted to vary each configuration object on or off. On IBM i 7.3 and later, the job is submitted to the QSYS/QSYSNOMAX job queue.
+
+- Cluster Resource Services varies the configuration objects in parallel based on the object type. All configuration objects of the type must either complete the vary (successfully or not) or be in vary pending before configuration objects of the next type are varied.
+
+- Set the cluster resource group status to Active if the devices can be successfully switched to the new primary.
+
+- If the device entry in the cluster resource group indicates the device should be varied on and the vary on or the start of the server takeover IP address fails for some reason, the switchover will not complete successfully. The exit program will be called with an action code of Undo and the devices will be moved back to the original primary node.
+
+- If the devices can not be switched to the new primary, then the switchover fails. The exit program will be called with an action code of Undo (15) and the devices will be moved back to the original primary node and/or the role of auxiliary storage pool will be swapped back as before (for cross site mirroring where the new primary node is at a different site than the current primary node).
+
+- If the device entry in the cluster resource group indicates the device should be varied on and the vary on or the start of the server takeover IP address fails for some reason, the switchover will not complete successfully. The devices remain on the new primary, and the exit program will be called with an action code dependent data of Configuration Object Online Failure (16). Configuration objects that had successfully varied on will remain varied on.
+
+- Set the cluster resource group status to Indoubt if the devices cannot be successfully switched to the new primary node and cannot be returned to the same state on the old primary node.
+
+Restrictions:
+
+- You must have input/output system configuration (*IOSYSCFG) special authority on all nodes in the recovery domain to run this command.
+
+- This command cannot be called from a cluster resource group exit program.
+
+- Cluster Resource Services must be started on the node processing the request.
+
+- The status of the cluster resource group being switched must be Active.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+CRG | Cluster resource group | Name | Required, Positional 1
+SWTTYP | Switch type | *CURRCYDMN, *SAMESITE, *CRSSITE | Optional
+EXITPGMDTA | Exit program data | Character value, *SAME | Optional
+CLUSTER | Cluster | Name, * | Optional
+
+Top
+
+Cluster resource group (CRG)
+
+Specifies the cluster resource group.
+
+This is a required parameter.
+
+name
+Specify the name of the cluster resource group that is to be switched over.
+
+Top
+
+Switch type (SWTTYP)
+
+Specifies the switch type, which determines the method of selection of the new primary node.
+
+*CURRCYDMN
+Specify that the primary point of access for the CRG is changed as follows:
+
+- The first backup node in the current recovery domain becomes the new primary node.
+
+- The current primary node is assigned the role of the last active backup in the current recovery domain.
+
+If the first backup is not the desired primary, first use the Change Cluster Resource Group (CHGCRG) command to arrange the backup nodes in recovery domain to the desired order.
+
+*SAMESITE
+Specify that the primary point of access for the CRG is changed as follows:
+
+- The first backup node in the site containing the current primary node becomes the new primary node.
+
+- The current primary node is assigned the role of the last active backup within the site.
+
+This only applied to device cluster resource groups.
+
+*CRSSITE
+Specify that the primary point of access for the CRG is changed as follows:
+
+- The first backup node in the site that does not contain the current primary node becomes the new primary node.
+
+- The current primary node is assigned the role of the first active backup within the site.
+
+This only applied to device cluster resource groups.
+
+Top
+
+Exit program data (EXITPGMDTA)
+
+Specifies up to 256 bytes of data that is passed to the cluster resource group exit program when it is called. This parameter may contain any scalar data except pointers. For example, it can be used to provide state information. This data will be stored with the specified cluster resource group and copied to all nodes in the recovery domain. Pointers in this area will not resolve correctly on all nodes and should not be placed in the data. The data specified will replace the existing exit program data stored with the cluster resource group. If blanks are specified, then the exit program data stored with the cluster resource group will be cleared. This parameter must be set to *SAME if no exit program is specified for the cluster resource group.
+
+*SAME
+The exit program data stored with the cluster resource group specified will be passed to the exit program.
+
+character-value
+Specify the exit program data that will be passed to the cluster resource group exit program.
+
+Top
+
+Cluster (CLUSTER)
+
+Specifies the name of the cluster.
+
+*
+The cluster that has been configured on this system is used.
+
+name
+Specify the name of the cluster.
+
+Top
+
+Examples for CHGCRGPRI
+
+Example 1: Switchover to the next backup node in the current recovery domain.
+
+CHGCRGPRI CRG(MYCRG) SWTTYP(*CURRCYDMN)
+
+This command changes the primary point of access for the cluster resource group MYCRG to the first backup node in the current recovery domain. The role of the current primary node is changed to become the last backup. The resilient resources associated with the cluster resource group are now accessed through the new primary node.
+
+Example 2: Switchover to the first backup node in the current site.
+
+CHGCRGPRI CRG(MYCRG) SWTTYP(*SAMESITE)
+
+This command changes the primary point of access for the cluster resource group MYCRG to the first backup node in the site containing the current primary node. The role of the current primary node is changed to become the last backup in the site. The resilient resources associated with the cluster resource group are now accessed through the new primary node.
+
+Example 2: Switchover to the first backup node in the other site.
+
+CHGCRGPRI CRG(MYCRG) SWTTYP(*CRSSITE)
+
+This command changes the primary point of access for the cluster resource group MYCRG to the first backup node in the site that does not contain the current primary node. The role of the current primary node is changed to become the first backup in the site. The resilient resources associated with the cluster resource group are now accessed through the new primary node.
+
+Top
+
+Error messages for CHGCRGPRI
+
+*ESCAPE Messages
+
+HAE001E
+Primary node of cluster resource group &1 not changed.
+
+Top

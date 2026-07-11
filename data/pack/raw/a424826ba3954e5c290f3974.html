@@ -1,0 +1,1690 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="RSTOBJ.Top_Of_Page"></a>
+<h1>Restore Object  (RSTOBJ)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#RSTOBJ.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#RSTOBJ.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#RSTOBJ.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ"></a>
+<p>The Restore Object (RSTOBJ) command restores to the system a single object or a group of objects in a single library that were saved on a tape or optical volume, or in a save file using a single command.  Objects to be restored could have been saved by the Save Object (SAVOBJ), Save Changed Objects (SAVCHGOBJ) or Save Library (SAVLIB) command.  The RSTOBJ command restores the object description and contents of each object specified in the command.
+</p>
+<p>For job queues, user-defined message queues, logical files, and user queues, only the object descriptions are restored; the contents of those objects are not restored.  However, logical file access paths can be saved by a save command with ACCPTH(*YES) specified; if this is done, the access paths can be restored.  More information on restoring access paths is in the Database category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.  The contents of spooled files on output queues can be restored, if they were saved, by specifying *NEW for the <strong>Spooled file data (SPLFDTA)</strong> parameter.
+</p>
+<p>The command can be used to restore the objects even if the object storage was freed when the objects were saved, or if the objects were deleted after they were saved.  If the storage was not freed as part of a save operation, each object is restored in the same area of storage that it previously occupied.  If the version of the object being restored is larger than the version in the system (for example, data records that were deleted from the system still exist in the saved version of a file), the additional storage needed for the object is acquired.  If the saved version of the object is smaller (for example, data records that are added to the system), the space that was acquired for the object remains assigned to that object and available for use by that object.
+</p>
+<p>If logical file access paths were saved (ACCPTH(*YES) was specified when the objects were saved), the access paths are restored if (1) all based-on physical files are also being restored by the same restore command, (2) the logical file is also being restored by the same restore command, or the logical file already exists on the system (the same file exists, not a re-created version), and (3) MAINT(*IMMED or *DLY) is in effect for the logical file if it still exists on the system.
+</p>
+<p>If the storage was freed, the system finds the storage space needed to store the contents (only the data portion) of each file, module, program, service program, journal receiver, and Structured Query Language (SQL) package.  If the objects do not exist on the system because they were deleted or they are being restored in a different system, the system must find the storage to store everything (the description and the data portion) about each unknown object.
+</p>
+<p>If an object is being restored over an existing object on the system, the owner, primary group, public and private authorities, authorization list, and object auditing value of the existing object are retained.  The <strong>Allow object differences (ALWOBJDIF)</strong> parameter may affect whether the object is restored, and the <strong>Private authorities (PVTAUT)</strong> parameter may add saved private authorities to the existing private authorities.  Existing objects that are in use, such as output queues that are actively spooling, are not restored.  Existing data queues are not restored.
+</p>
+<p>If an object is being restored as new to the system, the saved owner name, primary group name, public authority, and object auditing value are used.  The ALWOBJDIF parameter may affect whether the saved authorization list name is used, and the PVTAUT parameter may restore saved private authorities.  If the owner user profile does not exist, the system default owner (QDFTOWN) becomes the owner of the object.  If the primary group does not exist, *NONE is used.
+</p>
+<p>
+<strong>Note:     </strong>This command ignores all file overrides currently in effect for the job, except for the output file.
+</p>
+<p><strong>ATTENTION:</strong> Do not use this command to restore licensed programs into library QSYS.  Unpredictable results can occur.
+</p>
+<h2><strong>Restrictions:</strong>
+</h2>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">This command is shipped with no public authority (*EXCLUDE).
+</li>
+<li class="cds--list__item">You must have use (*USE) authority for the Create Save File (CRTSAVF) command when restoring a save file that does not currently exist on the system.
+</li>
+<li class="cds--list__item">When saving or restoring to an existing database file using the OUTFILE parameter, you must have execute (*EXECUTE) authority to the library where the output database file is located.
+</li>
+<li class="cds--list__item">You must have save system (*SAVSYS) special authority, or all of the following object authorities:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Add (*ADD) and execute (*EXECUTE) authorities for the specified library and save file library.
+</li>
+<li class="cds--list__item">Object existence (*OBJEXIST) authority for, or be the owner of, each object specified if the object already exists in the library on the system.  *OBJEXIST and use (*USE) authorities are required for message queue objects.  If the object does not already exist in the library on the system, you must have *ADD authority for the user profiles that own each object being restored.  For spooled file data, *OBJEXIST authority is required for the output queue to which it is restored.
+</li>
+<li class="cds--list__item">If VOL(*SAVVOL) is specified, *USE authority to the saved-from library.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">The RSTOBJ command does not restore the library's data dictionary or its associated database files.  To do this, the RSTLIB command must be used.
+</li>
+<li class="cds--list__item">You must have *USE authority for the save file to restore from the save file.  In addition, the user must have *USE authority for the device description when restoring from a tape or optical device.
+</li>
+<li class="cds--list__item">When using a media definition, you must have *USE authority to the media definition and *EXECUTE authority to the media definition library.
+</li>
+<li class="cds--list__item">If this command is used to restore an OPM program, the copy of that program that is currently in the system must not be running while the program is being restored.  If this occurs, the running program may fail or behave unpredictably.
+</li>
+<li class="cds--list__item">Objects saved by separate commands must also be restored by separate commands.  If a single command is used, some of the objects are not restored.
+</li>
+<li class="cds--list__item">If the user domain object user space (*USRSPC), user index (*USRIDX), or user queue (*USRQ) is restored to a library that is not permitted in the system value QALWUSRDMN (allow user domain objects in libraries), the object is converted to a system domain object.
+</li>
+</ul>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="RSTOBJ.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.OBJ"><strong>OBJ</strong></a></td>
+<td class="valigntop">Objects</td>
+<td class="valigntop">Single values: *ALL<br>Other values (up to 300 repetitions): <span class="var">Generic name, name</span></td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.SAVLIB"><strong>SAVLIB</strong></a></td>
+<td class="valigntop">Saved library</td>
+<td class="valigntop">Single values: *ANY, *SELECT<br>Other values (up to 300 repetitions): <span class="var">Generic name, name</span></td>
+<td class="valigntop">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.DEV"><strong>DEV</strong></a></td>
+<td class="valigntop">Device</td>
+<td class="valigntop">Single values: *SAVF, *MEDDFN<br>Other values (up to 4 repetitions): <span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.OBJTYPE"><strong>OBJTYPE</strong></a></td>
+<td class="valigntop">Object types</td>
+<td class="valigntop">Single values: <strong class="underlined">*ALL</strong><br>Other values (up to 75 repetitions): *ALRTBL, *BNDDIR, *CFGL, *CHTFMT, *CLD, *CLS, *CMD, *CRG, *CRQD, *CSI, *CSPMAP, *CSPTBL, *DTAARA, *DTAQ, *EDTD, *EXITRG, *FCT, *FILE, *FNTRSC, *FNTTBL, *FORMDF, *FTR, *GSS, *IGCDCT, *IGCSRT, *IGCTBL, *IMGCLG, *JOBD, *JOBQ, *JOBSCD, *JRN, *JRNRCV, *LOCALE, *MEDDFN, *MENU, *MGTCOL, *MODULE, *MSGF, *MSGQ, *NODGRP, *NODL, *NWSCFG, *OUTQ, *OVL, *PAGDFN, *PAGSEG, *PDFMAP, *PDG, *PGM, *PNLGRP, *PRDAVL, *PRDDFN, *PRDLOD, *PSFCFG, *QMFORM, *QMQRY, *QRYDFN, *RCT, *SBSD, *SCHIDX, *SPADCT, *SQLPKG, *SQLUDT, *SQLXSR, *SRVPGM, *SSND, *SVRSTG, *S36, *TBL, *TIMZON, *USRIDX, *USRQ, *USRSPC, *VLDL, *WSCST</td>
+<td class="valigntop">Optional, Positional 4</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.VOL"><strong>VOL</strong></a></td>
+<td class="valigntop">Volume identifier</td>
+<td class="valigntop">Single values: <strong class="underlined">*MOUNTED</strong>, *SAVVOL<br>Other values (up to 75 repetitions): <span class="var">Character value</span></td>
+<td class="valigntop">Optional, Positional 5</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.SEQNBR"><strong>SEQNBR</strong></a></td>
+<td class="valigntop">Sequence number</td>
+<td class="valigntop">1-16777215, <strong class="underlined">*SEARCH</strong></td>
+<td class="valigntop">Optional, Positional 6</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.POSITION"><strong>POSITION</strong></a></td>
+<td class="valigntop">Starting position in file</td>
+<td class="valigntop"><span class="var">Hexadecimal value</span>, <strong class="underlined">*FIRST</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.LABEL"><strong>LABEL</strong></a></td>
+<td class="valigntop">Label</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*SAVLIB</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.ENDOPT"><strong>ENDOPT</strong></a></td>
+<td class="valigntop">End of media option</td>
+<td class="valigntop"><strong class="underlined">*REWIND</strong>, *LEAVE, *UNLOAD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RSTOBJ.SAVF"><strong>SAVF</strong></a></td>
+<td class="valigntop">Save file</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Save file</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#RSTOBJ.OPTION"><strong>OPTION</strong></a></td>
+<td class="valigntop">Option</td>
+<td class="valigntop"><strong class="underlined">*ALL</strong>, *NEW, *OLD, *FREE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RSTOBJ.FILEMBR"><strong>FILEMBR</strong></a></td>
+<td class="valigntop">File member</td>
+<td class="valigntop">Values (up to 50 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: File</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*ALL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Member</td>
+<td class="valigntop">
+Single values: <strong class="underlined">*ALL</strong>, *NONE<br>Other values (up to 50 repetitions): <span class="var">Generic name, name</span></td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.MBROPT"><strong>MBROPT</strong></a></td>
+<td class="valigntop">Data base member option</td>
+<td class="valigntop"><strong class="underlined">*MATCH</strong>, *ALL, *NEW, *OLD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.DFRID"><strong>DFRID</strong></a></td>
+<td class="valigntop">Defer ID</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*NONE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.SPLFDTA"><strong>SPLFDTA</strong></a></td>
+<td class="valigntop">Spooled file data</td>
+<td class="valigntop"><strong class="underlined">*NEW</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.PVTAUT"><strong>PVTAUT</strong></a></td>
+<td class="valigntop">Private authorities</td>
+<td class="valigntop"><strong class="underlined">*NO</strong>, *YES</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.STRJRN"><strong>STRJRN</strong></a></td>
+<td class="valigntop">Start journaling</td>
+<td class="valigntop"><strong class="underlined">*YES</strong>, *NO</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.SAVDATE"><strong>SAVDATE</strong></a></td>
+<td class="valigntop">Date when saved</td>
+<td class="valigntop"><span class="var">Date</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.SAVTIME"><strong>SAVTIME</strong></a></td>
+<td class="valigntop">Time when saved</td>
+<td class="valigntop"><span class="var">Time</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.ALWOBJDIF"><strong>ALWOBJDIF</strong></a></td>
+<td class="valigntop">Allow object differences</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong>, *COMPATIBLE, *ALL<br>Other values (up to 4 repetitions): *AUTL, *FILELVL, *OWNER, *PGP</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RSTOBJ.FRCOBJCVN"><strong>FRCOBJCVN</strong></a></td>
+<td class="valigntop">Force object conversion</td>
+<td class="valigntop">Single values: <strong class="underlined">*SYSVAL</strong>, *NO<br>Other values: <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Convert during restore</td>
+<td class="valigntop">
+<strong class="underlined">*YES</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Objects to convert</td>
+<td class="valigntop">
+<strong class="underlined">*RQD</strong>, *ALL</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.RSTLIB"><strong>RSTLIB</strong></a></td>
+<td class="valigntop">Restore to library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*SAVLIB</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.OUTPUT"><strong>OUTPUT</strong></a></td>
+<td class="valigntop">Output</td>
+<td class="valigntop"><strong class="underlined">*NONE</strong>, *PRINT, *OUTFILE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RSTOBJ.MEDDFN"><strong>MEDDFN</strong></a></td>
+<td class="valigntop">Media definition</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Media definition</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#RSTOBJ.OPTFILE"><strong>OPTFILE</strong></a></td>
+<td class="valigntop">Optical file</td>
+<td class="valigntop"><span class="var">Path name</span>, <strong class="underlined">*</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.RSTASPDEV"><strong>RSTASPDEV</strong></a></td>
+<td class="valigntop">Restore to ASP device</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*SAVASPDEV</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.RSTASP"><strong>RSTASP</strong></a></td>
+<td class="valigntop">Restore to ASP number</td>
+<td class="valigntop">1-32, <strong class="underlined">*SAVASP</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#RSTOBJ.OUTFILE"><strong>OUTFILE</strong></a></td>
+<td class="valigntop">File to receive output</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: File to receive output</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop" rowspan="3"><a href="#RSTOBJ.OUTMBR"><strong>OUTMBR</strong></a></td>
+<td class="valigntop">Output member options</td>
+<td class="valigntop"><span class="var">Element list</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Member to receive output</td>
+<td class="valigntop">
+<span class="var">Name</span>, <strong class="underlined">*FIRST</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Replace or add records</td>
+<td class="valigntop">
+<strong class="underlined">*REPLACE</strong>, *ADD</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.INFTYPE"><strong>INFTYPE</strong></a></td>
+<td class="valigntop">Type of output information</td>
+<td class="valigntop"><strong class="underlined">*OBJ</strong>, *MBR</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#RSTOBJ.OMITLIB"><strong>OMITLIB</strong></a></td>
+<td class="valigntop">Libraries to omit</td>
+<td class="valigntop">Single values: <strong class="underlined">*NONE</strong><br>Other values (up to 300 repetitions): <span class="var">Generic name, name</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="5"><a href="#RSTOBJ.OMITOBJ"><strong>OMITOBJ</strong></a></td>
+<td class="valigntop">Objects to omit</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="5">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Object</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Object</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, <strong class="underlined">*NONE</strong>, *ALL</td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, <strong class="underlined">*ALL</strong></td>
+</tr><tr>
+<td class="valigntop">Element 2: Object type</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*ALL</strong></td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="8"><a href="#RSTOBJ.SELECT"><strong>SELECT</strong></a></td>
+<td class="valigntop">Select</td>
+<td class="valigntop">Values (up to 300 repetitions): <span class="var">Element list</span></td>
+<td class="valigntop" rowspan="8">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Element 1: Include or omit</td>
+<td class="valigntop">
+<strong class="underlined">*INCLUDE</strong>, *OMIT</td>
+</tr>
+<tr>
+<td class="valigntop">Element 2: Object</td>
+<td class="valigntop">
+<span class="var">Qualified object name</span></td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Object</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, <strong class="underlined">*ALL</strong></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, <strong class="underlined">*ALL</strong></td>
+</tr><tr>
+<td class="valigntop">Element 3: Object type</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*ALL</strong></td>
+</tr>
+<tr>
+<td class="valigntop">Element 4: Object attribute</td>
+<td class="valigntop">
+<span class="var">Character value</span>, <strong class="underlined">*ALL</strong>, *BLANK</td>
+</tr>
+<tr>
+<td class="valigntop">Element 5: File member</td>
+<td class="valigntop">
+<span class="var">Generic name, name</span>, <strong class="underlined">*ALL</strong>, *ALLMBR</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="RSTOBJ.OBJ"></a>
+<h2>Objects (OBJ)</h2>
+<p>Specifies the names of one or more objects to restore.  The objects you specify will be restored from the first file that meets the search value and contains any of the objects.  If a tape contains multiple files for the same library, you may need to specify the tape file sequence number to ensure that all of the correct objects are restored.
+</p>
+<p>If the file does not contain all of the objects you specify, diagnostic messages will be issued for the objects not found.  The completion message will contain a count of objects restored and objects not restored.
+</p>
+<p>If the <strong>Object types (OBJTYPE)</strong> parameter is not specified when the command is run, all the object types listed in the description of that parameter are restored, if they are in the specified library on the media or in the save file, and if they have the specified names.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>All the objects saved from the specified library are restored, depending on the values specified for the <strong>Object types (OBJTYPE)</strong> and <strong>Option (OPTION)</strong> parameters.
+</dd>
+</dl>
+<h3><strong>Other values (up to 300 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify one or more generic names of groups of objects in the specified library to restore.  A generic name is a character string that contains one or more characters followed by an asterisk (*).  If an asterisk is not specified with the name, the system assumes that the name is a complete object name.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify one or more names of specific objects to restore.  Both generic names and specific names can be specified in the same command.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.SAVLIB"></a>
+<h2>Saved library (SAVLIB)</h2>
+<p>Specifies the libraries that contained the saved objects.  If *SAVLIB is specified or defaulted for the <strong>Restore to library (RSTLIB)</strong> parameter, this is also the name of the library to which the objects are restored.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">If you specify more than one library, or a single value, or a generic library value:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The <strong>Device (DEV)</strong> parameter must not specify *SAVF.
+</li>
+<li class="cds--list__item">The <strong>Restore to library (RSTLIB)</strong> parameter must specify *SAVLIB.
+</li>
+<li class="cds--list__item">The <strong>Label (LABEL)</strong> parameter must specify *SAVLIB.
+</li>
+<li class="cds--list__item">The <strong>Optical file (OPTFILE)</strong> parameter must specify * or end with /*.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">The tape or optical file that you select to restore may contain a library that does not match the value that you specify for this parameter.  This parameter is used to determine the default LABEL value for a tape file and the default OPTFILE value for an optical file, but the restore operation does not verify that this parameter matches the saved library.
+</li>
+</ol>
+<p>This is a required parameter.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*ANY</strong></dt>
+<dd>Restores objects from the first version of all saved libraries found on the tape beginning with the sequence number specified for the <strong>Sequence number (SEQNBR)</strong> parameter, or restores objects from all saved libraries found on the optical media in the directory specified for the OPTFILE parameter.
+</dd>
+</dl>
+<dl>
+<dt><strong>*SELECT</strong></dt>
+<dd>The libraries identified in the <strong>Select (SELECT)</strong> parameter are restored.  Only one library can be specified in the selection criteria when restoring from a save file.
+</dd>
+</dl>
+<h3><strong>Other values (up to 300 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the libraries to be restored.
+<p>
+<strong>Note:     </strong>A generic name is specified as a character string that contains one or more characters followed by an asterisk (*).  If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+</p>
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to restore.  The name of the library being restored must be the same as the name that was used when the library was saved.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.DEV"></a>
+<h2>Device (DEV)</h2>
+<p>Specifies the name of the device used for the restore operation.  The device name must already be known on the system by a device description.
+</p>
+<p>This is a required parameter.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong>*SAVF</strong></dt>
+<dd>The restore operation is done using the save file specified for the <strong>Save file (SAVF)</strong> parameter.
+</dd>
+</dl>
+<dl>
+<dt><strong>*MEDDFN</strong></dt>
+<dd>The restore operation is done using the devices and media identified in the media definition specified for the <strong>Media definition (MEDDFN)</strong> parameter.
+</dd>
+</dl>
+<h3><strong>Other values</strong>
+</h3>
+<dl>
+<dt><strong class="italic">optical-device-name</strong></dt>
+<dd>Specify the name of the optical device used for the restore operation.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">tape-media-library-device-name</strong></dt>
+<dd>Specify the name of the tape media library device used for the restore operation.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">tape-device-name</strong></dt>
+<dd>Specify the names of one or more tape devices used for the restore operation.  If a virtual tape device is used, it must be the only device specified.  If you are using more than one tape device (up to a maximum of four), specify the names of the devices in the order in which they are used.  When more than one tape volume is to be restored, using more than one tape device permits one tape volume to be rewound while another tape device processes the next tape volume.  To use more than one device in parallel, a media definition must be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OBJTYPE"></a>
+<h2>Object types (OBJTYPE)</h2>
+<p>Specifies the types of system objects that are restored.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All object types that are specified by name and were saved from the specified library are restored.  If *ALL is also specified for the <strong>Objects (OBJ)</strong> parameter, all objects saved for that library are restored.
+</dd>
+</dl>
+<h3><strong>Other values</strong>
+</h3>
+<dl>
+<dt><strong class="italic">object-type</strong></dt>
+<dd>Specify the value for each of the types of objects to be restored, such as command (*CMD), file (*FILE), or program (*PGM).
+<p>To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt).  For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+</dd>
+</dl>
+<p>
+<strong>Note:     </strong>*CFGL object types can be restored using the Restore Object (RSTOBJ) command only from objects saved on releases prior to V2R2M0.  *CFGL object types saved on V2R2M0 and newer releases are restored using the Restore Configuration (RSTCFG) command.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.VOL"></a>
+<h2>Volume identifier (VOL)</h2>
+<p>Specifies the volume identifiers of the media or the cartridge identifiers of tapes in a tape media library device, from which the objects are being restored.  The volumes must be in the same order as they were when the data was saved.  The volume that contains the beginning of the file to be restored should be placed in the device.
+</p>
+<p>
+<strong>Note:     </strong>The version of the objects restored is the first version found in the specified location, unless a specific version is identified by the <strong>Date when saved (SAVDATE)</strong> and <strong>Time when saved (SAVTIME)</strong> parameters.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*MOUNTED</strong></dt>
+<dd>The objects are restored from the volumes placed in the device specified for the <strong>Device (DEV)</strong> parameter.  For a media library device, the volume to be used is the next cartridge in the category mounted by the Set Tape Category (SETTAPCGY) command.
+<p>
+<strong>Note:     </strong>This value cannot be specified when using an optical media library device.
+</p>
+</dd>
+</dl>
+<dl>
+<dt><strong>*SAVVOL</strong></dt>
+<dd>The system, by using the save or restore history information, determines which volumes contain the most recently saved version of the objects.
+<p>
+<strong>Note:     </strong>If this is a restore from an optical device, only the first 6 characters of the volume name are available.  If the volume name of the optical media exceeds 6 characters, the volume may not be found.  You should specify the complete volume or file name on the command instead of using VOL(*SAVVOL) when the name of the optical media exceeds 6 characters.
+</p>
+<p>When *SAVVOL is specified, the following operational characteristics and restrictions apply:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If the characteristics of the device specified in the DEV parameter do not match the device and location of the most recently saved version of the library, an error message is sent to the <strong>user</strong>, and the function is ended.
+</li>
+<li class="cds--list__item">If the wrong volume is placed in a device in the location specified by the command, a message is sent to the <strong>system operator</strong> that identifies the first volume that must be placed in the device before the objects can be restored.
+</li>
+<li class="cds--list__item">When OBJ(*ALL) and OBJTYPE(*ALL) is specified, the objects are considered in the order they would appear in a display produced by the Display Library (DSPLIB) command.  The object names and types specified in the RSTOBJ command are used to determine which file of saved objects is used in the restore operation.  One file is produced for each SAVLIB or SAVOBJ command run.  The file chosen is the one in which the first considered object was last saved.  Objects that were not saved in the file chosen to be processed, or that were more recently saved, are not restored; an error message is sent to the user for each unrestored object.
+</li>
+<li class="cds--list__item">If *SAVVOL is specified, the SAVDATE and SAVTIME parameters cannot be specified.
+</li>
+<li class="cds--list__item">If *SAVVOL is specified and the RSTLIB value is equal to the SAVLIB value, OPTION(*NEW) cannot be specified.
+</li>
+<li class="cds--list__item">If *SAVVOL is specified, SEQNBR(*SEARCH) and LABEL(*SAVLIB) must be specified.
+</li>
+</ul>
+</dd>
+</dl>
+<h3><strong>Other values (up to 75 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the identifiers of one or more volumes in the order in which they are placed in a device and used to restore the data.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.SEQNBR"></a>
+<h2>Sequence number (SEQNBR)</h2>
+<p>Specifies, when tape is used, which sequence number is used for the restore operation.
+</p>
+<dl>
+<dt><strong class="underlined">*SEARCH</strong></dt>
+<dd>The volume in the device is searched for a data file with an identifier that matches the FROMLABEL parameter value; when a match is found, the object is restored.  If the last operation on the device specified *LEAVE for the <strong>End of tape option (ENDOPT)</strong> parameter, indicating that the tape is positioned at the location where the last operation ended, the file search starts with the first data file beyond the current tape position.  If *LEAVE was not used for the <strong>End of tape option (ENDOPT)</strong> parameter of the last operation, or if the tape was manually rewound since the operation, the search starts with the first data file on the volume.
+</dd>
+<dt><strong class="italic">1-16777215</strong></dt>
+<dd>Specify the sequence number of the file to be used for the restore operation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.POSITION"></a>
+<h2>Starting position in file (POSITION)</h2>
+<p>Specifies the position in the tape file at which to start searching for the data to restore. Specifying a value may improve the performance of the restore operation if you only want to restore data that is far from the beginning of the tape file.
+</p>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>Start searching for the data to restore at the beginning of the tape file.
+</dd>
+<dt><strong class="italic">hexadecimal-value</strong></dt>
+<dd>Specify the starting position in the tape file for the first object to be restored. The starting position of each object was returned in the output of the save operation.  If you are restoring more than one object, specify the smallest value that was returned for all of the objects to be restored.  If you specify a hexadecimal value, you must also specify a value other than *SEARCH for the <strong>Sequence number (SEQNBR)</strong> parameter.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.LABEL"></a>
+<h2>Label (LABEL)</h2>
+<p>Specifies the name that identifies the data file to be used for the restore operation.  This label must have been specified on the save command.
+</p>
+<dl>
+<dt><strong class="underlined">*SAVLIB</strong></dt>
+<dd>The file label is the name specified for the <strong>Saved library (SAVLIB)</strong> parameter.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the data file identifier of the data file used for the restore operation.  A maximum of 17 characters can be used.  This option is valid only for a single-library restore.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.ENDOPT"></a>
+<h2>End of media option (ENDOPT)</h2>
+<p>Specifies the operation that is automatically done on the tape or optical volume after the restore operation ends.  If more than one volume is used, this parameter applies only to the last volume used; all other volumes are unloaded when the end of the volume is reached.
+</p>
+<p>
+<strong>Note:     </strong>This parameter is valid only if a tape or optical device name is specified for the DEV parameter.  For optical devices, *UNLOAD is the only special value supported, *REWIND and *LEAVE will be ignored.
+</p>
+<dl>
+<dt><strong class="underlined">*REWIND</strong></dt>
+<dd>The tape is automatically rewound, but not unloaded, after the operation has ended.
+</dd>
+</dl>
+<dl>
+<dt><strong>*LEAVE</strong></dt>
+<dd>The tape does not rewind or unload after the operation ends.  It remains at the current position on the tape drive.
+</dd>
+</dl>
+<dl>
+<dt><strong>*UNLOAD</strong></dt>
+<dd>The tape is automatically rewound and unloaded after the operation ends.  Some optical devices will eject the volume after the operation ends.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.SAVF"></a>
+<h2>Save file (SAVF)</h2>
+<p>Specifies the save file used to restore the data.
+</p>
+<p>
+<strong>Note:     </strong>A value must be specified for this parameter if *SAVF is specified for the <strong>Device (DEV)</strong> parameter.
+</p>
+<h3><strong>Qualifier 1: Save file</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of save file to be used.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is used to locate the save file.  If no current library entry exists in the library list, the QGPL library is used.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library where the save file is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OPTION"></a>
+<h2>Option (OPTION)</h2>
+<p>Specifies how to handle restoring each object.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All the objects in the saved library are restored to the library.  Objects in the saved library replace the current versions in the system library.  Objects not having a current version are added to the system library.  Objects presently in the library, but not on the media, remain in the library.
+</dd>
+<dt><strong>*NEW</strong></dt>
+<dd>Only the objects in the saved library that do not exist in the current version of the system library are added to the library.  Only objects not known to the system library are restored;  known objects are not restored.  This option restores objects that were deleted after they were saved or that are new to this library.  If any saved objects have a version already in the system library, they are not restored, and an informational message is sent for each one, but the restore operation continues.
+</dd>
+<dt><strong>*OLD</strong></dt>
+<dd>Only the objects in the library having a saved version are restored; that is, the version of each object currently in the library is replaced by the saved version.  Only objects known to the library are restored.  If any saved objects are no longer part of the online version of the library, they are not added to the library;  an informational message is sent for each one, but the restore continues.
+</dd>
+<dt><strong>*FREE</strong></dt>
+<dd>The saved objects are restored only if they exist in the system library with their space freed.  The saved version of each object is restored on the system in its previously freed space.  This option restores objects that had their space freed when they were saved.  If any saved objects are no longer part of the current version of the library, or if the space is not free for any object, the object is not restored and an informational message is sent for each one.  The restore operation continues, and all of the freed objects are restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.FILEMBR"></a>
+<h2>File member (FILEMBR)</h2>
+<p>Specifies the database file members to restore.  This parameter is made up of two parts:  the file name and the member name.  This parameter cannot be specified if *MATCH is specified for the <strong>Data base member option (MBROPT)</strong> parameter.
+</p>
+<p>Each database file specified here must also be specified for the <strong>Objects (OBJ)</strong> parameter, by a specific name, a generic name, or *ALL.  The <strong>Object types (OBJTYPE)</strong> parameter must either be *ALL or include *FILE.  Generic names are not valid for the database file name but are allowed for the member name.  Duplicate file names are not allowed.
+</p>
+<p>There may be up to 50 of the file/member element list combinations specified for this parameter.
+</p>
+<h3><strong>Element 1: File</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The list of member name values that follows this value applies to all files indicated on the OBJ parameter.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the database file from which the listed members are restored.
+</dd>
+</dl>
+<h3><strong>Element 2: Member</strong>
+</h3>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All members are restored from the specified file.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>No members are restored from the specified file.  Only the file description is restored.
+</dd>
+</dl>
+<h3><strong>Other values (up to 50 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the members to be restored from the specified file.  A generic name is a character string that contains one or more characters followed by an asterisk (*).  If an asterisk is not specified with the name, the system assumes that the name is a complete member name.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the member to be restored from the specified file.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.MBROPT"></a>
+<h2>Data base member option (MBROPT)</h2>
+<p>Specifies, for database files that exist on the system, which members are restored.  If *MATCH is used, the member list in the saved file must match, member for member, the current version on the system.  All members are restored for files that do not exist, if the file is restored.
+</p>
+<dl>
+<dt><strong class="underlined">*MATCH</strong></dt>
+<dd>The saved members are restored if the lists of the members where they exist match, member for member, the lists of the current system version.  MBROPT(*MATCH) is not valid when *ALL is specified for the <strong>Allow object differences (ALWOBJDIF)</strong> parameter.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All members in the saved file are restored.
+</dd>
+<dt><strong>*NEW</strong></dt>
+<dd>Only new members (members not known to the system) are restored.
+</dd>
+<dt><strong>*OLD</strong></dt>
+<dd>Only members already known to the system are restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.DFRID"></a>
+<h2>Defer ID (DFRID)</h2>
+<p>Specifies the identifier to be used if you want to defer the restore or the start journal requests for objects that depend on other objects that are not yet available.  To complete the restore or start journal requests for deferred objects, restore the objects that they depend on, and specify the same Defer ID.  If any objects remain deferred when the other objects are available, use the Restore Deferred Objects (RSTDFROBJ) command, and specify the same Defer ID.  This parameter allows you to restore all objects in a set of libraries when the libraries with dependent objects are restored before the libraries with the objects they depend on.
+</p>
+<p>Deferred objects include:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Logical files when based-on files are missing.  A deferred logical file does not exist on the system until the restore is complete.
+</li>
+<li class="cds--list__item">SQL materialized query tables (MQTs) when based-on files are missing.  A deferred MQT exists on the system, but any functions that are performed on the MQT that require access to the based-on files will fail.
+</li>
+<li class="cds--list__item">Start journal requests for file (*FILE), data area (*DTAARA), data queue (*DTAQ), and library (*LIB) objects when journals are missing.  When deferred objects are processed, journaling is started if the journals are available.
+</li>
+</ul>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">If the following conditions are true, the restore of a deferred object may be completed automatically when the objects it depends on are restored:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The deferred object is restored to the same library from which it was saved.
+</li>
+<li class="cds--list__item">The same Defer ID is specified for the restore operations for both the deferred object and the objects it depends on.
+</li>
+</ul>
+</li>
+</ol>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>Objects will not be deferred if they depend on other objects that are not available.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify an identifier to defer the restore of objects that depend on other objects that are not yet available.  You must have save system (*SAVSYS) special authority to specify a name.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.SPLFDTA"></a>
+<h2>Spooled file data (SPLFDTA)</h2>
+<p>Specifies whether to restore spooled file data and attributes.
+</p>
+<dl>
+<dt><strong class="underlined">*NEW</strong></dt>
+<dd>For each output queue that is restored, spooled file data that was saved with the output queue is restored, if it does not already exist on the system.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>No spooled file data is restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.PVTAUT"></a>
+<h2>Private authorities (PVTAUT)</h2>
+<p>Specifies whether to restore private authorities with the objects that are restored.
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>No private authorities are restored.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>Private authorities are restored with the objects. Objects will be restored only from save operations that specified that private authorities should be saved with the objects.
+<p>
+<strong>Note:     </strong>You must have all object (*ALLOBJ) special authority to specify this value.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.STRJRN"></a>
+<h2>Start journaling (STRJRN)</h2>
+<p>Specifies whether to start journaling for new objects that are restored.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">Journal information that was saved will be restored for new objects whether journaling is started or not.
+</li>
+<li class="cds--list__item">Journaling will not be changed for existing objects.
+</li>
+</ol>
+<dl>
+<dt><strong class="underlined">*YES</strong></dt>
+<dd>Journaling will be started for new objects that were being journaled when they were saved.
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>Journaling will not be started for the objects that are restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table20" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.SAVDATE"></a>
+<h2>Date when saved (SAVDATE)</h2>
+<p>Specifies the date when the objects were saved.  If the most recently saved version is not the one being restored, or if multiple saved versions exist on the media volume, specify the date that indicates which version of the objects to restore.  If a volume identifier or *MOUNTED is specified for the <strong>Volume identifier (VOL)</strong> parameter, but SAVDATE is not, the version of the objects that is restored is the first version found on the volume.  This parameter is valid only if a volume identifier or *MOUNTED is specified for the VOL parameter or if a save file is specified for the <strong>Save file (SAVF)</strong> parameter.  This parameter is ignored when the <strong>Sequence number (SEQNBR)</strong> parameter is specified.
+</p>
+<dl>
+<dt><strong class="italic">date</strong></dt>
+<dd>Specify the date that the library to be restored was saved.  The date must be entered in the job date format.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table21" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.SAVTIME"></a>
+<h2>Time when saved (SAVTIME)</h2>
+<p>Specifies the time at which the objects were saved.
+</p>
+<p>If a volume identifier or *MOUNTED is specified for the <strong>Volume identifier (VOL)</strong> parameter, but this parameter is not specified, the version of the objects to be restored is the first version found on the volume.  This parameter is valid only if the <strong>Date when saved (SAVDATE)</strong> parameter is also specified.
+</p>
+<p>This parameter is ignored when a number is specified for the <strong>Sequence number (SEQNBR)</strong> parameter.
+</p>
+<dl>
+<dt><strong class="italic">time</strong></dt>
+<dd>Specify the time that the library to be restored was saved.  The time can be specified with or without a time separator:
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Without a time separator, specify a string of 4 or 6 digits (hhmm or hhmmss) where hh = hours, mm = minutes, and ss = seconds.
+</li>
+<li class="cds--list__item">With a time separator, specify a string of 5 or 8 digits where the time separator specified for your job is used to separate the hours, minutes, and seconds.  If you enter this command from the command line, the string must be enclosed in apostrophes.  If a time separator other than the separator specified for your job is used, this command will fail.
+</li>
+</ul>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table22" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.ALWOBJDIF"></a>
+<h2>Allow object differences (ALWOBJDIF)</h2>
+<p>Specifies whether differences are allowed between the saved objects and the restored objects.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">You must have all object (*ALLOBJ) special authority to specify any value other than *NONE for this parameter.
+</li>
+<li class="cds--list__item">If differences are found, the final message for the restore operation is an escape message rather than the normal completion message.
+</li>
+</ol>
+<p>The types of differences include:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Authorization list:  The saved object had an authorization list, and either the object exists on the system but does not have the same authorization list, or the object does not exist and it is being restored to a different system than the save system.
+<p>
+<strong>Note:     </strong>This parameter has no effect when the saved object did not have an authorization list. If the object exists, it is restored with the authorization list of the existing object. If it does not exist, it is restored with no authorization list.
+</p>
+</li>
+</ul>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">File level id:  The creation date and time of the database file on the system does not match the creation date and time of the file that was saved.
+</li>
+</ul>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Member level id:  The creation date and time of the database file member on the system does not match the creation date and time of the member that was saved.
+</li>
+</ul>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Ownership:  The owner of an object on the system is different than the owner of an object from the save operation.
+</li>
+</ul>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Primary Group:  The primary group of an object on the system is different than the primary group of an object from the save operation.
+</li>
+</ul>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>None of the differences listed above are allowed on the restore operation.  See the description of each individual value to determine how differences are handled.
+</dd>
+</dl>
+<dl>
+<dt><strong>*COMPATIBLE</strong></dt>
+<dd>All of the differences listed above are allowed on the restore operation.  See the description of each individual value to determine how differences are handled.  This value allows differences that are compatible with existing physical database files.  This value also allows file level differences with existing logical database files.  This value is usually preferable to the value *ALL, which also allows differences that are not compatible with existing database files.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All of the differences listed above are allowed on the restore operation.  File level id and member level id differences are handled differently than the *FILELVL value.  If there is a file level difference and *ALL is specified for the <strong>Data base member option (MBROPT)</strong> parameter, the existing version of the file is renamed and the saved version of the file is restored.  If there is a member level difference, the existing version of  the member is renamed and the saved version of the member is restored.  This value will restore the saved data, but the result may not be correct.  You will need to choose whether the restored data or the renamed data is correct, and you will need to make the necessary corrections to the database.  For other differences, see the description of each individual value to determine how differences are handled.
+</dd>
+</dl>
+<h3><strong>Other values (up to 4 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong>*AUTL</strong></dt>
+<dd>Authorization list differences are allowed.  If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is restored with the authorization list of the existing object.  If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored and it is linked to the authorization list.  If the authorization list does not exist, the public authority is set to *EXCLUDE.
+<p>If this value is not specified, authorization list differences are not allowed.  If the saved object had an authorization list and the object exists on the system but does not have the same authorization list, the object is not restored.  If the saved object had an authorization list and the object does not exist and it is being restored to a different system than the save system, the object is restored, but it is not linked to the authorization list, and the public authority is set to *EXCLUDE.
+</p>
+</dd>
+</dl>
+<dl>
+<dt><strong>*FILELVL</strong></dt>
+<dd>File level id and member level id differences are allowed.  An attempt will be made to restore existing physical files even though the physical file on the save media may have a different file level id or member level id than the physical file on the system.  The physical file data will only be restored for those physical files whose format level identifiers on the save media match the format level identifiers of the corresponding physical file on the system.
+<p>If this value is not specified, file level id and member level id differences are not allowed.  If an object already exists on the system with a different file level id or member level id than the saved object, the object is not restored.
+</p>
+</dd>
+</dl>
+<dl>
+<dt><strong>*OWNER</strong></dt>
+<dd>Ownership differences are allowed.  If an object already exists on the system with a different owner than the saved object, the object is restored with the owner of the object on the system.
+<p>If this value is not specified, ownership differences are not allowed.  If an object already exists on the system with a different owner than the saved object, the object is not restored.
+</p>
+</dd>
+</dl>
+<dl>
+<dt><strong>*PGP</strong></dt>
+<dd>Primary group differences are allowed.  If an object already exists on the system with a different primary group than the saved object, the object is restored with the primary group of the object on the system.
+<p>If this value is not specified, primary group differences are not allowed.  If an object already exists on the system with a different primary group than the saved object, the object is not restored.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table23" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.FRCOBJCVN"></a>
+<h2>Force object conversion (FRCOBJCVN)</h2>
+<p>Specifies whether to convert user objects to the format required for use in the current version of the operating system, or to be compatible with the current machine, when the objects are restored.
+</p>
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">This parameter applies only to user objects of the *MODULE, *PGM, *SRVPGM, and *SQLPKG object types.
+</li>
+<li class="cds--list__item">An object must have creation data (either observable or unobservable) to be converted.
+</li>
+<li class="cds--list__item">If an object needs to be converted (because it is formatted for an earlier version of the operating system or is incompatible with the current machine), but is not converted during this restore operation, the object is automatically converted the first time it is used.
+</li>
+</ol>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*SYSVAL</strong></dt>
+<dd>The objects are converted based on the value of the QFRCCVNRST system value.
+</dd>
+<dt><strong>*NO</strong></dt>
+<dd>The objects are not converted during the restore operation.
+<p>
+<strong>Note:     </strong>If FRCOBJCVN(*NO) is specified, then the QFRCCVNRST system value must have a value of either "0" or "1".
+</p>
+</dd>
+</dl>
+<h3><strong>Element 1: Convert during restore</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*YES</strong></dt>
+<dd>The objects are converted during the restore operation.
+<h3><strong>Notes:</strong>
+</h3>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">If FRCOBJCVN(*YES *RQD) is specified, then the QFRCCVNRST system value must have a value of "0", "1", or "2".  FRCOBJCVN(*YES *RQD) will override a QFRCCVNRST value of "0" or "1".  If FRCOBJCVN(*YES *ALL) is specfied, then QFRCCVNRST can have any valid value and FRCOBJCVN(*YES *ALL) overrides the QFRCCVNRST system value.
+</li>
+<li class="cds--list__item">Specifying this value increases the time of the restore operation, but avoids the need to convert the objects when they are first used.
+</li>
+</ol>
+</dd>
+</dl>
+<h3><strong>Element 2: Objects to convert</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*RQD</strong></dt>
+<dd>The objects are converted only if they require conversion to be used by the current operating system or to be compatible with the current machine.  If the objects do not have all creation data (either observable or unobservable), the objects cannot be converted and will not be restored.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All objects are converted regardless of their current format and machine compatibility, including compatible objects already in the current format.  However, if the objects do not have all creation data (either observable or unobservable), the objects cannot be converted and will not be restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table24" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.RSTLIB"></a>
+<h2>Restore to library (RSTLIB)</h2>
+<p>Specifies whether the objects are restored to a different library or to the same library where they were saved.
+</p>
+<dl>
+<dt><strong class="underlined">*SAVLIB</strong></dt>
+<dd>The objects are restored to the same library from which they were saved.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to which the saved objects are restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table25" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OUTPUT"></a>
+<h2>Output (OUTPUT)</h2>
+<p>Specifies whether a listing that shows information about the status of the objects is created and directed to an output file.  The listing shows the restore information and shows all objects restored, not restored, and excluded.  Information about each object's security is listed for the restored objects.
+</p>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No output is created.
+</dd>
+</dl>
+<dl>
+<dt><strong>*PRINT</strong></dt>
+<dd>The output is printed with the job's spooled output.
+</dd>
+</dl>
+<dl>
+<dt><strong>*OUTFILE</strong></dt>
+<dd>The output is directed to the database file specified for the <strong>File to receive output (OUTFILE)</strong> parameter.
+</dd>
+</dl>
+<p>
+<strong>Note:     </strong>You must specify a database file name for the OUTFILE parameter when OUTPUT(*OUTFILE) is specified.
+</p>
+<p></p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table26" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.MEDDFN"></a>
+<h2>Media definition (MEDDFN)</h2>
+<p>Specifies the media definition (*MEDDFN) object that identifies the devices and media used to restore the data.  For information about creating and using a media definition, see the Recovering your system book, SC41-5304, and the Create Media Definition API in the APIs topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<p>If a media definition is specified, the VOL, SEQNBR, SAVF, and OPTFILE parameters cannot be specified.  The volume identifiers and sequence numbers are specified in the media definition.
+</p>
+<h3><strong>Qualifier 1: Media definition</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the media definition to be used.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>All libraries in the library list for the current thread are searched until the first match is found.
+</dd>
+</dl>
+<dl>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is searched.  If no library is specified as the current library for the thread, the QGPL library is searched.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table27" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OPTFILE"></a>
+<h2>Optical file (OPTFILE)</h2>
+<p>Specifies the path name of the optical file that is used for the restore operation, beginning with the root directory of the volume.
+</p>
+<p>For more information on specifying path names, refer to "Object naming rules" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+<dl>
+<dt><strong class="underlined">*</strong></dt>
+<dd>The system searches the root directory of the optical volume for the default name generated by the corresponding save operation.
+</dd>
+<dt><strong class="italic">'optical-directory-path-name/*'</strong></dt>
+<dd>The system searches the specified directory of the optical volume for the default name generated by the corresponding save operation.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">'optical-file-path-name'</strong></dt>
+<dd>Specify the path name of the optical file.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table28" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.RSTASPDEV"></a>
+<h2>Restore to ASP device (RSTASPDEV)</h2>
+<p>Specifies the auxiliary storage pool (ASP) device to which the data is to be restored.
+</p>
+<p>
+<strong>Note:     </strong>You can specify either the RSTASPDEV parameter or the RSTASP parameter, but not both.
+</p>
+<dl>
+<dt><strong class="underlined">*SAVASPDEV</strong></dt>
+<dd>The data is restored to the same ASP from which it was saved.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the ASP device to be used.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table29" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.RSTASP"></a>
+<h2>Restore to ASP number (RSTASP)</h2>
+<p>Specifies whether objects are restored to the auxiliary storage pool (ASP) from which they were saved or to the system ASP (ASP number 1) or to a basic user ASP (ASP numbers 2 through 32).
+</p>
+<p>Some objects cannot be restored to user ASPs.  More information about object types which can be restored to user ASPs is in the Recovering your system book, SC41-5304.  If the library exists in, or is being restored to the system ASP, journals, journal receivers, and save files can be restored to basic user ASPs.  All other object types will be restored to the ASP of the library.
+</p>
+<h3><strong>ATTENTION: System or product libraries (libraries that begin with a Q or #) must not be created in or restored to a user ASP.  Doing so can cause unpredictable results.</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*SAVASP</strong></dt>
+<dd>The objects are restored to the ASP from which they were saved.
+</dd>
+<dt><strong class="italic">1-32</strong></dt>
+<dd>Specifies the ASP number.  When the specified ASP is 1, the specified objects are restored to the system ASP, and when the specified ASP is 2 through 32, the objects are restored to the basic user ASP specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table30" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OUTFILE"></a>
+<h2>File to receive output (OUTFILE)</h2>
+<p>Specifies the database file to which the output of the command is directed.  If the file does not exist, this command creates a database file in the specified library.  If the file is created, the public authority for the file is the same as the create authority specified for the library in which the file is created.  Use the Display Library Description (DSPLIBD) command to show the library's create authority.
+</p>
+<h3><strong>Qualifier 1: File to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the database file to which the command output is directed.
+</dd>
+</dl>
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>The library list is used to locate the file.  If the file is not found, one is created in the current library.  If no current library exists, the file will be created in the QGPL library.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the thread is used to locate the file.  If no library is specified as the current library for the thread, the QGPL library is used.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be searched.
+</dd>
+</dl>
+<p>
+<strong>Note:     </strong>If a new file is created, the system uses the IBM-supplied file QASRRSTO with format name QSRRST as a model.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table31" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OUTMBR"></a>
+<h2>Output member options (OUTMBR)</h2>
+<p>Specifies the name of the database file member to which the output is directed when *OUTFILE is specified for the <strong>Output (OUTPUT)</strong> parameter.
+</p>
+<h3><strong>Element 1: Member to receive output</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*FIRST</strong></dt>
+<dd>The first member in the file receives the output.  If OUTMBR(*FIRST) is specified and the member does not exist, the system creates a member with the name of the file specified for the <strong>File to receive output (OUTFILE)</strong> parameter.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file member that receives the output.  If OUTMBR(member-name) is specified and the member does not exist, the system creates it.
+<p>If the member exists, you can add records to the end of the existing member or clear the existing member and add the records.
+</p>
+</dd>
+</dl>
+<h3><strong>Element 2: Replace or add records</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*REPLACE</strong></dt>
+<dd>The existing records in the specified database file member are replaced by the new records.
+</dd>
+<dt><strong>*ADD</strong></dt>
+<dd>The new records are added to the existing information in the specified database file member.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table32" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.INFTYPE"></a>
+<h2>Type of output information (INFTYPE)</h2>
+<p>Specifies the type of information which is printed or directed to the database file.
+</p>
+<dl>
+<dt><strong class="underlined">*OBJ</strong></dt>
+<dd>The list contains an entry for each object requested to be restored.
+</dd>
+<dt><strong>*MBR</strong></dt>
+<dd>The list contains an entry for each object, database file member, and spooled file requested to be restored.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table33" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OMITLIB"></a>
+<h2>Libraries to omit (OMITLIB)</h2>
+<p>Specifies a list of libraries to be excluded from the restore operation.
+</p>
+<h3><strong>Single values</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No libraries are excluded from the restore operation.
+</dd>
+</dl>
+<h3><strong>Other values (up to 300 repetitions)</strong>
+</h3>
+<dl>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the libraries to be excluded.
+<p>
+<strong>Note:     </strong>A generic name is specified as a character string that contains one or more characters followed by an asterisk (*).  If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+</p>
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the name of the library to be excluded from the restore operation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table34" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.OMITOBJ"></a>
+<h2>Objects to omit (OMITOBJ)</h2>
+<p>Specifies the objects to be excluded from the operation. Up to 300 objects or generic object values can be specified.
+</p>
+<h3><strong>Element 1: Object</strong>
+</h3>
+<h3><strong>Qualifier 1: Object</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*NONE</strong></dt>
+<dd>No objects are excluded from the operation.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All objects of the specified object type are excluded from the operation.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the objects to be excluded.
+<p>
+<strong>Note:     </strong>A generic name is specified as a character string that contains one or more characters followed by an asterisk (*).  If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+</p>
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the object to be excluded from the operation.
+</dd>
+</dl>
+
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>The specified objects are excluded from all libraries that are part of the operation.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the libraries that contain objects to be excluded.
+<p>
+<strong>Note:     </strong>A generic name is specified as a character string that contains one or more characters followed by an asterisk (*).  If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+</p>
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library that contains the object to be excluded from the operation.
+</dd>
+</dl>
+
+<h3><strong>Element 2: Object type</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All object types are excluded from the operation, depending on the value specified for the object name.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the object type of the objects to be excluded from the operation.
+<p>To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt).  For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table35" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="RSTOBJ.SELECT"></a>
+<h2>Select (SELECT)</h2>
+<p>Specifies the selection criteria for the objects to be restored.  You can select from the objects specified for the <strong>Objects (OBJ)</strong>, <strong>Saved library (SAVLIB)</strong>, and <strong>Object types (OBJTYPE)</strong> parameters.
+</p>
+<h3><strong>Element 1: Include or omit </strong>
+</h3>
+<p>Specifies whether the selected objects should be included or omitted from the restore operation.
+</p>
+<dl>
+<dt><strong class="underlined">*INCLUDE</strong></dt>
+<dd>The selected objects are restored, unless overridden by an *OMIT specification, or unless omitted by the <strong>Libraries to omit (OMITLIB)</strong> parameter or the <strong>Objects to omit (OMITOBJ)</strong> parameter.
+</dd>
+<dt><strong>*OMIT</strong></dt>
+<dd>The selected objects are not included in the restore operation.
+</dd>
+</dl>
+<h3><strong>Element 2: Object</strong>
+</h3>
+<h3><strong>Qualifier 1: Object</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All object names specified for the <strong>Objects (OBJ)</strong> parameter are selected.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the objects to be selected.
+<p>
+<strong>Note:     </strong>A generic name is specified as a character string that contains one or more characters followed by an asterisk (*).  If a generic name is specified, then all objects that have names with the same prefix as the generic object name are selected.
+</p>
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the object to be selected.
+</dd>
+</dl>
+
+<h3><strong>Qualifier 2: Library</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All library names specified for the <strong>Saved library (SAVLIB)</strong> parameter are selected.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the libraries to be selected.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the library to be selected.
+</dd>
+</dl>
+
+<h3><strong>Element 3: Object type</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All object types specified for the <strong>Object types (OBJTYPE)</strong> parameter are selected.
+</dd>
+<dt><strong class="italic">character-value</strong></dt>
+<dd>Specify the object type to be selected.
+<p>To see a complete list of object types when prompting this command, position the cursor on the field for this parameter and press F4 (Prompt).  For a description of the object types, see "Object types" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+</p>
+</dd>
+</dl>
+<h3><strong>Element 4: Object attribute</strong>
+</h3>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All object attributes are selected.
+</dd>
+<dt><strong>*BLANK</strong></dt>
+<dd>Only objects that have no attribute value are selected.
+</dd>
+<dt><strong class="italic">attribute-value</strong></dt>
+<dd>Specify the attribute of the objects to be selected.
+</dd>
+<dt><strong class="italic">generic-attribute-value</strong></dt>
+<dd>Specify the generic attribute of the objects to be selected.
+</dd>
+</dl>
+<h3><strong>Element 5: File member</strong>
+</h3>
+<p>Specifies the database file members to select.
+</p>
+<p>If *ALL is specified, the objects selected by the previous elements are included or omitted.
+</p>
+<p>If any value other than *ALL is specified, the <strong>File member (FILEMBR)</strong> parameter cannot be specified.  The objects selected by the previous elements are included, even if the objects are not database files.  If the objects selected are database files, the file members selected are included or omitted.
+</p>
+<dl>
+<dt><strong class="underlined">*ALL</strong></dt>
+<dd>All file members are selected.  For an *OMIT specification, the selected file or object is also omitted.
+</dd>
+<dt><strong>*ALLMBR</strong></dt>
+<dd>All file members are selected.  For an *OMIT specification, the selected file or object is included and all file members are omitted.
+</dd>
+<dt><strong class="italic">generic-name</strong></dt>
+<dd>Specify the generic name of the file members to be selected.  The selected file or object is included even if it does not contain the specified members.
+</dd>
+<dt><strong class="italic">name</strong></dt>
+<dd>Specify the name of the file member to be selected.  The selected file or object is included even if it does not contain the specified member.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table36" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RSTOBJ.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Restoring Most Recently Saved Version</strong>
+</h3>
+<p>
+</p><pre>RSTOBJ   OBJ(PAYROLL)  SAVLIB(LIBX)  DEV(TAP01)
+         OBJTYPE(*PGM)  VOL(*SAVVOL)
+</pre>
+<p></p>
+<p>This command restores to LIBX the program named PAYROLL that was saved from LIBX. The tape drive named TAP01 is used to restore the most recently saved version of the program.
+</p>
+<h3><strong>Example 2: Specifying Save Date and Time</strong>
+</h3>
+<p>
+</p><pre>RSTOBJ   OBJ(PAY*)  SAVLIB(LIBX)  DEV(OPT01)  VOL(ABCD)
+         OPTION(*OLD)  SAVDATE(102202)
+         SAVTIME(143000)  RSTLIB(LIBY)
+</pre>
+<p></p>
+<p>All objects whose names start with PAY and that were saved from the library named LIBX on optical volume ABCD at 14:30:00 on 10/22/02 are restored to LIBY. Volume ABCD must be put on the optical device named OPT01. Because OPTION(*OLD) is specified, the only objects restored are those having the same object name and type both in LIBY on the system and in LIBX on the optical volume.
+</p>
+<h3><strong>Example 3: Adding a New Program to the QGPL Library</strong>
+</h3>
+<p>
+</p><pre>RSTOBJ   OBJ(NEWPROG)  SAVLIB(QGPL)  DEV(OPT01)  OBJTYPE(*PGM)
+         VOL(PGMS)  OPTION(*NEW)  ALWOBJDIF(*AUTL)
+</pre>
+<p></p>
+<p>A new program named NEWPROG is added to the general purpose library, QGPL. It is restored from a volume labeled PGMS that is inserted in the optical device named OPT01. If the object was saved on a different system and was linked to an authorization list, it will be linked to the authorization list with the same name on this system.
+</p>
+<h3><strong>Example 4: Printing An Output List</strong>
+</h3>
+<p>
+</p><pre>RSTOBJ   OBJ(*ALL)  SAVLIB(LIB)  DEV(TAP01)  OBJTYPE(*PGM)
+         VOL(SVOL)  SEQNBR(2)  SAVDATE(082392)
+         SAVTIME(143000)  OUTPUT(*PRINT)
+</pre>
+<p></p>
+<p>All programs that were saved from the library named LIB that exist in the saved version on the tape volume named SVOL, sequence number 2, saved at 14:30:00 on 08/23/92, are restored to the library named LIB. An output list of all objects restored as well as objects not restored is provided.
+</p>
+<h3><strong>Example 5: Restoring Journal Receivers</strong>
+</h3>
+<p>
+</p><pre>RSTOBJ   OBJ(*ALL)  SAVLIB(BACKUP)  DEV(*SAVF)
+         OBJTYPE(*JRNRCV)  SAVF(SAVEJ)  RSTASP(3)
+</pre>
+<p></p>
+<p>All journal receivers that were saved from the library named BACKUP into the save file named SAVEJ are restored to the library named BACKUP. The journal receivers are restored to basic user ASP 3 (unless they already exist in the library named BACKUP and are in a different ASP or ASP 3 contains a library).
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table37" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="RSTOBJ.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF370C</strong></dt>
+<dd>Not authorized to ALWOBJDIF parameter.
+</dd>
+<dt><strong>CPF3705</strong></dt>
+<dd>&amp;2 &amp;1 in &amp;3 not journaled.
+</dd>
+<dt><strong>CPF3706</strong></dt>
+<dd>&amp;2 &amp;1 not restored to library &amp;3.
+</dd>
+<dt><strong>CPF3707</strong></dt>
+<dd>Save file &amp;1 in &amp;2 contains no data.
+</dd>
+<dt><strong>CPF3709</strong></dt>
+<dd>Tape devices do not support same densities.
+</dd>
+<dt><strong>CPF3727</strong></dt>
+<dd>Duplicate device &amp;1 specified on device name list.
+</dd>
+<dt><strong>CPF3728</strong></dt>
+<dd>Device &amp;1 specified with other devices.
+</dd>
+<dt><strong>CPF3730</strong></dt>
+<dd>Not authorized to &amp;2 &amp;1 in library &amp;3.
+</dd>
+<dt><strong>CPF3731</strong></dt>
+<dd>Cannot use &amp;2 &amp;1 in library &amp;3.
+</dd>
+<dt><strong>CPF3733</strong></dt>
+<dd>&amp;2 &amp;1 in &amp;3 previously damaged.
+</dd>
+<dt><strong>CPF3738</strong></dt>
+<dd>Device &amp;1 used for save or restore is damaged.
+</dd>
+<dt><strong>CPF3739</strong></dt>
+<dd>Database file &amp;1 member in &amp;3 damaged.
+</dd>
+<dt><strong>CPF374C</strong></dt>
+<dd>No objects restored to ASP &amp;2.
+</dd>
+<dt><strong>CPF3743</strong></dt>
+<dd>File cannot be restored, displayed, or listed.
+</dd>
+<dt><strong>CPF3748</strong></dt>
+<dd>Object information for library &amp;1 damaged.
+</dd>
+<dt><strong>CPF3767</strong></dt>
+<dd>Device &amp;1 not found.
+</dd>
+<dt><strong>CPF3768</strong></dt>
+<dd>Device &amp;1 not valid for command.
+</dd>
+<dt><strong>CPF3769</strong></dt>
+<dd>Data encrypted or not save data.
+</dd>
+<dt><strong>CPF3770</strong></dt>
+<dd>No objects saved or restored for library &amp;1.
+</dd>
+<dt><strong>CPF3773</strong></dt>
+<dd>&amp;1 objects restored. &amp;2 not restored to &amp;4.
+</dd>
+<dt><strong>CPF3780</strong></dt>
+<dd>Specified file for library &amp;1 not found.
+</dd>
+<dt><strong>CPF3781</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF3782</strong></dt>
+<dd>File &amp;1 in &amp;2 not a save file.
+</dd>
+<dt><strong>CPF3783</strong></dt>
+<dd>Cannot determine VOL(*SAVVOL) location. No objects restored.
+</dd>
+<dt><strong>CPF3784</strong></dt>
+<dd>Restore device specified in the DEV parameter does not match VOL(*SAVVOL) device.
+</dd>
+<dt><strong>CPF3791</strong></dt>
+<dd>While processing &amp;2 &amp;1 in &amp;3, encountered end of file &amp;4.
+</dd>
+<dt><strong>CPF3793</strong></dt>
+<dd>Machine or ASP storage limit reached.
+</dd>
+<dt><strong>CPF3794</strong></dt>
+<dd>Save or restore operation ended unsuccessfully.
+</dd>
+<dt><strong>CPF3796</strong></dt>
+<dd>Storage limit exceeded for user profile &amp;4.
+</dd>
+<dt><strong>CPF37A5</strong></dt>
+<dd>RSTASP &amp;1 is not online.
+</dd>
+<dt><strong>CPF37B8</strong></dt>
+<dd>Not authorized to restore private authorities.
+</dd>
+<dt><strong>CPF37C2</strong></dt>
+<dd>Not authorized to use DFRID.
+</dd>
+<dt><strong>CPF3805</strong></dt>
+<dd>Objects from save file &amp;1 in &amp;2 not restored.
+</dd>
+<dt><strong>CPF3807</strong></dt>
+<dd>Data decompression error for save file &amp;1 in &amp;2.
+</dd>
+<dt><strong>CPF3812</strong></dt>
+<dd>Save file &amp;1 in &amp;2 in use.
+</dd>
+<dt><strong>CPF384F</strong></dt>
+<dd>&amp;2 &amp;1 not restored to library &amp;3.
+</dd>
+<dt><strong>CPF3867</strong></dt>
+<dd>Contents of FILEMBR parameter not correct.
+</dd>
+<dt><strong>CPF3868</strong></dt>
+<dd>FILEMBR specified but OBJTYPE must be *ALL or *FILE.
+</dd>
+<dt><strong>CPF3871</strong></dt>
+<dd>No objects saved or restored; &amp;3 objects not included.
+</dd>
+<dt><strong>CPF3872</strong></dt>
+<dd>&amp;1 objects restored. &amp;2 not restored to &amp;4.
+</dd>
+<dt><strong>CPF38A2</strong></dt>
+<dd>ASP device &amp;1 not correct.
+</dd>
+<dt><strong>CPF38A6</strong></dt>
+<dd>Only one library allowed with specified parameters.
+</dd>
+<dt><strong>CPF38AB</strong></dt>
+<dd>FILEMBR not valid with SELECT.
+</dd>
+<dt><strong>CPF5729</strong></dt>
+<dd>Not able to allocate object &amp;1.
+</dd>
+<dt><strong>CPF9809</strong></dt>
+<dd>Library &amp;1 cannot be accessed.
+</dd>
+<dt><strong>CPF9812</strong></dt>
+<dd>File &amp;1 in library &amp;2 not found.
+</dd>
+<dt><strong>CPF9814</strong></dt>
+<dd>Device &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+<dt><strong>CPF9829</strong></dt>
+<dd>Auxiliary storage pool &amp;1 not found.
+</dd>
+<dt><strong>CPFB8ED</strong></dt>
+<dd>Device description &amp;1 not correct for operation.
+</dd>
+<dt><strong>OPT1498</strong></dt>
+<dd>Volume name list exhausted on device &amp;1.
+</dd>
+<dt><strong>OPT1502</strong></dt>
+<dd>Attempted to process past the end of a multi-volume set.
+</dd>
+<dt><strong>OPT1605</strong></dt>
+<dd>Media or device error occurred.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table38" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#RSTOBJ.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

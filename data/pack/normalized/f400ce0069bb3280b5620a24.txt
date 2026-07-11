@@ -1,0 +1,223 @@
+Start Journal Access Path (STRJRNAP)
+
+Start Journal Access Path (STRJRNAP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Start Journal Access Path (STRJRNAP) command is used to start journaling the access paths for all members of a database file to a specified journal. Any new member that is later added to the file also has its access path journaled.
+
+If a physical file is specified, journaling can be started for its access paths. When access path journaling is started for a physical file, only the access paths for the physical file members are journaled. Journaling for any logical file access paths is started only when access path journaling is started for the logical file.
+
+The journal entries created after running this command cannot be used in any apply or remove journaled changes operation. These entries are used only to recover the access path without rebuilding it after an abnormal system operation ending.
+
+If you start journaling your access paths, consider specifying RCVSIZOPT(*RMVINTENT) on either the Create Journal (CRTJRN) or the Change Journal (CHGJRN) command for this journal. This will reduce the additional storage required to do access path journaling.
+
+If you do not want the overhead of managing the access path journaling yourself, consider taking advantage of the system-managed access-path protection support. For more information, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/, and the Edit Recovery for Access Paths (EDTRCYAP) or the Change Recovery for Access Paths (CHGRCYAP) command.
+
+For other ways to start journaling see the following commands:
+
+- Integrated file system objects - Start Journal (STRJRN)
+
+- Physical files - Start Journal Physical File (STRJRNPF)
+
+- Libraries - Start Journal Library (STRJRNLIB)
+
+- Other objects - Start Journal Object (STRJRNOBJ)
+
+Restrictions:
+
+- Before journaling an access path, all physical files over which the access path is built must first be journaled to the same journal that is used to journal the access path. Even if all physical file members for a particular physical file are removed from the access path of a logical file, all physical files must still be journaled to the same journal before journaling the access path.
+
+- The maximum number of objects that can be associated with one journal is either 250,000 or 10,000,000. To get 10,000,000, the value of *MAX10M must have been specified for the JRNOBJLMT parameter on either the Create Journal (CRTJRN) command or on the Change Journal (CHGJRN) command. Once the number of objects is greater than or equal to this maximum, journaling does not start for any more objects.
+
+- All access paths to be journaled must specify MAINT(*IMMED) or MAINT(*DLY).
+
+- If only after images are being journaled for the physical file members, the system automatically starts journaling the before and after images for the physical file once journaling is started for any access path built over the physical file. When journaling ends for the access paths, the system automatically stops journaling the before images for the physical file and again only journals the after images.
+
+- Overrides are not applied to files specified on the FILE parameter.
+
+- The specified journal must be a local journal. Although all object types which can be journaled to a local journal can also have their changes sent to a remote journal, this is accomplished by a two step process. First start journaling to the local journal. Then connect the local journal to a remote instance. To initiate such a connection, use the Add Remote Journal (ADDRMTJRN) command or the Add Remote Journal (QjoAddRemoteJournal) API. For information about remote journaling, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+- Lock Processing
+The file with the access path to start journaling is locked with a read exclusive lock (*EXCLRD).
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+FILE | Journaled file | Values (up to 300 repetitions): Qualified object name | Required, Positional 1
+Qualifier 1: Journaled file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+JRN | Journal | Qualified object name | Required, Positional 2
+Qualifier 1: Journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+LOGLVL | Logging level | *ERRORS, *ALL | Optional
+
+Top
+
+Journaled file (FILE)
+
+Specifies a maximum of 300 database files whose access paths are journaled.
+
+This is a required parameter.
+
+Qualifier 1: Journaled file
+
+file-name
+Specify the name of the file.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Journal (JRN)
+
+Specifies the journal that receives the file change journal entries.
+
+This is a required parameter.
+
+Qualifier 1: Journal
+
+journal-name
+Specify the name of the journal.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the job is searched. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the name of the library to be searched.
+
+Top
+
+Logging level (LOGLVL)
+
+Specifies the error logging level used. This parameter is used to determine which messages will be sent.
+
+*ERRORS
+All diagnostic and escape messages are sent but the command will not send successful completion messages for each object. At the completion of this command, one completion message will be sent.
+
+*ALL
+The command sends all the messages that would be sent with *ERRORS and it will also send the successful completion message for each object.
+
+Top
+
+Examples
+
+STRJRNAP FILE(MYFILE) JRN(MYLIB/JRNLA)
+
+This command journals all access paths for all members in file MYFILE (found using the library search list) to journal JRNLA in library MYLIB.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF6971
+Damage prevents object &1 from being journaled.
+
+CPF6972
+Cannot allocate access path for file &1 in &2.
+
+CPF7003
+Entry not journaled to journal &1. Reason code &3.
+
+CPF7004
+Maximum number of objects journaled to journal &1.
+
+CPF7008
+Cannot start or end access path journaling for file &1.
+
+CPF7009
+Not all based-on files being journaled to &3.
+
+CPF7011
+Not enough storage or resources.
+
+CPF703C
+Commitment control transaction prevents journaling operation.
+
+CPF7030
+Object of type *&3 already being journaled.
+
+CPF7031
+Cannot allocate member &3 file &1 in &2.
+
+CPF7033
+Start or end journaling failed for member &3.
+
+CPF7034
+Logical damage of file &1 in &2.
+
+CPF7035
+Object &1 in &2 already known to journal.
+
+CPF705A
+Operation failed due to remote journal.
+
+CPF7079
+Access path journaling for file &1 not started.
+
+CPF708D
+Journal receiver found logically damaged.
+
+CPF7084
+Journal operation failed for object of type *&6.
+
+CPF709D
+Cannot start journaling object of type *&7.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9873
+ASP status is preventing access to object.
+
+CPF9875
+Resources exceeded on ASP &1. Press HELP.
+
+Top

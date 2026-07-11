@@ -1,0 +1,206 @@
+Start Remote Writer (STRRMTWTR)
+
+Start Remote Writer (STRRMTWTR)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Remote Writer (STRRMTWTR) command starts a spooling writer that sends spooled files from an output queue to a remote system. The writer, which is a system job, takes spooled files from an output queue and sends them to a remote system using SNADS or TCP/IP.
+
+After the spooled file is successfully sent to a remote system, the spooled file will be deleted or saved, as specified by the SAVE spooled file attribute.
+
+More than one writer can be active at the same time (as determined by the spooling subsystem description), and up to 10 writers can be active to the same output queue. Each writer must have a unique writer name, and only one type (print, remote, or diskette) of writer can be active to a single output queue. A writer that has been started can be actively sending output or waiting for a file to be put on the output queue. Optionally, the writer can end automatically when it has processed all the files on the output queue. You can also change, hold, or cancel the writer.
+
+You can continue with other work after starting a writer because each job runs independently. The writer is owned by the user who issues the STRRMTWTR command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OUTQ | Output queue | Single values: *ALL
+Other values: Qualified object name | Required, Positional 1
+Qualifier 1: Output queue | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MSGQ | Queue for writer messages | Single values: *OUTQ, *REQUESTER
+Other values: Qualified object name | Optional, Positional 3
+Qualifier 1: Queue for writer messages | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+FORMTYPE | Form type options | Element list | Optional
+Element 1: Form type | Character value, *ALL, *STD, *FORMS
+Element 2: Message option | *NOMSG, *INQMSG, *MSG, *INFOMSG
+WTR | Writer | Name, *OUTQ, *SYSGEN | Optional, Positional 2
+AUTOEND | Auto-end options | Element list | Optional, Positional 4
+Element 1: Automatically end writer | *NO, *YES
+Element 2: If yes, when to end | *NORDYF, *FILEEND
+
+Top
+
+Output queue (OUTQ)
+
+Specifies the output queue that holds the spooled files to be written.
+
+Single values
+
+*ALL
+Starts remote writers for every output queue on the system which have a remote system specified. No writer starts if an output queue has a different type of writer already started. The number of "writers to autostart" attribute in the output queue determines the number of writers started to a particular queue. This will determine how many remote writer jobs will be sending spooled output to a remote system, from a single output queue.
+
+Qualifier 1: Output queue
+
+name
+Specify the name of the output queue from which the writer processes output files.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Queue for writer messages (MSGQ)
+
+Specifies the message queue to which messages created by the writer are sent.
+
+Single values
+
+*OUTQ
+Messages are sent to the message queue of the output queue specified on the OUTQ parameter.
+
+*REQUESTER
+The messages are sent to the workstation message queue of the workstation of the user who started the writer. If this value is specified for a batch job, *OUTQ is used.
+
+Qualifier 1: Queue for writer messages
+
+name
+Specify the name of the message queue to which messages created by the writer are sent.
+
+Qualifier 2: Library
+
+*LIBL
+All libraries in the library list for the current thread are searched until the first match is found.
+
+*CURLIB
+The current library for the thread is searched. If no library is specified as the current library for the thread, the QGPL library is searched.
+
+name
+Specify the name of the library to be searched.
+
+Top
+
+Form type options (FORMTYPE)
+
+Specifies the name of the form type. The writer uses this value to select spooled files from the specified output queue for sending to a remote system.
+
+Note: A spooled file's form type is specified in the device file that produced the spooled file.
+
+Element 1: Form type
+
+*ALL
+All form types are processed by the writer.
+
+*FORMS
+The writer first chooses the first available spooled file on the output queue. After the first spooled file is complete, all spooled files with the same form type are processed. The writer then chooses the first available spooled file on the output queue and repeats the process for that form type.
+
+*STD
+Only spooled files that specify the standard form type are selected.
+
+form-type
+Specify the form type of the spooled files being produced.
+
+Element 2: Message option
+
+*NOMSG
+Neither an inquiry message nor an informational message is sent to the message queue.
+
+*INQMSG
+An inquiry message is sent to the message queue when a spooled file has a form type that is different than the form type last sent.
+
+*INFOMSG
+An informational message is sent to the message queue when no spooled files requiring this form type remain in the output queue.
+
+*MSG
+An inquiry message is sent to the message queue when a spooled file has a form type that is different than the form type in the remote and an informational message is sent when no spooled files requiring this form type remain in the output queue.
+
+Top
+
+Writer (WTR)
+
+Specifies the spooling writer being started. Each writer name must be unique.
+
+*OUTQ
+The name of the writer is the same as that of the output queue specified on the OUTQ parameter. If OUTQ(*ALL) is specified, and you have more than one writer to start, the name for each additional writer is taken from the first nine characters of the output queue followed by a digit. This last digit is sequentially assigned, starting with 2 for the second writer, 3 for the third writer, and continuing through 0 for the tenth writer.
+
+*SYSGEN
+The writer name is generated by the system, starting with 'RMTW000001' and incrementing the numeric part for each successive writer.
+
+name
+Specify the name by which the writer being started is identified.
+
+Top
+
+Auto-end options (AUTOEND)
+
+Specifies whether the writer ends automatically.
+
+Element 1: Stop Writer Option
+
+*NO
+The writer does not end when the last available file has been removed from the output queue. It waits for another spooled file entry to be put on the queue. This is a single value (Element 2 is not specified).
+
+*YES
+The writer automatically ends after it has reached the condition specified on the second element of this parameter.
+
+Element 2: Conditions for Stopping Writer
+
+*NORDYF
+The writer automatically ends when there are no ready files (all the available files have been removed from the output queue).
+
+*FILEEND
+The writer ends after it finishes processing one spooled file.
+
+Top
+
+Examples
+
+STRRMTWTR OUTQ(RMTOUTQ) WTR(TOM)
+
+This command starts a spooling writer named TOM. This writer takes the output from the output queue named RMTOUTQ and sends the output to the remote system and printer queue specified in the output queue RMTOUTQ. Writer messages are sent to the system operator's message queue, and the writer waits for more output when the queue is emptied.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF330A
+Output queue &1 has RMTSYS specified as *NONE.
+
+CPF3305
+Output queue &1 in library &2 assigned to another writer.
+
+CPF3310
+Writer &1 already started.
+
+CPF3357
+Output queue &1 in library &2 not found.
+
+CPF3362
+Objects in QTEMP not valid for parameter values.
+
+CPF3363
+Message queue &1 in library &2 not found.
+
+Top

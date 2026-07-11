@@ -1,0 +1,277 @@
+Declare CL Variable (DCL)
+
+Declare CL Variable (DCL)
+
+Last Updated: 2025-04-08
+
+Where allowed to run:
+
+- Batch program (*BPGM)
+
+- Interactive program (*IPGM)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Declare CL Variable (DCL) command defines the Control Language (CL) program variables that are used in a CL program or ILE CL procedure. CL variables are used to store and update data and to receive parameters from another program on a call. CL variables are known by name only within the program that declares them. They cannot be used outside a CL program or ILE CL procedure except when they are referred to by some commands (such as the DSPPGMVAR command) used for debugging programs. However, the value in the variable can be passed to another program as a parameter. If a variable is declared, but not referred to by another command in a CL program or ILE CL procedure, the variable is not included in the program when it is compiled. Each DCL command defines the attributes of one CL variable and declares its name in the program in which it is used.
+
+Each CL variable in a program must be identified by one of the two declare commands. The Declare File (DCLF) command declares CL variables for display device files and database files. The DCL command declares all other CL variables.
+
+Restrictions: The DCL command is valid only within a CL program or ILE CL procedure. All declare commands (DCL, COPYRIGHT, DCLF, and DCLPRCOPT) must follow the PGM (Program) command and must precede all other commands in the program. The four types of declare commands can be intermixed in any order.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+VAR | CL variable name | CL variable name | Required, Positional 1
+TYPE | Type | *DEC, *CHAR, *LGL, *INT, *UINT, *PTR | Required, Positional 2
+STG | Storage | *AUTO, *BASED, *DEFINED | Optional
+LEN | Length of variable | Element list | Optional, Positional 3
+Element 1: Length | Integer
+Element 2: Decimal positions | Integer
+VALUE | Initial value | Character value | Optional, Positional 4
+BASPTR | Basing pointer variable | CL variable name | Optional
+DEFVAR | Defined on variable | Element list | Optional
+Element 1: CL variable name | CL variable name
+Element 2: Position | 1-32767, 1
+ADDRESS | Address | Single values: *NULL
+Other values: Element list | Optional
+Element 1: CL variable name | CL variable name
+Element 2: Offset | 0-32766, 0
+
+Top
+
+CL variable name (VAR)
+
+Specifies the CL variable to be declared in the CL program or ILE CL procedure. The variable exists only within the program in which it is defined. It can be passed as a parameter on a call to another program, in which case it can be processed by the called program. The name must start with an ampersand (&).
+
+This is a required parameter.
+
+Top
+
+Type (TYPE)
+
+Specifies the type of value contained in the CL variable to be declared. The value for this parameter cannot be specified by a CL variable.
+
+This is a required parameter.
+
+*DEC
+A decimal variable that contains a packed decimal value.
+
+*CHAR
+A character variable that contains a character string value.
+
+*LGL
+A logical variable that contains a logical value of either '1' or '0'.
+
+*INT
+An integer variable that contains a signed binary value.
+
+*UINT
+An integer variable that contains a unsigned binary value.
+
+*PTR
+A pointer variable that contains an address.
+
+Top
+
+Storage (STG)
+
+Specifies the storage type of the variable. The value for this parameter cannot be specified by a CL variable.
+
+*AUTO
+The storage for this variable is allocated in automatic storage.
+
+*BASED
+The storage for this variable is based on the pointer variable specified on the Basing pointer variable (BASPTR) parameter. A based CL variable cannot be used unless the basing pointer variable has been set to a valid address.
+
+*DEFINED
+The storage for this variable is provided by the CL variable specified on the Defined on variable (DEFVAR) parameter.
+
+Top
+
+Length of variable (LEN)
+
+Specifies the length of the CL variable to be declared. If the variable is a decimal value, the number of decimal digits to the right of the decimal point can be optionally specified. The value for this LEN parameter cannot be specified by a CL variable.
+
+Note: If *PTR is specified for the TYPE parameter, you cannot specify a value for this parameter. Pointers have a fixed length of 16 bytes.
+
+Element 1: Length
+
+length
+For character or integer CL variables, specify the number of bytes for the CL variable. For decimal CL variables, specify the maximum number of digits for the CL variable. The length cannot be greater than the maximum for this type of variable. The length must be 2, 4, or 8 for integer CL variables. Only ILE CL procedures allow the length of 8 for integer CL variables.
+
+Element 2: Decimal positions
+
+decimal-positions
+This element is valid only for decimal variables. The length of the value in the variable includes the number of decimal positions in the value. The maximum length of the decimal value is 15 digits, including the digits to the right of the decimal point. Up to nine decimal positions can be specified. If nine decimal positions are specified, the value to the left of the decimal point can never be greater than 999,999 because only 6 of the 15 digits are left for the integer value.
+If a length (in digits) is specified for a decimal variable and the number of decimal positions is not specified, 0 decimal positions is assumed.
+
+The maximum lengths for each of the five types are:
+
+- Decimal -- 15 digits, 9 decimal positions
+
+- Character -- 32767 bytes
+
+Note: The initial value (specified for the VALUE parameter) of a CL variable can be no greater than 5000 characters.
+
+- Logical -- 1 byte
+
+- Integer -- 8 bytes for ILE CL, 4 bytes for OPM CL
+
+- Unsigned integer -- 8 bytes for ILE CL, 4 bytes for OPM CL
+
+The default lengths for each of the five types are:
+
+- Decimal -- 15 digits, 5 decimal positions
+
+- Character -- 32 bytes
+
+- Logical -- 1 byte
+
+- Integer -- 4 bytes
+
+- Unsigned integer -- 4 bytes
+
+Note: For decimal and character types, the default length is the same as the length of the initial value, if one is specified in the VALUE parameter.
+
+Top
+
+Initial value (VALUE)
+
+Specifies the initial value that is assigned to the CL variable when it is declared in the program. The value must be of the type specified by the TYPE parameter. If no value is specified, a character variable is set to blanks, a decimal, integer, or unsigned integer variable is set to a value of zero, and a logical variable is set to '0'. The value for the VALUE parameter cannot be specified by a CL variable.
+
+The VALUE parameter may not be specified for *PTR CL variables, or CL variables declared with *DEFINED or *BASED specified for the Storage (STG) parameter.
+
+If the name of the declared variable is specified for the PARM parameter of the PGM command in the same program in which the variable is declared, an initial value cannot be specified for the variable. In that case, the variable receives its value from the calling program.
+
+Top
+
+Basing pointer variable (BASPTR)
+
+Specifies the basing pointer for a CL variable declared with storage of *BASED.
+
+Note: This parameter must be specified if *BASED is specified for the Storage (STG) parameter.
+
+CL-variable-name
+Specify the name of a CL variable declared as TYPE(*PTR) which will serve as the basing pointer for the based CL variable being declared. This pointer must be initialized to a value before the based variable can be used.
+The name must start with an ampersand (&).
+
+Top
+
+Defined on (DEFVAR)
+
+Specifies the CL variable that the variable being declared is to be defined on.
+
+Note: This parameter must be specified if *DEFINED is specified for the Storage (STG) parameter.
+
+Note: A variable declared as STG(*DEFINED) cannot extend beyond the last byte of of the CL variable that it is defined on.
+
+Element 1: CL variable name
+
+CL-variable-name
+Specify the name of the CL variable that the variable being declared is defined on.
+
+Element 2: Starting position
+
+1
+The variable being declared starts at the beginning of the defined-on variable.
+
+1-32767
+Specify the starting position of the variable being declared from the beginning of the defined-on variable.
+
+Top
+
+Address (ADDRESS)
+
+Specifies the initial address for a CL variable declared with *PTR as the TYPE value.
+
+Note: A value cannot be specified for this parameter unless the variable being declared is a pointer variable and *AUTO is specified for the STG parameter.
+
+Single values
+
+*NULL
+The pointer will be initialized with a null value.
+
+Element 1: CL variable name
+
+CL-variable-name
+Specifies the name of a CL variable which is to be the initial address for the pointer variable.
+The name must start with an ampersand (&).
+
+Element 2: Offset
+
+0
+The pointer variable is set to the first byte of the CL variable being addressed.
+
+0-32766
+Specify the number of bytes from the beginning of the variable being address that the pointer is to be set.
+
+Top
+
+Examples
+
+Example 1: Specifying the CL Variable Length
+
+DCL &ABLE *DEC LEN(5 2)
+
+This command declares a CL variable named &ABLE that contains a decimal value. The value can never be greater than 999.99 because LEN specifies up to 5 digits, of which two are to the right of the decimal point. Because the VALUE parameter was not specified, and it is a numeric value, &ABLE is set to a value of zero (000.00).
+
+Example 2: Specifying a Logical Value
+
+DCL &SWITCH *LGL
+
+This command declares a CL variable named &SWITCH to contain a logical value. Because the type parameter specifies logical, the variable is one character long and it is set to '0'.
+
+Example 3: Specifying Initial Value of CL Variable
+
+DCL &FILNAM *CHAR VALUE(FILEA)
+
+This command declares a CL variable named &FILNAM whose value is FILEA. Because the value contains 5 characters and the LEN parameter was not specified, the length of the variable is also 5 characters.
+
+Example 4: Specifying Defined CL Variables
+
+DCL &QUALOBJ *CHAR LEN(20)
+DCL &OBJ *CHAR LEN(10) STG(*DEFINED) DEFVAR(&QUALOBJ 1)
+DCL &LIB *CHAR LEN(10) STG(*DEFINED) DEFVAR(&QUALOBJ 11)
+
+The first DCL command declares a 20-character variable in the program's automatic storage. The second DCL command declares a variable named &OBJ which refers to the first 10 characters of the &QUALOBJ variable. The last DCL command declares a variable named &LIB which can be used to reference the last 10 characters of the &QUALOBJ variable.
+
+Example 5: Specifying Pointer CL Variables
+
+DCL &CHAR *CHAR LEN(10)
+DCL &PTR *PTR ADDRESS(&CHAR)
+
+The second DCL command declares a pointer variable which is initialized to point to the &CHAR variable in the program's automatic storage.
+
+Example 6: Specifying Based CL Variables
+
+DCL &PTR *PTR
+DCL &CHAR *CHAR LEN(10) STG(*BASED) BASPTR(&PTR)
+
+The second DCL command declares a character variable which is found at the location addressed by the &PTR variable. Before the &CHAR variable can be used, the &PTR variable must be initialized to a valid address by using the %ADDRESS built-in function.
+
+Example 7: Specifying Defined Pointer CL Variables
+
+DCL &CHAR *CHAR LEN(48)
+DCL &PTR *PTR STG(*DEFINED) DEFVAR(&CHAR 17)
+
+The second DCL command declares a pointer variable in bytes 17 through 32 of the variable &CHAR.
+
+Example 8: Declaring a Pointer Initialized to a Null Value
+
+DCL &PAYREC *PTR STG(*AUTO) ADDRESS(*NULL)
+
+The pointer variable &PAYREC is declared with an initial address value of null.
+
+Top
+
+Error messages
+
+None
+
+Top

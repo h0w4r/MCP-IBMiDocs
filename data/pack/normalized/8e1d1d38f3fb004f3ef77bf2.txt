@@ -1,0 +1,325 @@
+Start Journal (STRJRN)
+
+Start Journal (STRJRN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: Yes | Parameters
+
+Examples
+
+Error messages
+
+The Start Journal (STRJRN) command is used to start journaling changes (made to an object or list of objects) to a specific journal. The object types which are supported through this interface are Data Areas (*DTAARA), Data Queues (*DTAQ), Stream Files (*STMF), Directories (*DIR), and Symbolic Links (*SYMLNK). Only objects of type *STMF, *DIR or *SYMLNK that are in the "root" (/), QOpenSys, and permanent user-defined file systems are supported. For more information about the possible journal entries which can be sent, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/. Search for "journal entry finder".
+
+The user can specify that only the after image or both the before and the after images of an object of type *DTAARA be journaled. Before images are necessary to remove journaled changes using the Remove Journaled Changes (RMVJRNCHG) command.
+
+After journaling begins for the object, the user should save the journaled object to preserve its journal attribute information. Also, the object must be saved because, for example, journaled changes cannot be applied to a version of the object that was saved before journaling was in effect.
+
+For other ways to start journaling see the following commands:
+
+- Access Paths - Start Journal Access Path (STRJRNAP)
+
+- Physical Files - Start Journal Physical File (STRJRNPF)
+
+- Libraries - Start Journal Library (STRJRNLIB)
+
+- Other Objects - Start Journal Object (STRJRNOBJ)
+
+Restrictions:
+
+- The object must not be journaling changes to another journal.
+
+- The maximum number of objects that can be associated with one journal is either 250,000 or 10,000,000. To get 10,000,000, the value of *MAX10M must have been specified for the JRNOBJLMT parameter on either the Create Journal (CRTJRN) command or on the Change Journal (CHGJRN) command. Once the number of objects is greater than or equal to this maximum, journaling does not start for any more objects.
+
+- The specified journal must be a local journal. Although all object types which can be journaled to a local journal can also have their changes sent to a remote journal, this is accomplished by a two step process. First start journaling to the local journal. Then connect the local journal to a remote instance. To initiate such a connection, use the Add Remote Journal (ADDRMTJRN) command or the Add Remote Journal (QjoAddRemoteJournal) API. For information about remote journaling, see the Journal management topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+- The specified journal and object must reside in the same auxiliary storage pool (ASP).
+
+- Stream files that are currently memory mapped, are virtual volume files, or are being used as IXS network storage spaces cannot be journaled.
+
+- Objects that are internally marked as not eligible for journaling cannot be journaled. The system may mark system working directories that are created inside of user directories as not eligible for journaling. The system will mark objects in any temporary user-defined file systems as not eligible.
+
+- For data areas, only local external data area objects may be journaled. The special data areas (*LDA, *GDA, *PDA) and DDM data areas cannot be journaled.
+
+- For data queues, only local data queues are supported. DDM data queues cannot be journaled.
+
+- At least one of parameter OBJ or OBJFID must be specified.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OBJ | Objects | Values (up to 300 repetitions): Element list | Optional
+Element 1: Name | Path name
+Element 2: Include or omit | *INCLUDE, *OMIT
+OBJFID | File identifier | Values (up to 300 repetitions): Hexadecimal value | Optional
+JRN | Journal | Path name | Optional
+SUBTREE | Directory subtree | *NONE, *ALL | Optional
+PATTERN | Name pattern | Values (up to 20 repetitions): Element list | Optional
+Element 1: Pattern | Character value, *
+Element 2: Include or omit | *INCLUDE, *OMIT
+INHERIT | New objects inherit journaling | *NO, *YES | Optional
+IMAGES | Images | *AFTER, *BOTH | Optional
+OMTJRNE | Omit journal entry | *NONE, *OPNCLOSYN | Optional
+LOGLVL | Logging level | *ERRORS, *ALL | Optional
+
+Top
+
+Objects (OBJ)
+
+Specifies a maximum of 300 objects for which changes are to be journaled. Only objects whose path name identifies an object of type *STMF, *DIR, *SYMLNK, *DTAARA or *DTAQ are supported.
+
+Element 1: Name
+
+'object-path-name'
+Specify the path name of the object for which changes are to be journaled.
+A pattern can be specified in the last part of the path name. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes. Symbolic links within the path name will not be followed. If the path name begins with the tilde character, then the path is assumed to be relative to the appropriate home directory.
+
+Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Element 2: Include or omit
+
+The second element specifies whether names that match the pattern should be included or omitted from the operation. Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+
+*INCLUDE
+The objects that match the object name pattern are to be journaled, unless overridden by an *OMIT specification.
+
+*OMIT
+The objects that match the object name pattern are not be journaled. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected path.
+
+Top
+
+File identifier (OBJFID)
+
+Specifies a maximum of 300 file identifiers (FID) for which changes are to be journaled. FIDs are a unique identifier associated with integrated file system related objects. This field is input in hexadecimal format. Only objects whose FID identifies an object of type *STMF, *DIR, or *SYMLNK that is in the "root" (/), QOpenSys, or user-defined file systems, or objects of type *DTAARA or *DTAQ are supported.
+
+file-identifier
+Objects identified with the FID are journaled.
+
+Top
+
+Journal (JRN)
+
+Specifies the path name of the journal that receives the journaled changes.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+'journal-path-name'
+Specify the path name of the journal that receives the journaled changes.
+
+Top
+
+Directory subtree (SUBTREE)
+
+Specifies whether the directory subtrees are included in the start journal operation.
+
+Note: This parameter is ignored if the OBJ parameter is not specified.
+
+Note: This parameter is ignored unless object-path-name is a directory (*DIR) object.
+
+*NONE
+Only the objects that match the selection criteria are processed. The objects within selected directories are not implicitly processed.
+
+*ALL
+All objects that meet the selection criteria are processed in addition to the entire subtree of each directory that matches the selection criteria. The subtree includes all subdirectories and the objects within those subdirectories.
+Once the command has begun processing a specific directory subtree, the objects which will be found and processed may be affected by operations that update the organization of objects within the specified directory tree. This includes, but is not limited to, the following:
+
+- Adding, removing, or renaming object links
+
+- Mounting or unmounting file systems
+
+- Updating the effective root directory for the process calling the command
+
+- Updating the contents of a symbolic link
+
+In order to process the directory subtree, the system code may increase the process-scoped maximum number of file descriptors that can be opened during processing. This is done so that the command is not likely to fail due to a lack of descriptors. This process-scoped maximum value is not reset when the command completes.
+
+Top
+
+Name pattern (PATTERN)
+
+Specifies a maximum of 20 patterns to be used to include or omit objects for the start journal operation.
+
+Only the last part of the path name will be considered for the name pattern match. Path name delimiters are not allowed in the name pattern. An asterisk (*) matches any number of characters and a question mark (?) matches a single character. If the path name is qualified or contains a pattern, it must be enclosed in apostrophes. Symbolic links within the path name will not be followed.
+
+If this parameter is not specified, the default will be to match all patterns.
+
+Additional information about path name patterns is in the Integrated file system topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: This parameter is ignored if the OBJ parameter is not specified.
+
+Note: This parameter applies to objects that exist when the start journal command is processed. This parameter does not apply to objects that will be created later in a journaled directory where new objects inherit journaling.
+
+Element 1: Pattern
+
+'*'
+All objects that match the input OBJ parameter are to be included into the start journal operation or omitted from the start journal operation.
+
+name-pattern
+Specify the pattern to either include or omit objects for the start journal operation.
+
+Note: This parameter is Unicode-enabled. See "Unicode support in CL" in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/ for additional information.
+
+Element 2: Include or omit
+
+The second element specifies whether names that match the pattern should be included or omitted from the operation. Note that in determining whether a name matches a pattern, relative name patterns are always treated as relative to the current working directory.
+
+*INCLUDE
+The objects that match the object name pattern are included into the start journal operation unless overridden by an *OMIT specification.
+
+*OMIT
+The objects that match the object name pattern are not to be included into the start journal operation. This overrides an *INCLUDE specification and is intended to be used to omit a subset of a previously selected pattern.
+
+Top
+
+New objects inherit journaling (INHERIT)
+
+Specifies whether new objects created within a journaled directory should inherit the journal options and the journal state of its parent directory.
+
+*NO
+New objects created within the directory will not inherit the journal options and journal state of the parent directory.
+
+*YES
+New objects created within the directory will inherit the journal options and journal state of the parent directory.
+
+Top
+
+Images (IMAGES)
+
+Specifies the kinds of images that are written to the journal receiver for changes to objects.
+
+*AFTER
+Only after images are generated for changes to objects.
+
+*BOTH
+The system generates both before and after images for changes to objects.
+
+Note: The value *BOTH is only valid for *DTAARA objects.
+
+Top
+
+Omit journal entry (OMTJRNE)
+
+Specifies the journal entries that are omitted.
+
+*NONE
+No entries are omitted.
+
+*OPNCLOSYN
+Open, close and force entries are omitted. Open, close and force operations on the specified objects do not generate open, close and force journal entries. This prevents the use of TOJOBO and TOJOBC entries on the Apply Journaled Changes (APYJRNCHG) command, but it saves some storage space in the journal receivers.
+
+Note: The value *OPNCLOSYN is only valid for *DIR and *STMF objects.
+
+Top
+
+Logging level (LOGLVL)
+
+Specifies the error logging level used. This parameter is used to determine which messages will be sent.
+
+*ERRORS
+All diagnostic and escape messages are sent but the command will not send successful completion messages for each object. At the completion of this command, one completion message will be sent.
+
+*ALL
+The command sends all the messages that would be sent with *ERRORS and it will also send the successful completion message for each object.
+
+Top
+
+Examples
+
+Example 1: Start Journaling with Omit of Directory
+
+STRJRN OBJ(('/mypath' *INCLUDE)
+('/mypath/myobject' *OMIT))
+JRN('/QSYS.LIB/MYLIB.LIB/JRNLA.JRN')
+
+This command journals all changes to all objects supported by this command within the first-level of directory '/mypath' except '/mypath/myobject' to journal '/QSYS.LIB/MYLIB.LIB/JRNLA.JRN'. None of the objects within the subdirectories of '/mypath' will be journaled.
+
+Only the after images of updated records are written to the journal.
+
+Example 2: Start Journaling with Pattern Matching
+
+STRJRN OBJ(('/mypath' *INCLUDE)
+('/mypath/myobject.txt' *OMIT))
+JRN('/QSYS.LIB/MYLIB.LIB/JRNLA.JRN') SUBTREE(*ALL)
+PATTERN(('*.TXT' *INCLUDE)) OMTJRNE(*OPNCLOSYN)
+
+This command journals changes to all objects that match pattern '*.txt' in directory '/mypath' except object '/mypath/myobject.txt'. The open, close and force entries are not journaled.
+
+Only the after images of updated records are written to the journal.
+
+Example 3: Start Journaling with Omit by Pattern
+
+STRJRN OBJ(('/mypath/my*' *INCLUDE))
+JRN('/QSYS.LIB/MYLIB.LIB/JRNLA.JRN')
+PATTERN(('*.DTA*' *OMIT))
+
+This command journals changes to all objects within the first-level directories that match the pattern for path '/mypath/my*' and will omit all objects that match pattern '*.DTA*' (objects of type *DTAARA and *DTAQ).
+
+Only the after images of updated records are written to the journal.
+
+Example 4: Start Journaling using File Identifiers
+
+STRJRN OBJFID(00000000000000007E09BDB000000009
+00000000000000009E09BDB00000000A)
+JRN('/QSYS.LIB/MYLIB.LIB/JRNLA.JRN')
+
+This command journals all changes to the objects represented by the specified file identifiers to journal '/QSYS.LIB/MYLIB.LIB/JRNLA.JRN'.
+
+Only the after images of updated records are written to the journal.
+
+Example 5: Start Journaling on a Set of Data Queues
+
+STRJRN OBJ(('/QSYS.LIB/MYLIB.LIB/MYDATA*.DTAQ'))
+JRN('/QSYS.LIB/MYLIB.LIB/MYJRN.JRN')
+
+This command starts the journaling of all changes to the objects of type *DTAQ in library MYLIB that begin with the characters 'MYDATA'.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA0D4
+File system error occurred. Error number &1.
+
+CPF700A
+&1 of &2 objects have started journaling.
+
+CPF705A
+Operation failed due to remote journal.
+
+CPF9801
+Object &2 in library &3 not found.
+
+CPF9802
+Not authorized to object &2 in &3.
+
+CPF9803
+Cannot allocate object &2 in library &3.
+
+CPF9810
+Library &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9873
+ASP status is preventing access to object.
+
+CPF9875
+Resources exceeded on ASP &1. Press HELP.
+
+Top

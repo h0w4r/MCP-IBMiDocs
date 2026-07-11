@@ -1,0 +1,657 @@
+<div role="main">
+<script type="text/javascript" src="../rzahg/synch.js"></script>
+<a name="SAVS36F.Top_Of_Page"></a>
+<h1>Save S/36 File  (SAVS36F)</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-04-08</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table0" width="100%" class="cds--data-table">
+<tbody><tr>
+<td class="valigntop alignleft"><strong>Where allowed to run:  </strong>All environments (*ALL)<br>
+<strong>Threadsafe:  </strong>No
+</td>
+<td class="valigntop alignright">
+<a href="#SAVS36F.PARAMETERS.TABLE">Parameters</a><br>
+<a href="#SAVS36F.COMMAND.EXAMPLES">Examples</a><br>
+<a href="#SAVS36F.ERROR.MESSAGES">Error messages</a></td>
+</tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F"></a>
+<p>The Save System/36 File (SAVS36F) command can create:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">a copy of a single database physical file or logical file to diskette, tape magnetic media or another database physical file in the same format as if a System/36 has saved the file.
+</li>
+<li class="cds--list__item">a copy of multiple database physical files or logical files to diskette or tape magnetic media in the same format as if a System/36 had saved the files as a save all set.  The files can be all files in a library, all files that are not part of a file group, all files in a specific file group, or all files that begin with a specified set of characters.
+</li>
+</ul>
+<p>A <strong>Save All Set</strong> is a group (set) of files that share the same group (set) name and that are saved (copied) to diskette or tape with one operation.  The set of files can be restored (copied back from diskette or tape) with a single operation by referring to the set name (see the Restore System/36 Files (RSTS36F) command).
+</p>
+<p><strong>File groups</strong> are defined by file names that contain a period.  The characters preceding the period identify the file group, and the characters following the period identify the file within the group.  As with file names within the System/36 environment, the maximum number of characters is eight, including the period.  Files with names that do not contain a period are not part of a file group.  The following examples show the names of files within a file group.
+</p>
+<p>
+</p><pre>    PAYROL.A
+    PAYROL.B    Files in File Group <strong>PAYROL</strong>
+    PAYROL.C
+    A.ACCTS
+    A.INV
+    A.PROL      Files in File Group <strong>A</strong>
+    A.B.GO
+    A.B.INV
+    A.B.GO
+    A.B.INV     Files in File Group <strong>A.B</strong>
+</pre>
+<p></p>
+<p>The saved files can be restored to the following systems:
+</p>
+<ul class="cds--list--unordered">
+<li class="cds--list__item">System/36 (RESTORE procedure or $COPY utility)
+</li>
+<li class="cds--list__item">i5/OS (Restore System/36 File (RSTS36F) command)
+</li>
+</ul>
+<p>The SAVS36F command is intended for exchanging files with a System/36.  For creating a backup version of a file, the i5/OS save commands (for example, Save Object (SAVOBJ) or Save Changed Object (SAVCHGOBJ)) should be used.
+</p>
+<p><strong>Restrictions</strong>:
+</p>
+<ol class="cds--list--ordered--temporary">
+<li class="cds--list__item">The following authorities are required (normally only applies when running on a system using resource security):
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">*USE authority for this command.
+</li>
+<li class="cds--list__item">*USE authority for the file or group of files specified in the FROMFILE parameter.
+</li>
+<li class="cds--list__item">*USE authority for the library specified in the FROMLIB parameter.
+</li>
+<li class="cds--list__item">*CHANGE authority to the file specified on the PHYFILE parameter if saving to an existing physical file.
+</li>
+<li class="cds--list__item">*USE authority for the library specified in the PHYFILE parameter if saving to a physical file.
+</li>
+<li class="cds--list__item">*CHANGE authority for the library specified in the PHYFILE parameter if saving to a physical file and the file does not exist.
+</li>
+<li class="cds--list__item">*USE authority for the diskette device description object, *USE authority for device file QSYSDKT, in library QSYS if saving to diskette.
+</li>
+<li class="cds--list__item">*USE authority for the tape device description object, *USE authority for device file QSYSTAP, in library QSYS if saving to tape.
+</li>
+<li class="cds--list__item">*USE authority for the based-on physical file if saving a logical file.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">All diskettes that are used for the save operation should be initialized using the INZDKT CL command or the equivalent System/36 environment function (INIT operator control language (OCL) procedure or $INIT SSP utility).  For a two-sided diskette, use a sector size of 256 or 1024.  For a one-sided diskette, use a sector size of 128 or 512.  If tape is used, each tape volume used should have been initialized with standard labels using the INZTAP CL command or the equivalent System/36 environment function (TAPEINIT OCL procedure or $TINIT SSP utility).  Use a density of 1600 bits per inch when initializing the tape.
+<p>
+<strong>Note:     </strong>If the tape or diskette has not been initialized as stated above, the System/36 will not be able to process the media.
+</p>
+</li>
+<li class="cds--list__item">Object-level and record-level functions, other than read operations, should not be attempted for a file being saved by SAVS36F.  Concurrent activity against the file (for example, moving the file or adding or removing records) can cause:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">For a save operation of a single file (FROMFILE(file-name)), the save operation will end with escape message CPF9826 because the file cannot be allocated.
+</li>
+<li class="cds--list__item">For a save operation of multiple files (FROMFILE(*ALL or generic*-file-name)), the save function sends an inquiry message CPA2C6A because the file cannot be allocated.  The message allows an ignore, retry and cancel response. The ignore response bypasses this file and attempts to save the next file selected.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">When saving a single file to diskette, the diskette cannot already contain an active file with the same label and creation date as the new file to be created.
+</li>
+<li class="cds--list__item">When saving multiple files to diskette, the diskette used for the save cannot contain any active files.
+</li>
+<li class="cds--list__item">Not all physical and logical files can be saved with the SAVS36F command.
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">Only logical files created under the System/36 environment (for example, through the BLDINDEX OCL procedure) or through a DDM request from a System/36 system can be saved.  These files are saved as System/36 alternative index files.
+</li>
+<li class="cds--list__item">All physical files created under the System/36 environment (for example, through the BLDFILE OCL procedure) or through a DDM request from a System/36 system are saved using information stored within the i5/OS file description.  These files are saved as System/36 sequential, direct, or indexed physical files.
+</li>
+<li class="cds--list__item">Any physical files created by i5/OS commands or utilities can be saved as long as the record length is not greater than 4096.  These files are saved as System/36 sequential files.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">To generate a save format which can be processed by the System/36 RESTORE procedure, the following information is not saved:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">If saving a logical file, only the description of the file is saved.  The index (or access path) is not saved.
+</li>
+<li class="cds--list__item">If saving an indexed (keyed) physical file, the data is saved but the index is not.  The index will be rebuilt after the file is restored.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">The following restrictions apply to naming standards:
+<ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">When saving a single file, the specified name (FROMFILE parameter) must meet naming standards. If not, message CPF0001 is sent when the SAVS36F command is processed.
+</li>
+<li class="cds--list__item">If a file name is found during a save operation of multiple files (FROMFILE(*ALL or generic*-file-name)) that does not meet the System/36 naming standards, diagnostic message CPF2C0E is sent and the file is not saved.
+</li>
+</ul>
+</li>
+<li class="cds--list__item">Multiple files (FROMFILE(*ALL) or FROMFILE(generic*-name)) cannot be saved to a physical file.
+</li>
+</ol>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table1" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div>
+<h2><a name="SAVS36F.PARAMETERS.TABLE">Parameters</a></h2>
+<div class="tablenoborder"><div class="cds--data-table-container"><table id="parm_table2" summary="Parameters" cellspacing="0" cellpadding="4" border="1" class="cds--data-table"><tbody><tr>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Keyword</div></th>
+<th scope="col" width="15%" class="alignleft"><div class="cds--table-header-label">Description</div></th>
+<th scope="col" width="30%" class="alignleft"><div class="cds--table-header-label">Choices</div></th>
+<th scope="col" width="10%" class="alignleft"><div class="cds--table-header-label">Notes</div></th>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.FROMFILE"><strong>FROMFILE</strong></a></td>
+<td class="valigntop">From file</td>
+<td class="valigntop"><span class="var">Generic name, name</span>, *ALL</td>
+<td class="valigntop">Required, Positional 1</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.FROMLIB"><strong>FROMLIB</strong></a></td>
+<td class="valigntop">From library</td>
+<td class="valigntop"><span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 2</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.DEV"><strong>DEV</strong></a></td>
+<td class="valigntop">Device</td>
+<td class="valigntop">Single values: *PHYFILE<br>Other values (up to 4 repetitions): <span class="var">Name</span></td>
+<td class="valigntop">Required, Positional 3</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.GROUP"><strong>GROUP</strong></a></td>
+<td class="valigntop">File group qualifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">*ALL</strong>, *NONE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.SET"><strong>SET</strong></a></td>
+<td class="valigntop">Set identifier</td>
+<td class="valigntop"><span class="var">Character value</span>, <strong class="underlined">#SAVE</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.TOLABEL"><strong>TOLABEL</strong></a></td>
+<td class="valigntop">File label</td>
+<td class="valigntop"><span class="var">Character value</span></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.SEQNBR"><strong>SEQNBR</strong></a></td>
+<td class="valigntop">Sequence number</td>
+<td class="valigntop">1-9999, <strong class="underlined">*END</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.VOL"><strong>VOL</strong></a></td>
+<td class="valigntop">Volume identifier</td>
+<td class="valigntop">Values (up to 50 repetitions): <span class="var">Character value</span>, <strong class="underlined">*MOUNTED</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.RETAIN"><strong>RETAIN</strong></a></td>
+<td class="valigntop">Retention period</td>
+<td class="valigntop">0-999, <strong class="underlined">1</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.ENDOPT"><strong>ENDOPT</strong></a></td>
+<td class="valigntop">End of tape option</td>
+<td class="valigntop"><strong class="underlined">*REWIND</strong>, *LEAVE, *UNLOAD</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.DTACPR"><strong>DTACPR</strong></a></td>
+<td class="valigntop">Data compression</td>
+<td class="valigntop">*YES, <strong class="underlined">*NO</strong></td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop" rowspan="3"><a href="#SAVS36F.PHYFILE"><strong>PHYFILE</strong></a></td>
+<td class="valigntop">Physical file</td>
+<td class="valigntop"><span class="var">Qualified object name</span></td>
+<td class="valigntop" rowspan="3">Optional</td>
+</tr>
+<tr>
+<td class="valigntop">Qualifier 1: Physical file</td>
+<td class="valigntop"><span class="var">Name</span></td>
+</tr><tr>
+<td class="valigntop">Qualifier 2: Library</td>
+<td class="valigntop"><span class="var">Name</span>, <strong class="underlined">*LIBL</strong>, *CURLIB</td>
+</tr><tr>
+<td class="valigntop"><a href="#SAVS36F.MBROPT"><strong>MBROPT</strong></a></td>
+<td class="valigntop">Data base member option</td>
+<td class="valigntop"><strong class="underlined">*NOREPLACE</strong>, *REPLACE</td>
+<td class="valigntop">Optional</td>
+</tr>
+<tr>
+<td class="valigntop"><a href="#SAVS36F.CRTDATE"><strong>CRTDATE</strong></a></td>
+<td class="valigntop">Creation date</td>
+<td class="valigntop"><span class="var">Date</span>, <strong class="underlined">*LAST</strong>, *ALL</td>
+<td class="valigntop">Optional</td>
+</tr>
+</tbody></table></div></div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table3" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+<div> <a name="SAVS36F.FROMFILE"></a>
+<h2>From file (FROMFILE)</h2>
+<p>Specifies the name of the file being saved.  The file specified must exist in the library specified in the <strong>From library</strong> prompt (FROMLIB parameter).
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong class="italic">file-name</strong></dt>
+<dd>Specify the name of a single file to save.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All files in the specified library are saved.  To further describe which files are saved, use the <strong>File group qualifier</strong> prompt (GROUP parameter).
+</dd>
+<dt><strong class="italic">generic*-file-name</strong></dt>
+<dd>Specify a generic name of a group of files in the specified library to save.  All files with the same prefix as the generic name are saved.  A generic name is specified as a character string of one or more characters, followed by an asterisk.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table4" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.FROMLIB"></a>
+<h2>From library (FROMLIB)</h2>
+<p>Specifies which library contains the database files to be saved.
+</p>
+<p>This is a required parameter.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table5" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.DEV"></a>
+<h2>Device (DEV)</h2>
+<p>Specifies the name of a diskette unit or the names of one or more tape devices.  A maximum of four tape device names can be specified.  If more than one tape device is used, enter the names of the devices in the order in which they are used.  Each device name must be already known on the system by a device description.
+</p>
+<p>This is a required parameter.
+</p>
+<dl>
+<dt><strong>*PHYFILE</strong></dt>
+<dd>A database physical file receives the copied file.  The qualified name of the physical file must be specified on the <strong>Physical file</strong> prompt (PHYFILE parameter).  *PHYFILE is not valid if *ALL or a generic*-file-name is specified for the <strong>From file</strong> prompt (FROMFILE parameter).
+</dd>
+<dt><strong class="italic">device-name</strong></dt>
+<dd>Specifies the name of the diskette unit or the names of one or more tape devices used for the save operation.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table6" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.GROUP"></a>
+<h2>File group qualifier (GROUP)</h2>
+<p>Specifies which file groups are to be saved.  This parameter is valid only if *ALL is specified for the <strong>From file</strong> prompt (FROMFILE parameter).
+</p>
+<dl>
+<dt><strong>*ALL</strong></dt>
+<dd>All files are saved.
+</dd>
+<dt><strong>*NONE</strong></dt>
+<dd>No files that belong to a file group are saved.  Only files that do not belong to file group are saved.
+</dd>
+<dt><strong class="italic">group-name</strong></dt>
+<dd>Specify the name of a file group.  All files that belong to that file group are saved.  Files that do not belong to the specified file group are not saved.  A group name can be up to 7 characters in length.  The first character in the name must be an alphabetic character (A through Z, #, @, or $).  The remaining characters can be any combination of characters (numeric, alphabetic, and special) except commas (,), apostrophes ('), quotation marks ("), question mark (?), asterisk (*), or blanks.  The period, which indicates a file group name, must not be included as part of the group name.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table7" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.SET"></a>
+<h2>Set identifier (SET)</h2>
+<p>Specifies the set identifier used to identify the entire set of files to be saved.  This parameter is valid only if *ALL or a generic name is specified for the <strong>From file</strong> prompt (FROMFILE parameter).
+</p>
+<dl>
+<dt><strong>#SAVE</strong></dt>
+<dd>The default set identifier is used.
+</dd>
+<dt><strong class="italic">set-identifier</strong></dt>
+<dd>Specify the set identifier used to identify the entire set of files to be saved.  The set identifier can be up to 8 characters in length.  The first character in the name must be an alphabetic character (A through Z, #, @, or $).  The remaining characters can be any combination of characters (numeric, alphabetic, and special) except commas (,), apostrophes ('), quotation marks ("), question mark (?), asterisk (*), or blanks.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table8" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.TOLABEL"></a>
+<h2>File label (TOLABEL)</h2>
+<p>Specifies the label value (eight characters maximum) given to the new diskette or tape file created by the save operation of a single file.  If no value is specified, the value of the <strong>From file</strong> prompt (FROMFILE parameter) is used as the diskette or tape label.
+</p>
+<p>This parameter is not allowed if *ALL or a generic name is specified for <strong>From file</strong> prompt (FROMFILE parameter).
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table9" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.SEQNBR"></a>
+<h2>Sequence number (SEQNBR)</h2>
+<p>Specifies, only when tape is used, which sequence number is used for the save operation.
+</p>
+<dl>
+<dt><strong class="underlined">*END</strong></dt>
+<dd>The specified file or files are saved starting after the last sequence number on the first tape (that is, this file follows all other files currently on the tape volume).  If the first tape is full, an error message is issued and the operation ends.  If the sequence number to be assigned to the specified file is greater than 9999, an error message is issued and the operation ends.
+<p>If multiple files are saved, the next file is saved to a file after the first file that was saved, and so on.  If the sequence number to be assigned ever exceeds 9999, an error message is issued and the operation ends.
+</p>
+</dd>
+<dt><strong class="italic">file-sequence-number</strong></dt>
+<dd>Specify the sequence number of the tape file that is used for the save operation.  Valid values range from 1 through 9999.
+<p>If this sequence number already exists on the tape volume, the tape label at that sequence number must match the TOLABEL parameter.  The existing file at that sequence number is overwritten, and all subsequent files on the volume are not accessible after the save.
+</p>
+<p>If a new tape file is added to the tape, the sequence number must be one higher than the sequence number of the last tape file on that volume.  No gaps are allowed in the series of sequence numbers.
+</p>
+<p>If multiple files are being saved, this sequence number is used for the first file.  All remaining files are saved as if *END was specified on the parameter SEQNBR.  If the sequence number to be assigned ever exceeds 9999, an error message is issued and the operation ends.
+</p>
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table10" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.VOL"></a>
+<h2>Volume identifier (VOL)</h2>
+<p>Specifies the volume identifiers of the tape volumes on which the object data is to be saved.  The volumes must be placed in the device in the same order as the volume identifiers are specified for this parameter.
+</p>
+<dl>
+<dt><strong class="underlined">*MOUNTED</strong></dt>
+<dd>The volume currently placed in the device is used.
+</dd>
+</dl>
+<dl>
+<dt><strong class="italic">volume-identifier</strong></dt>
+<dd>Specify the volume identifiers of the tapes or diskettes used for the save operation.  A maximum of 50 volume identifiers can be specified.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table11" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.RETAIN"></a>
+<h2>Retention period (RETAIN)</h2>
+<p>Specifies the retention period for the newly created tape or diskette file.  The file is protected and cannot be written over until the day after the retention period ends.
+</p>
+<dl>
+<dt><strong class="underlined">1</strong></dt>
+<dd>A retention period of one day is used.
+</dd>
+<dt><strong class="italic">retention-period</strong></dt>
+<dd>Specify the number of days the tape or diskette file should be kept.  If a retention period of 999 is specified, the tape or diskette file becomes a permanent file.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table12" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.ENDOPT"></a>
+<h2>End of tape option (ENDOPT)</h2>
+<p>Specifies, only when tape is used, what operation is automatically performed on the tape volume after the save operation ends.  This parameter applies only to the last reel used.
+</p>
+<dl>
+<dt><strong>*REWIND</strong></dt>
+<dd>The tape is rewound, but not unloaded.
+</dd>
+</dl>
+<dl>
+<dt><strong>*LEAVE</strong></dt>
+<dd>The tape is not rewound.
+</dd>
+</dl>
+<dl>
+<dt><strong>*UNLOAD</strong></dt>
+<dd>The tape is automatically rewound and unloaded after the operation ends.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table13" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.DTACPR"></a>
+<h2>Data compression (DTACPR)</h2>
+<p>Specifies, when a diskette is used, whether the data is compressed into System/36 compatible format before it is written to the diskette.  If the save command is operating while other jobs on the system are active and data compression is used, the overall system performance may be affected.  This parameter is not valid if *PHYFILE or a tape device is specified on the <strong>Device</strong> prompt (DEV parameter).
+</p>
+<p>The possible values are:
+</p>
+<dl>
+<dt><strong class="underlined">*NO</strong></dt>
+<dd>The data is not compressed before being written to the diskette.
+</dd>
+<dt><strong>*YES</strong></dt>
+<dd>The data is compressed before being written to the diskette.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table14" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.PHYFILE"></a>
+<h2>Physical file (PHYFILE)</h2>
+<p>Specifies the name of the file that receives the copied file.  If the specified file does not exist, it is created in the current library as a non-keyed, program-described file with a record length of 256.  The copied records are put in the first member of the physical file.  If the file has no members, a member is created using the system date.
+</p>
+<p>The possible library values are:
+</p>
+<dl>
+<dt><strong class="underlined">*LIBL</strong></dt>
+<dd>The library list is used to locate the file.
+</dd>
+<dt><strong>*CURLIB</strong></dt>
+<dd>The current library for the job is used to locate the file.  If no library is specified as the current library for the job, QGPL is used.
+</dd>
+<dt><strong class="italic">library-name</strong></dt>
+<dd>Specify the library where the file is located.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table15" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.MBROPT"></a>
+<h2>Data base member option (MBROPT)</h2>
+<p>Specifies whether the new records replace or are added to the existing records.
+</p>
+<dl>
+<dt><strong class="underlined">*NOREPLACE</strong></dt>
+<dd>Specifies whether a file already exists by the name specified on the PHYFILE parameter in the specified library, an error message is sent and the data in that member is not replaced.
+</dd>
+<dt><strong>*REPLACE</strong></dt>
+<dd>The PHYFILE member is cleared before copying the first record.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table16" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<div> <a name="SAVS36F.CRTDATE"></a>
+<h2>Creation date (CRTDATE)</h2>
+<p>Specifies, for a <span class="var">date-differentiated</span> file (maintained by the System/36 environment), which instance (member) of the file or files is saved.  A date-differentiated file has the same name as another file but it has a different file creation date.  On this system, date-differentiated files are multiple-member physical files.
+</p>
+<dl>
+<dt><strong class="underlined">*LAST</strong></dt>
+<dd>The most recently created member for the specified file or files are saved.
+</dd>
+<dt><strong>*ALL</strong></dt>
+<dd>All members in the date-differentiated file are saved.  If the file being saved is not date differentiated, only the last member created in the file is saved.  *ALL is valid only when *ALL or a generic file name is specified for <strong>From file</strong> prompt (FROMFILE parameter).
+</dd>
+<dt><strong class="italic">file-creation-date</strong></dt>
+<dd>Specify the creation date of the date-differentiated file member to save.  A file creation date is valid only when a single file is saved, or a file name is specified on the <strong>From file</strong> prompt (FROMFILE parameter).
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table17" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="SAVS36F.COMMAND.EXAMPLES">Examples</a> </h2>
+<h3><strong>Example 1: Saving a Single File</strong>
+</h3>
+<p>
+</p><pre>SAVS36F   FROMFILE(PETE)  FROMLIB(QS36F)  DEV(I1)
+</pre>
+<p></p>
+<p>This command saves the file named PETE located in library QS36F.  Assuming that I1 is the name of a diskette device description, the file is saved on the diskette placed in the diskette drive. The diskette file label is PETE (same as the FROMFILE name). If PETE is a date-differentiated physical file, the most recently created instance (member) of PETE is saved. The diskette file has a retention period of one day (the retention period ends at midnight of the following day).
+</p>
+<h3><strong>Example 2: Saving a Single File</strong>
+</h3>
+<p>
+</p><pre>SAVS36F   FROMFILE(MSTRPAY)  FROMLIB(PAYLIB)  DEV(T1 T2)
+          TOLABEL('PAY.MSTR')  RETAIN(999)
+</pre>
+<p></p>
+<p>This command saves the file named MSTRPAY located in library PAYLIB.  Assuming that T1 and T2 are tape devices, the file is copied to the tapes on devices T1 and T2. The tape file label is PAY.MSTR and the tape file is a permanent file. The last tape used for the save is rewound at the end of the save operation.
+</p>
+<h3><strong>Example 3: Saving Multiple Files</strong>
+</h3>
+<p>
+</p><pre>SAVS36F   FROMFILE(*ALL)  FROMLIB(QS36F)  DEV(T1 T2)
+          GROUP(*ALL)  SET(ALLFL)  RETAIN(999)
+</pre>
+<p></p>
+<p>This command saves all database physical and logical files in library QS36F (including all files that belong to a file group). If any of the files are date-differentiated files, only the last member created in each file is saved. Assuming that T1 and T2 are tape devices, the files are copied to the tape volumes that are placed in tape drives T1 and T2. The label of the tape files created are the same as the names of the files that are saved. The first tape file created is located after the last sequence number on the tape.  The remaining files are located after that first file. The tape files created are permanent. The last tape used for the save is rewound at the end of the save operation. The set identifier associated with this save all set is ALLFL.
+</p>
+<h3><strong>Example 4: Saving Multiple Files</strong>
+</h3>
+<p>
+</p><pre>SAVS36F   FROMFILE(*ALL)  FROMLIB(QS36F)  DEV(T1 T2)
+          GROUP(*NONE)  CRTDATE(*LAST) SET(NOGFL) RETAIN(999)
+</pre>
+<p></p>
+<p>This command saves all database physical and logical files in library QS36F except those files that belong to a file group. If any of the files are date-differentiated files, only the last member created in each file is saved. Assuming that T1 and T2 are tape devices, the files are copied to the tape volumes that are placed in tape drives T1 and T2. The label of the tape files created is the same as the names of the files that are saved. The first tape file created is located after the last sequence number on the tape. The remaining files are located after that first file. The tape files created are permanent. The last tape used for the save is rewound at the end of the save operation. The set identifier associated with this save all set is NOGFL.
+</p>
+<h3><strong>Example 5: Saving Multiple Files</strong>
+</h3>
+<p>
+</p><pre>SAVS36F   FROMFILE(*ALL)  FROMLIB(GRPLIB)  DEV(I1)
+          GROUP(GRP)  CRTDATE(*ALL)
+</pre>
+<p></p>
+<p>This command saves all database physical and logical files in library GRPLIB that belong to file group GRP (GRP.01, GRP.02, and so on). If any of the files are date-differentiated files, all members in the files are saved. Assuming that I1 is a diskette drive, the files are copied to the diskette that is placed in the diskette drive.  The label of the diskette files created is the same as the names of the files that are saved. The diskette files expire after one day.  The set identifier associated with this save all set is #SAVE.
+</p>
+<h3><strong>Example 6: Saving Multiple Files</strong>
+</h3>
+<p>
+</p><pre>SAVS36F   FROMFILE(PAY*)  FROMLIB(PAYROLL)  DEV(I1)
+          SET(PAYSET)  CRTDATE(*LAST)
+          VOL(PAYDKT)  RETAIN(10)
+</pre>
+<p></p>
+<p>This command saves all database physical and logical files in library PAYROLL whose names begin with the characters PAY (PAY.01, PAYRATE, and so on).  If any of the files are date-differentiated files, only the last member created is saved. Assuming that I1 is a diskette drive, the files are copied to a diskette with a volume identifier of PAYDKT. The label of the diskette files created is the same as the names of the files that are saved. The diskette files expire after ten days. The set identifier associated with this save all set is PAYSET.
+</p>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table18" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+<hr width="100%" size="2">
+<div><h2><a name="SAVS36F.ERROR.MESSAGES">Error messages</a> </h2>
+<p><strong class="underlined">*ESCAPE Messages</strong>
+</p>
+<dl>
+<dt><strong>CPF2C4A</strong></dt>
+<dd>Device &amp;1 not correct for command.
+</dd>
+<dt><strong>CPF2C4B</strong></dt>
+<dd>Duplicate device &amp;1 specified in device name list.
+</dd>
+<dt><strong>CPF2C4C</strong></dt>
+<dd>Diskette device &amp;1 included in multiple device specification.
+</dd>
+<dt><strong>CPF2C4F</strong></dt>
+<dd>Diskette format not correct for DTACPR(*YES).
+</dd>
+<dt><strong>CPF2C47</strong></dt>
+<dd>Existing file &amp;1 or member &amp;3 in library &amp;2 not replaced.
+</dd>
+<dt><strong>CPF2C48</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C49</strong></dt>
+<dd>Output file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C5B</strong></dt>
+<dd>Not all files were saved.
+</dd>
+<dt><strong>CPF2C5C</strong></dt>
+<dd>Save operation ended before all files were saved.
+</dd>
+<dt><strong>CPF2C5D</strong></dt>
+<dd>No files saved from library &amp;1.
+</dd>
+<dt><strong>CPF2C5E</strong></dt>
+<dd>Input file &amp;1 in &amp;2 not correct for command.
+</dd>
+<dt><strong>CPF2C5F</strong></dt>
+<dd>Tape file sequence numbers beyond 9999 not allowed.
+</dd>
+<dt><strong>CPF2C50</strong></dt>
+<dd>File description for file &amp;1 is not available.
+</dd>
+<dt><strong>CPF2C51</strong></dt>
+<dd>Member information for file &amp;1 in library &amp;2 is not available.
+</dd>
+<dt><strong>CPF2C52</strong></dt>
+<dd>Error occurred during attempt to create file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF2C54</strong></dt>
+<dd>FROMFILE name &amp;1 too long to use for TOLABEL parameter.
+</dd>
+<dt><strong>CPF2C55</strong></dt>
+<dd>TOLABEL parameter value &amp;1 contains embedded blank(s).
+</dd>
+<dt><strong>CPF2C56</strong></dt>
+<dd>Physical file name &amp;1 too long.
+</dd>
+<dt><strong>CPF2C58</strong></dt>
+<dd>Diskette format not acceptable for System/36.
+</dd>
+<dt><strong>CPF2C59</strong></dt>
+<dd>FROMFILE name &amp;1 too long.
+</dd>
+<dt><strong>CPF9810</strong></dt>
+<dd>Library &amp;1 not found.
+</dd>
+<dt><strong>CPF9812</strong></dt>
+<dd>File &amp;1 in library &amp;2 not found.
+</dd>
+<dt><strong>CPF9814</strong></dt>
+<dd>Device &amp;1 not found.
+</dd>
+<dt><strong>CPF9820</strong></dt>
+<dd>Not authorized to use library &amp;1.
+</dd>
+<dt><strong>CPF9822</strong></dt>
+<dd>Not authorized to file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9825</strong></dt>
+<dd>Not authorized to device &amp;1.
+</dd>
+<dt><strong>CPF9826</strong></dt>
+<dd>Cannot allocate file &amp;2.
+</dd>
+<dt><strong>CPF9830</strong></dt>
+<dd>Cannot assign library &amp;1.
+</dd>
+<dt><strong>CPF9831</strong></dt>
+<dd>Cannot assign device &amp;1.
+</dd>
+<dt><strong>CPF9845</strong></dt>
+<dd>Error occurred while opening file &amp;1.
+</dd>
+<dt><strong>CPF9847</strong></dt>
+<dd>Error occurred while closing file &amp;1 in library &amp;2.
+</dd>
+<dt><strong>CPF9848</strong></dt>
+<dd>Cannot open file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+<dt><strong>CPF9849</strong></dt>
+<dd>Error while processing file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+</dl>
+<p><strong class="underlined">*STATUS Messages</strong>
+</p>
+<dl>
+<dt><strong>CPI2C13</strong></dt>
+<dd>Copying records from file &amp;1 in library &amp;2 member &amp;3.
+</dd>
+</dl>
+</div>
+<div class="tablenoborder"><div class="cds--data-table-container"><table role="presentation" id="parm_table19" width="100%" class="cds--data-table">
+<tbody><tr><td class="alignright"><a href="#SAVS36F.Top_Of_Page">Top</a></td></tr>
+</tbody></table></div></div>
+</div>
+

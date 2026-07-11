@@ -1,0 +1,189 @@
+<html><head></head><body><main role="main"><article role="article" aria-labelledby="rbafztrigex__title__1">
+<h1 class="topictitle1" id="rbafztrigex__title__1">Triggers</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-10-07</div>
+
+
+
+
+<div class="body conbody"><p class="shortdesc">A <em>trigger</em> defines a set of actions that are executed
+automatically whenever a delete, insert, or update operation occurs
+on a specified table or view. When such an SQL operation is executed,
+the trigger is said to be activated.</p>
+
+<p>The set of actions can include almost any operation allowed on
+the system. A few operations are not allowed, such as: </p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">Commit or rollback (if the same commitment definition is used
+for the trigger actions and the triggering event)</li>
+
+<li class="cds--list__item">CONNECT, SET CONNECTION, DISCONNECT, and RELEASE statements</li>
+
+<li class="cds--list__item">SET SESSION AUTHORIZATION</li>
+
+</ul>
+
+<p>For a complete list of restrictions, see <a href="/docs/en/ssw_ibm_i_75/db2/rbafzhctrigger.htm" title="The CREATE TRIGGER statement defines a trigger at the current server.">CREATE TRIGGER</a> and the <a href="/docs/en/ssw_ibm_i_75/dbp/rbafokickoff.htm">Database Programming</a> book.</p>
+
+<p>Triggers can be used along with referential constraints and check
+constraints to enforce data integrity rules. Triggers are more powerful
+than constraints because they can also be used to cause updates to
+other tables, automatically generate or transform values for inserted
+or updated rows, or invoke functions that perform operations both
+inside and outside of database manager. For example, instead of preventing
+an update to a column if the new value exceeds a certain amount, a
+trigger can substitute a valid value and send a notice to an administrator
+about the invalid update.</p>
+
+<p>Triggers are a useful mechanism to define and enforce transitional
+business rules that involve different states of the data (for example,
+salary cannot be increased by more than 10 percent). Such a limit
+requires comparing the value of a salary before and after an increase.
+For rules that do not involve more than one state of the data, consider
+using referential and check constraints.</p>
+
+<p>Triggers also move the application logic that is required to enforce
+business rules into the database, which can result in faster application
+development and easier maintenance because the business rule is no
+longer repeated in several applications, but one version is centralized
+to the trigger. With the logic in the database, for example, the previously
+mentioned limit on increases to the salary column of a table, database
+manager checks the validity of the changes that any application makes
+to the salary column. In addition, the application programs do not
+need to be changed when the logic changes.</p>
+
+<p>For more information about creating triggers, see <a href="/docs/en/ssw_ibm_i_75/db2/rbafzhctrigger.htm" title="The CREATE TRIGGER statement defines a trigger at the current server.">CREATE TRIGGER</a>. <a name="fnsrc_1" href="#fntarg_1"><sup>1</sup></a></p>
+
+<p> Triggers are optional and are defined using the CREATE TRIGGER
+statement or the <span class="keyword cmdname">Add Physical File Trigger (ADDPFTRG)</span> CL
+command. Triggers are dropped using the DROP TRIGGER statement or
+the <span class="keyword cmdname">Remove Physical File Trigger (RMVPFTRG)</span> CL
+command. For more information about creating triggers, see the CREATE
+TRIGGER statement. For more information about triggers in general,
+see the <a href="/docs/en/ssw_ibm_i_75/db2/rbafzhctrigger.htm" title="The CREATE TRIGGER statement defines a trigger at the current server.">CREATE TRIGGER</a> statement or the <a href="/docs/en/ssw_ibm_i_75/dbp/rbafokickoff.htm">SQL Programming</a> and
+the <a href="/docs/en/ssw_ibm_i_75/dbp/rbafokickoff.htm">Database
+Programming</a> books.</p>
+
+<p>There are a number of criteria that are defined when creating a
+trigger which are used to determine when a trigger should be activated.</p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The <em>subject table</em>
+<span class="ph">(also known as the triggering table)</span> defines the table or view for which the
+trigger is defined.</li>
+
+<li class="cds--list__item">The <em>trigger event</em> defines a specific SQL operation that
+modifies the subject table. The operation could be delete, insert,
+or update.</li>
+
+<li class="cds--list__item">The <em>trigger activation time</em> defines whether the trigger
+should be activated before or after the trigger event is performed
+on the subject table.</li>
+
+</ul>
+
+<p>The statement that causes a trigger to be activated will include
+a <em>set of affected rows</em>. These are the rows of the subject table
+that are being deleted, inserted or updated. The <em>trigger granularity</em> defines
+whether the actions of the trigger will be performed once for the
+statement or once for each of the rows in the set of affected rows.</p>
+
+<p>The <em>trigger action</em> consists of an optional search condition
+and a set of SQL statements that are executed whenever the trigger
+is activated. The SQL statements are only executed if no search condition
+is specified or the specified search condition evaluates to true.</p>
+
+<p>The triggered action may refer to the values in the set of affected
+rows. This is supported through the use of <em>transition variables</em>.
+Transition variables use the names of the columns in the subject table
+qualified by a specified name that identifies whether the reference
+is to the old value (prior to the update) or the new value (after
+the update). The new value can also be changed using the SET transition-variable
+statement in before update or insert triggers. Another means of referring
+to the values in the set of affected rows is using <em>transition tables</em>.
+Transition tables also use the names of the columns of the subject
+table but have a name specified that allows the complete set of affected
+rows to be treated as a table. Transition tables can only be used
+in after triggers. Separate transition tables can be defined for old
+and new values.</p>
+
+<p>Multiple triggers can be specified for a combination of table,
+event, or activation time. The order in which the triggers are activated
+is the same as the order in which they were created. Thus, the most
+recently created trigger will be the last trigger activated.</p>
+
+<p>The activation of a trigger may cause <em>trigger cascading</em>.
+This is the result of the activation of one trigger that executes
+SQL statements that cause the activation of other triggers or even
+the same trigger again. The triggered actions may also cause updates
+as a result of the original modification, which may result in the
+activation of additional triggers. With trigger cascading, a significant
+chain of triggers may be activated causing significant change to the
+database as a result of a single delete, insert or update statement.</p>
+
+<p>The actions performed in the trigger are considered to be part
+of the operation that caused the trigger to be executed. Thus, when
+the isolation level is anything other than NC (No Commit) and the
+trigger actions are performed using the same commitment definition
+as the trigger event: </p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">The database manager ensures that the operation and the triggers
+executed as a result of that operation either all complete or are
+backed out. Operations that occurred prior to the triggering operation
+are not affected.</li>
+
+<li class="cds--list__item">The database manager effectively checks all constraints (except
+for a constraint with a RESTRICT delete rule) after the operation
+and the associated triggers have been executed.</li>
+
+</ul>
+
+<p>A trigger has an attribute that specifies whether it is allowed
+to delete or update a row that has already been inserted or updated
+within the SQL statement that caused the trigger to be executed. </p>
+
+<ul class="cds--list--unordered">
+<li class="cds--list__item">If ALWREPCHG(*YES) is specified when the trigger is defined, then
+within an SQL statement:  <ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">The trigger is allowed to update or delete any row that was inserted
+or already updated by that same SQL statement. This also includes
+any rows inserted or updated by a trigger or referential constraint
+caused by the same SQL statement.</li>
+
+</ul>
+</li>
+
+<li class="cds--list__item">If ALWREPCHG(*NO) is specified when the trigger is defined, then
+within an SQL statement:  <ul class="cds--list--unordered cds--list--nested">
+<li class="cds--list__item">A row can be deleted by a trigger only if that row has not been
+inserted or updated by that same SQL statement. If the isolation level
+is anything other than NC (No Commit) and the trigger actions are
+performed using the same commitment definition as the trigger event,
+this also includes any inserts or updates by a trigger or referential
+constraint caused by the same SQL statement.</li>
+
+<li class="cds--list__item">A row can be updated by a trigger only if that row has not already
+been inserted or updated by that same SQL statement. If the isolation
+level is anything other than NC (No Commit) and the trigger actions
+are performed using the same commitment definition as the trigger
+event, this also includes any inserts or updates by a trigger or referential
+constraint caused by the same SQL statement.</li>
+
+</ul>
+</li>
+
+</ul>
+
+<p>All triggers created by using the CREATE TRIGGER statement implicitly
+have the ALWREPCHG(*YES) attribute.</p>
+
+</div>
+
+
+<aside role="complementary" aria-labelledby="rbafztrigex__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_75" href="/docs/en/ssw_ibm_i_75/db2/rbafzch1table.htm" title="Tables are logical structures maintained by the database manager. Tables are made up of columns and rows. There is no inherent order of the rows within a table. At the intersection of every column and row is a specific data item called a value. A column is a set of values of the same type. A row is a sequence of values such that the nth value is a value of the nth column of the table." class="bottom-section-link">Tables</a></div></div>
+</div>
+</nav></aside><div class="fn"><a name="fntarg_1" href="#fnsrc_1"><sup>1</sup></a>  The ADDPFTRG CL command also
+defines a trigger, including triggers that are activated on any read
+operation.</div></article></main><script type="text/javascript"  src="/0qKP/Fm9A/Igg6/tAAW/dg/iVOLVfDNDDtLXc5puX/UExGPFZyWg8/ayldF/R5WAkUB"></script></body></html>

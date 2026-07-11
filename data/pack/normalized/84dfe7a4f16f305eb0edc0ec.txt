@@ -1,0 +1,392 @@
+Restore S/36 File (RSTS36F)
+
+Restore S/36 File (RSTS36F)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Restore System/36 File (RSTS36F) command restores to the system a single file or a group of files from a save all set. A single file can be restored from a database physical file, a diskette file or a tape file. A group of files can be restored from a save all set on diskette or tape.
+
+The restore operation reads the description of the file from the database physical file, diskette, or tape, creates a database physical or logical file and copies any data from the database physical file, diskette file or tape file into the new database file. The database physical file must have been created with the Save System/36 File (SAVS36F) command. The diskette or tape file may have been created on a System/36 using the SAVE system operator control language (OCL) procedure (or the equivalent OCL use of the $COPY SSP utility), or by using the Save System/36 File (SAVS36F) command. The Restore System/36 File (RSTS36F) command accepts diskette or tape files created on a System/34 or System/32 using the $COPY utility.
+
+The RSTS36F command accepts a diskette file created as a compressed file.
+
+If the file being restored does not exist in the library specified on the TOLIB parameter, it is created. A physical file member is added using the name syntax 'Myymmdd', which identifies the original creation date of the file. This naming convention is needed by the System/36 environment in order to support date-differentiated files.
+
+If a file name is specified for the TOFILE parameter, the name must meet the i5/OS naming standards. For more information about i5/OS naming conventions, see Chapter 2, "Control Language Syntax", in the CL topic collection in the Programming category in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+If TOFILE(*SET) is specified, the files that are restored may have names that contain characters not allowed in an i5/OS simple object name. In this case, the file name is changed to an i5/OS extended name and the file is restored.
+
+If the name contains a blank, a single quotation mark, a double quotation mark, an asterisk, a question mark, or a device control character (hexadecimal 00 through 3F or hexadecimal FF), the invalid characters are replaced with underlines. The file is then restored using the resulting simple or extended name; for example, A_? would become "A_"). If a file already exists with this new name, it is handled like any other name (see the MBROPT parameter).
+
+If a file name is changed because of invalid characters, an informational message (CPF 2C1F) is sent to the recursion level above the program that is running this command. If the name is changed from a simple name to an extended name, no message is sent.
+
+If the restore function creates the file and the file was not previously secured, the new file is owned by the user issuing the RSTS36F command and the file is created with a default authority of *ALL (that is the same as AUT(*ALL)).
+
+If the file was saved from the S/36 where the attributes were an extend value of zero or no value specified, then a default value of 32 767 divided by the record length is assigned. If an extend value of zero is required, use the change physical file (CHGPF) command (after the restore is completed) to set SIZE(*EXTEND) to zero. If the file was saved using i5/OS, the file is restored and the extend value does not change.
+
+Note: This function is intended only for exchanging files with a System/36.
+
+Restrictions:
+
+- This command is shipped with public *EXCLUDE authority.
+
+- The following authorities are required when running on a system using resource security:
+
+*USE, *SECADM, and *ALLOBJ authorities for this command
+
+*USE authority for the library specified in the TOLIB parameter
+
+*CHANGE authority for the library specified in the TOLIB parameter when restoring a file that does not already exist on the system
+
+*CHANGE and *OBJMGMT authority for the existing file (needed to add a new member) when restoring a date-differentiated physical file and a file by the same name but with a different creation date
+
+*ALL authority for the file when restoring to an existing physical file with the same creation date and MBROPT(*REPLACE) specified
+
+*CHANGE authority for the based-on physical file (this physical file was referred to as the parent file on System/36) if the file being restored is a System/36 alternative index file (that is, a logical file)
+
+*USE authority for the diskette device description object and *USE authority for device file QSYSDKT in library QSYS, when restoring from diskette
+
+*USE authority for the tape device description object and *USE authority for device file QSYSTAP in library QSYS, when restoring from tape
+
+*USE authority for the file and *USE authority for the library that contains the file (PHYFILE parameter) if restoring from a database physical file
+
+If the file doesn't exist on the system but a file authorization holder object by the same name does exist, *ALL authority or ownership for the authorization holder object
+
+- There is no replace function supported when restoring System/36 alternative index files (logical files). If restoring an alternative index file, no file object by the same name can already exist in the specified library.
+
+- If restoring a logical file, the based-on physical file must already exist in the library specified for the TOLIB parameter.
+
+- The i5/OS files that are the same as the System/36 date-differentiated files are multiple-member physical files. Date-differentiated alternative index files are not supported. The data for a physical file is stored in a member that is named using the syntax 'Myymmdd' where 'yymmdd' represents the original creation date (in year/month/day format) of the file.
+Because all members of a physical file share the same file attributes (for example, record length and key information), date-differentiated files with the same name that are restored to the same library are required to have the same file attributes. If an attribute mismatch is present, the files are not restored.
+
+- Object-level and record-level functions, including read operations, should not be used for a file being restored by the RSTS36F command. If another operation is being done at the same time on the file (for example, moving the file or reading or adding records), the restore operation stops if it cannot allocate the file.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+TOFILE | To file | Name, *SET | Required, Positional 1
+TOLIB | To library | Name | Required, Positional 2
+DEV | Device | Single values: *PHYFILE
+Other values (up to 4 repetitions): Name | Required, Positional 3
+SET | Set identifier | Character value, #SAVE | Optional
+IGCDTA | User specified DBCS data | *NO, *YES | Optional
+FROMLABEL | File label | Character value | Optional
+CRTDATE | Creation date | Date, *NONE | Optional
+SEQNBR | Sequence number | 1-9999, *SEARCH | Optional
+VOL | Volume identifier | Values (up to 50 repetitions): Character value, *MOUNTED | Optional
+ENDOPT | End of tape option | *REWIND, *LEAVE, *UNLOAD | Optional
+PHYFILE | Physical file | Qualified object name | Optional
+Qualifier 1: Physical file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+MBROPT | Data base member option | *NOREPLACE, *REPLACE | Optional
+DATDIFF | Date differentiated file | *NO, *YES | Optional
+
+Top
+
+To file (TOFILE)
+
+Specifies the name given to a single file when it is restored to the system or to a group of files from a save all set that are restored to the system. If a single file is restored, this parameter allows the file to be renamed at the time it is restored to the system.
+
+This is a required parameter.
+
+*SET
+Specifies that a group of files from a save all set on diskette or tape are restored to the system.
+
+file-name
+Specifies the file name that is given to a single file when the file is restored to the system.
+
+Top
+
+To library (TOLIB)
+
+Specifies which library should contain the file being restored.
+
+This is a required parameter.
+
+Top
+
+Device (DEV)
+
+Specifies the name of a diskette unit, the names of one or more tape devices, or an indication that the file to be restored is in a database physical file. A maximum of four tape device names can be specified. If more than one tape device is used, enter the names of the devices in the order in which they are used. Each device name must be already known on the system by a device description.
+
+*PHYFILE
+The file to be restored is in a database physical file. The name of the database physical file is specified by the Physical file prompt (PHYFILE parameter).
+
+device-name
+Specify the name of the diskette unit or the names of one or more tape devices that are used for the restore operation. If more than one tape device is used, enter the names of the devices in the order in which they are used. A maximum of four tape device names can be specified.
+
+Top
+
+Set identifier (SET)
+
+Specifies the name used to identify the save all set files saved on the diskette or tape by the SAVE procedure or the $COPY utility on the System/36, System/34, or System/32.
+
+#SAVE
+The files are restored from a save all set with a set identifier of #SAVE.
+
+set-identifier
+Specifies the set-identifier of the save all set. The set-identifier can be from 1-8 characters long. The first character must be alphabetic (A through Z, #, $, or @). The remaining characters can be any combination of characters (numeric, alphabetic, and special) except commas(,), apostrophes('), and blanks.
+
+Top
+
+User specified DBCS data (IGCDTA)
+
+Specifies whether the file contains double-byte character set (DBCS) data.
+
+Note: If a file already exists by the name specified on the To file prompt (TOFILE parameter), the double-byte character set (DBCS) capability of the existing file is not changed by the restore operation.
+
+*NO
+The files being restored may not contain DBCS data. If a file already exists in the specified library with the same name as the file being restored, and the file allows DBCS data, an informational message is sent, and the restore operation continues. The resulting file allows DBCS data (the file's IGC attributes are not changed by the restore operation).
+
+*YES
+The files being restored may contain DBCS data. If a file already exists in the specified library with the same name as the file being restored, and the file does not allow DBCS data, an informational message is sent, and the restore operation continues. The resulting file will not allow DBCS data (the file's IGC attributes are not changed by the restore operation).
+
+Top
+
+File label (FROMLABEL)
+
+For a single file restore operation, this parameter can be used to specify the label of the diskette or tape file that contains the file that is to be restored to the system. If no value is specified, the file name specified for the To file prompt (TOFILE parameter) is used as the diskette or tape file label.
+
+For a group restore operation, this parameter can be used to specify the diskette or tape file label within a save all set where the restore operation is to begin. If no value is specified, the restore operation begins with the first file in the set.
+
+If a label is specified, it must be a maximum of eight characters long.
+
+Top
+
+Creation date (CRTDATE)
+
+Specifies the creation date of the diskette file or tape file used for the restore operation. The specified date is changed to Julian format (cyyddd) for tape or international format (yymmdd) for diskette.
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies, when tape is used, which sequence number is used for the restore operation.
+
+*SEARCH
+The volume in the device is searched for a data file with an identifier that matches the FROMLABEL parameter value; when a match is found, the object is restored. If the last operation on the device specified *LEAVE for the End of tape option (ENDOPT) parameter, indicating that the tape is positioned at the location where the last operation ended, the file search starts with the first data file beyond the current tape position. If *LEAVE was not used for the End of tape option (ENDOPT) parameter of the last operation, or if the tape was manually rewound since the operation, the search starts with the first data file on the volume.
+
+1-16777215
+Specify the sequence number of the file to be used for the restore operation.
+
+Top
+
+Volume identifier (VOL)
+
+Specifies the volume identifiers of the tapes or diskettes used for restoring the file.
+
+*MOUNTED
+The volume currently placed in the device is used.
+
+volume-identifier
+Specify the volume identifiers of the tapes or diskettes used for restoring the file. A maximum of 50 volume identifiers can be specified.
+
+Top
+
+End of tape option (ENDOPT)
+
+Specifies, only when tape is used, what positioning operation is automatically performed on the tape volume after the restore operation ends. This parameter applies only to the last reel used.
+
+*REWIND
+The tape is rewound, but not unloaded.
+
+*LEAVE
+The tape is not rewound.
+
+*UNLOAD
+The tape is automatically rewound and unloaded after the operation ends.
+
+Top
+
+Physical file (PHYFILE)
+
+Specifies the name of the database physical file that is used as the input file for the restore process. If the specified file does not exist, or is not a physical file, or the file contains no members, a message is sent. If the file contains multiple members, the first member of the file is used.
+
+The possible library values are:
+
+*LIBL
+The library list is used to locate the file.
+
+*CURLIB
+The current library for the job is used to locate the file. If no library is specified as the current library for the job, QGPL is used.
+
+library-name
+Specify the library where the file is located.
+
+Top
+
+Data base member option (MBROPT)
+
+Specifies whether the data of an existing physical file member is replaced.
+
+*NOREPLACE
+Data in an existing physical file member with the same name is not replaced, and an error message is sent to the user.
+
+*REPLACE
+Data in an existing physical file member with the same name is replaced.
+
+Top
+
+Date differentiated file (DATDIFF)
+
+Specifies whether the restore operation allows multiple files with the same name but different file creation dates.
+
+*NO
+Multiple files with the same name but different file creation dates are not allowed.
+If the restore operation is done with *NO specified, and a file already exists in the specified library with the same name, the following actions are taken:
+
+- If the MBROPT parameter specifies the member should be replaced (*REPLACE), the data in the member is replaced with the data from the saved file.
+
+- If the MBROPT parameter specifies the member should not be replaced (*NOREPLACE), a message is sent and the file is not restored.
+
+- If no file exists by the name specified on the TOFILE parameter in the specified library, the file is restored normally.
+
+*YES
+Multiple files with the same name but different file creation dates are allowed.
+If the restore operation is done with *YES specified, and a file already exists in the specified library with the same name, the following actions are taken:
+
+- If a member does not exist with the name of 'Myymmdd', where 'yymmdd' is the creation date of the saved file, a new member is added to the file and the data from the saved file is copied to it.
+
+- If a member does exist with the name of 'Myymmdd', where 'yymmdd' is the creation date of the saved file, and the MBROPT parameter specifies the member should be replaced (*REPLACE), the data in the member is replaced with the data from the saved file.
+
+- If a member does exist with the name of 'Myymmdd', where 'yymmdd' is the creation date of the saved file, and the MBROPT parameter specifies the member should not be replaced (*NOREPLACE), a message is sent and the file is not restored.
+
+If a file does not already exist in the specified library with the same name, a new file is created, a member is added to the file and the data from the saved file is copied into the new member.
+
+Top
+
+Examples
+
+Example 1: Restoring From Diskette
+
+RSTS36F TOFILE(ACCTRCV) TOLIB(QS36F) DEV(I1)
+CRTDATE('01/22/85') VOL(SAVE1)
+
+This command restores the file ACCTRCV into library QS36F. Assuming that I1 is the name of a diskette device description object, the file is restored from the diskette placed in the diskette device. The diskette must have a volume name of SAVE1. The diskette file used for the restore must have a file label of ACCTRCV and a creation date of January 22, 1985 (assuming the job date format is *MDY and the date separator is a '/').
+
+Example 2: Restoring From Tape
+
+RSTS36F TOFILE(PAY.VIEW) TOLIB(PAYLIB) DEV(T1) FROMLABEL('P*V')
+ENDOPT(*LEAVE)
+
+The file P*V is restored from device T1 as a file named PAY.VIEW in library PAYLIB. Assuming T1 is a tape device, the file is copied from one or more tapes that are on device T1. No check is made on the tape volume name. When the restore operation ends, the tape is left positioned at the end of tape file P*V.
+
+Example 3: Restoring from a Physical File
+
+RSTS36F TOFILE(ACCTPAY) TOLIB(QS36F) DEV(*PHYFILE)
+PHYFILE(NETLIB/SENDFILE)
+
+This command restores the file ACCTPAY in library QS36F from physical file SENDFILE in library NETLIB.
+
+Example 4: Specifying Sequence Numbers
+
+RSTS36F TOFILE(*SET) TOLIB(QS36F) DEV(T1 T2)
+SET(PAYFILES) FROMLABEL(FILE10)
+MBROPT(*REPLACE) DATDIFF(*YES)
+SEQNBR(*SEARCH) VOL(*MOUNTED) ENDOPT(*REWIND)
+
+This command restores a subset of the files in the save all set called PAYFILES to library QS36F from tape. The restore operation begins with a tape file whose label is file 10. If one of the files being restored already exists in library QS36F with the same creation date as the saved file, the file is replaced. If a file already exists in library QS36F with a different creation date, a new date-differentiated number is added to the file. The restore operation uses the tape volumes that are placed in tape drives T1 and T2. After the restore operation is complete, the last tape volume is rewound to the beginning of the tape.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2C4A
+Device &1 not correct for command.
+
+CPF2C4B
+Duplicate device &1 specified in device name list.
+
+CPF2C4C
+Diskette device &1 included in multiple device specification.
+
+CPF2C4D
+Not all files were restored.
+
+CPF2C4E
+Restore operation ended before all files were restored.
+
+CPF2C45
+Input file &1 cannot be processed by RSTS36F.
+
+CPF2C47
+Existing file &1 or member &3 in library &2 not replaced.
+
+CPF2C48
+Input file &1 in &2 not correct for command.
+
+CPF2C49
+Output file &1 in &2 not correct for command.
+
+CPF2C5A
+Alternate index file &1 in library &2 not replaced.
+
+CPF2C5E
+Input file &1 in &2 not correct for command.
+
+CPF2C50
+File description for file &1 is not available.
+
+CPF2C52
+Error occurred during attempt to create file &1 in library &2.
+
+CPF2C53
+Member &3 not added to file &1 in library &2 because error occurred.
+
+CPF9810
+Library &1 not found.
+
+CPF9812
+File &1 in library &2 not found.
+
+CPF9814
+Device &1 not found.
+
+CPF9820
+Not authorized to use library &1.
+
+CPF9822
+Not authorized to file &1 in library &2.
+
+CPF9825
+Not authorized to device &1.
+
+CPF9826
+Cannot allocate file &2.
+
+CPF9830
+Cannot assign library &1.
+
+CPF9831
+Cannot assign device &1.
+
+CPF9845
+Error occurred while opening file &1.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9848
+Cannot open file &1 in library &2 member &3.
+
+CPF9849
+Error while processing file &1 in library &2 member &3.
+
+*STATUS Messages
+
+CPI2C11
+Copying records to file &1 in library &2 member &3.
+
+Top

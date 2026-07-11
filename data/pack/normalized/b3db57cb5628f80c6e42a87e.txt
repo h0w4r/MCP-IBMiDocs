@@ -1,0 +1,385 @@
+Start DPR Capture (STRDPRCAP)
+
+Start DPR Capture (STRDPRCAP)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All
+environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start DPR Capture (STRDPRCAP) command starts the process
+that captures changes to iSeries data source tables.
+The files that you want to capture changes for must first be
+registered.
+You register files using the Replication Center or Add DPR
+Registration (ADDDPRREG) command. The files that you register for
+change capture are defined in the "CAPCTLLIB"/IBMSNAP_REGISTER
+table.
+When you have registered the source tables to use remote
+journaling, you must run the STRDPRCAP command on the same system
+where you registered the source tables.
+The values for the retention limit and the lag limit in the
+Tuning Parameter table IBMSNAP_CAPPARMS affect the operation of the
+STRDPRCAP command. You can alter these settings using the Change
+DPR Capture Attributes (CHGDPRCAPA) command. These values take
+affect when the Capture component is started. While capture is in
+active state you can change the capture tuning values dynamically
+using the Override DPR Capture Attributes OVRDPRCAPA command.
+
+- Note: Do not precede an entry with an asterisk unless that
+entry is shown on the display itself or in the help information
+with an asterisk.
+
+Error Messages for STRDPRCAP
+
+*ESCAPE Messages
+
+ASN2002
+Capture Parameters table not found.
+ASN2003
+No tables have been registered.
+ASN2560
+Capture instance is already active.
+ASN2561
+Capture instance is starting.
+ASN2019
+Not authorized to Capture Parameters table
+IBMSNAP_CAPPARMS.
+ASN2501
+Not authorized to register table.
+ASN2513
+STRDPRCAP command failed.
+ASN4501
+Register table not found or failed to open.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+RESTART | Restart after end | *YES, *NO | Optional, Positional 1
+JOBD | Job description | Qualified object name | Optional, Positional 2
+Qualifier 1: Job description | Name, QZSNDPR
+Qualifier 2: Library | Name, *LIBL
+WAIT | Wait | 60-6000, 120 | Optional, Positional 3
+CLNUPITV | Clean up interval | Element list | Optional, Positional 4
+Element 1: Wait time | 1-100, *DFT
+Element 2: Start clean up | *IMMED, *DELAYED, *NO
+CAPCTLLIB | Capture control library | Name, ASN | Optional, Positional 5
+JRN | Journal | Single values: *ALL
+
+Other values (up to 50 repetitions): Qualified object
+name | Optional
+Qualifier 1: Journal | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+TRCLMT | Trace limit | 1-35000000, *DFT | Optional
+MONLMT | Monitor limit | 1-35000000, *DFT | Optional
+MONITV | Monitor interval | 60-6000, *DFT | Optional
+MEMLMT | Memory limit | 1-35656, *DFT | Optional
+RETAIN | Retention period | 1-35000000, *DFT | Optional
+LAG | Lag limit | 1-35000000, *DFT | Optional
+FRCFRQ | Force frequency | 30-600, *DFT | Optional
+
+Top
+
+Restart after end (RESTART)
+
+Specifies how to start the Capture process.
+
+*YES
+The Capture process continues processing the changes from the
+point that it finished when previously ended. Also known as a
+warm start , this is the default mode of operation.
+*NO
+The Capture process removes all information from the Change
+Data tables before it processes the changes. If you specify *ALL on
+the JRN parameter, Capture also removes all information from the
+"CAPCTLLIB"/IBMSNAP_UOW table. The subscriptions for all of the
+affected base tables are full-refreshed before change capture
+resumes. This is also known as a cold start .
+
+Top
+
+Job description (JOBD)
+
+Specifies the name of the job description to use when submitting
+the Capture process.
+
+*LIBL/QZSNDPR
+Specifies the default job description provided with the
+DataPropagator product for iSeries.
+job-description-name
+Specifies the name (library-name/job-description-name) of the
+job description used for the Capture process.
+
+Top
+
+Wait (WAIT)
+
+Specify the maximum number of seconds to wait before the Capture
+process checks its status. You can use this value to tune the
+performance of the Capture process. A low value reduces the time
+the Capture process takes before ending or initializing, but can
+have an effect on system performance. A higher value increases the
+time the Capture process takes before ending or initializing, but
+can improve system performance. A value that is too high can result
+in decreased performance while the Capture process is performing
+periodic processing. The amount of the decrease in performance
+depends on the amount of change activity to registered files and
+the amount of other work occurring on the system.
+
+120
+The default maximum number of seconds the Capture process
+waits.
+60-6000
+Specify the maximum number of seconds you want the Capture
+process to wait.
+
+Top
+
+Clean up interval (CLNUPITV)
+
+Specify the maximum number of hours the Capture process waits
+before pruning old records from the Change Data tables and other
+control tables.
+This parameter works in conjunction with the RETAIN parameter
+(in the case of CDs, the UOW, the SIGNAL table and the AUTHTKN
+table), the TRCLMT parameter(in the case of the CAPTRACE table) and
+the MONLMT parameter (in case of the CAPMON table). Whereas this
+parameter determines how frequent to prune and the three other
+parameters determine whether an old row is eligible for
+pruning.
+STRDPRCAP command uses the values RETENTION_LIMIT,TRACE_LIMIT,
+MONITOR_LIMIT and PRUNE_INTERVAL stored in the CAPPARMS table if
+the user chooses the default for RETAIN, TRCLMT, MONLMT and
+CLNUPITV parameters,respectively. A user can supply a new value for
+these limits on the STRDPRCAP command. Or the user can alter their
+values at a later time using the OVRDPRCAPA command while capture
+is running.
+At the time interval you specify on this parameter, the Capture
+process uses information from the Pruning Set table to determine
+which records in the Change Data tables are eligible for
+pruning.
+This is a two-part value. The first part specifies the number of
+hours the Capture process waits before pruning records.
+
+*DFT
+Specifies that the default value is used for the CLNUPITV
+parameter. The default value is the value of the PRUNE_INTERVAL
+column of the Capture tuning parameters table
+("CAPCTLLIB/IBMSNAP_CAPPARMS). You can change this value by
+changing the CLNUPITV parameter on the Change DPR Capture
+Attributes (CHGDPRCAPA) command.
+24
+The default maximum number of hours the Capture process
+waits.
+1-100
+Specify the maximum number of hours you want the Capture
+process to wait.
+
+The second part specifies whether or not you want to prune
+records, or whether you want the Capture process to prune records
+immediately before capturing any changes.
+
+*IMMED
+The Capture process prunes old records from the Change Data
+tables before beginning to capture changes for the selected
+files.
+*DELAYED
+The Capture process waits the specified number of hours before
+pruning old records from the Change Data tables.
+*NO
+The Capture process does not prune records.
+
+Top
+
+Capture control library (CAPCTLLIB)
+
+Specifies the name of the Capture control library to use when
+submitting the Capture process. The Capture Control Library
+contains the control tables where the source tables are
+registered.
+
+ASN
+Specifies the default capture control library provided with the
+DataPropagator product for iSeries.
+capture-control-library-name
+Specifies the name of the capture control library used for the
+Capture process.
+
+Top
+
+Journal (JRN)
+
+Specify a list of up to 50 journals that you want the Capture
+process to work with. Capture will start processing all of the
+registered tables that are currently journaled to the specified
+journal or journals.
+
+*ALL
+Capture will start working with all of the journals that have
+any registered tables journaled to them.
+library-name/journal-name
+Specify the qualified name of the journal that you want the
+Capture process to work with.
+
+Top
+
+Trace limit (TRCLMT)
+
+Specifies the trace limit. During pruning, trace table
+IBMSNAP_CAPTRACE entries older than the trace limit will be
+pruned.
+
+*DFT
+Uses the value from IBMSNAP_CAPPARMS.
+trace-limit
+Number of minutes of trace data to be kept in the capture trace
+table after pruning.
+
+Top
+
+Monitor limit (MONLMT)
+
+Specifies the capture monitor limit. During pruning, monitor
+table IBMSNAP_CAPMON entries older than the monitor limit will be
+pruned.
+
+*DFT
+Uses the value from IBMSNAP_CAPPARMS.
+monitor-limit
+Number of minutes of monitor data to be kept in the monitor
+table after pruning.
+
+Top
+
+Monitor interval (MONITV)
+
+Specifies the monitor interval. Monitor rows will be written
+every n seconds as indicated by this value.
+
+*DFT
+Uses the value from IBMSNAP_CAPPARMS.
+monitor-interval
+Specifies how often Capture will write out a monitor row. This
+is expressed in seconds. Any value less than 120 seconds will
+default to 120 seconds.
+
+Top
+
+Memory limit (MEMLMT)
+
+Specifies the memory limit. Memory in megabytes that each
+Capture journal job is allowed to use. After this allocation is
+used up, Capture will use temporary files to store any processing
+data.
+
+*DFT
+Uses the value from IBMSNAP_CAPPARMS.
+memory-limit
+Specifies how much memory each Capture journal job can
+use.
+
+Top
+
+Retention period (RETAIN)
+
+Specifies the retention limit, which is the number of minutes
+that data is retained in the CD tables and the UOW table before it
+is removed.
+The value of this parameter works with the CLNUPITV parameter.
+When the CLNUPITV value is reached, data in the CD and UOW tables
+is removed if the UOW table row shows that the transaction is older
+than the value of this parameter.
+Ensure that the Apply intervals are set to copy changed
+information before the value on the RETAIN parameter is reached.
+This prevents your tables from becoming inconsistent. If they
+become inconsistent, the Apply program performs full refreshes.
+
+*DFT
+Uses the value from IBMSNAP_CAPPARMS.
+retention-limit (in minutes)
+Specifies the number of minutes that the CD is retained.
+
+Top
+
+Lag limit (LAG)
+
+Specifies the lag limit, which is the number of minutes that the
+Capture program can fall behind before clearing out the CD tables
+and starting over with change capture. When the lag limit is
+reached (that is, when the timestamp of the journal entry is older
+than the current time minus the lag limit), the Capture program
+assumes that it is too far behind to catch up. It then initiates a
+cold start for the tables that it is processing for that journal.
+The Apply program then performs a full refresh to provide the
+Capture program with a new starting point. Users typically set this
+value high so that it has no effect.
+
+*DFT
+Uses the value from IBMSNAP_CAPPARMS.
+lag-limit (in minutes)
+Specifies the number of minutes that the Capture processing of
+CD entries is allowed to fall behind.
+
+Top
+
+Force frequency (FRCFRQ)
+
+Specifies approximately how often the Capture program writes
+changes to the CD and UOW tables.
+The Capture program makes the changes available to the Apply
+program either when the buffers are filled or when this time has
+expired, whichever occurs first.
+Use this parameter to make source table changes more readily
+available for the Apply program on servers with a low rate of
+source table changes.
+This is a global value, and is used for all defined source
+tables. Setting this value at a lower number can affect processor
+usage.
+
+*DFT (default)
+Uses the COMMIT_INTERVAL value from IBMSNAP_CAPPARMS.
+force-frequency (in seconds)
+Specifies the number of seconds that the Capture program keeps
+CD table and UOW table changes in buffer space before making them
+available for use by the Apply program. This value can range from
+30 to 600 seconds.
+
+Top
+
+Examples
+
+None
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+ASN2002
+Capture Parameters table not found.
+ASN2003
+No tables have been registered.
+ASN2560
+Capture instance is already active.
+ASN2561
+Capture instance is starting.
+ASN2019
+Not authorized to Capture Parameters table
+IBMSNAP_CAPPARMS.
+ASN2501
+Not authorized to register table.
+ASN2513
+STRDPRCAP command failed.
+ASN4501
+Register table not found or failed to open.
+
+Top

@@ -1,0 +1,172 @@
+End Job Abnormal (ENDJOBABN)
+
+End Job Abnormal (ENDJOBABN)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The End Job Abnormal (ENDJOBABN) command ends a job that cannot be ended successfully by running the End Job (ENDJOB) command with *IMMED specified for the How to end (OPTION) parameter. The ENDJOBABN command cannot be issued against a job until 10 minutes have passed following the request for immediate ending. This allows sufficient time for normal job ending functions to be attempted.
+
+When the ENDJOBABN command is issued, most of the end-of-job processing is bypassed (including spooling of the job log, the end of job display for interactive jobs, and the end-of-job processing for the specific functions that are being performed). The part of the end-of-job processing that is attempted is allowed only five minutes to complete. If it does not do so in five minutes, the job is forced to end at that point. Because some of the job cleanup is not performed, the ENDJOBABN command should only be used when a job that is in the process of immediate ending does not finish ending and resources in use by the job are needed by another job or by the system. When the ENDJOBABN command is used, some resources in use by the ended job may be left unavailable until the next IPL.
+
+Use of the ENDJOBABN command causes the next system end to be marked as ABNORMAL. Certain system functions are then called during the subsequent IPL to clear up conditions that may have resulted from running the ENDJOBABN command. This does not, however, cause any machine recovery functions to be called, nor do any access paths need to be rebuilt. Some storage in use by the job may become unavailable after the ENDJOBABN command is run and that available storage can be reclaimed by using the Reclaim Storage (RCLSTG) command.
+
+Bypassing the job log writing process causes the job to have the status of JOBLOG PENDING (as shown on the DSPJOB status attributes display) after it has been ended with the ENDJOBABN command. The job log writing is not performed until the next IPL. However, the contents of the job log can be printed or shown by using the Display Job Log (DSPJOBLOG) command.
+
+When the ENDJOBABN command is run, the following functions are performed successfully:
+
+- Journaling entries
+
+- Commitment control
+Before ending the job abnormally, you should verify that no logical unit of work is in an in doubt state due to a two-phase commit operation that is in progress. If it is, then pending committable changes at this system will not be committed or rolled back. Therefore, database integrity may not be maintained on all related systems. For specific instructions on how to determine these conditions, and for a description of all the impacts of ending this job abnormally under these conditions, see the Commitment control article in the Information Center.
+
+- Making database files available for use by others
+
+- Releasing file locks
+
+This command fails to end a job or takes more than five minutes to do so in the following situations:
+
+- When the job runs under a subsystem monitor that is hung, is abnormally slow, or has ended abnormally (the subsystem monitor performs part of the ending function).
+
+- When the machine interface (MI) instruction running in the job is hung or is abnormally slow. The job cannot end until the MI instruction that is currently running completes or reaches a point of interruption.
+
+Restrictions:
+
+- The issuer of the command must be running under a user profile which is the same as the job user identity of the job being ended, or the issuer of the command must be running under a user profile which has job control (*JOBCTL) special authority. The job user identity is the name of the user profile by which a job is known to other jobs. It is described in more detail in the Work Management book.
+
+- After the ENDJOBABN command is run, subsequent ENDJOBABN commands cannot be issued against the job.
+
+- Users cannot end a reader, writer, subsystem monitor, or system job.
+
+- Users cannot run the ENDJOBABN command until ten minutes after immediate ending of the job is started. Immediate ending of the job is started in the following ways:
+
+When the End Job (ENDJOB) command with OPTION(*CNTRLD) is specified and the delay time ends.
+
+When the ENDJOB command with OPTION(*IMMED) is issued.
+
+When the End Subsystem (ENDSBS) command with OPTION(*CNTRLD) is issued against the subsystem in which the job is running and the delay time ends.
+
+When the ENDSBS command with OPTION(*IMMED) is issued against the subsystem in which the job is running.
+
+When the End System (ENDSYS) command with OPTION(*IMMED) is issued, or OPTION(*CNTRLD) is issued and the delay time ends.
+
+When the Power Down System (PWRDWNSYS) command with OPTION(*IMMED) is issued.
+
+- If the job defines a handler for the asynchronous signal SIGTERM, the immediate ending of the job was delayed to allow the SIGTERM signal handler to run. For more information, refer to system value QENDJOBLMT. An ENDJOBABN command is not allowed while the SIGTERM signal handler is running. If the SIGTERM signal handler has run for at least 2 minutes, use ENDJOB command with OPTION(*IMMED) to stop the SIGTERM signal handler.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+JOB | Job name | Qualified job name | Required, Positional 1
+Qualifier 1: Job name | Name
+Qualifier 2: User | Name
+Qualifier 3: Number | 000000-999999
+DUPJOBOPT | Duplicate job option | *SELECT, *MSG | Optional
+DUMP | Data to be dumped | *JOB, *NONE | Optional
+
+Top
+
+Job name (JOB)
+
+Specifies the qualified job name of the job to be ended.
+
+This is a required parameter.
+
+Qualifier 1: Job name
+
+name
+Specify the name of the job.
+
+Qualifier 2: User
+
+name
+Specify the user name that identifies the user profile under which the job is run.
+
+Qualifier 3: Number
+
+000000-999999
+Specify the system-assigned job number.
+
+Note: If no user name or job number is specified, all jobs currently in the system are searched for the job name. If more than one occurrence of the specified name is found, a qualified job name must be provided either explicitly or through the selection display. Refer to the Duplicate job option (DUPJOBOPT) parameter for more information.
+
+Top
+
+Duplicate job option (DUPJOBOPT)
+
+Specifies the action taken when duplicate jobs are found by this command.
+
+*SELECT
+The selection display is shown when duplicate jobs are found during an interactive session. Otherwise, a message is issued.
+
+*MSG
+A message is issued when duplicate jobs are found.
+
+Top
+
+Data to be dumped (DUMP)
+
+Specifies the data that is dumped before the job is ended.
+
+*JOB
+The job is dumped with the Display Job (DSPJOB) command before it is ended.
+
+*NONE
+There is no dump produced before the job is ended.
+
+Top
+
+Examples
+
+ENDJOBABN JOB(000310/SMITH/PAYROLL)
+
+This command ends the batch job 000310/SMITH/PAYROLL after the failure of an earlier attempt to end it with the ENDJOB command. The ENDJOBABN command can be issued only after waiting at least ten minutes for the job to end after issuing the ENDJOB command.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF1317
+No response from subsystem for job &3/&2/&1.
+
+CPF1321
+Job &1 user &2 job number &3 not found.
+
+CPF1332
+End of duplicate job names.
+
+CPF1340
+Job control function not performed.
+
+CPF1341
+Reader or writer &3/&2/&1 not allowed as job name.
+
+CPF1342
+Current job not allowed as job name on this command.
+
+CPF1343
+Job &3/&2/&1 not valid job type for function.
+
+CPF1351
+Function check occurred in subsystem for job &3/&2/&1.
+
+CPF1359
+ENDJOBABN not allowed at this time for job &3/&2/&1.
+
+CPF1360
+&3/&2/&1 already ending because of ENDJOBABN.
+
+CPF1362
+Job &3/&2/&1 has completed.
+
+Top

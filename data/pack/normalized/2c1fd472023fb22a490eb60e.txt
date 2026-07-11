@@ -1,0 +1,502 @@
+Add TCP/IP Interface (ADDTCPIFC)
+
+Add TCP/IP Interface (ADDTCPIFC)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Add TCP/IP Interface (ADDTCPIFC) command is used to add a new interface to the Transmission Control Protocol/Internet Protocol (TCP/IP) configuration. The interfaces added by the ADDTCPIFC command are logical interfaces. They are not physical interfaces. Each interface is associated with a line description. The line description is the physical connection from the system to the TCP/IP network.
+
+The IBM i TCP/IP implementation supports multihoming. This allows either a single interface or multiple interfaces to be specified per line description. The system can appear as any one or combination of the following:
+
+- A single host on a network over a communications line
+
+- Multiple hosts on the same network over the same communications line
+
+- Multiple hosts on different networks over the same communications line
+
+- Multiple hosts on the same network over multiple communications lines
+
+- Multiple hosts on different networks over multiple communications lines
+
+Notes:
+
+- In SNMP, an interface is a physical interface. The physical interface relates directly to a TCP/IP interface's line description.
+
+- The interface table is shipped with a default IPv4 interface of 127.0.0.1. The line description value associated with the 127.0.0.1 interface is *LOOPBACK. The host table is also shipped with an entry that has an internet address of 127.0.0.1 and host names of LOOPBACK and LOCALHOST.
+
+- The interface table is shipped with a default IPv6 interface of ::1. The line description value associated with the ::1 interface is *LOOPBACK. The host table is also shipped with an entry of ::1 and host names of IPV6-LOOPBACK and IPV6-LOCALHOST.
+
+- A maximum of 16K interfaces can be added and up to 2K interfaces can be active on any one line with the Start TCP/IP Interface (STRTCPIFC) command at any given time. This is true for all line types.
+
+Restrictions:
+
+- Input/output system configuration (*IOSYSCFG) special authority is necessary to run this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+INTNETADR | Internet address | Character value, *IP4DHCP, *IP6SAC | Required, Positional 1
+LIND | Line description | Single values: *LOOPBACK, *VIRTUALIP, *OPC
+Other values: Element list | Required, Positional 2
+Element 1: Line description | Name
+Element 2: Virtual LAN identifier | 1-4094, *NONE
+SUBNETMASK | Subnet mask | Character value, *HOST | Optional, Positional 3
+ADRPFXLEN | Address prefix length | 1-128, 64 | Optional
+ALIASNAME | Alias name | Simple name, *NONE | Optional
+LCLIFC | Associated local interface | Character value, *NONE | Optional
+TOS | Type of service | *MINDELAY, *MAXTHRPUT, *MAXRLB, *MINCOST, *NORMAL | Optional
+MTU | Maximum transmission unit | 576-16388, *LIND | Optional
+AUTOSTART | Autostart | *YES, *NO | Optional
+IFCID | Interface ID | 0000000000000001-FFFFFFFFFFFFFFEF, *LIND, *GEN | Optional
+DADMAXTRN | DAD maximum transmits | 0-10, 1 | Optional
+PVYEXN | Privacy extensions | *NO, *YES | Optional
+PREFIFC | Preferred interfaces | Single values: *NONE, *AUTO, *DFTROUTE
+Other values (up to 10 repetitions): Character value | Optional
+PREFLIND | Preferred line descriptions | Single values: *NONE
+Other values (up to 10 repetitions): Element list | Optional
+Element 1: Line description | Name
+Element 2: Virtual LAN identifier | 1-4094, *NONE
+TEXT | Text 'description' | Character value, *BLANK | Optional
+DHCPDYNDNS | DHCP dynamic DNS updates | *NO, *YES | Optional
+DHCPCLTID | DHCP client identifier | *ADPTADR, *DHCPUNQID | Optional
+IP6GENGLBA | IPv6 SAC generate global addr | *YES, *NO | Optional
+
+Top
+
+Internet address (INTNETADR)
+
+Specifies an internet address that the local system responds to on this interface. The internet address may be an IPv4 or IPv6 address. An interface is associated with a line description.
+
+This is a required parameter.
+
+*IP4DHCP
+Enable Dynamic Host Configuration Protocol for the line description specified (LIND parameter).
+
+*IP6SAC
+Enable IPv6 stateless address auto-configuration for the line description specified (LIND parameter).
+
+character-value
+Specify a particular internet address.
+An IPv4 internet address is specified in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. An IPv4 internet address is not valid if it has a value of all binary ones or all binary zeros for the network identifier (ID) portion or the host ID portion of the address.
+
+An IPv6 internet address is specified in the form x:x:x:x:x:x:x:x, where x is a hexadecimal number ranging from 0 through X'FFFF'. "::" may be used once in the IPv6 address to indicate one or more groups of 16 bits of zeros. The "::" may be used to compress leading, imbedded, or trailing zeros in the address.
+
+An IPv6 internet address must be a unicast address and must not contain an imbedded IPv4 address (compatibility or mapped). If *VIRTUALIP is specified for LIND, the IPv6 address must be a global unicast address.
+
+If the internet address is entered from a command line, the address must be enclosed in apostrophes.
+
+Top
+
+Line description (LIND)
+
+Specifies the name of the line description associated with the new interface. The line description must exist before the TCP/IP interface can be added.
+
+The following conditions are based on the type of line description:
+
+Ethernet
+The line description must be previously created with the Create Line Description (Ethernet) (CRTLINETH) command.
+
+This is a required parameter.
+
+Single values
+
+*LOOPBACK
+The interface being changed is the loopback or LOCALHOST interface. Because processing associated with loopback does not extend to a physical line, there is no line description associated with a loopback address. This special value must be used for any INTNETADR that has a first octet value of 127.
+
+*VIRTUALIP
+The virtual interface is a circuitless interface. It is used in conjunction with the associated local interface (LCLIFC) when adding standard interfaces. This special value is used to accommodate any of the following cases:
+
+- Load balancing. This is the means of having a fixed source IP address regardless of which interface the traffic is being distributed.
+
+- Alternate method of network access translation (NAT). This eliminates the need for a NAT box by assigning a globally unique single IP address directly to the box without the need to define an entire network.
+
+Element 1: Line description
+
+name
+Specify the name of the line description to be used for this interface. If INTNETADR specifies an IPv6 address or *IP6SAC, the line description must be for an Ethernet line. A line description name is required if INTNETADR is *IP4DHCP.
+
+Element 2: Virtual LAN identifier Specifies the virtual LAN identifier of the associated line. This identifies the virtual LAN to which this interface belongs according to IEEE standard 802.1Q. This parameter is only valid for interfaces defined for Ethernet adapters that support the 802.1Q standard.
+
+*NONE
+This interface is not part of a virtual LAN or belongs to the native VLAN of the associated line.
+
+1-4094
+Specify the virtual LAN identifier of the associated line.
+
+Top
+
+Subnet mask (SUBNETMASK)
+
+Specifies the subnet mask, which is a bit mask that defines the part of the network where this IPv4 interface attaches. The mask is a 32-bit combination that is logically ANDed with the IPv4 internet address to determine a particular subnetwork. The bits of the mask set to the value one (1) determine the network and subnetwork portions of the address. The bits set to the value zero (0) determine the host portion of the address.
+
+Note: The network portion must be equal to one bits in the subnetmask. The host portion of an address must be at least two bits wide. This parameter is ignored if INTNETADR specifies an IPv6 address, *IP4DHCP, or *IP6SAC.
+
+*HOST
+The subnet mask value used will be 255.255.255.255. Specify this value for use with Proxy ARP (Address Resolution Protocol).
+
+character-value
+Specify the mask for the network subnet field and host address field of the internet address that defines a subnetwork. The subnet mask is in the form nnn.nnn.nnn.nnn, where nnn is a decimal number ranging from 0 through 255. The subnet mask must mask off all bits of the network class's network ID portion of the internet address. For example, 255.255.255.0 could define a subnet mask for an interface with a Class B internet address. In this example, the first two octets must be 1 bits because these octets define the network ID portion of the Class B internet address. The third octet of this subnet mask defines the actual subnet mask ID portion of the interface's internet address. It is also all 1 bits. This leaves the fourth octet to define the host ID portion of the interface's internet address.
+
+Note: The bits that identify the subnetwork are not required to be adjacent in the address. However, it is strongly advised that the subnet bits be contiguous and located in the most significant bits of the host address.
+
+Top
+
+Address prefix length (ADRPFXLEN)
+
+Specifies the address prefix length in bits. The address prefix length specifies how much of the leftmost portion of an IPv6 address is the subnet prefix. This parameter applies only if INTNETADR is an IPv6 address.
+
+64
+The default is 64 since most IPv6 unicast addresses have a 64 bit interface ID (address suffix).
+
+1-128
+Specify the address prefix length.
+
+Top
+
+Alias name (ALIASNAME)
+
+Specifies a name that can be used in place of the internet address. The name must be unique among all of the interfaces on the system.
+
+*NONE
+No alias name is associated with the TCP/IP interface being added.
+
+simple-name
+Specify an alias for the interface. The alias name must be 25 characters or less.
+
+Top
+
+Associated local interface (LCLIFC)
+
+Use this parameter to associate the IPv4 interface being added with an existing local IPv4 TCP/IP interface. This parameter is ignored if INTNETADR specifies an IPv6 address, *IP4DHCP, or *IP6SAC.
+
+The associated local interface (LCLIFC) is used to allow 'transparent subnetting' (also known as 'Proxy Arp') between the associated interfaces, to define unnumbered networks, or for load balancing.
+
+Conditions for using the LCLIFC for unnumbered networks:
+
+- The line type of the interface being added MUST be Opti-Connect, or Point-to-Point and the subnet mask (SUBNETMASK) parameter must be *HOST (255.255.255.255).
+
+Conditions for using LCLIFC for transparent subnetting:
+
+- The network of the associated local interface must be broadcast capable.
+
+- The interface being added must be defined as a subnet of the network with which it is associated (using LCLIFC).
+
+Condition for using the LCLIFC for load balancing:
+
+- This is the means of having a fixed source IP address regardless of which interface the traffic is being distributed.
+
+- The line type of the associated local interface must be *VIRTUALIP.
+
+Note: LCLIFC can only be used to associate this interface with another interface that is already added. Once associated, the interface specified in LCLIFC and this interface must both be started in order for them to work together properly.
+
+*NONE
+No TCP/IP interface is associated with the interface being added.
+
+character-value
+Specify the internet address of the interface you want to associate with the interface being added.
+
+Top
+
+Type of service (TOS)
+
+Specifies the type of service to be used. The type of service specifies how the internet hosts and routers should make trade-offs between throughput, delay, reliability, and cost. This parameter is ignored if INTNETADR specifies an IPv6 address, *IP4DHCP, or *IP6SAC.
+
+*NORMAL
+Normal service is used for delivery of data.
+
+*MINDELAY
+Minimize delay means that prompt delivery is important for data on this connection.
+
+*MAXTHRPUT
+Maximize throughput means that a high data rate is important for data on this connection.
+
+*MAXRLB
+Maximize reliability means that a higher level of effort to ensure delivery is important for data on this connection.
+
+*MINCOST
+Minimize monetary cost means that lower cost is important for data on this connection.
+
+Top
+
+Maximum transmission unit (MTU)
+
+Specifies the maximum size (in bytes) of IP datagrams that can be transmitted through this interface. A datagram is a basic unit of information passed over an internet network. For an IPv4 interface, the minimum MTU value is 576 bytes. For an IPv6 interface, the minimum MTU value is 1280 bytes.
+
+*LIND
+The MTU is determined by the information specified in the line description. If *LIND is specified, the MTU is equal to the largest amount of data that can be transmitted on the line.
+
+576-16388
+Specify a value for the maximum transmission unit in bytes. The maximum MTU that can be specified for this interface depends on the type of physical connection to the network. The following table lists the maximum MTU values that can be specified based on the line type:
+
+Ethernet 802.3
+8992
+
+Ethernet Version 2
+9000
+
+Notes:
+
+- The actual MTU value used for an interface is resolved during interface activation. This value is the minimum of either the specified MTU value for the interface or the largest amount of data that can be transmitted on the line.
+
+- It is suggested (not required) that the same MTU values be used for all interfaces on the same network. However, all interfaces must have an MTU that does not exceed the value used when *LIND is specified for the interface MTU.
+
+- To view the MTU value actually used for an interface, do the following:
+
+Use the ADDTCPIFC command to add the interface.
+
+Use the Start TCP/IP Interface (STRTCPIFC) command to activate the interface.
+
+Use the Work with TCP/IP Status (WRKTCPSTS or NETSTAT) command to view the actual MTU value of the interface in bytes.
+
+Top
+
+Autostart (AUTOSTART)
+
+Specifies whether the interface is automatically started when the TCP/IP stack is activated by the Start TCP/IP (STRTCP) command.
+
+*YES
+The interface is automatically started when TCP/IP is started.
+
+*NO
+The interface is not started when TCP/IP is started.
+
+Note: The Start TCP/IP Interface (STRTCPIFC) command can be used to start an interface after TCP/IP has been started.
+
+Top
+
+Interface ID (IFCID)
+
+Specifies the interface ID portion of the IPv6 address(es) generated when INTNETADR is *IP6SAC. The interface ID is the low-order 64 bits of an IPv6 address created as a result of IPv6 stateless address auto-configuration.
+
+*LIND
+Use the local adapter address in the associated line description to generate the interface ID.
+
+*GEN
+Generate a random local scope interface ID.
+
+0000000000000001-FFFFFFFFFFFFFFEF
+Specify the interface ID to be used.
+
+Top
+
+DAD maximum transmits (DADMAXTRN)
+
+Specifies the maximum number of neighbor solicitation messages to send for IPv6 duplicate address detection (DAD). This parameter applies only if INTNETADR is an IPv6 address or *IP6SAC.
+
+1
+The recommended default value.
+
+0-10
+Specify the number of neighbor solicitation messages to be sent. A value of zero indicates that duplicate address detection is not performed.
+
+Top
+
+Privacy extensions (PVYEXN)
+
+Specifies whether privacy extensions are to be used for IPv6 stateless address auto-configuration. This parameter applies only when INTNETADR is *IP6SAC.
+
+*NO
+Do not use privacy extensions.
+
+*YES
+Use privacy extensions.
+
+Top
+
+Preferred interfaces (PREFIFC)
+
+Specifies a list of preferred IPv4 interfaces that are to be used with the IPv4 interface being added for proxy Address Resolution Protocol (ARP) agent selection. The IPv4 interface being added must specify a LIND value of *VIRTUALIP or specify a LIND for a virtual Ethernet line. Up to 10 associated interfaces may be specified in order of preference -- the first being the most preferred, the second the next preferred, etc. Each associated interface must be a standard IPv4 interface, not a virtual interface.
+
+Single values
+
+*NONE
+No associated interfaces are specified.
+
+*AUTO
+Interface selection is performed automatically by the system.
+
+*DFTROUTE
+Interface selection is performed dynamically based on the binding interface of the best, active default IPv4 route on the system.
+
+Other values (up to 10 repetitions)
+
+character-value
+Specify the IPv4 address of the preferred interface.
+
+Top
+
+Preferred line descriptions (PREFLIND)
+
+Specifies a list of preferred line descriptions that are to be used with the IPv6 interface being added for proxy Neighbor Discovery agent selection. The IPv6 interface being added must have a LIND parameter which specifies *VIRTUALIP or the name of a virtual Ethernet line description. Up to 10 line descriptions and their associated virtual LAN identifier may be specified in order of preference -- the first being the most preferred, the second the next preferred, etc. Each line description and virtual LAN identifier must be used by at least one IPv6 interface.
+
+Single values
+
+*NONE
+No preferred line descriptions are specified.
+
+Element 1: Line description
+
+name
+Specify the name of the line description.
+
+Element 2: Virtual LAN identifier Specifies the virtual LAN identifier of the associated line. This identifies the virtual LAN to which this interface belongs according to IEEE standard 802.1Q. This parameter is only valid for lines configured for Ethernet adapters that support the 802.1Q standard.
+
+*NONE
+The associated line is not part of a virtual LAN.
+
+1-4094
+Specify the virtual LAN identifier of the associated line.
+
+Top
+
+Text 'description' (TEXT)
+
+Specifies text that briefly describes the interface.
+
+*BLANK
+No text is specified.
+
+character-value
+Specify no more than 50 characters of text, enclosed in apostrophes.
+
+Top
+
+DHCP dynamic DNS updates (DHCPDYNDNS)
+
+Specifies whether the DHCP server should update the client's records in the Domain Name Server (DNS). This parameter is ignored unless the INTNETADR parameter is *IP4DHCP or *IP6SAC.
+
+*YES
+Specify that the DHCP server should update the client's records in the DNS.
+
+*NO
+Specify that the DHCP server should not update the client's records in the DNS.
+
+Top
+
+DHCP client identifier (DHCPCLTID)
+
+Specifies whether the DHCP client uses an identifier based on the hardware address of the interface or the system-wide DHCP unique identifier specified by the TCP/IP attributes. This parameter is ignored unless the INTNETADR parameter is *IP4DHCP.
+
+*ADPTADR
+Specify that the DHCP client will use an identifier based on the adapter address of the interface.
+
+*DHCPUNQID
+Specify that the DHCP client will use the system-wide DHCP unique identifier.
+
+Top
+
+IPv6 SAC generate global addr (IP6GENGLBA)
+
+Specifies whether IPv6 Stateless Address Auto-configuration (SAC) will generate global addresses for this interface. This parameter is ignored unless the INTNETADR parameter is *IP6SAC.
+
+*YES
+Global addresses are generated by IPv6 SAC.
+
+*NO
+Global addresses are not generated by IPv6 SAC.
+
+Top
+
+Examples
+
+Example 1: Adding a Non-AUTOSTART Interface
+
+ADDTCPIFC INTNETADR('130.14.3.5') LIND(COTTAGELAN)
+AUTOSTART(*NO) SUBNETMASK('255.255.255.0')
+
+Let's assume that an Ethernet line has been created named COTTAGELAN using the CRTLINETH command, this command adds the interface 130.14.3.5 to the TCP/IP configuration. This interface uses the line description named COTTAGELAN. It is not automatically started when the STRTCP command is run. This interface must be started using the Start TCP/IP Interface (STRTCPIFC) command. The STRTCPIFC can be issued either directly from a command line or by using option 9 from either of the following lists:
+
+- The Work with TCP/IP Interface Status list. Use menu option 1 from the menu displayed when the Work With TCP/IP Status (WRKTCPSTS) command is issued to display this list.
+
+- The Work with TCP/IP Interfaces list. Use menu option 1 from the menu displayed when the Configure TCP/IP (CFGTCP) command is issued to display this list.
+
+Example 2: Adding an Interface with an Alias
+
+ADDTCPIFC INTNETADR('123.17.5.1') LIND(ETHLINE)
+SUBNETMASK('255.255.255.0')
+ALIASNAME(TEST_NETWORK)
+
+This command will add a TCP/IP interface for the Ethernet line named ETHLINE. This interface will have the alias name TEST_NETWORK. When starting or ending this interface, the alias name of TEST_NETWORK can be used in place of the IP address.
+
+Example 3: Adding an IPv6 Interface
+
+ADDTCPIFC INTNETADR('1234::5678:9abc:def') LIND(ETHLINE)
+ADRPFXLEN(32) DADMAXTRN(10)
+TEXT('Example 5 IPv6 interface')
+
+This command will add an IPv6 TCP/IP interface for the Ethernet line named ETHLINE. The address prefix length is specified as 32, the duplicate address detection maximum transmits is 10, and a text description for the interface has also been specified.
+
+Example 4: Adding an IPv6 Stateless Address Auto-Configuration Interface
+
+ADDTCPIFC INTNETADR(*IP6SAC) LIND(ETHLINE) MTU(1280)
+IFCID(123456789abcdef0) DADMAXTRN(4) PVYEXT(*YES)
+TEXT('ETHLINE IPv6 SAC interface')
+
+This command will add an IPv6 stateless address auto-configuration interface for line ETHLINE. The MTU size is 1280, the interface ID to be used in the generated addresses is x'123456789abcdef0', the duplicate address detection maximum transmits is 4, and IPv6 stateless address auto-configuration privacy extensions are to be used.
+
+Example 5: Adding an IPv4 Virtual Interface
+
+ADDTCPIFC INTNETADR('192.168.2.3') LIND(ETHLINE1)
+SUBNETMASK('255.255.255.0')
+ADDTCPIFC INTNETADR('192.168.2.2') LIND(ETHLINE2)
+SUBNETMASK('255.255.255.0')
+ADDTCPIFC INTNETADR('192.168.2.1') LIND(*VIRTUALIP)
+SUBNETMASK('255.255.255.255')
+PREFIFC('192.168.2.2' '192.168.2.3')
+
+These commands add two IPv4 interfaces and an IPv4 virtual interface that has the first two interfaces as preferred IPv4 interfaces. Interface 192.168.2.2 is preferred over 192.168.2.3.
+
+Example 6: Adding an IPv6 Virtual Interface
+
+ADDTCPIFC INTNETADR(*IP6SAC) LIND(ETHLINE1)
+ADDTCPIFC INTNETADR('1234::1111') LIND(ETHLINE2 33)
+ADDTCPIFC INTNETADR('FE80::1') LIND(ETHLINE3)
+ADDTCPIFC INTNETADR('1234::5678') LIND(*VIRTUALIP)
+ADRPFXLEN(64) PREFLIND(ETHLINE3 ETHLINE1 (ETHLINE2 33))
+
+These commands add three IPv6 interfaces (ETHLINE2 has a virtual LAN with id 33 specified) and an IPv6 virtual interface that has the line descriptions specified by the first three interfaces to be used for VIPA proxy Neighbor Discovery agent selection. Line description ETHLINE3 is preferred over ETHLINE1 and ETHLINE2, and ETHLINE1 is preferred over ETHLINE2.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+TCP1D03
+&1 member record length not correct.
+
+TCP1D04
+Error occurred processing member &1 of &2/&3.
+
+TCP1901
+Internet address &2 not valid.
+
+TCP1902
+Internet address &1 not valid.
+
+TCP1908
+Internet address &1 not valid.
+
+TCP2665
+&2 &1 not added successfully.
+
+TCP2666
+&2 &1 not added.
+
+TCP8050
+*IOSYSCFG authority required to use &1.
+
+TCP9999
+Internal system error in program &1.
+
+Top

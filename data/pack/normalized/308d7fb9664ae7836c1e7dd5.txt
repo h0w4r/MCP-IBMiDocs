@@ -1,0 +1,230 @@
+Change Reply List Entry (CHGRPYLE)
+
+Change Reply List Entry (CHGRPYLE)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Reply List Entry (CHGRPYLE) command changes a system reply list entry. Any of the attributes of a reply list entry can be changed, except for the sequence number.
+
+The reply list is used as a source for automatic responses to predefined inquiry messages.
+
+The reply list is only used when an inquiry message is sent by a job that has the system reply list attribute INQMSGRPY(*SYSRPYL) specified. The INQMSGRPY attribute can be changed with the CHGJOB command.
+
+New entries may be added to the reply list with the Add Reply List Entry (ADDRPYLE) command; entries can be removed with the Remove Reply List Entry (RMVRPYLE) command. The entire list of entries can be shown with the Work with Reply List Entry (WRKRPYLE) command; from the display presented you can add, change, and remove individual entries.
+
+Restrictions:
+
+- This command is shipped with public *EXCLUDE authority and the QPGMR user profile has private authority to use the command.
+
+- To use this command, you must be signed on as QPGMR, or have *USE special authority.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SEQNBR | Sequence number | 1-9999 | Required, Positional 1
+MSGID | Message identifier | Character value, *SAME, *ANY | Optional
+CMPDTA | Compare data | Element list | Optional
+Element 1: Comparison data | Character value, *SAME, *NONE
+Element 2: Message data start position | 1-999, *SAME, *NONE
+RPY | Message reply | Character value, *SAME, *DFT, *RQD | Optional
+DUMP | Dump the sending job | *SAME, *NO, *YES | Optional
+CCSID | Coded character set ID | 1-65535, *SAME, *HEX, *JOB | Optional
+
+Top
+
+Sequence number (SEQNBR)
+
+Specifies the sequence number of the reply list entry being changed. The message identifier and message data of an inquiry message are matched against reply list entry message identifiers and comparison data in ascending sequence number order. The search ends when a match occurs or the last reply list entry is passed. If more than one reply list entry matches the inquiry message identifier and comparison data, only the first entry that matches is used. If no reply list entry matches the inquiry message, the inquiry is sent, but no reply is sent unless a default reply would otherwise be sent; the job is not dumped.
+
+This is a required parameter.
+
+1-9999
+Specify a sequence number from 1 to 9999. Duplicate sequence numbers are not allowed.
+
+Top
+
+Message identifier (MSGID)
+
+Specifies the inquiry message identifier for which automatic system action is taken. The message identifier can be specific or generic in scope. Only predefined messages (messages known to the system by a message identifier) can be matched against reply list entries. Immediate messages cannot be used for comparison.
+
+If no comparison data is specified, then only the message identifier is used to match the message to this reply list entry. If this is the first entry in the message reply list which matches the message, then the action specified in this entry is taken.
+
+*SAME
+The message identifier is not changed.
+
+*ANY
+This reply list entry matches any message identifier. Unless this reply list entry has comparison data specified, any reply list entry with a higher sequence number than this one is ignored.
+
+message-identifier
+Specify a message identifier to compare with the message identifier of an inquiry message. The message identifier must be 7 characters in length and in the following format: pppnnnn
+The first 3 characters (ppp) must be a code consisting of one alphabetic character followed by two alphanumeric (alphabetic or decimal) characters. The last 4 characters (nnnn) must consist of the decimal numbers 0 through 9 and the characters A through F.
+
+To specify a generic message identifier, enter zeros in the rightmost two or four positions of the numeric field, such as pppnn00 or ppp0000. For example, CPA0000 would match any CPA inquiry message, while CPA4200 would match any CPA42xx inquiry message.
+
+Top
+
+Compare data (CMPDTA)
+
+Specifies the comparison data that is used to determine whether this entry matches an inquiry message. This parameter is made up of comparison data and a start value for the message data. If the identifier of the inquiry message matches the message identifier of this reply list entry, then the message data specified for the inquiry message is compared to this data. If a message data start value has not been specified, then the first part of the message data (up through the first 28 characters or less) must exactly match the comparison data specified before the action requested for this reply list entry is taken. However, if a start value has been specified, then the part of the message data beginning with the character position specified in the start value must exactly match the comparison data before any requested action is taken. If the comparison data is longer than the message data, then no match occurs. If no comparison data is specified, then only the message identifier is used to match the message to this reply list entry. If this is the first entry in the message reply list that matches the message, then the action specified in this entry is taken.
+
+Note: Message data for an inquiry message may be specified in the MSGDTA parameter of the Send User Message (SNDUSRMSG) and Send Program Message (SNDPGMMSG) commands for the inquiry message.
+
+Element 1: Comparison data
+
+*SAME
+The comparison data is not changed.
+
+*NONE
+No comparison data is specified. If the inquiry message has the specified identifier, the action specified by this reply list entry is taken.
+
+'comparison-data'
+Specify a character string of no more than 28 characters (enclosed in apostrophes if blanks or other special characters are included). This string is compared with a string of the same length in the message data of the inquiry message, beginning with the first character (if no start value has been specified). If the comparison data string matches the inquiry message data string, the action specified by this reply list entry is taken.
+
+Element 2: Message data start position
+
+*SAME
+The message data start remains the same.
+
+message-data-start
+Specify the starting character position in the message's replacement text (maximum value not to exceed 999) where the comparison data is to be compared with the replacement text. A start value is not valid without a specification of comparison data.
+
+Coded Character Set Identifier (CCSID) Considerations
+
+The text supplied for the CMPDTA parameter that corresponds to the *CCHAR type field is assumed to be in the CCSID of the job running this command,unless the CCSID parameter is coded. For more information about the *CCHAR type field see the Add Message Description (ADDMSGD) command.
+
+Top
+
+Message reply (RPY)
+
+Specifies how to reply to an inquiry message that matches this reply list entry. The reply specified in this reply list entry is automatically sent by the system without requiring user intervention. The inquiry message does not cause any job to be interrupted or notified when the message arrives at the message queue.
+
+*SAME
+The reply action is not changed.
+
+*DFT
+The default reply to the inquiry message is sent. If no default reply is specified in the message description of the inquiry message, the system default reply, *N, is used.
+
+*RQD
+The inquiry message requires an explicit reply. If the message queue that the inquiry is sent to is in break mode, the message interrupts the job and is shown on the display. If the message queue is in notify mode, the job that it is allocated to is notified. No reply is automatically sent.
+
+'message-reply'
+Specify a character string of no more than 32 characters (enclosed in apostrophes if blanks or other special characters are included), sent as a reply to the inquiry message. If this reply is not valid for the inquiry message, the inquiry is sent as if RPY (*RQD) has been specified.
+
+Top
+
+Dump the sending job (DUMP)
+
+Specifies whether the contents of the job that sent the inquiry message are printed (dumped) when the inquiry message matches this reply list entry. The dump is the same as the dump specified by DMPLST(*JOB) on the Add Message Description (ADDMSGD) command or by the command DSPJOB OUTPUT(*PRINT) for the sending job. A job dump may be requested regardless of the value specified for the RPY parameter.
+
+*SAME
+The dump attribute of the reply list entry is not changed.
+
+*NO
+The job is not dumped.
+
+*YES
+The job is dumped before control returns to the program sending the message.
+
+Top
+
+Coded character set ID (CCSID)
+
+Specifies the coded character set identifier (CCSID) of the part of the CMPDTA that is of the type *CCHAR.
+
+When an inquiry message is sent to a job that is using the system reply list, the *CCHAR compare data is converted from the CCSID specified by the send function to the CCSID of the CMPDTA stored on the reply list. This is done before the data is compared.
+
+All other compare data is not converted before a comparison is made. For more information about the message handler and its use of CCSIDs, see the i5/OS globalization topic collection in the IBM i Information Center at http://www.ibm.com/systems/i/infocenter/.
+
+Note: When specifying a CCSID other than *HEX, all the CMPDTA specified is converted from that CCSID to the job CCSID when displayed on the Work with Reply List Entries panel. This occurs even when all CMPDTA does not correspond with *CCHAR data; therefore, when using a CCSID other than *HEX, specifying the length of the *CCHAR data or any other data field is not recommended.
+
+*SAME
+The CCSID associated with the CMPDTA is not changed. If the CMPDTA is being changed, the part of the CMPDTA that is of type *CCHAR is assumed to be in the same CCSID as the CMPDTA being replaced.
+
+*JOB
+If the CMPDTA is being changed, the part of the CMPDTA that is of type *CCHAR is assumed to be in the CCSID of the JOB running this command. If the CMPDTA is not changing, the CCSID associated with the CMPDTA is not changed.
+
+*HEX
+The CCSID associated with the CMPDTA is changed to 65535. No conversion occurs before the replacement data is compared with the CMPDTA.
+
+coded-character-set-identifier
+The CCSID associated with the CMPDTA is assumed to be the CCSID value specified.
+
+Top
+
+Examples
+
+Example 1: Changing the Message Identifier
+
+CHGRPYLE SEQNBR(20) MSGID(RPG1299)
+
+This command changes the message identifier of the reply list entry (sequence number 20) to RPG1299. Whenever an RPG1299 inquiry message is sent by a job that is using the reply list, the action previously specified for entry 20 is taken.
+
+Example 2: Changing the Comparison Data
+
+CHGRPYLE SEQNBR(25) CMPDTA(MYPROGRAM)
+
+This command changes the comparison data of the reply list entry whose sequence number is 25 to MYPROGRAM. This entry only matches inquiry messages whose message data begins with MYPROGRAM. For example, if this entry were for the RPG1200 messages, the entry is used only when the RPG program from which the message was sent has message data named MYPROGRAM.
+
+Example 3: Changing the Reply Sent
+
+CHGRPYLE SEQNBR(30) RPY(C)
+
+This command changes the reply sent for the reply list entry whose sequence number is 30 to C. Whenever an inquiry message which matches the message identifier and comparison data previously defined for this entry is sent by a job that is using the reply list, a 'C' reply is automatically sent.
+
+Example 4: Printing the Job Contents
+
+CHGRPYLE SEQNBR(40) DUMP(*YES)
+
+This command changes the attribute defined for the DUMP parameter for the reply list entry whose sequence number is 40. Whenever this entry matches an inquiry message, the sending job is dumped before control returns to the sending program.
+
+Example 5: Sending a Manual Reply
+
+CHGRPYLE SEQNBR(45) MSGID(CPA5300) CMPDTA(*NONE)
+RPY(*RQD) DUMP(*NO)
+
+This command changes some of the attributes of the reply list entry whose sequence number is 45. Whenever a CPA53xx inquiry message is sent by a job that is using the reply list, a manual reply must be issued. If the message queue to which the inquiry is sent is in break mode, the message interrupts the job. The sending job is not dumped.
+
+Example 6: Sending an Automatic Reply
+
+CHGRPYLE SEQNBR(9999) MSGID(CPA3917) RPY(R)
+
+This command changes the reply list entry whose sequence number is 9999. Whenever a CPA3917 inquiry message is sent by a job that is using the reply list, an 'R' reply is automatically sent. The inquiry does not break into the message queue, and no opportunity is given to reply to the message manually.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2435
+System reply list not found.
+
+CPF2436
+System Reply List entry not added or changed.
+
+CPF247E
+CCSID &1 is not valid.
+
+CPF2499
+Message identifier &1 not valid.
+
+CPF2556
+Sequence number &1 not defined in system reply list.
+
+CPF2557
+System reply list damaged.
+
+CPF2558
+System reply list currently in use.
+
+Top

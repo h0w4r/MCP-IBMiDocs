@@ -1,0 +1,212 @@
+Trace CPI Communications (TRCCPIC)
+
+Trace CPI Communications (TRCCPIC)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Trace Common Programming Interface Communications (TRCCPIC) command controls tracing of all CPI Communications that occur in the job in which the command is entered. The command sets a trace on or off, and traces (1) CPI Communications calls issued by a program and (2) data that is sent and received.
+
+As trace records are collected, they are stored in an internal trace storage area. When the trace is ended, the trace records can be directed to a spooled output file or a database physical file.
+
+If the Start Service Job (STRSRVJOB) command is entered before the TRCCPIC command, the job that is traced is the one specified on the STRSRVJOB command. The trace output from the serviced job is returned to the servicing job after the trace is set off or after the serviced job has ended.
+
+Restrictions: (1) The record format of the database output file must match the record format of the IBM-supplied output file, QACM0TRC. (2) The user must have specific authority from the security officer to use this command.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+SET | Trace option setting | *ON, *OFF, *END | Optional, Positional 1
+MAXSTG | Maximum storage to use | 1-16000, 200 | Optional, Positional 2
+TRCFULL | Trace full | *WRAP, *STOPTRC | Optional, Positional 3
+DTALEN | User data length | 0-4096, 128 | Optional, Positional 4
+OUTPUT | Output | *PRINT, *OUTFILE | Optional
+OUTFILE | Output file | Qualified object name | Optional
+Qualifier 1: Output file | Name
+Qualifier 2: Library | Name, *LIBL, *CURLIB
+OUTMBR | Output member options | Element list | Optional
+Element 1: Member to receive output | Name, *FIRST
+Element 2: Replace or add records | *REPLACE, *ADD
+
+Top
+
+Trace option setting (SET)
+
+Specifies whether a CPI Communications trace is started or ended.
+
+The possible values are:
+
+*ON
+The trace is started. If the trace storage area becomes full, the action specified on the TRCFULL parameter is taken.
+
+*OFF
+The trace is ended. No other trace information is recorded, and the current information is written to the spooled output file or a database file.
+
+*END
+The trace ends. No other trace information is recorded and all current trace information is deleted. No output is generated.
+
+Top
+
+Maximum storage to use (MAXSTG)
+
+Specifies the maximum amount of storage (in kilobytes) used for the created trace records.
+
+The possible values are:
+
+200
+Up to 200KB of storage is used for trace records.
+
+number-of-kilobytes
+Specify the number of kilobytes of storage to use for trace records. Valid values range from 1 through 16000.
+
+Top
+
+Trace full (TRCFULL)
+
+Specifies the action taken when the maximum storage specified is full.
+
+The possible values are:
+
+*WRAP
+When the trace storage area is full, new trace information is written over the old information, starting at the beginning of the storage area.
+
+*STOPTRC
+When the trace storage area is full, no new trace information is saved.
+
+Top
+
+User data length (DTALEN)
+
+Specifies the maximum length (in bytes) of user data that can be saved for each trace entry in the storage area. If the value specified is greater than the length of data received or sent across the communications line, only the actual data is traced. If the value specified is less than the data length received or sent, only the data length specified on this parameter is traced.
+
+The possible values are:
+
+128
+The maximum length of user data saved is 128 bytes.
+
+number-of-bytes
+Specify the maximum length of user data saved. Valid values range from 0 through 4096.
+
+Top
+
+Output (OUTPUT)
+
+Specifies whether the output from the command is displayed at the requesting work station or printed with the job's spooled output.
+
+The possible values are:
+
+*PRINT
+The output is printed with the job's spooled output.
+
+*OUTFILE
+The output is directed to the database file specified for the File to receive output (OUTFILE) parameter.
+
+Top
+
+Output file (OUTFILE)
+
+Specifies the qualified name of the physical file to which the trace output is directed. If the file already exists, the system uses it. If the file does not exist, the system creates it. If the file is created, the text is "Output file for TRCCPIC." The possible library values are:
+
+*LIBL
+The library list is used to locate the database file.
+
+*CURLIB
+The current library for the job is used to locate the database file. If no library is specified as the current library for the job, the QGPL library is used.
+
+library-name
+Specify the name of the library where the database file is located.
+
+file-name
+Specify the name of the physical database file to which the trace output is sent.
+
+Top
+
+Output member options (OUTMBR)
+
+Specifies the name of the member in the physical file that receives the trace output. If the file is created by the system, a member is created with the name specified on this parameter. If the file exists but the member does not, a member with the specified name is created.
+
+Element 1: Member to Receive Output
+
+*FIRST
+The first member of the specified file is used.
+
+member-name
+Specify the name of the member in the file that receives the trace output.
+
+Element 2: Operation to Perform on Member
+
+*REPLACE
+The new data replaces the existing data.
+
+*ADD
+The system adds the new records to the end of the existing records.
+
+Top
+
+Examples
+
+Example 1: Starting Trace Operation
+
+TRCCPIC MAXSTG(350) DTALEN(256)
+
+This command traces the CPI Communications calls of the current job. The trace file contains 350KB of storage and wraps to the beginning if that amount of storage is filled with trace records. In addition, this command traces up to 256 bytes of user data on each input/output operation.
+
+Example 2: Stopping Trace Operation
+
+TRCCPIC SET(*OFF) OUTPUT(*OUTFILE) OUTFILE(TRACELIB/CPICTRACE)
+OUTMBR(TRACEMBR)
+
+This command stops the trace and directs the output to the database file CPICTRACE in library TRACELIB. The output is directed to the member TRACEMBR.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPF2C90
+Maximum storage specified too small.
+
+CPF2C94
+Error occurred during OUTFILE processing. Trace stopped.
+
+CPF3B30
+No CPI-Communications calls were run. Trace ended.
+
+CPF3B31
+Job is already being serviced or traced.
+
+CPF3B32
+Trace already off.
+
+CPF3B33
+Unexpected Trace CPI Communications error occurred.
+
+CPF3B34
+Cannot deactivate trace, trace started from another job.
+
+CPF3548
+Serviced job completed running.
+
+CPF3936
+Job being serviced ended before trace started.
+
+CPF9847
+Error occurred while closing file &1 in library &2.
+
+CPF9848
+Cannot open file &1 in library &2 member &3.
+
+CPF9849
+Error while processing file &1 in library &2 member &3.
+
+Top

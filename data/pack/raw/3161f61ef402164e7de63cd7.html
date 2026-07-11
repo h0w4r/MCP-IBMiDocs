@@ -1,0 +1,80 @@
+<html><head></head><body><main role="main"><article role="article" aria-labelledby="rzajrmstsmpinitcl__title__1">
+<h1 class="topictitle1" id="rzajrmstsmpinitcl__title__1">Examples: Create QIBM_QZDA_INIT exit programs with CL commands</h1><div id="lastModifiedDate"><span>Last Updated</span>: 2025-09-29</div>
+
+
+<div class="body conbody"><p class="shortdesc">You can create <span class="keyword">IBM i</span> QIBM_QZDA_INIT
+exit programs using CL commands.</p>
+
+<p>The following example illustrates how to set up a QIBM_QZDA_INIT
+user exit program with control language (CL) commands.</p>
+
+<div class="note border-2 cds--inline-notification--info ibmdocs-note cds--inline-notification cds--inline-notification--low-contrast margin-top-1 margin-bottom-1"><div class="cds--inline-notification__details"><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" class="cds--inline-notification__icon" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M16,2A14,14,0,1,0,30,16,14,14,0,0,0,16,2Zm0,5a1.5,1.5,0,1,1-1.5,1.5A1.5,1.5,0,0,1,16,7Zm4,17.12H12V21.88h2.88V15.12H13V12.88h4.13v9H20Z"></path></svg>
+        <div class="cds--inline-notification__text-wrapper">
+          <div class="cds--inline-notification__subtitle"><span class="notetitle ibm-bold ibm-textcolor-blue-50 background-blue cds--inline-notification__title ibm-padding-top-1 ibm-padding-bottom-1 padding-left-1 padding-right-1">Note:</span> Read the Code example disclaimer for important legal information.</div>
+        </div>
+      </div></div>
+
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/******************************************************************/
+/* IBM i - Sample User Exit Program                               */
+/*                                                                */
+/* Exit Point Name : QIBM_QZDA_INIT                               */
+/*                                                                */
+/* Description     : The following Control Language program       */
+/*                   handles ODBC security by rejecting requests  */
+/*                   from users who use ODBC and signon using a   */
+/*                   user profile of 'GUEST'. It is a shell       */
+/*                   program for developing exit programs         */
+/*                   tailored for your environment.               */
+/******************************************************************/
+PGM PARM(&amp;FLAG &amp;REQUEST)</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/******************************************************************/
+/* Program call parameter declarations                            */
+/******************************************************************/
+DCL VAR(&amp;FLAG) TYPE(*CHAR) LEN(1)
+DCL VAR(&amp;REQUEST) TYPE(*CHAR) LEN(285)
+/******************************************************************/
+/* Parameter declares for Request Format                          */
+/******************************************************************/
+DCL VAR(&amp;USER) TYPE(*CHAR) LEN(10)        /* User profile         */
+DCL VAR(&amp;SRVD) TYPE(*CHAR) LEN(10)        /* Server Id (*SQL)     */
+DCL VAR(&amp;FORMAT) TYPE(*CHAR) LEN(10)      /* Format ZDAI0100      */
+DCL VAR(&amp;FUNC) TYPE(*CHAR) LEN(4)         /* Function Id 0        */
+DCL VAR(&amp;INTTYP) TYPE(*CHAR) LEN(63)      /* Interface type       */
+DCL VAR(&amp;INTNAM) TYPE(*CHAR) LEN(127)     /* Interface name       */
+DCL VAR(&amp;INTLVL) TYPE(*CHAR) LEN(63)      /* Interface level      */</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/******************************************************************/
+/* Extract the various parameters from the structure.             */
+/******************************************************************/
+CHGVAR VAR(&amp;USER)   VALUE(%SST(&amp;REQUEST  1 10))
+CHGVAR VAR(&amp;SRVID)  VALUE(%SST(&amp;REQUEST 11 10))
+CHGVAR VAR(&amp;FORMAT) VALUE(%SST(&amp;REQUEST 21  8))
+CHGVAR VAR(&amp;FUNC)   VALUE(%SST(&amp;REQUEST 29  4))
+CHGVAR VAR(&amp;INTTYP) VALUE(%SST(&amp;REQUEST 33 63))
+CHGVAR VAR(&amp;INTNAM)) VALUE(%SST(&amp;REQUEST 96 127))
+CHGVAR VAR(&amp;INTLVL) VALUE(%SST(&amp;REQUEST 223 63))</code></pre></div><div class="docs--copy-btn"></div></div>
+<div class="cds--snippet docs--snippet-v10 cds--snippet--multi cds--snippet--expand"><div class="cds--snippet-container" tabindex="0" aria-label="Code snippet"><pre class="codeblock"><code>/******************************************************************/
+/* Set return code to allow the request.                          */
+/******************************************************************/
+CHGVAR VAR(&amp;FLAG) VALUE('1')
+/******************************************************************/
+/* If interface type is ODBC and User is 'GUEST' reject the       */
+/* signon attempt.                                                */
+/******************************************************************/
+
+IF ((%SST(&amp;INTTYP 1 4) *EQ 'ODBC') *AND  +
+    (&amp;USER = 'GUEST     '))  THEN(DO)
+
+     /*************************************************************/
+     /*     Set return code to NOT allow the request.             */
+     /*************************************************************/
+       CHGVAR VAR(&amp;FLAG) VALUE('0')
+              ENDDO
+ENDPGM</code></pre></div><div class="docs--copy-btn"></div></div>
+</div>
+
+
+<aside role="complementary" aria-labelledby="rzajrmstsmpinitcl__title__1"><nav role="navigation" aria-label="bottom related links" class="ibm-padding-top-1 ibm-padding-bottom-2 bx--row bottom-section-parent">
+<div class="familylinks ibm-margin-bottom-1">
+<div class="parentlink"><strong>Parent topic:</strong> <div><svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="blue" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M18 6L16.6 7.4 24.1 15 3 15 3 17 24.1 17 16.6 24.6 18 26 28 16z"></path><title>Arrow right</title></svg><a data-hd-product="ssw_ibm_i_75" href="/docs/en/ssw_ibm_i_75/rzajr/rzajrmst34.htm" title="These sample IBM i exit programs do not show all possible programming considerations or techniques, but you can review the examples before you begin your own design and coding." class="bottom-section-link">Examples: Exit programs</a></div></div>
+</div>
+</nav></aside></article></main><script type="text/javascript"  src="/0qKP/Fm9A/Igg6/tAAW/dg/iVOLVfDNDDtLXc5puX/UExGPFZyWg8/ayldF/R5WAkUB"></script></body></html>

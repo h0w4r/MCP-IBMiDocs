@@ -1,0 +1,322 @@
+Change NFS Export (EXPORTFS)
+
+Change NFS Export (EXPORTFS)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Change Network File System Export (EXPORTFS) command adds directory names to (exports) or removes directory names from (unexports) the list of directory trees that are currently exported to Network File System (NFS) clients. The flags in the OPTIONS list indicate what actions the EXPORTFS command should perform.
+
+A list of directories and options for exporting the directory and its contents is stored in the /etc/exports file. The EXPORTFS command allows the user to export all of the directory trees specified in the /etc/exports file using the -A flag, or to export a single directory tree by specifying the directory name. When the directory tree to be exported exists in the /etc/exports file, the user can export it with the options specified there, or one can use the -I flag to override the options, specifying the new options on the EXPORTFS command.
+
+Ths user can also export a directory tree not previously defined in the /etc/exports file by providing the options for it on the EXPORTFS command. The user can unexport directory trees by using the -U flag on the EXPORTFS command.
+
+The forced unexport will be available only if the user specifies the -U flag and wants to release all NFS version 4 locks and state held by the NFS server on the exported file system. This option should only be used if the state cannot be removed through normal methods.
+
+The user can also add, change, or remove export entries in the /etc/exports file by using the -F flag.
+
+This command can also be issued using the following alternative command name:
+
+- CHGNFSEXP
+
+For more information about Network File System commands, see the i5/OS Network File System Support book, SC41-5714.
+
+Restrictions:
+
+- The user must have input/output (I/O) system configuration (*IOSYSCFG) special authority to use this command.
+
+- The user must have execute (*X) authority to each directory in the path name prefixes.
+
+- When the -F flag is specified and the /etc/exports file does not exist, the user must have write and execute (*WX) authority to the /etc directory.
+
+- When the -F flag is specified and the /etc/exports file does exist, the user must have read and write (*RW) authority to the /etc/exports file and *X authority to the /etc directory.
+
+- Mixed CCSID encoding schemes are not supported. Specified CCSIDs must be single-byte character set (SBCS) or pure double-byte character set (DBCS).
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+OPTIONS | NFS export options | Character value, *DFT | Optional, Positional 1
+DIR | Directory | Path name | Optional, Positional 2
+HOSTOPT | Host options | Single values: *DFT
+Other values (up to 10 repetitions): Element list | Optional
+Element 1: Host name | Character value
+Element 2: Data file CCSID | 0-65535, *BINARY, *ASCII, *JOBCCSID
+Element 3: Path name CCSID | 0-65535, *ASCII, *JOBCCSID
+Element 4: Force synchronous write | *SYNC, *ASYNC
+
+Top
+
+NFS export options (OPTIONS)
+
+The export options list contains some flags followed optionally by a list containing a character string of characteristics for the directory tree to be exported.
+
+Each flag consists of a minus "-" followed by a character. The flags are separated by spaces. Only certain combinations of flags are allowed. If an invalid combination is detected, an error is returned.
+
+Note: A value (other than *NONE) must be specified for either the OPTIONS or Directory (DIR) parameter. Both OPTIONS and DIR can be specified so long as '-A' is not part of the options list specified for the OPTIONS parameter.
+
+*DFT
+The default value for the options string is:
+
+'-A'
+
+options-flags
+
+-A
+This is the "all" flag and it indicates that all entries in the /etc/exports file are to be processed. The following flag combinations have special significance:
+
+-A and not -U
+This will export every entry in the /etc/exports file (making them available to NFS clients).
+
+-A and -U
+This will unexport every entry that is currently exported (making them unavailable to NFS clients). This makes no reference to the contents of the /etc/exports file.
+
+-A and the DIR parameter
+This combination is not allowed.
+
+-A and (-I or -F or -O)
+These combinations are not allowed.
+
+-I
+This is the "ignore" flag and it indicates, for the directory tree specified in the DIR parameter, how the export characteristics are determined. The following flag combinations have special significance:
+
+-I and -O
+The export characteristics specified on the -O flag are used, and the definitions listed in the /etc/exports, if they exist, are ignored.
+
+not -I and not -O
+Either the export characteristics listed for the entry in the /etc/exports file are used, or, if there are no options in that file, the default options are assumed. See the -O flag description for the list of default options.
+
+-I and (-A or -U)
+These combinations are not allowed.
+
+-U
+This is the "unexport" flag and it indicates that the specified directory tree entered in the DIR parameter is to be unexported (made unavailable to NFS clients). The following flag combinations have special significance:
+
+FORCE
+Specifies a forced unexport of the entry referenced in the DIR parameter; this option will only be available if the -U flag has been specified. The FORCE option will release all NFS version 4 locks and state for the exported path. This option should only be used when the locks and state for the exported path cannot be released though normal methods.
+
+-U and -A
+This will unexport every entry that is currently exported (making them unavailable to NFS clients). This makes no reference to the contents of the /etc/exports file.
+
+-U and -F
+The entry referenced in the DIR parameter is removed from the /etc/exports file (if it exists) in addition to being unexported (making it unavailable to NFS clients).
+
+-U and (-I or -O)
+These combinations are not allowed.
+
+-F
+This is the "file" flag and it requires the DIR parameter. The following flag combinations have special significance:
+
+-F and -U
+The entry referenced in the DIR parameter is removed from the /etc/exports file (if it exists) in addition to being unexported (making it unavailable to NFS clients).
+
+-F and not -U and not -O
+The specified directory tree entered in the DIR parameter is to be exported (made available to NFS clients). In addition, an entry for this directory tree entered in the DIR parameter will be added to the /etc/exports file. If the entry already exists in the file, it will be replaced with this new export entry. If the file does not exist, it will be created and the export entry will be added to it. Note that the "ignore" flag -I is implied when the "file" flag -F is specified without the "unexport" flag -U. Since the "options" flag -O is not specified, the default options are assumed. See the -O flag description for the list of default options.
+
+-F and not -U and -O
+The specified directory tree entered in the DIR parameter is to be exported (made available to NFS clients). In addition, an entry for this directory tree entered in the DIR parameter will be added to the /etc/exports file. If the entry already exists in the file, it will be replaced with this new export entry. If the file does not exist, it will be created and the export entry will be added to it. Note that the "ignore" flag -I is implied when the "file" flag -F is specified without the "unexport" flag -U. All export characteristic options provided with the "options" flag -O are stored in the /etc/exports file as given on the command.
+
+-F and -A
+This combination is not allowed.
+
+Note: Successful use of the -F flag will cause the contents of the /etc/exports file to be replaced completely such that it reflects the changes, additions, or deletions caused by the -F flag. Any unrelated existing entries are copied, however ALL comments in the /etc/exports file will be lost as a result of using the -F flag.
+
+-E
+This is the "escape message" flag and it indicates that an escape message should be issued if the command fails for any of the exports attempted.
+
+-O
+This flag specifies the export characteristics for the directory tree that is to be exported (made available to NFS clients). The options list following the -O flag list consists of options separated by commas. Some options are followed by an equal '=' and a value (or list of values separated by colons ':'). The options list may contain spaces. If an option is not specified, the default value for that option will be used. The -O flag is only valid when either the "ignore" flag -I or the "file" flag -F is specified.
+If options are required and the -O flag is not specified, the following are the default options.
+
+- 'RW=' All host names have read-write access to the directory tree.
+
+- ANON=UID associated with the profile QNFSANON.
+
+- Requests to bits in the mode other than the permission bits are allowed.
+
+- 'ROOT=' Root access is not allowed for any hosts.
+
+- 'ACCESS=' All clients are allowed to mount the directory.
+
+- 'SEC=SYS' Security is UNIX-like (not recommended for NFS version 4).
+
+- 'VERS=3:2' NFS version 3 and NFS version 2 are the versions allowed to connect.
+
+The following are the available options and their descriptions.
+
+RO
+Specifies the protection for the exported directory tree. If RO is specified, the directory tree is exported allowing only read-only access to the directory and its contents. If it is not specified, read-write access is allowed to the directory and its contents.
+
+RW=[HOSTNAME[:HOSTNAME]](...)
+Specifies the host name or host names which will be allowed read-write access to the exported directory and its contents. For host names not specified, the directory and its contents will be exported allowing only read-only access.
+If neither RO or RW is specified, then 'RW=' is assumed, and all host names have read-write access to the exported directory.
+
+ANON=UID
+If a request comes in from an unknown user, use this UID as the effective userid. Note that root users are considered unknown, unless specified on the ROOT option below. The default value for this option is the UID associated with the user profile QNFSANON.
+If the user does not want to allow any requests from unknown users, use 'ANON=-1'.
+
+NOSUID
+Specifies that any attempt by the client to enable bits other than the permission bits will be ignored. If this option is not specified, attempt to set bits other than the permission bits will be carried out.
+
+ROOT=[HOSTNAME[:HOSTNAME]](...)
+Specifies the host name or host names for which root access is allowed to the exported directory tree. If root access is allowed for a host, an incoming UID of 0 is mapped to the user profile QSECOFR, and incoming requests from users with all object (*ALLOBJ) special authority are allowed. If root access is not allowed for a host, an incoming UID of 0 and incoming requests from users with *ALLOBJ special authority are mapped to the UID provided in the ANON option. If the ROOT option is not specified, no hosts will be granted root access.
+
+ACCESS=[CLIENT[:CLIENT]](...)
+Specifies the client or clients that are allowed to mount the exported directory tree. A client can be a host name or a netgroup. If no clients are specified, all clients will be allowed to mount the directory tree.
+
+SEC=[SEC[:SEC]](...)
+Specifies which security flavors are supported for this particular export entry. Available flavors are:
+
+sys
+UNIX-like (user ids, group ids).
+
+krb5
+Kerberos 5, no integrity or privacy. Only valid when NFS version 4 specified.
+
+krb5i
+Kerberos 5, with integrity. Only valid when NFS version 4 specified.
+
+krb5p
+Kerberos 5, with privacy. Only valid when NFS version 4 specified.
+
+VERS=[VERS[:VERS]](...)
+Specifies which NFS versions are allowed to mount this export entry. Available versions are 2:3:4. If no version is specified then 3:2 are the default values for this parameter.
+
+EXNAME=[EXPORTED_NAME]
+Specifies the name that should be displayed in the client's file system. The export name must be an absolute path name, beginning at the "root" (/). Only valid when NFS version 4 specified.
+
+PUBLIC
+Specifies that the exported directory is to be the public directory. This must be a subdirectory of the NFSROOT path. The default option is not public. Only valid when NFS version 4 specified.
+
+NFSROOT
+NFS version 4 root: Version 4 clients that mount "/" will see the specified directory (on DIR parmameter) as the server's root. The default root of the NFS version 4 exported file tree is the system root "/". This option can only be used when no other directories are exported. If the NFSROOT path is changed, all future exports must be subdirectories of the new root path. Only valid when NFS version 4 specified.
+
+Top
+
+Directory (DIR)
+
+Specifies the absolute path name of the existing directory to be exported (made available to NFS clients) or unexported (made unavailable to NFS clients). This directory can not be a subdirectory or a parent of an already exported directory (unless it is in a different file system). This parameter is not allowed when the -A flag is specified on the NFS export options (OPTIONS) parameter. This parameter is required when the -F flag is specified on the OPTIONS parameter.
+
+Note: A value (other than *NONE) must be specified for either the OPTIONS or DIR parameter. Both OPTIONS and DIR can be specified so long as '-A' is not part of the options list specified for the OPTIONS parameter.
+
+Top
+
+Host name (HOSTOPT)
+
+The HOSTOPT parameter has four elements that specify additional information about the NFS clients that a directory tree is to be exported to. If the HOSTOPT parameter is not specified for a host name the user is exporting the directory tree to, the defaults for each of the elements of the HOSTOPT parameter are assumed for that host.
+
+*DFT
+*DFT specifies that the default values for the elements of the HOSTOPT parameter are used for all clients to which the directory tree or directory trees are to be exported. The network data file coded character set identifier (CCSID) is *BINARY, the network path name CCSID is *ASCII, and Force synchronous write is *SYNC.
+
+Element 1: Host name
+
+The name of the host for which additional options are to be specified. This host should be specified above in the OPTIONS -O list as a host that has access to the exported directory tree. Specify either a single host name that is an alias for an address of a single host or a netgroup name to be associated with these options.
+
+The user can assign names to an internet address with the Work with TCP/IP host table entries option on the Configure TCP/IP menu (CFGTCP) command or via the System i Navigator. Also, a remote name server can be used to map remote system names to internet addresses.
+
+Element 2: Network data file coded character set identifier (CCSID)
+
+The network data file CCSID is used for data of the files sent and received from the specified HOST NAME (or netgroup name). For any hosts not specified on a HOSTOPT parameter, the default network data file CCSID (*BINARY) is used. The CCSID may be one of the following:
+
+*BINARY
+The default network data file CCSID (binary, no conversion) is used.
+
+*ASCII
+The ASCII equivalent of the default job CCSID associated with the current job is used.
+
+*JOBCCSID
+The CCSID obtained from the default job CCSID is used.
+
+1-65533
+Specify a CCSID for data files.
+
+Element 3: Network path name coded character set identifier (CCSID)
+
+The network path name CCSID is used for the path name components of the files sent to and received from the specified HOST NAME (or netgroup name). For any hosts not specified on a HOSTOPT parameter, the default network path name CCSID (*ASCII) is used. The CCSID may be one of the following:
+
+*ASCII
+The ASCII equivalent of the default job CCSID associated with the current job is used.
+
+*JOBCCSID
+The CCSID obtained from the default job CCSID is used.
+
+1-65533
+Specify a CCSID for path name components of files. Only code pages whose CCSIDs can be converted into UCS-2 level 1 (1200) are supported. See Globalization information in the iSeries Information Center at http://www.ibm.com/eserver/iseries/infocenter for a list of supported conversions.
+
+Element 4: Write mode
+
+Specifies whether write requests are handled synchronously or asynchronously for this HOST NAME (or netgroup name). The default value of *SYNC means that data will be written to disk immediately. *ASYNC does not guarantee that data is written to disk immediately, and can be used to improve server performance.
+
+Note: The Network File System (NFS) protocol has traditionally used synchronous writes.
+
+*SYNC
+Write requests are performed synchronously.
+
+*ASYNC
+Write requests are performed asynchronously.
+
+Top
+
+Examples
+
+The alternative command name for EXPORTFS is CHGNFSEXP. The following examples use the alternative command name, but EXPORTFS can be replaced directly for CHGNFSEXP in all of them.
+
+Example 1: Exporting All Entries from /etc/exports
+
+CHGNFSEXP OPTIONS('-A')
+-or-
+CHGNFSEXP '-A'
+
+Both of these commands export all entries that exist in the /etc/exports file.
+
+Example 2: Exporting One Directory with Options
+
+CHGNFSEXP '-I -O RO,ANON=guest1,ACCESS=Roch1:9.7.431.2'
+'/programs/public' HOSTOPT((MIAMI1 850 850))
+
+This command exports the directory tree under the path name /programs/public as read-only. It allows only two clients to mount this directory tree. It takes advantage of the positional parameters OPTIONS and DIR. It uses the HOSTOPT parameter to specify coded character set identifier (CCSID) for the host MIAMI1.
+
+Example 3: Exporting One Directory with Options and Updating the /etc/exports File.
+
+CHGNFSEXP '-I -F -O RO,ANON=guest1,ACCESS=Roch1:9.7.431.2'
+'/programs/public' HOSTOPT((MIAMI1 850 850))
+
+This command exports the directory tree under the path name /programs/public as read-only. It allows only two clients to mount this directory tree. The OPTIONS parameter value is specified positionally. It uses the HOSTOPT parameter to specify data and path name coded character set identifiers (CCSIDs) of 850 for host name MIAMI1.
+
+In addition, it also adds an export entry for /programs/public, along with the OPTIONS and HOSTOPT parameter values, to the /etc/exports file.
+
+Example 4: Exporting One Directory with NFS version 4 Options
+
+CHGNFSEXP '-I -O RO,VERS=4,SEC=KRB5,ACCESS=9.7.431.2'
+'/programs/public'
+
+This command exports the directory tree under the path name /programs/public as read-only. It allows only one client to mount this directory tree. It allows access only through NFS version 4 protocol and requires a minimum of Kerberos version 5 authentication.
+
+Top
+
+Error messages
+
+*ESCAPE Messages
+
+CPFA089
+Pattern not allowed in path name.
+
+CPFA0CE
+Error occurred with path name parameter specified.
+
+CPFA1B8
+*IOSYSCFG authority required to use &1.
+
+CPFB41C
+&1 entries exported, &2 entries not exported.
+
+Top

@@ -1,0 +1,167 @@
+Start Expiration for BRM (STREXPBRM)
+
+Start Expiration for BRM (STREXPBRM)
+
+Last Updated: 2025-04-08
+
+Where allowed to run: All environments (*ALL)
+
+Threadsafe: No | Parameters
+
+Examples
+
+Error messages
+
+The Start Media Expiration Processing for BRM (STREXPBRM) command expires media that is in the BRMS media content information database. When media is expired it can be reused in save processing. Volumes are expired when the expiration date or number of days are exceeded or when the volume has been reused. Volumes that are expired are marked with *EXP in the Status field on the Work with Media display. The STREXPBRM command can be scheduled to run periodically or can be processed as part of the STRMNTBRM command. The Media Expiration report can be produced by specifying *REPORT in the Active file action (ACTION) parameter. The report, if printed, is written to the printer file QP1AEP.
+
+Note: Media that has been marked for duplication but has not been duplicated will not be eligible for expiration. Once the media has been duplicated it will be eligible for expiration.
+
+To use this command, you must have the Backup Recovery and Media Services for IBM i licensed program installed.
+
+Top
+
+Parameters
+
+Keyword | Description | Choices | Notes
+ACTFILCNT | Active file count | 0-999, 0 | Optional
+ACTION | Active file action | *REPORT, *EXPMED | Optional
+EXPSETMED | Expire media set volumes | *NO, *YES | Optional
+ACTFILRET | File retention type | *ANY, *VERSION | Optional
+SLTCRTDATE | Select creation dates | Element list | Optional
+Element 1: Beginning creation date | Character value, *BEGIN, *CURRENT
+Element 2: Ending creation date | Character value, *END, *CURRENT
+
+Top
+
+Active file count (ACTFILCNT)
+
+Specifies the number of active files that are allowed to exist on a volume before an expiration warning is issued for the volume in the Media Expiration report or automatically expired if the *EXPMED choice is selected for the Active file action (ACTION) parameter.
+
+Note: If the Active file count (ACTFILCNT) parameter is 0, and you specify *REPORT in the Active file action (ACTION) parameter, BRMS produces a report and expires media with 0 active files. If the Active file count (ACTFILCNT) parameter is greater than 0, only a report is produced.
+
+0
+The default number of active files is 0.
+
+number-of-files
+Specify the number of active files. You can specify from 0 to 999 active files.
+
+Top
+
+Active file action (ACTION)
+
+Specifies the action that you want to perform, based on the value specified in the Active file count (ACTFILCNT) parameter. You can print the Media Expiration report, expire media or take no action.
+
+*REPORT
+A warning is issued in the Media Expiration report for all media that have a number of active files equal to or less than the number of active files specified in the Active file count (ACTFILCNT) parameter.
+
+Note: An exception to this is that if the Active file count (ACTFILCNT) parameter is 0, media with no active files will be expired.
+
+*EXPMED
+Media is expired that has a number of active files equal to or less than the number of active files specified in the Active file count (ACTFILCNT) parameter and the active file count is less than the total number of files on the volume. For example, if you specified 1 in the Active file count (ACTFILCNT) parameter and the media held only one file, the media would not expire. If the media held two files and one file was active and the other had expired, the media would be allowed to expire.
+
+Note: This may expire volumes with active files.
+
+Top
+
+Expire media set volumes (EXPSETMED)
+
+Specifies whether to expire all eligible media in a media set with no active files when the STREXPBRM command processes. This will cause media that are members of media sets to expire even if there is unexpired media with active file sequences at subsequent positions in the set. This allows the media to be reused prior to expiration of the set and reduces the number of active media being managed. By default, BRMS will not expire media in a set prior to unexpirable media unless the entire set can be expired.
+
+*NO
+Volumes in a media set are not expired unless the entire set is expired.
+
+*YES
+Volumes in a media set are expired.
+
+Note: Expiring all eligible media in a set can reduce the size of the set or create two or more new sets.
+
+Note: It is recommended that you run this function periodically and it can be a long running process.
+
+Top
+
+File retention type (ACTFILRET)
+
+Specifies the type of retention for the active files that you want to include in media expiration.
+
+*ANY
+Include active files with any type of retention.
+
+*VERSION
+Include only active files whose expiration is based on version retention.
+
+Top
+
+Select creation dates (SLTCRTDATE)
+
+Specifies a range of creation dates that you want to use when selecting media to expire or report. The Beginning creation date is the beginning of a date range of media selected and the Ending creation date is the end of the date range of creation dates.
+
+Note: Using this parameter, it is possible to enter a date with no separator, or a number of days which can be up to 5 digits in length. For instance, if you are using month/day/year format, the number 12904 would be formatted as January 29, 2004. If on the other hand, you entered a number 13904, BRMS assume that this is not a date, but rather is a number. BRMS always tries to calculate a calendar date first when a number is entered and then if the date it calculates is not valid, assumes that it is a number of days. If the number that is entered is over 5 digits and the date that it calculates is not valid, you receive an error message.
+
+Note: This parameter is active only when you specify *EXPMED in the Active file action (ACTION) parameter.
+
+Element 1: Beginning creation date
+
+*BEGIN
+Uses the earliest media volume creation date that is on the file for the beginning of the creation date range.
+
+beginning-creation-date
+Specify a date that is the beginning of the creation date range. The date must be less than or equal to the current date.
+
+*CURRENT
+Uses the current date as the beginning of the creation date range.
+
+number-of-days
+Specify the number of days before the current day that is used to determine the beginning date of the date range.
+
+Element 2: Ending creation date
+
+*END
+The last creation date in the media inventory is used as the end of the creation date range.
+
+*CURRENT
+Uses the current date as the ending of the creation date range.
+
+ending-creation-date
+Specify a date that is the ending of the creation date range. The date must be equal to or greater than the beginning creation date and less than or equal to the current date.
+
+number-of-days
+Specify the number of days before the current day that is used to determine the ending date of the date range.
+
+Top
+
+Examples for STREXPBRM
+
+Example 1: Expiring Volumes Under Version Control
+
+STREXPBRM ACTFILCNT(2) ACTION(*EXPMED) ACTFILRET(*VERSION)
+
+This command starts expiration processing for any volume that has 2 or less active files on it and whose media expiration is controlled using version control.
+
+Example 2: Expiring Volumes in a Set
+
+STREXPBRM ACTION(*EXPMED) EXPSETMED(*YES)
+
+This command starts expiration processing for expiring volumes contained in a set if there are no active files on the volumes.
+
+Top
+
+Error messages for STREXPBRM
+
+*ESCAPE Messages
+
+BRM1917
+Feature not installed.
+
+BRM1921
+Feature not licensed.
+
+BRM4040
+Access denied for user &1.
+
+BRM40A2
+BRMS product initialization required.
+
+CPF9800
+All CPF98xx messages could be signaled. xx is from 01 to FF.
+
+Top
