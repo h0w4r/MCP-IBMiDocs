@@ -131,7 +131,9 @@ const ANSWER_PERSPECTIVE_RERANK_LIMIT = 48;
 // pasajes complementarios que el cross-encoder considera útiles, aunque no
 // sean suficientes por sí solos para afirmar que toda la consulta está cubierta.
 const MIN_NEURAL_SUPPORT_LOGIT = 0.5;
-const MIN_NEURAL_CORROBORATION_LOGIT = -0.95;
+// Deja un margen estable frente a las pequeñas variaciones numéricas de ONNX
+// cuantizado entre sistemas operativos, sin incorporar reglas léxicas.
+const MIN_NEURAL_CORROBORATION_LOGIT = -0.93;
 const MIN_NEURAL_PASSAGE_LOGIT = 0;
 
 const NEURAL_POLICY: WorkflowPolicy = {
