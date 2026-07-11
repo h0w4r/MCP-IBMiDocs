@@ -1,10 +1,10 @@
 # Data packs IBM i Docs
 
-El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI y también incluye el `data/pack` oficial de la versión publicada.
+El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI y descarga durante `postinstall` el `data/pack` oficial desde el release de la misma versión.
 
-El repositorio y los archives completos conservan `raw/` para trazabilidad. El
-paquete npm de ejecución omite ese HTML original para reducir la descarga: el
-MCP instalado trabaja con SQLite, `manifest.json` y el texto `normalized/`.
+El repositorio de desarrollo puede conservar `raw/` para trazabilidad. El asset
+de ejecución omite ese HTML original para reducir la descarga: el MCP instalado
+trabaja con SQLite, `manifest.json` y el texto `normalized/`.
 
 El objetivo es que `npm install -g @ckirsch94/ibmi-docs-mcp@latest` funcione en una máquina limpia sin clonar el repositorio y sin RDi. Los packs externos siguen soportados para organizaciones que quieran probar corpus propios o distribuir snapshots internos.
 
@@ -34,7 +34,7 @@ También puedes usar un directorio explícito:
 node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out D:\MCP-IBMiDocs\data\pack
 ```
 
-## Actualizar el data pack incluido en npm
+## Actualizar el data pack administrado por npm
 
 ```powershell
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
@@ -42,9 +42,9 @@ ibmi-docs doctor
 ibmi-docs validate-pack
 ```
 
-Esto actualiza el runtime y el pack empaquetado con esa versión. También ejecuta el `postinstall`
-para instalar localmente el Transformer E5 afinado, la cabeza neuronal query→corpus y el reranker
-cross-encoder.
+Esto actualiza el runtime y ejecuta `postinstall`, que descarga o reutiliza desde caché los assets
+firmados de esa versión. El instalador valida SHA-256 e instala localmente el data pack, el Transformer
+E5 afinado, la cabeza neuronal query→corpus y el reranker cross-encoder.
 
 ## Actualizar un data pack de repo clonado
 
@@ -68,7 +68,7 @@ node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out <ruta-d
 node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 ```
 
-Cuando exista un release asset público, esta sección se actualizará con la URL verificable. Hasta entonces, no uses URLs de releases inventadas.
+Los assets oficiales se publican junto al tag de cada versión y sus URL/hashes quedan declarados en `runtime-assets.json`. No uses mirrors no autorizados salvo que controles explícitamente `IBMI_DOCS_RUNTIME_ASSET_BASE_URL`.
 
 ## Resolución runtime
 
@@ -77,7 +77,7 @@ El servidor busca el pack en este orden:
 1. `IBMI_DOCS_PACK_DIR`
 2. `data/pack` relativo al `cwd`
 3. `~/.ibmi-docs/pack`
-4. `data/pack` empaquetado junto al servidor npm
+4. `data/pack` empaquetado junto al servidor (solo checkout de desarrollo)
 
 ## Integridad
 

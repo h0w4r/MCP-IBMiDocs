@@ -28,7 +28,7 @@ Sirve para:
 - **No necesitas RDi instalado** para usar el MCP.
 - **No usa Eclipse Help en runtime**.
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
-- El paquete npm instala el servidor, la CLI y el **data pack local incluido**.
+- El paquete npm instala el servidor y la CLI; durante `postinstall` descarga los **assets oficiales de esa versión**, verifica SHA-256 e instala el data pack y los modelos localmente.
 - El corpus documental vive en SQLite con vectores semánticos (`chunk_vectors`) y se resuelve sin RDi.
 - El perfil MCP por defecto es **agent-first**: el agente ve únicamente `ibmi_docs_assist`.
 - `ibmi_docs_assist` devuelve un solo bloque con la respuesta final; no expone JSON, scores, IDs, planes de recuperación ni documentos internos.
@@ -37,7 +37,7 @@ Sirve para:
   Todo trabaja localmente y no existe una ruta legacy por coincidencia exacta.
 - Las tools avanzadas/de auditoría existen, pero se ocultan salvo que actives un perfil explícito.
 - Las tools de mantenimiento, como sincronización de IBM Docs público, **no se exponen al agente en runtime normal**.
-- El data pack público va incluido en npm y también está versionado en este repositorio bajo `data/pack`.
+- El data pack público está versionado en este repositorio bajo `data/pack` y se publica como asset del release correspondiente.
 
 ## Instalación rápida
 
@@ -68,8 +68,11 @@ Más opciones: [instalación, actualización y desinstalación](docs/INSTALLATIO
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
 ibmi-docs doctor
 
-# Eliminar runtime npm y el pack incluido en esa instalación
+# Eliminar el runtime npm
 npm uninstall -g @ckirsch94/ibmi-docs-mcp
+
+# Opcional: eliminar también corpus, modelos y descargas verificadas
+Remove-Item -Recurse -Force "$HOME\.ibmi-docs", "$HOME\.ibmi-docs-mcp"
 ```
 
 Si usas un pack externo mediante `IBMI_DOCS_PACK_DIR`, actualízalo aparte con una fuente autorizada por tu equipo o con un `.tgz` generado desde este repositorio.
@@ -95,7 +98,7 @@ tool_timeout_sec = 120.0
 IBMI_DOCS_TOOL_PROFILE = 'agent'
 ```
 
-No necesitas declarar `IBMI_DOCS_PACK_DIR` si usas el pack incluido en npm. Úsalo solo cuando quieras apuntar a un pack corporativo o experimental.
+No necesitas declarar `IBMI_DOCS_PACK_DIR`: `postinstall` deja el pack oficial en `~/.ibmi-docs/pack`. Úsalo solo cuando quieras apuntar a un pack corporativo o experimental.
 
 Reinicia Codex y prueba algo como:
 
@@ -258,7 +261,7 @@ Guías útiles:
 - npm: <https://www.npmjs.com/package/@ckirsch94/ibmi-docs-mcp>
 - GitHub: <https://github.com/h0w4r/MCP-IBMiDocs>
 
-El paquete npm publica el runtime MCP/CLI y el data pack local oficial de esta versión. No incluye artefactos de evaluación, cachés de desarrollo ni exports temporales de RDi.
+El paquete npm publica un runtime MCP/CLI liviano y un manifiesto de assets. Durante instalación descarga desde el release de GitHub el data pack y los modelos de la misma versión, valida tamaño y SHA-256 y los deja en caché local. No incluye bancos de evaluación, cachés de desarrollo ni exports temporales de RDi.
 
 ## Aviso legal y marcas
 

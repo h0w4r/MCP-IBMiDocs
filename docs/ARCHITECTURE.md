@@ -22,8 +22,8 @@ flowchart LR
   generación de embeddings para facetas de título/ruta documental y contenido combinado.
 - `models/ibmi-e5-base-finetuned-v1/`: bi-encoder E5-base de 768 dimensiones con pesos ONNX q8,
   tokenizer, licencia y manifest de entrenamiento. El
-  ONNX se versiona en fragmentos menores de 100 MB y `postinstall.cjs` lo reconstruye, verifica por
-  SHA-256 e instala en la caché local; el banco de preguntas no se distribuye.
+  ONNX se versiona en fragmentos menores de 100 MB. El release los distribuye en un asset separado y
+  `postinstall.cjs` descarga por streaming, verifica SHA-256, reconstruye el modelo e instala la caché local; el banco de preguntas no se distribuye.
 - `src/repository/neuralQueryHead.ts` y `models/ibmi-neural-query-head-v1/`: MLP residual
   obligatoria que proyecta cada consulta E5 al espacio documental. Se entrenó end-to-end contra
   los 7.027 vectores de documentos del pack y se valida por SHA-256; no contiene aliases, regex,

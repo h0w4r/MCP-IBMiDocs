@@ -10,15 +10,16 @@ El runtime público está en:
 npm install -g @ckirsch94/ibmi-docs-mcp@latest
 ```
 
-Esto instala dos binarios y el data pack local de la versión publicada:
+Esto instala dos binarios y prepara los activos locales de la versión publicada:
 
 - `ibmi-docs`: CLI para diagnóstico, búsqueda y validación.
 - `ibmi-docs-mcp`: servidor MCP por stdio.
-- `data/pack`: corpus documental local con `manifest.json`, `raw/`, `normalized/` e `ibmi-docs.sqlite`.
+- `~/.ibmi-docs/pack`: corpus documental local con `manifest.json`, `normalized/` e `ibmi-docs.sqlite`.
 
-Durante `postinstall` también se instalan en la caché local el bi-encoder E5-base afinado para IBM i,
-la cabeza neuronal query→corpus y el reranker cross-encoder mMARCO MiniLM incluidos en el paquete. Después de instalar, las consultas
-funcionan en modo local-only.
+Durante `postinstall` se descargan desde el release público correspondiente el data pack, el bi-encoder E5-base afinado para IBM i,
+la cabeza neuronal query→corpus y el reranker cross-encoder mMARCO MiniLM. Cada asset se valida por tamaño y SHA-256 antes de instalarse; después de instalar, las consultas funcionan en modo local-only y no requieren red.
+
+Los archives verificados quedan en `~/.ibmi-docs-mcp/downloads`. Para un mirror corporativo configura `IBMI_DOCS_RUNTIME_ASSET_BASE_URL`; para una caché previamente aprovisionada configura `IBMI_DOCS_DOWNLOAD_CACHE`.
 
 El banco de preguntas usado durante desarrollo no se instala ni se consulta en runtime. Solo viajan
 los pesos ONNX cuantizados resultantes del fine-tuning y el corpus documental oficial.
@@ -84,7 +85,7 @@ macOS/Linux:
 command -v ibmi-docs-mcp
 ```
 
-Usa esa ruta absoluta como `command`. No declares `IBMI_DOCS_PACK_DIR` salvo que quieras usar un pack externo o corporativo distinto al incluido en npm.
+Usa esa ruta absoluta como `command`. No declares `IBMI_DOCS_PACK_DIR` salvo que quieras usar un pack externo o corporativo distinto al instalado en `~/.ibmi-docs/pack`.
 
 ## Perfiles de tools MCP
 
@@ -120,7 +121,7 @@ ibmi-docs --version
 ibmi-docs doctor
 ```
 
-Actualizar npm cambia el servidor/CLI, el data pack incluido y prepara de nuevo los modelos locales de embeddings y reranking.
+Actualizar npm cambia el servidor/CLI y ejecuta nuevamente el instalador de assets. Los archivos descargados se reutilizan si tamaño y SHA-256 coinciden; una versión nueva instala atómicamente su data pack y prepara los modelos locales de embeddings y reranking.
 
 > `ibmi-docs --version` muestra la versión del CLI. Para filtrar documentación por release IBM i usa `--ibmi-version` o `--release`, por ejemplo `ibmi-docs search "CRTRPGMOD" --ibmi-version 7.6`.
 
@@ -148,9 +149,9 @@ node dist/src/cli.js pack install --from D:\MCP-IBMiDocs\dist\ibmi-docs-pack.tgz
 node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 ```
 
-### Data pack desde release asset o URL autorizada
+### Data pack desde una URL corporativa autorizada
 
-El comando existe para cuando el proyecto publique un release asset `ibmi-docs-pack.tgz` o cuando tú definas una URL autorizada:
+La instalación npm ya administra automáticamente el asset oficial declarado en `runtime-assets.json`. Para un pack corporativo distinto puedes definir una URL autorizada:
 
 ```powershell
 $env:IBMI_DOCS_PACK_LATEST_URL = 'https://tu-host/ibmi-docs-pack.tgz'
@@ -158,7 +159,7 @@ ibmi-docs pack update --out <ruta-del-pack-en-uso>
 ibmi-docs pack verify --pack <ruta-del-pack-en-uso>
 ```
 
-Si no defines `IBMI_DOCS_PACK_LATEST_URL`, el CLI intentará usar el release público más reciente de GitHub. Si ese asset no existe o tu organización usa un pack propio, usa el flujo local con `pack archive` + `pack install --from`.
+Si tu organización distribuye snapshots propios, también puedes usar el flujo local con `pack archive` + `pack install --from`.
 
 ## Desinstalar
 
@@ -183,6 +184,12 @@ macOS/Linux:
 ```bash
 command -v ibmi-docs || true
 command -v ibmi-docs-mcp || true
+```
+
+El corpus, los modelos y los archives descargados se conservan para no destruir datos offline al quitar el binario. Si también quieres eliminarlos:
+
+```powershell
+Remove-Item -Recurse -Force "$HOME\.ibmi-docs", "$HOME\.ibmi-docs-mcp"
 ```
 
 ### Data pack externo o repo local
