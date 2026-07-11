@@ -133,7 +133,7 @@ const ANSWER_PERSPECTIVE_RERANK_LIMIT = 48;
 const MIN_NEURAL_SUPPORT_LOGIT = 0.5;
 // Deja un margen estable frente a las pequeñas variaciones numéricas de ONNX
 // cuantizado entre sistemas operativos, sin incorporar reglas léxicas.
-const MIN_NEURAL_CORROBORATION_LOGIT = -0.93;
+const MIN_NEURAL_CORROBORATION_LOGIT = -0.9;
 const MIN_NEURAL_PASSAGE_LOGIT = 0;
 
 const NEURAL_POLICY: WorkflowPolicy = {
