@@ -1641,14 +1641,16 @@ function selectResponseCandidates(candidates: NeuralAnswerCandidate[]): NeuralAn
     .filter((candidate) => candidate.relevanceLogit >= relativeFloor
       || Math.max(...normalizedPerspectiveCoverage(candidate), 0) >= 0.35)
     .filter((candidate) => compactAnswerPassage(candidate.body, 900).length >= 20);
-  // Dos documentos independientes cubren la comparación y la mayoría de
-  // respuestas compuestas sin convertir diversidad en relleno tangencial.
-  // Cada documento puede aportar varias ventanas internas ya sintetizadas.
-  while (selected.length < 2 && alternatives.length) {
+  // Dos documentos cubren la mayoría de respuestas. Se admite un tercero solo
+  // cuando su logit está prácticamente empatado con el principal; esto hace
+  // estable la cobertura compuesta frente a pequeñas diferencias numéricas
+  // entre backends ONNX sin convertir diversidad en relleno tangencial.
+  while (selected.length < 3 && alternatives.length) {
     let bestIndex = -1;
     let bestScore = Number.NEGATIVE_INFINITY;
     for (let index = 0; index < alternatives.length; index += 1) {
       const candidate = alternatives[index];
+      if (selected.length >= 2 && candidate.relevanceLogit < top.relevanceLogit - 0.15) continue;
       const topicKey = String(candidate.candidate.row.canonical_topic_key ?? "");
       if (topicKey && seenTopics.has(topicKey)) continue;
       const maximumRedundancy = Math.max(...selected.map((item) =>
