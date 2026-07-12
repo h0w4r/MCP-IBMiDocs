@@ -2,9 +2,10 @@
 const fs = require("node:fs/promises");
 const { createReadStream, createWriteStream } = require("node:fs");
 const crypto = require("node:crypto");
+const http = require("node:http");
+const https = require("node:https");
 const os = require("node:os");
 const path = require("node:path");
-const { Readable } = require("node:stream");
 const { pipeline } = require("node:stream/promises");
 const tar = require("tar");
 
@@ -248,20 +249,31 @@ async function downloadAndExtractAsset(asset) {
 
   if (!cacheValid) {
     const temporaryDownload = `${cachedFile}.download-${process.pid}-${Date.now()}`;
-    await fs.rm(temporaryDownload, { force: true });
     const sourceUrl = resolveAssetUrl(asset);
     console.log(`[ibmi-docs] Descargando activo de instalación: ${sourceUrl}`);
+    let installed = false;
+    let lastError;
     try {
-      const response = await fetch(sourceUrl, { redirect: "follow" });
-      if (!response.ok || !response.body) {
-        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        await fs.rm(temporaryDownload, { force: true });
+        try {
+          await downloadHttpAsset(sourceUrl, temporaryDownload);
+          const stat = await fs.stat(temporaryDownload);
+          const hash = await sha256File(temporaryDownload);
+          if (stat.size !== asset.bytes || hash !== asset.sha256) {
+            throw new Error(`Integridad inválida para ${asset.fileName}: bytes=${stat.size}, sha256=${hash}.`);
+          }
+          installed = true;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 3) {
+            console.warn(`[ibmi-docs] Reintento ${attempt + 1}/3 para ${asset.fileName}.`);
+            await delay(1_000 * attempt);
+          }
+        }
       }
-      await pipeline(Readable.fromWeb(response.body), createWriteStream(temporaryDownload));
-      const stat = await fs.stat(temporaryDownload);
-      const hash = await sha256File(temporaryDownload);
-      if (stat.size !== asset.bytes || hash !== asset.sha256) {
-        throw new Error(`Integridad inválida para ${asset.fileName}: bytes=${stat.size}, sha256=${hash}.`);
-      }
+      if (!installed) throw lastError || new Error(`No se pudo descargar ${asset.fileName}.`);
       await fs.rm(cachedFile, { force: true });
       await fs.rename(temporaryDownload, cachedFile);
     } catch (error) {
@@ -291,6 +303,46 @@ async function downloadAndExtractAsset(asset) {
     await fs.rm(temporaryDir, { recursive: true, force: true });
     throw error;
   }
+}
+
+async function downloadHttpAsset(sourceUrl, destination, redirectsRemaining = 8) {
+  const parsed = new URL(sourceUrl);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Protocolo de asset no permitido: ${parsed.protocol}`);
+  }
+  const client = parsed.protocol === "https:" ? https : http;
+  await new Promise((resolve, reject) => {
+    const request = client.get(parsed, {
+      headers: {
+        "User-Agent": "MCP-IBMiDocs-postinstall",
+        Accept: "application/octet-stream"
+      }
+    }, (response) => {
+      const status = response.statusCode || 0;
+      if (status >= 300 && status < 400 && response.headers.location) {
+        response.resume();
+        if (redirectsRemaining <= 0) {
+          reject(new Error(`Demasiadas redirecciones al descargar ${sourceUrl}.`));
+          return;
+        }
+        const redirected = new URL(response.headers.location, parsed).toString();
+        downloadHttpAsset(redirected, destination, redirectsRemaining - 1).then(resolve, reject);
+        return;
+      }
+      if (status !== 200) {
+        response.resume();
+        reject(new Error(`HTTP ${status} al descargar ${sourceUrl}.`));
+        return;
+      }
+      pipeline(response, createWriteStream(destination)).then(resolve, reject);
+    });
+    request.setTimeout(120_000, () => request.destroy(new Error(`Timeout al descargar ${sourceUrl}.`)));
+    request.on("error", reject);
+  });
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function resolveAssetUrl(asset) {

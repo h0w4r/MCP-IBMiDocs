@@ -186,6 +186,17 @@ describe("CorpusRepository neural-only", () => {
     expect(assist.answer).not.toMatch(/DDS8196|Workstation I\/O|SQL messages/i);
   });
 
+  it("acepta evidencia fuerte del mismo tópico aunque el consenso elija otro pasaje", async () => {
+    const assist = await withRepo((repo) => repo.assistSmart({
+      question: "What are the different types of locks that can be held? What is meant by locking and concurrency?",
+      depth: "concise"
+    }));
+
+    expect(assist.relevance.supported).toBe(true);
+    expect(assist.confidence).not.toBe("baja");
+    expect(assist.answer).toMatch(/Locking|locks|commit|rollback/i);
+  });
+
   it("las APIs síncronas antiguas no ejecutan búsqueda no neuronal", async () => {
     await withRepo(async (repo) => {
       expect(() => repo.search({ query: "CRTRPGMOD" })).toThrow(/searchSmart/);

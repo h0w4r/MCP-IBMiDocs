@@ -748,8 +748,43 @@ export class CorpusRepository {
     const neuralAgreementRatio = maximumCandidateDirectScore > 0
       ? selectedDirectEmbeddingScore / maximumCandidateDirectScore
       : 0;
-    const supported = topRerankerLogit >= 1
-      || (topRerankerLogit >= MIN_NEURAL_CORROBORATION_LOGIT && neuralAgreementRatio >= 0.9);
+    const strongestRerankerCandidate = candidates.reduce<NeuralAnswerCandidate | undefined>(
+      (strongest, candidate) => !strongest || candidate.relevanceLogit > strongest.relevanceLogit
+        ? candidate
+        : strongest,
+      undefined
+    );
+    const strongestRerankerAgreement = strongestRerankerCandidate && maximumCandidateDirectScore > 0
+      ? strongestRerankerCandidate.directSimilarity / maximumCandidateDirectScore
+      : 0;
+    const selectedCanonicalTopic = String(candidates[0]?.candidate.row.canonical_topic_key
+      || candidates[0]?.candidate.documentId
+      || "");
+    const strongestCanonicalTopic = String(strongestRerankerCandidate?.candidate.row.canonical_topic_key
+      || strongestRerankerCandidate?.candidate.documentId
+      || "");
+    // Una evidencia débil solo se acepta cuando el ensamble neuronal encuentra
+    // corroboración en más de un tópico documental. Se deduplican versiones y
+    // spans mediante la clave canónica; no se inspeccionan palabras, aliases,
+    // categorías ni comandos. Esto evita que muchos recortes del mismo falso
+    // positivo aparenten ser consenso independiente.
+    const corroborationLogitFloor = Math.max(topRerankerLogit - 0.75, -1.5);
+    const corroborationDirectFloor = selectedDirectEmbeddingScore * 0.75;
+    const corroboratingTopics = new Set(candidates
+      .filter((candidate) => candidate.relevanceLogit >= corroborationLogitFloor
+        && candidate.directSimilarity >= corroborationDirectFloor)
+      .map((candidate) => String(candidate.candidate.row.canonical_topic_key
+        || candidate.candidate.documentId)));
+    const selectedStrongSupport = topRerankerLogit >= 1;
+    const alternativeStrongSupport = Boolean(strongestRerankerCandidate
+      && strongestRerankerCandidate.relevanceLogit >= 1.5
+      && strongestRerankerAgreement >= 0.75
+      && selectedCanonicalTopic
+      && strongestCanonicalTopic === selectedCanonicalTopic);
+    const supported = selectedStrongSupport || alternativeStrongSupport
+      || (topRerankerLogit >= MIN_NEURAL_CORROBORATION_LOGIT
+        && neuralAgreementRatio >= 0.9
+        && corroboratingTopics.size >= 2);
 
     return {
       candidates,
