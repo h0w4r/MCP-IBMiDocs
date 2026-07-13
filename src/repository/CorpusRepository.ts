@@ -116,7 +116,7 @@ interface NeuralCandidateCacheEntry {
 
 const ANSWER_RETRIEVAL_PER_PERSPECTIVE = 512;
 const ANSWER_RERANK_LIMIT = 160;
-const ANSWER_TITLE_RERANK_LIMIT = 512;
+const ANSWER_TITLE_RERANK_LIMIT = 96;
 const ANSWER_TITLE_COVERAGE_LIMIT = 512;
 const ANSWER_BODY_TITLE_COVERAGE_LIMIT = 96;
 const ANSWER_PERSPECTIVE_RERANK_LIMIT = 48;
@@ -468,19 +468,23 @@ export class CorpusRepository {
     const titleRepresentatives = uniqueCandidatesByCanonicalTopic(
       titleFocusedRepresentatives
     ).slice(0, ANSWER_TITLE_RERANK_LIMIT);
-    const titleRanking: NeuralRerankedPassage[] = titleRepresentatives.map((item) => {
-      const relevanceLogit = item.directSimilarity;
-      return {
+    // El bi-encoder descubre una vecindad amplia, pero no debe fingir que su
+    // similitud es una segunda opinión. El cross-encoder lee conjuntamente la
+    // petición y la identidad documental de cada candidato. Esta señal neural
+    // independiente estabiliza consultas compuestas entre backends ONNX sin
+    // extraer keywords, comandos, aliases ni categorías manuales.
+    const titleRanking = await rerankPassages(
+      composeNeuralRerankerQuestion(question, options.code),
+      titleRepresentatives.map((item) => ({
         id: item.candidate.documentId,
         title: item.candidate.title,
         body: item.candidate.title,
         category: item.candidate.category,
         version: item.candidate.version,
-        breadcrumbs: item.candidate.breadcrumbs,
-        relevanceLogit,
-        relevanceProbability: sigmoidScore(relevanceLogit)
-      };
-    });
+        breadcrumbs: item.candidate.breadcrumbs
+      })),
+      { localOnly: true, maxLength: 96 }
+    );
     const titleLogitByDocument = new Map(titleRanking.map((item) => [item.id, item.relevanceLogit]));
     for (const pool of [globalCandidatePool, preferredCandidatePool].filter(Boolean) as Array<Map<string, CandidatePoolEntry>>) {
       for (const item of pool.values()) {
@@ -691,15 +695,15 @@ export class CorpusRepository {
         // Ambos componentes son salidas neuronales. Estandarizarlos evita que
         // la escala arbitraria de logits anule el consenso de las perspectivas
         // producidas por el Transformer afinado, o viceversa.
-        // La cabeza query->corpus fue entrenada end-to-end contra los 7.027
-        // documentos reales y por ello gobierna la selección. El cross-encoder
-        // corrobora pasajes, pero no puede anular una relación query-documento
-        // aprendida solo porque una palabra de la pregunta aparece en otro título.
-        item.neuralConsensusScore = (zScore(item.directSimilarity, directStats) * 2)
+        // La cabeza query->corpus aporta la vecindad global aprendida contra los
+        // 7.027 documentos. Los dos cross-encoders corroboran por separado la
+        // identidad documental y el contenido, evitando que una sola escala o
+        // una diferencia numérica del backend gobierne toda la selección.
+        item.neuralConsensusScore = (zScore(item.directSimilarity, directStats) * 1.5)
           + zScore(item.reciprocalRankScore, retrievalStats)
-          + (zScore(item.relevanceLogit, rerankerStats) * 0.75)
+          + zScore(item.relevanceLogit, rerankerStats)
           + (Number.isFinite(item.titleRelevanceLogit)
-            ? zScore(item.titleRelevanceLogit, titleStats) * 0.25
+            ? zScore(item.titleRelevanceLogit, titleStats) * 0.5
             : 0);
       }
       const pureRerankerTop = materialized[0];
@@ -1761,9 +1765,20 @@ function selectResponseCandidates(candidates: NeuralAnswerCandidate[], maxDocume
       return sigmoidScore((logit - stats.median) / stats.spread) * stats.discriminativeWeight;
     });
   const coveredPerspectives = normalizedPerspectiveCoverage(primary);
+  const finiteTitleLogits = candidates
+    .map((candidate) => candidate.titleRelevanceLogit)
+    .filter(Number.isFinite);
+  const maximumTitleLogit = finiteTitleLogits.length
+    ? Math.max(...finiteTitleLogits)
+    : Number.NEGATIVE_INFINITY;
+  const normalizedTitleAlignment = (candidate: NeuralAnswerCandidate): number =>
+    Number.isFinite(candidate.titleRelevanceLogit) && Number.isFinite(maximumTitleLogit)
+      ? Math.exp(Math.min(0, candidate.titleRelevanceLogit - maximumTitleLogit))
+      : 0;
 
   // La respuesta puede requerir varias evidencias. Se aplica MMR sobre salidas
-  // neuronales: pertinencia del cross-encoder, consenso de perspectivas y
+  // neuronales: pertinencia del cross-encoder de contenido, alineación del
+  // cross-encoder de identidad documental, consenso de perspectivas y
   // diversidad vectorial. No se inspeccionan palabras ni categorías.
   const alternatives = candidates
     .filter((candidate) => candidate.id !== primary.id)
@@ -1772,7 +1787,8 @@ function selectResponseCandidates(candidates: NeuralAnswerCandidate[], maxDocume
     // evita que la diversidad MMR introduzca tópicos remotos como relleno.
     .filter((candidate) => candidate.directSimilarity >= primary.directSimilarity * 0.65)
     .filter((candidate) => candidate.relevanceLogit >= relativeFloor
-      || Math.max(...normalizedPerspectiveCoverage(candidate), 0) >= 0.35)
+      || Math.max(...normalizedPerspectiveCoverage(candidate), 0) >= 0.35
+      || normalizedTitleAlignment(candidate) >= 0.7)
     .filter((candidate) => compactAnswerPassage(candidate.body, 900).length >= 20);
   // Dos documentos cubren la mayoría de respuestas. Se admite un tercero solo
   // cuando su logit está prácticamente empatado con el principal; esto hace
@@ -1799,9 +1815,11 @@ function selectResponseCandidates(candidates: NeuralAnswerCandidate[], maxDocume
       const directAlignment = primary.directSimilarity > 0
         ? Math.max(0, Math.min(1, candidate.directSimilarity / primary.directSimilarity))
         : 0;
-      const score = (relevance * 0.65)
-        + (novelty * 0.10)
-        + (coverageGain * 0.15)
+      const titleAlignment = normalizedTitleAlignment(candidate);
+      const score = (relevance * 0.50)
+        + (titleAlignment * 0.20)
+        + (novelty * 0.08)
+        + (coverageGain * 0.12)
         + (directAlignment * 0.10);
       if (score > bestScore) {
         bestScore = score;

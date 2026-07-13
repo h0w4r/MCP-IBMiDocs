@@ -1,7 +1,7 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Release 2.0.0.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. La versión 2 elimina las APIs internas síncronas/decorativas y usa un único núcleo neuronal asíncrono. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR.
+> **Release 2.0.1.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. La versión 2 elimina las APIs internas síncronas/decorativas y usa un único núcleo neuronal asíncrono; el parche 2.0.1 estabiliza la recuperación multievidencia entre plataformas. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
