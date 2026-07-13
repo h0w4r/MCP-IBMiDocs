@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { appendTraceEvent, buildTraceReport, defaultTraceFile, isTraceEnabled } from "./trace/traceStore.js";
+import { appendTraceEvent, buildTraceReport, defaultTraceFile, isTraceEnabled, type TraceInputEvent } from "./trace/traceStore.js";
 import {
   bufferToVector as bufferToNeuralVector,
   cosineSimilarity as neuralCosineSimilarity,
@@ -17,8 +17,6 @@ import {
 import { queryHeadDiagnostics } from "./neuralQueryHead.js";
 import type {
   AnswerCitation,
-  AnswerOptions,
-  AnswerResult,
   AssistCoverage,
   AssistOptions,
   AssistResult,
@@ -26,18 +24,10 @@ import type {
   AssistRetrievalPlan,
   AssistTaskPlan,
   CategoryDiagnostics,
-  CodeValidationFinding,
-  CodeValidationOptions,
-  CodeValidationResult,
-  CompareVersionsOptions,
-  CompileGuidance,
-  ContextOptions,
-  ContextPackage,
   ContextReadSummary,
   CorpusManifest,
   DocsIntent,
   DocsRecipe,
-  MessageExplanation,
   PackDiagnostics,
   QualityReport,
   QueryReport,
@@ -47,20 +37,19 @@ import type {
   ReadResult,
   RelatedDocuments,
   RelatedOptions,
-  ResolveOptions,
-  ResolveResult,
   SearchHit,
   SearchOptions,
   SourceKind,
   TopicSection,
-  TraceEvent,
+  TraceScopeExpansion,
   TraceReport,
   VectorCoverageDiagnostics,
-  VersionComparison,
   WorkflowPolicy,
   WorkflowStage
 } from "../types.js";
 import { clamp } from "../util/common.js";
+import { resolveContainedExistingPath } from "../util/paths.js";
+import { assertInputLength, MAX_CODE_CHARS, MAX_LABEL_CHARS, MAX_QUESTION_CHARS } from "../util/inputLimits.js";
 
 type Row = Record<string, unknown>;
 
@@ -119,7 +108,12 @@ interface NeuralAnswerSelection {
   topRerankerProbability: number;
 }
 
-const SUPPORTED_VERSIONS = ["7.3", "7.4", "7.5", "7.6", "RDi-local"];
+interface NeuralCandidateCacheEntry {
+  fingerprint: string;
+  candidates: NeuralCandidate[];
+  loadedAt: number;
+}
+
 const ANSWER_RETRIEVAL_PER_PERSPECTIVE = 512;
 const ANSWER_RERANK_LIMIT = 160;
 const ANSWER_TITLE_RERANK_LIMIT = 512;
@@ -135,9 +129,16 @@ const MIN_NEURAL_SUPPORT_LOGIT = 0.5;
 // cuantizado entre sistemas operativos, sin incorporar reglas léxicas.
 const MIN_NEURAL_CORROBORATION_LOGIT = -0.9;
 const MIN_NEURAL_PASSAGE_LOGIT = 0;
+const QUALITY_MIN_DOCUMENTS = 5_000;
+const QUALITY_MAX_STUB_RATE = 0.015;
+const QUALITY_MAX_SHORT_DOCUMENT_RATE = 0.015;
+const QUALITY_MIN_DOCUMENTS_PER_IBM_I_RELEASE = 100;
+const QUALITY_MIN_SUBSTANTIAL_CATEGORIES = 8;
+const QUALITY_MIN_DOCUMENTS_PER_SUBSTANTIAL_CATEGORY = 50;
+const QUALITY_REQUIRED_RELEASES = ["7.3", "7.4", "7.5", "7.6"] as const;
 
 const NEURAL_POLICY: WorkflowPolicy = {
-  intent: "explain_topic",
+  intent: "neural_retrieval",
   preferredTools: ["ibmi_docs_assist"],
   requiredEvidence: ["chunks vectoriales", "lecturas materializadas", "secciones precomputadas", "citas trazables"],
   defaultLimit: 6,
@@ -162,7 +163,7 @@ const RECIPES: DocsRecipe[] = [
 ];
 
 export class CorpusRepository {
-  private static readonly candidateCache = new Map<string, NeuralCandidate[]>();
+  private static readonly candidateCache = new Map<string, NeuralCandidateCacheEntry>();
 
   private readonly db: Database.Database;
   readonly packDir: string;
@@ -208,12 +209,16 @@ export class CorpusRepository {
     };
   }
 
-  async searchSmart(options: SearchOptions): Promise<SearchHit[]> {
+  async search(options: SearchOptions): Promise<SearchHit[]> {
     const started = Date.now();
     const allowVersionExpansion = !(options as SearchOptions & { skipVersionExpansion?: boolean }).skipVersionExpansion;
     const query = String(options.query ?? "").trim();
     const version = normalizeVersionOption(options.version ?? options.ibmiVersion);
     const category = options.category ? String(options.category).trim() : undefined;
+    assertInputLength(query, "La consulta", MAX_QUESTION_CHARS);
+    assertInputLength(version, "La versión", MAX_LABEL_CHARS);
+    assertInputLength(category, "La categoría", MAX_LABEL_CHARS);
+    const scopeExpansions: TraceScopeExpansion[] = [];
     if (!query) {
       this.recordTrace("ibmi_docs_search", started, { query: "", resultCount: 0 });
       return [];
@@ -279,7 +284,7 @@ export class CorpusRepository {
     // Si el usuario fijó versión y no hay evidencia, se permite ampliar release
     // sin inventar equivalencias: se marca explícitamente la versión usada.
     if (version && allowVersionExpansion) {
-      const broaderResults = await this.searchSmart({ ...options, version: undefined, ibmiVersion: undefined, limit, skipVersionExpansion: true } as SearchOptions);
+      const broaderResults = await this.search({ ...options, version: undefined, ibmiVersion: undefined, limit, skipVersionExpansion: true } as SearchOptions);
       const scopedTop = results[0];
       const broaderTop = broaderResults[0];
       const sameCanonicalTopic = Boolean(scopedTop?.canonicalTopicKey)
@@ -295,6 +300,17 @@ export class CorpusRepository {
           `No se encontró evidencia en IBM i ${version}; se muestra evidencia disponible en ${hit.version}.`
         ]
       }));
+      if (results.some((hit) => hit.requestedVersionScopeExpansion)) {
+        scopeExpansions.push({
+          kind: "version",
+          requestedScope: version,
+          usedScope: results[0]?.version ?? "sin evidencia",
+          topResultId: results[0]?.id,
+          topResultTitle: results[0]?.title,
+          reason: "La recuperación neuronal encontró evidencia más pertinente fuera del release solicitado.",
+          improvementHint: "Revisar cobertura documental y ejemplos de entrenamiento del release solicitado."
+        });
+      }
     }
 
     this.recordTrace("ibmi_docs_search", started, {
@@ -304,7 +320,8 @@ export class CorpusRepository {
       topResultId: results[0]?.id,
       topResultTitle: results[0]?.title,
       autoReadApplied: results.some((hit) => hit.autoReadApplied),
-      followedReadCandidateIds: results.slice(0, 3).map((hit) => hit.id)
+      followedReadCandidateIds: results.slice(0, 3).map((hit) => hit.id),
+      scopeExpansions
     });
     return results;
   }
@@ -316,12 +333,8 @@ export class CorpusRepository {
    */
   private async selectNeuralAnswer(options: AssistOptions, question: string): Promise<NeuralAnswerSelection> {
     const requestedVersion = normalizeVersionOption(options.version ?? options.ibmiVersion);
-    const contextualQuestion = composeNeuralQuestion(question, undefined, options.code);
-    const perspectives = uniqueNonEmpty([
-      contextualQuestion,
-      ...buildNeuralQueryPerspectives(question),
-      options.code ?? ""
-    ]);
+    const contextualQuestion = composeNeuralQuestion(question, options.language, options.code);
+    const perspectives = buildAssistQueryPerspectives(question, options.language, options.code);
     const baseQueryVectors = await embedTexts(
       perspectives.map((perspective) => semanticQueryText(perspective)),
       { localOnly: true, kind: "query" }
@@ -330,7 +343,7 @@ export class CorpusRepository {
     // general y su proyección IBM i query->corpus. Ambas
     // vistas participan siempre y la cabeza afinada gobierna el score directo.
     const foundationQueryVectors = await embedTexts(
-      [semanticQueryText(contextualQuestion)],
+      [semanticQueryText(composeNeuralQuestion(question, undefined, options.code))],
       { localOnly: true, kind: "query-foundation" }
     );
     const queryVectors = [...baseQueryVectors, ...foundationQueryVectors];
@@ -812,10 +825,6 @@ export class CorpusRepository {
     };
   }
 
-  search(_options: SearchOptions): SearchHit[] {
-    throw new Error("La API síncrona search() fue retirada del runtime público: usa searchSmart(), que ejecuta recuperación neuronal local con Transformers.js.");
-  }
-
   read(id: string): ReadResult | null {
     const started = Date.now();
     const row = this.db.prepare("SELECT * FROM documents WHERE id = ?").get(id) as Row | undefined;
@@ -855,20 +864,30 @@ export class CorpusRepository {
     return { topic, sections };
   }
 
-  async assistSmart(options: AssistOptions): Promise<AssistResult> {
+  async assist(options: AssistOptions): Promise<AssistResult> {
     const started = Date.now();
     const question = String(options.question ?? options.query ?? "").trim();
+    if (!question) throw new Error("La pregunta no puede estar vacía.");
+    assertInputLength(question, "La pregunta", MAX_QUESTION_CHARS);
+    assertInputLength(options.code, "El código", MAX_CODE_CHARS);
+    assertInputLength(options.language, "El lenguaje", MAX_LABEL_CHARS);
+    assertInputLength(options.version, "La versión", MAX_LABEL_CHARS);
+    assertInputLength(options.category, "La categoría", MAX_LABEL_CHARS);
     const depth = options.depth ?? "standard";
     const defaultLimit = depth === "deep" ? 8 : depth === "concise" ? 4 : 6;
     const limit = clamp(options.limit, defaultLimit, 1, 12);
     const sectionLimit = depth === "deep" ? 8 : depth === "concise" ? 3 : 5;
-    const contextualQuestion = composeNeuralQuestion(question, undefined, options.code);
+    const contextualQuestion = composeNeuralQuestion(question, options.language, options.code);
+    const queryPerspectives = buildAssistQueryPerspectives(question, options.language, options.code);
     const answerSelection = await this.selectNeuralAnswer(options, question);
     const answerHits = answerSelection.candidates
       .slice(0, Math.max(limit * 2, 8))
       .map((candidate) => this.hitFromAnswerCandidate(candidate, question));
     const evidence = answerHits.slice(0, limit * 2);
-    const responseCandidates = selectResponseCandidates(answerSelection.candidates);
+    const responseCandidates = selectResponseCandidates(
+      answerSelection.candidates,
+      depth === "deep" ? 4 : 3
+    );
     const selectedByDocument = new Map<string, NeuralAnswerCandidate>();
     for (const candidate of responseCandidates) {
       if (!selectedByDocument.has(candidate.candidate.documentId)) {
@@ -907,7 +926,7 @@ export class CorpusRepository {
     const retrievalHop: AssistRetrievalHop = {
       axis: "primary",
       query: contextualQuestion,
-      reason: "Recuperación multi-perspectiva y reranking neuronal sobre todo el índice vectorial.",
+      reason: "Recuperación neuronal multi-vista y reranking sobre todo el índice vectorial.",
       status: "executed",
       resultCount: answerSelection.candidates.length,
       readCount: reads.length,
@@ -916,9 +935,9 @@ export class CorpusRepository {
       warnings
     };
     const retrievalPlan: AssistRetrievalPlan = {
-      strategy: "multi-hop",
-      axes: ["primary", "semantic-variant"],
-      initialQueries: [contextualQuestion],
+      strategy: "single-pass",
+      axes: queryPerspectives.length > 1 ? ["primary", "semantic-variant"] : ["primary"],
+      initialQueries: queryPerspectives,
       followUpQueries: [],
       hops: [retrievalHop],
       coverageGaps: coverage.missingTechnicalTerms
@@ -932,10 +951,11 @@ export class CorpusRepository {
       responseTemplate: "Respuesta final compacta respaldada por recuperación y reranking neuronales.",
       minimumCoverage: "exploratory"
     };
+    const requestedVersion = normalizeVersionOption(options.version ?? options.ibmiVersion);
     const answer = renderFinalAgentAnswer({
       supported: answerSelection.supported,
       candidates: responseCandidates,
-      requestedVersion: normalizeVersionOption(options.version ?? options.ibmiVersion)
+      requestedVersion
     });
     const specificFindings = responseCandidates.map((candidate) => compactAnswerPassage(candidate.body, 900));
     const executiveSummary = [answer];
@@ -974,7 +994,7 @@ export class CorpusRepository {
 
     const result: AssistResult = {
       question,
-      intent: "explain_topic",
+      intent: "neural_retrieval",
       confidence,
       taskPlan,
       answer,
@@ -998,105 +1018,27 @@ export class CorpusRepository {
       citations,
       warnings
     };
+    const primaryVersion = responseCandidates[0]?.candidate.version;
+    const scopeExpansions: TraceScopeExpansion[] = requestedVersion && primaryVersion && requestedVersion !== primaryVersion
+      ? [{
+          kind: "version",
+          requestedScope: requestedVersion,
+          usedScope: primaryVersion,
+          topResultId: responseCandidates[0]?.candidate.documentId,
+          topResultTitle: responseCandidates[0]?.candidate.title,
+          reason: "La respuesta neuronal necesitó evidencia de otro release para mantener pertinencia.",
+          improvementHint: "Ampliar cobertura y ejemplos de entrenamiento del release solicitado."
+        }]
+      : [];
     this.recordTrace("ibmi_docs_assist", started, {
       query: question,
-      intent: "explain_topic",
+      intent: "neural_retrieval",
       resultCount: evidence.length,
       topResultId: evidence[0]?.id,
-      topResultTitle: evidence[0]?.title
+      topResultTitle: evidence[0]?.title,
+      scopeExpansions
     });
     return result;
-  }
-
-  assist(options: AssistOptions): AssistResult {
-    return this.neuralOnlySyncNotice(options.question ?? options.query ?? "", "ibmi_docs_assist") as AssistResult;
-  }
-
-  answer(options: AnswerOptions): AnswerResult {
-    const notice = this.neuralOnlySyncNotice(options.question ?? options.query ?? "", "ibmi_docs_answer");
-    return {
-      question: notice.question ?? String(options.question ?? options.query ?? "").trim(),
-      answer: notice.answer ?? "",
-      confidence: "baja",
-      citations: [],
-      evidence: [],
-      warnings: notice.warnings ?? [],
-      suggestedTools: []
-    };
-  }
-
-  context(options: ContextOptions): ContextPackage {
-    const task = String(options.task ?? options.query ?? "").trim();
-    return {
-      task,
-      intent: { language: options.language ?? "IBM i", category: undefined, detectedSignals: ["neural-only-sync-api-disabled"], queries: [task] },
-      answer: "La API síncrona de contexto fue retirada del runtime público. Usa ibmi_docs_assist, que materializa contexto con recuperación neuronal.",
-      appliedWorkflow: [{ tool: "ibmi_docs_assist", reason: "Entrada canónica neural-only.", status: "planned" }],
-      recommendedDocs: [],
-      compileCommands: [],
-      optionsToReview: [],
-      pitfalls: [],
-      actionItems: [],
-      versionNotes: [],
-      evidence: [],
-      reads: [],
-      sections: [],
-      citations: [],
-      warnings: ["Usa assistSmart()/ibmi_docs_assist para recuperación neural real."]
-    };
-  }
-
-  resolve(options: ResolveOptions): ResolveResult {
-    const question = String(options.question ?? options.query ?? "").trim();
-    return {
-      question,
-      intent: "explain_topic",
-      policy: NEURAL_POLICY,
-      answer: "La API síncrona resolve() fue retirada del runtime público. Usa ibmi_docs_assist/assistSmart para ejecutar recuperación neuronal.",
-      confidence: "baja",
-      stages: [{ tool: "ibmi_docs_assist", reason: "Entrada canónica neural-only.", status: "planned" }],
-      evidence: [],
-      reads: [],
-      sections: [],
-      citations: [],
-      suggestedTools: [],
-      warnings: ["No se ejecutó recuperación síncrona para evitar rutas no neuronales."]
-    };
-  }
-
-  compileGuidance(options: import("../types.js").CompileGuidanceOptions): CompileGuidance {
-    return {
-      language: options.language ?? "IBM i",
-      target: options.target ?? "documented target",
-      recommendedCommands: [],
-      relatedCommands: [],
-      optionsToReview: [],
-      pitfalls: ["Usa ibmi_docs_assist para recuperar guía de compilación con evidencia neuronal materializada."],
-      evidence: []
-    };
-  }
-
-  explainMessage(options: { messageId: string; limit?: number }): MessageExplanation {
-    return {
-      messageId: options.messageId,
-      family: "neural-only",
-      category: "documental",
-      summary: "Usa ibmi_docs_assist para diagnosticar mensajes con recuperación neuronal materializada.",
-      recoveryChecklist: [],
-      evidence: [],
-      coverageStatus: "unsupported",
-      warnings: ["API síncrona especializada retirada para evitar rutas manuales."]
-    };
-  }
-
-  validateCodeContext(options: CodeValidationOptions): CodeValidationResult {
-    const finding: CodeValidationFinding = {
-      severity: "info",
-      title: "Validación neural disponible vía assist",
-      detail: "Usa ibmi_docs_assist/assistSmart con question y code para recuperar evidencia neuronal materializada.",
-      evidenceIds: []
-    };
-    return { language: options.language, detectedSignals: [], findings: [finding], evidence: [] };
   }
 
   related(id: string, options: RelatedOptions = {}): RelatedDocuments {
@@ -1109,34 +1051,52 @@ export class CorpusRepository {
     return { topic, equivalentVersions: equivalents.map((row) => this.hitFromDocumentRow(row, topic.title, 1)), related: [] };
   }
 
-  compareVersions(options: CompareVersionsOptions): VersionComparison {
-    const versions = options.versions.length ? options.versions : SUPPORTED_VERSIONS;
+  async explainRanking(options: RankingExplanationOptions): Promise<RankingExplanation> {
+    const results = await this.search({ ...options, limit: options.top ?? options.limit ?? 5 });
     return {
       query: options.query,
-      versions: versions.map((version) => ({ version, found: false, notes: ["Usa ibmi_docs_assist para comparación neuronal materializada por versión."] })),
-      evidence: []
+      semanticQueries: buildNeuralQueryPerspectives(options.query),
+      results: results.map((hit) => ({
+        hit,
+        reasons: hit.matchReasons ?? [],
+        taxonomy: hit.taxonomy ?? { kind: "general", label: "Recuperación neuronal", confidence: hit.semanticScore ?? 0, signals: [] },
+        semanticScore: hit.semanticScore ?? 0,
+        documentKind: hit.documentKind,
+        canonicalTopicKey: hit.canonicalTopicKey,
+        relevanceWarnings: hit.relevanceWarnings
+      }))
     };
   }
 
-  explainRanking(options: RankingExplanationOptions): RankingExplanation {
-    return { query: options.query, semanticQueries: [options.query], results: [] };
-  }
-
-  reportQuery(options: QueryReportOptions): QueryReport {
-    const ranking = this.explainRanking(options);
+  async reportQuery(options: QueryReportOptions): Promise<QueryReport> {
+    const ranking = await this.explainRanking(options);
+    const results = ranking.results.map((entry) => entry.hit);
+    const top = results[0];
+    const pass = Boolean(
+      (!options.expectedTitle || top?.title.includes(options.expectedTitle))
+      && (!options.expectedId || top?.id === options.expectedId)
+    );
     return {
       generatedAt: new Date().toISOString(),
       query: options.query,
       options,
       diagnostics: {
-        topResultTitle: undefined,
-        topResultId: undefined,
-        pass: false,
-        warnings: ["El reporte síncrono no ejecuta recuperación; usa ibmi_docs_assist para evidencia neural."]
+        topResultTitle: top?.title,
+        topResultId: top?.id,
+        pass,
+        warnings: top?.relevanceWarnings ?? []
       },
-      results: [],
+      results,
       ranking,
-      issueMarkdown: [`# IBM i Docs query report`, ``, `Query: ${options.query}`, ``, `Runtime: neural-only; usa assistSmart para reproducir.`].join("\n")
+      issueMarkdown: [
+        "# Reporte de búsqueda IBM i Docs",
+        "",
+        `Consulta: ${options.query}`,
+        `Resultado principal: ${top ? `${top.title} (${top.id})` : "sin resultado"}`,
+        `Cumple expectativa: ${pass}`,
+        "",
+        ...results.map((hit, index) => `${index + 1}. ${hit.title} [${hit.version}/${hit.category}] score=${hit.score}`)
+      ].join("\n")
     };
   }
 
@@ -1156,22 +1116,28 @@ export class CorpusRepository {
     const rows = this.db.prepare("SELECT normalized_text_path FROM documents").all() as Array<{ normalized_text_path: string }>;
     let missingFiles = 0;
     const longPaths: string[] = [];
+    const anomalies: string[] = [];
     for (const row of rows) {
-      const fullPath = path.join(this.packDir, String(row.normalized_text_path));
-      if (!fs.existsSync(fullPath)) missingFiles += 1;
-      if (fullPath.length > 240) longPaths.push(fullPath);
+      try {
+        const fullPath = resolveContainedExistingPath(this.packDir, String(row.normalized_text_path));
+        if (fullPath.length > 240) longPaths.push(fullPath);
+      } catch (error) {
+        missingFiles += 1;
+        if (anomalies.length < 50) anomalies.push(error instanceof Error ? error.message : String(error));
+      }
     }
+    const vectorCoverage = this.vectorCoverageDiagnostics();
     return {
-      ok: missingFiles === 0,
+      ok: missingFiles === 0 && vectorCoverage.ok,
       packDir: this.packDir,
       corpusVersion: manifest.corpusVersion,
       documents: this.scalarNumber("SELECT COUNT(*) FROM documents"),
       chunks: this.scalarNumber("SELECT COUNT(*) FROM chunks"),
-      vectorCoverage: this.vectorCoverageDiagnostics(),
+      vectorCoverage,
       missingFiles,
       checkedFiles: rows.length,
       longPaths,
-      anomalies: [],
+      anomalies,
       runtimeDependency: "Sin RDi, sin Eclipse Help, sin endpoint local de RDi"
     };
   }
@@ -1180,27 +1146,153 @@ export class CorpusRepository {
     const diagnostics = this.categories();
     const manifest = this.manifest();
     const shortRows = this.db.prepare("SELECT id,title,text_length,category,version FROM documents WHERE text_length < 300 LIMIT 50").all() as Row[];
+    const duplicateTitles = this.db.prepare(`
+      SELECT title, COUNT(*) AS count, GROUP_CONCAT(DISTINCT version) AS versions
+      FROM documents GROUP BY title HAVING COUNT(*) > 1 ORDER BY count DESC, title LIMIT 100
+    `).all() as Row[];
+    const duplicateTitlesSameVersion = this.db.prepare(`
+      SELECT title, version, COUNT(*) AS count, GROUP_CONCAT(DISTINCT category) AS categories
+      FROM documents
+      GROUP BY title, version, category, sha256
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC, title LIMIT 100
+    `).all() as Row[];
+    const duplicateCanonicalTopics = this.db.prepare(`
+      SELECT canonical_topic_key, COUNT(*) AS count,
+             GROUP_CONCAT(DISTINCT title) AS titles, GROUP_CONCAT(DISTINCT version) AS versions
+      FROM documents
+      WHERE COALESCE(canonical_topic_key, '') <> ''
+      GROUP BY canonical_topic_key
+      HAVING COUNT(*) > COUNT(DISTINCT version)
+      ORDER BY count DESC LIMIT 100
+    `).all() as Row[];
+    const categoryCounts = Object.entries(diagnostics.byCategory);
+    const sparseThreshold = Math.max(5, Math.floor(this.scalarNumber("SELECT COUNT(*) FROM documents") * 0.001));
+    const vectorCoverage = this.vectorCoverageDiagnostics();
+    const packDiagnostics = this.packDiagnostics();
+    const sameVersionKeys = new Set(duplicateTitlesSameVersion.map((row) => `${String(row.title)}\u0000${String(row.version)}`));
+    const documentCount = this.scalarNumber("SELECT COUNT(*) FROM documents");
+    const shortDocumentCount = this.scalarNumber("SELECT COUNT(*) FROM documents WHERE text_length < 300");
+    const stubCount = this.countDocumentKind("stub");
+    const declaredCategoryCounts = ((manifest.coverage as { byCategory?: Record<string, number> }).byCategory ?? {});
+    const declaredCategories = Object.entries(declaredCategoryCounts);
+    const consistentDeclaredCategories = declaredCategories.filter(([category, count]) =>
+      diagnostics.byCategory[category] === Number(count)
+    ).length;
+    const substantialCategoryCount = Object.values(diagnostics.byCategory)
+      .filter((count) => count >= QUALITY_MIN_DOCUMENTS_PER_SUBSTANTIAL_CATEGORY).length;
+    const qualityChecks: QualityReport["qualityPolicy"]["checks"] = [
+      {
+        name: "integridad-vectorial-y-fisica",
+        ok: vectorCoverage.ok && packDiagnostics.ok,
+        actual: vectorCoverage.ok && packDiagnostics.ok ? 1 : 0,
+        threshold: 1,
+        operator: "eq",
+        detail: "SQLite, vectores y archivos normalizados deben estar íntegros."
+      },
+      {
+        name: "volumen-minimo-documental",
+        ok: documentCount >= QUALITY_MIN_DOCUMENTS,
+        actual: documentCount,
+        threshold: QUALITY_MIN_DOCUMENTS,
+        operator: "gte",
+        detail: "Evita publicar accidentalmente un corpus parcial."
+      },
+      {
+        name: "duplicados-exactos-misma-version",
+        ok: duplicateTitlesSameVersion.length === 0,
+        actual: duplicateTitlesSameVersion.length,
+        threshold: 0,
+        operator: "eq",
+        detail: "No se permiten duplicados exactos dentro de la misma versión y categoría."
+      },
+      {
+        name: "categorias-coherentes-con-manifest",
+        ok: declaredCategories.length > 0 && consistentDeclaredCategories === declaredCategories.length,
+        actual: consistentDeclaredCategories,
+        threshold: declaredCategories.length,
+        operator: "eq",
+        detail: "La cobertura por categoría del SQLite debe coincidir con el contrato publicado en manifest.json."
+      },
+      {
+        name: "categorias-con-cobertura-sustancial",
+        ok: substantialCategoryCount >= QUALITY_MIN_SUBSTANTIAL_CATEGORIES,
+        actual: substantialCategoryCount,
+        threshold: QUALITY_MIN_SUBSTANTIAL_CATEGORIES,
+        operator: "gte",
+        detail: `Al menos ${QUALITY_MIN_SUBSTANTIAL_CATEGORIES} categorías deben conservar ${QUALITY_MIN_DOCUMENTS_PER_SUBSTANTIAL_CATEGORY} documentos o más.`
+      },
+      {
+        name: "tasa-maxima-stubs",
+        ok: documentCount > 0 && stubCount / documentCount <= QUALITY_MAX_STUB_RATE,
+        actual: documentCount > 0 ? stubCount / documentCount : 1,
+        threshold: QUALITY_MAX_STUB_RATE,
+        operator: "lte",
+        detail: "Limita páginas sin contenido suficiente para responder."
+      },
+      {
+        name: "tasa-maxima-documentos-cortos",
+        ok: documentCount > 0 && shortDocumentCount / documentCount <= QUALITY_MAX_SHORT_DOCUMENT_RATE,
+        actual: documentCount > 0 ? shortDocumentCount / documentCount : 1,
+        threshold: QUALITY_MAX_SHORT_DOCUMENT_RATE,
+        operator: "lte",
+        detail: "Controla degradaciones del normalizador o crawls incompletos."
+      },
+      ...QUALITY_REQUIRED_RELEASES.map((release) => ({
+        name: `cobertura-ibm-i-${release}`,
+        ok: (diagnostics.byVersion[release] ?? 0) >= QUALITY_MIN_DOCUMENTS_PER_IBM_I_RELEASE,
+        actual: diagnostics.byVersion[release] ?? 0,
+        threshold: QUALITY_MIN_DOCUMENTS_PER_IBM_I_RELEASE,
+        operator: "gte" as const,
+        detail: `IBM i ${release} debe conservar cobertura documental mínima.`
+      }))
+    ];
+    const qualityPolicy = {
+      ok: qualityChecks.every((check) => check.ok),
+      checks: qualityChecks,
+      failedChecks: qualityChecks.filter((check) => !check.ok).map((check) => check.name)
+    };
     return {
-      ok: true,
+      ok: qualityPolicy.ok,
       generatedAt: new Date().toISOString(),
       corpusVersion: manifest.corpusVersion,
-      documents: this.scalarNumber("SELECT COUNT(*) FROM documents"),
+      documents: documentCount,
       chunks: this.scalarNumber("SELECT COUNT(*) FROM chunks"),
-      vectorCoverage: this.vectorCoverageDiagnostics(),
+      vectorCoverage,
       coverage: diagnostics,
       shortDocuments: shortRows.map((row) => ({ id: String(row.id), title: String(row.title), textLength: Number(row.text_length), category: String(row.category), version: String(row.version) })),
-      duplicateTitles: [],
-      duplicateTitlesSameVersion: [],
-      duplicateTitlesCrossVersionExpected: [],
-      duplicateCanonicalTopics: [],
+      duplicateTitles: duplicateTitles.map((row) => ({
+        title: String(row.title),
+        count: Number(row.count),
+        versions: splitSqliteList(row.versions)
+      })),
+      duplicateTitlesSameVersion: duplicateTitlesSameVersion.map((row) => ({
+        title: String(row.title),
+        count: Number(row.count),
+        version: String(row.version),
+        categories: splitSqliteList(row.categories)
+      })),
+      duplicateTitlesCrossVersionExpected: duplicateTitles
+        .filter((row) => splitSqliteList(row.versions).length > 1
+          && !splitSqliteList(row.versions).some((version) => sameVersionKeys.has(`${String(row.title)}\u0000${version}`)))
+        .map((row) => ({ title: String(row.title), count: Number(row.count), versions: splitSqliteList(row.versions) })),
+      duplicateCanonicalTopics: duplicateCanonicalTopics.map((row) => ({
+        canonicalTopicKey: String(row.canonical_topic_key),
+        count: Number(row.count),
+        titles: splitSqliteList(row.titles),
+        versions: splitSqliteList(row.versions)
+      })),
       documentKinds: {
         topic: this.countDocumentKind("topic"),
         reference: this.countDocumentKind("reference"),
         index: this.countDocumentKind("index"),
         landing: this.countDocumentKind("landing"),
-        stub: this.countDocumentKind("stub")
+        stub: stubCount
       },
-      sparseCategories: [],
+      sparseCategories: categoryCounts
+        .filter(([, count]) => count < sparseThreshold)
+        .map(([category, count]) => ({ category, count })),
+      qualityPolicy,
       benchmarkHints: ["Ejecuta eval:question-bank contra ibmi_docs_assist para validar recuperación neural end-to-end."],
       recommendations: ["Las mejoras deben venir de corpus, embeddings, fine-tuning o evaluación; no de reglas manuales."]
     };
@@ -1216,8 +1308,26 @@ export class CorpusRepository {
 
   private getNeuralCandidates(): NeuralCandidate[] {
     const dbPath = path.join(this.packDir, "ibmi-docs.sqlite");
+    const manifestPath = path.join(this.packDir, "manifest.json");
+    const stat = fs.statSync(dbPath, { bigint: true });
+    const manifestStat = fs.statSync(manifestPath, { bigint: true });
+    const databaseGeneration = this.getMetaValue("generated_at") ?? "unknown-generation";
+    // ctime/inode detectan reemplazos atómicos aunque tamaño y mtime hayan sido
+    // preservados. El manifest y la generación SQLite enlazan la caché con la
+    // identidad lógica del pack, no solo con su ruta.
+    const fingerprint = [
+      stat.dev,
+      stat.ino,
+      stat.size,
+      stat.mtimeNs,
+      stat.ctimeNs,
+      manifestStat.size,
+      manifestStat.mtimeNs,
+      manifestStat.ctimeNs,
+      databaseGeneration
+    ].join(":");
     const cached = CorpusRepository.candidateCache.get(dbPath);
-    if (cached) return cached;
+    if (cached?.fingerprint === fingerprint) return cached.candidates;
     const rows = this.db.prepare(`
       SELECT c.id AS chunk_id, c.chunk_index, d.id, d.title, d.source_kind, d.source_id, d.version, d.category, d.canonical_url,
              d.text_length, d.breadcrumbs_json, d.document_kind, d.canonical_topic_key,
@@ -1241,7 +1351,15 @@ export class CorpusRepository {
       vector: bufferToNeuralVector(row.vector as Buffer),
       titleVector: bufferToNeuralVector(row.title_vector as Buffer)
     }));
-    CorpusRepository.candidateCache.set(dbPath, candidates);
+    CorpusRepository.candidateCache.set(dbPath, { fingerprint, candidates, loadedAt: Date.now() });
+    // El proceso MCP normalmente usa un solo pack; el límite evita retener
+    // cientos de MB si un operador inspecciona múltiples packs en una sesión.
+    while (CorpusRepository.candidateCache.size > 3) {
+      const oldest = [...CorpusRepository.candidateCache.entries()]
+        .sort((left, right) => left[1].loadedAt - right[1].loadedAt)[0];
+      if (!oldest) break;
+      CorpusRepository.candidateCache.delete(oldest[0]);
+    }
     return candidates;
   }
 
@@ -1321,8 +1439,8 @@ export class CorpusRepository {
 
   private readNormalizedText(row: Row): string {
     const relativePath = String(row.normalized_text_path ?? "");
-    const fullPath = path.join(this.packDir, relativePath);
-    return fs.existsSync(fullPath) ? fs.readFileSync(fullPath, "utf8") : "";
+    const fullPath = resolveContainedExistingPath(this.packDir, relativePath);
+    return fs.readFileSync(fullPath, "utf8");
   }
 
   private sectionsForDocument(documentId: string, content: string): TopicSection[] {
@@ -1408,43 +1526,6 @@ export class CorpusRepository {
     };
   }
 
-  private neuralOnlySyncNotice(question: string, tool: string): Partial<AssistResult> {
-    const text = String(question ?? "").trim();
-    return {
-      question: text,
-      intent: "explain_topic" as DocsIntent,
-      confidence: "baja",
-      taskPlan: {
-        family: "neural_retrieval",
-        summary: "La entrada canónica neural-only es assistSmart()/ibmi_docs_assist.",
-        requiredEvidence: NEURAL_POLICY.requiredEvidence,
-        retrievalAxes: ["primary"],
-        responseTemplate: "Recuperación neuronal asíncrona.",
-        minimumCoverage: "exploratory"
-      },
-      answer: `La API síncrona ${tool} fue retirada para evitar rutas manuales. Usa ibmi_docs_assist/assistSmart, que ejecuta Transformers.js local y materializa evidencia.`,
-      executiveSummary: [],
-      specificFindings: [],
-      implementationSteps: [],
-      validationChecklist: [],
-      relevance: {
-        directEmbeddingScore: 0,
-        rerankerLogit: Number.NEGATIVE_INFINITY,
-        rerankerProbability: 0,
-        supported: false,
-        selectedPassageIds: []
-      },
-      coverage: { status: "thin", summary: "Sin ejecución síncrona.", evidenceCount: 0, readCount: 0, sectionCount: 0, matchedTechnicalTerms: [], missingTechnicalTerms: [], warnings: [] },
-      retrievalPlan: { strategy: "single-pass", axes: ["primary"], initialQueries: [text], followUpQueries: [], hops: [], coverageGaps: [] },
-      workflow: [{ tool: "ibmi_docs_assist", reason: "Entrada canónica neural-only.", status: "planned" }],
-      evidence: [],
-      reads: [],
-      sections: [],
-      citations: [],
-      warnings: ["No se ejecutó recuperación síncrona para evitar rutas no neuronales."]
-    };
-  }
-
   private scalarNumber(sql: string): number {
     const row = this.db.prepare(sql).get() as Record<string, number> | undefined;
     return Number(row ? Object.values(row)[0] : 0);
@@ -1469,7 +1550,7 @@ export class CorpusRepository {
     return Number((this.db.prepare("SELECT COUNT(*) AS count FROM documents WHERE document_kind = ?").get(kind) as { count: number }).count);
   }
 
-  private recordTrace(tool: string, started: number, event: Partial<TraceEvent>): void {
+  private recordTrace(tool: string, started: number, event: Partial<TraceInputEvent>): void {
     if (!isTraceEnabled()) return;
     appendTraceEvent(defaultTraceFile(), { timestamp: new Date().toISOString(), tool, durationMs: Date.now() - started, ...event });
   }
@@ -1489,11 +1570,26 @@ function composeNeuralQuestion(question: string, language?: string, code?: strin
   ].filter((part) => part.trim()).join("\n\n").trim();
 }
 
+function buildAssistQueryPerspectives(question: string, language?: string, code?: string): string[] {
+  const primary = composeNeuralQuestion(question, undefined, code);
+  const contextual = composeNeuralQuestion(question, language, code);
+  return uniqueNonEmpty([
+    primary,
+    contextual === primary ? "" : contextual,
+    ...buildNeuralQueryPerspectives(question),
+    code?.trim() ?? ""
+  ]).slice(0, 4);
+}
+
 function composeNeuralRerankerQuestion(question: string, code?: string): string {
   return [
     question.trim(),
     code ? `Code context:\n${code.trim()}` : ""
   ].filter((part) => part.trim()).join("\n\n").trim();
+}
+
+function splitSqliteList(value: unknown): string[] {
+  return [...new Set(String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean))];
 }
 
 function insertNeuralPassageMatch(passages: NeuralPassageMatch[], match: NeuralPassageMatch, maxItems: number): void {
@@ -1601,7 +1697,7 @@ function uniqueCandidatesByCanonicalTopic<T extends { candidate: NeuralCandidate
   });
 }
 
-function selectResponseCandidates(candidates: NeuralAnswerCandidate[]): NeuralAnswerCandidate[] {
+function selectResponseCandidates(candidates: NeuralAnswerCandidate[], maxDocuments = 3): NeuralAnswerCandidate[] {
   if (!candidates.length) return [];
   const top = candidates[0];
   const topLength = compactAnswerPassage(top.body, 900).length;
@@ -1682,7 +1778,7 @@ function selectResponseCandidates(candidates: NeuralAnswerCandidate[]): NeuralAn
   // cuando su logit está prácticamente empatado con el principal; esto hace
   // estable la cobertura compuesta frente a pequeñas diferencias numéricas
   // entre backends ONNX sin convertir diversidad en relleno tangencial.
-  while (selected.length < 3 && alternatives.length) {
+  while (selected.length < maxDocuments && alternatives.length) {
     let bestIndex = -1;
     let bestScore = Number.NEGATIVE_INFINITY;
     for (let index = 0; index < alternatives.length; index += 1) {
@@ -1737,7 +1833,14 @@ function sigmoidScore(value: number): number {
  */
 function buildNeuralQueryPerspectives(query: string): string[] {
   const clean = query.trim();
-  return clean ? [clean] : [];
+  if (!clean) return [];
+  const segmenter = new Intl.Segmenter(undefined, { granularity: "sentence" });
+  const sentences = [...segmenter.segment(clean)]
+    .map((segment) => segment.segment.replace(/\s+/g, " ").trim())
+    .filter((sentence) => sentence.length >= 24 && sentence.length < clean.length);
+  // Las perspectivas preservan unidades lingüísticas completas. No extraen
+  // keywords, comandos ni categorías mediante regex o diccionarios manuales.
+  return uniqueNonEmpty([clean, ...sentences]).slice(0, 4);
 }
 
 /**
@@ -1837,13 +1940,13 @@ function compactAnswerPassage(text: string, maxLength: number): string {
   return compact;
 }
 
-function makeSnippet(text: string, query: string, maxLength: number): string {
+function makeSnippet(text: string, _query: string, maxLength: number): string {
   const clean = text.split("\r").join(" ").split("\n").join(" ").split("\t").join(" ").trim();
   if (!clean) return "";
-  const index = query.trim() ? clean.toLowerCase().indexOf(query.trim().toLowerCase()) : -1;
-  const start = index > 80 ? index - 80 : 0;
-  const snippet = clean.slice(start, start + maxLength).trim();
-  return snippet.length < clean.length - start ? `${snippet}…` : snippet;
+  // La ventana ya fue elegida por embeddings/cross-encoder. La presentación
+  // no vuelve a localizar texto mediante coincidencias exactas.
+  const snippet = clean.slice(0, maxLength).trim();
+  return snippet.length < clean.length ? `${snippet}…` : snippet;
 }
 
 function joinUniqueFragments(fragments: string[], maxLength: number): string {

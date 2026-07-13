@@ -91,19 +91,9 @@ export interface SearchOptions {
   limit?: number;
   autoRead?: boolean;
   includeSections?: boolean;
-  strictCategory?: boolean;
 }
 
-export type DocsIntent =
-  | "explain_topic"
-  | "multi_intent"
-  | "syntax_lookup"
-  | "compile_guidance"
-  | "message_diagnostic"
-  | "code_review"
-  | "version_question"
-  | "ranking_debug"
-  | "search_discovery";
+export type DocsIntent = "neural_retrieval";
 
 export interface WorkflowStage {
   tool: string;
@@ -111,12 +101,6 @@ export interface WorkflowStage {
   status: "planned" | "executed" | "skipped";
   evidenceIds?: string[];
   outputSummary?: string;
-}
-
-export interface NextToolRecommendation {
-  tool: string;
-  reason: string;
-  arguments: Record<string, unknown>;
 }
 
 export interface SearchHit {
@@ -131,24 +115,16 @@ export interface SearchHit {
   canonicalUrl: string;
   breadcrumbs: string[];
   textLength?: number;
-  readHint?: string;
   taxonomy?: TopicTaxonomy;
   semanticScore?: number;
   matchReasons?: string[];
   sectionsPreview?: TopicSection[];
   autoReadApplied?: boolean;
   fullContent?: string;
-  nextRecommendedTool?: string;
-  nextRecommendedReason?: string;
-  nextRecommendedArguments?: Record<string, unknown>;
-  workflowHints?: string[];
   documentKind?: DocumentKind;
   canonicalTopicKey?: string;
   relevanceWarnings?: string[];
   requestedVersionScopeExpansion?: boolean;
-  requestedCategoryScopeExpansion?: boolean;
-  messageFamilyScopeExpansion?: boolean;
-  synthetic?: boolean;
 }
 
 export interface ReadResult extends SearchHit {
@@ -156,15 +132,6 @@ export interface ReadResult extends SearchHit {
   textLength: number;
   sha256: string;
   sections?: TopicSection[];
-}
-
-export interface ContextOptions {
-  task: string;
-  query?: string;
-  language?: string;
-  limit?: number;
-  version?: string;
-  ibmiVersion?: string;
 }
 
 export interface ContextReadSummary {
@@ -182,65 +149,6 @@ export interface ContextReadSummary {
   focusedSections: TopicSection[];
 }
 
-export interface ContextPackage {
-  task: string;
-  intent: {
-    language: string;
-    category?: string;
-    detectedSignals: string[];
-    queries: string[];
-  };
-  answer: string;
-  appliedWorkflow: WorkflowStage[];
-  recommendedDocs: SearchHit[];
-  compileCommands: string[];
-  optionsToReview: string[];
-  pitfalls: string[];
-  actionItems: string[];
-  versionNotes: string[];
-  evidence: SearchHit[];
-  reads: ContextReadSummary[];
-  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
-  citations: AnswerCitation[];
-  warnings: string[];
-}
-
-export interface CompileGuidanceOptions {
-  language: string;
-  target?: "module" | "program" | "service-program" | "file" | string;
-  usesEmbeddedSql?: boolean;
-  usesCopybook?: boolean;
-  version?: string;
-  limit?: number;
-}
-
-export interface CompileGuidance {
-  language: string;
-  target: string;
-  recommendedCommands: string[];
-  relatedCommands: string[];
-  optionsToReview: string[];
-  pitfalls: string[];
-  evidence: SearchHit[];
-}
-
-export interface ExplainMessageOptions {
-  messageId: string;
-  limit?: number;
-}
-
-export interface MessageExplanation {
-  messageId: string;
-  family: string;
-  category: string;
-  summary: string;
-  recoveryChecklist: string[];
-  evidence: SearchHit[];
-  specificMatch?: boolean;
-  coverageStatus?: "specific" | "family" | "unsupported";
-  warnings?: string[];
-}
-
 export interface RelatedOptions {
   limit?: number;
 }
@@ -249,46 +157,6 @@ export interface RelatedDocuments {
   topic: ReadResult | null;
   equivalentVersions: SearchHit[];
   related: SearchHit[];
-}
-
-export interface CompareVersionsOptions {
-  query: string;
-  versions: string[];
-  category?: string;
-  limit?: number;
-}
-
-export interface VersionComparisonEntry {
-  version: string;
-  found: boolean;
-  result?: SearchHit;
-  notes: string[];
-}
-
-export interface VersionComparison {
-  query: string;
-  versions: VersionComparisonEntry[];
-  evidence: SearchHit[];
-}
-
-export interface CodeValidationOptions {
-  language: string;
-  code: string;
-  limit?: number;
-}
-
-export interface CodeValidationFinding {
-  severity: "info" | "warning" | "error";
-  title: string;
-  detail: string;
-  evidenceIds: string[];
-}
-
-export interface CodeValidationResult {
-  language: string;
-  detectedSignals: string[];
-  findings: CodeValidationFinding[];
-  evidence: SearchHit[];
 }
 
 export interface CategoryDiagnostics {
@@ -326,18 +194,6 @@ export interface VectorCoverageDiagnostics {
 }
 
 
-export interface AnswerOptions {
-  question: string;
-  query?: string;
-  language?: string;
-  version?: string;
-  ibmiVersion?: string;
-  category?: string;
-  includeExamples?: boolean;
-  includeCompileCommands?: boolean;
-  limit?: number;
-}
-
 export interface AnswerCitation {
   id: string;
   title: string;
@@ -345,16 +201,6 @@ export interface AnswerCitation {
   sourceKind: SourceKind;
   canonicalUrl: string;
   section?: string;
-}
-
-export interface AnswerResult {
-  question: string;
-  answer: string;
-  confidence: "alta" | "media" | "baja";
-  citations: AnswerCitation[];
-  evidence: SearchHit[];
-  warnings: string[];
-  suggestedTools: string[];
 }
 
 export interface WorkflowPolicy {
@@ -365,45 +211,7 @@ export interface WorkflowPolicy {
   description: string;
 }
 
-export interface ResolveOptions {
-  question: string;
-  query?: string;
-  language?: string;
-  version?: string;
-  ibmiVersion?: string;
-  category?: string;
-  code?: string;
-  includeExamples?: boolean;
-  includeCompileCommands?: boolean;
-  limit?: number;
-}
-
-export interface ResolveResult {
-  question: string;
-  intent: DocsIntent;
-  policy: WorkflowPolicy;
-  answer: string;
-  confidence: "alta" | "media" | "baja";
-  stages: WorkflowStage[];
-  evidence: SearchHit[];
-  reads: ReadResult[];
-  sections: Array<{ id: string; title: string; sections: TopicSection[] }>;
-  citations: AnswerCitation[];
-  answerResult?: AnswerResult;
-  context?: ContextPackage;
-  compileGuidance?: CompileGuidance;
-  messageExplanation?: MessageExplanation;
-  versionComparison?: VersionComparison;
-  rankingExplanation?: RankingExplanation;
-  codeValidation?: CodeValidationResult;
-  related?: RelatedDocuments;
-  suggestedTools: string[];
-  warnings: string[];
-}
-
 export type AssistDepth = "concise" | "standard" | "deep";
-
-export type AssistAudience = "agent" | "developer" | "maintainer";
 
 export interface AssistOptions {
   question: string;
@@ -414,9 +222,6 @@ export interface AssistOptions {
   category?: string;
   code?: string;
   depth?: AssistDepth;
-  audience?: AssistAudience;
-  includeExamples?: boolean;
-  includeCompileCommands?: boolean;
   limit?: number;
 }
 
@@ -433,34 +238,9 @@ export interface AssistCoverage {
 
 export type AssistRetrievalAxis =
   | "primary"
-  | "semantic-variant"
-  | "syntax"
-  | "compile"
-  | "message"
-  | "version"
-  | "code"
-  | "related"
-  | "administration"
-  | "database"
-  | "datatype"
-  | "gap-followup";
+  | "semantic-variant";
 
-export type AssistTaskFamily =
-  | "neural_retrieval"
-  | "create_program"
-  | "fix_compile_error"
-  | "fix_runtime_error"
-  | "code_review"
-  | "design_dds_file"
-  | "design_display_or_report"
-  | "command_lookup"
-  | "work_management"
-  | "object_lock_analysis"
-  | "db2_catalog_query"
-  | "date_time_conversion"
-  | "message_diagnostic"
-  | "version_check"
-  | "general_explanation";
+export type AssistTaskFamily = "neural_retrieval";
 
 export interface AssistTaskPlan {
   family: AssistTaskFamily;
@@ -485,7 +265,7 @@ export interface AssistRetrievalHop {
 }
 
 export interface AssistRetrievalPlan {
-  strategy: "single-pass" | "multi-hop";
+  strategy: "single-pass";
   axes: AssistRetrievalAxis[];
   initialQueries: string[];
   followUpQueries: string[];
@@ -555,9 +335,21 @@ export interface QualityReport {
   duplicateTitlesSameVersion?: Array<{ title: string; count: number; version: string; categories: string[] }>;
   duplicateTitlesCrossVersionExpected?: Array<{ title: string; count: number; versions: string[] }>;
   duplicateCanonicalTopics: Array<{ canonicalTopicKey: string; count: number; titles: string[]; versions: string[] }>;
-  documentKinds: Record<DocumentKind, number>;
-  sparseCategories: Array<{ category: string; count: number }>;
-  benchmarkHints: string[];
+    documentKinds: Record<DocumentKind, number>;
+    sparseCategories: Array<{ category: string; count: number }>;
+    qualityPolicy: {
+      ok: boolean;
+      checks: Array<{
+        name: string;
+        ok: boolean;
+        actual: number;
+        threshold: number;
+        operator: "gte" | "lte" | "eq";
+        detail: string;
+      }>;
+      failedChecks: string[];
+    };
+    benchmarkHints: string[];
   recommendations: string[];
 }
 
@@ -606,8 +398,10 @@ export interface DocsRecipe {
 export interface TraceEvent {
   timestamp: string;
   tool: string;
-  query?: string;
-  semanticQueries?: string[];
+  queryFingerprint?: string;
+  queryLength?: number;
+  queryPreview?: string;
+  semanticQueryCount?: number;
   id?: string;
   intent?: DocsIntent;
   topResultId?: string;
@@ -642,11 +436,10 @@ export interface TraceReport {
   searchEvents: number;
   searchOnlyRate: number;
   searchThenReadRate: number;
-  answerUsageRate: number;
-  resolveUsageRate: number;
+  assistUsageRate: number;
   scopeExpansionCount: number;
   scopeExpansionByKind: Record<string, number>;
   scopeExpansionByRequestedScope: Record<string, number>;
-  scopeExpansionFeedback: Array<TraceScopeExpansion & { query?: string; timestamp: string; tool: string }>;
+  scopeExpansionFeedback: Array<TraceScopeExpansion & { queryFingerprint?: string; queryPreview?: string; timestamp: string; tool: string }>;
   recent: TraceEvent[];
 }

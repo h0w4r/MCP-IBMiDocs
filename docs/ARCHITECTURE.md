@@ -36,6 +36,36 @@ flowchart LR
 - `src/ingest/packBuilder.ts`: normalización, curación, chunking estructural y SQLite.
 - `src/pack/dataPack.ts`: instalación/archivo de data packs `.tgz`.
 
+## Contrato interno v2
+
+`CorpusRepository` expone un único núcleo asíncrono: `search()` para exploración neuronal de bajo
+nivel y `assist()` para respuesta one-shot. No existen rutas síncronas decorativas ni un motor
+alternativo por coincidencias exactas. El hint de lenguaje, el código y las unidades lingüísticas
+completas de una consulta se incorporan a las vistas del bi-encoder y del cross-encoder.
+
+Las entradas públicas están acotadas antes de llegar al Transformer: 16.000 caracteres para
+pregunta/consulta, 100.000 para código y 256 para etiquetas de lenguaje, versión o categoría. El
+tokenizer mantiene su truncamiento por tokens, pero estos límites evitan multiplicar por varias
+perspectivas un payload accidental de varios megabytes.
+
+Los candidatos vectoriales se cachean con la identidad física y lógica del SQLite —dispositivo,
+inode, tamaños, tiempos y generación del pack— y se invalidan cuando cambia. Toda ruta
+`normalized_text_path` se valida contra la raíz física del data pack, exige un archivo regular e
+incluye protección frente a symlinks/junctions.
+
+El instalador descarga en streaming, limita bytes, rechaza links/rutas inseguras en los tar y
+reemplaza packs/modelos con rollback. Un lock con propietario y heartbeat evita instalaciones
+concurrentes; solo su propietario puede liberarlo.
+
+La integridad del pack no termina en `ibmi-docs.sqlite`: `runtime-assets.json` publica también
+`normalizedTreeSha256`, un hash agregado de rutas y contenidos normalizados. Una actualización
+reutiliza el corpus únicamente si versión, SQLite y los 7.027 textos coinciden; si falta o cambia un
+archivo, reinstala el pack completo de forma atómica.
+
+`quality-report` aplica umbrales explícitos sobre integridad, volumen, duplicados exactos, tasa de
+stubs, documentos cortos y cobertura mínima por release. Por tanto, `quality:check` es un gate de
+calidad y no un alias cosmético de la verificación SQLite.
+
 ## Política de independencia
 
 El endpoint RDi solo sirve para bootstrap durante desarrollo. No es dependencia de runtime, instalación ni sync público.

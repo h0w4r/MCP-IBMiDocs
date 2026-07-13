@@ -19,6 +19,7 @@ interface RuntimeAssetsManifest {
   generatedAt: string;
   checks: {
     sqliteSha256: string;
+    normalizedTreeSha256: string;
   };
   assets: {
     pack: RuntimeAsset;
@@ -33,7 +34,7 @@ const PACKAGE_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"),
 };
 const PACK_MANIFEST = JSON.parse(
   fs.readFileSync(path.join(ROOT, "data", "pack", "manifest.json"), "utf8")
-) as { corpusVersion: string };
+) as { corpusVersion: string; documents: Array<{ normalizedTextPath: string }> };
 const PACK_PARTS_MANIFEST = JSON.parse(
   fs.readFileSync(path.join(ROOT, "data", "pack", "ibmi-docs.sqlite.parts.json"), "utf8")
 ) as { sha256: string };
@@ -90,7 +91,8 @@ async function main(): Promise<void> {
       ? previousManifest.generatedAt
       : new Date().toISOString(),
     checks: {
-      sqliteSha256: PACK_PARTS_MANIFEST.sha256
+      sqliteSha256: PACK_PARTS_MANIFEST.sha256,
+      normalizedTreeSha256: await sha256NormalizedTree(path.join(ROOT, "data", "pack"), PACK_MANIFEST.documents)
     },
     assets
   };
@@ -130,6 +132,31 @@ async function sha256File(file: string): Promise<string> {
     stream.on("end", resolve);
   });
   return digest.digest("hex");
+}
+
+async function sha256NormalizedTree(
+  packDir: string,
+  documents: Array<{ normalizedTextPath: string }>
+): Promise<string> {
+  const aggregate = crypto.createHash("sha256");
+  const seen = new Set<string>();
+  const sorted = [...documents].sort((left, right) =>
+    String(left.normalizedTextPath).localeCompare(String(right.normalizedTextPath))
+  );
+
+  for (const document of sorted) {
+    const relative = String(document.normalizedTextPath ?? "").replace(/\\/g, "/");
+    if (!relative || seen.has(relative)) throw new Error(`Ruta normalizada ausente o duplicada: ${relative || "(vacía)"}`);
+    seen.add(relative);
+    const file = path.resolve(packDir, relative);
+    const containment = path.relative(path.resolve(packDir), file);
+    if (containment.startsWith("..") || path.isAbsolute(containment)) {
+      throw new Error(`Ruta normalizada fuera del pack: ${relative}`);
+    }
+    if (!fs.lstatSync(file).isFile()) throw new Error(`Ruta normalizada no regular: ${relative}`);
+    aggregate.update(relative).update("\0").update(await sha256File(file)).update("\n");
+  }
+  return aggregate.digest("hex");
 }
 
 main().catch((error) => {

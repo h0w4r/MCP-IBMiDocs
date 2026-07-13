@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import path from "node:path";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { syncIbmDocs } from "./ingest/ibmDocsCrawler.js";
 import { buildDataPack } from "./ingest/packBuilder.js";
@@ -77,15 +79,13 @@ program
   .option("--limit <n>", "Límite", "8")
   .option("--auto-read", "Adjunta contenido completo para resultados fuertes")
   .option("--sections", "Incluye vista previa de secciones")
-  .option("--strict-category", "No permite ampliación de alcance fuera de --category")
-  .action(async (query, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.searchSmart({
+  .action(async (query, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.search({
     query,
     category: opts.category,
     version: getIbmVersion(opts),
     limit: Number(opts.limit),
     autoRead: Boolean(opts.autoRead),
-    includeSections: Boolean(opts.sections),
-    strictCategory: Boolean(opts.strictCategory)
+    includeSections: Boolean(opts.sections)
   }))));
 
 program
@@ -115,16 +115,12 @@ program
   .option("--ibmi-version <version>", "Versión IBM i")
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--category <category>", "Categoría")
-  .option("--examples", "Incluye ejemplos si existen")
-  .option("--compile", "Incluye comandos/opciones de compilación")
   .option("--limit <n>", "Límite", "5")
-  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assist({
     question,
     language: opts.language,
     version: getIbmVersion(opts),
     category: opts.category,
-    includeExamples: Boolean(opts.examples),
-    includeCompileCommands: Boolean(opts.compile),
     limit: Number(opts.limit)
   }))));
 
@@ -139,22 +135,16 @@ program
   .option("--category <category>", "Categoría")
   .option("--code <code>", "Código a validar documentalmente")
   .option("--depth <depth>", "concise|standard|deep", "standard")
-  .option("--audience <audience>", "agent|developer|maintainer", "developer")
-  .option("--examples", "Incluye ejemplos si existen")
-  .option("--compile", "Incluye comandos/opciones de compilación")
   .option("--limit <n>", "Límite", "6")
   .option("--debug-json", "Muestra el diagnóstico interno completo; por defecto imprime solo la respuesta final")
   .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => {
-    const result = await repo.assistSmart({
+    const result = await repo.assist({
       question,
       language: opts.language,
       version: getIbmVersion(opts),
       category: opts.category,
       code: opts.code,
       depth: opts.depth,
-      audience: opts.audience,
-      includeExamples: Boolean(opts.examples),
-      includeCompileCommands: Boolean(opts.compile),
       limit: Number(opts.limit)
     });
     // La CLI comparte el contrato limpio del MCP; el JSON queda disponible
@@ -165,7 +155,7 @@ program
 
 program
   .command("resolve")
-  .description("Alias de assist: resuelve la consulta completa con recuperación neuronal multi-hop.")
+  .description("Alias de assist: resuelve la consulta completa con recuperación neuronal multi-vista.")
   .argument("<question>", "Pregunta técnica")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--language <language>", "Lenguaje/tecnología")
@@ -173,17 +163,13 @@ program
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--category <category>", "Categoría")
   .option("--code <code>", "Código a validar documentalmente")
-  .option("--examples", "Incluye ejemplos si existen")
-  .option("--compile", "Incluye comandos/opciones de compilación")
   .option("--limit <n>", "Límite", "6")
-  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+  .action(async (question, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assist({
     question,
     language: opts.language,
     version: getIbmVersion(opts),
     category: opts.category,
     code: opts.code,
-    includeExamples: Boolean(opts.examples),
-    includeCompileCommands: Boolean(opts.compile),
     limit: Number(opts.limit)
   }))));
 
@@ -196,7 +182,7 @@ program
   .option("--ibmi-version <version>", "Versión IBM i")
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--limit <n>", "Límite", "8")
-  .action(async (task, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+  .action(async (task, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assist({
     question: task,
     language: opts.language,
     version: getIbmVersion(opts),
@@ -214,7 +200,7 @@ program
   .option("--ibmi-version <version>", "Versión IBM i")
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--limit <n>", "Límite", "8")
-  .action(async (opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+  .action(async (opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assist({
     question: [
       `Necesito guía de compilación IBM i para ${String(opts.language)}.`,
       opts.target ? `Target: ${opts.target}.` : "",
@@ -223,7 +209,6 @@ program
     ].filter(Boolean).join(" "),
     language: String(opts.language),
     version: getIbmVersion(opts),
-    includeCompileCommands: true,
     limit: Number(opts.limit)
   }))));
 
@@ -233,7 +218,7 @@ program
   .argument("<messageId>", "ID de mensaje, por ejemplo RNF5393, CPF9898, MCH3601")
   .option("--pack <dir>", "Ruta explícita del data pack")
   .option("--limit <n>", "Límite", "6")
-  .action(async (messageId, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+  .action(async (messageId, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assist({
     question: `Diagnostica el mensaje IBM i ${messageId} con evidencia documental específica.`,
     limit: Number(opts.limit)
   }))));
@@ -259,7 +244,7 @@ program
     const entries = [];
     const evidence = [];
     for (const version of versions) {
-      const hits = await repo.searchSmart({ query, version, category: opts.category, limit: Number(opts.limit) });
+      const hits = await repo.search({ query, version, category: opts.category, limit: Number(opts.limit) });
       const top = hits[0];
       if (top) evidence.push(top);
       entries.push({
@@ -282,7 +267,7 @@ program
   .option("--limit <n>", "Límite", "8")
   .action(async (opts) => {
     const code = await readCodeInput(opts);
-    await withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assistSmart({
+    await withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.assist({
       question: `Valida este código ${String(opts.language)} contra documentación IBM i y reporta hallazgos accionables.`,
       language: String(opts.language),
       code,
@@ -299,7 +284,7 @@ program
   .option("--ibmi-version <version>", "Versión IBM i")
   .option("--release <version>", "Alias de --ibmi-version")
   .option("--top <n>", "Cantidad de resultados", "5")
-  .action((query, opts) => withRepo(String(opts.pack ?? ""), (repo) => printJson(repo.explainRanking({
+  .action(async (query, opts) => withRepoAsync(String(opts.pack ?? ""), async (repo) => printJson(await repo.explainRanking({
     query,
     category: opts.category,
     version: getIbmVersion(opts),
@@ -320,53 +305,15 @@ program
   .option("--limit <n>", "Límite", "8")
   .option("--out <file>", "Escribe el issue Markdown en un archivo")
   .action(async (query, opts) => {
-    const report = await withRepoAsync(String(opts.pack ?? ""), async (repo) => {
-      const results = await repo.searchSmart({
+    const report = await withRepoAsync(String(opts.pack ?? ""), async (repo) => repo.reportQuery({
         query,
         category: opts.category,
         version: getIbmVersion(opts),
+        expectedTitle: opts.expectedTitle,
+        expectedId: opts.expectedId,
+        notes: opts.notes,
         limit: Number(opts.limit)
-      });
-      const top = results[0];
-      const expectedTitle = String(opts.expectedTitle ?? "");
-      const expectedId = String(opts.expectedId ?? "");
-      const pass = Boolean(
-        (!expectedTitle || top?.title.includes(expectedTitle))
-        && (!expectedId || top?.id === expectedId)
-      );
-      const issueMarkdown = [
-        "# Reporte de búsqueda IBM i Docs",
-        "",
-        `Consulta: ${query}`,
-        `Top result: ${top ? `${top.title} (${top.id})` : "sin resultado"}`,
-        `Pass esperado: ${pass}`,
-        opts.notes ? `Notas: ${opts.notes}` : "",
-        "",
-        "Resultados:",
-        ...results.map((hit, index) => `${index + 1}. ${hit.title} [${hit.version}/${hit.category}] score=${hit.score}`)
-      ].filter(Boolean).join("\n");
-      return {
-        generatedAt: new Date().toISOString(),
-        query,
-        options: {
-          query,
-          category: opts.category,
-          version: getIbmVersion(opts),
-          expectedTitle: opts.expectedTitle,
-          expectedId: opts.expectedId,
-          notes: opts.notes,
-          limit: Number(opts.limit)
-        },
-        diagnostics: {
-          topResultTitle: top?.title,
-          topResultId: top?.id,
-          pass,
-          warnings: top?.relevanceWarnings ?? []
-        },
-        results,
-        issueMarkdown
-      };
-    });
+      }));
     if (opts.out) {
       const outFile = path.resolve(String(opts.out));
       await fs.mkdir(path.dirname(outFile), { recursive: true });
@@ -450,7 +397,7 @@ program
         for (const smoke of smokeCases()) {
           // El setup valida la misma ruta one-shot que consumirá el agente MCP;
           // no usa una API interna distinta que pueda ocultar fallos end-to-end.
-          const result = await repo.assistSmart({
+          const result = await repo.assist({
             question: smoke.question,
             language: smoke.language,
             depth: "concise",
@@ -479,7 +426,7 @@ program
       ok,
       packDir: path.resolve(packDir),
       checks,
-      codexConfig: opts.printCodex ? renderCodexConfig({ command: process.execPath, server: path.resolve("dist", "src", "server.js"), cwd: process.cwd(), pack: path.resolve(packDir) }) : undefined
+      codexConfig: opts.printCodex ? renderCodexConfig({ command: process.execPath, server: defaultServerPath(), cwd: path.dirname(defaultServerPath()), pack: path.resolve(packDir) }) : undefined
     });
     if (!ok) process.exitCode = 1;
   });
@@ -489,8 +436,8 @@ program
   .description("Genera bloque TOML para instalar este MCP en Codex.")
   .option("--pack <dir>", "Ruta del data pack", defaultUserPackDir())
   .option("--command <path>", "Ruta de node", process.execPath)
-  .option("--server <path>", "Ruta del server compilado", path.resolve("dist", "src", "server.js"))
-  .option("--cwd <dir>", "Directorio de trabajo", process.cwd())
+  .option("--server <path>", "Ruta del server compilado", defaultServerPath())
+  .option("--cwd <dir>", "Directorio de trabajo", path.dirname(defaultServerPath()))
   .action((opts) => {
     console.log(renderCodexConfig({ command: opts.command, server: opts.server, cwd: opts.cwd, pack: opts.pack }));
   });
@@ -643,19 +590,30 @@ async function readCodeInput(opts: Record<string, unknown>): Promise<string> {
 }
 
 function renderCodexConfig(input: { command: string; server: string; cwd: string; pack: string }): string {
-  // TOML intencionalmente simple para que el usuario pueda copiar y pegar sin depender de herramientas externas.
+  // JSON.stringify emite un string básico válido para TOML: escapa barras,
+  // comillas y controles sin aplicar el escape SQL inválido de dos apóstrofes.
   return [
     "[mcp_servers.ibmi-docs]",
-    `command = '${input.command}'`,
-    `args = ['${input.server}']`,
-    `cwd = '${input.cwd}'`,
+    `command = ${tomlBasicString(input.command)}`,
+    `args = [${tomlBasicString(input.server)}]`,
+    `cwd = ${tomlBasicString(input.cwd)}`,
     "startup_timeout_sec = 30.0",
     "tool_timeout_sec = 120.0",
     "",
     "[mcp_servers.ibmi-docs.env]",
-    `IBMI_DOCS_PACK_DIR = '${input.pack}'`,
-    "IBMI_DOCS_TOOL_PROFILE = 'agent'"
+    `IBMI_DOCS_PACK_DIR = ${tomlBasicString(input.pack)}`,
+    `IBMI_DOCS_TOOL_PROFILE = ${tomlBasicString("agent")}`
   ].join("\n");
+}
+
+function defaultServerPath(): string {
+  const sibling = fileURLToPath(new URL("./server.js", import.meta.url));
+  if (fsSync.existsSync(sibling)) return sibling;
+  return path.resolve("dist", "src", "server.js");
+}
+
+function tomlBasicString(value: string): string {
+  return JSON.stringify(String(value));
 }
 
 function renderTraceReportMarkdown(report: any): string {
@@ -682,7 +640,7 @@ function renderTraceReportMarkdown(report: any): string {
       ? feedback.map((item: any, index: number) => [
         `### ${index + 1}. ${item.kind}: ${item.requestedScope} -> ${item.usedScope}`,
         "",
-        `- Consulta: \`${item.query ?? "n/a"}\``,
+        `- Consulta: \`${item.queryPreview ?? item.queryFingerprint ?? "no almacenada"}\``,
         `- Top result: ${item.topResultTitle ?? "n/a"} (${item.topResultId ?? "sin-id"})`,
         `- Motivo: ${item.reason}`,
         `- Pista de mejora: ${item.improvementHint}`,

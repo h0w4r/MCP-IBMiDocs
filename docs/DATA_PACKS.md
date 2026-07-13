@@ -1,6 +1,6 @@
 # Data packs IBM i Docs
 
-El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI y descarga durante `postinstall` el `data/pack` oficial desde el release de la misma versión.
+El repo incluye `data/pack` para desarrollo y uso local. El paquete npm `@ckirsch94/ibmi-docs-mcp` instala el runtime MCP/CLI y descarga durante `postinstall` el `data/pack` compatible declarado en `runtime-assets.json`.
 
 El repositorio de desarrollo puede conservar `raw/` para trazabilidad. El asset
 de ejecución omite ese HTML original para reducir la descarga: el MCP instalado
@@ -43,7 +43,7 @@ ibmi-docs validate-pack
 ```
 
 Esto actualiza el runtime y ejecuta `postinstall`, que descarga o reutiliza desde caché los assets
-firmados de esa versión. El instalador valida SHA-256 e instala localmente el data pack, el Transformer
+firmados declarados por el manifiesto de runtime. El instalador valida SHA-256 e instala localmente el data pack, el Transformer
 E5 afinado, la cabeza neuronal query→corpus y el reranker cross-encoder.
 
 ## Actualizar un data pack de repo clonado
@@ -68,7 +68,7 @@ node dist/src/cli.js pack install --from .\dist\ibmi-docs-pack.tgz --out <ruta-d
 node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 ```
 
-Los assets oficiales se publican junto al tag de cada versión y sus URL/hashes quedan declarados en `runtime-assets.json`. No uses mirrors no autorizados salvo que controles explícitamente `IBMI_DOCS_RUNTIME_ASSET_BASE_URL`.
+Los assets compatibles e inmutables pueden pertenecer a una release anterior del servidor; sus URL y hashes efectivos quedan declarados en `runtime-assets.json`. No uses mirrors no autorizados salvo que controles explícitamente `IBMI_DOCS_RUNTIME_ASSET_BASE_URL`.
 
 ## Resolución runtime
 

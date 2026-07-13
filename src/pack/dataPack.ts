@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import * as tar from "tar";
 import Database from "better-sqlite3";
-import { fetchBufferWithTimeout } from "../util/fetch.js";
-import { hasPack, resolveContainedPath } from "../util/paths.js";
+import { downloadFileWithTimeout } from "../util/fetch.js";
+import { hasPack, resolveContainedExistingPath, resolveContainedPath } from "../util/paths.js";
 
 export interface InstallDataPackOptions {
   from: string;
@@ -34,14 +34,27 @@ export interface DataPackInfo {
 export const DEFAULT_PACK_RELEASE_URL =
   "https://github.com/h0w4r/MCP-IBMiDocs/releases/latest/download/ibmi-docs-pack.tgz";
 
-const DEFAULT_PACK_DOWNLOAD_TIMEOUT_MS = Number(process.env.IBMI_DOCS_PACK_DOWNLOAD_TIMEOUT_MS ?? 60_000);
-const DEFAULT_PACK_DOWNLOAD_MAX_BYTES = Number(process.env.IBMI_DOCS_PACK_DOWNLOAD_MAX_BYTES ?? 1024 * 1024 * 1024);
-const REQUIRED_SQLITE_TABLES = ["meta", "documents", "chunks", "chunk_vectors", "document_sections"];
+const DEFAULT_PACK_DOWNLOAD_TIMEOUT_MS = positiveEnvironmentNumber("IBMI_DOCS_PACK_DOWNLOAD_TIMEOUT_MS", 60_000);
+const DEFAULT_PACK_DOWNLOAD_MAX_BYTES = positiveEnvironmentNumber("IBMI_DOCS_PACK_DOWNLOAD_MAX_BYTES", 1024 * 1024 * 1024);
+const REQUIRED_SQLITE_TABLES = ["meta", "documents", "chunks", "chunk_vectors", "document_vectors", "document_sections"];
+
+interface MaterializedSource {
+  path: string;
+  cleanup: () => Promise<void>;
+}
+
+function positiveEnvironmentNumber(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 export async function installDataPack(options: InstallDataPackOptions): Promise<{ outDir: string; source: string }> {
   const outDir = path.resolve(options.outDir);
   await fs.mkdir(path.dirname(outDir), { recursive: true });
-  const source = await materializeSource(options.from);
+  const materialized = await materializeSource(options.from);
+  const source = materialized.path;
   const tempDir = await fs.mkdtemp(path.join(path.dirname(outDir), `.${path.basename(outDir)}-install-`));
 
   try {
@@ -65,9 +78,11 @@ export async function installDataPack(options: InstallDataPackOptions): Promise<
   } catch (error) {
     await fs.rm(tempDir, { recursive: true, force: true });
     throw error;
+  } finally {
+    await materialized.cleanup();
   }
 
-  return { outDir, source };
+  return { outDir, source: options.from };
 }
 
 export async function installLatestDataPack(options: InstallLatestDataPackOptions): Promise<{ outDir: string; source: string; latestUrl: string }> {
@@ -127,8 +142,7 @@ export async function verifyDataPack(packDir: string): Promise<DataPackInfo> {
             continue;
           }
           try {
-            const file = resolveContainedPath(resolved, relative);
-            if (!fsSync.existsSync(file)) issues.push(`Archivo faltante para ${(doc as any).id ?? "(sin id)"}: ${relative}`);
+            resolveContainedExistingPath(resolved, relative);
           } catch (error) {
             issues.push(`Ruta inválida para ${(doc as any).id ?? "(sin id)"} (${key}): ${error instanceof Error ? error.message : String(error)}`);
           }
@@ -139,7 +153,7 @@ export async function verifyDataPack(packDir: string): Promise<DataPackInfo> {
     }
   }
   if (fsSync.existsSync(sqliteFile)) {
-    validateSqlitePack(sqliteFile, documents, issues);
+    validateSqlitePack(resolved, sqliteFile, documents, issues);
   }
   return { packDir: resolved, ok: issues.length === 0, corpusVersion, documents, generatedAt, issues };
 }
@@ -223,25 +237,30 @@ function containsLoopbackEndpoint(value: unknown, key = ""): boolean {
   }
 }
 
-async function materializeSource(source: string): Promise<string> {
+async function materializeSource(source: string): Promise<MaterializedSource> {
   if (/^https?:\/\//i.test(source)) {
-    const { buffer, contentType } = await fetchBufferWithTimeout(source, {
-      timeoutMs: DEFAULT_PACK_DOWNLOAD_TIMEOUT_MS,
-      maxBytes: DEFAULT_PACK_DOWNLOAD_MAX_BYTES
-    });
-    if (!isLikelyArchiveDownload(source, contentType)) {
-      throw new Error(`La URL no parece entregar un archivo tar/tgz válido: content-type=${contentType || "n/a"}`);
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ibmi-docs-pack-"));
+    const file = path.join(tempRoot, path.basename(new URL(source).pathname) || "pack.tgz");
+    try {
+      const { contentType } = await downloadFileWithTimeout(source, file, {
+        timeoutMs: DEFAULT_PACK_DOWNLOAD_TIMEOUT_MS,
+        maxBytes: DEFAULT_PACK_DOWNLOAD_MAX_BYTES
+      });
+      if (!isLikelyArchiveDownload(source, contentType)) {
+        throw new Error(`La URL no parece entregar un archivo tar/tgz válido: content-type=${contentType || "n/a"}`);
+      }
+      return { path: file, cleanup: () => fs.rm(tempRoot, { recursive: true, force: true }) };
+    } catch (error) {
+      await fs.rm(tempRoot, { recursive: true, force: true });
+      throw error;
     }
-    const file = path.join(await fs.mkdtemp(path.join(os.tmpdir(), "ibmi-docs-pack-")), path.basename(new URL(source).pathname) || "pack.tgz");
-    await fs.writeFile(file, buffer);
-    return file;
   }
   const local = path.resolve(source);
   if (!fsSync.existsSync(local)) throw new Error(`No existe la fuente de data pack: ${local}`);
-  return local;
+  return { path: local, cleanup: async () => undefined };
 }
 
-function validateSqlitePack(sqliteFile: string, manifestDocuments: number | undefined, issues: string[]): void {
+function validateSqlitePack(packDir: string, sqliteFile: string, manifestDocuments: number | undefined, issues: string[]): void {
   let db: Database.Database | undefined;
   try {
     db = new Database(sqliteFile, { readonly: true, fileMustExist: true });
@@ -256,6 +275,25 @@ function validateSqlitePack(sqliteFile: string, manifestDocuments: number | unde
       if (manifestDocuments !== undefined && manifestDocuments !== row.count) {
         issues.push(`Conteo inconsistente: manifest=${manifestDocuments}, sqlite.documents=${row.count}`);
       }
+      const documentPaths = db.prepare("SELECT id, normalized_text_path FROM documents").all() as Array<{ id: string; normalized_text_path: string }>;
+      for (const document of documentPaths) {
+        try {
+          resolveContainedExistingPath(packDir, String(document.normalized_text_path ?? ""));
+        } catch (error) {
+          issues.push(`Ruta normalizada inválida en SQLite para ${document.id}: ${error instanceof Error ? error.message : String(error)}`);
+          if (issues.length >= 100) break;
+        }
+      }
+    }
+    if (tables.has("chunks") && tables.has("chunk_vectors")) {
+      const chunks = Number((db.prepare("SELECT COUNT(*) AS count FROM chunks").get() as { count: number }).count);
+      const vectors = Number((db.prepare("SELECT COUNT(*) AS count FROM chunk_vectors").get() as { count: number }).count);
+      if (chunks !== vectors) issues.push(`Cobertura vectorial incompleta: chunks=${chunks}, chunk_vectors=${vectors}`);
+    }
+    if (tables.has("documents") && tables.has("document_vectors")) {
+      const documentCount = Number((db.prepare("SELECT COUNT(*) AS count FROM documents").get() as { count: number }).count);
+      const vectorCount = Number((db.prepare("SELECT COUNT(*) AS count FROM document_vectors").get() as { count: number }).count);
+      if (documentCount !== vectorCount) issues.push(`Cobertura vectorial de documentos incompleta: documents=${documentCount}, document_vectors=${vectorCount}`);
     }
     if (tables.has("meta")) {
       const meta = db.prepare("SELECT value FROM meta WHERE key = ?").get("manifest") as { value: string } | undefined;
@@ -301,12 +339,16 @@ async function replaceDirectoryAtomically(sourceDir: string, targetDir: string):
   }
   try {
     await fs.rename(sourceDir, targetDir);
-    if (backupDir) await fs.rm(backupDir, { recursive: true, force: true });
   } catch (error) {
     if (backupDir && !fsSync.existsSync(targetDir) && fsSync.existsSync(backupDir)) {
       await fs.rename(backupDir, targetDir);
     }
     throw error;
+  }
+  if (backupDir) {
+    await fs.rm(backupDir, { recursive: true, force: true }).catch((error) => {
+      console.warn(`Data pack instalado, pero no se pudo limpiar el backup ${backupDir}: ${error instanceof Error ? error.message : String(error)}`);
+    });
   }
 }
 

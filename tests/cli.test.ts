@@ -21,6 +21,26 @@ describe("CLI ibmi-docs", () => {
     expect(result.stdout.trim()).toBe(packageJson.version);
   });
 
+  it("genera configuración Codex con el servidor compilado real", () => {
+    const result = runCli(["codex-config"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("[mcp_servers.ibmi-docs]");
+    const args = result.stdout.match(/^args = \[(.+)\]$/m);
+    expect(args).toBeTruthy();
+    expect(JSON.parse(args?.[1] ?? "null")).toMatch(/dist[\\/]src[\\/]server\.js/);
+    expect(result.stdout).toContain('IBMI_DOCS_TOOL_PROFILE = "agent"');
+  });
+
+  it("escapa rutas con apóstrofes y backslashes como strings TOML básicos", () => {
+    const pack = "C:\\Users\\O'Neil\\ibmi pack";
+    const result = runCli(["codex-config", "--pack", pack]);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(`IBMI_DOCS_PACK_DIR = ${JSON.stringify(pack)}`);
+    expect(result.stdout).not.toContain("O''Neil");
+  });
+
   it("usa --ibmi-version para filtrar release IBM i sin chocar con Commander", () => {
     const result = runCli(["search", "CRTRPGMOD", "--category", "ile-rpg", "--ibmi-version", "7.5", "--limit", "1"]);
 

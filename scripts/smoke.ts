@@ -11,7 +11,7 @@ async function main(): Promise<void> {
     if (!pack.ok || !pack.vectorCoverage?.ok) process.exitCode = 1;
 
     for (const query of queries) {
-      const results = await repo.searchSmart({ query, limit: 5 });
+      const results = await repo.search({ query, limit: 5 });
       console.log(`\n[${query}] resultados=${results.length}`);
       for (const result of results.slice(0, 3)) {
         console.log(`- ${result.id} | ${result.title} | ${result.version} | ${result.category} | score=${result.score}`);
@@ -30,11 +30,10 @@ async function main(): Promise<void> {
       }
     }
 
-    const sqlRpgle = await repo.assistSmart({
+    const sqlRpgle = await repo.assist({
       question: "Crear programa SQLRPGLE con embedded SQL e includes; necesito comando, parámetros y validación.",
       language: "SQLRPGLE",
       depth: "deep",
-      includeCompileCommands: true,
       limit: 6
     });
     console.log("\nAssist SQLRPGLE:", JSON.stringify({
@@ -47,12 +46,11 @@ async function main(): Promise<void> {
       process.exitCode = 1;
     }
 
-    const assisted = await repo.assistSmart({
+    const assisted = await repo.assist({
       question: "Corregir CLLE con RTVJOBA y MONMSG; necesito pasos y validación",
       language: "CLLE",
       version: "7.5",
       depth: "deep",
-      includeCompileCommands: true,
       limit: 4
     });
     console.log("Assist CLLE:", JSON.stringify({
@@ -71,11 +69,10 @@ async function main(): Promise<void> {
       process.exitCode = 1;
     }
 
-    const resolvedSyntax = await repo.assistSmart({
+    const resolvedSyntax = await repo.assist({
       question: "Explica la sintaxis de SND-MSG con %MSG y %TARGET",
       language: "RPGLE",
       version: "7.6",
-      includeExamples: true,
       limit: 5
     });
     console.log("Assist SND-MSG:", JSON.stringify({
@@ -93,7 +90,7 @@ async function main(): Promise<void> {
       process.exitCode = 1;
     }
 
-    const commandAutoRead = await repo.searchSmart({ query: "CRTRPGMOD command", version: "7.6", limit: 1, autoRead: true });
+    const commandAutoRead = await repo.search({ query: "CRTRPGMOD command", version: "7.6", limit: 1, autoRead: true });
     console.log("Command auto-read:", JSON.stringify({
       title: commandAutoRead[0]?.title,
       autoReadApplied: commandAutoRead[0]?.autoReadApplied,
@@ -110,12 +107,12 @@ async function main(): Promise<void> {
       events: traceReport.events,
       searchOnlyRate: traceReport.searchOnlyRate,
       searchThenReadRate: traceReport.searchThenReadRate,
-      answerUsageRate: traceReport.answerUsageRate
+      assistUsageRate: traceReport.assistUsageRate
     }, null, 2));
     if (
       typeof traceReport.searchOnlyRate !== "number"
       || typeof traceReport.searchThenReadRate !== "number"
-      || typeof traceReport.answerUsageRate !== "number"
+      || typeof traceReport.assistUsageRate !== "number"
     ) {
       process.exitCode = 1;
     }

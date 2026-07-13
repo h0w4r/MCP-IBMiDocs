@@ -71,12 +71,16 @@ async function createValidPack(root: string, id = "doc-1"): Promise<CorpusManife
   const db = new Database(path.join(root, "ibmi-docs.sqlite"));
   db.exec(`
     CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-    CREATE TABLE documents (id TEXT PRIMARY KEY);
+    CREATE TABLE documents (id TEXT PRIMARY KEY, normalized_text_path TEXT NOT NULL);
     CREATE TABLE chunks (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id TEXT, chunk_index INTEGER, title TEXT, body TEXT, token_hint INTEGER);
     CREATE TABLE chunk_vectors (chunk_id INTEGER PRIMARY KEY, document_id TEXT, dimensions INTEGER, vector BLOB);
+    CREATE TABLE document_vectors (document_id TEXT PRIMARY KEY, dimensions INTEGER, vector BLOB);
     CREATE TABLE document_sections (id INTEGER PRIMARY KEY AUTOINCREMENT, document_id TEXT, section_index INTEGER, kind TEXT, title TEXT, body TEXT, start_line INTEGER, end_line INTEGER);
     INSERT INTO meta(key, value) VALUES ('manifest', '${JSON.stringify(manifest).replace(/'/g, "''")}');
-    INSERT INTO documents(id) VALUES ('${id}');
+    INSERT INTO documents(id, normalized_text_path) VALUES ('${id}', '${doc.normalizedTextPath}');
+    INSERT INTO chunks(id, document_id, chunk_index, title, body, token_hint) VALUES (1, '${id}', 0, 'Documento', 'Documento de prueba', 3);
+    INSERT INTO chunk_vectors(chunk_id, document_id, dimensions, vector) VALUES (1, '${id}', 1, X'0000803F');
+    INSERT INTO document_vectors(document_id, dimensions, vector) VALUES ('${id}', 1, X'0000803F');
   `);
   db.close();
   return manifest;
@@ -147,6 +151,36 @@ describe("resolución e integridad de data packs", () => {
     expect(verification.ok).toBe(true);
     expect(verification.corpusVersion).toBe("test-doc-b");
     expect(fsSync.existsSync(path.join(target, "raw", "stale.html"))).toBe(false);
+  });
+
+  it("rechaza normalized_text_path del SQLite que intenta escapar del pack", async () => {
+    const pack = await tempDir("ibmi-pack-db-traversal-");
+    await createValidPack(pack, "doc-traversal");
+    const db = new Database(path.join(pack, "ibmi-docs.sqlite"));
+    const externalName = `${path.basename(pack)}-secreto.txt`;
+    db.prepare("UPDATE documents SET normalized_text_path = ? WHERE id = ?")
+      .run(`../${externalName}`, "doc-traversal");
+    db.close();
+    const externalFile = path.join(path.dirname(pack), externalName);
+    tempRoots.push(externalFile);
+    await fs.writeFile(externalFile, "no debe ser legible", "utf8");
+
+    const verification = await verifyDataPack(pack);
+    expect(verification.ok).toBe(false);
+    expect(verification.issues.join("\n")).toMatch(/Ruta normalizada inválida|fuera del directorio permitido/i);
+  });
+
+  it("rechaza un directorio usado como normalized_text_path", async () => {
+    const pack = await tempDir("ibmi-pack-db-directory-");
+    await createValidPack(pack, "doc-directory");
+    const db = new Database(path.join(pack, "ibmi-docs.sqlite"));
+    db.prepare("UPDATE documents SET normalized_text_path = ? WHERE id = ?")
+      .run("normalized", "doc-directory");
+    db.close();
+
+    const verification = await verifyDataPack(pack);
+    expect(verification.ok).toBe(false);
+    expect(verification.issues.join("\n")).toMatch(/no es un archivo regular/i);
   });
 
   it("valida un pack runtime sin HTML crudo cuando conserva SQLite y texto normalizado", async () => {

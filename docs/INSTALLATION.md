@@ -2,6 +2,8 @@
 
 Guía práctica para instalar, actualizar, configurar y eliminar MCP IBM i Docs.
 
+Requiere Node.js 22 LTS o 24 LTS (`^22.0.0 || ^24.0.0`); ambas líneas se validan en CI.
+
 ## Paquete npm
 
 El runtime público está en:
@@ -70,13 +72,13 @@ Ejemplo para `C:\Users\<usuario>\.codex\config.toml`:
 
 ```toml
 [mcp_servers.ibmi-docs]
-command = 'C:\Users\<usuario>\AppData\Roaming\npm\ibmi-docs-mcp.cmd'
+command = "C:/Users/<usuario>/AppData/Roaming/npm/ibmi-docs-mcp.cmd"
 args = []
 startup_timeout_sec = 30.0
 tool_timeout_sec = 120.0
 
 [mcp_servers.ibmi-docs.env]
-IBMI_DOCS_TOOL_PROFILE = 'agent'
+IBMI_DOCS_TOOL_PROFILE = "agent"
 ```
 
 macOS/Linux:
@@ -86,6 +88,12 @@ command -v ibmi-docs-mcp
 ```
 
 Usa esa ruta absoluta como `command`. No declares `IBMI_DOCS_PACK_DIR` salvo que quieras usar un pack externo o corporativo distinto al instalado en `~/.ibmi-docs/pack`.
+
+Alternativamente, genera el TOML usando la ruta real del servidor de la instalación actual:
+
+```powershell
+ibmi-docs codex-config
+```
 
 ## Perfiles de tools MCP
 
@@ -111,6 +119,14 @@ node dist/src/cli.js codex-config --pack D:\MCP-IBMiDocs\data\pack --server D:\M
 ```
 
 ## Actualizar
+
+### Migrar desde 1.x a 2.0
+
+La tool normal `ibmi_docs_assist` conserva su nombre, por lo que una configuración MCP en perfil
+`agent` no necesita cambios. La ruptura afecta únicamente a integraciones TypeScript que importaban
+`CorpusRepository`: reemplaza `searchSmart()` por `await search()` y `assistSmart()` o los stubs
+síncronos por `await assist()`. Los parámetros sin efecto `audience`, `includeExamples`,
+`includeCompileCommands` y `strictCategory` fueron eliminados.
 
 ### Instalación npm completa
 
@@ -152,6 +168,11 @@ node dist/src/cli.js validate-pack --pack <ruta-del-pack-en-uso>
 ### Data pack desde una URL corporativa autorizada
 
 La instalación npm ya administra automáticamente el asset oficial declarado en `runtime-assets.json`. Para un pack corporativo distinto puedes definir una URL autorizada:
+
+El manifiesto puede reutilizar assets inmutables de una release anterior cuando sus hashes siguen
+siendo compatibles con el runtime nuevo. `postinstall` valida el archivo descargado, el SQLite y el
+hash agregado de todos los textos normalizados. Si detecta un pack local incompleto o alterado, lo
+reemplaza atómicamente en vez de conservarlo.
 
 ```powershell
 $env:IBMI_DOCS_PACK_LATEST_URL = 'https://tu-host/ibmi-docs-pack.tgz'
@@ -243,7 +264,7 @@ una acción de mantenimiento con una consulta documental normal.
 ibmi-docs doctor
 ibmi-docs diagnostics
 ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; necesito pasos y validación" --language CLLE --ibmi-version 7.5 --depth deep
-ibmi-docs resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6 --examples
+ibmi-docs resolve "Explica SND-MSG con %MSG y %TARGET" --language RPGLE --ibmi-version 7.6
 ibmi-docs resolve "Diagnostica RNF5393 en una compilación RPGLE" --language RPGLE
 ibmi-docs resolve "Compara CRTRPGMOD entre IBM i 7.3 y 7.6"
 ibmi-docs search "DDS UNIQUE physical logical file" --category dds --limit 3

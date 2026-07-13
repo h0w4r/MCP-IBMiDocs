@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import os from "node:os";
+import crypto from "node:crypto";
 import path from "node:path";
 import type { TraceEvent, TraceReport } from "../../types.js";
 
-const DEFAULT_TRACE_MAX_BYTES = Number(process.env.IBMI_DOCS_TRACE_MAX_BYTES ?? 5 * 1024 * 1024);
+const DEFAULT_TRACE_MAX_BYTES = 5 * 1024 * 1024;
+const DEFAULT_TRACE_MAX_ROTATED_FILES = 5;
 
 interface TraceReadResult {
   events: TraceEvent[];
@@ -22,7 +24,7 @@ export function isTraceEnabled(): boolean {
   return /^(1|true|yes|on)$/i.test(process.env.IBMI_DOCS_TRACE ?? "");
 }
 
-export function appendTraceEvent(file: string, event: TraceEvent): void {
+export function appendTraceEvent(file: string, event: TraceInputEvent): void {
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     rotateTraceIfNeeded(file, traceMaxBytes());
@@ -45,11 +47,11 @@ export function buildTraceReport(file: string, limit: number): TraceReport {
   const readEvents = events.filter((event) => event.tool === "ibmi_docs_read");
   const readIds = new Set(readEvents.map((event) => event.id ?? event.topResultId).filter(Boolean));
   const searchThenRead = searchEvents.filter((event) => (event.followedReadCandidateIds ?? []).some((id) => readIds.has(id)));
-  const answerEvents = events.filter((event) => event.tool === "ibmi_docs_answer");
-  const resolveEvents = events.filter((event) => event.tool === "ibmi_docs_resolve");
+  const assistEvents = events.filter((event) => event.tool === "ibmi_docs_assist");
   const scopeExpansionFeedback = events.flatMap((event) => (event.scopeExpansions ?? []).map((expansion) => ({
     ...expansion,
-    query: event.query,
+    queryFingerprint: event.queryFingerprint,
+    queryPreview: event.queryPreview,
     timestamp: event.timestamp,
     tool: event.tool
   })));
@@ -76,8 +78,7 @@ export function buildTraceReport(file: string, limit: number): TraceReport {
     searchEvents: searchEvents.length,
     searchOnlyRate: roundRate((searchEvents.length - searchThenRead.length) / searchDenominator),
     searchThenReadRate: roundRate(searchThenRead.length / searchDenominator),
-    answerUsageRate: roundRate(answerEvents.length / denominator),
-    resolveUsageRate: roundRate(resolveEvents.length / denominator),
+    assistUsageRate: roundRate(assistEvents.length / denominator),
     scopeExpansionCount: scopeExpansionFeedback.length,
     scopeExpansionByKind,
     scopeExpansionByRequestedScope,
@@ -86,31 +87,61 @@ export function buildTraceReport(file: string, limit: number): TraceReport {
   };
 }
 
+export type TraceInputEvent = Omit<TraceEvent, "queryFingerprint" | "queryLength" | "queryPreview" | "semanticQueryCount"> & {
+  query?: string;
+  semanticQueries?: string[];
+};
+
 function traceMaxBytes(): number {
-  return Number.isFinite(DEFAULT_TRACE_MAX_BYTES) && DEFAULT_TRACE_MAX_BYTES > 0
-    ? DEFAULT_TRACE_MAX_BYTES
-    : 5 * 1024 * 1024;
+  const configured = Number(process.env.IBMI_DOCS_TRACE_MAX_BYTES ?? DEFAULT_TRACE_MAX_BYTES);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_TRACE_MAX_BYTES;
+}
+
+function traceMaxRotatedFiles(): number {
+  const configured = Number(process.env.IBMI_DOCS_TRACE_MAX_ROTATED_FILES ?? DEFAULT_TRACE_MAX_ROTATED_FILES);
+  return Number.isInteger(configured) && configured >= 0 ? configured : DEFAULT_TRACE_MAX_ROTATED_FILES;
 }
 
 function rotateTraceIfNeeded(file: string, maxBytes: number): void {
   if (!Number.isFinite(maxBytes) || maxBytes <= 0 || !fs.existsSync(file)) return;
   const stat = fs.statSync(file);
   if (stat.size < maxBytes) return;
-  const rotated = `${file}.${new Date().toISOString().replace(/[:.]/g, "-")}.old`;
+  const rotated = `${file}.${new Date().toISOString().replace(/[:.]/g, "-")}-${process.pid}-${crypto.randomUUID()}.old`;
   fs.renameSync(file, rotated);
+  pruneRotatedTraceFiles(file, traceMaxRotatedFiles());
 }
 
-function redactTraceEvent(event: TraceEvent): TraceEvent {
+function pruneRotatedTraceFiles(file: string, maxFiles: number): void {
+  const files = rotatedTraceFiles(file);
+  const excess = Math.max(0, files.length - maxFiles);
+  for (const obsolete of files.slice(0, excess)) {
+    fs.rmSync(obsolete, { force: true });
+  }
+}
+
+function redactTraceEvent(event: TraceInputEvent): TraceEvent {
+  const { query, semanticQueries, ...safeEvent } = event;
+  const cleanQuery = String(query ?? "").trim();
+  const includePreview = /^(1|true|yes|on)$/i.test(process.env.IBMI_DOCS_TRACE_INCLUDE_QUERY ?? "");
   return {
-    ...event,
-    query: event.query ? redactTraceText(event.query) : undefined
+    ...safeEvent,
+    queryFingerprint: cleanQuery ? crypto.createHash("sha256").update(cleanQuery).digest("hex").slice(0, 16) : undefined,
+    queryLength: cleanQuery ? cleanQuery.length : undefined,
+    queryPreview: cleanQuery && includePreview ? redactTraceText(cleanQuery) : undefined,
+    semanticQueryCount: semanticQueries?.length
   };
 }
 
 function redactTraceText(value: string): string {
-  const oneLine = value.replace(/\s+/g, " ").trim();
-  if (oneLine.length <= 240 && !/\b(exec\s+sql|pgm|dcl-|dcl\s+var|password|token|secret)\b/i.test(oneLine)) return oneLine;
-  return `${oneLine.slice(0, 180)}… [redacted:${oneLine.length}]`;
+  const oneLine = value
+    .replace(/-----BEGIN [^-\r\n]*PRIVATE KEY-----[\s\S]*?-----END [^-\r\n]*PRIVATE KEY-----/gi, "[CLAVE PRIVADA REDACTADA]")
+    .replace(/\bAuthorization\s*:\s*(?:Bearer|Basic)\s+[^\s,;]+/gi, "Authorization: [REDACTADO]")
+    .replace(/(["']?(?:password|passwd|pwd|token|secret|api[_-]?key)["']?\s*:\s*)["'][^"']*["']/gi, "$1\"[REDACTADO]\"")
+    .replace(/\b(password|passwd|pwd|token|secret|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi, "$1=[REDACTADO]")
+    .replace(/\b(password|passwd|pwd|token|secret|api[_-]?key)\s*\(\s*(["'])[^"']*\2\s*\)/gi, "$1([REDACTADO])")
+    .replace(/\s+/g, " ")
+    .trim();
+  return oneLine.length <= 180 ? oneLine : `${oneLine.slice(0, 180)}…`;
 }
 
 function readTraceEvents(file: string, limit = 500): TraceReadResult {

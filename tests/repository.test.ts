@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CorpusRepository } from "../src/repository/CorpusRepository.js";
+import { MAX_CODE_CHARS, MAX_QUESTION_CHARS } from "../src/util/inputLimits.js";
 
 const PACK_DIR = "data/pack";
 
@@ -13,8 +14,17 @@ async function withRepo<T>(callback: (repo: CorpusRepository) => Promise<T>): Pr
 }
 
 describe("CorpusRepository neural-only", () => {
-  it("searchSmart usa recuperación neuronal multi-perspectiva y recupera el comando para invocar RLU", async () => {
-    const results = await withRepo((repo) => repo.searchSmart({
+  it("rechaza entradas desproporcionadas antes de invocar Transformers", async () => {
+    await withRepo(async (repo) => {
+      await expect(repo.search({ query: "x".repeat(MAX_QUESTION_CHARS + 1) }))
+        .rejects.toThrow(/máximo permitido/i);
+      await expect(repo.assist({ question: "consulta válida", code: "x".repeat(MAX_CODE_CHARS + 1) }))
+        .rejects.toThrow(/máximo permitido/i);
+    });
+  });
+
+  it("search usa recuperación neuronal multi-perspectiva y recupera el comando para invocar RLU", async () => {
+    const results = await withRepo((repo) => repo.search({
       query: "What is the command used to invoke RLU?",
       limit: 10
     }));
@@ -24,8 +34,8 @@ describe("CorpusRepository neural-only", () => {
     expect(results[0]?.matchReasons?.join(" ")).toContain("Transformers.js");
   });
 
-  it("assistSmart sintetiza la respuesta RLU desde evidencia documental materializada", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+  it("assist sintetiza la respuesta RLU desde evidencia documental materializada", async () => {
+    const assist = await withRepo((repo) => repo.assist({
       question: "What is the command used to invoke RLU?",
       language: "CL",
       depth: "deep",
@@ -74,23 +84,44 @@ describe("CorpusRepository neural-only", () => {
     });
   });
 
-  it("searchSmart recupera comandos y tópicos técnicos con embeddings Transformers", async () => {
-    const results = await withRepo((repo) => repo.searchSmart({ query: "CRTRPGMOD", limit: 5 }));
+  it("qualityReport calcula duplicados, categorías escasas e integridad real", async () => {
+    await withRepo(async (repo) => {
+      const report = repo.qualityReport();
+      expect(report.ok).toBe(true);
+      expect(report.vectorCoverage?.ok).toBe(true);
+      expect(report.duplicateTitles.length).toBeGreaterThan(0);
+      expect(report.duplicateTitlesCrossVersionExpected?.length).toBeGreaterThan(0);
+      expect(report.sparseCategories.some((item) => item.category === "ibm-i-general")).toBe(true);
+      expect(report.qualityPolicy.ok).toBe(true);
+      expect(report.qualityPolicy.failedChecks).toEqual([]);
+      expect(report.qualityPolicy.checks.map((check) => check.name)).toEqual(expect.arrayContaining([
+        "integridad-vectorial-y-fisica",
+        "duplicados-exactos-misma-version",
+        "categorias-coherentes-con-manifest",
+        "categorias-con-cobertura-sustancial",
+        "tasa-maxima-stubs",
+        "cobertura-ibm-i-7.6"
+      ]));
+    });
+  });
+
+  it("search recupera comandos y tópicos técnicos con embeddings Transformers", async () => {
+    const results = await withRepo((repo) => repo.search({ query: "CRTRPGMOD", limit: 5 }));
 
     expect(results.length).toBeGreaterThan(0);
     expect(results[0]?.title).toContain("CRTRPGMOD");
     expect(results[0]?.matchReasons?.join(" ")).toContain("Transformers.js");
   });
 
-  it("searchSmart encuentra documentación SQLRPGLE de /COPY con SQL embebido", async () => {
-    const results = await withRepo((repo) => repo.searchSmart({ query: "Using /COPY embedded SQL", limit: 5 }));
+  it("search encuentra documentación SQLRPGLE de /COPY con SQL embebido", async () => {
+    const results = await withRepo((repo) => repo.search({ query: "Using /COPY embedded SQL", limit: 5 }));
 
     expect(results.some((hit) => hit.title.includes("/COPY") && hit.category === "sql-db2-for-i")).toBe(true);
     expect(results.every((hit) => typeof hit.score === "number" && hit.score > 0)).toBe(true);
   });
 
-  it("searchSmart amplía versión cuando el scope solicitado tiene evidencia vectorial más débil", async () => {
-    const results = await withRepo((repo) => repo.searchSmart({
+  it("search amplía versión cuando el scope solicitado tiene evidencia vectorial más débil", async () => {
+    const results = await withRepo((repo) => repo.search({
       query: "job scheduler entries work management scheduled jobs",
       version: "7.5",
       limit: 5
@@ -101,8 +132,8 @@ describe("CorpusRepository neural-only", () => {
     expect(results.map((hit) => hit.title).join("\n")).toMatch(/job|scheduler|work management/i);
   });
 
-  it("assistSmart materializa evidencia, lecturas, secciones, citas y workflow sin pedir sub-tools", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+  it("assist materializa evidencia, lecturas, secciones, citas y workflow sin pedir sub-tools", async () => {
+    const assist = await withRepo((repo) => repo.assist({
       question: "Cómo compilo SQLRPGLE con EXEC SQL y copybooks?",
       language: "SQLRPGLE",
       version: "7.5",
@@ -111,7 +142,8 @@ describe("CorpusRepository neural-only", () => {
     }));
 
     expect(assist.taskPlan.family).toBe("neural_retrieval");
-    expect(assist.retrievalPlan.strategy).toBe("multi-hop");
+    expect(assist.retrievalPlan.strategy).toBe("single-pass");
+    expect(assist.retrievalPlan.axes).toContain("semantic-variant");
     expect(assist.evidence.length).toBeGreaterThan(0);
     expect(assist.reads.length).toBeGreaterThan(0);
     expect(assist.citations.length).toBeGreaterThan(0);
@@ -122,11 +154,12 @@ describe("CorpusRepository neural-only", () => {
       "ibmi_docs_sections"
     ]));
     expect(assist.relevance.supported).toBe(true);
+    expect(assist.retrievalPlan.initialQueries.join("\n")).toContain("Language or environment hint: SQLRPGLE");
     expect(assist.answer).not.toMatch(/Citas|Score:|ID:|retrievalPlan|taskPlan/i);
   });
 
-  it("assistSmart responde consultas de tipo hora con evidencia Db2 for i relacionada", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+  it("assist responde consultas de tipo hora con evidencia Db2 for i relacionada", async () => {
+    const assist = await withRepo((repo) => repo.assist({
       question: "Qué tipo de dato conviene para almacenar horas en una tabla Db2 for i?",
       language: "SQL",
       version: "7.5",
@@ -140,8 +173,8 @@ describe("CorpusRepository neural-only", () => {
     expect(assist.answer).not.toMatch(/Estimated time/i);
   });
 
-  it("assistSmart resuelve la equivalencia CL de EXFMT desde la ayuda completa del comando", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+  it("assist resuelve la equivalencia CL de EXFMT desde la ayuda completa del comando", async () => {
+    const assist = await withRepo((repo) => repo.assist({
       question: "In CL which command is equivalent to EXFMT?",
       language: "CLLE"
     }));
@@ -151,8 +184,8 @@ describe("CorpusRepository neural-only", () => {
     expect(assist.answer).not.toMatch(/EXPORTFS|Performance Explorer/i);
   });
 
-  it("assistSmart conserva varias evidencias cuando la consulta contiene dos conceptos", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+  it("assist conserva varias evidencias cuando la consulta contiene dos conceptos", async () => {
+    const assist = await withRepo((repo) => repo.assist({
       question: "Explain WRKOBJPDM and DSPOBJD",
       language: "CLLE",
       depth: "deep"
@@ -163,8 +196,8 @@ describe("CorpusRepository neural-only", () => {
     expect(assist.answer).toMatch(/DSPOBJD/i);
   });
 
-  it("assistSmart distingue copiar registros de duplicar un objeto", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+  it("assist distingue copiar registros de duplicar un objeto", async () => {
+    const assist = await withRepo((repo) => repo.assist({
       question: "How do I copy records from an existing IBM i file into another file?",
       language: "CLLE"
     }));
@@ -175,7 +208,7 @@ describe("CorpusRepository neural-only", () => {
   });
 
   it("rechaza semánticamente una consulta ajena al corpus sin inventar una respuesta IBM i", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+    const assist = await withRepo((repo) => repo.assist({
       question: "Evalúa si una herramienta MCP debe devolver JSON o solo respuesta final",
       depth: "concise"
     }));
@@ -187,7 +220,7 @@ describe("CorpusRepository neural-only", () => {
   });
 
   it("acepta evidencia fuerte del mismo tópico aunque el consenso elija otro pasaje", async () => {
-    const assist = await withRepo((repo) => repo.assistSmart({
+    const assist = await withRepo((repo) => repo.assist({
       question: "What are the different types of locks that can be held? What is meant by locking and concurrency?",
       depth: "concise"
     }));
@@ -197,12 +230,13 @@ describe("CorpusRepository neural-only", () => {
     expect(assist.answer).toMatch(/Locking|locks|commit|rollback/i);
   });
 
-  it("las APIs síncronas antiguas no ejecutan búsqueda no neuronal", async () => {
+  it("la API pública usa un único núcleo asíncrono neuronal", async () => {
     await withRepo(async (repo) => {
-      expect(() => repo.search({ query: "CRTRPGMOD" })).toThrow(/searchSmart/);
-      const assist = repo.assist({ question: "CRTRPGMOD" });
+      const search = await repo.search({ query: "CRTRPGMOD", limit: 1 });
+      const assist = await repo.assist({ question: "CRTRPGMOD", depth: "concise" });
+      expect(search[0]?.title).toContain("CRTRPGMOD");
       expect(assist.taskPlan.family).toBe("neural_retrieval");
-      expect(assist.answer).toMatch(/assistSmart|ibmi_docs_assist/);
+      expect(assist.relevance.supported).toBe(true);
     });
   });
 
@@ -210,7 +244,7 @@ describe("CorpusRepository neural-only", () => {
     await withRepo(async (repo) => {
       const diagnostics = repo.diagnostics();
       const categories = repo.categories();
-      const search = await repo.searchSmart({ query: "CRTRPGMOD", limit: 1 });
+      const search = await repo.search({ query: "CRTRPGMOD", limit: 1 });
       const read = repo.read(search[0].id);
       const sections = repo.sections(search[0].id);
 

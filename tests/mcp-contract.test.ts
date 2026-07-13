@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { MAX_CODE_CHARS, MAX_QUESTION_CHARS } from "../src/util/inputLimits.js";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SERVER_ENTRY = path.join(ROOT_DIR, "dist", "src", "server.js");
@@ -37,8 +38,12 @@ describe("contrato MCP público agent-first", () => {
   it("expone una sola tool con un esquema de entrada compacto", async () => {
     const listed = await client.listTools();
     expect(listed.tools.map((tool) => tool.name)).toEqual(["ibmi_docs_assist"]);
-    const schema = listed.tools[0].inputSchema as { properties?: Record<string, unknown> };
+    const schema = listed.tools[0].inputSchema as {
+      properties?: Record<string, { maxLength?: number }>;
+    };
     expect(Object.keys(schema.properties ?? {}).sort()).toEqual(["code", "language", "question", "version"]);
+    expect(schema.properties?.question?.maxLength).toBe(MAX_QUESTION_CHARS);
+    expect(schema.properties?.code?.maxLength).toBe(MAX_CODE_CHARS);
   });
 
   it("no publica recursos ni prompts de diagnóstico en el perfil de usuario", async () => {

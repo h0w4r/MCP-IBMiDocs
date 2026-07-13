@@ -122,6 +122,30 @@ describe("anti dependencia runtime RDi", () => {
     expect(server).not.toContain('version: "0.6.0"');
   });
 
+  it("mantiene sincronizado el paquete con un manifiesto de assets internamente coherente", () => {
+    const packageJson = JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+      version: string;
+    };
+    const runtimeAssets = JSON.parse(
+      fs.readFileSync(new URL("../runtime-assets.json", import.meta.url), "utf8")
+    ) as {
+      packageVersion: string;
+      releaseTag: string;
+      checks: { sqliteSha256: string; normalizedTreeSha256: string };
+      assets: Record<string, { fileName: string; url: string }>;
+    };
+
+    expect(runtimeAssets.packageVersion).toBe(packageJson.version);
+    expect(runtimeAssets.checks.sqliteSha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(runtimeAssets.checks.normalizedTreeSha256).toMatch(/^[a-f0-9]{64}$/);
+    for (const asset of Object.values(runtimeAssets.assets)) {
+      // Los modelos y el corpus son inmutables: una versión nueva puede reutilizar
+      // una release anterior, pero nunca apuntar a una ruta o nombre contradictorio.
+      expect(asset.url).toContain(`/releases/download/${runtimeAssets.releaseTag}/`);
+      expect(new URL(asset.url).pathname.endsWith(`/${asset.fileName}`)).toBe(true);
+    }
+  });
+
   it("no expone tools de mantenimiento o sincronización en runtime de usuario", () => {
     const previousAllowNetworkSync = process.env.IBMI_DOCS_ALLOW_NETWORK_SYNC;
     const previousToolProfile = process.env.IBMI_DOCS_TOOL_PROFILE;

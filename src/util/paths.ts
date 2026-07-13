@@ -36,6 +36,28 @@ export function resolveContainedPath(root: string, relativePath: string): string
   throw new Error(`Ruta fuera del directorio permitido: ${relativePath}`);
 }
 
+/**
+ * Resuelve una ruta existente y comprueba también su destino físico. La
+ * segunda comprobación impide que un enlace simbólico o junction dentro del
+ * pack apunte fuera de su raíz aunque la ruta textual parezca válida.
+ */
+export function resolveContainedExistingPath(root: string, relativePath: string): string {
+  const candidate = resolveContainedPath(root, relativePath);
+  if (!fs.existsSync(candidate)) throw new Error(`No existe el archivo declarado: ${relativePath}`);
+
+  const physicalRoot = fs.realpathSync.native(path.resolve(root));
+  const physicalCandidate = fs.realpathSync.native(candidate);
+  const physicalRelative = path.relative(physicalRoot, physicalCandidate);
+  if (physicalRelative === "" || (!physicalRelative.startsWith("..") && !path.isAbsolute(physicalRelative))) {
+    const stat = fs.statSync(physicalCandidate);
+    if (!stat.isFile()) {
+      throw new Error(`La ruta declarada no es un archivo regular: ${relativePath}`);
+    }
+    return physicalCandidate;
+  }
+  throw new Error(`La ruta resuelve fuera del directorio permitido: ${relativePath}`);
+}
+
 export function resolvePackDir(moduleUrl: string, explicit?: string): PackResolution {
   const moduleDir = path.dirname(fileURLToPath(moduleUrl));
   const checked: string[] = [];

@@ -1,7 +1,7 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Release 1.0.9.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR para fortalecerlo con la comunidad IBM i.
+> **Release 2.0.0.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. La versión 2 elimina las APIs internas síncronas/decorativas y usa un único núcleo neuronal asíncrono. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
@@ -28,7 +28,7 @@ Sirve para:
 - **No necesitas RDi instalado** para usar el MCP.
 - **No usa Eclipse Help en runtime**.
 - **No depende de endpoints locales de RDi** ni de servicios temporales de bootstrap.
-- El paquete npm instala el servidor y la CLI; durante `postinstall` descarga los **assets oficiales de esa versión**, verifica SHA-256 e instala el data pack y los modelos localmente.
+- El paquete npm instala el servidor y la CLI; durante `postinstall` descarga los **assets compatibles declarados en `runtime-assets.json`**, verifica su integridad e instala el data pack y los modelos localmente.
 - El corpus documental vive en SQLite con vectores semánticos (`chunk_vectors`) y se resuelve sin RDi.
 - El perfil MCP por defecto es **agent-first**: el agente ve únicamente `ibmi_docs_assist`.
 - `ibmi_docs_assist` devuelve un solo bloque con la respuesta final; no expone JSON, scores, IDs, planes de recuperación ni documentos internos.
@@ -41,7 +41,7 @@ Sirve para:
 
 ## Instalación rápida
 
-Prerrequisito: Node.js 22.x recomendado.
+Prerrequisito: Node.js 22 LTS o 24 LTS. Ambas líneas se validan en CI; Node.js 22 es la opción conservadora.
 
 ### 1. Instala desde npm
 
@@ -89,16 +89,22 @@ Ejemplo de `C:\Users\<usuario>\.codex\config.toml`:
 
 ```toml
 [mcp_servers.ibmi-docs]
-command = 'C:\Users\<usuario>\AppData\Roaming\npm\ibmi-docs-mcp.cmd'
+command = "C:/Users/<usuario>/AppData/Roaming/npm/ibmi-docs-mcp.cmd"
 args = []
 startup_timeout_sec = 30.0
 tool_timeout_sec = 120.0
 
 [mcp_servers.ibmi-docs.env]
-IBMI_DOCS_TOOL_PROFILE = 'agent'
+IBMI_DOCS_TOOL_PROFILE = "agent"
 ```
 
 No necesitas declarar `IBMI_DOCS_PACK_DIR`: `postinstall` deja el pack oficial en `~/.ibmi-docs/pack`. Úsalo solo cuando quieras apuntar a un pack corporativo o experimental.
+
+También puedes generar un bloque correcto para la instalación actual, sin asumir que el MCP vive dentro del proyecto desde el que ejecutas Codex:
+
+```powershell
+ibmi-docs codex-config
+```
 
 Reinicia Codex y prueba algo como:
 
@@ -135,8 +141,8 @@ Necesito un PF DDS con claves únicas. Busca la documentación de DDS PF y UNIQU
 ```powershell
 ibmi-docs assist "Corregir CLLE con RTVJOBA y MONMSG; dame pasos y validación" --language CLLE --ibmi-version 7.5 --depth deep
 ibmi-docs assist "Cómo reviso trabajos activos y bloqueos de un objeto o miembro? Usa WRKACTJOB, WRKOBJLCK, DSPJOB y WRKJOB si aplican" --language "IBM i administration" --depth deep
-ibmi-docs assist "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --examples --depth deep
-ibmi-docs assist "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --examples
+ibmi-docs assist "Cómo compilo SQLRPGLE con EXEC SQL" --language SQLRPGLE --depth deep
+ibmi-docs assist "Explica SND-MSG, %MSG y %TARGET" --language RPGLE --depth deep
 ibmi-docs search "RNF5393" --category mensajes-rnf --limit 3
 ibmi-docs explain-ranking "SND-MSG Send a Message to the Joblog" --category ile-rpg --ibmi-version 7.5
 ibmi-docs report-query "SND-MSG Send a Message to the Joblog" --category ile-rpg --expected-title "SND-MSG" --out snd-msg-ranking.md
@@ -149,7 +155,7 @@ ibmi-docs doctor
 
 Cuando la versión solicitada no contiene evidencia suficiente, la respuesta puede usar documentación de otro release y lo indica en texto claro. Los detalles de ranking permanecen en trazas locales opcionales, nunca en la respuesta normal del agente.
 
-El proyecto **no recolecta telemetría automáticamente**. Las trazas viven en la máquina del usuario. Para convertir esos casos en mejoras del proyecto, el usuario debe activar trazas locales durante una sesión de prueba y exportar un reporte sanitizado:
+El proyecto **no recolecta telemetría automáticamente**. Las trazas viven en la máquina del usuario. Por defecto guardan un fingerprint SHA-256 truncado y seudonimizado, longitud y métricas; no almacenan la consulta ni el código. El fingerprint facilita agrupar repeticiones, pero no debe tratarse como anonimización criptográfica. Si el operador necesita un preview sanitizado debe activar deliberadamente `IBMI_DOCS_TRACE_INCLUDE_QUERY=1`; aun redactado, ese modo es diagnóstico y puede conservar contexto sensible.
 
 ```powershell
 $env:IBMI_DOCS_TRACE = '1'
@@ -261,7 +267,7 @@ Guías útiles:
 - npm: <https://www.npmjs.com/package/@ckirsch94/ibmi-docs-mcp>
 - GitHub: <https://github.com/h0w4r/MCP-IBMiDocs>
 
-El paquete npm publica un runtime MCP/CLI liviano y un manifiesto de assets. Durante instalación descarga desde el release de GitHub el data pack y los modelos de la misma versión, valida tamaño y SHA-256 y los deja en caché local. No incluye bancos de evaluación, cachés de desarrollo ni exports temporales de RDi.
+El paquete npm publica un runtime MCP/CLI liviano y un manifiesto de assets. Durante instalación descarga desde el release de GitHub los assets compatibles declarados, valida tamaño y SHA-256 y los deja en caché local. Los assets neuronales o documentales inmutables pueden reutilizarse entre versiones del servidor cuando el manifiesto conserva sus hashes. No incluye bancos de evaluación, cachés de desarrollo ni exports temporales de RDi.
 
 ## Aviso legal y marcas
 

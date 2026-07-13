@@ -9,10 +9,27 @@ import { syncIbmDocs } from "./ingest/ibmDocsCrawler.js";
 import { buildDataPack } from "./ingest/packBuilder.js";
 import { loadPackageVersion } from "./util/packageVersion.js";
 import { resolvePackDir } from "./util/paths.js";
+import {
+  MAX_CODE_CHARS,
+  MAX_DOCUMENT_ID_CHARS,
+  MAX_LABEL_CHARS,
+  MAX_NOTES_CHARS,
+  MAX_QUESTION_CHARS,
+  MAX_VERSION_ITEMS
+} from "./util/inputLimits.js";
 
 const moduleFile = fileURLToPath(import.meta.url);
 const packResolution = resolvePackDir(import.meta.url);
 const packDir = packResolution.packDir;
+
+// Los mismos límites se publican en JSON Schema y se vuelven a validar en el
+// repositorio. Así protegen tanto clientes MCP como consumidores TypeScript.
+const questionSchema = z.string().trim().min(1).max(MAX_QUESTION_CHARS);
+const optionalCodeSchema = z.string().max(MAX_CODE_CHARS).optional();
+const codeSchema = z.string().min(1).max(MAX_CODE_CHARS);
+const labelSchema = z.string().trim().min(1).max(MAX_LABEL_CHARS);
+const optionalLabelSchema = z.string().trim().max(MAX_LABEL_CHARS).optional();
+const documentIdSchema = z.string().trim().min(1).max(MAX_DOCUMENT_ID_CHARS);
 
 type McpToolProfile = "agent" | "standard" | "full" | "maintainer";
 
@@ -107,27 +124,24 @@ export function createServer(): McpServer {
       description: "Responde la tarea completa usando documentación IBM i local. Devuelve únicamente la respuesta final; toda búsqueda, lectura y validación ocurre internamente.",
       inputSchema: isAgentProfile
         ? z.object({
-            question: z.string().min(1).describe("Pregunta o tarea completa sobre IBM i/AS400."),
-            code: z.string().optional().describe("Código relacionado, si existe."),
-            language: z.string().optional().describe("Lenguaje o tecnología, si se conoce."),
-            version: z.string().optional().describe("Versión IBM i preferida, si aplica.")
+            question: questionSchema.describe("Pregunta o tarea completa sobre IBM i/AS400."),
+            code: optionalCodeSchema.describe("Código relacionado, si existe."),
+            language: optionalLabelSchema.describe("Lenguaje o tecnología, si se conoce."),
+            version: optionalLabelSchema.describe("Versión IBM i preferida, si aplica.")
           })
         : z.object({
-            question: z.string().min(1).describe("Pregunta o tarea completa del usuario sobre IBM i/AS400."),
-            language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
-            version: z.string().optional().describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
-            category: z.string().optional().describe("Categoría opcional del corpus."),
-            code: z.string().optional().describe("Código opcional para validación documental."),
+            question: questionSchema.describe("Pregunta o tarea completa del usuario sobre IBM i/AS400."),
+            language: optionalLabelSchema.describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
+            version: optionalLabelSchema.describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
+            category: optionalLabelSchema.describe("Categoría opcional del corpus."),
+            code: optionalCodeSchema.describe("Código opcional para validación documental."),
             depth: z.enum(["concise", "standard", "deep"]).optional().describe("Nivel de detalle de la respuesta."),
-            audience: z.enum(["agent", "developer", "maintainer"]).optional().describe("Audiencia principal de la salida."),
-            includeExamples: z.boolean().optional().describe("Incluir ejemplos/secciones de ejemplo cuando existan."),
-            includeCompileCommands: z.boolean().optional().describe("Incluir guía de compilación cuando aplique."),
             limit: z.number().int().min(1).max(12).optional()
-          })
+          }),
+      annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
-      return publicAssistResult(assisted);
+      return executeAssistTool(input);
     }
   );
 
@@ -137,20 +151,17 @@ export function createServer(): McpServer {
       title: "Resolver consulta IBM i con workflow agéntico",
       description: "Compatibilidad para agentes: enruta la consulta completa al orquestador neuronal de ibmi_docs_assist. Devuelve una respuesta autocontenida; no pide llamadas adicionales.",
       inputSchema: z.object({
-        question: z.string().min(1).describe("Consulta completa del usuario sobre IBM i/AS400."),
-        language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
-        version: z.string().optional().describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
-        category: z.string().optional().describe("Categoría opcional del corpus."),
-        code: z.string().optional().describe("Código a validar documentalmente si la consulta es revisión/corrección."),
-        includeExamples: z.boolean().optional(),
-        includeCompileCommands: z.boolean().optional(),
+        question: questionSchema.describe("Consulta completa del usuario sobre IBM i/AS400."),
+        language: optionalLabelSchema.describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
+        version: optionalLabelSchema.describe("Versión IBM i preferida, por ejemplo 7.5 o 7.6."),
+        category: optionalLabelSchema.describe("Categoría opcional del corpus."),
+        code: optionalCodeSchema.describe("Código a validar documentalmente si la consulta es revisión/corrección."),
         limit: z.number().int().min(1).max(12).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
-      return publicAssistResult(assisted);
+      return executeAssistTool(input);
     }
   );
 
@@ -160,19 +171,18 @@ export function createServer(): McpServer {
       title: "Buscar documentación IBM i",
       description: "Descubrimiento de documentos candidatos con recuperación semántica vectorial local y evidencia trazable. Es bajo nivel; para una respuesta final usa ibmi_docs_assist, ibmi_docs_resolve, ibmi_docs_answer o ibmi_docs_context.",
       inputSchema: z.object({
-        query: z.string().min(1).describe("Consulta técnica: CRTRPGMOD, RNF5393, CLLE, DDS PF, SQLRPGLE, etc."),
-        version: z.string().optional().describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
-        category: z.string().optional().describe("Categoría opcional: ile-rpg, cl-clle, dds, sql-db2-for-i, mensajes-rnf."),
+        query: questionSchema.describe("Consulta técnica: CRTRPGMOD, RNF5393, CLLE, DDS PF, SQLRPGLE, etc."),
+        version: optionalLabelSchema.describe("Versión IBM i opcional, por ejemplo 7.4, 7.5 o 7.6."),
+        category: optionalLabelSchema.describe("Categoría opcional: ile-rpg, cl-clle, dds, sql-db2-for-i, mensajes-rnf."),
         limit: z.number().int().min(1).max(50).optional(),
         autoRead: z.boolean().optional().describe("Si true, adjunta contenido completo cuando el resultado es fuerte."),
-        includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas."),
-        strictCategory: z.boolean().optional().describe("Compatibilidad de entrada; el runtime no infiere categorías.")
+        includeSections: z.boolean().optional().describe("Si true, agrega vista previa de secciones detectadas.")
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ query, version, category, limit, autoRead, includeSections, strictCategory }) => {
-      const results = await withRepositoryAsync((repo) => repo.searchSmart({ query, version, category, limit, autoRead, includeSections, strictCategory }));
-      return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results: results.map(sanitizeAgentHit) }) };
+    async ({ query, version, category, limit, autoRead, includeSections }) => {
+      const results = await withRepositoryAsync((repo) => repo.search({ query, version, category, limit, autoRead, includeSections }));
+      return { content: [{ type: "text" as const, text: renderSearchResults(query, results) }], structuredContent: structured({ query, results }) };
     }
   );
 
@@ -181,7 +191,7 @@ export function createServer(): McpServer {
     {
       title: "Leer tópico IBM i",
       description: "Lee el contenido completo normalizado de un tópico por ID. Útil para auditoría manual; las tools de alto nivel ya realizan esta lectura internamente cuando la necesitan.",
-      inputSchema: z.object({ id: z.string().min(1).describe("ID de documento devuelto por ibmi_docs_search.") }),
+      inputSchema: z.object({ id: documentIdSchema.describe("ID de documento devuelto por ibmi_docs_search.") }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ id }) => {
@@ -196,7 +206,7 @@ export function createServer(): McpServer {
     {
       title: "Secciones de tópico IBM i",
       description: "Extrae secciones estructurales del tópico: sintaxis, parámetros, ejemplos, notas, mensajes y referencias.",
-      inputSchema: z.object({ id: z.string().min(1).describe("ID de documento devuelto por ibmi_docs_search.") }),
+      inputSchema: z.object({ id: documentIdSchema.describe("ID de documento devuelto por ibmi_docs_search.") }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ id }) => {
@@ -212,19 +222,16 @@ export function createServer(): McpServer {
       title: "Responder consulta IBM i",
       description: "Alias avanzado de ibmi_docs_assist: devuelve únicamente la respuesta técnica final.",
       inputSchema: z.object({
-        question: z.string().min(1),
-        language: z.string().optional(),
-        version: z.string().optional(),
-        category: z.string().optional(),
-        includeExamples: z.boolean().optional(),
-        includeCompileCommands: z.boolean().optional(),
+        question: questionSchema,
+        language: optionalLabelSchema,
+        version: optionalLabelSchema,
+        category: optionalLabelSchema,
         limit: z.number().int().min(1).max(10).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart(input));
-      return publicAssistResult(assisted);
+      return executeAssistTool(input);
     }
   );
 
@@ -234,16 +241,15 @@ export function createServer(): McpServer {
       title: "Resolver contexto IBM i",
       description: "Alias avanzado de ibmi_docs_assist: procesa la tarea completa y devuelve únicamente la respuesta técnica final.",
       inputSchema: z.object({
-        task: z.string().min(1).describe("Tarea del usuario: crear programa RPG, corregir RNFxxxx, escribir CLLE, etc."),
-        language: z.string().optional().describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
-        version: z.string().optional().describe("Versión IBM i preferida."),
+        task: questionSchema.describe("Tarea del usuario: crear programa RPG, corregir RNFxxxx, escribir CLLE, etc."),
+        language: optionalLabelSchema.describe("Lenguaje o tecnología: RPGLE, SQLRPGLE, CLLE, DDS, COBOL."),
+        version: optionalLabelSchema.describe("Versión IBM i preferida."),
         limit: z.number().int().min(1).max(20).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ task, language, version, limit }) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({ question: task, language, version, limit }));
-      return publicAssistResult(assisted);
+      return executeAssistTool({ question: task, language, version, limit });
     }
   );
 
@@ -253,17 +259,17 @@ export function createServer(): McpServer {
       title: "Guía de compilación IBM i",
       description: "Recomienda comandos y opciones de compilación para RPGLE, SQLRPGLE, CLLE, DDS y COBOL con evidencia documental.",
       inputSchema: z.object({
-        language: z.string().min(1),
-        target: z.string().optional(),
+        language: labelSchema,
+        target: optionalLabelSchema,
         usesEmbeddedSql: z.boolean().optional(),
         usesCopybook: z.boolean().optional(),
-        version: z.string().optional(),
+        version: optionalLabelSchema,
         limit: z.number().int().min(1).max(20).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+      return executeAssistTool({
         question: [
           `Necesito guía de compilación IBM i para ${input.language}.`,
           input.target ? `Target: ${input.target}.` : "",
@@ -272,10 +278,8 @@ export function createServer(): McpServer {
         ].filter(Boolean).join(" "),
         language: input.language,
         version: input.version,
-        includeCompileCommands: true,
         limit: input.limit
-      }));
-      return publicAssistResult(assisted);
+      });
     }
   );
 
@@ -284,15 +288,14 @@ export function createServer(): McpServer {
     {
       title: "Explicar mensaje IBM i",
       description: "Busca y resume mensajes RNF/SQL/IBM i con recovery checklist y evidencia trazable.",
-      inputSchema: z.object({ messageId: z.string().min(3), limit: z.number().int().min(1).max(20).optional() }),
+      inputSchema: z.object({ messageId: z.string().trim().min(3).max(MAX_LABEL_CHARS), limit: z.number().int().min(1).max(20).optional() }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ messageId, limit }) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+      return executeAssistTool({
         question: `Diagnostica el mensaje IBM i ${messageId} con evidencia documental específica.`,
         limit
-      }));
-      return publicAssistResult(assisted);
+      });
     }
   );
 
@@ -301,7 +304,7 @@ export function createServer(): McpServer {
     {
       title: "Documentos relacionados IBM i",
       description: "Devuelve equivalentes por versión y documentos vecinos de un tópico localizado.",
-      inputSchema: z.object({ id: z.string().min(1), limit: z.number().int().min(1).max(20).optional() }),
+      inputSchema: z.object({ id: documentIdSchema, limit: z.number().int().min(1).max(20).optional() }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async ({ id, limit }) => {
@@ -316,21 +319,20 @@ export function createServer(): McpServer {
       title: "Comparar versiones IBM i",
       description: "Compara la disponibilidad de un tópico entre IBM i 7.3, 7.4, 7.5 y 7.6.",
       inputSchema: z.object({
-        query: z.string().min(1),
-        versions: z.array(z.string()).min(1),
-        category: z.string().optional(),
+        query: questionSchema,
+        versions: z.array(labelSchema).min(1).max(MAX_VERSION_ITEMS),
+        category: optionalLabelSchema,
         limit: z.number().int().min(1).max(20).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+      return executeAssistTool({
         question: `Compara documentación IBM i para '${input.query}' en las versiones ${input.versions.join(", ")}.`,
         version: input.versions[input.versions.length - 1],
         category: input.category,
         limit: input.limit
-      }));
-      return publicAssistResult(assisted);
+      });
     }
   );
 
@@ -340,15 +342,15 @@ export function createServer(): McpServer {
       title: "Explicar ranking IBM i Docs",
       description: "Explica la recuperación neuronal disponible para depurar búsquedas. En el perfil de agente se recomienda ibmi_docs_assist como entrada canónica.",
       inputSchema: z.object({
-        query: z.string().min(1),
-        version: z.string().optional(),
-        category: z.string().optional(),
+        query: questionSchema,
+        version: optionalLabelSchema,
+        category: optionalLabelSchema,
         top: z.number().int().min(1).max(20).optional(),
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const explanation = withRepository((repo) => repo.explainRanking(input));
+      const explanation = await withRepositoryAsync((repo) => repo.explainRanking(input));
       return { content: [{ type: "text" as const, text: renderRankingExplanation(explanation) }], structuredContent: structured(explanation) };
     }
   );
@@ -359,20 +361,19 @@ export function createServer(): McpServer {
       title: "Validar código contra docs IBM i",
       description: "Detecta señales en código RPGLE/SQLRPGLE/CLLE/DDS y devuelve hallazgos con evidencia documental.",
       inputSchema: z.object({
-        language: z.string().min(1),
-        code: z.string().min(1),
+        language: labelSchema,
+        code: codeSchema,
         limit: z.number().int().min(1).max(20).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const assisted = await withRepositoryAsync((repo) => repo.assistSmart({
+      return executeAssistTool({
         question: `Valida este código ${input.language} contra documentación IBM i y reporta hallazgos accionables.`,
         language: input.language,
         code: input.code,
         limit: input.limit
-      }));
-      return publicAssistResult(assisted);
+      });
     }
   );
 
@@ -424,18 +425,18 @@ export function createServer(): McpServer {
       title: "Reportar búsqueda/ranking IBM i Docs",
       description: "Genera un reporte reproducible para depurar una búsqueda mala con evidencia y Markdown listo para issue.",
       inputSchema: z.object({
-        query: z.string().min(1),
-        version: z.string().optional(),
-        category: z.string().optional(),
-        expectedTitle: z.string().optional(),
-        expectedId: z.string().optional(),
-        notes: z.string().optional(),
+        query: questionSchema,
+        version: optionalLabelSchema,
+        category: optionalLabelSchema,
+        expectedTitle: optionalLabelSchema,
+        expectedId: documentIdSchema.optional(),
+        notes: z.string().max(MAX_NOTES_CHARS).optional(),
         limit: z.number().int().min(1).max(20).optional()
       }),
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
     async (input) => {
-      const report = withRepository((repo) => repo.reportQuery(input));
+      const report = await withRepositoryAsync((repo) => repo.reportQuery(input));
       return { content: [{ type: "text" as const, text: report.issueMarkdown }], structuredContent: structured(report) };
     }
   );
@@ -497,7 +498,7 @@ export function createServer(): McpServer {
         description: "Tool de mantenimiento: refresca el data pack solo desde IBM Docs público. No se registra en runtime de usuario salvo que IBMI_DOCS_ALLOW_NETWORK_SYNC=1. Nunca usa RDi local ni Eclipse Help.",
         inputSchema: z.object({
           maxPagesPerVersion: z.number().int().min(1).max(2000).optional(),
-          versions: z.array(z.string()).optional()
+          versions: z.array(labelSchema).max(MAX_VERSION_ITEMS).optional()
         })
       },
       async ({ maxPagesPerVersion, versions }) => {
@@ -538,19 +539,19 @@ export function createServer(): McpServer {
     server.registerPrompt("consultar-documentacion-ibmi", {
       title: "Consultar documentación IBM i",
       description: "Prompt avanzado para resolver una consulta IBM i mediante ibmi_docs_assist.",
-      argsSchema: { consulta: z.string().min(1) }
+      argsSchema: { consulta: questionSchema }
     }, ({ consulta }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para responder esta tarea IBM i completa: ${consulta}` } }] }));
 
     server.registerPrompt("revisar-codigo-rpgle-con-docs", {
       title: "Revisar RPGLE con documentación",
       description: "Prompt avanzado para revisar código RPGLE con ayuda IBM i.",
-      argsSchema: { codigo: z.string().min(1) }
+      argsSchema: { codigo: codeSchema }
     }, ({ codigo }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist con language=RPGLE y code para revisar este código contra documentación IBM i:\n\n${codigo}` } }] }));
 
     server.registerPrompt("diagnosticar-error-rnf", {
       title: "Diagnosticar RNF",
       description: "Prompt avanzado para diagnosticar mensajes RNF.",
-      argsSchema: { mensaje: z.string().min(1) }
+      argsSchema: { mensaje: questionSchema }
     }, ({ mensaje }) => ({ messages: [{ role: "user", content: { type: "text", text: `Usa ibmi_docs_assist para diagnosticar este mensaje IBM i: ${mensaje}` } }] }));
   }
 
@@ -593,6 +594,29 @@ function renderEvidenceList(label: string, results: Array<any>): string {
     result.relevanceWarnings?.length ? `   Guardrails: ${result.relevanceWarnings.join(" | ")}` : "",
     `   Evidencia: ${result.snippet}`
   ].filter(Boolean).join("\n"))].join("\n");
+}
+
+async function executeAssistTool(input: any): Promise<{
+  content: Array<{ type: "text"; text: string }>;
+  isError?: boolean;
+}> {
+  try {
+    const assisted = await withRepositoryAsync((repo) => repo.assist(input));
+    return publicAssistResult(assisted);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`[ibmi-docs] Falló la recuperación neuronal: ${detail}`);
+    const installationProblem = /data pack|modelo|transformer|onnx|sqlite|índice local/i.test(detail);
+    return {
+      content: [{
+        type: "text",
+        text: installationProblem
+          ? "IBM i Docs no pudo consultar el corpus local porque la instalación está incompleta o desincronizada. Ejecuta `npm install -g @ckirsch94/ibmi-docs-mcp@latest` y luego `ibmi-docs doctor`."
+          : "IBM i Docs no pudo completar esta consulta. Ejecuta `ibmi-docs doctor`; si el diagnóstico es correcto, reporta el caso sin incluir credenciales ni código privado."
+      }],
+      isError: true
+    };
+  }
 }
 
 function publicAssistResult(assist: any): { content: Array<{ type: "text"; text: string }> } {
@@ -741,6 +765,9 @@ function renderQualityReport(report: any): string {
     `Corpus: ${report.corpusVersion}`,
     `Documentos/chunks: ${report.documents}/${report.chunks}`,
     "",
+    "Gate de calidad:",
+    bullet((report.qualityPolicy?.checks as Array<any> ?? []).map((check) => `${check.ok ? "OK" : "FAIL"} ${check.name}: ${check.actual} (${check.operator} ${check.threshold})`)),
+    "",
     "Categorías:",
     JSON.stringify(report.coverage.byCategory, null, 2),
     "",
@@ -780,8 +807,7 @@ function renderTraceReport(report: any): string {
     `Search events: ${report.searchEvents}`,
     `Search-only rate: ${report.searchOnlyRate}%`,
     `Search->read rate: ${report.searchThenReadRate}%`,
-    `Answer usage rate: ${report.answerUsageRate}%`,
-    `Resolve usage rate: ${report.resolveUsageRate}%`,
+    `Assist usage rate: ${report.assistUsageRate}%`,
     `Scope expansions: ${report.scopeExpansionCount ?? 0}`,
     "",
     "Feedback de ampliación de alcance:",
@@ -791,21 +817,8 @@ function renderTraceReport(report: any): string {
     JSON.stringify(report.byTool, null, 2),
     "",
     "Recientes:",
-    ...((report.recent as Array<any>) ?? []).slice(-10).map((event) => `- ${event.timestamp} ${event.tool} ${event.query ?? event.id ?? ""} (${event.durationMs} ms)`)
+    ...((report.recent as Array<any>) ?? []).slice(-10).map((event) => `- ${event.timestamp} ${event.tool} ${event.queryPreview ?? event.queryFingerprint ?? event.id ?? ""} (${event.durationMs} ms)`)
   ].join("\n");
-}
-
-function sanitizeAgentHit(hit: any): any {
-  if (!hit || typeof hit !== "object") return hit;
-  const {
-    readHint: _readHint,
-    nextRecommendedTool: _nextRecommendedTool,
-    nextRecommendedReason: _nextRecommendedReason,
-    nextRecommendedArguments: _nextRecommendedArguments,
-    workflowHints: _workflowHints,
-    ...safeHit
-  } = hit;
-  return safeHit;
 }
 
 function structured(value: unknown): Record<string, unknown> {

@@ -25,7 +25,7 @@ const started = Date.now();
 
 async function main(): Promise<void> {
   for (const item of queries) {
-    const results = await repo.searchSmart({ query: item.query, category: item.category, version: item.version, limit: 5 });
+    const results = await repo.search({ query: item.query, category: item.category, version: item.version, limit: 5 });
     const topTitles = results.slice(0, 5).map((hit) => hit.title);
     if (!results.length) {
       failures.push({ ...item, reason: "sin resultados", topTitles });

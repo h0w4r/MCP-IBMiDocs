@@ -6,6 +6,7 @@ const http = require("node:http");
 const https = require("node:https");
 const os = require("node:os");
 const path = require("node:path");
+const { Transform } = require("node:stream");
 const { pipeline } = require("node:stream/promises");
 const tar = require("tar");
 
@@ -33,151 +34,162 @@ const RUNTIME_ASSETS_FILE = path.join(__dirname, "runtime-assets.json");
 const DOWNLOAD_CACHE_DIR = process.env.IBMI_DOCS_DOWNLOAD_CACHE
   || path.join(os.homedir(), ".ibmi-docs-mcp", "downloads");
 const USER_PACK_DIR = path.join(os.homedir(), ".ibmi-docs", "pack");
+const INSTALL_LOCK_FILE = path.join(os.homedir(), ".ibmi-docs-mcp", "install.lock");
+const INSTALL_LOCK_STALE_MS = 5 * 60_000;
+const INSTALL_LOCK_HEARTBEAT_MS = 15_000;
 
 async function main() {
-  const skipModels = process.env.IBMI_DOCS_SKIP_MODEL_INSTALL === "1";
-  const sources = await resolveInstallationSources(!skipModels);
+  const installLock = await acquireInstallLock();
   try {
-    if (sources.packKind === "bundled") {
-      await assembleBundledSqliteAtomically(sources.packDir);
-    } else {
-      await installDownloadedPackAtomically(
-        sources.packDir,
-        sources.runtimeManifest.corpusVersion,
-        sources.runtimeManifest.checks.sqliteSha256
+    const skipModels = process.env.IBMI_DOCS_SKIP_MODEL_INSTALL === "1";
+    const sources = await resolveInstallationSources(!skipModels);
+    try {
+      if (sources.packKind === "bundled") {
+        await assembleBundledSqliteAtomically(sources.packDir);
+      } else if (sources.packKind === "downloaded") {
+        await installDownloadedPackAtomically(
+          sources.packDir,
+          sources.runtimeManifest.corpusVersion,
+          sources.runtimeManifest.checks.sqliteSha256,
+          sources.runtimeManifest.checks.normalizedTreeSha256
+        );
+      } else {
+        console.log(`[ibmi-docs] Data pack ${sources.runtimeManifest.corpusVersion} ya instalado e íntegro; no se vuelve a descargar.`);
+      }
+      if (skipModels) {
+        console.log("[ibmi-docs] IBMI_DOCS_SKIP_MODEL_INSTALL=1; se omite instalación de modelos neuronales.");
+        return;
+      }
+
+      await fs.mkdir(CACHE_DIR, { recursive: true });
+      const explicitModel = process.env.IBMI_DOCS_EMBEDDING_MODEL?.trim();
+      const localModelDir = explicitModel ? path.resolve(explicitModel) : path.join(CACHE_DIR, MODEL_DIRECTORY);
+      console.log(`[ibmi-docs] Preparando modelo semántico afinado ${MODEL_ID}`);
+      console.log(`[ibmi-docs] Cache del modelo: ${CACHE_DIR}`);
+
+      if (!explicitModel) {
+        await installModelAtomically(
+          path.join(sources.modelsDir, MODEL_DIRECTORY),
+          localModelDir,
+          MODEL_SHA256,
+          "bi-encoder"
+        );
+      }
+      const modelFile = path.join(localModelDir, "onnx", "model_quantized.onnx");
+      const modelSha256 = await sha256File(modelFile);
+      if (!explicitModel && modelSha256 !== MODEL_SHA256) {
+        throw new Error(`Hash inválido para el modelo IBM i afinado: ${modelSha256}.`);
+      }
+
+      const {
+        AutoModelForSequenceClassification,
+        AutoTokenizer,
+        env,
+        pipeline: transformerPipeline
+      } = await import("@huggingface/transformers");
+      env.cacheDir = CACHE_DIR;
+      env.allowRemoteModels = false;
+
+      const extractor = await transformerPipeline("feature-extraction", localModelDir, { dtype: MODEL_DTYPE });
+      const prefixes = { queryPrefix: "query: ", passagePrefix: "passage: " };
+      const output = await extractor(`${prefixes.queryPrefix}IBM i Docs semantic model installation check`, { pooling: "mean", normalize: true });
+      const list = output.tolist();
+      const vector = Array.isArray(list[0]) ? list[0] : list;
+      if (!Array.isArray(vector) || vector.length < 128) {
+        throw new Error(`El modelo ${MODEL_ID} devolvió ${Array.isArray(vector) ? vector.length : "n/a"} dimensiones; se esperaba un embedding válido.`);
+      }
+
+      await fs.writeFile(MARKER_FILE, JSON.stringify({
+        modelId: MODEL_ID,
+        localPath: localModelDir,
+        dtype: MODEL_DTYPE,
+        modelSha256,
+        dimensions: vector.length,
+        cacheDir: CACHE_DIR,
+        installedAt: new Date().toISOString(),
+        runtimePolicy: "download-at-install-update; runtime-local-only",
+        queryPrefix: prefixes.queryPrefix,
+        passagePrefix: prefixes.passagePrefix
+      }, null, 2), "utf8");
+      console.log("[ibmi-docs] Transformer IBM i afinado listo para uso local-only en runtime.");
+
+      // El reranker afinado viaja fragmentado dentro del asset de modelos. Se
+      // reconstruye localmente y no vuelve a usar red durante las consultas.
+      console.log(`[ibmi-docs] Preparando reranker neuronal local ${RERANKER_MODEL_ID} (${RERANKER_DTYPE})`);
+      const explicitReranker = process.env.IBMI_DOCS_RERANKER_MODEL?.trim();
+      const localRerankerDir = explicitReranker ? path.resolve(explicitReranker) : path.join(CACHE_DIR, RERANKER_DIRECTORY);
+      if (!explicitReranker) {
+        await installModelAtomically(
+          path.join(sources.modelsDir, RERANKER_DIRECTORY),
+          localRerankerDir,
+          RERANKER_SHA256,
+          "reranker"
+        );
+      }
+      const rerankerFile = path.join(localRerankerDir, "onnx", "model_quantized.onnx");
+      const rerankerSha256 = await sha256File(rerankerFile);
+      if (!explicitReranker && rerankerSha256 !== RERANKER_SHA256) {
+        throw new Error(`Hash inválido para el reranker IBM i afinado: ${rerankerSha256}.`);
+      }
+      env.allowRemoteModels = false;
+      const tokenizer = await AutoTokenizer.from_pretrained(localRerankerDir, { local_files_only: true });
+      const reranker = await AutoModelForSequenceClassification.from_pretrained(localRerankerDir, {
+        dtype: RERANKER_DTYPE,
+        local_files_only: true
+      });
+      const rerankerInputs = tokenizer(
+        ["What command invokes RLU?"],
+        {
+          text_pair: ["Start Report Layout Utility (STRRLU) command"],
+          padding: true,
+          truncation: true,
+          max_length: 128
+        }
       );
-    }
-    if (skipModels) {
-      console.log("[ibmi-docs] IBMI_DOCS_SKIP_MODEL_INSTALL=1; se omite instalación de modelos neuronales.");
-      return;
-    }
+      const rerankerOutput = await reranker(rerankerInputs);
+      const rerankerLogits = rerankerOutput.logits.tolist();
+      const rerankerLogit = Array.isArray(rerankerLogits[0]) ? rerankerLogits[0][0] : rerankerLogits[0];
+      if (!Number.isFinite(Number(rerankerLogit))) {
+        throw new Error(`El reranker ${RERANKER_MODEL_ID} no devolvió un logit válido.`);
+      }
+      await fs.writeFile(RERANKER_MARKER_FILE, JSON.stringify({
+        modelId: RERANKER_MODEL_ID,
+        localPath: localRerankerDir,
+        dtype: RERANKER_DTYPE,
+        modelSha256: rerankerSha256,
+        cacheDir: CACHE_DIR,
+        installedAt: new Date().toISOString(),
+        runtimePolicy: "download-at-install-update; runtime-local-only"
+      }, null, 2), "utf8");
+      console.log("[ibmi-docs] Reranker neuronal listo para uso local-only en runtime.");
 
-    await fs.mkdir(CACHE_DIR, { recursive: true });
-    const explicitModel = process.env.IBMI_DOCS_EMBEDDING_MODEL?.trim();
-    const localModelDir = explicitModel ? path.resolve(explicitModel) : path.join(CACHE_DIR, MODEL_DIRECTORY);
-    console.log(`[ibmi-docs] Preparando modelo semántico afinado ${MODEL_ID}`);
-    console.log(`[ibmi-docs] Cache del modelo: ${CACHE_DIR}`);
-
-    if (!explicitModel) {
-      await installModelAtomically(
-        path.join(sources.modelsDir, MODEL_DIRECTORY),
-        localModelDir,
-        MODEL_SHA256,
-        "bi-encoder"
+      // La cabeza query->corpus se instala como componente obligatorio desde el
+      // mismo asset firmado, sin ruta alternativa por coincidencias textuales.
+      const queryHeadSourceDir = path.join(sources.modelsDir, QUERY_HEAD_DIRECTORY);
+      const localQueryHeadDir = path.join(CACHE_DIR, QUERY_HEAD_DIRECTORY);
+      const queryHeadManifest = JSON.parse(
+        await fs.readFile(path.join(queryHeadSourceDir, "model-manifest.json"), "utf8")
       );
+      if (queryHeadManifest.weightsSha256 !== QUERY_HEAD_SHA256) {
+        throw new Error("El manifest de la cabeza neuronal no coincide con el release esperado.");
+      }
+      await installQueryHeadAtomically(queryHeadSourceDir, localQueryHeadDir, QUERY_HEAD_SHA256);
+      const queryHeadSha256 = await sha256File(path.join(localQueryHeadDir, "neural-query-head.f32"));
+      await fs.writeFile(QUERY_HEAD_MARKER_FILE, JSON.stringify({
+        modelId: QUERY_HEAD_MODEL_ID,
+        localPath: localQueryHeadDir,
+        weightsSha256: queryHeadSha256,
+        installedAt: new Date().toISOString(),
+        runtimePolicy: "required-neural-query-to-corpus-only"
+      }, null, 2), "utf8");
+      console.log("[ibmi-docs] Cabeza neuronal query->corpus instalada y verificada.");
+    } finally {
+      for (const temporary of sources.cleanupDirs) {
+        await fs.rm(temporary, { recursive: true, force: true });
+      }
     }
-    const modelFile = path.join(localModelDir, "onnx", "model_quantized.onnx");
-    const modelSha256 = await sha256File(modelFile);
-    if (!explicitModel && modelSha256 !== MODEL_SHA256) {
-      throw new Error(`Hash inválido para el modelo IBM i afinado: ${modelSha256}.`);
-    }
-
-    const {
-      AutoModelForSequenceClassification,
-      AutoTokenizer,
-      env,
-      pipeline: transformerPipeline
-    } = await import("@huggingface/transformers");
-    env.cacheDir = CACHE_DIR;
-    env.allowRemoteModels = false;
-
-    const extractor = await transformerPipeline("feature-extraction", localModelDir, { dtype: MODEL_DTYPE });
-  const prefixes = { queryPrefix: "query: ", passagePrefix: "passage: " };
-  const output = await extractor(`${prefixes.queryPrefix}IBM i Docs semantic model installation check`, { pooling: "mean", normalize: true });
-  const list = output.tolist();
-  const vector = Array.isArray(list[0]) ? list[0] : list;
-  if (!Array.isArray(vector) || vector.length < 128) {
-    throw new Error(`El modelo ${MODEL_ID} devolvió ${Array.isArray(vector) ? vector.length : "n/a"} dimensiones; se esperaba un embedding válido.`);
-  }
-
-  await fs.writeFile(MARKER_FILE, JSON.stringify({
-    modelId: MODEL_ID,
-    localPath: localModelDir,
-    dtype: MODEL_DTYPE,
-    modelSha256,
-    dimensions: vector.length,
-    cacheDir: CACHE_DIR,
-    installedAt: new Date().toISOString(),
-    runtimePolicy: "download-at-install-update; runtime-local-only",
-    queryPrefix: prefixes.queryPrefix,
-    passagePrefix: prefixes.passagePrefix
-  }, null, 2), "utf8");
-  console.log("[ibmi-docs] Transformer IBM i afinado listo para uso local-only en runtime.");
-
-  // El reranker afinado viaja fragmentado dentro del asset de modelos. Se
-  // reconstruye localmente y no vuelve a usar red durante las consultas.
-  console.log(`[ibmi-docs] Preparando reranker neuronal local ${RERANKER_MODEL_ID} (${RERANKER_DTYPE})`);
-  const explicitReranker = process.env.IBMI_DOCS_RERANKER_MODEL?.trim();
-  const localRerankerDir = explicitReranker ? path.resolve(explicitReranker) : path.join(CACHE_DIR, RERANKER_DIRECTORY);
-    if (!explicitReranker) {
-      await installModelAtomically(
-        path.join(sources.modelsDir, RERANKER_DIRECTORY),
-        localRerankerDir,
-        RERANKER_SHA256,
-        "reranker"
-      );
-    }
-  const rerankerFile = path.join(localRerankerDir, "onnx", "model_quantized.onnx");
-  const rerankerSha256 = await sha256File(rerankerFile);
-  if (!explicitReranker && rerankerSha256 !== RERANKER_SHA256) {
-    throw new Error(`Hash inválido para el reranker IBM i afinado: ${rerankerSha256}.`);
-  }
-  env.allowRemoteModels = false;
-  const tokenizer = await AutoTokenizer.from_pretrained(localRerankerDir, { local_files_only: true });
-  const reranker = await AutoModelForSequenceClassification.from_pretrained(localRerankerDir, {
-    dtype: RERANKER_DTYPE,
-    local_files_only: true
-  });
-  const rerankerInputs = tokenizer(
-    ["What command invokes RLU?"],
-    {
-      text_pair: ["Start Report Layout Utility (STRRLU) command"],
-      padding: true,
-      truncation: true,
-      max_length: 128
-    }
-  );
-  const rerankerOutput = await reranker(rerankerInputs);
-  const rerankerLogits = rerankerOutput.logits.tolist();
-  const rerankerLogit = Array.isArray(rerankerLogits[0]) ? rerankerLogits[0][0] : rerankerLogits[0];
-  if (!Number.isFinite(Number(rerankerLogit))) {
-    throw new Error(`El reranker ${RERANKER_MODEL_ID} no devolvió un logit válido.`);
-  }
-  await fs.writeFile(RERANKER_MARKER_FILE, JSON.stringify({
-    modelId: RERANKER_MODEL_ID,
-    localPath: localRerankerDir,
-    dtype: RERANKER_DTYPE,
-    modelSha256: rerankerSha256,
-    cacheDir: CACHE_DIR,
-    installedAt: new Date().toISOString(),
-    runtimePolicy: "download-at-install-update; runtime-local-only"
-  }, null, 2), "utf8");
-  console.log("[ibmi-docs] Reranker neuronal listo para uso local-only en runtime.");
-
-  // La cabeza query->corpus se instala como componente obligatorio desde el
-  // mismo asset firmado, sin ruta alternativa por coincidencias textuales.
-    const queryHeadSourceDir = path.join(sources.modelsDir, QUERY_HEAD_DIRECTORY);
-    const localQueryHeadDir = path.join(CACHE_DIR, QUERY_HEAD_DIRECTORY);
-  const queryHeadManifest = JSON.parse(
-      await fs.readFile(path.join(queryHeadSourceDir, "model-manifest.json"), "utf8")
-  );
-  if (queryHeadManifest.weightsSha256 !== QUERY_HEAD_SHA256) {
-    throw new Error("El manifest de la cabeza neuronal no coincide con el release esperado.");
-  }
-    await installQueryHeadAtomically(queryHeadSourceDir, localQueryHeadDir, QUERY_HEAD_SHA256);
-  const queryHeadSha256 = await sha256File(path.join(localQueryHeadDir, "neural-query-head.f32"));
-  await fs.writeFile(QUERY_HEAD_MARKER_FILE, JSON.stringify({
-    modelId: QUERY_HEAD_MODEL_ID,
-    localPath: localQueryHeadDir,
-    weightsSha256: queryHeadSha256,
-    installedAt: new Date().toISOString(),
-    runtimePolicy: "required-neural-query-to-corpus-only"
-  }, null, 2), "utf8");
-    console.log("[ibmi-docs] Cabeza neuronal query->corpus instalada y verificada.");
   } finally {
-    for (const temporary of sources.cleanupDirs) {
-      await fs.rm(temporary, { recursive: true, force: true });
-    }
+    await releaseInstallLock(installLock);
   }
 }
 
@@ -205,19 +217,31 @@ async function resolveInstallationSources(includeModels) {
   let packKind = "bundled";
   let modelsDir = path.join(__dirname, "models");
 
-  if (!bundledPackReady) {
-    const extractedPack = await downloadAndExtractAsset(runtimeManifest.assets.pack);
-    packDir = extractedPack.rootDir;
-    packKind = "downloaded";
-    cleanupDirs.push(extractedPack.temporaryDir);
-  }
-  if (includeModels && !bundledModelsReady) {
-    const extractedModels = await downloadAndExtractAsset(runtimeManifest.assets.models);
-    modelsDir = extractedModels.rootDir;
-    cleanupDirs.push(extractedModels.temporaryDir);
-  }
+  try {
+    if (!bundledPackReady) {
+      if (await installedPackMatches(runtimeManifest)) {
+        packDir = USER_PACK_DIR;
+        packKind = "installed";
+      } else {
+        const extractedPack = await downloadAndExtractAsset(runtimeManifest.assets.pack);
+        packDir = extractedPack.rootDir;
+        packKind = "downloaded";
+        cleanupDirs.push(extractedPack.temporaryDir);
+      }
+    }
+    if (includeModels && !bundledModelsReady) {
+      const extractedModels = await downloadAndExtractAsset(runtimeManifest.assets.models);
+      modelsDir = extractedModels.rootDir;
+      cleanupDirs.push(extractedModels.temporaryDir);
+    }
 
-  return { packKind, packDir, modelsDir, runtimeManifest, cleanupDirs };
+    return { packKind, packDir, modelsDir, runtimeManifest, cleanupDirs };
+  } catch (error) {
+    for (const temporary of cleanupDirs) {
+      await fs.rm(temporary, { recursive: true, force: true }).catch(() => undefined);
+    }
+    throw error;
+  }
 }
 
 async function readRuntimeAssetsManifest() {
@@ -225,8 +249,8 @@ async function readRuntimeAssetsManifest() {
   if (manifest.schemaVersion !== 1 || !manifest.assets?.pack || !manifest.assets?.models) {
     throw new Error("runtime-assets.json no cumple el esquema de distribución esperado.");
   }
-  if (!manifest.corpusVersion || !manifest.checks?.sqliteSha256) {
-    throw new Error("runtime-assets.json no declara versión y hash del data pack.");
+  if (!manifest.corpusVersion || !manifest.checks?.sqliteSha256 || !manifest.checks?.normalizedTreeSha256) {
+    throw new Error("runtime-assets.json no declara versión ni hashes completos del data pack.");
   }
   for (const [name, asset] of Object.entries(manifest.assets)) {
     if (!asset.fileName || !asset.url || !asset.sha256 || !asset.root || !Number.isFinite(asset.bytes)) {
@@ -257,7 +281,7 @@ async function downloadAndExtractAsset(asset) {
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         await fs.rm(temporaryDownload, { force: true });
         try {
-          await downloadHttpAsset(sourceUrl, temporaryDownload);
+          await downloadHttpAsset(sourceUrl, temporaryDownload, asset.bytes);
           const stat = await fs.stat(temporaryDownload);
           const hash = await sha256File(temporaryDownload);
           if (stat.size !== asset.bytes || hash !== asset.sha256) {
@@ -290,7 +314,15 @@ async function downloadAndExtractAsset(asset) {
       cwd: temporaryDir,
       file: cachedFile,
       preservePaths: false,
-      strict: true
+      strict: true,
+      filter: (entryPath, entry) => {
+        if (!isSafeArchivePath(entryPath)) throw new Error(`Ruta insegura en asset: ${entryPath}.`);
+        const entryType = String(entry.type || "");
+        if (entryType === "SymbolicLink" || entryType === "Link") {
+          throw new Error(`Enlace no permitido en asset: ${entryPath}.`);
+        }
+        return true;
+      }
     });
     const rootDir = path.resolve(temporaryDir, asset.root);
     if (!rootDir.startsWith(`${path.resolve(temporaryDir)}${path.sep}`)) {
@@ -305,7 +337,7 @@ async function downloadAndExtractAsset(asset) {
   }
 }
 
-async function downloadHttpAsset(sourceUrl, destination, redirectsRemaining = 8) {
+async function downloadHttpAsset(sourceUrl, destination, expectedBytes, redirectsRemaining = 8) {
   const parsed = new URL(sourceUrl);
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error(`Protocolo de asset no permitido: ${parsed.protocol}`);
@@ -326,7 +358,7 @@ async function downloadHttpAsset(sourceUrl, destination, redirectsRemaining = 8)
           return;
         }
         const redirected = new URL(response.headers.location, parsed).toString();
-        downloadHttpAsset(redirected, destination, redirectsRemaining - 1).then(resolve, reject);
+        downloadHttpAsset(redirected, destination, expectedBytes, redirectsRemaining - 1).then(resolve, reject);
         return;
       }
       if (status !== 200) {
@@ -334,7 +366,30 @@ async function downloadHttpAsset(sourceUrl, destination, redirectsRemaining = 8)
         reject(new Error(`HTTP ${status} al descargar ${sourceUrl}.`));
         return;
       }
-      pipeline(response, createWriteStream(destination)).then(resolve, reject);
+      const declaredBytes = Number(response.headers["content-length"] || 0);
+      if (declaredBytes > expectedBytes) {
+        response.resume();
+        reject(new Error(`El asset declara ${declaredBytes} bytes; máximo esperado ${expectedBytes}.`));
+        return;
+      }
+      let downloaded = 0;
+      let nextProgress = 10;
+      const byteGuard = new Transform({
+        transform(chunk, _encoding, callback) {
+          downloaded += chunk.length;
+          if (downloaded > expectedBytes) {
+            callback(new Error(`El asset excede el tamaño publicado de ${expectedBytes} bytes.`));
+            return;
+          }
+          const progress = Math.floor((downloaded / expectedBytes) * 100);
+          if (progress >= nextProgress) {
+            console.log(`[ibmi-docs] Descarga ${Math.min(progress, 100)}% (${downloaded}/${expectedBytes} bytes).`);
+            nextProgress += 10;
+          }
+          callback(null, chunk);
+        }
+      });
+      pipeline(response, byteGuard, createWriteStream(destination)).then(resolve, reject);
     });
     request.setTimeout(120_000, () => request.destroy(new Error(`Timeout al descargar ${sourceUrl}.`)));
     request.on("error", reject);
@@ -352,16 +407,18 @@ function resolveAssetUrl(asset) {
   return new URL(asset.fileName, normalizedBase).toString();
 }
 
-async function installDownloadedPackAtomically(source, expectedCorpusVersion, expectedSqliteSha256) {
-  const sourceManifest = JSON.parse(await fs.readFile(path.join(source, "manifest.json"), "utf8"));
-  if (sourceManifest.corpusVersion !== expectedCorpusVersion) {
-    throw new Error(`Versión inesperada del data pack: ${sourceManifest.corpusVersion}.`);
-  }
-  const sourceSqlite = path.join(source, "ibmi-docs.sqlite");
-  if (await sha256File(sourceSqlite) !== expectedSqliteSha256) {
-    throw new Error("El SQLite descargado no coincide con el SHA-256 publicado.");
-  }
-  await fs.access(path.join(source, "normalized"));
+async function installDownloadedPackAtomically(
+  source,
+  expectedCorpusVersion,
+  expectedSqliteSha256,
+  expectedNormalizedTreeSha256
+) {
+  await validatePackIntegrity(
+    source,
+    expectedCorpusVersion,
+    expectedSqliteSha256,
+    expectedNormalizedTreeSha256
+  );
 
   await fs.mkdir(path.dirname(USER_PACK_DIR), { recursive: true });
   const temporary = `${USER_PACK_DIR}.install-${process.pid}-${Date.now()}`;
@@ -369,9 +426,16 @@ async function installDownloadedPackAtomically(source, expectedCorpusVersion, ex
   await fs.rm(temporary, { recursive: true, force: true });
   await fs.rm(backup, { recursive: true, force: true });
   await fs.cp(source, temporary, { recursive: true, force: true });
-  if (await sha256File(path.join(temporary, "ibmi-docs.sqlite")) !== expectedSqliteSha256) {
+  try {
+    await validatePackIntegrity(
+      temporary,
+      expectedCorpusVersion,
+      expectedSqliteSha256,
+      expectedNormalizedTreeSha256
+    );
+  } catch (error) {
     await fs.rm(temporary, { recursive: true, force: true });
-    throw new Error("La copia local del SQLite no superó SHA-256.");
+    throw error;
   }
 
   let previousMoved = false;
@@ -381,7 +445,6 @@ async function installDownloadedPackAtomically(source, expectedCorpusVersion, ex
       previousMoved = true;
     }
     await fs.rename(temporary, USER_PACK_DIR);
-    await fs.rm(backup, { recursive: true, force: true });
   } catch (error) {
     await fs.rm(temporary, { recursive: true, force: true });
     if (previousMoved && !await pathExists(USER_PACK_DIR)) {
@@ -389,7 +452,83 @@ async function installDownloadedPackAtomically(source, expectedCorpusVersion, ex
     }
     throw error;
   }
+  // El nuevo destino ya quedó confirmado. Un fallo al borrar el backup no
+  // invalida la instalación ni debe provocar un rollback ambiguo.
+  await fs.rm(backup, { recursive: true, force: true }).catch((error) => {
+    console.warn(`[ibmi-docs] No se pudo limpiar el backup ${backup}: ${error instanceof Error ? error.message : String(error)}`);
+  });
   console.log(`[ibmi-docs] Data pack ${expectedCorpusVersion} instalado en ${USER_PACK_DIR}.`);
+}
+
+async function installedPackMatches(runtimeManifest) {
+  try {
+    await validatePackIntegrity(
+      USER_PACK_DIR,
+      runtimeManifest.corpusVersion,
+      runtimeManifest.checks.sqliteSha256,
+      runtimeManifest.checks.normalizedTreeSha256
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function validatePackIntegrity(
+  packDir,
+  expectedCorpusVersion,
+  expectedSqliteSha256,
+  expectedNormalizedTreeSha256
+) {
+  const manifest = JSON.parse(await fs.readFile(path.join(packDir, "manifest.json"), "utf8"));
+  if (manifest.corpusVersion !== expectedCorpusVersion) {
+    throw new Error(`Versión inesperada del data pack: ${manifest.corpusVersion}.`);
+  }
+  const sqliteSha256 = await sha256File(path.join(packDir, "ibmi-docs.sqlite"));
+  if (sqliteSha256 !== expectedSqliteSha256) {
+    throw new Error("El SQLite del data pack no coincide con el SHA-256 publicado.");
+  }
+  const normalizedTreeSha256 = await sha256NormalizedTree(packDir, manifest.documents);
+  if (normalizedTreeSha256 !== expectedNormalizedTreeSha256) {
+    throw new Error("Los textos normalizados del data pack no coinciden con el hash agregado publicado.");
+  }
+}
+
+async function sha256NormalizedTree(packDir, documents) {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    throw new Error("El manifest del data pack no contiene documentos normalizados.");
+  }
+  const aggregate = crypto.createHash("sha256");
+  const seen = new Set();
+  const root = path.resolve(packDir);
+  const physicalRoot = await fs.realpath(root);
+  const sorted = [...documents].sort((left, right) =>
+    String(left.normalizedTextPath).localeCompare(String(right.normalizedTextPath))
+  );
+
+  for (const document of sorted) {
+    const relative = String(document.normalizedTextPath || "").replace(/\\/g, "/");
+    if (!relative || seen.has(relative)) {
+      throw new Error(`Ruta normalizada ausente o duplicada: ${relative || "(vacía)"}.`);
+    }
+    seen.add(relative);
+    const candidate = path.resolve(root, relative);
+    const lexicalRelative = path.relative(root, candidate);
+    if (lexicalRelative.startsWith("..") || path.isAbsolute(lexicalRelative)) {
+      throw new Error(`Ruta normalizada fuera del pack: ${relative}.`);
+    }
+    const stat = await fs.lstat(candidate);
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+      throw new Error(`Ruta normalizada no regular: ${relative}.`);
+    }
+    const physicalCandidate = await fs.realpath(candidate);
+    const physicalRelative = path.relative(physicalRoot, physicalCandidate);
+    if (physicalRelative.startsWith("..") || path.isAbsolute(physicalRelative)) {
+      throw new Error(`Ruta normalizada resuelve fuera del pack: ${relative}.`);
+    }
+    aggregate.update(relative).update("\0").update(await sha256File(physicalCandidate)).update("\n");
+  }
+  return aggregate.digest("hex");
 }
 
 async function assertNoSymbolicLinks(root) {
@@ -399,6 +538,130 @@ async function assertNoSymbolicLinks(root) {
     if (entry.isSymbolicLink()) throw new Error(`El asset contiene un enlace simbólico no permitido: ${entryPath}.`);
     if (entry.isDirectory()) await assertNoSymbolicLinks(entryPath);
   }
+}
+
+function isSafeArchivePath(entryPath) {
+  const normalized = String(entryPath || "").replace(/\\/g, "/");
+  if (!normalized || normalized === ".") return true;
+  if (path.posix.isAbsolute(normalized) || /^[a-z]:/i.test(normalized)) return false;
+  const clean = path.posix.normalize(normalized);
+  return clean !== ".." && !clean.startsWith("../") && !clean.includes("/../");
+}
+
+async function acquireInstallLock(lockFile = INSTALL_LOCK_FILE, options = {}) {
+  const waitMs = options.waitMs ?? 120_000;
+  const staleMs = options.staleMs ?? INSTALL_LOCK_STALE_MS;
+  const heartbeatMs = options.heartbeatMs ?? INSTALL_LOCK_HEARTBEAT_MS;
+  const owner = crypto.randomUUID();
+  await fs.mkdir(path.dirname(lockFile), { recursive: true });
+  const deadline = Date.now() + waitMs;
+  while (true) {
+    try {
+      const handle = await fs.open(lockFile, "wx");
+      try {
+        await handle.writeFile(JSON.stringify({ owner, pid: process.pid, createdAt: new Date().toISOString() }));
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+      const heartbeat = setInterval(async () => {
+        try {
+          const current = JSON.parse(await fs.readFile(lockFile, "utf8"));
+          if (current.owner !== owner) {
+            clearInterval(heartbeat);
+            return;
+          }
+          const now = new Date();
+          await fs.utimes(lockFile, now, now);
+        } catch {
+          clearInterval(heartbeat);
+        }
+      }, heartbeatMs);
+      heartbeat.unref?.();
+      return { owner, heartbeat, file: lockFile };
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      try {
+        const firstStat = await fs.stat(lockFile);
+        const firstOwner = JSON.parse(await fs.readFile(lockFile, "utf8")).owner;
+        if (Date.now() - firstStat.mtimeMs > staleMs) {
+          // Confirmar que el heartbeat no avanzó antes de retirar un lock que
+          // parecía abandonado. El rename hace visible un único ganador.
+          await delay(Math.min(50, Math.max(5, Math.floor(heartbeatMs / 4))));
+          const secondStat = await fs.stat(lockFile);
+          const secondOwner = JSON.parse(await fs.readFile(lockFile, "utf8")).owner;
+          if (secondStat.mtimeMs !== firstStat.mtimeMs
+            || secondStat.dev !== firstStat.dev
+            || secondStat.ino !== firstStat.ino
+            || secondOwner !== firstOwner) continue;
+          const staleFile = `${lockFile}.stale-${owner}`;
+          await fs.rename(lockFile, staleFile);
+          const movedStat = await fs.stat(staleFile);
+          const movedOwner = JSON.parse(await fs.readFile(staleFile, "utf8")).owner;
+          if (movedStat.dev !== firstStat.dev || movedStat.ino !== firstStat.ino || movedOwner !== firstOwner) {
+            if (!await pathExists(lockFile)) await fs.rename(staleFile, lockFile);
+            else await fs.rm(staleFile, { force: true });
+            continue;
+          }
+          await fs.rm(staleFile, { force: true });
+          continue;
+        }
+      } catch (lockError) {
+        if (lockError?.code === "ENOENT") continue;
+        if (Date.now() >= deadline) {
+          throw new Error(`No se pudo recuperar el lock de instalación: ${lockError instanceof Error ? lockError.message : String(lockError)}`);
+        }
+        await delay(Math.min(1_000, Math.max(10, Math.floor(waitMs / 10))));
+        continue;
+      }
+      if (Date.now() >= deadline) throw new Error(`Otra instalación de IBM i Docs mantiene el lock durante más de ${Math.ceil(waitMs / 1000)} segundos.`);
+      await delay(Math.min(1_000, Math.max(10, Math.floor(waitMs / 10))));
+    }
+  }
+}
+
+async function releaseInstallLock(lock) {
+  if (!lock) return;
+  clearInterval(lock.heartbeat);
+  try {
+    const current = JSON.parse(await fs.readFile(lock.file, "utf8"));
+    if (current.owner !== lock.owner) return;
+    const releasedFile = `${lock.file}.released-${lock.owner}`;
+    await fs.rename(lock.file, releasedFile);
+    try {
+      const released = JSON.parse(await fs.readFile(releasedFile, "utf8"));
+      if (released.owner !== lock.owner) {
+        if (!await pathExists(lock.file)) await fs.rename(releasedFile, lock.file);
+        return;
+      }
+    } catch {
+      // El archivo ya fue movido por este propietario; se limpia abajo.
+    }
+    await fs.rm(releasedFile, { force: true });
+  } catch {
+    // Un lock ausente o reemplazado no debe eliminar el lock de otro proceso.
+  }
+}
+
+async function replaceDirectoryWithRollback(source, destination) {
+  const backup = `${destination}.backup-${process.pid}-${Date.now()}`;
+  let movedPrevious = false;
+  await fs.rm(backup, { recursive: true, force: true });
+  try {
+    if (await pathExists(destination)) {
+      await fs.rename(destination, backup);
+      movedPrevious = true;
+    }
+    await fs.rename(source, destination);
+  } catch (error) {
+    if (movedPrevious && !await pathExists(destination) && await pathExists(backup)) {
+      await fs.rename(backup, destination);
+    }
+    throw error;
+  }
+  await fs.rm(backup, { recursive: true, force: true }).catch((error) => {
+    console.warn(`[ibmi-docs] No se pudo limpiar el backup ${backup}: ${error instanceof Error ? error.message : String(error)}`);
+  });
 }
 
 async function pathExists(target) {
@@ -490,8 +753,7 @@ async function installModelAtomically(source, destination, expectedSha256, label
       throw new Error(`El modelo ONNX ${label} reconstruido no superó SHA-256: ${assembledHash}.`);
     }
     for (const part of parts) await fs.rm(path.join(temporary, "onnx", part.name), { force: true });
-    await fs.rm(destination, { recursive: true, force: true });
-    await fs.rename(temporary, destination);
+    await replaceDirectoryWithRollback(temporary, destination);
   } catch (error) {
     await fs.rm(temporary, { recursive: true, force: true });
     throw error;
@@ -527,8 +789,7 @@ async function installQueryHeadAtomically(source, destination, expectedSha256) {
     if (actualSha !== expectedSha256) {
       throw new Error(`La cabeza neuronal no superó SHA-256: ${actualSha}.`);
     }
-    await fs.rm(destination, { recursive: true, force: true });
-    await fs.rename(temporary, destination);
+    await replaceDirectoryWithRollback(temporary, destination);
   } catch (error) {
     await fs.rm(temporary, { recursive: true, force: true });
     throw error;
@@ -556,10 +817,21 @@ async function sha256File(file) {
   });
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.stack || error.message : String(error);
-  console.error(`[ibmi-docs] No se pudo preparar la instalación local: ${message}`);
-  console.error("[ibmi-docs] Verifica acceso al release o configura IBMI_DOCS_RUNTIME_ASSET_BASE_URL hacia un mirror autorizado.");
-  console.error("[ibmi-docs] IBMI_DOCS_SKIP_MODEL_INSTALL=1 omite solo los modelos; no sustituye el data pack obligatorio.");
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.stack || error.message : String(error);
+    console.error(`[ibmi-docs] No se pudo preparar la instalación local: ${message}`);
+    console.error("[ibmi-docs] Verifica acceso al release o configura IBMI_DOCS_RUNTIME_ASSET_BASE_URL hacia un mirror autorizado.");
+    console.error("[ibmi-docs] IBMI_DOCS_SKIP_MODEL_INSTALL=1 omite solo los modelos; no sustituye el data pack obligatorio.");
+    process.exit(1);
+  });
+}
+
+// Exportaciones acotadas para pruebas de regresión del instalador. npm sigue
+// ejecutando el archivo directamente, por lo que no cambia el flujo postinstall.
+module.exports = {
+  acquireInstallLock,
+  releaseInstallLock,
+  sha256NormalizedTree,
+  validatePackIntegrity
+};
