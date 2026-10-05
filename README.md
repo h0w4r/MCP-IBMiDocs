@@ -1,7 +1,74 @@
 # MCP IBM i Docs
 
 > [!WARNING]
-> **Release 2.0.1.** MCP IBM i Docs ya está listo para uso comunitario, con instalación npm, CLI, servidor MCP y recuperación documental local. La versión 2 elimina las APIs internas síncronas/decorativas y usa un único núcleo neuronal asíncrono; el parche 2.0.1 estabiliza la recuperación multievidencia entre plataformas. Sigue siendo un proyecto open source en evolución: si encuentras casos raros, gaps de corpus o respuestas mejorables, abre un issue o PR.
+> **Proyecto deprecated: ya no continuaré su desarrollo.**
+>
+> Soy el autor de MCP IBM i Docs y he decidido no retomar ni continuar el desarrollo
+> ni el mantenimiento activo del proyecto. Lo dejo disponible como software open source,
+> pero actualmente está deprecated y puede contener muchos errores, respuestas incorrectas
+> o incompletas y problemas de instalación o funcionamiento.
+>
+> Si te interesa, puedes continuarlo, crear un fork o enviar pull requests sin problema,
+> respetando la licencia del código y los avisos sobre materiales de terceros.
+> Sigo recibiendo aportes, issues y pull requests; esta decisión no cierra las contribuciones,
+> aunque no puedo garantizar plazos de revisión, correcciones ni nuevas publicaciones.
+> Gracias a quienes lo probaron y a quienes quieran darle continuidad.
+
+## Problemas conocidos y pendientes prioritarios
+
+Ordenados por impacto. Este listado reúne fallos observados y validaciones pendientes;
+no es una auditoría exhaustiva ni significa que todas las versiones publicadas presenten
+los mismos problemas.
+
+1. **Calidad insuficiente de las respuestas — crítico.** Una evaluación de desarrollo
+   completada el 17 de julio de 2026, mediante el MCP real por stdio, aprobó **256 de
+   300 casos (85,33 %)**, por debajo del objetivo del **95 %**. Hubo 44 casos no aprobados.
+   Es un resultado de ese lote, no una precisión general garantizada. Hay que corregir
+   las respuestas incorrectas, parciales o desviadas y volver a evaluar antes de publicar.
+2. **Refactor neuronal sin cerrar y contratos de modelos desalineados — crítico.**
+   El trabajo de desarrollo incluye cambios que aún requieren integración y validación
+   completa. Por ejemplo, el contrato exigido por `src/repository/neuralGenerator.ts`
+   no coincide con el manifiesto del generador local anterior. Hay que exportar, verificar
+   e integrar artefactos compatibles; completar un entrenamiento no acredita el runtime.
+3. **Instalación y distribución pendientes de revalidación — alto.** Hay que comprobar
+   en una instalación limpia que runtime, `runtime-assets.json`, corpus y modelos
+   correspondan a la misma versión, y que instalación, actualización y arranque funcionen.
+   No debe asumirse que los cambios del checkout ya están disponibles en GitHub Releases
+   o npm, ni anunciar una versión nueva sin verificar su publicación.
+4. **Recuperación de evidencia poco precisa — alto.** Se han observado documentos
+   relacionados solo parcialmente, evidencia secundaria irrelevante y consultas que no
+   recuperan la ayuda necesaria. Hay que validar cobertura completa del índice, embeddings
+   y reranking, sin confundir un fallo de recuperación con ausencia real de documentación.
+5. **Planificación y respuesta a consultas complejas — alto.** Falta acreditar de forma
+   consistente que se cubran todas las partes de una petición, que los nombres privados
+   de programas o tablas no desvíen la búsqueda y que la síntesis conecte la evidencia
+   recuperada. Cuando falte sustento, debe indicar qué no puede responder, no sustituirlo
+   por una explicación de otro tema ni inventar datos del servidor del usuario.
+6. **Fiabilidad de la evaluación y sus reanudaciones — alto.** El harness de desarrollo
+   debe vincular cada resultado al fingerprint del runtime, corpus y modelos para no
+   reutilizar evaluaciones antiguas después de un cambio. También requiere lotes
+   independientes del entrenamiento y revisión conceptual de las respuestas; el score
+   neuronal automatizado, por sí solo, no acredita corrección técnica.
+7. **Cancelación por duración total en las pruebas — medio.**
+   `scripts/dev-question-bank-eval.ts` conserva un timeout fijo de 300 segundos por
+   llamada. Debe sustituirse por seguimiento de progreso e inactividad configurable,
+   sin cancelar una operación que siga trabajando, y verificar la limpieza de procesos
+   administrados cuando realmente se cancele.
+8. **Rendimiento y consumo de recursos sin aceptación final — medio.** Hay que medir
+   latencia, RAM y estabilidad de los modelos integrados en equipos de uso cotidiano,
+   incluyendo consultas largas y repetidas. No hay que extrapolar el rendimiento de
+   pruebas aisladas a la experiencia real del usuario.
+9. **Documentación desactualizada y promesas no acreditadas — medio.** Hay que reconciliar
+   README, guías, ejemplos CLI y configuración MCP con la versión que realmente se
+   distribuye. Algunas guías conservan referencias a categorías o flujos anteriores al
+   refactor. Las afirmaciones de autonomía, abstención y calidad necesitan pruebas
+   end-to-end, no solo compilación o tests unitarios.
+
+El resto del README se conserva como referencia del proyecto. Sus instrucciones y
+descripciones no constituyen una garantía de funcionamiento ni un anuncio de una nueva
+versión. Para continuar el trabajo, consulta también [CONTRIBUTING.md](CONTRIBUTING.md),
+[LICENSE](LICENSE) y [NOTICE.md](NOTICE.md). No incluyas credenciales, código privado
+ni datos sensibles al reportar problemas.
 
 <p align="center">
   <img src="docs/assets/mcp-ibmi-docs-linkedin.png" alt="MCP IBM i Docs - IA y documentación IBM i para desarrolladores" width="100%">
